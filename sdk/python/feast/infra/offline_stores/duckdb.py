@@ -30,16 +30,11 @@ from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
-    FEATURE_METRICS_COLUMNS,
-    FEATURE_METRICS_PK,
-    FEATURE_SERVICE_METRICS_COLUMNS,
-    FEATURE_SERVICE_METRICS_PK,
-    FEATURE_VIEW_METRICS_COLUMNS,
-    FEATURE_VIEW_METRICS_PK,
-    JOB_COLUMNS,
-    JOB_PK,
+    MONITORING_DIR,
+    MONITORING_PARQUET_FILES,
     empty_categorical_metric,
     empty_numeric_metric,
+    monitoring_parquet_meta,
     normalize_monitoring_row,
     opt_float,
 )
@@ -139,12 +134,6 @@ def _write_data_source(
 # ------------------------------------------------------------------ #
 #  DuckDB monitoring (Parquet-backed)
 # ------------------------------------------------------------------ #
-
-MONITORING_DIR = "feast_monitoring"
-FEATURE_METRICS_FILE = "feature_metrics.parquet"
-VIEW_METRICS_FILE = "feature_view_metrics.parquet"
-SERVICE_METRICS_FILE = "feature_service_metrics.parquet"
-JOB_METRICS_FILE = "jobs.parquet"
 
 
 def _duckdb_monitoring_base(config: RepoConfig) -> str:
@@ -357,19 +346,7 @@ def _duckdb_categorical_stats(
 
 
 def _duckdb_mon_table_meta(metric_type: str):
-    if metric_type == "feature":
-        return FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS, FEATURE_METRICS_PK
-    if metric_type == "feature_view":
-        return VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS, FEATURE_VIEW_METRICS_PK
-    if metric_type == "feature_service":
-        return (
-            SERVICE_METRICS_FILE,
-            FEATURE_SERVICE_METRICS_COLUMNS,
-            FEATURE_SERVICE_METRICS_PK,
-        )
-    if metric_type == "job":
-        return JOB_METRICS_FILE, JOB_COLUMNS, JOB_PK
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
+    return monitoring_parquet_meta(metric_type)
 
 
 def _duckdb_read_parquet_if_exists(path: str) -> Optional[pa.Table]:
@@ -668,12 +645,10 @@ class DuckDBOfflineStore(OfflineStore):
         os.makedirs(base, exist_ok=True)
 
         tables = [
-            (FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS),
-            (VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS),
-            (SERVICE_METRICS_FILE, FEATURE_SERVICE_METRICS_COLUMNS),
-            (JOB_METRICS_FILE, JOB_COLUMNS),
+            monitoring_parquet_meta(t)
+            for t in ("feature", "feature_view", "feature_service", "job")
         ]
-        for fname, columns in tables:
+        for fname, columns, _ in tables:
             path = _duckdb_monitoring_path(config, fname)
             if not os.path.isfile(path):
                 os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -720,7 +695,7 @@ class DuckDBOfflineStore(OfflineStore):
     ) -> None:
         assert isinstance(config.offline_store, DuckDBOfflineStoreConfig)
 
-        path = _duckdb_monitoring_path(config, FEATURE_METRICS_FILE)
+        path = _duckdb_monitoring_path(config, MONITORING_PARQUET_FILES["feature"])
         tab = _duckdb_read_parquet_if_exists(path)
         if tab is None or tab.num_rows == 0:
             return

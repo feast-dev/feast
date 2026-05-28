@@ -136,6 +136,7 @@ class DQMJobManager:
                     if params.get("end_date")
                     else None,
                     granularity=params.get("granularity", "daily"),
+                    set_baseline=params.get("set_baseline", False),
                 )
             else:
                 raise ValueError(f"Unknown job type '{job_type}'")

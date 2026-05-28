@@ -46,7 +46,7 @@ var _ = Describe("Horizontal Scaling", func() {
 		ctx = context.Background()
 		typeNamespacedName = types.NamespacedName{
 			Name:      "scaling-test-fs",
-			Namespace: "default",
+			Namespace: DefaultNs,
 		}
 
 		featureStore = &feastdevv1.FeatureStore{
@@ -67,9 +67,9 @@ var _ = Describe("Horizontal Scaling", func() {
 						},
 						Persistence: &feastdevv1.OnlineStorePersistence{
 							DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
-								Type: "redis",
+								Type: redisType,
 								SecretRef: corev1.LocalObjectReference{
-									Name: "redis-secret",
+									Name: redisSecretName,
 								},
 							},
 						},
@@ -90,7 +90,7 @@ var _ = Describe("Horizontal Scaling", func() {
 								DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 									Type: "sql",
 									SecretRef: corev1.LocalObjectReference{
-										Name: "registry-secret",
+										Name: registrySecretName,
 									},
 								},
 							},
@@ -146,8 +146,8 @@ var _ = Describe("Horizontal Scaling", func() {
 		dbOnlineStore := &feastdevv1.OnlineStore{
 			Persistence: &feastdevv1.OnlineStorePersistence{
 				DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
-					Type:      "redis",
-					SecretRef: corev1.LocalObjectReference{Name: "redis-secret"},
+					Type:      redisType,
+					SecretRef: corev1.LocalObjectReference{Name: redisSecretName},
 				},
 			},
 		}
@@ -157,7 +157,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				Persistence: &feastdevv1.RegistryPersistence{
 					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 						Type:      "sql",
-						SecretRef: corev1.LocalObjectReference{Name: "registry-secret"},
+						SecretRef: corev1.LocalObjectReference{Name: registrySecretName},
 					},
 				},
 			},
@@ -165,9 +165,9 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should accept scaling with full DB persistence", func() {
 			fs := &feastdevv1.FeatureStore{
-				ObjectMeta: metav1.ObjectMeta{Name: "cel-valid-db", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-valid-db", Namespace: DefaultNs},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -181,9 +181,9 @@ var _ = Describe("Horizontal Scaling", func() {
 
 		It("should reject scaling when online store is missing (implicit file default)", func() {
 			fs := &feastdevv1.FeatureStore{
-				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-online", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-online", Namespace: DefaultNs},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						Registry: dbRegistry,
@@ -199,13 +199,13 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-online", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: &feastdevv1.OnlineStore{
 							Persistence: &feastdevv1.OnlineStorePersistence{
 								FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
-									Path: "/data/online.db",
+									Path: dataOnlineDbPath,
 								},
 							},
 						},
@@ -222,7 +222,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-offline", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -246,7 +246,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -262,7 +262,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-file-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -270,7 +270,7 @@ var _ = Describe("Horizontal Scaling", func() {
 							Local: &feastdevv1.LocalRegistryConfig{
 								Persistence: &feastdevv1.RegistryPersistence{
 									FilePersistence: &feastdevv1.RegistryFilePersistence{
-										Path: "/data/registry.db",
+										Path: dataRegistryDbPath,
 									},
 								},
 							},
@@ -287,7 +287,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-s3-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -311,7 +311,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-gs-registry", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -335,7 +335,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-remote-reg", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -355,7 +355,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-rep1-file", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(1)),
 				},
 			}
@@ -367,7 +367,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-no-scaling", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 				},
 			}
 			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
@@ -378,7 +378,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-hpa-no-db", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Services: &feastdevv1.FeatureStoreServices{
 						Scaling: &feastdevv1.ScalingConfig{
 							Autoscaling: &feastdevv1.AutoscalingConfig{MaxReplicas: 5},
@@ -396,7 +396,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-online-nop", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: &feastdevv1.OnlineStore{},
@@ -413,7 +413,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-mutual-excl", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						Scaling: &feastdevv1.ScalingConfig{
@@ -683,8 +683,8 @@ var _ = Describe("Horizontal Scaling", func() {
 		dbOnlineStore := &feastdevv1.OnlineStore{
 			Persistence: &feastdevv1.OnlineStorePersistence{
 				DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
-					Type:      "redis",
-					SecretRef: corev1.LocalObjectReference{Name: "redis-secret"},
+					Type:      redisType,
+					SecretRef: corev1.LocalObjectReference{Name: redisSecretName},
 				},
 			},
 		}
@@ -693,7 +693,7 @@ var _ = Describe("Horizontal Scaling", func() {
 				Persistence: &feastdevv1.RegistryPersistence{
 					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 						Type:      "sql",
-						SecretRef: corev1.LocalObjectReference{Name: "registry-secret"},
+						SecretRef: corev1.LocalObjectReference{Name: registrySecretName},
 					},
 				},
 			},
@@ -703,7 +703,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-both", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -724,7 +724,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-none", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore:          dbOnlineStore,
@@ -742,7 +742,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-maxu", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -761,7 +761,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-pdb-mina", Namespace: "default"},
 				Spec: feastdevv1.FeatureStoreSpec{
-					FeastProject: "celtest",
+					FeastProject: celTestProject,
 					Replicas:     ptr.To(int32(3)),
 					Services: &feastdevv1.FeatureStoreServices{
 						OnlineStore: dbOnlineStore,
@@ -814,7 +814,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			featureStore.Status.Applied.Replicas = ptr.To(int32(3))
 			featureStore.Status.Applied.Services.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
 				MaxSkew:           2,
-				TopologyKey:       "kubernetes.io/hostname",
+				TopologyKey:       kubernetesHostnameTopologyKey,
 				WhenUnsatisfiable: corev1.DoNotSchedule,
 				LabelSelector:     metav1.SetAsLabelSelector(map[string]string{"custom": "label"}),
 			}}
@@ -902,7 +902,7 @@ var _ = Describe("Horizontal Scaling", func() {
 							MatchExpressions: []corev1.NodeSelectorRequirement{{
 								Key:      "gpu",
 								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"true"},
+								Values:   []string{stringTrue},
 							}},
 						}},
 					},
@@ -922,7 +922,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			return &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
-					Namespace: "default",
+					Namespace: DefaultNs,
 				},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "scaletest",
@@ -940,7 +940,7 @@ var _ = Describe("Horizontal Scaling", func() {
 								Persistence: &feastdevv1.RegistryPersistence{
 									DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 										Type:      "sql",
-										SecretRef: corev1.LocalObjectReference{Name: "registry-secret"},
+										SecretRef: corev1.LocalObjectReference{Name: registrySecretName},
 									},
 								},
 							},
@@ -972,7 +972,7 @@ var _ = Describe("Horizontal Scaling", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "scale-sub-reject",
-					Namespace: "default",
+					Namespace: DefaultNs,
 				},
 				Spec: feastdevv1.FeatureStoreSpec{
 					FeastProject: "scaletest",

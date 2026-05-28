@@ -11,13 +11,22 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 # ------------------------------------------------------------------ #
-#  Table names
+#  Table / file names
 # ------------------------------------------------------------------ #
 
 MON_TABLE_FEATURE = "feast_monitoring_feature_metrics"
 MON_TABLE_FEATURE_VIEW = "feast_monitoring_feature_view_metrics"
 MON_TABLE_FEATURE_SERVICE = "feast_monitoring_feature_service_metrics"
 MON_TABLE_JOB = "feast_monitoring_jobs"
+
+MONITORING_DIR = "feast_monitoring"
+
+MONITORING_PARQUET_FILES: Dict[str, str] = {
+    "feature": "feast_monitoring_feature_metrics.parquet",
+    "feature_view": "feast_monitoring_feature_view_metrics.parquet",
+    "feature_service": "feast_monitoring_feature_service_metrics.parquet",
+    "job": "feast_monitoring_jobs.parquet",
+}
 
 # ------------------------------------------------------------------ #
 #  Column definitions — (ordered, used by INSERT / SELECT / Parquet)
@@ -145,6 +154,21 @@ def monitoring_table_meta(
     if metric_type == "job":
         return MON_TABLE_JOB, JOB_COLUMNS, JOB_PK
     raise ValueError(f"Unknown monitoring metric_type: '{metric_type}'")
+
+
+def monitoring_parquet_meta(
+    metric_type: str,
+) -> Tuple[str, List[str], List[str]]:
+    """Return (parquet_filename, columns, pk_columns) for file-based backends.
+
+    File names match the SQL table names with a ``.parquet`` extension so
+    the mapping between backends is consistent.
+    """
+    fname = MONITORING_PARQUET_FILES.get(metric_type)
+    if fname is None:
+        raise ValueError(f"Unknown monitoring metric_type: '{metric_type}'")
+    _, columns, pk = monitoring_table_meta(metric_type)
+    return fname, columns, pk
 
 
 # ------------------------------------------------------------------ #

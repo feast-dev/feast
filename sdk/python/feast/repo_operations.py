@@ -424,15 +424,13 @@ def apply_total_with_repo_instance(
         # Cleanup is handled in the new _apply_diffs method
         pass
 
-    _submit_baseline_jobs_if_needed(store, project_name, repo)
+    # Submit baseline jobs if needed
+    dqm = store.config.data_quality_monitoring_config
+    if dqm is not None and dqm.auto_baseline:
+        _submit_baseline_jobs(store, project_name, repo)
 
 
-def _submit_baseline_jobs_if_needed(store, project_name, repo):
-    """Submit async baseline DQM jobs for new features after feast apply."""
-    dqm = store.config.dqm_config
-    if dqm is not None and not dqm.auto_baseline:
-        return
-
+def _submit_baseline_jobs(store, project_name, repo):
     try:
         from feast.monitoring.monitoring_service import MonitoringService
 
@@ -444,17 +442,28 @@ def _submit_baseline_jobs_if_needed(store, project_name, repo):
         job_ids = svc.submit_baseline_for_new_features(
             project=project_name, feature_views=feature_views
         )
-        for job_id in job_ids:
-            click.echo(f"  → Queued baseline metrics computation (DQM job: {job_id})")
-            try:
-                svc.execute_job(job_id)
-                click.echo(f"  ✓ Baseline computed (job: {job_id})")
-            except Exception:
-                logging.getLogger(__name__).debug(
-                    "Baseline job %s execution failed (non-critical)",
-                    job_id,
-                    exc_info=True,
-                )
+        if not job_ids:
+            return
+
+        import threading
+
+        def _run_baseline_jobs():
+            for job_id in job_ids:
+                try:
+                    svc.execute_job(job_id)
+                    click.echo(f"  ✓ Baseline computed (job: {job_id})")
+                except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Baseline job %s execution failed (non-critical)",
+                        job_id,
+                        exc_info=True,
+                    )
+
+        click.echo(
+            f"  → Computing baseline metrics in background ({len(job_ids)} job(s))..."
+        )
+        thread = threading.Thread(target=_run_baseline_jobs)
+        thread.start()
     except Exception:
         logging.getLogger(__name__).debug(
             "Monitoring baseline submission skipped (non-critical)", exc_info=True

@@ -11,6 +11,16 @@ type FeastAuthorization struct {
 	Handler handler.FeastHandler
 }
 
+const (
+	// RBAC verbs
+	verbGet   = "get"
+	verbList  = "list"
+	verbWatch = "watch"
+
+	// RBAC resources
+	resourceTokenReviews = "tokenreviews"
+)
+
 var (
 	feastKubernetesAuthConditions = map[metav1.ConditionStatus]metav1.Condition{
 		metav1.ConditionTrue: {

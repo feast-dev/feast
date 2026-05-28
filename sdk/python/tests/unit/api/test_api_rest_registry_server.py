@@ -41,7 +41,7 @@ def test_rest_registry_server_initializes_correctly(
 
     # Validate route registration and auth init
     mock_register_all_routes.assert_called_once_with(
-        server.app, mock_grpc_handler, server, store=store
+        server.app, mock_grpc_handler, server
     )
     mock_init_security_manager.assert_called_once()
     mock_init_auth_manager.assert_called_once()

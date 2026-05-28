@@ -482,9 +482,9 @@ func setRepoConfigOpenLineage(
 // CRD fields rather than going through ExtraConfig.
 func coerceStringToYamlType(v string) interface{} {
 	switch v {
-	case "true":
+	case stringTrue:
 		return true
-	case "false":
+	case stringFalse:
 		return false
 	}
 	return v

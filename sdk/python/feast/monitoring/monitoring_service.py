@@ -187,9 +187,6 @@ class MonitoringService:
         start_time = time.time()
         start_dt, end_dt = self._to_date_range(start_date, end_date)
 
-        if project is None:
-            project = self._store.config.project
-
         fs = self._store.registry.get_feature_service(
             name=feature_service_name, project=project
         )

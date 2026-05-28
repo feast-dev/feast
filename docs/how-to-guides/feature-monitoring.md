@@ -51,7 +51,7 @@ Baseline computation is:
 To skip automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
 
 ```yaml
-dqm:
+DataQualityMonitoring:
   auto_baseline: false
 ```
 
@@ -62,7 +62,7 @@ apiVersion: feast.dev/v1
 kind: FeatureStore
 spec:
   feastProject: my_project
-  dqm:
+  dataQualityMonitoring:
     autoBaseline: false
 ```
 

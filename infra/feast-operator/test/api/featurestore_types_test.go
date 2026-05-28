@@ -445,7 +445,7 @@ func cronJobWithAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv1.F
 			"test-annotation":    "test-value",
 			"another-annotation": "another-value",
 		},
-		Schedule: "0 0 * * *",
+		Schedule: dailyMidnightCron,
 	}
 	return fsCopy
 }
@@ -462,7 +462,7 @@ func cronJobWithEmptyAnnotations(featureStore *feastdevv1.FeatureStore) *feastde
 func cronJobWithoutAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
 	fsCopy.Spec.CronJob = &feastdevv1.FeastCronJob{
-		Schedule: "0 0 * * *",
+		Schedule: dailyMidnightCron,
 	}
 	return fsCopy
 }
@@ -477,12 +477,16 @@ func quotedSlice(stringSlice []string) string {
 	return strings.Join(quotedSlice, ", ")
 }
 
-const resourceName = "test-resource"
-const namespaceName = "default"
+const (
+	resourceName      = "test-resource"
+	namespaceName     = "default"
+	defaultNs         = "default"
+	dailyMidnightCron = "0 0 * * *"
+)
 
 var typeNamespacedName = types.NamespacedName{
 	Name:      resourceName,
-	Namespace: "default",
+	Namespace: defaultNs,
 }
 
 func initContext() (context.Context, *feastdevv1.FeatureStore) {

@@ -315,13 +315,16 @@ class PostgreSQLOfflineStore(OfflineStore):
         assert isinstance(data_source, PostgreSQLSource)
 
         from_expression = data_source.get_table_query_string()
-        ts_filter = get_timestamp_filter_sql(
-            start_date,
-            end_date,
-            timestamp_field,
-            tz=timezone.utc,
-            cast_style="timestamptz",
-            date_time_separator=" ",
+        ts_filter = (
+            get_timestamp_filter_sql(
+                start_date,
+                end_date,
+                timestamp_field,
+                tz=timezone.utc,
+                cast_style="timestamptz",
+                date_time_separator=" ",
+            )
+            or "1=1"
         )
 
         numeric_features = [n for n, t in feature_columns if t == "numeric"]

@@ -38,14 +38,9 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
-    FEATURE_METRICS_COLUMNS,
-    FEATURE_METRICS_PK,
-    FEATURE_SERVICE_METRICS_COLUMNS,
-    FEATURE_SERVICE_METRICS_PK,
-    FEATURE_VIEW_METRICS_COLUMNS,
-    FEATURE_VIEW_METRICS_PK,
-    JOB_COLUMNS,
-    JOB_PK,
+    MONITORING_DIR,
+    MONITORING_PARQUET_FILES,
+    monitoring_parquet_meta,
     normalize_monitoring_row,
     opt_float,
 )
@@ -667,16 +662,14 @@ class DaskOfflineStore(OfflineStore):
     @staticmethod
     def ensure_monitoring_tables(config: RepoConfig) -> None:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
-        base = os.path.join(_dask_monitoring_base(config), _DASK_MON_DIR)
+        base = os.path.join(_dask_monitoring_base(config), MONITORING_DIR)
         os.makedirs(base, exist_ok=True)
 
         tables = [
-            (_DASK_FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS),
-            (_DASK_VIEW_METRICS_FILE, FEATURE_VIEW_METRICS_COLUMNS),
-            (_DASK_SERVICE_METRICS_FILE, FEATURE_SERVICE_METRICS_COLUMNS),
-            (_DASK_JOB_FILE, JOB_COLUMNS),
+            monitoring_parquet_meta(t)
+            for t in ("feature", "feature_view", "feature_service", "job")
         ]
-        for fname, columns in tables:
+        for fname, columns, _ in tables:
             fpath = _dask_monitoring_path(config, fname)
             if not os.path.isfile(fpath):
                 os.makedirs(os.path.dirname(fpath), exist_ok=True)
@@ -723,7 +716,7 @@ class DaskOfflineStore(OfflineStore):
     ) -> None:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
 
-        path = _dask_monitoring_path(config, _DASK_FEATURE_METRICS_FILE)
+        path = _dask_monitoring_path(config, MONITORING_PARQUET_FILES["feature"])
         tab = _dask_read_parquet_if_exists(path)
         if tab is None or tab.num_rows == 0:
             return
@@ -741,40 +734,17 @@ class DaskOfflineStore(OfflineStore):
         pq.write_table(pyarrow.Table.from_pandas(df, preserve_index=False), path)
 
 
-_DASK_MON_DIR = "feast_monitoring"
-_DASK_FEATURE_METRICS_FILE = "feature_metrics.parquet"
-_DASK_VIEW_METRICS_FILE = "feature_view_metrics.parquet"
-_DASK_SERVICE_METRICS_FILE = "feature_service_metrics.parquet"
-_DASK_JOB_FILE = "jobs.parquet"
-
-
 def _dask_monitoring_base(config: RepoConfig) -> str:
     base = config.repo_path
     return str(base) if base else "."
 
 
 def _dask_monitoring_path(config: RepoConfig, filename: str) -> str:
-    return os.path.join(_dask_monitoring_base(config), _DASK_MON_DIR, filename)
+    return os.path.join(_dask_monitoring_base(config), MONITORING_DIR, filename)
 
 
 def _dask_mon_table_meta(metric_type: str):
-    if metric_type == "feature":
-        return _DASK_FEATURE_METRICS_FILE, FEATURE_METRICS_COLUMNS, FEATURE_METRICS_PK
-    if metric_type == "feature_view":
-        return (
-            _DASK_VIEW_METRICS_FILE,
-            FEATURE_VIEW_METRICS_COLUMNS,
-            FEATURE_VIEW_METRICS_PK,
-        )
-    if metric_type == "feature_service":
-        return (
-            _DASK_SERVICE_METRICS_FILE,
-            FEATURE_SERVICE_METRICS_COLUMNS,
-            FEATURE_SERVICE_METRICS_PK,
-        )
-    if metric_type == "job":
-        return _DASK_JOB_FILE, JOB_COLUMNS, JOB_PK
-    raise ValueError(f"Unknown metric_type '{metric_type}'")
+    return monitoring_parquet_meta(metric_type)
 
 
 def _dask_read_parquet_if_exists(path: str) -> Optional[pyarrow.Table]:

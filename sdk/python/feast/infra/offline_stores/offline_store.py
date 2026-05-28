@@ -15,7 +15,7 @@ import logging
 import time
 import warnings
 from abc import ABC
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,

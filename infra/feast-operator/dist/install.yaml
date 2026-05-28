@@ -537,8 +537,9 @@ spec:
                     description: The time zone name for the given schedule, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                     type: string
                 type: object
-              dqm:
-                description: DataQualityMonitoring configures Data Quality Monitoring behaviour.
+              dataQualityMonitoring:
+                description: DataQualityMonitoring configures Data Quality Monitoring
+                  behaviour.
                 properties:
                   autoBaseline:
                     default: true
@@ -6508,8 +6509,9 @@ spec:
                           https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                         type: string
                     type: object
-                  dqm:
-                    description: DataQualityMonitoring configures Data Quality Monitoring behaviour.
+                  dataQualityMonitoring:
+                    description: DataQualityMonitoring configures Data Quality Monitoring
+                      behaviour.
                     properties:
                       autoBaseline:
                         default: true

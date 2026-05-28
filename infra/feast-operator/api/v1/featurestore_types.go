@@ -129,7 +129,7 @@ type FeatureStoreSpec struct {
 	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
 	// DataQualityMonitoring configures Data Quality Monitoring behaviour.
 	// +optional
-	DataQualityMonitoring *DataQualityMonitoringConfig `json:"dqm,omitempty"`
+	DataQualityMonitoring *DataQualityMonitoringConfig `json:"dataQualityMonitoring,omitempty"`
 	// Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1

@@ -58,6 +58,12 @@ def monitor_cmd():
     help="Mark this computation as the baseline for drift detection.",
 )
 @click.option(
+    "--feature-service",
+    "-s",
+    default=None,
+    help="Feature service name (required for --source-type log with explicit dates).",
+)
+@click.option(
     "--source-type",
     type=click.Choice(["batch", "log", "all"]),
     default="batch",
@@ -73,6 +79,7 @@ def monitor_run(
     end_date: Optional[str],
     granularity: Optional[str],
     set_baseline: bool,
+    feature_service: Optional[str],
     source_type: str,
 ):
     """Compute feature quality metrics.
@@ -112,7 +119,7 @@ def monitor_run(
         _run_log_monitoring(
             svc,
             project,
-            feature_view,
+            feature_service,
             start_date,
             end_date,
             granularity,
@@ -197,7 +204,7 @@ def _run_log_monitoring(
     else:
         if not feature_service_name:
             click.echo(
-                "Error: --feature-view (as feature service name) is required for log source with explicit dates."
+                "Error: --feature-service is required for log source with explicit dates."
             )
             return
 

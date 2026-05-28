@@ -27,7 +27,11 @@ import (
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-const typeNone = "none"
+const (
+	typeNone       = "none"
+	labelName      = "name"
+	labelNamespace = "namespace"
+)
 
 // FeatureStoreMetrics holds the Prometheus GaugeVec for feast-operator
 // installation telemetry.
@@ -48,7 +52,7 @@ func NewFeatureStoreMetrics() *FeatureStoreMetrics {
 					"are set to the persistence type (e.g. redis, snowflake.offline, local) " +
 					"or 'none' when that component is not configured.",
 			},
-			[]string{"namespace", "name", "online_store_type", "offline_store_type", "registry_type"},
+			[]string{labelNamespace, labelName, "online_store_type", "offline_store_type", "registry_type"},
 		),
 	}
 }
@@ -66,8 +70,8 @@ func (m *FeatureStoreMetrics) Register() {
 func (m *FeatureStoreMetrics) RecordFeatureStore(fs *feastdevv1.FeatureStore) {
 	svcs := fs.Status.Applied.Services
 	m.FeatureStoreInfo.DeletePartialMatch(prometheus.Labels{
-		"namespace": fs.Namespace,
-		"name":      fs.Name,
+		labelNamespace: fs.Namespace,
+		labelName:      fs.Name,
 	})
 	m.FeatureStoreInfo.WithLabelValues(
 		fs.Namespace,

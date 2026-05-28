@@ -451,8 +451,11 @@ class SnowflakeOfflineStore(OfflineStore):
         from_expression = _qualify_snowflake_from_expression(
             config, data_source, from_expression
         )
-        ts_filter = get_timestamp_filter_sql(
-            start_date, end_date, timestamp_field, tz=timezone.utc
+        ts_filter = (
+            get_timestamp_filter_sql(
+                start_date, end_date, timestamp_field, tz=timezone.utc
+            )
+            or "1=1"
         )
 
         numeric_features = [n for n, t in feature_columns if t == "numeric"]

@@ -276,7 +276,7 @@ class RestRegistryServer:
         )
 
     def _register_routes(self):
-        register_all_routes(self.app, self.grpc_handler, self, store=self.store)
+        register_all_routes(self.app, self.grpc_handler, self)
 
     def _add_openapi_security(self):
         if self.app.openapi_schema:

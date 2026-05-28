@@ -1101,13 +1101,16 @@ def _bq_compute_monitoring_metrics(
     top_n: int = 10,
 ) -> List[Dict[str, Any]]:
     from_expression = data_source.get_table_query_string()
-    ts_filter = get_timestamp_filter_sql(
-        start_date,
-        end_date,
-        timestamp_field,
-        date_partition_column=data_source.date_partition_column,
-        quote_fields=False,
-        cast_style="timestamp_func",
+    ts_filter = (
+        get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            date_partition_column=data_source.date_partition_column,
+            quote_fields=False,
+            cast_style="timestamp_func",
+        )
+        or "1=1"
     )
     numeric_features = [n for n, t in feature_columns if t == "numeric"]
     categorical_features = [n for n, t in feature_columns if t == "categorical"]

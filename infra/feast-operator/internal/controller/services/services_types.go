@@ -48,13 +48,17 @@ const (
 	tlsPathCustomCABundle = "/etc/pki/tls/custom-certs/ca-bundle.crt"
 	tlsNameSuffix         = "-tls"
 
-	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
-	caBundleName       = "odh-trusted-ca-bundle"
-	odhCaBundleKey     = "odh-ca-bundle.crt"
-	tlsPathOdhCABundle = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
-	tlsPathOidcCA      = "/etc/pki/tls/oidc-ca/ca.crt"
-	oidcCaVolumeName   = "oidc-ca-cert"
-	defaultCACertKey   = "ca-bundle.crt"
+	caBundleAnnotation                   = "config.openshift.io/inject-trusted-cabundle"
+	caBundleName                         = "odh-trusted-ca-bundle"
+	odhCaBundleKey                       = "odh-ca-bundle.crt"
+	tlsPathOdhCABundle                   = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
+	tlsPathOidcCA                        = "/etc/pki/tls/oidc-ca/ca.crt"
+	oidcCaVolumeName                     = "oidc-ca-cert"
+	defaultCACertKey                     = "ca-bundle.crt"
+	openshiftServingCertSecretAnnotation = "service.beta.openshift.io/serving-cert-secret-name" // pragma: allowlist secret
+	openshiftServingCertSansAnnotation   = "service.beta.openshift.io/serving-cert-sans"
+	openshiftInjectCaBundleAnnotation    = "service.beta.openshift.io/inject-cabundle"
+	ErrorMessagePrefix                   = "Error: "
 
 	DefaultOfflineStorageRequest        = "20Gi"
 	DefaultOnlineStorageRequest         = "5Gi"
@@ -101,6 +105,47 @@ const (
 	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
+
+	// Common string constants
+	stringTrue              = "true"
+	stringFalse             = "false"
+	hostAllIPv4             = "0.0.0.0"
+	tlsCertKey              = "tls.crt"
+	DefaultNs               = "default"
+	feastCommand            = "feast"
+	metricsPortName         = "metrics"
+	registryName            = "registry"
+	feastInitContainerName  = "feast-init"
+	feastApplyContainerName = "feast-apply"
+
+	// Test-specific constants
+	dataOnlineDbPath              = "/data/online.db"
+	dataRegistryDbPath            = "/data/registry.db"
+	oidcSecretName                = "oidc-secret" // pragma: allowlist secret
+	clientIDValue                 = "client-id"
+	lineageSecretName             = "lineage-secret" // pragma: allowlist secret
+	redisType                     = "redis"
+	redisSecretName               = "redis-secret"    // pragma: allowlist secret
+	registrySecretName            = "registry-secret" // pragma: allowlist secret
+	celTestProject                = "celtest"
+	kubernetesHostnameTopologyKey = "kubernetes.io/hostname"
+	dailyMidnightCron             = "0 0 * * *"
+	otelInjectPythonAnnotation    = "instrumentation.opentelemetry.io/inject-python"
+	kubernetesOsLabel             = "kubernetes.io/os"
+	computeNodeType               = "compute"
+	nodeTypeLabel                 = "node-type"
+	zoneLabel                     = "zone"
+	linuxOS                       = "linux"
+	TestValue                     = "test"
+	OfflineStoreSecretName        = "offline-store-secret"  // pragma: allowlist secret
+	OnlineStoreSecretName         = "online-store-secret"   // pragma: allowlist secret
+	RegistryStoreSecretName       = "registry-store-secret" // pragma: allowlist secret
+	FieldRefName                  = "fieldRefName"
+	ConfigOne                     = "config-1"
+	MetadataNameField             = "metadata.name"
+	GrpcFlag                      = "--grpc"
+	ExampleConfigMapName          = "example-configmap"
+	ExampleSecretName             = "example-secret" // pragma: allowlist secret
 )
 
 const (
@@ -117,12 +162,12 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Args:            []string{"serve_offline", "-h", "0.0.0.0"},
+			Args:            []string{"serve_offline", "-h", hostAllIPv4},
 			TargetHttpPort:  8815,
 			TargetHttpsPort: 8816,
 		},
 		OnlineFeastType: {
-			Args:            []string{"serve", "-h", "0.0.0.0"},
+			Args:            []string{"serve", "-h", hostAllIPv4},
 			TargetHttpPort:  6566,
 			TargetHttpsPort: 6567,
 		},
@@ -271,7 +316,7 @@ type RepoConfig struct {
 	FeatureServer                 *FeatureServerYamlConfig         `yaml:"feature_server,omitempty"`
 	Materialization               *MaterializationYamlConfig       `yaml:"materialization,omitempty"`
 	OpenLineage                   *OpenLineageYamlConfig           `yaml:"openlineage,omitempty"`
-	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"dqm,omitempty"`
+	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"data_quality_monitoring,omitempty"`
 }
 
 // FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
