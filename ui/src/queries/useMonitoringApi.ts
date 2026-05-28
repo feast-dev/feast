@@ -138,19 +138,59 @@ const useFeatureMetrics = (filters: MonitoringFilters) => {
   );
 };
 
+const aggregateToFeatureViewMetrics = (
+  features: FeatureMetric[],
+): FeatureViewMetric[] => {
+  const grouped = new Map<string, FeatureMetric[]>();
+  for (const f of features) {
+    const key = f.feature_view_name;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(f);
+  }
+  return Array.from(grouped.entries()).map(([fvName, feats]) => {
+    const nullRates = feats.map((f) => f.null_rate ?? 0);
+    const maxRowCount = Math.max(...feats.map((f) => f.row_count ?? 0));
+    return {
+      project_id: feats[0].project_id,
+      feature_view_name: fvName,
+      metric_date: feats[0].metric_date,
+      granularity: feats[0].granularity,
+      data_source_type: feats[0].data_source_type,
+      computed_at: feats[0].computed_at,
+      is_baseline: feats[0].is_baseline,
+      total_row_count: maxRowCount,
+      total_features: feats.length,
+      features_with_nulls: feats.filter((f) => (f.null_count ?? 0) > 0).length,
+      avg_null_rate:
+        nullRates.length > 0
+          ? nullRates.reduce((a, b) => a + b, 0) / nullRates.length
+          : 0,
+      max_null_rate:
+        nullRates.length > 0 ? Math.max(...nullRates) : 0,
+    };
+  });
+};
+
 const useFeatureViewMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
-  const path = filters.is_baseline
-    ? "/monitoring/metrics/baseline"
-    : "/monitoring/metrics/feature_views";
+  const isBaseline = !!filters.is_baseline;
   return useQuery<FeatureViewMetric[]>(
     ["monitoring-feature-views", filters],
-    () =>
-      fetchMonitoring<FeatureViewMetric[]>(
+    async () => {
+      if (isBaseline) {
+        const features = await fetchMonitoring<FeatureMetric[]>(
+          apiBaseUrl,
+          "/monitoring/metrics/baseline",
+          toQueryParams(filters),
+        );
+        return aggregateToFeatureViewMetrics(features);
+      }
+      return fetchMonitoring<FeatureViewMetric[]>(
         apiBaseUrl,
-        path,
+        "/monitoring/metrics/feature_views",
         toQueryParams(filters),
-      ),
+      );
+    },
     { staleTime: STALE_TIME, enabled, retry: 1 },
   );
 };
