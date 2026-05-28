@@ -1,3 +1,4 @@
+import inspect
 import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
@@ -5,7 +6,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast.feature_service import FeatureService
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.remote import RemoteOnlineStore, RemoteOnlineStoreConfig
+from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Float32, Int64, String
@@ -349,3 +353,311 @@ class TestRemoteOnlineStoreRetrieveDocuments:
 
         assert remote_store._is_feature_present(response_json, 0, 0)
         assert not remote_store._is_feature_present(response_json, 0, 1)
+
+
+class TestRemoteOnlineStoreGetOnlineFeatures:
+    """Tests for RemoteOnlineStore.get_online_features to guard against
+    drift from the base OnlineStore class and verify single-request batching."""
+
+    @pytest.fixture
+    def remote_store(self):
+        return RemoteOnlineStore()
+
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            online_store=RemoteOnlineStoreConfig(
+                type="remote", path="http://localhost:6566"
+            ),
+            registry="dummy_registry",
+        )
+
+    @pytest.fixture
+    def server_response_json(self):
+        return {
+            "metadata": {"feature_names": ["user_id", "feature1", "feature2"]},
+            "results": [
+                {"values": [1001, 1002], "statuses": ["PRESENT", "PRESENT"]},
+                {"values": [0.5, 0.6], "statuses": ["PRESENT", "PRESENT"]},
+                {"values": ["a", "b"], "statuses": ["PRESENT", "NOT_FOUND"]},
+            ],
+        }
+
+    # ── Signature compatibility ───────────────────────────────────────
+
+    def test_signature_matches_base_class(self):
+        """RemoteOnlineStore.get_online_features must accept at least the
+        same parameters as OnlineStore.get_online_features so callers
+        never hit a TypeError after an upstream signature change."""
+        base_sig = inspect.signature(OnlineStore.get_online_features)
+        remote_sig = inspect.signature(RemoteOnlineStore.get_online_features)
+
+        base_params = set(base_sig.parameters.keys()) - {"self"}
+        remote_params = set(remote_sig.parameters.keys()) - {"self"}
+
+        missing = base_params - remote_params
+        assert not missing, (
+            f"RemoteOnlineStore.get_online_features is missing parameters "
+            f"that the base class defines: {missing}"
+        )
+
+    def test_return_type_is_online_response(self):
+        """Return annotation must remain OnlineResponse."""
+        hints = inspect.get_annotations(RemoteOnlineStore.get_online_features)
+        assert hints.get("return") is OnlineResponse
+
+    # ── Single HTTP request ───────────────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_single_http_call_with_feature_list(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """Passing a list of features should produce exactly one HTTP call
+        with all features in the request body."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        features = ["fv1:feature1", "fv2:feature2"]
+        entity_rows = [{"user_id": 1001}, {"user_id": 1002}]
+
+        result = remote_store.get_online_features(
+            config=config,
+            features=features,
+            entity_rows=entity_rows,
+            registry=Mock(),
+            project="test_project",
+        )
+
+        mock_get.assert_called_once()
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["features"] == features
+        assert "feature_service" not in req_body
+        assert req_body["entities"] == {"user_id": [1001, 1002]}
+        assert isinstance(result, OnlineResponse)
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_single_http_call_with_feature_service(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """Passing a FeatureService should send its name, not expand FVs."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        fs = Mock(spec=FeatureService)
+        fs.name = "credit_scoring_v1"
+        entity_rows = [{"user_id": 1001}]
+
+        remote_store.get_online_features(
+            config=config,
+            features=fs,
+            entity_rows=entity_rows,
+            registry=Mock(),
+            project="test_project",
+        )
+
+        mock_get.assert_called_once()
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["feature_service"] == "credit_scoring_v1"
+        assert "features" not in req_body
+
+    # ── Entity row format handling ────────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_list_of_dicts_entity_rows(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """List-of-dicts entity rows should be converted to columnar."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        entity_rows = [{"user_id": 1}, {"user_id": 2}]
+        remote_store.get_online_features(
+            config=config,
+            features=["fv:f1"],
+            entity_rows=entity_rows,
+            registry=Mock(),
+            project="test_project",
+        )
+
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["entities"] == {"user_id": [1, 2]}
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_columnar_entity_rows(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """Columnar (dict-of-lists) entity rows should be passed through."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        entity_rows = {"user_id": [1, 2]}
+        remote_store.get_online_features(
+            config=config,
+            features=["fv:f1"],
+            entity_rows=entity_rows,
+            registry=Mock(),
+            project="test_project",
+        )
+
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["entities"] == {"user_id": [1, 2]}
+
+    # ── Response parsing ──────────────────────────────────────────────
+
+    def test_build_online_response_present_values(self, remote_store):
+        """_build_online_response_from_json should reconstruct an
+        OnlineResponse with correct feature names and values."""
+        resp_json = {
+            "metadata": {"feature_names": ["user_id", "score"]},
+            "results": [
+                {"values": [101], "statuses": ["PRESENT"]},
+                {"values": [0.95], "statuses": ["PRESENT"]},
+            ],
+        }
+
+        result = remote_store._build_online_response_from_json(resp_json)
+        assert isinstance(result, OnlineResponse)
+        proto = result.proto
+        assert list(proto.metadata.feature_names.val) == ["user_id", "score"]
+        assert len(proto.results) == 2
+
+    def test_build_online_response_null_values(self, remote_store):
+        """Null values in the response should become empty ValueProto."""
+        resp_json = {
+            "metadata": {"feature_names": ["f1"]},
+            "results": [
+                {"values": [None], "statuses": ["NOT_FOUND"]},
+            ],
+        }
+
+        result = remote_store._build_online_response_from_json(resp_json)
+        proto = result.proto
+        assert proto.results[0].values[0] == ValueProto()
+
+    def test_build_online_response_status_mapping(self, remote_store):
+        """All known status strings should map to correct FieldStatus enums."""
+        from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
+
+        resp_json = {
+            "metadata": {"feature_names": ["f1", "f2", "f3", "f4"]},
+            "results": [
+                {"values": [1], "statuses": ["PRESENT"]},
+                {"values": [None], "statuses": ["NOT_FOUND"]},
+                {"values": [None], "statuses": ["NULL_VALUE"]},
+                {"values": [None], "statuses": ["OUTSIDE_MAX_AGE"]},
+            ],
+        }
+
+        result = remote_store._build_online_response_from_json(resp_json)
+        proto = result.proto
+        assert proto.results[0].statuses[0] == FieldStatus.PRESENT
+        assert proto.results[1].statuses[0] == FieldStatus.NOT_FOUND
+        assert proto.results[2].statuses[0] == FieldStatus.NULL_VALUE
+        assert proto.results[3].statuses[0] == FieldStatus.OUTSIDE_MAX_AGE
+
+    # ── Error handling ────────────────────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_non_200_raises_runtime_error(self, mock_get, remote_store, config):
+        """Non-200 responses from the server should raise RuntimeError."""
+        mock_resp = Mock()
+        mock_resp.status_code = 500
+        mock_resp.text = "Internal Server Error"
+        mock_get.return_value = mock_resp
+
+        with pytest.raises(RuntimeError, match="Failed to get online features"):
+            remote_store.get_online_features(
+                config=config,
+                features=["fv:f1"],
+                entity_rows=[{"user_id": 1}],
+                registry=Mock(),
+                project="test_project",
+            )
+
+    # ── full_feature_names passthrough ────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_full_feature_names_passed_to_server(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """full_feature_names should be forwarded in the request body."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        remote_store.get_online_features(
+            config=config,
+            features=["fv:f1"],
+            entity_rows=[{"user_id": 1}],
+            registry=Mock(),
+            project="test_project",
+            full_feature_names=True,
+        )
+
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["full_feature_names"] is True
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_version_metadata_passed_to_server(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """include_feature_view_version_metadata must be forwarded to the
+        server so versioned reads work end-to-end."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        remote_store.get_online_features(
+            config=config,
+            features=["fv:f1"],
+            entity_rows=[{"user_id": 1}],
+            registry=Mock(),
+            project="test_project",
+            include_feature_view_version_metadata=True,
+        )
+
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["include_feature_view_version_metadata"] is True
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_all_base_class_params_forwarded(
+        self, mock_get, remote_store, config, server_response_json
+    ):
+        """Every parameter that the server's GetOnlineFeaturesRequest
+        accepts must appear in the request body when set."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = server_response_json
+        mock_get.return_value = mock_resp
+
+        remote_store.get_online_features(
+            config=config,
+            features=["fv:f1"],
+            entity_rows=[{"user_id": 1}],
+            registry=Mock(),
+            project="test_project",
+            full_feature_names=True,
+            include_feature_view_version_metadata=True,
+        )
+
+        req_body = mock_get.call_args[1]["req_body"]
+        expected_keys = {
+            "entities",
+            "features",
+            "full_feature_names",
+            "include_feature_view_version_metadata",
+        }
+        assert expected_keys.issubset(req_body.keys()), (
+            f"Missing keys in req_body: {expected_keys - req_body.keys()}"
+        )
