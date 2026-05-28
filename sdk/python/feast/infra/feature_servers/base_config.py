@@ -93,6 +93,12 @@ class MetricsConfig(FeastConfigBaseModel):
     feature requests via the ``feast.audit`` logger.  Captures requestor
     identity, entity keys, feature views, row counts, and latency."""
 
+    prometheus_url: Optional[str] = None
+    """URL of the Prometheus or Thanos Querier API for the System Health
+    dashboard.  On OpenShift defaults to
+    ``https://thanos-querier.openshift-monitoring.svc:9091``.
+    The registry REST API proxies PromQL queries through this URL."""
+
 
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""
