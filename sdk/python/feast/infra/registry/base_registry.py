@@ -919,6 +919,16 @@ class BaseRegistry(ABC):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         raise NotImplementedError
 
+    def is_cache_valid(self) -> bool:
+        """Check whether the registry's local cache is still within its TTL.
+
+        Returns True if cached data can be used without a refresh.
+        Subclasses that support caching should override this.
+        Registries without caching always return False (every read goes
+        to the backing store).
+        """
+        return False
+
     # Lineage operations
     def get_registry_lineage(
         self,
