@@ -74,12 +74,14 @@ class RetrievalMetadata:
 
 def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     """Return ``(feature_view_names, feature_count)`` from a RetrievalJob's metadata."""
+    from feast.utils import _parse_feature_ref
+
     try:
         meta = job.metadata
         if meta:
             feature_count = len(meta.features)
             feature_views = list(
-                {ref.split(":")[0] for ref in meta.features if ":" in ref}
+                {_parse_feature_ref(ref)[0] for ref in meta.features if ":" in ref}
             )
             return feature_views, feature_count
     except (NotImplementedError, AttributeError):

@@ -66,7 +66,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     grpc_handler = RegistryServer(store.registry)
 
     rest_app = FastAPI(root_path="/api/v1")
-    register_all_routes(rest_app, grpc_handler)
+    register_all_routes(rest_app, grpc_handler, server=None, store=store)
     app.mount("/api/v1", rest_app)
 
     @app.get("/health")

@@ -14,6 +14,11 @@ _CLUSTER_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 _DEFAULT_THANOS_URL = "https://thanos-querier.openshift-monitoring.svc:9091"
 _METRICS_PORT = 8000
 
+# Histogram suffixes that should be folded into the base metric family.
+# Counter _total / _created are intentionally NOT stripped so the
+# canonical metric name (e.g. feast_offline_store_request_total) is preserved.
+_HISTOGRAM_SUFFIXES = ("_bucket", "_sum", "_count")
+
 
 def _read_sa_token() -> Optional[str]:
     try:
@@ -31,17 +36,24 @@ def _get_ca_bundle() -> str:
 
 
 def _parse_prometheus_text(text: str) -> dict:
-    """Parse Prometheus exposition format into structured metric families."""
+    """Parse Prometheus exposition format into a structured dict of metric families.
+
+    Used by the ``/system-metrics/scrape`` endpoint to convert the raw
+    text exposition from the local ``/metrics`` endpoint into JSON so the
+    UI dashboard can consume it without a Prometheus server.
+
+    Returns a dict keyed by metric family name, each containing:
+      - ``type``: histogram, counter, gauge, etc.
+      - ``samples``: list of {name, labels, value} dicts.
+    """
     metrics: dict = {}
     current_type = ""
 
     for line in text.splitlines():
         line = line.strip()
-        if not line:
+        if not line or line.startswith("# HELP"):
             continue
-        if line.startswith("# HELP"):
-            parts = line.split(None, 3)
-        elif line.startswith("# TYPE"):
+        if line.startswith("# TYPE"):
             parts = line.split(None, 3)
             current_type = parts[3] if len(parts) > 3 else "untyped"
         elif not line.startswith("#"):
@@ -54,7 +66,7 @@ def _parse_prometheus_text(text: str) -> dict:
                 labels_str = match.group(2) or ""
                 value = match.group(3)
                 base_name = name
-                for suffix in ("_total", "_bucket", "_sum", "_count", "_created"):
+                for suffix in _HISTOGRAM_SUFFIXES:
                     if base_name.endswith(suffix):
                         base_name = base_name[: -len(suffix)]
                         break
@@ -62,7 +74,7 @@ def _parse_prometheus_text(text: str) -> dict:
                 if base_name not in metrics:
                     metrics[base_name] = {"type": current_type, "samples": []}
                 try:
-                    val = float(value)
+                    val: float | str = float(value)
                 except ValueError:
                     val = value
                 metrics[base_name]["samples"].append(
@@ -76,6 +88,10 @@ def _parse_prometheus_text(text: str) -> dict:
 
 
 def get_system_metrics_router(grpc_handler, store=None):
+    # Authentication is enforced at the FastAPI application level via
+    # inject_user_details (see rest_registry_server.py).  These endpoints
+    # expose operational infrastructure metrics, not feature-level data,
+    # so no additional RBAC (assert_permissions) checks are required.
     router = APIRouter()
 
     def _get_prometheus_url() -> str:
@@ -100,7 +116,7 @@ def get_system_metrics_router(grpc_handler, store=None):
             headers["Authorization"] = f"Bearer {token}"
 
         ca_bundle = _get_ca_bundle()
-        verify = ca_bundle if ca_bundle else False
+        verify: bool | str = ca_bundle if ca_bundle else False
 
         try:
             resp = http_requests.get(
@@ -125,7 +141,7 @@ def get_system_metrics_router(grpc_handler, store=None):
             )
 
     @router.get("/system-metrics/query", tags=["System Metrics"])
-    async def promql_instant(
+    def promql_instant(
         query: str = Query(..., description="PromQL expression"),
         time: Optional[str] = Query(
             None, description="Evaluation timestamp (RFC3339 or Unix)"
@@ -138,7 +154,7 @@ def get_system_metrics_router(grpc_handler, store=None):
         return _query_prometheus("/api/v1/query", params)
 
     @router.get("/system-metrics/query_range", tags=["System Metrics"])
-    async def promql_range(
+    def promql_range(
         query: str = Query(..., description="PromQL expression"),
         start: str = Query(..., description="Start timestamp"),
         end: str = Query(..., description="End timestamp"),
@@ -156,7 +172,7 @@ def get_system_metrics_router(grpc_handler, store=None):
         )
 
     @router.get("/system-metrics/scrape", tags=["System Metrics"])
-    async def scrape_metrics():
+    def scrape_metrics():
         """Fallback: scrape the local Prometheus metrics endpoint directly."""
         try:
             resp = http_requests.get(

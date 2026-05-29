@@ -12,9 +12,10 @@ from feast.api.registry.rest.projects import get_project_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
 from feast.api.registry.rest.search import get_search_router
 from feast.api.registry.rest.system_metrics import get_system_metrics_router
+from feast.feature_store import FeatureStore
 
 
-def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
+def register_all_routes(app: FastAPI, grpc_handler, server, store: FeatureStore):
     app.include_router(get_entity_router(grpc_handler))
     app.include_router(get_data_source_router(grpc_handler))
     app.include_router(get_feature_service_router(grpc_handler))
@@ -25,8 +26,5 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_project_router(grpc_handler))
     app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_search_router(grpc_handler))
-    app.include_router(get_metrics_router(grpc_handler, server))
-    resolved_store = store or (
-        server.store if server and hasattr(server, "store") else None
-    )
-    app.include_router(get_system_metrics_router(grpc_handler, store=resolved_store))
+    app.include_router(get_metrics_router(grpc_handler, server=server))
+    app.include_router(get_system_metrics_router(grpc_handler, store=store))

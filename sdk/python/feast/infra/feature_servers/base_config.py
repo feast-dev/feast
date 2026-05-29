@@ -95,8 +95,9 @@ class MetricsConfig(FeastConfigBaseModel):
 
     prometheus_url: Optional[str] = None
     """URL of the Prometheus or Thanos Querier API for the System Health
-    dashboard.  On OpenShift defaults to
+    dashboard.  Defaults to
     ``https://thanos-querier.openshift-monitoring.svc:9091``.
+    Override via this field or the ``FEAST_PROMETHEUS_URL`` env var.
     The registry REST API proxies PromQL queries through this URL."""
 
 
