@@ -143,7 +143,7 @@ This reads pre-computed parquet. No Spark job triggered. No raw data scan. Point
 
 ### Offline-Only Feature Views for Training Labels
 
-> **Data Scientist** — *"My interaction table is 500GB and training-only — it will never live in Redis. I still want it versioned, retrievable, and point-in-time correct like any other feature."*
+> **Data Scientist** — *"My interaction table is 500GB and training-only — it will never live in Redis. I still want its schema and transformation logic tracked in the registry, retrievable via the same API, and point-in-time correct like any other feature."*
 
 `online=False, offline=True` is now a first-class `BatchFeatureView` configuration:
 
@@ -174,7 +174,7 @@ def interactions(df: DataFrame) -> DataFrame:
     )
 ```
 
-Training labels, interaction histories, and large join tables are now first-class Feast objects — with consistent lineage, versioning, and retrieval APIs alongside your serving features.
+Training labels, interaction histories, and large join tables are now first-class Feast objects — with schema and transformation logic tracked in the registry (not data versioning), consistent lineage, and the same `get_historical_features()` retrieval API as your serving features.
 
 ---
 
