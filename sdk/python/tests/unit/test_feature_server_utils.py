@@ -551,6 +551,60 @@ class TestJsonSerializability:
         assert serialized  # non-empty
 
 
+class TestProtobufCompatibility:
+    """Regression tests for protobuf >= 7.34.0 compatibility (issue #6435).
+
+    protobuf 7.34.0 removed the float_precision kwarg from MessageToDict.
+    convert_response_to_dict must never call MessageToDict, so it is immune
+    to this breaking change regardless of the installed protobuf version.
+    """
+
+    def test_no_message_to_dict_dependency(self):
+        """convert_response_to_dict must not call MessageToDict internally."""
+        import unittest.mock as mock
+
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(double_val=3.141592653589793))
+        fv.values.append(Value(int64_val=42))
+        fv.values.append(Value(string_val="hello"))
+        fv.statuses.extend(
+            [FieldStatus.PRESENT, FieldStatus.PRESENT, FieldStatus.PRESENT]
+        )
+        response.metadata.feature_names.val.extend(["f1", "f2", "f3"])
+
+        with mock.patch(
+            "google.protobuf.json_format.MessageToDict",
+            side_effect=AssertionError("MessageToDict must not be called"),
+        ):
+            result = convert_response_to_dict(response)
+
+        assert len(result["results"]) == 1
+        assert result["results"][0]["values"] == [3.141592653589793, 42, "hello"]
+        assert result["metadata"]["feature_names"] == ["f1", "f2", "f3"]
+
+    def test_double_precision_without_float_precision_kwarg(self):
+        """Doubles must round-trip without the removed float_precision kwarg."""
+        values = [
+            1e-300,
+            1.7976931348623157e308,
+            2.2250738585072014e-308,
+            0.1 + 0.2,
+        ]
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        for v in values:
+            fv.values.append(Value(double_val=v))
+            fv.statuses.append(FieldStatus.PRESENT)
+
+        result = convert_response_to_dict(response)
+        for i, expected in enumerate(values):
+            actual = result["results"][0]["values"][i]
+            assert actual == expected, f"Mismatch at index {i}: {actual} != {expected}"
+            round_tripped = json.loads(json.dumps(actual))
+            assert round_tripped == expected
+
+
 class TestPerformance:
     """Performance tests to validate the optimization claim."""
 
