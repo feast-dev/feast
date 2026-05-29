@@ -300,6 +300,12 @@ class OnlineStore(ABC):
             supported_types.append(MilvusOnlineStore)
         except ImportError:
             pass
+        try:
+            from feast.infra.online_stores.snowflake import SnowflakeOnlineStore
+
+            supported_types.append(SnowflakeOnlineStore)
+        except ImportError:
+            pass
 
         if isinstance(self, tuple(supported_types)):
             return

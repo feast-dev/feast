@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field, StrictStr
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
@@ -20,6 +21,12 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import to_naive_utc
+
+
+def _snowflake_table_name(
+    project: str, table: FeatureView, enable_versioning: bool = False
+) -> str:
+    return f"[online-transient] {project}_{compute_versioned_name(table, enable_versioning)}"
 
 
 class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
@@ -120,17 +127,19 @@ class SnowflakeOnlineStore(OnlineStore):
 
             # This combines both the data upload plus the overwrite in the same transaction
             online_path = get_snowflake_online_store_path(config, table)
+            versioning = config.registry.enable_online_feature_view_versioning
+            tbl = _snowflake_table_name(config.project, table, versioning)
             with GetSnowflakeConnection(config.online_store, autocommit=False) as conn:
                 write_pandas_binary(
                     conn,
                     agg_df,
-                    table_name=f"[online-transient] {config.project}_{table.name}",
+                    table_name=tbl,
                     database=f"{config.online_store.database}",
                     schema=f"{config.online_store.schema_}",
                 )  # special function for writing binary to snowflake
 
                 query = f"""
-                    INSERT OVERWRITE INTO {online_path}."[online-transient] {config.project}_{table.name}"
+                    INSERT OVERWRITE INTO {online_path}."{tbl}"
                         SELECT
                             "entity_feature_key",
                             "entity_key",
@@ -143,7 +152,7 @@ class SnowflakeOnlineStore(OnlineStore):
                               *,
                               ROW_NUMBER() OVER(PARTITION BY "entity_key","feature_name" ORDER BY "event_ts" DESC, "created_ts" DESC) AS "_feast_row"
                           FROM
-                              {online_path}."[online-transient] {config.project}_{table.name}")
+                              {online_path}."{tbl}")
                         WHERE
                             "_feast_row" = 1;
                 """
@@ -191,12 +200,15 @@ class SnowflakeOnlineStore(OnlineStore):
         )
 
         online_path = get_snowflake_online_store_path(config, table)
+        tbl = _snowflake_table_name(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         with GetSnowflakeConnection(config.online_store) as conn:
             query = f"""
                 SELECT
                     "entity_key", "feature_name", "value", "event_ts"
                 FROM
-                    {online_path}."[online-transient] {config.project}_{table.name}"
+                    {online_path}."{tbl}"
                 WHERE
                     "entity_feature_key" IN ({entity_fetch_str})
             """
@@ -228,11 +240,13 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
+        versioning = config.registry.enable_online_feature_view_versioning
         with GetSnowflakeConnection(config.online_store) as conn:
             for table in tables_to_keep:
                 online_path = get_snowflake_online_store_path(config, table)
+                tbl = _snowflake_table_name(config.project, table, versioning)
                 query = f"""
-                    CREATE TRANSIENT TABLE IF NOT EXISTS {online_path}."[online-transient] {config.project}_{table.name}" (
+                    CREATE TRANSIENT TABLE IF NOT EXISTS {online_path}."{tbl}" (
                         "entity_feature_key" BINARY,
                         "entity_key" BINARY,
                         "feature_name" VARCHAR,
@@ -245,7 +259,8 @@ class SnowflakeOnlineStore(OnlineStore):
 
             for table in tables_to_delete:
                 online_path = get_snowflake_online_store_path(config, table)
-                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
+                tbl = _snowflake_table_name(config.project, table, versioning)
+                query = f'DROP TABLE IF EXISTS {online_path}."{tbl}"'
                 execute_snowflake_statement(conn, query)
 
     def teardown(
@@ -256,8 +271,10 @@ class SnowflakeOnlineStore(OnlineStore):
     ):
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
+        versioning = config.registry.enable_online_feature_view_versioning
         with GetSnowflakeConnection(config.online_store) as conn:
             for table in tables:
                 online_path = get_snowflake_online_store_path(config, table)
-                query = f'DROP TABLE IF EXISTS {online_path}."[online-transient] {config.project}_{table.name}"'
+                tbl = _snowflake_table_name(config.project, table, versioning)
+                query = f'DROP TABLE IF EXISTS {online_path}."{tbl}"'
                 execute_snowflake_statement(conn, query)
