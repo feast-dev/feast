@@ -145,8 +145,11 @@ def review_embeddings(df):
     @F.pandas_udf(ArrayType(FloatType()))
     def _embed_udf(texts: pd.Series) -> pd.Series:
         from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer(EMBEDDING_MODEL)
-        embeddings = model.encode(
+        # Cache on the function object — loaded once per Python worker process,
+        # not once per Arrow batch. Avoids repeated 90MB weight loads.
+        if not hasattr(_embed_udf, "_model"):
+            _embed_udf._model = SentenceTransformer(EMBEDDING_MODEL)
+        embeddings = _embed_udf._model.encode(
             texts.tolist(),
             normalize_embeddings=True,
             batch_size=64,
@@ -163,6 +166,7 @@ A few design decisions worth noting:
 - **`normalize_embeddings=True`**: produces unit vectors, making cosine similarity equivalent to dot product — faster at query time in most vector databases.
 - **`batch_size=64`**: controls how many texts the model processes per GPU forward pass. Tune based on GPU memory; larger batches improve throughput until you hit VRAM limits.
 - **`substr(1, 511)`**: truncates embed_text to 511 characters before encoding — `all-MiniLM-L6-v2` has a 512-token limit; truncation here avoids silent tokenizer truncation downstream.
+- **Model caching via `hasattr`**: `pandas_udf` is called once per Arrow batch, not once per partition. Without caching, the 90MB model weights would be loaded from disk on every batch call. Storing the model on the function object (`_embed_udf._model`) means it's loaded once per Python worker process and reused across all batches that worker handles.
 
 ---
 
