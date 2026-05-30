@@ -587,10 +587,26 @@ def get_app(
             active_timer = threading.Timer(registry_ttl_sec, async_refresh)
             active_timer.start()
 
+    # --- Audit logging setup ---
+    audit_logging_cfg = getattr(fs_cfg, "audit_logging", None)
+    audit_logger_instance = None
+    if audit_logging_cfg is not None and getattr(audit_logging_cfg, "enabled", False):
+        from feast.audit.audit_logger import create_audit_logger_from_config
+
+        audit_logger_instance = create_audit_logger_from_config(audit_logging_cfg)
+        if audit_logger_instance:
+            logger.info(
+                "Structured audit logging is ENABLED (sink=%s)",
+                getattr(audit_logging_cfg, "sink", "stdout"),
+            )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Load static artifacts before initializing store
         await load_static_artifacts(app, store)
+
+        if audit_logger_instance is not None:
+            app.state.audit_logger = audit_logger_instance
 
         await store.initialize()
         async_refresh()
@@ -603,9 +619,21 @@ def get_app(
             # wait=False: do not block process exit on in-flight materialize
             # (same fire-and-forget contract as returning 202 mid-job).
             materialize_executor.shutdown(wait=False)
+            if audit_logger_instance is not None:
+                audit_logger_instance.close()
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
+
+    # Add audit logging middleware when enabled
+    if audit_logger_instance is not None:
+        from feast.audit.audit_middleware import (
+            AuditLoggingMiddleware,
+            McpAuditMiddleware,
+        )
+
+        app.add_middleware(McpAuditMiddleware)
+        app.add_middleware(AuditLoggingMiddleware)
 
     @app.post(
         "/get-online-features",
