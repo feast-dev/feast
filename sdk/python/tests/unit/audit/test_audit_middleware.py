@@ -41,7 +41,15 @@ def _make_app(audit_logger=None):
 
     @app.post("/mcp")
     async def mcp():
-        return {"jsonrpc": "2.0", "result": "ok"}
+        return {"jsonrpc": "2.0", "result": "ok", "id": 1}
+
+    @app.post("/mcp/error")
+    async def mcp_error():
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32601, "message": "Method not found"},
+            "id": 99,
+        }
 
     @app.post("/error-endpoint")
     async def error_endpoint():
@@ -204,3 +212,71 @@ class TestMcpAuditMiddleware(unittest.TestCase):
 
         mcp_events = [e for e in sink.events if e.event_type == "mcp.tools.call"]
         self.assertEqual(mcp_events[0].request_id, "mcp-req-42")
+
+    def test_captures_jsonrpc_id_for_correlation(self):
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+        app = _make_app(audit)
+        client = TestClient(app, raise_server_exceptions=False)
+
+        body = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": "get_online_features"},
+            "id": 42,
+        }
+        client.post("/mcp", json=body)
+
+        mcp_events = [e for e in sink.events if e.event_type == "mcp.tools.call"]
+        self.assertEqual(len(mcp_events), 1)
+        self.assertEqual(mcp_events[0].jsonrpc_id, "42")
+
+    def test_jsonrpc_id_absent_when_not_in_body(self):
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+        app = _make_app(audit)
+        client = TestClient(app, raise_server_exceptions=False)
+
+        body = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+        client.post("/mcp", json=body)
+
+        mcp_events = [e for e in sink.events if e.event_type == "mcp.request"]
+        self.assertEqual(len(mcp_events), 1)
+        self.assertIsNone(mcp_events[0].jsonrpc_id)
+
+    def test_detects_mcp_error_in_response(self):
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+        app = _make_app(audit)
+        client = TestClient(app, raise_server_exceptions=False)
+
+        body = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": "unknown_tool"},
+            "id": 99,
+        }
+        client.post("/mcp/error", json=body)
+
+        mcp_events = [e for e in sink.events if e.event_type.startswith("mcp.")]
+        self.assertEqual(len(mcp_events), 1)
+        event = mcp_events[0]
+        self.assertEqual(event.outcome, "mcp_error")
+        self.assertIn("-32601", event.detail)
+        self.assertIn("Method not found", event.detail)
+
+    def test_string_jsonrpc_id(self):
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+        app = _make_app(audit)
+        client = TestClient(app, raise_server_exceptions=False)
+
+        body = {
+            "jsonrpc": "2.0",
+            "method": "tools/list",
+            "id": "req-abc-123",
+        }
+        client.post("/mcp", json=body)
+
+        mcp_events = [e for e in sink.events if e.event_type == "mcp.request"]
+        self.assertEqual(mcp_events[0].jsonrpc_id, "req-abc-123")
