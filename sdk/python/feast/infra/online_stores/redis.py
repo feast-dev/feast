@@ -34,6 +34,7 @@ from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.feature_service import FeatureService
+from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import (
     _mmh3,
     _redis_key,
@@ -506,15 +507,14 @@ class RedisOnlineStore(OnlineStore):
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]
     ) -> List[bytes]:
-        keys = []
-        for entity_key in entity_keys:
-            redis_key_bin = _redis_key(
-                config.project,
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
-            keys.append(redis_key_bin)
-        return keys
+        project = config.project
+        version = config.entity_key_serialization_version
+        project_bytes = project.encode("utf-8")
+        return [
+            serialize_entity_key(ek, entity_key_serialization_version=version)
+            + project_bytes
+            for ek in entity_keys
+        ]
 
     def _generate_hset_keys_for_features(
         self,
@@ -700,6 +700,146 @@ class RedisOnlineStore(OnlineStore):
                     for redis_key in redis_keys:
                         pipe.hmget(redis_key, hset_keys)
                 all_results = pipe.execute()
+
+            offset = 0
+            for (
+                table,
+                req_features,
+                fv_name,
+                _,
+                redis_keys,
+                idxs,
+                output_len,
+            ) in work_items:
+                n = len(redis_keys)
+                redis_values = all_results[offset : offset + n]
+                offset += n
+
+                read_rows = self._convert_redis_values_to_protobuf(
+                    redis_values, fv_name, req_features
+                )
+
+                utils._populate_response_from_feature_data(
+                    req_features,
+                    read_rows,
+                    idxs,
+                    online_features_response,
+                    full_feature_names,
+                    table,
+                    output_len,
+                    include_feature_view_version_metadata,
+                )
+
+        if _track_read:
+            from feast.metrics import track_online_store_read
+
+            track_online_store_read(_time.monotonic() - _read_start)
+
+        feature_types = self._build_feature_types(grouped_refs)
+
+        if requested_on_demand_feature_views:
+            utils._augment_response_with_on_demand_transforms(
+                online_features_response,
+                feature_refs,
+                requested_on_demand_feature_views,
+                full_feature_names,
+                feature_types=feature_types,
+            )
+
+        utils._drop_unneeded_columns(
+            online_features_response, requested_result_row_names
+        )
+        return OnlineResponse(online_features_response, feature_types=feature_types)
+
+    async def get_online_features_async(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
+    ) -> OnlineResponse:
+        """
+        Async version of get_online_features using a single batched Redis pipeline.
+
+        Mirrors the sync override: all HMGET commands across all feature views are
+        issued in one async pipeline execution (O(1) round trips).
+        """
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    try:
+                        columnar[key].append(value)
+                    except KeyError as e:
+                        raise ValueError(
+                            "All entity_rows must have the same keys."
+                        ) from e
+            entity_rows = columnar
+
+        (
+            join_key_values,
+            grouped_refs,
+            entity_name_to_join_key_map,
+            requested_on_demand_feature_views,
+            feature_refs,
+            requested_result_row_names,
+            online_features_response,
+        ) = utils._prepare_entities_to_read_from_online_store(
+            registry=registry,
+            project=project,
+            features=features,
+            entity_values=entity_rows,
+            full_feature_names=full_feature_names,
+            native_entity_values=True,
+        )
+
+        self._check_versioned_read_support(grouped_refs)
+
+        _track_read = False
+        try:
+            from feast.metrics import _config as _metrics_config
+
+            _track_read = _metrics_config.online_features
+        except Exception:
+            pass
+
+        if _track_read:
+            import time as _time
+
+            _read_start = _time.monotonic()
+
+        work_items = []
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table,
+                join_key_values,
+                entity_name_to_join_key_map,
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            fv_name = _versioned_fv_name(table, config)
+            redis_keys = self._generate_redis_keys_for_entities(
+                config, entity_key_protos
+            )
+            req_features, hset_keys = self._generate_hset_keys_for_features(
+                table, requested_features, fv_name_override=fv_name
+            )
+            work_items.append(
+                (table, req_features, fv_name, hset_keys, redis_keys, idxs, output_len)
+            )
+
+        if work_items:
+            client = await self._get_client_async(config.online_store)
+            async with client.pipeline(transaction=False) as pipe:
+                for _, _, _, hset_keys, redis_keys, _, _ in work_items:
+                    for redis_key in redis_keys:
+                        pipe.hmget(redis_key, hset_keys)
+                all_results = await pipe.execute()
 
             offset = 0
             for (
