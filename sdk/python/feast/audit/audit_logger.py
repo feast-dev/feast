@@ -64,11 +64,16 @@ class AuditEvent(BaseModel):
 
     Fields follow the schema proposed in feast-dev/feast#6452.
     No sensitive payloads (tokens, entity rows, feature values) are stored.
+    When OpenTelemetry is active, ``trace_id`` and ``span_id`` are populated
+    automatically for correlation with distributed traces.
     """
 
     event_type: str
     timestamp: str = ""
     request_id: str = ""
+    trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    jsonrpc_id: Optional[str] = None
     principal: AuditPrincipal = Field(default_factory=AuditPrincipal)
     source: AuditSource = Field(default_factory=AuditSource)
     action: AuditAction = Field(default_factory=AuditAction)
@@ -159,6 +164,24 @@ class AuditLogger:
     def _utcnow_iso() -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
+    @staticmethod
+    def _inject_otel_context(event: AuditEvent) -> None:
+        """Populate trace_id/span_id from the active OpenTelemetry span, if any."""
+        if event.trace_id is not None:
+            return
+        try:
+            from opentelemetry import trace as otel_trace
+
+            span = otel_trace.get_current_span()
+            ctx = span.get_span_context()
+            if ctx and ctx.is_valid:
+                event.trace_id = format(ctx.trace_id, "032x")
+                event.span_id = format(ctx.span_id, "016x")
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
     # -- public API --------------------------------------------------------
 
     def log(self, event: AuditEvent) -> None:
@@ -166,6 +189,8 @@ class AuditLogger:
             event.timestamp = self._utcnow_iso()
         if not event.request_id:
             event.request_id = self.new_request_id()
+
+        self._inject_otel_context(event)
 
         if event.outcome == "success" and not self._log_successful_reads:
             read_events = {"mcp.tools.call", "http.request"}
