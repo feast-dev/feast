@@ -54,7 +54,11 @@ from feast.feast_object import FeastObject
 from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
-from feast.permissions.security_manager import assert_permissions
+from feast.permissions.security_manager import (
+    assert_permissions,
+    get_security_manager,
+    is_auth_necessary,
+)
 from feast.permissions.server.rest import inject_user_details
 from feast.permissions.server.utils import (
     ServerType,
@@ -184,7 +188,7 @@ async def _get_features(
             resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
         )
         features = feature_service  # type: ignore
-    else:
+    elif is_auth_necessary(get_security_manager()):
         all_feature_views, all_on_demand_feature_views = await run_in_threadpool(
             utils._get_feature_views_to_use,
             store.registry,
@@ -201,6 +205,8 @@ async def _get_features(
             assert_permissions(
                 resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
             )
+        features = request.features  # type: ignore
+    else:
         features = request.features  # type: ignore
     return features
 
