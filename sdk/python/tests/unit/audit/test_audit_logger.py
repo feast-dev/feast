@@ -55,6 +55,28 @@ class TestAuditEvent(unittest.TestCase):
         parsed = json.loads(event.to_jsonl())
         self.assertNotIn("duration_ms", parsed)
 
+    def test_event_includes_trace_id_and_span_id(self):
+        event = AuditEvent(
+            event_type="mcp.tools.call",
+            trace_id="0" * 32,
+            span_id="f" * 16,
+        )
+        parsed = json.loads(event.to_jsonl())
+        self.assertEqual(parsed["trace_id"], "0" * 32)
+        self.assertEqual(parsed["span_id"], "f" * 16)
+
+    def test_event_excludes_none_trace_fields(self):
+        event = AuditEvent(event_type="test")
+        parsed = json.loads(event.to_jsonl())
+        self.assertNotIn("trace_id", parsed)
+        self.assertNotIn("span_id", parsed)
+        self.assertNotIn("jsonrpc_id", parsed)
+
+    def test_event_includes_jsonrpc_id(self):
+        event = AuditEvent(event_type="mcp.tools.call", jsonrpc_id="42")
+        parsed = json.loads(event.to_jsonl())
+        self.assertEqual(parsed["jsonrpc_id"], "42")
+
 
 class TestAuditLogger(unittest.TestCase):
     def test_log_populates_timestamp_and_request_id(self):
@@ -172,6 +194,60 @@ class TestAuditLogger(unittest.TestCase):
         bad_sink.emit.side_effect = RuntimeError("disk full")
         al = AuditLogger(bad_sink)
         al.log(AuditEvent(event_type="test"))
+
+    def test_otel_context_injected_when_active(self):
+        import sys
+        import types
+
+        mock_ctx = MagicMock()
+        mock_ctx.is_valid = True
+        mock_ctx.trace_id = 0xABCDEF1234567890ABCDEF1234567890
+        mock_ctx.span_id = 0x1234567890ABCDEF
+
+        mock_span = MagicMock()
+        mock_span.get_span_context.return_value = mock_ctx
+
+        mock_otel_trace = types.ModuleType("opentelemetry.trace")
+        mock_otel_trace.get_current_span = lambda: mock_span  # type: ignore[attr-defined]
+
+        mock_otel = types.ModuleType("opentelemetry")
+        mock_otel.trace = mock_otel_trace  # type: ignore[attr-defined]
+
+        saved_otel = sys.modules.get("opentelemetry")
+        saved_trace = sys.modules.get("opentelemetry.trace")
+        sys.modules["opentelemetry"] = mock_otel
+        sys.modules["opentelemetry.trace"] = mock_otel_trace
+        try:
+            sink = InMemorySink()
+            al = AuditLogger(sink)
+            al.log(AuditEvent(event_type="test"))
+            event = sink.events[0]
+            self.assertEqual(event.trace_id, "abcdef1234567890abcdef1234567890")
+            self.assertEqual(event.span_id, "1234567890abcdef")
+        finally:
+            if saved_otel is None:
+                sys.modules.pop("opentelemetry", None)
+            else:
+                sys.modules["opentelemetry"] = saved_otel
+            if saved_trace is None:
+                sys.modules.pop("opentelemetry.trace", None)
+            else:
+                sys.modules["opentelemetry.trace"] = saved_trace
+
+    def test_otel_not_available_no_crash(self):
+        sink = InMemorySink()
+        al = AuditLogger(sink)
+        al.log(AuditEvent(event_type="test"))
+        event = sink.events[0]
+        self.assertIsNone(event.trace_id)
+        self.assertIsNone(event.span_id)
+
+    def test_otel_skipped_when_trace_id_already_set(self):
+        sink = InMemorySink()
+        al = AuditLogger(sink)
+        al.log(AuditEvent(event_type="test", trace_id="preexisting"))
+        event = sink.events[0]
+        self.assertEqual(event.trace_id, "preexisting")
 
 
 class TestStdoutSink(unittest.TestCase):
