@@ -101,6 +101,8 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     enable_tiling: bool
     tiling_hop_size: Optional[timedelta]
+    _raw_udf_proto: Optional[Any] = None
+    _raw_feature_transformation_proto: Optional[Any] = None
 
     def __init__(
         self,
@@ -277,7 +279,12 @@ class StreamFeatureView(FeatureView):
         stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
-        if self.udf:
+        if getattr(self, "_raw_udf_proto", None) is not None:
+            udf_proto = self._raw_udf_proto
+            feature_transformation = getattr(
+                self, "_raw_feature_transformation_proto", None
+            )
+        elif self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
@@ -321,6 +328,7 @@ class StreamFeatureView(FeatureView):
             tiling_hop_size=tiling_hop_size_duration,
             enable_validation=self.enable_validation,
             version=self.version,
+            disabled=not self.enabled,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
@@ -403,6 +411,20 @@ class StreamFeatureView(FeatureView):
         else:
             stream_feature_view.current_version_number = None
 
+        stream_feature_view.enabled = not sfv_proto.spec.disabled
+
+        # Restore lifecycle state from meta (SFV uses FeatureViewMeta which has state).
+        from feast.feature_view import FeatureViewState
+
+        stream_feature_view.state = FeatureViewState.from_proto(sfv_proto.meta.state)
+
+        if skip_udf and sfv_proto.spec.HasField("user_defined_function"):
+            stream_feature_view._raw_udf_proto = sfv_proto.spec.user_defined_function
+        if skip_udf and sfv_proto.spec.HasField("feature_transformation"):
+            stream_feature_view._raw_feature_transformation_proto = (
+                sfv_proto.spec.feature_transformation
+            )
+
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
         stream_feature_view.features = [
@@ -452,6 +474,8 @@ class StreamFeatureView(FeatureView):
             enable_validation=self.enable_validation,
             version=self.version,
         )
+        fv.enabled = self.enabled
+        fv.state = self.state
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)

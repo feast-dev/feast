@@ -643,25 +643,30 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_all_feature_views(
-                registry_proto, project, tags
+                registry_proto, project, tags, skip_udf=skip_udf
             )
 
         return (
             cast(
                 list[BaseFeatureView],
-                self.list_feature_views(project, allow_cache, tags),
+                self.list_feature_views(project, allow_cache, tags, skip_udf=skip_udf),
             )
             + cast(
                 list[BaseFeatureView],
-                self.list_stream_feature_views(project, allow_cache, tags),
+                self.list_stream_feature_views(
+                    project, allow_cache, tags, skip_udf=skip_udf
+                ),
             )
             + cast(
                 list[BaseFeatureView],
-                self.list_on_demand_feature_views(project, allow_cache, tags),
+                self.list_on_demand_feature_views(
+                    project, allow_cache, tags, skip_udf=skip_udf
+                ),
             )
         )
 
@@ -859,11 +864,12 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                registry_proto, project, tags
+                registry_proto, project, tags, skip_udf=skip_udf
             )
         return self._list_objects(
             "FEATURE_VIEWS",
@@ -872,6 +878,7 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureView,
             "FEATURE_VIEW_PROTO",
             tags=tags,
+            skip_udf=skip_udf,
         )
 
     def list_on_demand_feature_views(
@@ -879,11 +886,12 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                registry_proto, project, tags
+                registry_proto, project, tags, skip_udf=skip_udf
             )
         return self._list_objects(
             "ON_DEMAND_FEATURE_VIEWS",
@@ -892,6 +900,7 @@ class SnowflakeRegistry(BaseRegistry):
             OnDemandFeatureView,
             "ON_DEMAND_FEATURE_VIEW_PROTO",
             tags=tags,
+            skip_udf=skip_udf,
         )
 
     def list_saved_datasets(
@@ -919,11 +928,12 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
-                registry_proto, project, tags
+                registry_proto, project, tags, skip_udf=skip_udf
             )
         return self._list_objects(
             "STREAM_FEATURE_VIEWS",
@@ -931,6 +941,7 @@ class SnowflakeRegistry(BaseRegistry):
             StreamFeatureViewProto,
             StreamFeatureView,
             "STREAM_FEATURE_VIEW_PROTO",
+            skip_udf=skip_udf,
             tags=tags,
         )
 
@@ -957,7 +968,20 @@ class SnowflakeRegistry(BaseRegistry):
         python_class: Any,
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
+        proto_only: bool = False,
+        skip_udf: bool = False,
     ):
+        """
+        Args:
+            proto_only: If True, return raw protobuf objects without calling
+                from_proto(). Used by proto() to build the RegistryProto cache
+                efficiently — avoids the from_proto()/to_proto() round-trip and
+                works uniformly for all object types (entities, data sources, etc.).
+            skip_udf: If True, call from_proto() but skip deserializing UDFs
+                (dill.loads). Returns Python objects suitable for filtering and
+                display without requiring the UDF's source module to be installed.
+                Only relevant for feature view types.
+        """
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -971,11 +995,17 @@ class SnowflakeRegistry(BaseRegistry):
             if not df.empty:
                 objects = []
                 for row in df.iterrows():
-                    obj = python_class.from_proto(
-                        proto_class.FromString(row[1][proto_field_name])
-                    )
-                    if has_all_tags(obj.tags, tags):
-                        objects.append(obj)
+                    proto = proto_class.FromString(row[1][proto_field_name])
+                    if proto_only:
+                        objects.append(proto)
+                    else:
+                        obj = (
+                            python_class.from_proto(proto, skip_udf=skip_udf)
+                            if skip_udf
+                            else python_class.from_proto(proto)
+                        )
+                        if has_all_tags(obj.tags, tags):
+                            objects.append(obj)
                 return objects
         return []
 
@@ -1134,28 +1164,90 @@ class SnowflakeRegistry(BaseRegistry):
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
-            for lister, registry_proto_field in [
-                (self.list_entities, r.entities),
-                (self.list_feature_views, r.feature_views),
-                (self.list_data_sources, r.data_sources),
-                (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_stream_feature_views, r.stream_feature_views),
-                (self.list_feature_services, r.feature_services),
-                (self.list_saved_datasets, r.saved_datasets),
-                (self.list_validation_references, r.validation_references),
-                (self.list_permissions, r.permissions),
+            # proto_only=True: return raw protos without calling from_proto(),
+            # which would trigger dill.loads() on UDFs and fail for cross-project
+            # modules. _list_objects hits the DB directly (no cache), avoiding
+            # infinite recursion since proto() itself builds the cache.
+            for (
+                table,
+                proto_class,
+                python_class,
+                proto_field_name,
+                registry_proto_field,
+            ) in [
+                ("ENTITIES", EntityProto, Entity, "ENTITY_PROTO", r.entities),
+                (
+                    "FEATURE_VIEWS",
+                    FeatureViewProto,
+                    FeatureView,
+                    "FEATURE_VIEW_PROTO",
+                    r.feature_views,
+                ),
+                (
+                    "DATA_SOURCES",
+                    DataSourceProto,
+                    DataSource,
+                    "DATA_SOURCE_PROTO",
+                    r.data_sources,
+                ),
+                (
+                    "ON_DEMAND_FEATURE_VIEWS",
+                    OnDemandFeatureViewProto,
+                    OnDemandFeatureView,
+                    "ON_DEMAND_FEATURE_VIEW_PROTO",
+                    r.on_demand_feature_views,
+                ),
+                (
+                    "STREAM_FEATURE_VIEWS",
+                    StreamFeatureViewProto,
+                    StreamFeatureView,
+                    "STREAM_FEATURE_VIEW_PROTO",
+                    r.stream_feature_views,
+                ),
+                (
+                    "FEATURE_SERVICES",
+                    FeatureServiceProto,
+                    FeatureService,
+                    "FEATURE_SERVICE_PROTO",
+                    r.feature_services,
+                ),
+                (
+                    "SAVED_DATASETS",
+                    SavedDatasetProto,
+                    SavedDataset,
+                    "SAVED_DATASET_PROTO",
+                    r.saved_datasets,
+                ),
+                (
+                    "VALIDATION_REFERENCES",
+                    ValidationReferenceProto,
+                    ValidationReference,
+                    "VALIDATION_REFERENCE_PROTO",
+                    r.validation_references,
+                ),
+                (
+                    "PERMISSIONS",
+                    PermissionProto,
+                    Permission,
+                    "PERMISSION_PROTO",
+                    r.permissions,
+                ),
             ]:
-                # Always bypass cache here: proto() builds the cache, so using
-                # allow_cache=True would cause infinite recursion via refresh().
-                objs: List[Any] = lister(project_name, False)  # type: ignore
+                objs = self._list_objects(
+                    table,
+                    project_name,
+                    proto_class,
+                    python_class,
+                    proto_field_name,
+                    proto_only=True,
+                )
                 if objs:
-                    obj_protos = [obj.to_proto() for obj in objs]
-                    for obj_proto in obj_protos:
+                    for obj_proto in objs:
                         if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
                             obj_proto.spec.project = project_name
                         else:
                             obj_proto.project = project_name
-                    registry_proto_field.extend(obj_protos)
+                    registry_proto_field.extend(objs)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.

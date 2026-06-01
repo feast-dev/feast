@@ -22,6 +22,8 @@ const FCO_TO_URL_NAME_MAP: Record<FEAST_FCO_TYPES, string> = {
   entity: "/entity",
   featureView: "/feature-view",
   featureService: "/feature-service",
+  mlflowRun: "/mlflow-run",
+  mlflowModel: "/mlflow-model",
 };
 
 const createSearchLink = (

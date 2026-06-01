@@ -632,6 +632,118 @@ var _ = Describe("Registry Service", func() {
 	})
 })
 
+var _ = Describe("Service AppProtocol Configuration", func() {
+	var (
+		featureStore *feastdevv1.FeatureStore
+		feast        *FeastServices
+		ctx          context.Context
+	)
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		featureStore = &feastdevv1.FeatureStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testfeaturestore-approtocol",
+				Namespace: "default",
+			},
+			Spec: feastdevv1.FeatureStoreSpec{
+				FeastProject: "testproject",
+				Services: &feastdevv1.FeatureStoreServices{
+					Registry: &feastdevv1.Registry{
+						Local: &feastdevv1.LocalRegistryConfig{
+							Server: &feastdevv1.RegistryServerConfigs{
+								ServerConfigs: feastdevv1.ServerConfigs{
+									ContainerConfigs: feastdevv1.ContainerConfigs{
+										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+											Image: ptr.To("test-image"),
+										},
+									},
+								},
+								GRPC:    ptr.To(true),
+								RestAPI: ptr.To(false),
+							},
+						},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, featureStore)).To(Succeed())
+		applySpecToStatus(featureStore)
+		feast = &FeastServices{
+			Handler: handler.FeastHandler{
+				Client:       k8sClient,
+				Context:      ctx,
+				Scheme:       k8sClient.Scheme(),
+				FeatureStore: featureStore,
+			},
+		}
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+	})
+
+	AfterEach(func() {
+		Expect(k8sClient.Delete(ctx, featureStore)).To(Succeed())
+	})
+
+	It("should return grpc appProtocol for the registry gRPC service", func() {
+		Expect(feast.isRegistryGrpcEnabled()).To(BeTrue())
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, false)).To(Equal(ptr.To("grpc")))
+	})
+
+	It("should return nil appProtocol for the registry REST service", func() {
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, true)).To(BeNil())
+	})
+
+	It("should return nil appProtocol for the online store service", func() {
+		Expect(feast.getServiceAppProtocol(OnlineFeastType, false)).To(BeNil())
+	})
+
+	It("should return nil appProtocol for the offline store service", func() {
+		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(BeNil())
+	})
+
+	It("should return nil appProtocol when registry gRPC is disabled", func() {
+		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr.To(false)
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.isRegistryGrpcEnabled()).To(BeFalse())
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, false)).To(BeNil())
+	})
+
+	It("should set grpc appProtocol on the registry gRPC Service port", func() {
+		Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
+		svc := feast.initFeastSvc(RegistryFeastType)
+		Expect(svc).NotTo(BeNil())
+		Expect(feast.setService(svc, RegistryFeastType, false)).To(Succeed())
+
+		Expect(svc.Spec.Ports).To(HaveLen(1))
+		Expect(svc.Spec.Ports[0].AppProtocol).To(Equal(ptr.To("grpc")))
+	})
+
+	It("should not set appProtocol on the registry REST Service port", func() {
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
+		restSvc := feast.initFeastRestSvc(RegistryFeastType)
+		Expect(restSvc).NotTo(BeNil())
+		Expect(feast.setService(restSvc, RegistryFeastType, true)).To(Succeed())
+
+		Expect(restSvc.Spec.Ports).To(HaveLen(1))
+		Expect(restSvc.Spec.Ports[0].AppProtocol).To(BeNil())
+	})
+})
+
 var _ = Describe("Pod Container Failure Messages", func() {
 	It("should detect init container in CrashLoopBackOff", func() {
 		pod := &corev1.Pod{

@@ -11,7 +11,9 @@ from feast.errors import (
     FeastPermissionError,
     FeatureViewNotFoundException,
 )
+from feast.permissions.auth.auth_manager import AllowAll, set_auth_manager
 from feast.permissions.permission import Permission
+from feast.permissions.security_manager import no_security_manager
 from feast.registry_server import start_server
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.unit.permissions.auth.server import mock_utils
@@ -26,6 +28,8 @@ from tests.unit.permissions.auth.server.test_utils import (
 )
 from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
+
+pytestmark = [pytest.mark.integration, pytest.mark.rbac_remote_integration_test]
 
 
 @pytest.fixture
@@ -71,7 +75,11 @@ def start_registry_server(
     yield server
 
     print("Stopping server")
-    server.stop(grace=None)  # Teardown server
+    try:
+        server.stop(grace=None)  # Teardown server
+    finally:
+        no_security_manager()
+        set_auth_manager(AllowAll())
 
 
 @pytest.mark.parametrize(
