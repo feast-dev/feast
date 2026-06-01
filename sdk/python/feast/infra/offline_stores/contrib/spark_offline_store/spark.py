@@ -492,9 +492,9 @@ class SparkRetrievalJob(RetrievalJob):
         """Return (pyarrow filesystem, prefix-stripped paths) for staging URIs."""
         sample = paths[0]
 
-        if sample.startswith("s3://") or sample.startswith("s3a://"):
-            import pyarrow.fs as pafs
+        import pyarrow.fs as pafs
 
+        if sample.startswith("s3://") or sample.startswith("s3a://"):
             endpoint = os.environ.get("AWS_ENDPOINT_URL_S3") or os.environ.get(
                 "AWS_S3_ENDPOINT", ""
             )
@@ -504,16 +504,16 @@ class SparkRetrievalJob(RetrievalJob):
             kwargs: Dict[str, Any] = {"region": region}
             if endpoint:
                 kwargs["endpoint_override"] = (
-                    endpoint.rstrip("/").replace("https://", "").replace("http://", "")
+                    endpoint.rstrip("/")
+                    .removeprefix("https://")
+                    .removeprefix("http://")
                 )
                 kwargs["scheme"] = "https" if endpoint.startswith("https") else "http"
             fs = pafs.S3FileSystem(**kwargs)
-            stripped = [p.replace("s3a://", "").replace("s3://", "") for p in paths]
+            stripped = [p.removeprefix("s3a://").removeprefix("s3://") for p in paths]
             return fs, stripped
 
         if sample.startswith("gs://"):
-            import pyarrow.fs as pafs
-
             fs = pafs.GcsFileSystem()
             stripped = [p[len("gs://") :] for p in paths]
             return fs, stripped
