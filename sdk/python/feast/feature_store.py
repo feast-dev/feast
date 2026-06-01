@@ -107,6 +107,11 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 from feast.version_utils import parse_version
 
+try:
+    from datetime import timezone as _timezone
+except ImportError:
+    _timezone = None  # type: ignore[assignment,misc]
+
 _track_materialization = None  # Lazy-loaded on first materialization call
 _track_materialization_loaded = False
 
@@ -2151,6 +2156,14 @@ class FeatureStore:
                         end_date,
                     )
 
+            materialized_fv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if not isinstance(fv, OnDemandFeatureView)
+            ]
+            if materialized_fv_names:
+                self._precompute_affected_services(materialized_fv_names)
+
             # Emit OpenLineage COMPLETE event
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
@@ -2319,6 +2332,14 @@ class FeatureStore:
                     end_date,
                 )
 
+            materialized_fv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if not isinstance(fv, OnDemandFeatureView)
+            ]
+            if materialized_fv_names:
+                self._precompute_affected_services(materialized_fv_names)
+
             # Emit OpenLineage COMPLETE event
             self._emit_openlineage_materialize_complete(
                 ol_run_id, feature_views_to_materialize
@@ -2434,6 +2455,236 @@ class FeatureStore:
 
         return fvs_with_push_sources
 
+    def precompute_feature_service(
+        self,
+        feature_service_name: Optional[str] = None,
+        batch_size: int = 1000,
+    ) -> int:
+        """Pre-compute feature vectors for one or all FeatureServices.
+
+        For each FeatureService with ``precompute_online=True`` (or matching
+        *feature_service_name*), reads every entity's features from the online
+        store via :meth:`OnlineStore.online_read` and writes a single serialized
+        blob per entity via :meth:`OnlineStore.write_precomputed_vector`.
+
+        Works with **all** online store backends (Redis, DynamoDB, PostgreSQL, etc.).
+
+        Returns the total number of entity vectors written.
+        """
+        from feast.protos.feast.core.PrecomputedFeatureVector_pb2 import (
+            FeatureViewTimestamp,
+            PrecomputedFeatureVector,
+        )
+
+        provider = self._get_provider()
+        online_store = provider.online_store
+
+        services = self.registry.list_feature_services(self.project)
+        if feature_service_name:
+            services = [s for s in services if s.name == feature_service_name]
+
+        total_written = 0
+        for svc in services:
+            if not svc.precompute_online and not feature_service_name:
+                continue
+
+            fv_projections = svc.feature_view_projections
+            feature_views = []
+            for proj in fv_projections:
+                fv = self.registry.get_any_feature_view(
+                    proj.name, self.project, allow_cache=True
+                )
+                feature_views.append((fv, proj))
+
+            if not feature_views:
+                continue
+
+            feature_names: List[str] = []
+            for _fv, proj in feature_views:
+                fv_name = proj.name_to_use()
+                for f in proj.features:
+                    feature_names.append(f"{fv_name}__{f.name}")
+
+            # Collect all unique entity key protos from the primary feature view.
+            # Use online_read to discover entities that exist in the store.
+            primary_fv = feature_views[0][0]
+
+            # Read entity keys by scanning the primary FV's online data.
+            # We use get_online_features with the full FeatureService to read
+            # all features for each entity in a single call, then build vectors.
+            #
+            # For stores that support native scanning (like Redis), we try the
+            # native scan; for others, we use the materialized entity list.
+            entity_key_protos: List[EntityKey] = []
+            try:
+                from feast.infra.online_stores.redis import RedisOnlineStore
+
+                if isinstance(online_store, RedisOnlineStore):
+                    from feast.infra.key_encoding_utils import (
+                        deserialize_entity_key,
+                    )
+                    from feast.infra.online_stores.helpers import _redis_key_prefix
+
+                    join_keys = (
+                        list(primary_fv.join_keys)
+                        if hasattr(primary_fv, "join_keys")
+                        else []
+                    )  # type: ignore[union-attr]
+                    client = online_store._get_client(  # type: ignore[attr-defined]
+                        self.config.online_store
+                    )
+                    scan_prefix = _redis_key_prefix(join_keys)
+                    project_bytes = self.config.project.encode("utf-8")
+                    seen_keys: set = set()
+                    raw_keys: List[bytes] = []
+                    for key in client.scan_iter(
+                        b"".join([scan_prefix, b"*", project_bytes])
+                    ):
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            raw_keys.append(key)
+                    proj_len = len(project_bytes)
+                    for rk in raw_keys:
+                        try:
+                            ek = deserialize_entity_key(
+                                rk[:-proj_len],
+                                self.config.entity_key_serialization_version,
+                            )
+                            if set(ek.join_keys) == set(join_keys):
+                                entity_key_protos.append(ek)
+                        except (ValueError, Exception):
+                            continue
+                else:
+                    raise NotImplementedError
+            except (ImportError, NotImplementedError):
+                _logger.warning(
+                    "Entity scanning not supported for '%s' — "
+                    "precompute requires a store that supports entity scanning",
+                    type(online_store).__name__,
+                )
+                continue
+
+            if not entity_key_protos:
+                continue
+
+            for batch_start in range(0, len(entity_key_protos), batch_size):
+                batch_keys = entity_key_protos[batch_start : batch_start + batch_size]
+
+                # Read features for each FV via base class online_read.
+                fv_data: Dict[
+                    str,
+                    List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
+                ] = {}
+                for fv_obj, proj in feature_views:
+                    req_features = [f.name for f in proj.features]
+                    assert isinstance(fv_obj, FeatureView)
+                    rows = online_store.online_read(
+                        config=self.config,
+                        table=fv_obj,
+                        entity_keys=batch_keys,
+                        requested_features=req_features,
+                    )
+                    fv_data[proj.name_to_use()] = rows
+
+                for entity_idx, entity_key in enumerate(batch_keys):
+                    values: List[ValueProto] = []
+                    fv_timestamps: list = []
+
+                    for _fv, proj in feature_views:
+                        fv_name = proj.name_to_use()
+                        fv_row_ts, feat_dict = fv_data[fv_name][entity_idx]
+
+                        if fv_row_ts:
+                            fv_ts = Timestamp()
+                            fv_ts.FromDatetime(utils.make_tzaware(fv_row_ts))
+                            fv_timestamps.append(
+                                FeatureViewTimestamp(
+                                    feature_view_name=fv_name,
+                                    event_timestamp=fv_ts,
+                                )
+                            )
+
+                        for f in proj.features:
+                            if feat_dict and f.name in feat_dict:
+                                values.append(feat_dict[f.name])
+                            else:
+                                values.append(ValueProto())
+
+                    now_ts = Timestamp()
+                    now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
+
+                    vector = PrecomputedFeatureVector(
+                        feature_names=feature_names,
+                        values=values,
+                        fv_timestamps=fv_timestamps,
+                        precomputed_at=now_ts,
+                    )
+
+                    online_store.write_precomputed_vector(
+                        config=self.config,
+                        feature_service_name=svc.name,
+                        project=self.config.project,
+                        entity_key=entity_key,
+                        vector_bytes=vector.SerializeToString(),
+                    )
+                    total_written += 1
+
+            _logger.info(
+                "Pre-computed %d entity vectors for FeatureService '%s'",
+                total_written,
+                svc.name,
+            )
+
+        return total_written
+
+    def _precompute_affected_services(self, materialized_fv_names: List[str]) -> None:
+        """Trigger precomputation for services affected by materialized FVs."""
+        try:
+            services = self.registry.list_feature_services(self.project)
+        except Exception:
+            return
+
+        for svc in services:
+            if not svc.precompute_online:
+                continue
+            svc_fv_names = {p.name for p in svc.feature_view_projections}
+            if svc_fv_names & set(materialized_fv_names):
+                try:
+                    self.precompute_feature_service(svc.name)
+                except Exception:
+                    _logger.warning(
+                        "Failed to precompute vectors for service '%s'",
+                        svc.name,
+                        exc_info=True,
+                    )
+
+    def _precompute_for_push(self, feature_view_name: str, df: "pd.DataFrame") -> None:
+        """Re-compute pre-computed vectors for entities affected by a push."""
+        try:
+            services = self.registry.list_feature_services(self.project)
+        except Exception:
+            return
+
+        affected = [
+            svc
+            for svc in services
+            if svc.precompute_online
+            and any(p.name == feature_view_name for p in svc.feature_view_projections)
+        ]
+
+        if not affected:
+            return
+
+        for svc in affected:
+            try:
+                self.precompute_feature_service(svc.name)
+            except Exception:
+                _logger.warning(
+                    "Failed to precompute vectors for service '%s' after push",
+                    svc.name,
+                    exc_info=True,
+                )
+
     def push(
         self,
         push_source_name: str,
@@ -2452,6 +2703,7 @@ class FeatureStore:
             to: Whether to push to online or offline store. Defaults to online store only.
             transform_on_write: Whether to transform the data before pushing.
         """
+        pushed_fv_names = []
         for fv in self._fvs_for_push_source_or_raise(
             push_source_name, allow_registry_cache
         ):
@@ -2462,10 +2714,14 @@ class FeatureStore:
                     allow_registry_cache=allow_registry_cache,
                     transform_on_write=transform_on_write,
                 )
+                pushed_fv_names.append(fv.name)
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_offline_store(
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
+
+        if pushed_fv_names:
+            self._precompute_for_push(pushed_fv_names[0], df)
 
     async def push_async(
         self,

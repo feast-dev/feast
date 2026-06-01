@@ -22,7 +22,6 @@ from typing import (
     Dict,
     List,
     Literal,
-    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -33,7 +32,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
-from feast.feature_service import FeatureService
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import (
     _mmh3,
@@ -42,11 +40,8 @@ from feast.infra.online_stores.helpers import (
     compute_versioned_name,
 )
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import SupportedAsyncMethods
-from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
@@ -602,89 +597,27 @@ class RedisOnlineStore(OnlineStore):
             redis_values, fv_name, requested_features
         )
 
-    def get_online_features(
+    def _read_features_per_fv(
         self,
         config: RepoConfig,
-        features: Union[List[str], FeatureService],
-        entity_rows: Union[
-            List[Dict[str, Any]],
-            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
-        ],
-        registry: BaseRegistry,
-        project: str,
-        full_feature_names: bool = False,
-        include_feature_view_version_metadata: bool = False,
-    ) -> OnlineResponse:
-        """
-        Fetch online features for multiple feature views in a single Redis pipeline.
-
-        Overrides the base class implementation which issues one pipeline per feature view
-        (O(N_feature_views) round trips). This implementation batches all HMGET commands
-        across all feature views into a single pipeline execution (O(1) round trips),
-        exploiting the fact that all feature views for the same entity share the same
-        Redis hash key.
-        """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
-            entity_rows = columnar
-
-        (
-            join_key_values,
-            grouped_refs,
-            entity_name_to_join_key_map,
-            requested_on_demand_feature_views,
-            feature_refs,
-            requested_result_row_names,
-            online_features_response,
-        ) = utils._prepare_entities_to_read_from_online_store(
-            registry=registry,
-            project=project,
-            features=features,
-            entity_values=entity_rows,
-            full_feature_names=full_feature_names,
-            native_entity_values=True,
-        )
-
-        self._check_versioned_read_support(grouped_refs)
-
-        _track_read = False
-        try:
-            from feast.metrics import _config as _metrics_config
-
-            _track_read = _metrics_config.online_features
-        except Exception:
-            pass
-
-        if _track_read:
-            import time as _time
-
-            _read_start = _time.monotonic()
-
-        # Pre-compute all Redis keys and hash field keys for every feature view so we
-        # can issue all HMGET commands in a single pipeline execution below.
+        grouped_refs,
+        join_key_values,
+        entity_name_to_join_key_map,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Batch all per-FV HMGET commands into a single Redis pipeline."""
         work_items = []
         for table, requested_features in grouped_refs:
             table_entity_values, idxs, output_len = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
+                table, join_key_values, entity_name_to_join_key_map
             )
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
             fv_name = _versioned_fv_name(table, config)
             redis_keys = self._generate_redis_keys_for_entities(
                 config, entity_key_protos
             )
-
-            # Mutates requested_features in place (appends ts_key) — consistent with
-            # the base class behavior so _populate_response_from_feature_data works correctly.
             req_features, hset_keys = self._generate_hset_keys_for_features(
                 table, requested_features, fv_name_override=fv_name
             )
@@ -692,7 +625,6 @@ class RedisOnlineStore(OnlineStore):
                 (table, req_features, fv_name, hset_keys, redis_keys, idxs, output_len)
             )
 
-        # Single pipeline across all feature views: O(1) round trips instead of O(N_fv).
         if work_items:
             client = self._get_client(config.online_store)
             with client.pipeline(transaction=False) as pipe:
@@ -730,96 +662,21 @@ class RedisOnlineStore(OnlineStore):
                     include_feature_view_version_metadata,
                 )
 
-        if _track_read:
-            from feast.metrics import track_online_store_read
-
-            track_online_store_read(_time.monotonic() - _read_start)
-
-        feature_types = self._build_feature_types(grouped_refs)
-
-        if requested_on_demand_feature_views:
-            utils._augment_response_with_on_demand_transforms(
-                online_features_response,
-                feature_refs,
-                requested_on_demand_feature_views,
-                full_feature_names,
-                feature_types=feature_types,
-            )
-
-        utils._drop_unneeded_columns(
-            online_features_response, requested_result_row_names
-        )
-        return OnlineResponse(online_features_response, feature_types=feature_types)
-
-    async def get_online_features_async(
+    async def _read_features_per_fv_async(
         self,
         config: RepoConfig,
-        features: Union[List[str], FeatureService],
-        entity_rows: Union[
-            List[Dict[str, Any]],
-            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
-        ],
-        registry: BaseRegistry,
-        project: str,
-        full_feature_names: bool = False,
-        include_feature_view_version_metadata: bool = False,
-    ) -> OnlineResponse:
-        """
-        Async version of get_online_features using a single batched Redis pipeline.
-
-        Mirrors the sync override: all HMGET commands across all feature views are
-        issued in one async pipeline execution (O(1) round trips).
-        """
-        if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
-            for entity_row in entity_rows:
-                for key, value in entity_row.items():
-                    try:
-                        columnar[key].append(value)
-                    except KeyError as e:
-                        raise ValueError(
-                            "All entity_rows must have the same keys."
-                        ) from e
-            entity_rows = columnar
-
-        (
-            join_key_values,
-            grouped_refs,
-            entity_name_to_join_key_map,
-            requested_on_demand_feature_views,
-            feature_refs,
-            requested_result_row_names,
-            online_features_response,
-        ) = utils._prepare_entities_to_read_from_online_store(
-            registry=registry,
-            project=project,
-            features=features,
-            entity_values=entity_rows,
-            full_feature_names=full_feature_names,
-            native_entity_values=True,
-        )
-
-        self._check_versioned_read_support(grouped_refs)
-
-        _track_read = False
-        try:
-            from feast.metrics import _config as _metrics_config
-
-            _track_read = _metrics_config.online_features
-        except Exception:
-            pass
-
-        if _track_read:
-            import time as _time
-
-            _read_start = _time.monotonic()
-
+        grouped_refs,
+        join_key_values,
+        entity_name_to_join_key_map,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Async version: batch all per-FV HMGET into a single async pipeline."""
         work_items = []
         for table, requested_features in grouped_refs:
             table_entity_values, idxs, output_len = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
+                table, join_key_values, entity_name_to_join_key_map
             )
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
             fv_name = _versioned_fv_name(table, config)
@@ -869,27 +726,6 @@ class RedisOnlineStore(OnlineStore):
                     output_len,
                     include_feature_view_version_metadata,
                 )
-
-        if _track_read:
-            from feast.metrics import track_online_store_read
-
-            track_online_store_read(_time.monotonic() - _read_start)
-
-        feature_types = self._build_feature_types(grouped_refs)
-
-        if requested_on_demand_feature_views:
-            utils._augment_response_with_on_demand_transforms(
-                online_features_response,
-                feature_refs,
-                requested_on_demand_feature_views,
-                full_feature_names,
-                feature_types=feature_types,
-            )
-
-        utils._drop_unneeded_columns(
-            online_features_response, requested_result_row_names
-        )
-        return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def _get_features_for_entity(
         self,
