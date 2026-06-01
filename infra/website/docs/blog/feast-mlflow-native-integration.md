@@ -1,7 +1,7 @@
 ---
 title: "Native MLflow Integration for Feast: Automatic Feature Lineage for Every Experiment"
 description: "Feast now ships native MLflow integration : enable it in feature_store.yaml and every feature retrieval is automatically linked to the MLflow run that consumed it. No glue code, no manual tagging, full model-to-feature traceability."
-date: 2026-05-27
+date: 2026-06-01
 authors: ["Vanshika"]
 ---
 
@@ -60,6 +60,11 @@ When `mlflow.enabled: true` and an active MLflow run exists, Feast hooks into `g
 | `feast.job_submission_sec` | `0.43` (metric) |
 
 Even if features are passed as a list of refs rather than a `FeatureService` object, Feast auto resolves the matching feature service from the registry. The resolution is cached with a 5-minute TTL, so there is no registry overhead on every call.
+
+<div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/model_metadata.png" alt="Model metadata with Feast tags in MLflow" style="width: 48%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+  <img src="/images/blog/lineage_till_training.png" alt="Feature lineage from data source to model" style="width: 48%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
 
 ### The `store.mlflow` API
 
@@ -127,6 +132,10 @@ features = store.get_online_features(
 
 Promote a new model version that uses different features, and the serving pipeline auto-adapts.
 
+<div style="display: flex; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/registered_model_with_feature_service.png" alt="Registered model with feast.feature_service tag" style="width: 90%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
+
 ### Training Reproducibility
 
 When `auto_log_entity_df: true`, the integration saves the entity DataFrame as a Parquet artifact on every historical retrieval. Later, you can reconstruct the exact training inputs:
@@ -143,6 +152,10 @@ with store.mlflow.start_run(run_name="retrain_v2"):
 
 Even without entity DataFrame archival, Feast always logs metadata : row count, column names, date range, or the SQL query — so you have an audit trail of what went into the model.
 
+<div style="display: flex; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/entity_dataframe.png" alt="Entity DataFrame saved as artifact in MLflow" style="width: 90%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
+
 ### Operations Audit Trail
 
 When `log_operations: true`, `feast apply` and `feast materialize` are logged to a dedicated MLflow experiment (`{project}-feast-ops`). These are self-contained runs : they don't require a user-initiated active run:
@@ -155,6 +168,10 @@ mlflow:
 ```
 
 Apply runs record which feature views, feature services, and entities were created, updated, or deleted. Materialize runs record the feature views, date range, and duration. This gives platform teams a time-series audit trail of every registry and materialization change.
+
+<div style="display: flex; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/operation.png" alt="Operations audit trail in MLflow" style="width: 90%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
 
 ### Dataset Tracking
 
@@ -215,6 +232,11 @@ The feature view detail page shows MLflow training run count, last-used date, an
 
 When MLflow is not enabled, these endpoints return empty responses and the UI components are hidden — no visual noise for users who don't use MLflow.
 
+<div style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/mlflow_featurelist.png" alt="Feast UI Feature List with MLflow model associations" style="width: 48%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+  <img src="/images/blog/mlflow_dashboard.png" alt="Feast UI Feature View detail with MLflow usage" style="width: 48%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
+
 ## Configuration Reference
 
 | Option | Type | Default | Description |
@@ -238,6 +260,10 @@ pip install feast[mlflow]
 Add the `mlflow:` block to your `feature_store.yaml`, start an MLflow tracking server, and run your training code. Features are automatically linked to experiments from the first retrieval.
 
 For a complete end-to-end walkthrough — from feature definition through model training, registration, and feature resolution — see the [demo notebook](https://github.com/feast-dev/feast/tree/master/examples/mlflow).
+
+<div style="display: flex; justify-content: center; margin: 2rem 0;">
+  <img src="/images/blog/end_to_end_lineage.png" alt="End-to-end lineage from data source to registered model" style="width: 90%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+</div>
 
 
 ## Join the Conversation
