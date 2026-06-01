@@ -121,12 +121,18 @@ def get_or_create_new_spark_session(
     # Re-apply spark.sql.* and spark.hadoop.* which are safe to set post-creation.
     if spark_config:
         _RUNTIME_PREFIXES = ("spark.sql.", "spark.hadoop.")
+        applied_configs = []
         for k, v in spark_config.items():
             if any(k.startswith(p) for p in _RUNTIME_PREFIXES):
                 try:
                     spark_session.conf.set(k, v)
+                    applied_configs.append(k)
                 except Exception as e:
                     logger.debug("Could not set runtime config %s: %s", k, e)
+        if applied_configs:
+            logger.debug(
+                "Applied runtime configs to reused session: %s", applied_configs
+            )
 
     spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     return spark_session
@@ -357,6 +363,11 @@ def spark_embed(
     Uses ``localCheckpoint(eager=True)`` to sever Python lineage and avoid
     downstream Arrow serialiser mismatches. Model is cached per executor.
     """
+    if text_col not in df.columns:
+        raise ValueError(
+            f"Column '{text_col}' not found in DataFrame. Available columns: {df.columns}"
+        )
+
     import pyspark.sql.functions as F
     import pyspark.sql.types as T
     from pyspark.sql.functions import pandas_udf
