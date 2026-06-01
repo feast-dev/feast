@@ -6,7 +6,6 @@ namespace: opendatahub
 
 resources:
   - ../../default
-  - selector_migration_job.yaml
 
 
 patches:
@@ -63,13 +62,3 @@ replacements:
           name: controller-manager
         fieldPaths:
           - spec.template.spec.containers.[name=manager].env.[name=OIDC_ISSUER_URL].value
-  - source:
-      kind: ConfigMap
-      name: feast-operator-parameters
-      fieldPath: data.RELATED_IMAGE_CRON_JOB
-    targets:
-      - select:
-          kind: Job
-          name: selector-migration
-        fieldPaths:
-          - spec.template.spec.containers.[name=migrate].image
