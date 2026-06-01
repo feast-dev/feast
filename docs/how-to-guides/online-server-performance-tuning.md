@@ -35,9 +35,11 @@ When the server processes a `get_online_features()` call, it groups the requeste
 **Redis exception:** The Redis online store overrides `get_online_features()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
 {% endhint %}
 
-### Feature services are free
+### Feature services are free (and can be faster)
 
 A [Feature Service](../getting-started/concepts/feature-retrieval.md) is a named collection of feature references — it's a convenience grouping, not a separate storage or execution unit. Using a feature service adds only a registry lookup (cached) compared to listing features individually. There is no performance penalty for using feature services, and they are the recommended way to define stable, versioned feature sets for production models.
+
+For latency-critical services, feature services also unlock **pre-computed feature vectors** (`precompute_online=True`), which reduce store reads from O(N feature views) to O(1). See the [Pre-computed feature vectors](#pre-computed-feature-vectors) section below for details and benchmarks.
 
 ### ODFV overhead is additive
 
@@ -80,6 +82,45 @@ Requesting just `combined_score` triggers reads from **both** `driver_stats_fv` 
 | Prefer `write_to_online_store=True` for ODFVs that don't need request-time data | Moves compute from serving to materialization path |
 | Audit ODFV source dependencies | Avoid pulling in unnecessary store reads via unused source feature views |
 | Use `track_metrics=True` on ODFVs during profiling | Identifies which transforms are the bottleneck |
+
+---
+
+## Pre-computed feature vectors
+
+When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even with Redis pipeline batching, the protobuf deserialization and response-building overhead grows linearly with the number of views.
+
+**Pre-computed feature vectors** solve this by storing all of a feature service's features for each entity as a single serialized blob. At read time, the server fetches one blob per entity instead of N reads per feature view, reducing the operation to O(1).
+
+### How it works
+
+1. **Define** a feature service with `precompute_online=True`:
+
+```python
+benchmark_service = FeatureService(
+    name="benchmark_customer_service",
+    features=[
+        customer_demographics_fv,
+        customer_behavioral_profile,
+        transaction_7d_aggregations,
+        transaction_30d_aggregations,
+        transaction_90d_patterns,
+        atm_usage_30d,
+    ],
+    precompute_online=True,
+)
+```
+
+2. **Apply** the feature service: `feast apply`
+3. **Materialize** as usual — vectors are built automatically: `feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")`
+4. **Read** features as usual — the server automatically uses the pre-computed path:
+
+```python
+features = store.get_online_features(
+    features=store.get_feature_service("benchmark_customer_service"),
+    entity_rows=[{"customer_id": "CUST_000001"}],
+    full_feature_names=True,
+)
+```
 
 ---
 
@@ -1086,4 +1127,5 @@ Reset `skip_dedup` to `false` (or remove it) after the bulk reload. Under normal
 - [PostgreSQL Online Store](../reference/online-stores/postgres.md) — Connection pooling and SSL configuration
 - [Redis Online Store](../reference/online-stores/redis.md) — Cluster mode, Sentinel, TTL configuration, and batched reads
 - [On Demand Feature Views](../reference/beta-on-demand-feature-view.md) — Transformation modes and write-time transforms
+- [Feature Services & `precompute_online`](../getting-started/concepts/feature-retrieval.md#pre-computed-feature-vectors-precompute_online) — Concept docs for pre-computed feature vectors
 - [feature_store.yaml reference](../reference/feature-repository/feature-store-yaml.md) — Full configuration reference including `materialization` options

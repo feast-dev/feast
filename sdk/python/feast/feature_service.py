@@ -49,6 +49,8 @@ class FeatureService:
     last_updated_timestamp: Optional[datetime] = None
     logging_config: Optional[LoggingConfig] = None
 
+    precompute_online: bool = False
+
     def __init__(
         self,
         *,
@@ -58,18 +60,21 @@ class FeatureService:
         description: str = "",
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,
+        precompute_online: bool = False,
     ):
         """
         Creates a FeatureService object.
 
         Args:
             name: The unique name of the feature service.
-            feature_view_projections: A list containing feature views and feature view
+            features: A list containing feature views and feature view
                 projections, representing the features in the feature service.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            precompute_online (optional): When True, a pre-computed feature vector is
+                maintained per entity for single-read online retrieval.
         """
         self.name = name
         self._features = features
@@ -80,6 +85,7 @@ class FeatureService:
         self.created_timestamp = None
         self.last_updated_timestamp = None
         self.logging_config = logging_config
+        self.precompute_online = precompute_online
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
@@ -175,6 +181,7 @@ class FeatureService:
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
+            or self.precompute_online != other.precompute_online
         ):
             return False
 
@@ -202,6 +209,7 @@ class FeatureService:
             logging_config=LoggingConfig.from_proto(
                 feature_service_proto.spec.logging_config
             ),
+            precompute_online=feature_service_proto.spec.precompute_online,
         )
         fs.feature_view_projections.extend(
             [
@@ -245,9 +253,20 @@ class FeatureService:
             logging_config=self.logging_config.to_proto()
             if self.logging_config
             else None,
+            precompute_online=self.precompute_online,
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)
 
     def validate(self):
-        pass
+        if not self.precompute_online:
+            return
+
+        for fv in self._features:
+            if isinstance(fv, OnDemandFeatureView) and not fv.write_to_online_store:
+                raise ValueError(
+                    f"FeatureService '{self.name}' has precompute_online=True but "
+                    f"contains OnDemandFeatureView '{fv.name}' with "
+                    f"write_to_online_store=False. On-demand transforms computed at "
+                    f"serve time cannot be pre-computed."
+                )
