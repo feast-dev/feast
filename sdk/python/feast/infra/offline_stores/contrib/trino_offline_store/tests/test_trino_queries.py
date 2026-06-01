@@ -1,5 +1,5 @@
 import threading
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
     Query,
@@ -8,10 +8,14 @@ from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import
 
 def test_query_init_in_main_thread_registers_signals():
     """signal.signal() should work fine in main thread."""
-    cursor = MagicMock()
+
     # Should not raise any exception in main thread
-    query = Query(query_text="SELECT 1", cursor=cursor)
-    assert query.query_text == "SELECT 1"
+    cursor = MagicMock()
+    with patch("signal.signal") as mock_signal:
+        query = Query(query_text="SELECT 1", cursor=cursor)
+        assert query.query_text == "SELECT 1"
+        # Expected signal.signal to be called twice for SIGINT and SIGTERM
+        assert mock_signal.call_count == 2
 
 
 def test_query_init_in_worker_thread_does_not_raise():
