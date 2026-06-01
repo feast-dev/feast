@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -248,6 +249,11 @@ class TestAuditLogger(unittest.TestCase):
         al.log(AuditEvent(event_type="test", trace_id="preexisting"))
         event = sink.events[0]
         self.assertEqual(event.trace_id, "preexisting")
+
+    def test_audit_logger_has_lock(self):
+        sink = InMemorySink()
+        al = AuditLogger(sink)
+        self.assertIsInstance(al._lock, type(threading.Lock()))
 
 
 class TestStdoutSink(unittest.TestCase):

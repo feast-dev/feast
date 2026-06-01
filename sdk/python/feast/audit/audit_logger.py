@@ -23,6 +23,7 @@ entity rows, feature values) are never included.
 import abc
 import logging
 import sys
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -153,6 +154,7 @@ class AuditLogger:
     ) -> None:
         self._sink = sink
         self._log_successful_reads = log_successful_reads
+        self._lock = threading.Lock()
 
     # -- helpers -----------------------------------------------------------
 
@@ -201,7 +203,8 @@ class AuditLogger:
                     return
 
         try:
-            self._sink.emit(event)
+            with self._lock:
+                self._sink.emit(event)
         except Exception:
             logger.exception("Failed to emit audit event")
 
