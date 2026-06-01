@@ -76,7 +76,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      security-events: write
 
     strategy:
       fail-fast: false
@@ -108,15 +107,5 @@ jobs:
         uses: golang/govulncheck-action@v1
         with:
           work-dir: ${{ matrix.working-directory }}
-          go-version-file: ${{ matrix.go-version-file }}
           go-package: ./...
-          output-format: sarif
-          output-file: govulncheck-${{ matrix.module }}.sarif
           repo-checkout: false
-
-      - name: Upload SARIF to GitHub Security
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: ${{ matrix.working-directory }}/govulncheck-${{ matrix.module }}.sarif
-          category: govulncheck-${{ matrix.module }}
