@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-import sys
 import logging
+import sys
 from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
