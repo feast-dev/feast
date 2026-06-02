@@ -249,8 +249,8 @@ class OpenLineageConfig(FeastBaseModel):
     enabled: StrictBool = False
     """ bool: Whether OpenLineage integration is enabled. Defaults to False. """
 
-    transport_type: StrictStr = "console"
-    """ str: Type of transport (http, console, file, kafka). Defaults to console. """
+    transport_type: Optional[StrictStr] = None
+    """ str: Type of transport (http, console, file, kafka). Defaults to None (uses OpenLineage SDK defaults). """
 
     transport_url: Optional[StrictStr] = None
     """ str: URL for HTTP transport. Required when transport_type is 'http'. """

@@ -88,7 +88,7 @@ fs.materialize(
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enabled` | `false` | Enable/disable OpenLineage integration |
-| `transport_type` | `http` | Transport type: `http`, `file`, `kafka` |
+| `transport_type` | `None` | Transport type: `http`, `console`, `file`, `kafka`. When unset, defers to OpenLineage SDK defaults. |
 | `transport_url` | - | URL for HTTP transport (required) |
 | `transport_endpoint` | `api/v1/lineage` | API endpoint for HTTP transport |
 | `api_key` | - | Optional API key for authentication |
