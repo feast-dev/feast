@@ -5,8 +5,8 @@ date: 2026-06-01
 authors: ["Vanshika"]
 ---
 
-<div class="hero-image">
-  <img src="/images/blog/feast-mlflow-native-integration.png" alt="Feast Native MLflow Integration" loading="lazy">
+<div class="hero-image" style="width: auto; margin: 0 auto 64px; text-align: center;">
+  <img src="/images/blog/feast-mlflow-native-integration.png" alt="Feast Native MLflow Integration" style="width: auto; max-width: 100%;">
 </div>
 
 # Native MLflow Integration for Feast
@@ -259,12 +259,9 @@ pip install feast[mlflow]
 
 Add the `mlflow:` block to your `feature_store.yaml`, start an MLflow tracking server, and run your training code. Features are automatically linked to experiments from the first retrieval.
 
-For a complete end-to-end walkthrough — from feature definition through model training, registration, and feature resolution — see the [demo notebook](https://github.com/feast-dev/feast/tree/master/examples/mlflow).
-
 <div style="display: flex; justify-content: center; margin: 2rem 0;">
   <img src="/images/blog/end_to_end_lineage.png" alt="End-to-end lineage from data source to registered model" style="width: 90%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
 </div>
-
 
 ## Join the Conversation
 
