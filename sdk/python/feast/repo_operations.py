@@ -21,6 +21,7 @@ from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
+from feast.errors import ConflictingFeatureViewNames, DataSourceRepeatNamesException
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
@@ -28,7 +29,6 @@ from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.names import adjectives, animals
-from feast.errors import ConflictingFeatureViewNames, DataSourceRepeatNamesException
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
