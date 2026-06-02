@@ -1,0 +1,20 @@
+project: my_project
+
+project_description: |
+  This project is a smart City Q&A assistant that gives you accurate, detailed answers about any city instantly.
+provider: local
+registry: data/registry.db
+online_store:
+  type: milvus
+  path: data/online_store.db
+  vector_enabled: true
+  embedding_dim: 384
+  index_type: "FLAT"
+  metric_type: "COSINE"
+
+offline_store:
+  type: file
+entity_key_serialization_version: 3
+# By default, no_auth for authentication and authorization
+auth:
+  type: no_auth
