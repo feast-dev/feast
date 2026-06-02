@@ -1133,9 +1133,9 @@ ibis-framework[duckdb]==12.0.0 \
     --hash=sha256:0bbd790f268da9cb87926d5eaad2b827a573927113c4ed3be5095efa89b9e512 \
     --hash=sha256:238624f2c14fdab8382ca2f4f667c3cdb81e29844cd5f8db8a325d0743767c61
     # via feast (pyproject.toml)
-idna==3.16 \
-    --hash=sha256:cc246e3a3f89580c3a951b5ad298ca4638078b2cdd4f115654332b5c26daded5 \
-    --hash=sha256:d7a6da03db833450fca25d2358ac9ff06cd624577a4aea3a596d5c0f77b8e03d
+idna==3.17 \
+    --hash=sha256:466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c \
+    --hash=sha256:5eb0cb53bc467c12eadcf6de83163ad8527cec9416f44b9b61b19caedad2b87f
     # via
     #   anyio
     #   httpx
@@ -1167,9 +1167,9 @@ jsonschema-specifications==2025.9.1 \
     --hash=sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe \
     --hash=sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d
     # via jsonschema
-kubernetes==36.0.0 \
-    --hash=sha256:027b606bb8032e6c6464a53236bdd9bd9a94c237e1063bc45a303c25b304ced9 \
-    --hash=sha256:a766433357ec9f90db7565cccf52e28e7fca40b0ef366c80a6022adbc0ac0425
+kubernetes==36.0.1 \
+    --hash=sha256:3eadd6ae1be3b742ae63bd382b139c9fd5171afb6e00771dcefaae2d49001992 \
+    --hash=sha256:7631d11dd761f18658064a6ee91a36923cec3bef3cd92b99e08a53745b95f7d0
     # via feast (pyproject.toml)
 librt==0.11.0 \
     --hash=sha256:05fb8fb2ab90e21c8d12ea240d744ad514da9baf381ebfa70d91d20d21713175 \
@@ -1847,9 +1847,9 @@ pathspec==1.1.1 \
     --hash=sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a \
     --hash=sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189
     # via mypy
-platformdirs==4.9.6 \
-    --hash=sha256:3bfa75b0ad0db84096ae777218481852c0ebc6c727b3168c1b9e0118e458cf0a \
-    --hash=sha256:e61adb1d5e5cb3441b4b7710bea7e4c12250ca49439228cc1021c00dcfac0917
+platformdirs==4.10.0 \
+    --hash=sha256:31e761a6a0ca04faf7353ea759bdba55652be214725111e5aac52dfa29d4bef7 \
+    --hash=sha256:fb516cdb12eb0d857d0cd85a7c57cea4d060bee4578d6cf5a14dfdf8cbf8784a
     # via snowflake-connector-python
 prometheus-client==0.24.1 \
     --hash=sha256:150db128af71a5c2482b36e588fc8a6b95e498750da4b17065947c16070f4055 \
@@ -2569,32 +2569,33 @@ six==1.17.0 \
     # via
     #   kubernetes
     #   python-dateutil
-snowflake-connector-python[pandas]==4.5.0 \
-    --hash=sha256:0c92794e56faaafbdf6fedfa0473bd29f40ea89ad258b322c92b27b27f57bc35 \
-    --hash=sha256:16311dc9c4a0e2d6cd14ecd43f1f607e291ba5397832123a0b04a326897ef8b0 \
-    --hash=sha256:1897be7487587d9ce7feae132a288e714b3b07f3b3f3404e62b6dfcebde94bb9 \
-    --hash=sha256:206ea5e947ac346d121dd344048b7dd1b2ab4a0da03375ce3d90321a8ce598db \
-    --hash=sha256:2c04c2a7ee5a183be1204417077584c07569e66997e8d093403bb1604b5463bd \
-    --hash=sha256:34fbeb3f8ad26f34659c687cb27136d8eb9aea1ac65bc4b8b32091dc727f1f14 \
-    --hash=sha256:376eb9d956f6b9287df448e483ec862b94fb9ccb06cefc945b68ddac1c7d1c48 \
-    --hash=sha256:39c2b9d17da9a23475ad52a8e7b389001d7277bf400428c4c6af6bd1099bc62e \
-    --hash=sha256:4870858f2fa312343b0063fb4da57b3e893d80aa00e371bc637981f3eed9c254 \
-    --hash=sha256:56baa39a1fa9f0cdcdad3da022508396268d0bf6bb6df28087b02e4826e88bd1 \
-    --hash=sha256:583adc49b38316d3023dc80bef81a27a3027a2f8109a36e69a0083785b7f8662 \
-    --hash=sha256:5f73f1b0ed24e01d9dd627b088cc83e62e81ea5b19bee679946941f6d1947ef9 \
-    --hash=sha256:64ec9b5dddf19c7f4ce4355d1b8e16239a26d1d161d92219919953510664269c \
-    --hash=sha256:6bb323323c573c903500e1c654f71c0aad7b62149e2f719c611377fac9c05833 \
-    --hash=sha256:7badadc59d7e75550c7f35bdb9414895cae5898a4f9901b02231d0eaa694a4a0 \
-    --hash=sha256:81bfdbd865fceb5e9ac1969976c8f635e21185c06d97a31cac8ca3a4b4697b1d \
-    --hash=sha256:92d865b9b60a767a55787540dbf04b3074a7b1a728f24ddbec2bbcf257215625 \
-    --hash=sha256:93febe6d69c4dc46a64d16a0b6ed65b523d869f1691ead791eb22ebd8b6725ce \
-    --hash=sha256:9a17b5a8e43611bd7eae289de2b8f71679bb386b8d82036f0b36436827308f81 \
-    --hash=sha256:9c0cc17ceb915842dfdee7baaccbdcd5b5e3de06977231b8a31704c2ed8532d8 \
-    --hash=sha256:a1aa9128aa43d09771e845a1af1fc2a5d5a014ab0bea8bea4b72501662ba601f \
-    --hash=sha256:a28a9391b464f9060304d8468a24bff6a2d13bf5801c92fbf8c05907e5fb06f4 \
-    --hash=sha256:d7f5e2ea42521c033c4ac0e60685c50a47082715eb57cdaf92b438d9bb44d220 \
-    --hash=sha256:e4481849c65d4eeaef89efd589c7690bc51d7535524f278dde9b29012fdf5084 \
-    --hash=sha256:ee03a9b8f61192d72374e3785650460ed0c996c7153a8b38140be6e162ac4fb1
+snowflake-connector-python[pandas]==4.6.0 \
+    --hash=sha256:00abbcfe958f60da18297191f3499b1e61802e64622521a2e8da1c059c14e1c0 \
+    --hash=sha256:03b0a232d8d0a1c78eb0d4e9f8a422a1553b2f69ef1387d50a3223bb1829a249 \
+    --hash=sha256:04ea8906ac06bdf98ab265f7870b532f32dd2b0f6b3b06a542b6e25a43e01665 \
+    --hash=sha256:06e2dba02703da6fd60e07bb0574506f810a85e5831d3461247753ecce4b8335 \
+    --hash=sha256:0829d57467bf1bb5af411f6e7723058cb2218fb7df07cf15d912e3b1a2c126eb \
+    --hash=sha256:1894504c69a76ac4a205d01fbb3e18c6a6e974e6ad26dad263edd06343bea501 \
+    --hash=sha256:18cc5402695b8e958503d6d7ab96403db90c481b63c31520305876ef3cb797e9 \
+    --hash=sha256:1c8476781cfef961fc5f6f75a5238e668d3e0ca5ebf1d055661b2fcf2831c254 \
+    --hash=sha256:1fe93d88278a0b7e0efde6140890bc298a49fbf1e04968a35aa22c801131cced \
+    --hash=sha256:324b15278ee84ea6f0af7fef5e916778c23c4569b2c8ba7fdc90d288478772b9 \
+    --hash=sha256:3ff98c3213674c5ed18ba6bb9288c4e88e790150f350824434d49a23d15c0fc3 \
+    --hash=sha256:531dcb07eee8405e5d8a9f4e7f8c1ca7916e3afbb4ffb3dd2c9a12ec5bd0e46a \
+    --hash=sha256:676162cd45df744aa966483960d34bf204cdcae87cecad77fba970f1c2fd570d \
+    --hash=sha256:6d3f6120edeb0d6edd208831d006cc3e769ec51bc346727f22d7aeaecbf20f77 \
+    --hash=sha256:72aaee21a70e00fbe4dadcc60b9b1012b6411dddc90f94804d5efe5706fb9621 \
+    --hash=sha256:7ab64f46b18d77d1e6c159a29cd86eeff0be9ff01a9904fa873a3c29d20063d1 \
+    --hash=sha256:8edc8bbcbaaa25a08d43f943fe45f00dc465684ef243859b0f3f7498d800f1ce \
+    --hash=sha256:9dd8689123a7e7b873db0846f2d92745a02062b16665d20634fbaf34a9c88e7a \
+    --hash=sha256:a7701b702dbeb348769c5d1248231e18544c4ff1fb4118ad73d48e8f801cfb6e \
+    --hash=sha256:c3124fd4a5dc702173ccd73d821ceba1442134d5f347b4c8d1ecb76489f44671 \
+    --hash=sha256:e0ca5a035b1afa690fb36a767ba59c8db85ef6295b88c2bbc2040449e99992ad \
+    --hash=sha256:e8ccbf8b5e12177a86bd3ab8292cc5a99e9ac97d7645ef4a3ed0f767b4ec6594 \
+    --hash=sha256:eab420406a38ebc059100bb1faa55d7d6306bb224cefadb739ec3cafeff65384 \
+    --hash=sha256:ed40d1e9d867253596860b9d5240280489ff4692b7a3fa21e2d45d63b4b61d36 \
+    --hash=sha256:f15e2493a316ce79ab3d7fb16add10252bb2401723e5cfbc7a2ebc44d89a7b2b \
+    --hash=sha256:fe9005d226b234bf190409e5d7e8db9f7daba271880de9105f5173a6858b8e6b
     # via feast (pyproject.toml)
 sortedcontainers==2.4.0 \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
@@ -2668,10 +2669,11 @@ sse-starlette==3.4.4 \
     --hash=sha256:07e0fa0460138baf25cdd5fb28683472c3995dc1642225191b3832d62526bcb0 \
     --hash=sha256:3f4dd50d8aed2771a091f3a83000323fc3844541c16b4fe585ae2420cc6df973
     # via mcp
-starlette==1.1.0 \
-    --hash=sha256:7f0dfd38e428aad5cb6f9f667f0ca1d2d8ca3f3385dccac8305f79ec98458382 \
-    --hash=sha256:e83c7fe0ddecd8719c5b840080325aec0260acec86e9832899e377b91d65e90f
+starlette==1.2.0 \
+    --hash=sha256:36e0c76ac59157e75dc4b3bdeafba97fb04eaf1878045f15dbef666a6f092ed7 \
+    --hash=sha256:3c5a6b23fff42492914e93890bb80cbfea72dbf37de268eec06185d62a4ca553
     # via
+    #   feast (pyproject.toml)
     #   fastapi
     #   mcp
     #   sse-starlette
@@ -2759,9 +2761,9 @@ typeguard==4.5.2 \
     --hash=sha256:5a16dcac23502039299c97c8941651bc33d7ea8cc4b2f7d6bbb1b528f6eea423 \
     --hash=sha256:fcf9de18bd945cdb4c7b996e12b4c51ce83f92f191314a6d7cf1739586ec98cf
     # via feast (pyproject.toml)
-typer==0.26.0 \
-    --hash=sha256:08177aa85fd81ceb6e8f7cb879cf22dbaa81f98c02b7d570acf112513d2aa66f \
-    --hash=sha256:859d520a4dc91c075cb370195462b6f7024fceb5d6de5c204bb8b1d51a60ad66
+typer==0.26.3 \
+    --hash=sha256:3e2b9352f535e5303ef27806dadc2c8647687bdca5c902f03fec3fb88f46a46a \
+    --hash=sha256:e70549ec5a403ca8a0bf0802ddd9f3c6ff7a14ccbb859b01b697baa943636f33
     # via fastapi-mcp
 types-pymysql==1.1.0.20260518 \
     --hash=sha256:39a2448c4267dc4551e0824d2bfaecf7dfd171e89e6dbba90f4d4d45d55e4342 \

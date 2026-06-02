@@ -69,3 +69,43 @@ jobs:
       - name: Run safety scan
         continue-on-error: true
         run: safety scan --output json
+
+  govulncheck:
+    name: Go Vulnerability Check (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: go-feature-server
+            working-directory: .
+            go-version-file: go.mod
+            needs-protos: true
+          - module: feast-operator
+            working-directory: infra/feast-operator
+            go-version-file: infra/feast-operator/go.mod
+            needs-protos: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.go-version-file }}
+
+      - name: Compile Go protobuf files
+        if: matrix.needs-protos
+        run: make compile-protos-go
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          work-dir: ${{ matrix.working-directory }}
+          go-package: ./...
+          repo-checkout: false

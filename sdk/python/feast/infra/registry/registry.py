@@ -1287,6 +1287,17 @@ class Registry(BaseRegistry):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         self._get_registry_proto(project=project, allow_cache=False)
 
+    def is_cache_valid(self) -> bool:
+        if self.cached_registry_proto_created is None:
+            return False
+        if (
+            self.cached_registry_proto_ttl.total_seconds() > 0
+            and _utc_now()
+            > self.cached_registry_proto_created + self.cached_registry_proto_ttl
+        ):
+            return False
+        return True
+
     def teardown(self):
         """Tears down (removes) the registry."""
         self._registry_store.teardown()

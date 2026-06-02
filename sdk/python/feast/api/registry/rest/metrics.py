@@ -11,6 +11,9 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
     paginate_and_sort,
 )
+from feast.errors import FeastObjectNotFoundException
+from feast.permissions.action import AuthzedAction
+from feast.permissions.security_manager import assert_permissions
 from feast.protos.feast.registry import RegistryServer_pb2
 
 
@@ -433,15 +436,21 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         key = f"recently_visited_{user}"
         visits = []
         if project:
-            try:
-                visits_json = (
-                    server.registry.get_project_metadata(project, key)
-                    if server
-                    else None
-                )
-                visits = json.loads(visits_json) if visits_json else []
-            except Exception:
-                visits = []
+            if server:
+                try:
+                    project_obj = server.registry.get_project(
+                        name=project, allow_cache=True
+                    )
+                    assert_permissions(
+                        resource=project_obj, actions=[AuthzedAction.DESCRIBE]
+                    )
+                except FeastObjectNotFoundException:
+                    pass
+                try:
+                    visits_json = server.registry.get_project_metadata(project, key)
+                    visits = json.loads(visits_json) if visits_json else []
+                except Exception:
+                    visits = []
         else:
             try:
                 if server:

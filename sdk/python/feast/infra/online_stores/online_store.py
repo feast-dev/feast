@@ -253,55 +253,14 @@ class OnlineStore(ABC):
         )
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
+    _versioned_read_supported: Optional[bool] = None
+
     def _check_versioned_read_support(self, grouped_refs):
         """Raise an error if versioned reads are attempted on unsupported stores."""
-        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+        if self._versioned_read_supported is None:
+            self._versioned_read_supported = self._is_versioned_read_supported()
 
-        supported_types: list[type] = [SqliteOnlineStore]
-        try:
-            from feast.infra.online_stores.mysql_online_store.mysql import (
-                MySQLOnlineStore,
-            )
-
-            supported_types.append(MySQLOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.postgres_online_store.postgres import (
-                PostgreSQLOnlineStore,
-            )
-
-            supported_types.append(PostgreSQLOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.faiss_online_store import FaissOnlineStore
-
-            supported_types.append(FaissOnlineStore)
-        except ImportError:
-            pass
-        try:
-            from feast.infra.online_stores.redis import RedisOnlineStore
-
-            supported_types.append(RedisOnlineStore)
-        except Exception:
-            pass
-        try:
-            from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
-
-            supported_types.append(DynamoDBOnlineStore)
-        except Exception:
-            pass
-        try:
-            from feast.infra.online_stores.milvus_online_store.milvus import (
-                MilvusOnlineStore,
-            )
-
-            supported_types.append(MilvusOnlineStore)
-        except ImportError:
-            pass
-
-        if isinstance(self, tuple(supported_types)):
+        if self._versioned_read_supported:
             return
         for table, _ in grouped_refs:
             version_tag = getattr(table.projection, "version_tag", None)
@@ -309,6 +268,34 @@ class OnlineStore(ABC):
                 raise VersionedOnlineReadNotSupported(
                     self.__class__.__name__, version_tag
                 )
+
+    def _is_versioned_read_supported(self) -> bool:
+        """Check if this store type supports versioned reads (resolved once, cached)."""
+        from feast.infra.online_stores.sqlite import SqliteOnlineStore
+
+        supported_types: list[type] = [SqliteOnlineStore]
+        for module, cls_name in (
+            ("feast.infra.online_stores.mysql_online_store.mysql", "MySQLOnlineStore"),
+            (
+                "feast.infra.online_stores.postgres_online_store.postgres",
+                "PostgreSQLOnlineStore",
+            ),
+            ("feast.infra.online_stores.faiss_online_store", "FaissOnlineStore"),
+            ("feast.infra.online_stores.redis", "RedisOnlineStore"),
+            ("feast.infra.online_stores.dynamodb", "DynamoDBOnlineStore"),
+            (
+                "feast.infra.online_stores.milvus_online_store.milvus",
+                "MilvusOnlineStore",
+            ),
+        ):
+            try:
+                import importlib
+
+                mod = importlib.import_module(module)
+                supported_types.append(getattr(mod, cls_name))
+            except Exception:
+                pass
+        return isinstance(self, tuple(supported_types))
 
     async def get_online_features_async(
         self,

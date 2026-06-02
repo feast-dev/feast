@@ -40,7 +40,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel, field_validator
 
 import feast
@@ -52,9 +51,14 @@ from feast.errors import (
     FeastError,
 )
 from feast.feast_object import FeastObject
+from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
-from feast.permissions.security_manager import assert_permissions
+from feast.permissions.security_manager import (
+    assert_permissions,
+    get_security_manager,
+    is_auth_necessary,
+)
 from feast.permissions.server.rest import inject_user_details
 from feast.permissions.server.utils import (
     ServerType,
@@ -184,7 +188,7 @@ async def _get_features(
             resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
         )
         features = feature_service  # type: ignore
-    else:
+    elif is_auth_necessary(get_security_manager()):
         all_feature_views, all_on_demand_feature_views = await run_in_threadpool(
             utils._get_feature_views_to_use,
             store.registry,
@@ -201,6 +205,8 @@ async def _get_features(
             assert_permissions(
                 resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
             )
+        features = request.features  # type: ignore
+    else:
         features = request.features  # type: ignore
     return features
 
@@ -429,20 +435,10 @@ def get_app(
                     include_feature_view_version_metadata=request.include_feature_view_version_metadata,
                 )
 
-                if store._get_provider().async_supported.online.read:
-                    response = await store.get_online_features_async(**read_params)  # type: ignore
-                else:
-                    response = await run_in_threadpool(
-                        lambda: store.get_online_features(**read_params)  # type: ignore
-                    )
-
-                response_dict = await run_in_threadpool(
-                    MessageToDict,
-                    response.proto,
-                    preserving_proto_field_name=True,
-                    float_precision=18,
-                )
-                return response_dict
+            response_dict = await run_in_threadpool(
+                convert_response_to_dict, response.proto
+            )
+            return JSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -484,25 +480,10 @@ def get_app(
                 if request.api_version == 2 and request.query_string is not None:
                     read_params["query_string"] = request.query_string
 
-                if request.api_version == 2:
-                    read_params["include_feature_view_version_metadata"] = (
-                        request.include_feature_view_version_metadata
-                    )
-                    response = await run_in_threadpool(
-                        lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
-                    )
-                else:
-                    response = await run_in_threadpool(
-                        lambda: store.retrieve_online_documents(**read_params)  # type: ignore
-                    )
-
-                response_dict = await run_in_threadpool(
-                    MessageToDict,
-                    response.proto,
-                    preserving_proto_field_name=True,
-                    float_precision=18,
-                )
-                return response_dict
+            response_dict = await run_in_threadpool(
+                convert_response_to_dict, response.proto
+            )
+            return JSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
@@ -669,12 +650,22 @@ def get_app(
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     async def materialize(request: MaterializeRequest) -> None:
         with feast_metrics.track_request_latency("/materialize"):
-            for feature_view in request.feature_views or []:
-                resource = await _get_feast_object(feature_view, True)
-                assert_permissions(
-                    resource=resource,
-                    actions=[AuthzedAction.WRITE_ONLINE],
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
                 )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
 
             if request.disable_event_timestamp:
                 now = datetime.now()
@@ -700,12 +691,22 @@ def get_app(
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
     async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
         with feast_metrics.track_request_latency("/materialize-incremental"):
-            for feature_view in request.feature_views or []:
-                resource = await _get_feast_object(feature_view, True)
-                assert_permissions(
-                    resource=resource,
-                    actions=[AuthzedAction.WRITE_ONLINE],
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
                 )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
             await run_in_threadpool(
                 store.materialize_incremental,
                 utils.make_tzaware(parser.parse(request.end_ts)),
