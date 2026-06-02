@@ -38,6 +38,10 @@ message FeatureServiceSpec {
 
   // (optional) if provided logging will be enabled for this feature service.
   LoggingConfig logging_config = 7;
+
+  // When true, a pre-computed feature vector is maintained per entity for this
+  // service, enabling single-read online retrieval instead of per-feature-view reads.
+  bool precompute_online = 8;
 }
 
 
