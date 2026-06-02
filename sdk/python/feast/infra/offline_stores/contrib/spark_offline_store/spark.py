@@ -131,10 +131,17 @@ def _apply_bfv_transformations_for_historical(
                 ctx = replace(ctx, table_subquery=tmp_view)
                 new_contexts.append(ctx)
                 continue
-            except Exception:
+            except (FileNotFoundError, PermissionError) as e:
                 warnings.warn(
-                    f"Offline path '{fv.batch_source.path}' not readable for "
-                    f"'{ctx.name}'; falling back to source query.",
+                    f"Offline path '{fv.batch_source.path}' not accessible for "
+                    f"'{ctx.name}': {e}; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error loading offline path '{fv.batch_source.path}' "
+                    f"for '{ctx.name}': {e}; falling back to source query.",
                     RuntimeWarning,
                     stacklevel=2,
                 )
