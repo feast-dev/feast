@@ -1183,9 +1183,9 @@ docker==7.1.0 \
     # via
     #   mlflow
     #   testcontainers
-docling==2.27.0 \
-    --hash=sha256:1288ed75b27e33bf94daff34faffc6d11b7d7ccc13e3df84fb24adad3991f72d \
-    --hash=sha256:faba35662612a2c687a3a463e501d95f645316436084af92a0442ce162429a3d
+docling==2.91.0 \
+    --hash=sha256:c37fa0957e63a784753a4d43fc1271caa869d883a8354d556ee6d52a3046929e \
+    --hash=sha256:db413c21b2fe5bec78c32b475346ef770ab40368a331150570371c3281c951a2
     # via feast (pyproject.toml)
 docling-core[chunking]==2.77.1 \
     --hash=sha256:4e38df7143e2ecfe69ecf05278e8e25063a9ec1b6d0b5e28e3b8f1db7cc5ed72 \
