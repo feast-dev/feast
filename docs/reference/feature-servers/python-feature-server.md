@@ -352,11 +352,14 @@ feature_server:
     push: true              # push request counters
     materialization: true   # materialization counters & duration
     freshness: true         # feature freshness gauges
+    offline_features: true  # offline store retrieval counters & latency
+    audit_logging: false    # structured JSON audit logs (see below)
 ```
 
 Any category set to `false` will emit no metrics and start no background
 threads (e.g., setting `freshness: false` prevents the registry polling
-thread from starting). All categories default to `true`.
+thread from starting). All categories default to `true` except
+`audit_logging`, which defaults to `false`.
 
 ### Available metrics
 
@@ -375,6 +378,9 @@ thread from starting). All categories default to `true`.
 | `feast_materialization_result_total` | Counter | `feature_view`, `status` | `materialization` | Materialization runs (success/failure) |
 | `feast_materialization_duration_seconds` | Histogram | `feature_view` | `materialization` | Materialization duration per feature view |
 | `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | `freshness` | Seconds since last materialization |
+| `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
+| `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
+| `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
 
 ### Per-ODFV transformation metrics
 
@@ -404,6 +410,70 @@ def my_transform(inputs: pd.DataFrame) -> pd.DataFrame:
 The `odfv_name` label lets you filter or group by individual ODFV,
 and the `mode` label (`python`, `pandas`, `substrait`) lets you compare
 transformation engines.
+
+### Audit logging
+
+Feast can emit structured JSON audit log entries for every online and offline
+feature retrieval. These are written via the standard `feast.audit` Python
+logger, so you can route them to a dedicated file, SIEM, or log aggregator
+independently of application logs.
+
+Audit logging is **disabled by default**. Enable it in `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    audit_logging: true
+```
+
+**Online audit log** (emitted per `/get-online-features` call):
+
+```json
+{
+  "event": "online_feature_request",
+  "timestamp": "2026-05-11T08:30:00.123456+00:00",
+  "requestor_id": "user@example.com",
+  "entity_keys": ["driver_id"],
+  "entity_count": 3,
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "status": "success",
+  "latency_ms": 12.34
+}
+```
+
+**Offline audit log** (emitted per `RetrievalJob.to_arrow()` call):
+
+```json
+{
+  "event": "offline_feature_retrieval",
+  "timestamp": "2026-05-11T08:31:00.456789+00:00",
+  "method": "to_arrow",
+  "start_time": "2026-05-11T08:30:59.226789+00:00",
+  "end_time": "2026-05-11T08:31:00.456789+00:00",
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "row_count": 500,
+  "status": "success",
+  "duration_ms": 1230.0
+}
+```
+
+The `requestor_id` field in online audit logs is populated from the
+security manager's current user when authentication is configured, and
+falls back to `"anonymous"` otherwise.
+
+To route audit logs to a separate file:
+
+```python
+import logging
+
+handler = logging.FileHandler("/var/log/feast/audit.log")
+handler.setFormatter(logging.Formatter("%(message)s"))
+logging.getLogger("feast.audit").addHandler(handler)
+```
 
 ### Scraping with Prometheus
 
