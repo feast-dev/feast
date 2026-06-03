@@ -135,6 +135,8 @@ def test_writing_consecutively_to_offline_store(environment, universal_data_sour
     )
 
     store.apply([driver_entity, driver_stats])
+    # Refresh registry after apply to ensure subsequent reads see the new feature view
+    store.refresh_registry()
     df = store.get_historical_features(
         entity_df=entity_df,
         features=[

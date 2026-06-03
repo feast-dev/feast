@@ -482,21 +482,50 @@ class SparkRetrievalJob(RetrievalJob):
         if not parquet_paths:
             return pyarrow.table({})
 
-        normalized_paths = self._normalize_staging_paths(parquet_paths)
-        dataset = ds.dataset(normalized_paths, format="parquet")
+        pa_fs, stripped_paths = self._resolve_staging_filesystem(parquet_paths)
+        dataset = ds.dataset(stripped_paths, format="parquet", filesystem=pa_fs)
         return dataset.to_table()
 
-    def _normalize_staging_paths(self, paths: List[str]) -> List[str]:
-        """Normalize staging paths for PyArrow datasets."""
+    def _resolve_staging_filesystem(
+        self, paths: List[str]
+    ) -> Tuple[Optional[pyarrow.fs.FileSystem], List[str]]:
+        """Return (pyarrow filesystem, prefix-stripped paths) for staging URIs."""
+        sample = paths[0]
+
+        import pyarrow.fs as pafs
+
+        if sample.startswith("s3://") or sample.startswith("s3a://"):
+            endpoint = os.environ.get("AWS_ENDPOINT_URL_S3") or os.environ.get(
+                "AWS_S3_ENDPOINT", ""
+            )
+            region = getattr(
+                self._config.offline_store, "region", None
+            ) or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            kwargs: Dict[str, Any] = {"region": region}
+            if endpoint:
+                kwargs["endpoint_override"] = (
+                    endpoint.rstrip("/")
+                    .removeprefix("https://")
+                    .removeprefix("http://")
+                )
+                kwargs["scheme"] = "https" if endpoint.startswith("https") else "http"
+            fs = pafs.S3FileSystem(**kwargs)
+            stripped = [p.removeprefix("s3a://").removeprefix("s3://") for p in paths]
+            return fs, stripped
+
+        if sample.startswith("gs://"):
+            fs = pafs.GcsFileSystem()
+            stripped = [p[len("gs://") :] for p in paths]
+            return fs, stripped
+
+        # Local paths
         normalized = []
-        for path in paths:
-            if path.startswith("file://"):
-                normalized.append(path[len("file://") :])
-            elif "://" in path:
-                normalized.append(path)
+        for p in paths:
+            if p.startswith("file://"):
+                normalized.append(p[len("file://") :])
             else:
-                normalized.append(path)
-        return normalized
+                normalized.append(p)
+        return None, normalized
 
     def to_feast_df(
         self,
