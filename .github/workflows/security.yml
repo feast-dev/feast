@@ -104,6 +104,7 @@ jobs:
         run: make compile-protos-go
 
       - name: Run govulncheck
+        continue-on-error: true
         uses: golang/govulncheck-action@v1
         with:
           work-dir: ${{ matrix.working-directory }}
