@@ -574,79 +574,10 @@ class TestNonEntityRetrieval:
         start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
         end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
 
-        # This should not raise an error - validates API signature
-        with patch.multiple(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
-            _get_conn=MagicMock(),
-            _upload_entity_df=MagicMock(),
-            _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(
-                return_value=(start_date, end_date)
-            ),
-        ):
-            with patch(
-                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
-                return_value=[],
-            ):
-                with patch(
-                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
-                ):
-                    with patch(
-                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
-                        return_value=[],
-                    ):
-                        try:
-                            retrieval_job = (
-                                PostgreSQLOfflineStore.get_historical_features(
-                                    config=test_repo_config,
-                                    feature_views=[feature_view],
-                                    feature_refs=["test_fv:feature1"],
-                                    entity_df=None,  # Non-entity mode
-                                    registry=MagicMock(),
-                                    project="test_project",
-                                    start_date=start_date,
-                                    end_date=end_date,
-                                )
-                            )
-                            assert isinstance(retrieval_job, RetrievalJob)
-                        except Exception as e:
-                            # Should not fail due to API signature issues
-                            assert "entity_df" not in str(e)
-                            assert "start_date" not in str(e)
-                            assert "end_date" not in str(e)
-
-    def test_non_entity_entity_df_uses_end_date(self):
-        """Test that the synthetic entity_df uses end_date, not start_date.
-
-        Regression test: the old code used pd.date_range(start=start_date, ...)[:1]
-        which put start_date in the entity_df. Since PIT joins use
-        MAX(entity_timestamp) as the upper bound, start_date made end_date
-        unreachable. The fix uses [end_date] directly.
-        """
-        test_repo_config = RepoConfig(
-            project="test_project",
-            registry="test_registry",
-            provider="local",
-            offline_store=_mock_offline_store_config(),
-        )
-
-        feature_view = _mock_feature_view("test_fv", ttl=timedelta(days=1))
-        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
-        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
-
-        mock_get_entity_schema = MagicMock(
-            return_value={"event_timestamp": "timestamp"}
-        )
-
         with (
             patch.multiple(
                 "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
                 _get_conn=MagicMock(),
-                _upload_entity_df=MagicMock(),
-                _get_entity_schema=mock_get_entity_schema,
-                _get_entity_df_event_timestamp_range=MagicMock(
-                    return_value=(start_date, end_date)
-                ),
             ),
             patch(
                 "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
@@ -660,7 +591,54 @@ class TestNonEntityRetrieval:
                 return_value=[],
             ),
         ):
-            PostgreSQLOfflineStore.get_historical_features(
+            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
+                config=test_repo_config,
+                feature_views=[feature_view],
+                feature_refs=["test_fv:feature1"],
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+                start_date=start_date,
+                end_date=end_date,
+            )
+            assert isinstance(retrieval_job, RetrievalJob)
+
+    def test_non_entity_uses_end_date_as_max_timestamp(self):
+        """Test that the non-entity path uses end_date as max_event_timestamp.
+
+        The LOCF path skips entity_df creation entirely and sets
+        entity_df_event_timestamp_range = (start_date, end_date) directly,
+        so end_date is always the upper bound for feature retrieval.
+        """
+        test_repo_config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=_mock_offline_store_config(),
+        )
+
+        feature_view = _mock_feature_view("test_fv", ttl=timedelta(days=1))
+        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
                 config=test_repo_config,
                 feature_views=[feature_view],
                 feature_refs=["test_fv:feature1"],
@@ -671,14 +649,8 @@ class TestNonEntityRetrieval:
                 end_date=end_date,
             )
 
-        # _get_entity_schema is called with the synthetic entity_df
-        df = mock_get_entity_schema.call_args[0][0]
-        assert len(df) == 1
-        ts = df["event_timestamp"].iloc[0]
-        # The entity_df must use end_date, not start_date
-        assert ts == end_date, (
-            f"entity_df timestamp should be end_date ({end_date}), got {ts}"
-        )
+        assert retrieval_job.metadata.max_event_timestamp == end_date
+        assert retrieval_job.metadata.min_event_timestamp == start_date
 
     def test_non_entity_mode_with_end_date_only(self):
         """Test non-entity retrieval calculates start_date from TTL"""
@@ -695,53 +667,42 @@ class TestNonEntityRetrieval:
         ]
         end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
 
-        with patch.multiple(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
-            _get_conn=MagicMock(),
-            _upload_entity_df=MagicMock(),
-            _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(
-                return_value=(datetime(2023, 1, 6, tzinfo=timezone.utc), end_date)
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
             ),
-        ):
-            with patch(
+            patch(
                 "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
                 return_value=[],
-            ):
-                with patch(
-                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
-                ):
-                    with patch(
-                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
-                        return_value=[],
-                    ):
-                        try:
-                            retrieval_job = (
-                                PostgreSQLOfflineStore.get_historical_features(
-                                    config=test_repo_config,
-                                    feature_views=feature_views,
-                                    feature_refs=[
-                                        "user_fv:age",
-                                        "transaction_fv:amount",
-                                    ],
-                                    entity_df=None,  # Non-entity mode
-                                    registry=MagicMock(),
-                                    project="test_project",
-                                    end_date=end_date,
-                                    # start_date not provided - should be calculated from max TTL
-                                )
-                            )
-                            assert isinstance(retrieval_job, RetrievalJob)
-                        except Exception as e:
-                            # Should not fail due to TTL calculation issues
-                            assert "ttl" not in str(e).lower()
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
+                config=test_repo_config,
+                feature_views=feature_views,
+                feature_refs=["user_fv:age", "transaction_fv:amount"],
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+                end_date=end_date,
+            )
+            assert isinstance(retrieval_job, RetrievalJob)
+            expected_start = end_date - timedelta(days=1)
+            assert retrieval_job.metadata.min_event_timestamp == expected_start
 
     @patch("feast.utils.datetime")
     def test_no_dates_provided_defaults_to_current_time(self, mock_datetime):
         """Test that when no dates are provided, end_date defaults to current time"""
-        # Mock datetime.now() to return a fixed time
         fixed_now = datetime(2023, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
         mock_datetime.now.return_value = fixed_now
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
         test_repo_config = RepoConfig(
             project="test_project",
@@ -752,48 +713,34 @@ class TestNonEntityRetrieval:
 
         feature_view = _mock_feature_view("test_fv", ttl=timedelta(days=1))
 
-        with patch.multiple(
-            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
-            _get_conn=MagicMock(),
-            _upload_entity_df=MagicMock(),
-            _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(
-                return_value=(
-                    datetime(2023, 1, 6, 12, 0, 0, tzinfo=timezone.utc),
-                    fixed_now,
-                )
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
             ),
-        ):
-            with patch(
+            patch(
                 "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
                 return_value=[],
-            ):
-                with patch(
-                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
-                ):
-                    with patch(
-                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
-                        return_value=[],
-                    ):
-                        try:
-                            retrieval_job = (
-                                PostgreSQLOfflineStore.get_historical_features(
-                                    config=test_repo_config,
-                                    feature_views=[feature_view],
-                                    feature_refs=["test_fv:feature1"],
-                                    entity_df=None,  # Non-entity mode
-                                    registry=MagicMock(),
-                                    project="test_project",
-                                    # No start_date or end_date provided
-                                )
-                            )
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
+                config=test_repo_config,
+                feature_views=[feature_view],
+                feature_refs=["test_fv:feature1"],
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+            )
 
-                            # Verify that datetime.now() was called to get current time
-                            mock_datetime.now.assert_called_with(tz=timezone.utc)
-                            assert isinstance(retrieval_job, RetrievalJob)
-                        except Exception as e:
-                            # Should not fail due to datetime issues
-                            assert "datetime" not in str(e).lower()
+            mock_datetime.now.assert_called_with(tz=timezone.utc)
+            assert isinstance(retrieval_job, RetrievalJob)
 
     def test_sql_template_ttl_filtering(self):
         """Test that the SQL template includes proper TTL filtering"""
@@ -846,44 +793,373 @@ class TestNonEntityRetrieval:
         # Should not include TTL filtering when TTL is 0 or min_event_timestamp is None
         assert 'AND "event_timestamp" >=' not in query_no_ttl
 
-    def test_lateral_join_ttl_constraints(self):
-        """Test that LATERAL JOINs include proper TTL constraints"""
-        from jinja2 import BaseLoader, Environment
+    def test_locf_template_multi_fv_date_range(self):
+        """Test that multi-FV date-range uses LOCF (no LATERAL) with correct CTEs"""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
 
-        lateral_template = """
-        FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
-        WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
-        {% if featureview.ttl != 0 %}
-        AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
-        {% endif %}
-        """
-
-        template = Environment(loader=BaseLoader()).from_string(source=lateral_template)
-
-        # Test with TTL
-        context = {
-            "featureview": {
-                "name": "user_features",
-                "ttl": 86400,  # 1 day
+        fv_contexts = [
+            {
+                "name": "fv1",
+                "ttl": 86400,
+                "entities": ["entity1_id"],
+                "features": ["feat_a"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"public"."fv1_table"',
+                "entity_selections": ['"entity1_id" AS "entity1_id"'],
+                "min_event_timestamp": "2023-01-01T00:00:00",
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
             },
-            "outer_loop_index": 0,
-        }
-
-        query = template.render(context)
-        assert "86400 * interval" in query
-        assert "base.event_timestamp -" in query
-
-        # Test without TTL
-        context_no_ttl = {
-            "featureview": {
-                "name": "user_features",
-                "ttl": 0,  # No TTL
+            {
+                "name": "fv2",
+                "ttl": 3600,
+                "entities": ["entity1_id"],
+                "features": ["feat_b", "feat_c"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"public"."fv2_table"',
+                "entity_selections": ['"entity1_id" AS "entity1_id"'],
+                "min_event_timestamp": "2023-01-06T23:00:00",
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
             },
-            "outer_loop_index": 0,
-        }
+        ]
 
-        query_no_ttl = template.render(context_no_ttl)
-        assert "interval" not in query_no_ttl
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+        lookback = start - timedelta(seconds=86400)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=lookback,
+        )
+
+        # No LATERAL joins
+        assert "LATERAL" not in query
+
+        # Per-FV LOCF CTEs present (independent forward-fill per feature view)
+        assert "fv1__stacked" in query
+        assert "fv1__grouped" in query
+        assert "fv1__filled" in query
+        assert "fv2__stacked" in query
+        assert "fv2__grouped" in query
+        assert "fv2__filled" in query
+        assert "spine" in query.lower()
+
+        # No global stacked/stacked_with_group/filled (replaced by per-FV CTEs)
+        assert '"stacked_with_group"' not in query
+
+        # Correct ORDER BY for deterministic grouping
+        assert "is_spine ASC" in query
+
+        # Explicit ROWS framing for deterministic window functions
+        assert "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW" in query
+
+        # FIRST_VALUE used for forward-fill
+        assert "FIRST_VALUE" in query
+
+        # Per-FV filled results joined back to spine
+        assert "LEFT JOIN" in query
+        assert '"fv1__f"' in query or "fv1__filled" in query
+        assert '"fv2__f"' in query or "fv2__filled" in query
+
+        # TTL CASE for fv1 (ttl=86400) and fv2 (ttl=3600) use make_interval
+        assert "make_interval(secs => 86400)" in query
+        assert "make_interval(secs => 3600)" in query
+
+        # lookback_start_date used in feature __data range
+        assert str(lookback.date()) in query
+
+        # is_spine filter
+        assert "is_spine = 1" in query
+
+    def test_locf_template_no_ttl(self):
+        """Test LOCF template with TTL=0 does not emit CASE for TTL"""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        fv_contexts = [
+            {
+                "name": "fv1",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv1_t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "fv2",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f2"],
+                "field_mapping": {},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv2_t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # No LATERAL, no TTL CASE
+        assert "LATERAL" not in query
+        assert "CASE WHEN" not in query
+        assert "FIRST_VALUE" in query
+
+    def test_locf_template_different_entity_sets(self):
+        """Different entity sets across FVs: NULL AS entity and IS NOT DISTINCT FROM."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # fv1: driver_id, fv2: customer_id -> spine has both, each FV fills its own
+        fv_contexts = [
+            {
+                "name": "driver_fv",
+                "ttl": 0,
+                "entities": ["driver_id"],
+                "features": ["score"],
+                "field_mapping": {"score": "score"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"driver_table"',
+                "entity_selections": ['"driver_id" AS "driver_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "customer_fv",
+                "ttl": 0,
+                "entities": ["customer_id"],
+                "features": ["amount"],
+                "field_mapping": {"amount": "amount"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"customer_table"',
+                "entity_selections": ['"customer_id" AS "customer_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # all_entities = driver_id, customer_id; each branch uses NULL for the other
+        assert 'NULL AS "driver_id"' in query or '"driver_id"' in query
+        assert 'NULL AS "customer_id"' in query or '"customer_id"' in query
+        assert "IS NOT DISTINCT FROM" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_entityless_feature_view(self):
+        """Entityless FV: PARTITION BY 1 fallback produces valid SQL (multi-FV LOCF path)."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # Two FVs so template uses LOCF path (single FV uses simple SELECT branch)
+        fv_contexts = [
+            {
+                "name": "global_fv",
+                "ttl": 0,
+                "entities": [],
+                "features": ["global_feat"],
+                "field_mapping": {"global_feat": "global_feat"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"global_table"',
+                "entity_selections": [],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "driver_fv",
+                "ttl": 0,
+                "entities": ["driver_id"],
+                "features": ["score"],
+                "field_mapping": {"score": "score"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"driver_table"',
+                "entity_selections": ['"driver_id" AS "driver_id"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        # Entityless FV uses PARTITION BY (SELECT NULL) for single partition (more standard than PARTITION BY 1)
+        assert "PARTITION BY (SELECT NULL)" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_with_created_timestamp_column(self):
+        """created_timestamp_column set: dedup CTE __data from __data_raw via ROW_NUMBER (multi-FV LOCF path)."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        # Two FVs so template uses LOCF path (single FV uses simple SELECT branch)
+        fv_contexts = [
+            {
+                "name": "fv_dedup",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {"f1": "f1"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": "created_ts",
+                "table_subquery": '"fv_table"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+            {
+                "name": "fv2",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f2"],
+                "field_mapping": {"f2": "f2"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"fv2_table"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        assert "fv_dedup__data_raw" in query
+        assert "fv_dedup__data" in query
+        assert "ROW_NUMBER()" in query
+        assert "__dedup" in query
+        assert "created_ts" in query
+        sqlglot.parse(query, dialect="postgres")
+
+    def test_locf_template_full_feature_names(self):
+        """full_feature_names=True: featureview.name__feature column naming."""
+        from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            build_point_in_time_query,
+        )
+
+        fv_contexts = [
+            {
+                "name": "my_fv",
+                "ttl": 0,
+                "entities": ["eid"],
+                "features": ["f1"],
+                "field_mapping": {"f1": "f1"},
+                "timestamp_field": "ts",
+                "created_timestamp_column": None,
+                "table_subquery": '"t"',
+                "entity_selections": ['"eid" AS "eid"'],
+                "min_event_timestamp": None,
+                "max_event_timestamp": "2023-01-07T00:00:00",
+                "date_partition_column": None,
+            },
+        ]
+        start = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        query = build_point_in_time_query(
+            fv_contexts,
+            left_table_query_string="unused",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns={"event_timestamp": None}.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=True,
+            start_date=start,
+            end_date=end,
+            lookback_start_date=start,
+        )
+
+        assert "my_fv__f1" in query or '"my_fv__f1"' in query
+        sqlglot.parse(query, dialect="postgres")
 
     def test_api_non_entity_functionality(self):
         """Test that FeatureStore API accepts non-entity parameters correctly"""
