@@ -1,3 +1,4 @@
+import signal
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -11,11 +12,16 @@ def test_query_init_in_main_thread_registers_signals():
 
     # Should not raise any exception in main thread
     cursor = MagicMock()
+
     with patch("signal.signal") as mock_signal:
+        query = Query(query_text="SELECT 1", cursor=cursor)
+        assert query.query_text == "SELECT 1"
+
         # Verify signal handlers are registered correctly
-        assert mock_signal.call_count == 2
         mock_signal.assert_any_call(signal.SIGINT, query.cancel)
         mock_signal.assert_any_call(signal.SIGTERM, query.cancel)
+
+        # Expected signal.signal to be called twice for SIGINT and SIGTERM
         assert mock_signal.call_count == 2
 
 
@@ -39,4 +45,4 @@ def test_query_init_in_worker_thread_does_not_raise():
     thread.start()
     thread.join()
 
-    assert not errors, f"Unexpected ValueError in worker thread: {errors[0]}"
+    assert not errors, f"Unexpected ValueError in worker thread: {errors}"
