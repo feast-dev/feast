@@ -12,9 +12,10 @@ def test_query_init_in_main_thread_registers_signals():
     # Should not raise any exception in main thread
     cursor = MagicMock()
     with patch("signal.signal") as mock_signal:
-        query = Query(query_text="SELECT 1", cursor=cursor)
-        assert query.query_text == "SELECT 1"
-        # Expected signal.signal to be called twice for SIGINT and SIGTERM
+        # Verify signal handlers are registered correctly
+        assert mock_signal.call_count == 2
+        mock_signal.assert_any_call(signal.SIGINT, query.cancel)
+        mock_signal.assert_any_call(signal.SIGTERM, query.cancel)
         assert mock_signal.call_count == 2
 
 
