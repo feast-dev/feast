@@ -40,9 +40,13 @@ online_store:
 ### Example (Cassandra — multi-DC)
 
 Use `datacenters` instead of `hosts` when your cluster spans multiple datacenters.
-Each entry gets a named Cassandra **execution profile** (keyed by `local_dc`), enabling
-per-DC routing. The default profile is set by `load_balancing.local_dc` (or the first
-datacenter if `load_balancing` is absent). The keyspace must already exist.
+Each entry gets a named Cassandra **execution profile** keyed by its `name` field,
+enabling per-DC routing. The default profile is determined by `load_balancing.local_dc`
+(or the first datacenter entry when `load_balancing` is absent). Use the optional
+`routing` block to direct reads and writes to specific datacenters. The keyspace must
+already exist; Feast does not create it automatically.
+
+`datacenters` is mutually exclusive with `hosts` and `secure_bundle_path`.
 
 {% code title="feature_store.yaml" %}
 ```yaml
@@ -53,25 +57,28 @@ online_store:
     type: cassandra
     keyspace: KeyspaceName
     datacenters:
-        - local_dc: dc1
+        - name: dc1
           hosts:
               - 192.168.1.1
               - 192.168.1.2
-          replication_factor: 3                                                   # optional, informational
-          replication_strategy: NetworkTopologyStrategy                            # optional, informational
-        - local_dc: dc2
+          replication_factor: 3                 # optional, informational only
+          replication_strategy: NetworkTopologyStrategy  # optional, informational only
+        - name: dc2
           hosts:
               - 10.0.0.1
-          replication_factor: 2                                                    # optional, informational
-    port: 9042                                                                    # optional
-    username: user                                                                # optional
-    password: secret                                                              # optional
-    protocol_version: 5                                                           # optional
-    load_balancing:                                                               # optional
-        local_dc: 'dc1'                                                           # selects the default DC profile
-        load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'        # optional
-    read_concurrency: 100                                                         # optional
-    write_concurrency: 100                                                        # optional
+          replication_factor: 2                 # optional, informational only
+    routing:                                    # optional
+        read_dc: dc2                            # DC to use for reads  (default: load_balancing.local_dc)
+        write_dc: dc1                           # DC to use for writes (default: load_balancing.local_dc)
+    port: 9042                                  # optional
+    username: user                              # optional
+    password: secret                            # optional
+    protocol_version: 5                         # optional
+    load_balancing:                             # optional
+        local_dc: 'dc1'                         # sets the default execution profile
+        load_balancing_policy: 'TokenAwarePolicy(DCAwareRoundRobinPolicy)'  # optional
+    read_concurrency: 100                       # optional
+    write_concurrency: 100                      # optional
 ```
 {% endcode %}
 
