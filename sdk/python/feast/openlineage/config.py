@@ -28,7 +28,8 @@ class OpenLineageConfig:
 
     Attributes:
         enabled: Whether OpenLineage integration is enabled
-        transport_type: Type of transport (http, console, file, kafka)
+        transport_type: Type of transport (http, console, file, kafka), or None to use
+            OpenLineage SDK defaults
         transport_url: URL for HTTP transport
         transport_endpoint: API endpoint for HTTP transport
         api_key: Optional API key for authentication
@@ -40,7 +41,7 @@ class OpenLineageConfig:
     """
 
     enabled: bool = True
-    transport_type: str = "console"
+    transport_type: Optional[str] = None
     transport_url: Optional[str] = None
     transport_endpoint: str = "api/v1/lineage"
     api_key: Optional[str] = None
@@ -63,7 +64,7 @@ class OpenLineageConfig:
         """
         return cls(
             enabled=config_dict.get("enabled", True),
-            transport_type=config_dict.get("transport_type", "console"),
+            transport_type=config_dict.get("transport_type"),
             transport_url=config_dict.get("transport_url"),
             transport_endpoint=config_dict.get("transport_endpoint", "api/v1/lineage"),
             api_key=config_dict.get("api_key"),
@@ -81,7 +82,7 @@ class OpenLineageConfig:
 
         Environment variables:
             FEAST_OPENLINEAGE_ENABLED: Enable/disable OpenLineage (default: true)
-            FEAST_OPENLINEAGE_TRANSPORT_TYPE: Transport type (default: console)
+            FEAST_OPENLINEAGE_TRANSPORT_TYPE: Transport type (default: None, uses OL SDK defaults)
             FEAST_OPENLINEAGE_URL: HTTP transport URL
             FEAST_OPENLINEAGE_ENDPOINT: API endpoint (default: api/v1/lineage)
             FEAST_OPENLINEAGE_API_KEY: API key for authentication
@@ -93,7 +94,7 @@ class OpenLineageConfig:
         """
         return cls(
             enabled=os.getenv("FEAST_OPENLINEAGE_ENABLED", "true").lower() == "true",
-            transport_type=os.getenv("FEAST_OPENLINEAGE_TRANSPORT_TYPE", "console"),
+            transport_type=os.getenv("FEAST_OPENLINEAGE_TRANSPORT_TYPE"),
             transport_url=os.getenv("FEAST_OPENLINEAGE_URL"),
             transport_endpoint=os.getenv(
                 "FEAST_OPENLINEAGE_ENDPOINT", "api/v1/lineage"
@@ -129,13 +130,17 @@ class OpenLineageConfig:
             "additional_config": self.additional_config,
         }
 
-    def get_transport_config(self) -> Dict[str, Any]:
+    def get_transport_config(self) -> Optional[Dict[str, Any]]:
         """
         Get transport-specific configuration for OpenLineage client.
 
         Returns:
-            Dictionary with transport configuration
+            Dictionary with transport configuration, or None if transport_type
+            is not set (allowing the OpenLineage SDK to use its own defaults).
         """
+        if not self.transport_type:
+            return None
+
         config: Dict[str, Any] = {"type": self.transport_type}
 
         if self.transport_type == "http":
