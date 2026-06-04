@@ -157,7 +157,7 @@ class TestCassandraConfigParsing:
             secure_bundle_path="/path/to/bundle.zip",
             keyspace="ks",
             username="client_id",
-            password="client_secret",
+            password="pw",  # pragma: allowlist secret
         )
         assert cfg.secure_bundle_path == "/path/to/bundle.zip"
         assert cfg.datacenters is None
@@ -516,7 +516,7 @@ class TestCassandraSingleDCBackwardCompat:
                 secure_bundle_path="/path/bundle.zip",
                 keyspace="ks",
                 username="client_id",
-                password="client_secret",
+                password="pw",  # pragma: allowlist secret
             )
         )
         session = store._get_session(cfg)
