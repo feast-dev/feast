@@ -19,7 +19,7 @@ import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
-import { feast } from "../../protos";
+
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import { getEntityPermissions } from "../../utils/permissionUtils";
 import { toDate } from "../../utils/timestamp";
@@ -39,6 +39,15 @@ const EntityOverviewTab = () => {
   const fvEdges = useFeatureViewEdgesByEntity();
   const fvEdgesSuccess = fvEdges.isSuccess;
   const fvEdgesData = fvEdges.data;
+
+  const viewTypesForEntity: Record<string, string> | undefined =
+    fvEdgesSuccess && fvEdgesData && fvEdgesData[eName]
+      ? fvEdgesData[eName].reduce((acc: Record<string, string>, r) => {
+          acc[r.target.name] =
+            r.target.type === "labelView" ? "labelView" : "featureView";
+          return acc;
+        }, {})
+      : undefined;
 
   return (
     <React.Fragment>
@@ -64,14 +73,22 @@ const EntityOverviewTab = () => {
                     {data?.spec?.joinKey}
                   </EuiDescriptionListDescription>
 
+                  {data?.spec?.valueType && (
+                    <>
+                      <EuiDescriptionListTitle>
+                        Value Type
+                      </EuiDescriptionListTitle>
+                      <EuiDescriptionListDescription>
+                        {typeof data.spec.valueType === "string"
+                          ? data.spec.valueType
+                          : String(data.spec.valueType)}
+                      </EuiDescriptionListDescription>
+                    </>
+                  )}
+
                   <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {data?.spec?.description}
-                  </EuiDescriptionListDescription>
-
-                  <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
-                  <EuiDescriptionListDescription>
-                    {feast.types.ValueType.Enum[data?.spec?.valueType!]}
+                    {data?.spec?.description || "—"}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>
@@ -109,7 +126,7 @@ const EntityOverviewTab = () => {
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>
                 <EuiTitle size="xs">
-                  <h3>Feature Views</h3>
+                  <h3>Consuming Views</h3>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 {fvEdgesSuccess && fvEdgesData ? (
@@ -118,13 +135,14 @@ const EntityOverviewTab = () => {
                       fvNames={fvEdgesData[eName].map((r) => {
                         return r.target.name;
                       })}
+                      viewTypes={viewTypesForEntity}
                     />
                   ) : (
-                    <EuiText>No feature views have this entity</EuiText>
+                    <EuiText>No views consume this entity</EuiText>
                   )
                 ) : (
                   <EuiText>
-                    Error loading feature views that have this entity.
+                    Error loading views that consume this entity.
                   </EuiText>
                 )}
               </EuiPanel>

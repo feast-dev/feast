@@ -10,7 +10,10 @@ import useResourceQuery, {
   dataSourceListPath,
   savedDatasetListPath,
   featuresListPath,
+  labelsListPath,
+  labelViewListPath,
   restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
 } from "../queries/useResourceQuery";
 
 import { DataSourceIcon } from "../graphics/DataSourceIcon";
@@ -21,6 +24,7 @@ import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
+import { LabelViewIcon } from "../graphics/LabelViewIcon";
 import type { genericFVType } from "../parsers/mergedFVTypes";
 
 const SideNav = () => {
@@ -74,6 +78,22 @@ const SideNav = () => {
     },
   );
 
+  const { isSuccess: lvSuccess, data: labelViews } = useResourceQuery<any[]>({
+    resourceType: "sidebar-lvs",
+    project: projectName,
+    restPath: labelViewListPath(projectName),
+    restSelect: restLabelViewsFromResponse,
+  });
+
+  const { isSuccess: labelsSuccess, data: labelsData } = useResourceQuery<
+    any[]
+  >({
+    resourceType: "sidebar-labels",
+    project: projectName,
+    restPath: labelsListPath(projectName),
+    restSelect: (d) => d.labels,
+  });
+
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
   const toggleOpenOnMobile = () => {
@@ -86,6 +106,8 @@ const SideNav = () => {
   const featureListLabel = `Features ${featSuccess && features && features.length > 0 ? `(${features.length})` : ""}`;
   const featureServicesLabel = `Feature Services ${fsSuccess && featureServices ? `(${featureServices.length})` : ""}`;
   const savedDatasetsLabel = `Datasets ${sdSuccess && savedDatasets ? `(${savedDatasets.length})` : ""}`;
+  const labelsLabel = `Labels ${labelsSuccess && labelsData && labelsData.length > 0 ? `(${labelsData.length})` : ""}`;
+  const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
 
@@ -148,6 +170,22 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/feature-service`} />
           ),
           isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
+        },
+        {
+          name: labelsLabel,
+          id: htmlIdGenerator("labels")(),
+          icon: <EuiIcon type={LabelViewIcon} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/labels`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/labels`),
+        },
+        {
+          name: labelViewsLabel,
+          id: htmlIdGenerator("labelViews")(),
+          icon: <EuiIcon type={LabelViewIcon} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/label-view`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/label-view`),
         },
         {
           name: savedDatasetsLabel,

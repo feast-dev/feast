@@ -115,7 +115,6 @@ const FeatureListPage = () => {
       field: "name",
       sortable: true,
       render: (name: string, feature: Feature) => {
-        // For "All Projects" view, link to the specific project
         const itemProject = feature.project || projectName;
         return (
           <EuiCustomLink
@@ -131,7 +130,6 @@ const FeatureListPage = () => {
       field: "featureView",
       sortable: true,
       render: (featureView: string, feature: Feature) => {
-        // For "All Projects" view, link to the specific project
         const itemProject = feature.project || projectName;
         return (
           <EuiCustomLink to={`/p/${itemProject}/feature-view/${featureView}`}>

@@ -36,6 +36,15 @@ const DataSourceOverviewTab = () => {
     useLoadDataSource(dsName);
   const isEmpty = data === undefined;
 
+  const viewTypesForDs: Record<string, string> | undefined =
+    consumingFeatureViews && consumingFeatureViews.length > 0
+      ? consumingFeatureViews.reduce((acc: Record<string, string>, f: any) => {
+          acc[f.target.name] =
+            f.target.type === "labelView" ? "labelView" : "featureView";
+          return acc;
+        }, {})
+      : undefined;
+
   return (
     <React.Fragment>
       {isLoading && (
@@ -65,7 +74,10 @@ const DataSourceOverviewTab = () => {
                             Source Type
                           </EuiDescriptionListTitle>
                           <EuiDescriptionListDescription>
-                            {feast.core.DataSource.SourceType[data.type]}
+                            {typeof data.type === "string"
+                              ? data.type
+                              : feast.core.DataSource.SourceType[data.type] ||
+                                String(data.type)}
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
@@ -104,7 +116,7 @@ const DataSourceOverviewTab = () => {
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>
                 <EuiTitle size="xs">
-                  <h2>Consuming Feature Views</h2>
+                  <h2>Consuming Views</h2>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                 {consumingFeatureViews && consumingFeatureViews.length > 0 ? (
@@ -112,9 +124,10 @@ const DataSourceOverviewTab = () => {
                     fvNames={consumingFeatureViews.map((f: any) => {
                       return f.target.name;
                     })}
+                    viewTypes={viewTypesForDs}
                   />
                 ) : (
-                  <EuiText>No consuming feature views</EuiText>
+                  <EuiText>No consuming views</EuiText>
                 )}
               </EuiPanel>
               <EuiSpacer size="m" />

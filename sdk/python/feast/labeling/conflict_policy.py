@@ -9,15 +9,17 @@ class ConflictPolicy(Enum):
     """Determines how conflicting labels from different labelers are resolved.
 
     When multiple labelers write labels for the same entity key, the conflict
-    policy controls which value is surfaced during online retrieval.
+    policy controls which resolved value is returned for offline/batch reads
+    (training data generation, UI browse, quality metrics).
 
     .. note::
 
-        **Alpha limitation:** The conflict policy is persisted in the registry
-        alongside the ``LabelView`` definition, but it is **not yet enforced**
-        during ``get_online_features``. The online store currently returns the
-        last-written row for a given entity key regardless of the configured
-        policy. Enforcement will be added in a future release.
+        **Enforcement scope:** The conflict policy is enforced for **offline
+        store reads** — all batch queries (``pull_all_from_table_or_query``,
+        UI endpoints, training data generation) apply the configured resolution
+        strategy. The **online store** always uses ``LAST_WRITE_WINS`` semantics
+        regardless of this setting, as labeling is primarily a training-time
+        concern.
 
     Attributes:
         LAST_WRITE_WINS: The most recently written label for a given entity key

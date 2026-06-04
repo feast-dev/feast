@@ -71,31 +71,39 @@ interaction_labels = LabelView(
 
 ## Conflict Policies
 
-The `ConflictPolicy` enum controls how conflicting labels from different labelers are **intended** to be resolved at read time:
+The `ConflictPolicy` enum controls how conflicting labels from different labelers are resolved for **offline store reads** (training data generation, UI browse/quality, batch pipelines):
 
 | Policy | Behavior |
 |---|---|
 | `LAST_WRITE_WINS` | The most recently written label for a given entity key takes precedence, regardless of which labeler wrote it. This is the default. |
-| `LABELER_PRIORITY` | Labels are ranked by a pre-configured labeler priority order. Higher-priority labelers override lower-priority ones. |
-| `MAJORITY_VOTE` | The label value that appears most frequently across all labelers is selected. Useful for consensus-based annotation workflows. |
+| `LABELER_PRIORITY` | Labels are ranked by a pre-configured labeler priority order. Higher-priority labelers override lower-priority ones. Requires a `labeler_priorities` list. |
+| `MAJORITY_VOTE` | The label value that appears most frequently across all labelers is selected. Useful for consensus-based annotation workflows. Ties are broken by recency. |
 
-## Alpha Limitations
+## Enforcement Scope
 
-{% hint style="warning" %}
-The following capabilities are **defined and stored** in the label-view metadata but are **not yet enforced** by the Feast runtime. They are persisted in the registry so that future releases can activate them without a schema migration.
+{% hint style="info" %}
+Conflict resolution follows a **training-first** design: labels are primarily consumed at training time (batch/offline), not at serving time.
 {% endhint %}
 
-### Conflict-policy enforcement at read time
+### Offline store (enforced)
 
-`conflict_policy` is stored as part of the `LabelView` definition, but it is **not enforced** during `get_online_features`. The online store currently returns the last-written row for a given entity key regardless of which policy is configured.
+`conflict_policy` is fully enforced for all offline store reads:
 
-Real enforcement will require changes to the online-store query path so that the store can consider multiple rows per entity key and apply the conflict-resolution strategy.
+- **UI Browse/Quality tabs** — show resolved labels after applying the configured policy across all labeler rows.
+- **Training data generation** — `pull_all_from_table_or_query` retrieves full history, then `resolve_conflicts()` applies the policy to produce one row per entity.
+- **Batch pipelines** — any code using `feast.labeling.resolve_conflicts` gets policy-aware resolution.
 
-### History retention at write time
+### Offline store history retention (inherent)
 
-`retain_history` is stored but **not acted on**. The online store always overwrites the previous value when a new label is written for the same entity key.
+`retain_history` is inherent to the offline store — all writes are appended (never overwritten). The full labeling history is always preserved and available for conflict resolution, auditing, and retraining with different policies.
 
-Implementing retention will require changes to the online-store write path so that it appends rather than upserts, along with a compaction or eviction strategy for old entries.
+### Online store (LAST_WRITE_WINS only)
+
+The online store always uses `LAST_WRITE_WINS` semantics regardless of the configured policy. This is by design:
+
+- Labeling is primarily a **training-time** concern, not a serving-time concern.
+- Online store keeps a single latest value per entity key for low-latency serving.
+- Models trained on resolved labels (from the offline store) are served using features from the online store.
 
 ### Batch materialization
 

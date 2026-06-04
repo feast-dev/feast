@@ -1834,6 +1834,7 @@ class Feature(google.protobuf.message.Message):
     CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    KIND_FIELD_NUMBER: builtins.int
     name: builtins.str
     feature_view: builtins.str
     type: builtins.str
@@ -1845,6 +1846,8 @@ class Feature(google.protobuf.message.Message):
     def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    kind: builtins.str
+    """Semantic kind: "feature" (input/predictor) or "label" (target/annotation)."""
     def __init__(
         self,
         *,
@@ -1856,9 +1859,10 @@ class Feature(google.protobuf.message.Message):
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        kind: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "description", b"description", "feature_view", b"feature_view", "last_updated_timestamp", b"last_updated_timestamp", "name", b"name", "owner", b"owner", "tags", b"tags", "type", b"type"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "description", b"description", "feature_view", b"feature_view", "kind", b"kind", "last_updated_timestamp", b"last_updated_timestamp", "name", b"name", "owner", b"owner", "tags", b"tags", "type", b"type"]) -> None: ...
 
 global___Feature = Feature
 
@@ -1871,6 +1875,7 @@ class ListFeaturesRequest(google.protobuf.message.Message):
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     PAGINATION_FIELD_NUMBER: builtins.int
     SORTING_FIELD_NUMBER: builtins.int
+    KIND_FIELD_NUMBER: builtins.int
     project: builtins.str
     feature_view: builtins.str
     name: builtins.str
@@ -1879,6 +1884,8 @@ class ListFeaturesRequest(google.protobuf.message.Message):
     def pagination(self) -> global___PaginationParams: ...
     @property
     def sorting(self) -> global___SortingParams: ...
+    kind: builtins.str
+    """Filter by kind: "feature" or "label". Empty means no filter."""
     def __init__(
         self,
         *,
@@ -1888,9 +1895,10 @@ class ListFeaturesRequest(google.protobuf.message.Message):
         allow_cache: builtins.bool = ...,
         pagination: global___PaginationParams | None = ...,
         sorting: global___SortingParams | None = ...,
+        kind: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "feature_view", b"feature_view", "name", b"name", "pagination", b"pagination", "project", b"project", "sorting", b"sorting"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "feature_view", b"feature_view", "kind", b"kind", "name", b"name", "pagination", b"pagination", "project", b"project", "sorting", b"sorting"]) -> None: ...
 
 global___ListFeaturesRequest = ListFeaturesRequest
 

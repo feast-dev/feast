@@ -248,6 +248,36 @@ const restSavedDatasetDetail = http.get(
   },
 );
 
+const restLabelViews = http.get("/api/v1/label_views", () =>
+  HttpResponse.json({
+    featureViews: [],
+    pagination: {},
+    relationships: {},
+  }),
+);
+
+const restLabelViewsAll = http.get("/api/v1/label_views/all", () =>
+  HttpResponse.json({
+    featureViews: [],
+    pagination: {},
+    relationships: {},
+  }),
+);
+
+const restLabels = http.get("/api/v1/labels", () =>
+  HttpResponse.json({
+    labels: [],
+    pagination: {},
+  }),
+);
+
+const restLabelsAll = http.get("/api/v1/labels/all", () =>
+  HttpResponse.json({
+    labels: [],
+    pagination: {},
+  }),
+);
+
 const restMetrics = http.get("/api/v1/metrics/:type", () =>
   HttpResponse.json({}),
 );
@@ -261,6 +291,8 @@ const allRestHandlers = [
   restDataSourcesAll,
   restSavedDatasetsAll,
   restFeaturesAll,
+  restLabelViewsAll,
+  restLabelsAll,
   // List endpoints
   restEntities,
   restFeatureViews,
@@ -269,6 +301,8 @@ const allRestHandlers = [
   restSavedDatasets,
   restProjects,
   restFeatures,
+  restLabelViews,
+  restLabels,
   restPermissions,
   // Detail endpoints
   restFeatureViewDetail,

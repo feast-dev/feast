@@ -17,6 +17,7 @@ from feast.proto_utils import serialize_data_source
 from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.LabelView_pb2 import LabelViewMeta as LabelViewMetaProto
 from feast.protos.feast.core.LabelView_pb2 import LabelViewSpec as LabelViewSpecProto
+from feast.types import String as FeastString
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
@@ -35,13 +36,14 @@ class LabelView(BaseFeatureView):
 
     .. note::
 
-        **Alpha limitations:** ``conflict_policy`` and ``retain_history`` are
-        persisted in the registry and available for querying, but they are
-        **not yet enforced** at read or write time. Currently, the online store
-        returns the last-written row regardless of the policy, and write
-        operations always overwrite the previous value for a given entity key.
-        Enforcement will require online-store query-path and write-path changes
-        in a future release.
+        **Enforcement scope:**
+
+        - ``conflict_policy`` is enforced for **offline store reads** (training
+          data generation, UI browse/quality endpoints, batch pipelines). The
+          online store always uses LAST_WRITE_WINS for low-latency serving.
+        - ``retain_history`` is inherent to the offline store — all writes are
+          appended and full history is preserved. The online store always keeps
+          only the latest value per entity key for serving.
 
     Attributes:
         name: The unique name of the label view.
@@ -58,11 +60,11 @@ class LabelView(BaseFeatureView):
         labeler_field: Name of the schema field that identifies who wrote the
             label (default ``"labeler"``).
         conflict_policy: How conflicting labels from different labelers are
-            resolved (default ``ConflictPolicy.LAST_WRITE_WINS``).
-            **Currently metadata-only** — not enforced at read time.
-        retain_history: Whether to keep full write history or only the latest
-            value (default ``True``). **Currently metadata-only** — not
-            enforced at write time; the online store always overwrites.
+            resolved (default ``ConflictPolicy.LAST_WRITE_WINS``). Enforced for
+            offline store reads (training, UI). Online store uses LAST_WRITE_WINS.
+        retain_history: Whether full write history is preserved in the offline
+            store (default ``True``). The offline store always appends; the
+            online store keeps only the latest value per entity for serving.
         reference_feature_view: Optional name of the ``FeatureView`` whose
             entities this label view annotates.
     """
@@ -180,6 +182,16 @@ class LabelView(BaseFeatureView):
             else:
                 features.append(field)
 
+        existing_entity_col_names = {ec.name for ec in self.entity_columns}
+        for jk in join_keys:
+            if jk not in existing_entity_col_names:
+                matching = [e for e in entities if e.join_key == jk] if entities else []
+                if matching and matching[0].value_type != ValueType.UNKNOWN:
+                    dtype = from_value_type(matching[0].value_type)
+                else:
+                    dtype = FeastString
+                self.entity_columns.append(Field(name=jk, dtype=dtype))
+
         self.labeler_field = labeler_field
         self.conflict_policy = conflict_policy
         self.retain_history = retain_history
@@ -193,6 +205,7 @@ class LabelView(BaseFeatureView):
             owner=owner,
             source=source,
         )
+        self.projection.view_type = "labelView"
         self.online = online
 
     def __hash__(self):
@@ -385,6 +398,7 @@ class LabelView(BaseFeatureView):
         ]
 
         label_view.projection = FeatureViewProjection.from_definition(label_view)
+        label_view.projection.view_type = "labelView"
 
         if label_view_proto.meta.HasField("created_timestamp"):
             label_view.created_timestamp = (

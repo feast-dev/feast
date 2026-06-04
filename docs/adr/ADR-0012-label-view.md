@@ -1,6 +1,6 @@
 # ADR-0012: LabelView — First-Class Mutable Labels for Feast
 
-Status: Proposed
+Status: Accepted
 Authors: Nikhil Kathole
 Pull Request: https://github.com/feast-dev/feast/pull/6292
 Date: 2026-04-16
@@ -34,9 +34,9 @@ Today, Feast treats all data as immutable, append-only feature data. This works 
 | Concept | Description |
 |---|---|
 | **LabelView** | A new first-class Feast primitive (subclass of `BaseFeatureView`) that manages mutable labels keyed by entities. Stored in its own registry table/proto section. |
-| **ConflictPolicy** | An enum (`LAST_WRITE_WINS`, `LABELER_PRIORITY`, `MAJORITY_VOTE`) controlling how conflicting labels from different labelers are resolved. Stored as metadata; enforcement is future work. |
+| **ConflictPolicy** | An enum (`LAST_WRITE_WINS`, `LABELER_PRIORITY`, `MAJORITY_VOTE`) controlling how conflicting labels from different labelers are resolved. Enforced for offline store reads; online store uses LAST_WRITE_WINS. |
 | **labeler_field** | A designated schema field (default: `"labeler"`) that identifies which source wrote each label. Enables multi-labeler provenance tracking. |
-| **retain_history** | A boolean flag indicating whether full write history should be kept per entity key. Stored as metadata; enforcement is future work. |
+| **retain_history** | A boolean flag indicating whether full write history should be kept per entity key. Inherent to the offline store (all writes are appended); online store keeps latest only. |
 | **reference_feature_view** | Optional link to the `FeatureView` whose entities this label view annotates, for documentation and lineage. |
 | **PushSource integration** | Labels are ingested via `FeatureStore.push()` through a `PushSource`, writing to both online and offline stores in real time. |
 
@@ -280,9 +280,9 @@ feast label-views describe interaction_labels
 
 | Policy | Behavior | Status |
 |---|---|---|
-| `LAST_WRITE_WINS` | Most recently written label wins (default) | Stored (default runtime behavior) |
-| `LABELER_PRIORITY` | Higher-priority labelers override lower-priority ones | Stored only (not enforced) |
-| `MAJORITY_VOTE` | Most frequent label value across labelers wins | Stored only (not enforced) |
+| `LAST_WRITE_WINS` | Most recently written label wins (default) | Enforced (offline + online) |
+| `LABELER_PRIORITY` | Higher-priority labelers override lower-priority ones | Enforced (offline reads only) |
+| `MAJORITY_VOTE` | Most frequent label value across labelers wins | Enforced (offline reads only) |
 
 ---
 
@@ -341,7 +341,7 @@ We chose a separate primitive for the following reasons:
 
 **2. Features and labels differ in data nature, not compute timing.** The existing feature view hierarchy separates views by *when* or *how* compute runs (batch, streaming, on-demand). LabelView differs in *what the data represents* (mutable judgments vs. immutable observations). This is an orthogonal axis — one about compute, one about data semantics — and deserves its own type rather than being overloaded onto a compute-oriented hierarchy.
 
-**3. Future enforcement requires a type boundary.** When `conflict_policy` and `retain_history` are enforced, the online store read and write paths will branch on "is this a label view?" — multi-row storage per entity, conflict resolution queries, history compaction. A distinct type makes these branches clean `isinstance` checks rather than scattered `if feature_view.conflict_policy is not None` guards across every store implementation.
+**3. Enforcement benefits from a type boundary.** The offline store conflict resolver uses `isinstance(view, LabelView)` to determine when to apply conflict resolution on batch reads. If online store enforcement is added in the future, the same clean type check enables branching without scattered `if feature_view.conflict_policy is not None` guards across every store implementation.
 
 **4. Materialization semantics are distinct.** LabelViews that arrive via `FeatureStore.push()` are excluded from `feast materialize` because real-time labels have no batch source to pull from. LabelViews backed by a direct `DataSource` (`batch_source`) participate in `feast materialize` exactly like a regular `FeatureView`. The type distinction allows the materialization path to make the right decision (`isinstance(view, LabelView) and view.batch_source is None → skip`) rather than relying on an ad-hoc `skip_materialization=True` flag scattered across every view type.
 
@@ -359,9 +359,9 @@ The design follows the principle that **it is easier to merge two types later th
 
 | Limitation | Current Behavior | Future Direction |
 |---|---|---|
-| Conflict policy enforcement | `conflict_policy` is stored but not enforced at read time. Online store returns last-written row. | Online store query-path changes to consider multiple rows per entity key and apply resolution strategy. |
-| History retention | `retain_history` is stored but not enforced at write time. Online store always overwrites. | Online store write-path changes to append rather than upsert, with compaction/eviction. |
-| Labeler priority configuration | `LABELER_PRIORITY` policy has no mechanism to define the priority ordering. | Add a `labeler_priorities` field to `LabelViewSpec` or a separate config. |
+| Conflict policy enforcement | `conflict_policy` is enforced for **offline store reads** (training data, UI, batch pipelines). Online store uses LAST_WRITE_WINS. | Optional online store enforcement for SQL-capable backends. |
+| History retention | `retain_history` is inherent to the offline store — all writes are appended. Online store keeps only the latest value per entity. | Optional online store multi-row retention for SQL-capable backends. |
+| Labeler priority configuration | `LABELER_PRIORITY` accepts a `labeler_priorities` list via the conflict resolver. Not yet persisted in proto. | Add a `labeler_priorities` field to `LabelViewSpec`. |
 | Batch materialization | `batch_source` is implemented. LabelViews backed by a direct `DataSource` support `feast materialize`. LabelViews with only a `PushSource` (no `batch_source`) remain push-only. | N/A — supported in this release. |
 | Cross-version label joins | No special handling for joining labels across versions in historical retrieval. | Version-aware label joins for reproducible training. |
 | Label-aware training API | No dedicated `get_training_dataset(features=..., labels=...)` API. | First-class training dataset API that understands the feature/label distinction. |
@@ -370,9 +370,9 @@ The design follows the principle that **it is easier to merge two types later th
 
 # Open Questions
 
-1. **Should conflict policy enforcement be configurable per online store?** Different online stores have different query capabilities. Some (e.g., SQL-based) could implement MAJORITY_VOTE natively; others (e.g., Redis) would need application-level resolution.
+1. **Should conflict policy enforcement extend to the online store?** Currently enforced only for offline reads (training-first design). SQL-capable online stores could implement MAJORITY_VOTE natively; Redis would need application-level resolution. Most labeling use cases only need offline enforcement.
 
-2. **Should retain_history have a configurable retention window?** Unbounded history growth is a concern. A `max_history_entries` or `history_ttl` config could bound storage while preserving auditability.
+2. **Should retain_history have a configurable retention window?** The offline store currently keeps unbounded history. A `max_history_entries` or `history_ttl` config could bound storage while preserving auditability.
 
 3. **Should FeatureService distinguish features from labels?** Today, FeatureService treats LabelViews and FeatureViews uniformly. A future enhancement could tag which projections are "labels" for downstream frameworks that need this distinction (e.g., auto-splitting X/y in training).
 

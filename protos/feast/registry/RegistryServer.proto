@@ -571,6 +571,8 @@ message Feature {
   google.protobuf.Timestamp created_timestamp = 6;
   google.protobuf.Timestamp last_updated_timestamp = 7;
   map<string, string> tags = 8;
+  // Semantic kind: "feature" (input/predictor) or "label" (target/annotation).
+  string kind = 9;
 }
 
 message ListFeaturesRequest {
@@ -580,6 +582,8 @@ message ListFeaturesRequest {
   bool allow_cache = 6;
   PaginationParams pagination = 4;
   SortingParams sorting = 5;
+  // Filter by kind: "feature" or "label". Empty means no filter.
+  string kind = 7;
 }
 
 message ListFeaturesResponse {

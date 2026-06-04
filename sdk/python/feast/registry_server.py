@@ -443,14 +443,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListAllFeatureViews(
         self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
     ):
+        from feast.labeling.label_view import LabelView
+
         all_feature_views = cast(
             list[FeastObject],
-            self.proxied_registry.list_all_feature_views(
-                project=request.project,
-                allow_cache=request.allow_cache,
-                tags=dict(request.tags),
-                skip_udf=True,
-            ),
+            [
+                fv
+                for fv in self.proxied_registry.list_all_feature_views(
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
+                    skip_udf=True,
+                )
+                if not isinstance(fv, LabelView)
+            ],
         )
 
         if (
@@ -1226,6 +1232,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         """
         List all features in the registry, optionally filtered by project, feature_view, or name.
         """
+        from feast.labeling.label_view import LabelView
+
         allow_cache = request.allow_cache if hasattr(request, "allow_cache") else True
         feature_views = self.proxied_registry.list_all_feature_views(
             project=request.project,
@@ -1236,15 +1244,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             resources=cast(list[FeastObject], feature_views),
             actions=AuthzedAction.DESCRIBE,
         )
+        requested_kind = (
+            request.kind if hasattr(request, "kind") and request.kind else ""
+        )
         features = []
         for fv in permitted_fvs:
             fv_name = getattr(fv, "name", None)
+            kind = "label" if isinstance(fv, LabelView) else "feature"
+            if requested_kind and kind != requested_kind:
+                continue
             for feature in getattr(fv, "features", []):
                 if request.feature_view and fv_name != request.feature_view:
                     continue
                 if request.name and feature.name != request.name:
                     continue
-                # Get owner and timestamps from feature view
                 owner = ""
                 created_timestamp = None
                 last_updated_timestamp = None
@@ -1270,6 +1283,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         created_timestamp=created_timestamp,
                         last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
+                        kind=kind,
                     )
                 )
         paginated_features, pagination_metadata = apply_pagination_and_sorting(
@@ -1285,6 +1299,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         """
         Get a single feature by project, feature_view, and name.
         """
+        from feast.labeling.label_view import LabelView
+
         allow_cache = getattr(request, "allow_cache", True)
         feature_views = self.proxied_registry.list_all_feature_views(
             project=request.project,
@@ -1298,7 +1314,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             fv_name = getattr(fv, "name", None)
             for feature in getattr(fv, "features", []):
                 if fv_name == request.feature_view and feature.name == request.name:
-                    # Get owner and timestamps from feature view
                     owner = ""
                     created_timestamp = None
                     last_updated_timestamp = None
@@ -1323,6 +1338,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         created_timestamp=created_timestamp,
                         last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
+                        kind="label" if isinstance(fv, LabelView) else "feature",
                     )
         raise FeastObjectNotFoundException(
             f"Feature {request.name} not found in feature view {request.feature_view} in project {request.project}"
