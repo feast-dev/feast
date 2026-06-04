@@ -10,7 +10,7 @@ from cassandra.cluster import EXEC_PROFILE_DEFAULT  # noqa: E402
 from feast.infra.online_stores.cassandra_online_store import (  # noqa: E402
     cassandra_online_store as _cos,
 )
-from feast.repo_config import RepoConfig  # noqa: E402
+from feast.repo_config import RepoConfig # noqa: E402
 
 CassandraInvalidConfig = _cos.CassandraInvalidConfig
 CassandraOnlineStore = _cos.CassandraOnlineStore
