@@ -192,6 +192,7 @@
 * [\[Alpha\] Streaming feature computation with Denormalized](reference/denormalized.md)
 * [\[Alpha\] Feature View Versioning](reference/alpha-feature-view-versioning.md)
 * [OpenLineage Integration](reference/openlineage.md)
+* [MLflow Integration](reference/mlflow.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)

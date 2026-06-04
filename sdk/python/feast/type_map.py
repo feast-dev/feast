@@ -739,7 +739,7 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(type(item) in valid_types for item in sample):
+    if all(type(item) in valid_types for item in sample if item is not None):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -750,6 +750,8 @@ def _validate_collection_item_types(
         ValueType.INT64_SET,
     ]
     for item in sample:
+        if item is None:
+            continue  # None elements in STRING_LIST are replaced with ""; for other types they are dropped
         if type(item) not in valid_types:
             if feast_value_type in int_collection_types:
                 # Check if the float values are due to NULL upcast
@@ -868,6 +870,39 @@ def _python_set_to_proto_values(
     ]
 
 
+# Per-type default values substituted for None elements inside list columns.
+# Protobuf repeated fields do not accept None, so we replace with a
+# type-appropriate zero/empty value.
+_LIST_NONE_DEFAULTS: Dict[ValueType, Any] = {
+    ValueType.STRING_LIST: "",
+    ValueType.BYTES_LIST: b"",
+    ValueType.INT32_LIST: 0,
+    ValueType.INT64_LIST: 0,
+    ValueType.FLOAT_LIST: 0.0,
+    ValueType.DOUBLE_LIST: 0.0,
+    ValueType.BOOL_LIST: False,
+    ValueType.UNIX_TIMESTAMP_LIST: NULL_TIMESTAMP_INT_VALUE,
+    ValueType.UUID_LIST: "",
+    ValueType.TIME_UUID_LIST: "",
+    ValueType.DECIMAL_LIST: "",
+}
+
+
+def _sanitize_list_value(value: Any, feast_value_type: ValueType) -> Any:
+    """Convert ndarray to list and replace None elements with a type-appropriate default.
+
+    Arrow/Athena may deserialize array columns as numpy.ndarray with object dtype
+    instead of plain Python lists.  Protobuf repeated fields do not accept ndarrays
+    or None elements, so we normalise here before building proto messages.
+    """
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    none_default = _LIST_NONE_DEFAULTS.get(feast_value_type)
+    if none_default is not None and isinstance(value, list):
+        value = [none_default if v is None else v for v in value]
+    return value
+
+
 def _convert_list_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -889,6 +924,13 @@ def _convert_list_values_to_proto(
     proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
+
+    values = [
+        _sanitize_list_value(v, feast_value_type) if v is not None else v
+        for v in values
+    ]
+    if sample is not None:
+        sample = _sanitize_list_value(sample, feast_value_type)
 
     # Bytes to array type conversion
     if isinstance(sample, (bytes, bytearray)):

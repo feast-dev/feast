@@ -442,32 +442,26 @@ class CachingRegistry(BaseRegistry):
         except Exception as e:
             logger.debug(f"Error while refreshing registry: {e}", exc_info=True)
 
+    def is_cache_valid(self) -> bool:
+        if (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto == RegistryProto()
+        ):
+            return False
+        if (
+            not hasattr(self, "cached_registry_proto_created")
+            or self.cached_registry_proto_created is None
+        ):
+            return False
+        if self.cached_registry_proto_ttl.total_seconds() > 0 and _utc_now() > (
+            self.cached_registry_proto_created + self.cached_registry_proto_ttl
+        ):
+            return False
+        return True
+
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
-
-            def is_cache_expired():
-                if (
-                    self.cached_registry_proto is None
-                    or self.cached_registry_proto == RegistryProto()
-                ):
-                    return True
-
-                # Cache is expired if creation time is None
-                if (
-                    not hasattr(self, "cached_registry_proto_created")
-                    or self.cached_registry_proto_created is None
-                ):
-                    return True
-
-                # Cache is expired if TTL > 0 and current time exceeds creation + TTL
-                if self.cached_registry_proto_ttl.total_seconds() > 0 and _utc_now() > (
-                    self.cached_registry_proto_created + self.cached_registry_proto_ttl
-                ):
-                    return True
-
-                return False
-
-            if is_cache_expired():
+            if not self.is_cache_valid():
                 if not self._refresh_lock.acquire(blocking=False):
                     logger.debug(
                         "Skipping refresh if lock is already held by another thread"

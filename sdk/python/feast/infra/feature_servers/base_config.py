@@ -82,6 +82,17 @@ class MetricsConfig(FeastConfigBaseModel):
     """Emit per-feature-view freshness gauges
     (feast_feature_freshness_seconds)."""
 
+    offline_features: StrictBool = True
+    """Emit offline store retrieval metrics
+    (feast_offline_store_request_total,
+    feast_offline_store_request_latency_seconds,
+    feast_offline_store_row_count)."""
+
+    audit_logging: StrictBool = False
+    """Emit structured JSON audit log entries for online and offline
+    feature requests via the ``feast.audit`` logger.  Captures requestor
+    identity, entity keys, feature views, row counts, and latency."""
+
 
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""

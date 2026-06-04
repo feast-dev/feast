@@ -891,6 +891,13 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListProjectMetadata(
         self, request: RegistryServer_pb2.ListProjectMetadataRequest, context
     ):
+        try:
+            project = self.proxied_registry.get_project(
+                name=request.project, allow_cache=True
+            )
+            assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        except FeastObjectNotFoundException:
+            pass
         return RegistryServer_pb2.ListProjectMetadataResponse(
             project_metadata=[
                 project_metadata.to_proto()
@@ -923,6 +930,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def UpdateInfra(self, request: RegistryServer_pb2.UpdateInfraRequest, context):
+        project = self.proxied_registry.get_project(
+            name=request.project, allow_cache=True
+        )
+        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.update_infra(
             infra=Infra.from_proto(request.infra),
             project=request.project,
@@ -931,6 +942,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def GetInfra(self, request: RegistryServer_pb2.GetInfraRequest, context):
+        project = self.proxied_registry.get_project(
+            name=request.project, allow_cache=True
+        )
+        assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
         return self.proxied_registry.get_infra(
             project=request.project, allow_cache=request.allow_cache
         ).to_proto()
@@ -1063,6 +1078,13 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def GetRegistryLineage(
         self, request: RegistryServer_pb2.GetRegistryLineageRequest, context
     ):
+        try:
+            project = self.proxied_registry.get_project(
+                name=request.project, allow_cache=True
+            )
+            assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        except FeastObjectNotFoundException:
+            pass
         direct_relationships, indirect_relationships = (
             self.proxied_registry.get_registry_lineage(
                 project=request.project,
@@ -1101,6 +1123,13 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self, request: RegistryServer_pb2.GetObjectRelationshipsRequest, context
     ):
         """Get relationships for a specific object."""
+        try:
+            project = self.proxied_registry.get_project(
+                name=request.project, allow_cache=True
+            )
+            assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        except FeastObjectNotFoundException:
+            pass
         relationships = self.proxied_registry.get_object_relationships(
             project=request.project,
             object_type=request.object_type,
