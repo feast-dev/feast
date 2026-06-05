@@ -110,21 +110,21 @@ def traced_tool_span(
         yield None
         return
 
-    has_traceparent = False
+    has_traceparent = bool(
+        _HAS_DISTRIBUTED_CTX
+        and request_headers
+        and "traceparent" in request_headers
+    )
     try:
-        has_traceparent = (
-            _HAS_DISTRIBUTED_CTX
-            and request_headers
-            and "traceparent" in request_headers
-        )
+        parent_ctx: Any = contextlib.nullcontext()
         if has_traceparent:
             from mlflow.tracing import (
                 set_tracing_context_from_http_request_headers,
             )
 
-            parent_ctx = set_tracing_context_from_http_request_headers(request_headers)
-        else:
-            parent_ctx = contextlib.nullcontext()
+            parent_ctx = set_tracing_context_from_http_request_headers(
+                request_headers  # type: ignore[arg-type]
+            )
     except Exception:
         _logger.debug("Tracing setup failed", exc_info=True)
         yield None
