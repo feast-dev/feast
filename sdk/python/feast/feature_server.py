@@ -476,28 +476,30 @@ def get_app(
                     entity_rows=request.entities,
                     full_feature_names=request.full_feature_names,
                     include_feature_view_version_metadata=request.include_feature_view_version_metadata,
-            audit_start_ms = time.monotonic() * 1000
-            audit_status = "success"
-            try:
-                if store._get_provider().async_supported.online.read:
-                    response = await store.get_online_features_async(**read_params)  # type: ignore
-                else:
-                    response = await run_in_threadpool(
-                        lambda: store.get_online_features(**read_params)  # type: ignore
-                    )
-            except Exception:
-                audit_status = "error"
-                raise
-            finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
                 )
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                audit_start_ms = time.monotonic() * 1000
+                audit_status = "success"
+                try:
+                    if store._get_provider().async_supported.online.read:
+                        response = await store.get_online_features_async(**read_params)  # type: ignore
+                    else:
+                        response = await run_in_threadpool(
+                            lambda: store.get_online_features(**read_params)  # type: ignore
+                        )
+                except Exception:
+                    audit_status = "error"
+                    raise
+                finally:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                return JSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -539,10 +541,22 @@ def get_app(
                 if request.api_version == 2 and request.query_string is not None:
                     read_params["query_string"] = request.query_string
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                if request.api_version == 2:
+                    read_params["include_feature_view_version_metadata"] = (
+                        request.include_feature_view_version_metadata
+                    )
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+                    )
+                else:
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                return JSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:

@@ -674,8 +674,11 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key_value in entity_dict:
             res_event_ts: Optional[datetime] = None
             res_entity_key_proto: Optional[EntityKeyProto] = None
-            if isinstance(entity_dict[entity_key_value]["event_ts"], datetime):
-                res_event_ts = entity_dict[entity_key_value]["event_ts"]  # type: ignore[assignment]
+            raw_ts = entity_dict[entity_key_value]["event_ts"]
+            if isinstance(raw_ts, (int, float)):
+                res_event_ts = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+            elif isinstance(raw_ts, datetime):
+                res_event_ts = raw_ts  # type: ignore[assignment]
 
             if isinstance(
                 entity_dict[entity_key_value]["entity_key_proto"], EntityKeyProto
