@@ -291,9 +291,9 @@ httptools==0.8.0 \
     --hash=sha256:f256d6ce930c52ca1cb2a960b7da03548c454e7d28b06059ad41bfe789036ce0 \
     --hash=sha256:fe2a4c95aeba2209434e7b31172da572846cae8ca0bf1e7013e61b99fbbf5e72
     # via uvicorn
-idna==3.17 \
-    --hash=sha256:466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c \
-    --hash=sha256:5eb0cb53bc467c12eadcf6de83163ad8527cec9416f44b9b61b19caedad2b87f
+idna==3.18 \
+    --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2 \
+    --hash=sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848
     # via
     #   anyio
     #   requests
@@ -1302,9 +1302,9 @@ sqlalchemy[mypy]==2.0.50 \
     --hash=sha256:f96233858e3df43932ac11589e22520da6e8aeb624b03fedfeebb0e8ea213086 \
     --hash=sha256:faffef4bcc20a1892e65e155293d99d60855bbbc79250ab712819cfd56a8e6bb
     # via feast (pyproject.toml)
-starlette==1.2.0 \
-    --hash=sha256:36e0c76ac59157e75dc4b3bdeafba97fb04eaf1878045f15dbef666a6f092ed7 \
-    --hash=sha256:3c5a6b23fff42492914e93890bb80cbfea72dbf37de268eec06185d62a4ca553
+starlette==1.2.1 \
+    --hash=sha256:4de0082d08c8f6764a85a54cf1120d6939507a19905c7768acad2a9f875d2b89 \
+    --hash=sha256:9b9b5ebb992e67d6093741e63c2f59e4f6fff986f81163c087867bd7b924b3f6
     # via
     #   feast (pyproject.toml)
     #   fastapi
@@ -1375,9 +1375,9 @@ toolz==1.1.0 \
     # via
     #   dask
     #   partd
-tqdm==4.67.3 \
-    --hash=sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb \
-    --hash=sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf
+tqdm==4.68.0 \
+    --hash=sha256:b79a3ae57db4c870a55352e43abb33b329557cd75b1483028909286ff22a2c03 \
+    --hash=sha256:c627124266fe7904cabb70e88a940d75a06b889a0b11680307a67c18ce094f19
     # via feast (pyproject.toml)
 typeguard==4.5.2 \
     --hash=sha256:5a16dcac23502039299c97c8941651bc33d7ea8cc4b2f7d6bbb1b528f6eea423 \

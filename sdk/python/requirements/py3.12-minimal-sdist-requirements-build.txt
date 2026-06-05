@@ -200,6 +200,70 @@ cython==3.0.12 \
     #   pyyaml
     #   snowflake-connector-python
     #   sqlalchemy
+cython==3.1.1 \
+    --hash=sha256:011cdcbf7725f0cfc1abc55ec83d326e788050711272131daf3cc24a19c34bb2 \
+    --hash=sha256:020089f9c9f10269181f17660a2cada7d4577bd8eea24b7d2b14e6b64b6996be \
+    --hash=sha256:07621e044f332d18139df2ccfcc930151fd323c2f61a58c82f304cffc9eb5280 \
+    --hash=sha256:0de7adff5b42d2556d073e9f321c2faa639a17fb195ec1de130327f60ec209d8 \
+    --hash=sha256:0e3ccec55e2a534a712db14c6617b66f65ad149c014fad518fc3920f6edde770 \
+    --hash=sha256:0f7954b0b4b3302655d3caa6924261de5907a4e129bc22ace52fe9ae0cd5a758 \
+    --hash=sha256:10f0434916994fe213ea7749268b88d77e3ebcbd1b99542cf64bb7d180f45470 \
+    --hash=sha256:12e00b88147b03c148a95365f89dc1c45a0fc52f9c35aa75ff770ef65b615839 \
+    --hash=sha256:141ffd6279411c562f6b707adc56b63e965a4fd7f21db83f5d4fcbd8c50ac546 \
+    --hash=sha256:16d9870654946375b28280371d370d541641d1071da123d0d64d2c7ebba0cc56 \
+    --hash=sha256:23b886a6c8a50b1101ccef2f2f3dc9c699b77633ef5bb5007090226c2ad3f9c2 \
+    --hash=sha256:24c640c0746d984789fe2787a098f06cda456ef2dd78b90164d17884b350839a \
+    --hash=sha256:263cb0e497910fb5e0a361ad1393b6d728b092178afecc56e8a786f3739960c3 \
+    --hash=sha256:268420b92307ae6c5a16e3cf0e2ba1ae3c861650e992893922a0ce08db07cfdb \
+    --hash=sha256:28b174f41718a7041cfbe0f48913020875ff1aaa4793942b2451ac6d2baf3f07 \
+    --hash=sha256:307f216ed319ea07644f2ef9974406c830f01bc8e677e2147e9bfcdf9e3ca8ad \
+    --hash=sha256:3192a61c2a532d3faccdff508bc8427de9530b587888218bfc0226eb33a84e11 \
+    --hash=sha256:3fa4bd840de63509c74867b4b092541720a01db1e07351206011c34e0777dc96 \
+    --hash=sha256:402f86c00b08f875cd0990f0c4dc52eb3e0bc5d630066cdf3c798631976f1937 \
+    --hash=sha256:40f50b07c479eaf33981d81cad274c68cf9fb81dbe79cbf991f59491c88a4705 \
+    --hash=sha256:426d78565eb91d3366569b20e92b8f14bffef5f57b2acd05b60bbb9ce5c056a1 \
+    --hash=sha256:505ccd413669d5132a53834d792c707974248088c4f60c497deb1b416e366397 \
+    --hash=sha256:50ad80e2f438e9127a87c10927e6ac16a987df39c248b19ab2cd31330129be3c \
+    --hash=sha256:54a8934cb3bf13b1f8f6cbdae8e382e25a26e67de08ea6ebfd0a467131b67227 \
+    --hash=sha256:56c6768a6f601f93daab7c2487f9f110548a896a91e00a6e119445ada2575323 \
+    --hash=sha256:64915259276482fa23417b284d1fdc7e3a618ee2f819bb6ea7f974c075633df6 \
+    --hash=sha256:689c1aad373556bd2ab1aa1c2dad8939a2891465a1fbd2cbbdd42b488fb40ec8 \
+    --hash=sha256:6ea77ad1e649cec38f8622ba28dcdfbe7bf519bc132abbcf5df759b3975b5a73 \
+    --hash=sha256:7489559e6c5ecbba49d535c2e03cf77c2594a3190b6aca7da5b508ba1664a89a \
+    --hash=sha256:755a991601b27dd3555310d0f95b19a05e622a80d7b4e7a91fa6f5f3ef3f3b80 \
+    --hash=sha256:7da069ca769903c5dee56c5f7ab47b2b7b91030eee48912630db5f4f3ec5954a \
+    --hash=sha256:7e5cad896af896482240979b996bf4136b0d18dc40c56c72c5641bf0ea085dfb \
+    --hash=sha256:7fff6526bb6f4eea615663117b86de6ede0d17c477b600d3d8302be3502bd3c3 \
+    --hash=sha256:83b2af5c327f7da4f08afc34fddfaf6d24fa0c000b6b70a527c8125e493b6080 \
+    --hash=sha256:873aac4ac0b0fb197557c0ac15458b780b9221daa4a716881cbd1a9016c8459f \
+    --hash=sha256:8aaa29e763adf3496ab9d371e3caed8da5d3ce5ff8fb57433e2a2f2b5036e5c8 \
+    --hash=sha256:953046c190fa9ab9a09a546a909b847cdbb4c1fe34e9bfa4a15b6ee1585a86aa \
+    --hash=sha256:9b61b99205308c96b1162de59bd67ecadcad3d166a4a1f03a3d9e826c39cd375 \
+    --hash=sha256:9d7dc0e4d0cd491fac679a61e9ede348c64ca449f99a284f9a01851aa1dbc7f6 \
+    --hash=sha256:a19188ecd385cdc649e3fec370f38d5fd7f1651aeed0b3fb403180f38fc88e8a \
+    --hash=sha256:a585796939b09b3205b1980e4a55e745c0251e45a5c637afbcac3c6cc9ad6f90 \
+    --hash=sha256:a92f6bd395eadea6eed722a8188d3bdd49db1c9fa3c38710456d6148ab71bad7 \
+    --hash=sha256:ab644415458d782c16ba7252de9cec1e3125371641cafea2e53a8c1cf85dd58d \
+    --hash=sha256:af8f62cc9339b75fe8434325083e6a7cae88c9c21efd74bbb6ba4e3623219469 \
+    --hash=sha256:b181158b5761bdaf40f6854f016ab7ddff64d3db4fca55cb3ca0f73813dd76d6 \
+    --hash=sha256:b194a65a0fd91f305d2d1e7010f44111774a28533e1e44dd2a76e7de81a219b9 \
+    --hash=sha256:b68f1bc80387554eb43f2b62795c173bed9e37201f39dc5084ac437c90a79c9f \
+    --hash=sha256:c360823e1063784efc2335617e0f28573d7a594c5a8a05d85e850a9621cccb1f \
+    --hash=sha256:c5cb6c054daadaf01a88c8f49f3edd9e829c9b76a82cbb4269e3f9878254540b \
+    --hash=sha256:c740a10cd0f50321d048c8ca318eefb4c42b8bffef982dcd89c946d374192702 \
+    --hash=sha256:c8b8be01fd40b3e38a76c60a524f956548a3a7566e5530a833a48a695f3d6c12 \
+    --hash=sha256:cb5661941707bd41ec7a9c273d698113ac50392444f785088e9d9706c6a5937b \
+    --hash=sha256:cd748fab8e4426dbcb2e0fa2979558333934d24365e0de5672fbabfe337d880c \
+    --hash=sha256:cdf53dc4b2a13bd072d6c2c18ac073dbf0f798555bc27ba4f7546a275eb16a0f \
+    --hash=sha256:ce82070ccf92c3599d331b9eaaefd9d4562976fb86a8d6bccf05c4a0b8389f2a \
+    --hash=sha256:d14186bd96783d13b8fd0e5b289f2e137a8a25479638b73a1c7e4a99a8d70753 \
+    --hash=sha256:dee554f0a589377bdaea0eb70e212bf3f35dc6a51a2aa86c9351345e21fd2f07 \
+    --hash=sha256:dfa500fd7ae95ca152a5f8062b870532fa3e27efcef6d00612e1f28b9f72615f \
+    --hash=sha256:dff0e7dd53a0ca35b64cda843253d5cac944db26663dc097b3a1adf2c49514ad \
+    --hash=sha256:e000f0533eedf3d6dfbe30bb3c58a054c58f0a7778390342fa577a0dc47adab3 \
+    --hash=sha256:e851ab66a31794e40df1bc6f649cdc56c998c637f5a1b9410c97a90f6b6cb855 \
+    --hash=sha256:fd689910002adfac8734f237cdea1573e38345f27ed7fd445482813b65a29457
+    # via grpcio
 cython==3.2.5 \
     --hash=sha256:05c22cd606ac8d14a9cf17e48668bb37734c803978bf4d793c7f11ef54c4451f \
     --hash=sha256:0a81220817ff954eddf4512a5b82089094a2f523eb1dc4ad555efd6f07b009b4 \
@@ -281,14 +345,6 @@ flit-core==3.12.0 \
     #   tomli
     #   typing-extensions
     #   wheel
-gitdb==4.0.12 \
-    --hash=sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571 \
-    --hash=sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf
-    # via gitpython
-gitpython==3.1.50 \
-    --hash=sha256:80da2d12504d52e1f998772dc5baf6e553f8d2fcfe1fcc226c9d9a2ee3372dcc \
-    --hash=sha256:d352abe2908d07355014abdd21ddf798c2a961469239afec4962e9da884858f9
-    # via pymilvus
 hatch-fancy-pypi-readme==25.1.0 \
     --hash=sha256:9c58ed3dff90d51f43414ce37009ad1d5b0f08ffc9fc216998a06380f01c0045 \
     --hash=sha256:ce0134c40d63d874ac48f48ccc678b8f3b62b8e50e9318520d2bffc752eedaf3
@@ -315,9 +371,13 @@ hatch-vcs==0.5.0 \
     # via
     #   filelock
     #   platformdirs
-hatchling==1.29.0 \
-    --hash=sha256:50af9343281f34785fab12da82e445ed987a6efb34fd8c2fc0f6e6630dbcc1b0 \
-    --hash=sha256:793c31816d952cee405b83488ce001c719f325d9cda69f1fc4cd750527640ea6
+hatchling==1.27.0 \
+    --hash=sha256:971c296d9819abb3811112fc52c7a9751c8d381898f36533bb16f9791e941fd6 \
+    --hash=sha256:d3a2f3567c4f926ea39849cdf924c7e99e6686c9c8e288ae1037c8fa2a5d937b
+    # via pymilvus
+hatchling==1.30.1 \
+    --hash=sha256:161eacafb3c6f91526e92116d21426369f2c36e98c36a864f11a96345ad4ee31 \
+    --hash=sha256:eee4fd45357f72ebb3d7a42e5d72cfb5e29ed426d79e8836288926c4258d5f2e
     # via
     #   annotated-types
     #   atpublic
@@ -623,6 +683,7 @@ maturin==1.13.3 \
     # via
     #   ast-serialize
     #   cryptography
+    #   orjson
     #   pydantic-core
     #   rpds-py
     #   watchfiles
@@ -739,9 +800,9 @@ pathspec==1.1.1 \
     #   hatchling
     #   mypy
     #   scikit-build-core
-pdm-backend==2.4.8 \
-    --hash=sha256:502a395859587b4f47ba36aded330aeda410da8d33751a56cb97c8c679276f8f \
-    --hash=sha256:d8ef85d2c4306ee67195412d701fae9983e84ec6574598e26798ae26b7b3c7e0
+pdm-backend==2.4.9 \
+    --hash=sha256:8d1064751dadb0c40b1026b46826a448d85c8228a564985c62fb53d4aba538a1 \
+    --hash=sha256:c41a852ccbf4b567b033db9b2ae78660d7a4ea49307719959ab88a01f0aabb2e
     # via
     #   annotated-doc
     #   fastapi
@@ -882,6 +943,7 @@ setuptools-scm==10.0.5 \
     --hash=sha256:f611037d8aae618221503b8fa89319f073438252ae3420e01c9ceec249131a0a
     # via
     #   anyio
+    #   cachetools
     #   dask
     #   duckdb
     #   hatch-vcs
@@ -897,16 +959,11 @@ setuptools-scm==10.0.5 \
     #   tenacity
     #   tqdm
     #   typeguard
-    #   ujson
     #   urllib3
 setuptools-scm==7.1.0 \
     --hash=sha256:6c508345a771aad7d56ebff0e70628bf2b0ec7573762be9960214730de278f27 \
     --hash=sha256:73988b6d848709e2af142aa48c986ea29592bbcfca5375678064708205253d8e
     # via python-dateutil
-smmap==5.0.3 \
-    --hash=sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c \
-    --hash=sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f
-    # via gitdb
 tomli==2.4.1 \
     --hash=sha256:01f520d4f53ef97964a240a035ec2a869fe1a37dde002b57ebc4417a27ccd853 \
     --hash=sha256:0d85819802132122da43cb86656f8d1f8c6587d54ae7dcaf30e90533028b49fe \
@@ -960,9 +1017,9 @@ tomlkit==0.15.0 \
     --hash=sha256:4dbc8f0fc024412b57ced8757ac7461305126a648ff8c2c807fcb8e133a78738 \
     --hash=sha256:7d1a9ecba3086638211b13814ea79c90dd54dd11993564376f3aa92271f5c7a3
     # via uv-dynamic-versioning
-trove-classifiers==2026.5.22.10 \
-    --hash=sha256:01fe864225726e03efb843827ecabfe319fc4dee8dd66d65b8996cb09be46e2c \
-    --hash=sha256:5477e9974e91904fb2cfa4a7581ab6e2f30c2c38d847fd00ed866080748101d5
+trove-classifiers==2026.6.1.19 \
+    --hash=sha256:ab4c4ec93cc4a4e7815fa759906e05e6bb3f2fbd92ea0f897288c6a43efd15b3 \
+    --hash=sha256:c5132b4b61a829d11cfbd2d72e97f20a45ed6edb95e45c5efdeb5e00836b2745
     # via hatchling
 types-psutil==7.0.0.20250218 \
     --hash=sha256:1447a30c282aafefcf8941ece854e1100eee7b0296a9d9be9977292f0269b121 \
@@ -997,6 +1054,10 @@ wheel==0.47.0 \
     --hash=sha256:cc72bd1009ba0cf63922e28f94d9d83b920aa2bb28f798a31d0691b02fa3c9b3
     # via
     #   google-crc32c
+    #   grpcio
+    #   grpcio-health-checking
+    #   grpcio-reflection
+    #   grpcio-status
     #   httpx-sse
     #   libcst
     #   meson
@@ -1006,13 +1067,13 @@ wheel==0.47.0 \
     #   psycopg-c
     #   psycopg-pool
     #   pycparser
-    #   pymilvus
     #   python-dateutil
     #   setuptools-git-versioning
     #   shellingham
     #   snowflake-connector-python
     #   tzdata
     #   uvloop
+    #   wrapt
 
 # The following packages are considered to be unsafe in a requirements file:
 setuptools==80.10.2 \
@@ -1023,6 +1084,7 @@ setuptools==80.10.2 \
     #   aiohttp
     #   aiosignal
     #   anyio
+    #   cachetools
     #   calver
     #   certifi
     #   cffi
@@ -1031,13 +1093,16 @@ setuptools==80.10.2 \
     #   dask
     #   dill
     #   frozenlist
-    #   gitpython
     #   google-api-core
     #   google-cloud-bigquery
     #   google-crc32c
     #   googleapis-common-protos
     #   greenlet
     #   grpc-google-iam-v1
+    #   grpcio
+    #   grpcio-health-checking
+    #   grpcio-reflection
+    #   grpcio-status
     #   gunicorn
     #   httptools
     #   httpx-sse
@@ -1057,13 +1122,11 @@ setuptools==80.10.2 \
     #   proto-plus
     #   psutil
     #   psycopg
-    #   psycopg-c
     #   psycopg-pool
     #   pyasn1
     #   pyasn1-modules
     #   pycparser
     #   pyjwt
-    #   pymilvus
     #   pymysql
     #   python-dotenv
     #   pyyaml
@@ -1084,12 +1147,15 @@ setuptools==80.10.2 \
     #   trove-classifiers
     #   typeguard
     #   tzdata
-    #   ujson
     #   uvloop
     #   vcs-versioning
     #   versioneer
     #   websockets
     #   wrapt
+setuptools==80.3.1 \
+    --hash=sha256:31e2c58dbb67c99c289f51c16d899afedae292b978f8051efaf6262d8212f927 \
+    --hash=sha256:ea8e00d7992054c4c592aeb892f6ad51fe1b4d90cc6947cc45c45717c40ec537
+    # via psycopg-c
 setuptools==82.0.1 \
     --hash=sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9 \
     --hash=sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb
