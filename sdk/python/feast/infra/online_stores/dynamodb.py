@@ -206,12 +206,10 @@ class DynamoDBOnlineStore(OnlineStore):
         return self._aioboto_client
 
     async def _aiodynamodb_close(self):
-        if self._aioboto_client:
-            await self._aioboto_client.close()
-            self._aioboto_client = None
         if self._aioboto_context_stack:
             await self._aioboto_context_stack.aclose()
             self._aioboto_context_stack = None
+        self._aioboto_client = None
         if self._aioboto_session:
             self._aioboto_session = None
 
