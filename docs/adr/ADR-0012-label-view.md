@@ -36,7 +36,7 @@ Today, Feast treats all data as immutable, append-only feature data. This works 
 | **LabelView** | A new first-class Feast primitive (subclass of `BaseFeatureView`) that manages mutable labels keyed by entities. Stored in its own registry table/proto section. |
 | **ConflictPolicy** | An enum (`LAST_WRITE_WINS`, `LABELER_PRIORITY`, `MAJORITY_VOTE`) controlling how conflicting labels from different labelers are resolved. Enforced for offline store reads; online store uses LAST_WRITE_WINS. |
 | **labeler_field** | A designated schema field (default: `"labeler"`) that identifies which source wrote each label. Enables multi-labeler provenance tracking. |
-| **retain_history** | A boolean flag indicating whether full write history should be kept per entity key. Inherent to the offline store (all writes are appended); online store keeps latest only. |
+
 | **reference_feature_view** | Optional link to the `FeatureView` whose entities this label view annotates, for documentation and lineage. |
 | **PushSource integration** | Labels are ingested via `FeatureStore.push()` through a `PushSource`, writing to both online and offline stores in real time. |
 
@@ -66,7 +66,7 @@ BaseFeatureView (abstract)
   └── LabelView          ← new
 ```
 
-LabelView inherits from `BaseFeatureView`, gaining the standard name, features, projection, `proto_class`, versioning (`version`, `current_version_number`), and schema infrastructure. It adds label-specific fields: `labeler_field`, `conflict_policy`, `retain_history`, and `reference_feature_view`.
+LabelView inherits from `BaseFeatureView`, gaining the standard name, features, projection, `proto_class`, versioning (`version`, `current_version_number`), and schema infrastructure. It adds label-specific fields: `labeler_field`, `conflict_policy`, `reference_feature_view`, and annotation profile metadata (via `tags`).
 
 ## Protobuf Schema
 
@@ -98,7 +98,7 @@ message LabelViewSpec {
     repeated FeatureSpecV2 entity_columns    = 11;
     string labeler_field                     = 12;
     ConflictResolutionPolicy conflict_policy = 13;
-    bool retain_history                      = 14;
+    reserved 14;  // was retain_history (removed — offline store always retains history)
     string reference_feature_view            = 15;
 }
 
@@ -236,7 +236,6 @@ interaction_labels = LabelView(
     source=label_source,
     labeler_field="labeler",
     conflict_policy=ConflictPolicy.LAST_WRITE_WINS,
-    retain_history=True,
     reference_feature_view="interaction_history",
 )
 
@@ -329,11 +328,105 @@ label_write_permission = Permission(
 
 ---
 
+# Annotation Profiles
+
+LabelView supports **annotation profiles** — metadata that tells the Feast UI *how* labels should be created and edited. Profiles are declared in the existing `tags` dict using the `feast.io/` namespace, requiring no schema or proto changes.
+
+## Design Rationale
+
+Different labeling tasks require fundamentally different UX:
+
+| Task | Interaction | Example |
+|------|-------------|---------|
+| RAG retrieval evaluation | Highlight text spans in a document | Mark chunk relevance for retrieval QA |
+| RLHF reward labeling | Fill structured form per entity | Rate response quality, flag safety issues |
+| Bulk correction | Edit cells in a table | Fix automated labeler mistakes |
+| Active learning | Label model-selected high-value items | Annotate uncertain predictions first |
+
+Rather than building a single generic table, the UI reads annotation metadata from tags and selects the appropriate annotation component.
+
+## Tag Schema
+
+```
+feast.io/labeling-method           → labeling method (table | entity-form | document-span | active-learning)
+feast.io/field-role:<field_name>   → semantic role (label | metadata | content | content_ref | span_start | span_end)
+feast.io/label-values:<field_name> → comma-separated allowed values
+feast.io/label-widget:<field_name> → widget type (enum | binary | text | number)
+```
+
+These are parsed by `LabelView.annotation_config` (Python property) and served via the `/annotation-config/{name}` REST endpoint. The UI calls this endpoint to configure the Annotate tab dynamically.
+
+## Profile Behavior
+
+| Profile | Default Method | Additional Methods | Active Learning |
+|---------|---------------|--------------------|-----------------|
+| `document-span` | Document Span | Review & Edit | Hidden (no entity pool) |
+| `entity-form` | Entity Form | Review & Edit, Active Learning | Available |
+| `active-learning` | Active Learning | Entity Form, Review & Edit | Primary |
+| `table` (default) | Review & Edit | Active Learning, Entity Form | Available |
+
+## Field Roles
+
+Field roles tell the annotation UI which schema fields are labels vs. structural metadata:
+
+- **`label`** — a field the annotator actively fills in. Gets appropriate widget (enum dropdown, binary toggle, text input).
+- **`metadata`** — contextual info displayed but not the primary annotation target.
+- **`content`** / **`content_ref`** — the text content or document reference for span labeling.
+- **`span_start`** / **`span_end`** — byte offsets for text span annotations.
+
+## Example Configurations
+
+### Entity Form (RLHF / Safety Review)
+
+```python
+tags={
+    "feast.io/labeling-method": "entity-form",
+    "feast.io/field-role:response_quality": "label",
+    "feast.io/field-role:is_safe": "label",
+    "feast.io/field-role:reviewer_notes": "metadata",
+    "feast.io/label-values:response_quality": "excellent,good,acceptable,poor,harmful",
+    "feast.io/label-values:is_safe": "1,0",
+    "feast.io/label-widget:response_quality": "enum",
+    "feast.io/label-widget:is_safe": "binary",
+    "feast.io/label-widget:reviewer_notes": "text",
+}
+```
+
+### Document Span (RAG Retrieval Evaluation)
+
+```python
+tags={
+    "feast.io/labeling-method": "document-span",
+    "feast.io/field-role:source_document": "content_ref",
+    "feast.io/field-role:chunk_text": "content",
+    "feast.io/field-role:chunk_start": "span_start",
+    "feast.io/field-role:chunk_end": "span_end",
+    "feast.io/field-role:relevance": "label",
+    "feast.io/field-role:ground_truth": "label",
+    "feast.io/label-values:relevance": "relevant,irrelevant",
+    "feast.io/label-widget:relevance": "binary",
+    "feast.io/label-widget:ground_truth": "text",
+}
+```
+
+### Table (Bulk Review / Correction)
+
+```python
+tags={
+    "feast.io/labeling-method": "table",
+    "feast.io/field-role:is_default": "label",
+    "feast.io/label-values:is_default": "1,0",
+    "feast.io/label-widget:is_default": "binary",
+}
+```
+
+---
+
 # Why a Separate Primitive Instead of Extending FeatureView?
 
 A natural question is: **why introduce a new type rather than adding optional label fields to `FeatureView`?**
 
-Structurally, a LabelView today is a schema + entities + PushSource — similar to a `FeatureView` backed by a `PushSource`. The runtime code paths (push, online read, historical join) are identical. One could argue that `labeler_field`, `conflict_policy`, and `retain_history` could be optional fields on `FeatureView` instead of a new type.
+Structurally, a LabelView today is a schema + entities + PushSource — similar to a `FeatureView` backed by a `PushSource`. The runtime code paths (push, online read, historical join) are identical. One could argue that `labeler_field` and `conflict_policy` could be optional fields on `FeatureView` instead of a new type.
 
 We chose a separate primitive for the following reasons:
 
@@ -355,12 +448,12 @@ The design follows the principle that **it is easier to merge two types later th
 
 ---
 
-# Alpha Limitations & Future Work
+# Limitations & Future Work
 
 | Limitation | Current Behavior | Future Direction |
 |---|---|---|
 | Conflict policy enforcement | `conflict_policy` is enforced for **offline store reads** (training data, UI, batch pipelines). Online store uses LAST_WRITE_WINS. | Optional online store enforcement for SQL-capable backends. |
-| History retention | `retain_history` is inherent to the offline store — all writes are appended. Online store keeps only the latest value per entity. | Optional online store multi-row retention for SQL-capable backends. |
+| History retention | The offline store always retains full write history (all writes are appended). Online store keeps only the latest value per entity. | Optional online store multi-row retention for SQL-capable backends. |
 | Labeler priority configuration | `LABELER_PRIORITY` accepts a `labeler_priorities` list via the conflict resolver. Not yet persisted in proto. | Add a `labeler_priorities` field to `LabelViewSpec`. |
 | Batch materialization | `batch_source` is implemented. LabelViews backed by a direct `DataSource` support `feast materialize`. LabelViews with only a `PushSource` (no `batch_source`) remain push-only. | N/A — supported in this release. |
 | Cross-version label joins | No special handling for joining labels across versions in historical retrieval. | Version-aware label joins for reproducible training. |
@@ -372,7 +465,7 @@ The design follows the principle that **it is easier to merge two types later th
 
 1. **Should conflict policy enforcement extend to the online store?** Currently enforced only for offline reads (training-first design). SQL-capable online stores could implement MAJORITY_VOTE natively; Redis would need application-level resolution. Most labeling use cases only need offline enforcement.
 
-2. **Should retain_history have a configurable retention window?** The offline store currently keeps unbounded history. A `max_history_entries` or `history_ttl` config could bound storage while preserving auditability.
+2. **Should history have a configurable retention window?** The offline store currently keeps unbounded history. A `max_history_entries` or `history_ttl` config could bound storage while preserving auditability.
 
 3. **Should FeatureService distinguish features from labels?** Today, FeatureService treats LabelViews and FeatureViews uniformly. A future enhancement could tag which projections are "labels" for downstream frameworks that need this distinction (e.g., auto-splitting X/y in training).
 

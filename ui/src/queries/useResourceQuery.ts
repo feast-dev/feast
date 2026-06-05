@@ -117,13 +117,6 @@ function featuresListPath(project?: string): string {
   return "/features/all?limit=100";
 }
 
-function labelsListPath(project?: string): string {
-  if (project && project !== "all") {
-    return `/labels?project=${encodeURIComponent(project)}`;
-  }
-  return "/labels/all?limit=100";
-}
-
 function featureDetailPath(
   featureViewName: string,
   featureName: string,
@@ -222,7 +215,6 @@ export {
   labelViewListPath,
   labelViewDetailPath,
   featuresListPath,
-  labelsListPath,
   featureDetailPath,
   restFeatureViewsToMergedList,
   restFeatureViewDetailToGeneric,

@@ -633,10 +633,7 @@ class Registry(BaseRegistry):
             updated_fv, "conflict_policy"
         ):
             existing_proto.spec.conflict_policy = updated_fv.conflict_policy.to_proto()
-        if hasattr(existing_proto.spec, "retain_history") and hasattr(
-            updated_fv, "retain_history"
-        ):
-            existing_proto.spec.retain_history = updated_fv.retain_history
+
         if hasattr(existing_proto.spec, "reference_feature_view") and hasattr(
             updated_fv, "reference_feature_view"
         ):

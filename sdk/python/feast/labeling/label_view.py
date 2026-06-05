@@ -1,7 +1,7 @@
 import copy
 import warnings
 from datetime import timedelta
-from typing import Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
@@ -26,7 +26,7 @@ warnings.simplefilter("once", DeprecationWarning)
 
 @typechecked
 class LabelView(BaseFeatureView):
-    """[Alpha] A LabelView manages mutable labels decoupled from immutable feature data.
+    """A LabelView manages mutable labels decoupled from immutable feature data.
 
     A LabelView defines a mutable set of labels or annotations that are kept
     separate from the immutable feature data stored in regular FeatureViews.
@@ -41,9 +41,8 @@ class LabelView(BaseFeatureView):
         - ``conflict_policy`` is enforced for **offline store reads** (training
           data generation, UI browse/quality endpoints, batch pipelines). The
           online store always uses LAST_WRITE_WINS for low-latency serving.
-        - ``retain_history`` is inherent to the offline store — all writes are
-          appended and full history is preserved. The online store always keeps
-          only the latest value per entity key for serving.
+        - The offline store always retains full write history (all writes are
+          appended). The online store keeps only the latest value per entity key.
 
     Attributes:
         name: The unique name of the label view.
@@ -62,9 +61,6 @@ class LabelView(BaseFeatureView):
         conflict_policy: How conflicting labels from different labelers are
             resolved (default ``ConflictPolicy.LAST_WRITE_WINS``). Enforced for
             offline store reads (training, UI). Online store uses LAST_WRITE_WINS.
-        retain_history: Whether full write history is preserved in the offline
-            store (default ``True``). The offline store always appends; the
-            online store keeps only the latest value per entity for serving.
         reference_feature_view: Optional name of the ``FeatureView`` whose
             entities this label view annotates.
     """
@@ -82,7 +78,6 @@ class LabelView(BaseFeatureView):
 
     labeler_field: str
     conflict_policy: ConflictPolicy
-    retain_history: bool
     reference_feature_view: Optional[str]
 
     def __init__(
@@ -99,7 +94,6 @@ class LabelView(BaseFeatureView):
         owner: str = "",
         labeler_field: str = "labeler",
         conflict_policy: ConflictPolicy = ConflictPolicy.LAST_WRITE_WINS,
-        retain_history: bool = True,
         reference_feature_view: Optional[str] = None,
     ):
         """Creates a LabelView object.
@@ -127,15 +121,8 @@ class LabelView(BaseFeatureView):
                 identifies the labeler. Defaults to ``"labeler"``.
             conflict_policy: The policy for resolving conflicting labels
                 from different labelers. Defaults to
-                ``ConflictPolicy.LAST_WRITE_WINS``. **Note:** this value
-                is persisted in the registry but not yet enforced at
-                read time; the online store currently returns the
-                last-written row regardless of policy.
-            retain_history: Whether to retain the full history of label
-                writes or only the latest value per entity key. Defaults
-                to ``True``. **Note:** this value is persisted in the
-                registry but not yet enforced at write time; the online
-                store currently always overwrites the previous value.
+                ``ConflictPolicy.LAST_WRITE_WINS``. Enforced for offline
+                store reads (training, UI). Online store uses LAST_WRITE_WINS.
             reference_feature_view: The name of the ``FeatureView`` whose
                 entities this label view annotates. This is informational
                 and does not create a hard dependency.
@@ -194,7 +181,6 @@ class LabelView(BaseFeatureView):
 
         self.labeler_field = labeler_field
         self.conflict_policy = conflict_policy
-        self.retain_history = retain_history
         self.reference_feature_view = reference_feature_view or ""
 
         super().__init__(
@@ -223,7 +209,6 @@ class LabelView(BaseFeatureView):
             owner=self.owner,
             labeler_field=self.labeler_field,
             conflict_policy=self.conflict_policy,
-            retain_history=self.retain_history,
             reference_feature_view=self.reference_feature_view or None,
         )
         lv.entities = list(self.entities)
@@ -248,7 +233,6 @@ class LabelView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.labeler_field != other.labeler_field
             or self.conflict_policy != other.conflict_policy
-            or self.retain_history != other.retain_history
             or self.reference_feature_view != other.reference_feature_view
         ):
             return False
@@ -293,6 +277,58 @@ class LabelView(BaseFeatureView):
         if self.source is not None and isinstance(self.source, PushSource):
             return self.source
         return None
+
+    # --- Labeling method helpers (parsed from tags) ---
+
+    _TAG_PREFIX_PROFILE = "feast.io/labeling-method"
+    _TAG_PREFIX_ROLE = "feast.io/field-role:"
+    _TAG_PREFIX_VALUES = "feast.io/label-values:"
+    _TAG_PREFIX_WIDGET = "feast.io/label-widget:"
+
+    @property
+    def labeling_method(self) -> str:
+        """The labeling method for this label view.
+
+        Parsed from the ``feast.io/labeling-method`` tag. Supported
+        methods: ``table`` (default), ``document-span``,
+        ``entity-form``, ``active-learning``.
+        """
+        return self.tags.get(self._TAG_PREFIX_PROFILE, "table")
+
+    @property
+    def annotation_config(self) -> Dict[str, Any]:
+        """Structured annotation configuration derived from tags.
+
+        Returns a dict with::
+
+            {
+                "profile": "document-span",
+                "field_roles": {"source_document": "content_ref", ...},
+                "label_values": {"relevance": ["relevant", "irrelevant"]},
+                "label_widgets": {"relevance": "binary", ...},
+            }
+        """
+        field_roles: Dict[str, str] = {}
+        label_values: Dict[str, List[str]] = {}
+        label_widgets: Dict[str, str] = {}
+
+        for key, value in self.tags.items():
+            if key.startswith(self._TAG_PREFIX_ROLE):
+                field_name = key[len(self._TAG_PREFIX_ROLE) :]
+                field_roles[field_name] = value
+            elif key.startswith(self._TAG_PREFIX_VALUES):
+                field_name = key[len(self._TAG_PREFIX_VALUES) :]
+                label_values[field_name] = [v.strip() for v in value.split(",")]
+            elif key.startswith(self._TAG_PREFIX_WIDGET):
+                field_name = key[len(self._TAG_PREFIX_WIDGET) :]
+                label_widgets[field_name] = value
+
+        return {
+            "profile": self.labeling_method,
+            "field_roles": field_roles,
+            "label_values": label_values,
+            "label_widgets": label_widgets,
+        }
 
     def ensure_valid(self):
         """Validates the label view configuration.
@@ -342,7 +378,6 @@ class LabelView(BaseFeatureView):
             source=source_proto,
             labeler_field=self.labeler_field,
             conflict_policy=self.conflict_policy.to_proto(),  # type: ignore[arg-type]
-            retain_history=self.retain_history,
             reference_feature_view=self.reference_feature_view or "",
         )
 
@@ -380,7 +415,6 @@ class LabelView(BaseFeatureView):
             conflict_policy=ConflictPolicy.from_proto(
                 label_view_proto.spec.conflict_policy
             ),
-            retain_history=label_view_proto.spec.retain_history,
             reference_feature_view=(
                 label_view_proto.spec.reference_feature_view or None
             ),

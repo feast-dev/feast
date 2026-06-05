@@ -10,7 +10,7 @@ from feast.repo_operations import create_feature_store
 @click.group(name="label-views")
 def label_views_cmd():
     """
-    [Alpha] Access label views
+    Access label views
     """
     pass
 
@@ -20,7 +20,7 @@ def label_views_cmd():
 @click.pass_context
 def label_view_describe(ctx: click.Context, name: str):
     """
-    [Alpha] Describe a label view
+    Describe a label view
     """
     store = create_feature_store(ctx)
 
@@ -44,7 +44,7 @@ def label_view_describe(ctx: click.Context, name: str):
 @click.pass_context
 def label_view_list(ctx: click.Context, tags: list[str]):
     """
-    [Alpha] List all label views
+    List all label views
     """
     store = create_feature_store(ctx)
     table = []

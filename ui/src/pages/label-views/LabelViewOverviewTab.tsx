@@ -17,9 +17,11 @@ import {
   EuiBasicTableColumn,
   EuiCallOut,
   EuiLink,
+  EuiCode,
 } from "@elastic/eui";
 
 import useLoadLabelView from "./useLoadLabelView";
+import useAnnotationConfig from "./useAnnotationConfig";
 
 const CONFLICT_POLICY_MAP: Record<string, string> = {
   "0": "LAST_WRITE_WINS",
@@ -35,10 +37,25 @@ interface SchemaField {
   valueType: string;
 }
 
+const PROFILE_COLORS: Record<string, string> = {
+  "document-span": "primary",
+  table: "default",
+  "entity-form": "accent",
+  "active-learning": "success",
+};
+
+interface FieldRoleRow {
+  field: string;
+  role: string;
+  values?: string;
+  widget?: string;
+}
+
 const LabelViewOverviewTab = () => {
   const { labelViewName, projectName } = useParams();
   const name = labelViewName || "";
   const { isLoading, isSuccess, isError, data } = useLoadLabelView(name);
+  const { data: annotationConfig } = useAnnotationConfig(name);
 
   if (isLoading) {
     return (
@@ -60,7 +77,6 @@ const LabelViewOverviewTab = () => {
     CONFLICT_POLICY_MAP[spec.conflictPolicy] ||
     spec.conflictPolicy ||
     "LAST_WRITE_WINS";
-  const retainHistory = spec.retainHistory ?? false;
   const labelerField = spec.labelerField || "labeler";
   const entities: string[] = spec.entities || [];
   const features: any[] = spec.features || [];
@@ -80,9 +96,8 @@ const LabelViewOverviewTab = () => {
       <EuiCallOut title="Label View" color="success" iconType="check" size="s">
         <p>
           <strong>conflict_policy</strong> is enforced for offline store reads
-          (training data, Browse, Quality). <strong>retain_history</strong> is
-          inherent to the offline store — all writes are appended. The online
-          store uses last-write-wins for serving.
+          (training data, Browse, Quality). The offline store always retains
+          full write history. The online store uses last-write-wins for serving.
         </p>
       </EuiCallOut>
       <EuiSpacer size="m" />
@@ -112,13 +127,6 @@ const LabelViewOverviewTab = () => {
               <EuiDescriptionListTitle>Labeler Field</EuiDescriptionListTitle>
               <EuiDescriptionListDescription>
                 {labelerField}
-              </EuiDescriptionListDescription>
-
-              <EuiDescriptionListTitle>Retain History</EuiDescriptionListTitle>
-              <EuiDescriptionListDescription>
-                <EuiBadge color={retainHistory ? "success" : "default"}>
-                  {retainHistory ? "Yes" : "No"}
-                </EuiBadge>
               </EuiDescriptionListDescription>
 
               <EuiDescriptionListTitle>Entities</EuiDescriptionListTitle>
@@ -175,6 +183,92 @@ const LabelViewOverviewTab = () => {
               </EuiDescriptionListDescription>
             </EuiDescriptionList>
           </EuiPanel>
+          {annotationConfig && (
+            <>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder>
+                <EuiTitle size="xs">
+                  <h3>Labeling Method</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                <EuiDescriptionList>
+                  <EuiDescriptionListTitle>Profile</EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <EuiBadge
+                      color={
+                        PROFILE_COLORS[annotationConfig.profile] || "default"
+                      }
+                    >
+                      {annotationConfig.profile}
+                    </EuiBadge>
+                  </EuiDescriptionListDescription>
+
+                  <EuiDescriptionListTitle>Push Source</EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <EuiCode transparentBackground>
+                      {annotationConfig.push_source_name || "N/A"}
+                    </EuiCode>
+                  </EuiDescriptionListDescription>
+                </EuiDescriptionList>
+
+                {Object.keys(annotationConfig.field_roles).length > 0 && (
+                  <>
+                    <EuiSpacer size="s" />
+                    <EuiText size="xs" color="subdued">
+                      <strong>Field Roles</strong>
+                    </EuiText>
+                    <EuiSpacer size="xs" />
+                    <EuiBasicTable<FieldRoleRow>
+                      items={Object.entries(annotationConfig.field_roles).map(
+                        ([field, role]) => ({
+                          field,
+                          role,
+                          values:
+                            annotationConfig.label_values[field]?.join(", "),
+                          widget: annotationConfig.label_widgets[field],
+                        }),
+                      )}
+                      columns={[
+                        { field: "field", name: "Field", width: "30%" },
+                        {
+                          field: "role",
+                          name: "Role",
+                          width: "25%",
+                          render: (role: string) => (
+                            <EuiBadge
+                              color={
+                                role === "label"
+                                  ? "primary"
+                                  : role === "content_ref"
+                                    ? "success"
+                                    : role === "content"
+                                      ? "success"
+                                      : "hollow"
+                              }
+                            >
+                              {role}
+                            </EuiBadge>
+                          ),
+                        },
+                        {
+                          field: "values",
+                          name: "Values",
+                          render: (v: string) => v || "\u2014",
+                        },
+                        {
+                          field: "widget",
+                          name: "Widget",
+                          render: (w: string) => w || "\u2014",
+                        },
+                      ]}
+                      tableLayout="auto"
+                      compressed
+                    />
+                  </>
+                )}
+              </EuiPanel>
+            </>
+          )}
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiPanel hasBorder>

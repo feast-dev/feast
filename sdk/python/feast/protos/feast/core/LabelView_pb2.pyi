@@ -140,11 +140,11 @@ class LabelViewSpec(google.protobuf.message.Message):
     """The schema field that identifies the labeler (e.g. "labeler")."""
     conflict_policy: global___ConflictResolutionPolicy.ValueType
     """How conflicting labels from different labelers are resolved.
-    NOTE: stored but NOT enforced at read time in the current alpha release.
+    Enforced for offline store reads; online store uses LAST_WRITE_WINS.
     """
     retain_history: builtins.bool
-    """Whether to retain full label history (all writes) or only the latest.
-    NOTE: stored but NOT enforced at write time in the current alpha release.
+    """DEPRECATED: retain_history is always true (offline store always appends).
+    Field kept for backwards wire compatibility; ignored by the SDK.
     """
     reference_feature_view: builtins.str
     """Optional name of the FeatureView whose entities this label view annotates."""

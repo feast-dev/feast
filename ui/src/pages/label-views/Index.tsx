@@ -33,6 +33,7 @@ interface LabelViewRow {
   name: string;
   entities: string[];
   conflictPolicy: string;
+  annotationProfile: string;
   labelerField: string;
   online: boolean;
   description: string;
@@ -43,10 +44,12 @@ const LabelViewsListingTable = ({ labelViews }: { labelViews: any[] }) => {
 
   const rows: LabelViewRow[] = labelViews.map((lv: any) => {
     const spec = lv.spec || {};
+    const tags = spec.tags || {};
     return {
       name: spec.name || "Unknown",
       entities: spec.entities || [],
       conflictPolicy: spec.conflictPolicy || "LAST_WRITE_WINS",
+      annotationProfile: tags["feast.io/labeling-method"] || "table",
       labelerField: spec.labelerField || "labeler",
       online: spec.online !== false,
       description: spec.description || "",
@@ -89,6 +92,21 @@ const LabelViewsListingTable = ({ labelViews }: { labelViews: any[] }) => {
       },
     },
     {
+      field: "annotationProfile",
+      name: "Labeling Method",
+      render: (profile: string) => {
+        const color =
+          profile === "document-span"
+            ? "warning"
+            : profile === "entity-form"
+              ? "success"
+              : profile === "active-learning"
+                ? "accent"
+                : "hollow";
+        return <EuiBadge color={color}>{profile}</EuiBadge>;
+      },
+    },
+    {
       field: "labelerField",
       name: "Labeler Field",
     },
@@ -104,7 +122,18 @@ const LabelViewsListingTable = ({ labelViews }: { labelViews: any[] }) => {
     {
       field: "description",
       name: "Description",
-      truncateText: true,
+      render: (desc: string) => (
+        <span
+          style={{
+            display: "block",
+            maxWidth: 300,
+            wordWrap: "break-word",
+            whiteSpace: "normal",
+          }}
+        >
+          {desc || "-"}
+        </span>
+      ),
     },
   ];
 

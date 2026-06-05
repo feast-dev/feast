@@ -1,126 +1,147 @@
-import React from "react";
+import React, { useState } from "react";
 import { Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { EuiBadge, EuiPageTemplate } from "@elastic/eui";
+import {
+  EuiPageTemplate,
+  EuiPopover,
+  EuiContextMenu,
+  EuiButton,
+} from "@elastic/eui";
 
 import { LabelViewIcon } from "../../graphics/LabelViewIcon";
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
-import LabelViewOverviewTab from "./LabelViewOverviewTab";
 import LabelBrowseTab from "./LabelBrowseTab";
 import QualityDashboardTab from "./QualityDashboardTab";
-import ActiveLearningTab from "./ActiveLearningTab";
+import AnnotateTab from "./AnnotateTab";
 import TrainingExportTab from "./TrainingExportTab";
 import IntegrationsTab from "./IntegrationsTab";
 import BatchUploadTab from "./BatchUploadTab";
 import LabelViewLineageTab from "./LabelViewLineageTab";
 import FeatureViewVersionsTab from "../feature-views/FeatureViewVersionsTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import useLoadLabelView from "./useLoadLabelView";
 
 const LabelViewInstance = () => {
   const navigate = useNavigate();
   const { labelViewName } = useParams();
-  const { data } = useLoadLabelView(labelViewName || "");
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   useDocumentTitle(`${labelViewName} | Label View | Feast`);
 
-  const versionNumber = data?.meta?.currentVersionNumber;
+  const moreMenuItems = [
+    {
+      id: "more-panel",
+      items: [
+        {
+          name: "Export",
+          icon: "exportAction",
+          onClick: () => {
+            setIsMoreOpen(false);
+            navigate("export");
+          },
+        },
+        {
+          name: "Upload",
+          icon: "importAction",
+          onClick: () => {
+            setIsMoreOpen(false);
+            navigate("upload");
+          },
+        },
+        {
+          name: "Versions",
+          icon: "copyClipboard",
+          onClick: () => {
+            setIsMoreOpen(false);
+            navigate("versions");
+          },
+        },
+        {
+          name: "Lineage",
+          icon: "graphApp",
+          onClick: () => {
+            setIsMoreOpen(false);
+            navigate("lineage");
+          },
+        },
+        {
+          name: "Integrations",
+          icon: "gear",
+          onClick: () => {
+            setIsMoreOpen(false);
+            navigate("integrations");
+          },
+        },
+      ],
+    },
+  ];
 
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Header
         restrictWidth
         iconType={LabelViewIcon}
-        pageTitle={
-          <>
-            Label View: {labelViewName}
-            {versionNumber != null && versionNumber > 0 && (
-              <EuiBadge color="hollow" style={{ marginLeft: 8 }}>
-                v{versionNumber}
-              </EuiBadge>
-            )}
-          </>
-        }
+        pageTitle={labelViewName}
+        rightSideItems={[
+          <EuiPopover
+            key="more-menu"
+            button={
+              <EuiButton
+                size="s"
+                iconType="arrowDown"
+                iconSide="right"
+                onClick={() => setIsMoreOpen(!isMoreOpen)}
+              >
+                More
+              </EuiButton>
+            }
+            isOpen={isMoreOpen}
+            closePopover={() => setIsMoreOpen(false)}
+            panelPaddingSize="none"
+            anchorPosition="downRight"
+          >
+            <EuiContextMenu
+              initialPanelId="more-panel"
+              panels={moreMenuItems}
+            />
+          </EuiPopover>,
+        ]}
         tabs={[
           {
-            label: "Overview",
+            label: "Labels",
             isSelected: useMatchExact(""),
             onClick: () => {
               navigate("");
             },
           },
           {
-            label: "Lineage",
-            isSelected: useMatchSubpath("lineage"),
-            onClick: () => {
-              navigate("lineage");
-            },
-          },
-          {
-            label: "Versions",
-            isSelected: useMatchSubpath("versions"),
-            onClick: () => {
-              navigate("versions");
-            },
-          },
-          {
-            label: "Browse",
-            isSelected: useMatchExact("browse"),
-            onClick: () => {
-              navigate("browse");
-            },
-          },
-          {
             label: "Quality",
-            isSelected: useMatchExact("quality"),
+            isSelected: useMatchSubpath("quality"),
             onClick: () => {
               navigate("quality");
             },
           },
           {
-            label: "Active Learning",
-            isSelected: useMatchExact("active-learning"),
+            label: "Label Data",
+            isSelected: useMatchSubpath("annotate"),
             onClick: () => {
-              navigate("active-learning");
-            },
-          },
-          {
-            label: "Training Export",
-            isSelected: useMatchExact("export"),
-            onClick: () => {
-              navigate("export");
-            },
-          },
-          {
-            label: "Batch Upload",
-            isSelected: useMatchExact("upload"),
-            onClick: () => {
-              navigate("upload");
-            },
-          },
-          {
-            label: "Integrations",
-            isSelected: useMatchExact("integrations"),
-            onClick: () => {
-              navigate("integrations");
+              navigate("annotate");
             },
           },
         ]}
       />
       <EuiPageTemplate.Section>
         <Routes>
-          <Route path="/" element={<LabelViewOverviewTab />} />
-          <Route path="/lineage" element={<LabelViewLineageTab />} />
+          <Route path="/" element={<LabelBrowseTab />} />
+          <Route path="/quality" element={<QualityDashboardTab />} />
+          <Route path="/annotate" element={<AnnotateTab />} />
+          <Route path="/export" element={<TrainingExportTab />} />
+          <Route path="/upload" element={<BatchUploadTab />} />
           <Route
             path="/versions"
             element={
               <FeatureViewVersionsTab featureViewName={labelViewName || ""} />
             }
           />
-          <Route path="/browse" element={<LabelBrowseTab />} />
-          <Route path="/quality" element={<QualityDashboardTab />} />
-          <Route path="/active-learning" element={<ActiveLearningTab />} />
-          <Route path="/export" element={<TrainingExportTab />} />
-          <Route path="/upload" element={<BatchUploadTab />} />
+          <Route path="/lineage" element={<LabelViewLineageTab />} />
           <Route path="/integrations" element={<IntegrationsTab />} />
         </Routes>
       </EuiPageTemplate.Section>

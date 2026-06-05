@@ -14,7 +14,6 @@ import useResourceQuery, {
   featureServiceListPath,
   dataSourceListPath,
   labelViewListPath,
-  labelsListPath,
   featuresListPath,
   restFeatureViewsToMergedList,
   restLabelViewsFromResponse,
@@ -71,15 +70,8 @@ const ObjectsCountStats = () => {
     restSelect: restLabelViewsFromResponse,
   });
 
-  const { data: labels, isSuccess: labelsOk } = useResourceQuery<any[]>({
-    resourceType: "stats-labels",
-    project: projectName,
-    restPath: labelsListPath(projectName),
-    restSelect: (d) => d.labels || [],
-  });
-
-  const allOk = fsOk && fvOk && entOk && dsOk && featOk && lvOk && labelsOk;
-  const hasLabels = (labelViews?.length || 0) > 0;
+  const allOk = fsOk && fvOk && entOk && dsOk && featOk && lvOk;
+  const hasLabelViews = (labelViews?.length || 0) > 0;
 
   return (
     <React.Fragment>
@@ -139,7 +131,7 @@ const ObjectsCountStats = () => {
               />
             </EuiFlexItem>
           </EuiFlexGroup>
-          {hasLabels && (
+          {hasLabelViews && (
             <React.Fragment>
               <EuiSpacer size="m" />
               <EuiFlexGroup>
@@ -152,15 +144,7 @@ const ObjectsCountStats = () => {
                     reverse
                   />
                 </EuiFlexItem>
-                <EuiFlexItem>
-                  <EuiStat
-                    style={statStyle}
-                    onClick={() => navigate(`/p/${projectName}/labels`)}
-                    description="Labels→"
-                    title={labels?.length || 0}
-                    reverse
-                  />
-                </EuiFlexItem>
+                <EuiFlexItem />
                 <EuiFlexItem />
                 <EuiFlexItem />
               </EuiFlexGroup>

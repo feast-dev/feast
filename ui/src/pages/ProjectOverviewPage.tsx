@@ -67,12 +67,6 @@ const AllProjectsDashboard = () => {
     restSelect: restLabelViewsFromResponse,
   });
 
-  const { data: allLabels } = useResourceQuery<any[]>({
-    resourceType: "all-proj-labels",
-    restPath: "/labels/all?limit=100",
-    restSelect: (d) => d.labels || [],
-  });
-
   const loaded =
     allFVs && allEntities && allDS && allFS && allFeatures && allLabelViews;
 
@@ -87,7 +81,6 @@ const AllProjectsDashboard = () => {
     featureServices: allFS.length,
     features: allFeatures.length,
     labelViews: allLabelViews?.length || 0,
-    labels: allLabels?.length || 0,
   };
 
   const projects = projectsData?.projects.filter((p) => p.id !== "all") || [];
@@ -102,7 +95,6 @@ const AllProjectsDashboard = () => {
         entities: allEntities.filter(matchesProject).length,
         features: allFeatures.filter(matchesProject).length,
         labelViews: (allLabelViews || []).filter(matchesProject).length,
-        labels: (allLabels || []).filter(matchesProject).length,
       },
     };
   });
@@ -183,14 +175,7 @@ const AllProjectsDashboard = () => {
                     textAlign="center"
                   />
                 </EuiFlexItem>
-                <EuiFlexItem>
-                  <EuiStat
-                    title={totalCounts.labels.toString()}
-                    description="Labels"
-                    titleSize="m"
-                    textAlign="center"
-                  />
-                </EuiFlexItem>
+                <EuiFlexItem />
                 <EuiFlexItem />
                 <EuiFlexItem />
                 <EuiFlexItem />

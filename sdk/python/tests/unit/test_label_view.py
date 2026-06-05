@@ -38,7 +38,6 @@ def _sample_label_view() -> LabelView:
         ],
         labeler_field="labeler",
         conflict_policy=ConflictPolicy.LAST_WRITE_WINS,
-        retain_history=True,
         reference_feature_view="interaction_history",
         ttl=timedelta(days=90),
         online=True,
@@ -57,7 +56,6 @@ class TestLabelViewCreation:
         assert len(lv.entity_columns) == 1
         assert lv.labeler_field == "labeler"
         assert lv.conflict_policy == ConflictPolicy.LAST_WRITE_WINS
-        assert lv.retain_history is True
         assert lv.reference_feature_view == "interaction_history"
         assert lv.ttl == timedelta(days=90)
         assert lv.online is True
@@ -77,7 +75,6 @@ class TestLabelViewCreation:
         )
         assert lv.labeler_field == "labeler"
         assert lv.conflict_policy == ConflictPolicy.LAST_WRITE_WINS
-        assert lv.retain_history is True
         assert lv.reference_feature_view == ""
         assert lv.ttl == timedelta(days=0)
         assert lv.online is True
@@ -114,7 +111,6 @@ class TestLabelViewProtoRoundtrip:
         assert (
             proto.spec.conflict_policy == ConflictResolutionPolicyProto.LAST_WRITE_WINS
         )
-        assert proto.spec.retain_history is True
         assert proto.spec.reference_feature_view == "interaction_history"
         assert proto.spec.online is True
         assert proto.spec.description == "Mutable reward labels"
@@ -136,7 +132,6 @@ class TestLabelViewProtoRoundtrip:
         )
         assert lv2.labeler_field == lv.labeler_field
         assert lv2.conflict_policy == lv.conflict_policy
-        assert lv2.retain_history == lv.retain_history
         assert lv2.reference_feature_view == lv.reference_feature_view
         assert lv2.ttl == lv.ttl
         assert lv2.online == lv.online
@@ -255,7 +250,6 @@ class TestLabelViewRegistryRoundtrip:
         # get
         lv_got = get_label_view(registry, "interaction_labels", "test_project")
         assert lv_got.name == "interaction_labels"
-        assert lv_got.retain_history is True
 
     def test_registry_proto_get_not_found(self):
         from feast.errors import FeatureViewNotFoundException

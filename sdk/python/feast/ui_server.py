@@ -93,6 +93,10 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
         """Push label data to a LabelView (or any PushSource-backed FeatureView)."""
         try:
             df = pd.DataFrame(request.df)
+            if "event_timestamp" in df.columns:
+                df["event_timestamp"] = pd.to_datetime(
+                    df["event_timestamp"], utc=True
+                ).dt.tz_localize(None)
             to = request.to or "online"
             if to == "online_and_offline":
                 store.push(
@@ -466,8 +470,10 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                 )
 
             provider = store._get_provider()
-            end_date = datetime.now(timezone.utc)
-            start_date = end_date - timedelta(days=365)
+            end_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+                days=1
+            )
+            start_date = end_date - timedelta(days=366)
 
             # Get all entities from reference feature view
             ref_batch_source = getattr(ref_fv, "batch_source", None)
@@ -703,6 +709,54 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
         except Exception:
             logger.exception("Webhook config lookup failed")
             return _safe_error_response("Webhook config", status.HTTP_404_NOT_FOUND)
+
+    @rest_app.get("/annotation-config/{label_view_name}")
+    def annotation_config(label_view_name: str):
+        """Return annotation profile and field role config parsed from LabelView tags.
+
+        The UI uses this to select the right annotation method and map
+        user interactions to schema fields.
+        """
+        try:
+            fv = store.registry.get_label_view(label_view_name, store.project)
+
+            tags = dict(getattr(fv, "tags", {}))
+            profile = tags.get("feast.io/labeling-method", "table")
+
+            field_roles: Dict[str, str] = {}
+            label_values: Dict[str, List] = {}
+            label_widgets: Dict[str, str] = {}
+
+            for key, value in tags.items():
+                if key.startswith("feast.io/field-role:"):
+                    field_name = key[len("feast.io/field-role:") :]
+                    field_roles[field_name] = value
+                elif key.startswith("feast.io/label-values:"):
+                    field_name = key[len("feast.io/label-values:") :]
+                    label_values[field_name] = [v.strip() for v in value.split(",")]
+                elif key.startswith("feast.io/label-widget:"):
+                    field_name = key[len("feast.io/label-widget:") :]
+                    label_widgets[field_name] = value
+
+            entity_names = fv.entities if fv.entities else []
+            feature_names = [f.name for f in fv.features]
+            labeler_field = getattr(fv, "labeler_field", "labeler")
+            push_source_name = fv.source.name if fv.source else None
+
+            return {
+                "label_view": label_view_name,
+                "profile": profile,
+                "field_roles": field_roles,
+                "label_values": label_values,
+                "label_widgets": label_widgets,
+                "entities": entity_names,
+                "features": feature_names,
+                "labeler_field": labeler_field,
+                "push_source_name": push_source_name,
+            }
+        except Exception:
+            logger.exception("Annotation config lookup failed")
+            return _safe_error_response("Annotation config", status.HTTP_404_NOT_FOUND)
 
     app.mount("/api/v1", rest_app)
 

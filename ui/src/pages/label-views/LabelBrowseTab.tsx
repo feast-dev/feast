@@ -79,9 +79,19 @@ const LabelBrowseTab = () => {
     }
   };
 
-  const spec = data?.spec || {};
+  const spec = data?.spec || data?.object?.spec || {};
   const entities: string[] = spec.entities || [];
   const features: any[] = spec.features || [];
+  const conflictPolicy =
+    spec.conflictPolicy || spec.conflict_policy || "LAST_WRITE_WINS";
+  const policyLabel =
+    typeof conflictPolicy === "number"
+      ? ["LAST_WRITE_WINS", "LABELER_PRIORITY", "MAJORITY_VOTE"][
+          conflictPolicy
+        ] || "LAST_WRITE_WINS"
+      : String(conflictPolicy).replace("CONFLICT_POLICY_", "");
+  const labelerField: string =
+    spec.labelerField || spec.labeler_field || "labeler";
 
   const entityCols = allEntityNames.length > 0 ? allEntityNames : entities;
 
@@ -161,6 +171,91 @@ const LabelBrowseTab = () => {
 
   return (
     <React.Fragment>
+      <EuiPanel hasBorder paddingSize="m">
+        <EuiFlexGroup gutterSize="l" responsive={false}>
+          <EuiFlexItem grow={2}>
+            <EuiTitle size="xxs">
+              <h4>Schema</h4>
+            </EuiTitle>
+            <EuiSpacer size="xs" />
+            <EuiBasicTable
+              items={[
+                ...entities.map((e) => ({
+                  name: e,
+                  type: "ENTITY",
+                  role: "entity",
+                })),
+                ...features.map((f: any) => ({
+                  name: f.name,
+                  type: f.valueType || "STRING",
+                  role: f.name === labelerField ? "labeler" : "label",
+                })),
+              ]}
+              columns={[
+                { field: "name", name: "Field", width: "40%" },
+                { field: "type", name: "Type", width: "30%" },
+                {
+                  field: "role",
+                  name: "Role",
+                  width: "30%",
+                  render: (role: string) => (
+                    <EuiBadge
+                      color={
+                        role === "entity"
+                          ? "hollow"
+                          : role === "labeler"
+                            ? "accent"
+                            : "primary"
+                      }
+                    >
+                      {role}
+                    </EuiBadge>
+                  ),
+                },
+              ]}
+              tableLayout="fixed"
+              compressed
+            />
+          </EuiFlexItem>
+          <EuiFlexItem grow={1}>
+            <EuiTitle size="xxs">
+              <h4>Properties</h4>
+            </EuiTitle>
+            <EuiSpacer size="xs" />
+            <EuiFlexGroup direction="column" gutterSize="s">
+              <EuiFlexItem grow={false}>
+                <EuiText size="xs" color="subdued">
+                  Conflict Policy
+                </EuiText>
+                <div>
+                  <EuiBadge
+                    color={
+                      policyLabel === "LAST_WRITE_WINS"
+                        ? "default"
+                        : policyLabel === "MAJORITY_VOTE"
+                          ? "primary"
+                          : "accent"
+                    }
+                  >
+                    {policyLabel}
+                  </EuiBadge>
+                </div>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiText size="xs" color="subdued">
+                  Labeler Field
+                </EuiText>
+                <EuiText size="s">
+                  <strong>{labelerField}</strong>
+                </EuiText>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </EuiPanel>
+
+      <EuiSpacer size="m" />
+
       <EuiPanel hasBorder>
         <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
           <EuiFlexItem>

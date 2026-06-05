@@ -76,12 +76,12 @@ message LabelViewSpec {
     string labeler_field = 12;
 
     // How conflicting labels from different labelers are resolved.
-    // NOTE: stored but NOT enforced at read time in the current alpha release.
+    // Enforced for offline store reads; online store uses LAST_WRITE_WINS.
     ConflictResolutionPolicy conflict_policy = 13;
 
-    // Whether to retain full label history (all writes) or only the latest.
-    // NOTE: stored but NOT enforced at write time in the current alpha release.
-    bool retain_history = 14;
+    // DEPRECATED: retain_history is always true (offline store always appends).
+    // Field kept for backwards wire compatibility; ignored by the SDK.
+    bool retain_history = 14 [deprecated = true];
 
     // Optional name of the FeatureView whose entities this label view annotates.
     string reference_feature_view = 15;
