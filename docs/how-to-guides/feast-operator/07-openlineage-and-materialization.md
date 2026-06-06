@@ -103,7 +103,7 @@ openlineage:
 | Field | Type | Description |
 |-------|------|-------------|
 | `enabled` | bool | Activates OpenLineage. Must be `true` |
-| `transportType` | string | `http` / `console` / `file` / `kafka` |
+| `transportType` | string | `http` / `console` / `file` / `kafka` (omit to use OpenLineage SDK defaults) |
 | `transportUrl` | string | Base URL for HTTP transport |
 | `transportEndpoint` | string | API path appended to `transportUrl` |
 | `apiKeySecretRef.name` | string | Name of a Secret containing key `api_key` |

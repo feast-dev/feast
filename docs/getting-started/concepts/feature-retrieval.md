@@ -52,6 +52,31 @@ Applying a feature service does not result in an actual service being deployed.
 
 Feature services enable referencing all or some features from a feature view.
 
+#### Pre-computed feature vectors (`precompute_online`)
+
+For latency-critical online serving, you can enable **pre-computed feature vectors** on a feature service. When `precompute_online=True`, Feast stores all of the service's features for each entity as a single serialized blob in the online store. At read time, this reduces the number of store reads from O(N feature views) to O(1), regardless of how many feature views the service spans.
+
+```python
+# A feature service with pre-computed vectors enabled
+low_latency_service = FeatureService(
+    name="low_latency_inference",
+    features=[driver_stats_fv, vehicle_stats_fv, route_features_fv],
+    precompute_online=True,
+)
+```
+
+After running `feast apply`, the pre-computed vectors are automatically built and refreshed whenever you run `feast materialize` or `feast materialize-incremental`. Feast detects which feature services have `precompute_online=True` and rebuilds their vectors for every affected entity after the per-feature-view writes complete. Vectors are also refreshed automatically on `feast push`.
+
+{% hint style="info" %}
+`precompute_online` is **opt-in** — it defaults to `False`. When enabled, the pre-computed path is used exclusively for that service; there is no silent fallback to per-feature-view reads. If vectors are missing or stale, the server raises an error, making problems visible immediately.
+{% endhint %}
+
+{% hint style="warning" %}
+`precompute_online` is not compatible with on-demand feature views (ODFVs) that have `write_to_online_store=False`. ODFVs with `write_to_online_store=True` are supported since their values are materialized.
+{% endhint %}
+
+See the [performance tuning guide](../../how-to-guides/online-server-performance-tuning.md#pre-computed-feature-vectors) for benchmarks and detailed configuration.
+
 Retrieving from the online store with a feature service
 
 ```python

@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import logging
+import time as _time_mod
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import Entity, utils
 from feast.batch_feature_view import BatchFeatureView
@@ -32,6 +36,8 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.value_type import ValueType
+
+logger = logging.getLogger(__name__)
 
 
 class OnlineStore(ABC):
@@ -203,32 +209,53 @@ class OnlineStore(ABC):
 
             _read_start = _time.monotonic()
 
-        for table, requested_features in grouped_refs:
-            # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs, output_len = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
+        use_precomputed = (
+            isinstance(features, FeatureService)
+            and getattr(features, "precompute_online", False)
+            and not requested_on_demand_feature_views
+        )
+
+        precomputed_ok = False
+        if use_precomputed and grouped_refs:
+            assert isinstance(features, FeatureService)
+            first_table = grouped_refs[0][0]
+            first_entity_values, first_idxs, output_len = utils._get_unique_entities(
+                first_table, join_key_values, entity_name_to_join_key_map
             )
+            entity_key_protos = utils._get_entity_key_protos(first_entity_values)
 
-            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
-
-            # Fetch data for Entities.
-            read_rows = self.online_read(
-                config=config,
-                table=table,
-                entity_keys=entity_key_protos,
-                requested_features=requested_features,
+            blobs = self.read_precomputed_vectors(
+                config, features.name, project, entity_key_protos
             )
-
-            utils._populate_response_from_feature_data(
-                requested_features,
-                read_rows,
-                idxs,
+            expected_names = self._compute_expected_feature_names(
+                grouped_refs, full_feature_names
+            )
+            precomputed_ok = self._try_precomputed_fast_path(
+                blobs,
+                expected_names,
                 online_features_response,
                 full_feature_names,
-                table,
                 output_len,
+                grouped_refs,
+                registry,
+                project,
+            )
+            if not precomputed_ok:
+                raise RuntimeError(
+                    f"FeatureService '{features.name}' has precompute_online=True "
+                    f"but pre-computed vectors could not be read. "
+                    f"Run `feast precompute {features.name}` or materialize to "
+                    f"populate vectors."
+                )
+
+        if not precomputed_ok:
+            self._read_features_per_fv(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
                 include_feature_view_version_metadata,
             )
 
@@ -297,6 +324,117 @@ class OnlineStore(ABC):
                 pass
         return isinstance(self, tuple(supported_types))
 
+    def _read_features_per_fv(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Read features one feature-view at a time (generic path).
+
+        Subclasses may override to batch reads more efficiently (e.g. Redis
+        pipeline).
+        """
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+
+            read_rows = self.online_read(
+                config=config,
+                table=table,
+                entity_keys=entity_key_protos,
+                requested_features=requested_features,
+            )
+
+            utils._populate_response_from_feature_data(
+                requested_features,
+                read_rows,
+                idxs,
+                online_features_response,
+                full_feature_names,
+                table,
+                output_len,
+                include_feature_view_version_metadata,
+            )
+
+    async def _read_features_per_fv_async(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Async version of :meth:`_read_features_per_fv`.
+
+        Reads all feature views concurrently via ``asyncio.gather``.
+        Subclasses may override to batch reads more efficiently.
+        """
+
+        async def query_table(table, requested_features):
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            read_rows = await self.online_read_async(
+                config=config,
+                table=table,
+                entity_keys=entity_key_protos,
+                requested_features=requested_features,
+            )
+            return idxs, read_rows, output_len
+
+        all_responses = await asyncio.gather(
+            *[
+                query_table(table, requested_features)
+                for table, requested_features in grouped_refs
+            ]
+        )
+
+        for (idxs, read_rows, output_len), (table, requested_features) in zip(
+            all_responses, grouped_refs
+        ):
+            utils._populate_response_from_feature_data(
+                requested_features,
+                read_rows,
+                idxs,
+                online_features_response,
+                full_feature_names,
+                table,
+                output_len,
+                include_feature_view_version_metadata,
+            )
+
+    async def read_precomputed_vectors_async(
+        self,
+        config: RepoConfig,
+        feature_service_name: str,
+        project: str,
+        entity_keys: List[EntityKeyProto],
+    ) -> List[Optional[bytes]]:
+        """Async version of :meth:`read_precomputed_vectors`.
+
+        The default implementation delegates to the sync method via the event
+        loop executor.  Online stores with native async support should override.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            self.read_precomputed_vectors,
+            config,
+            feature_service_name,
+            project,
+            entity_keys,
+        )
+
     async def get_online_features_async(
         self,
         config: RepoConfig,
@@ -343,26 +481,6 @@ class OnlineStore(ABC):
         # Check for versioned reads on unsupported stores
         self._check_versioned_read_support(grouped_refs)
 
-        async def query_table(table, requested_features):
-            # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs, output_len = utils._get_unique_entities(
-                table,
-                join_key_values,
-                entity_name_to_join_key_map,
-            )
-
-            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
-
-            # Fetch data for Entities.
-            read_rows = await self.online_read_async(
-                config=config,
-                table=table,
-                entity_keys=entity_key_protos,
-                requested_features=requested_features,
-            )
-
-            return idxs, read_rows, output_len
-
         _track_read = False
         try:
             from feast.metrics import _config as _metrics_config
@@ -376,24 +494,53 @@ class OnlineStore(ABC):
 
             _read_start = _time.monotonic()
 
-        all_responses = await asyncio.gather(
-            *[
-                query_table(table, requested_features)
-                for table, requested_features in grouped_refs
-            ]
+        use_precomputed = (
+            isinstance(features, FeatureService)
+            and getattr(features, "precompute_online", False)
+            and not requested_on_demand_feature_views
         )
 
-        for (idxs, read_rows, output_len), (table, requested_features) in zip(
-            all_responses, grouped_refs
-        ):
-            utils._populate_response_from_feature_data(
-                requested_features,
-                read_rows,
-                idxs,
+        precomputed_ok = False
+        if use_precomputed and grouped_refs:
+            assert isinstance(features, FeatureService)
+            first_table = grouped_refs[0][0]
+            first_entity_values, first_idxs, output_len = utils._get_unique_entities(
+                first_table, join_key_values, entity_name_to_join_key_map
+            )
+            entity_key_protos = utils._get_entity_key_protos(first_entity_values)
+
+            blobs = await self.read_precomputed_vectors_async(
+                config, features.name, project, entity_key_protos
+            )
+            expected_names = self._compute_expected_feature_names(
+                grouped_refs, full_feature_names
+            )
+            precomputed_ok = self._try_precomputed_fast_path(
+                blobs,
+                expected_names,
                 online_features_response,
                 full_feature_names,
-                table,
                 output_len,
+                grouped_refs,
+                registry,
+                project,
+            )
+            if not precomputed_ok:
+                raise RuntimeError(
+                    f"FeatureService '{features.name}' has precompute_online=True "
+                    f"but pre-computed vectors could not be read. "
+                    f"Run `feast precompute {features.name}` or materialize to "
+                    f"populate vectors."
+                )
+
+        if not precomputed_ok:
+            await self._read_features_per_fv_async(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
                 include_feature_view_version_metadata,
             )
 
@@ -436,6 +583,244 @@ class OnlineStore(ABC):
                     feature_types[field.name] = vtype
                     feature_types[f"{table_name}__{field.name}"] = vtype
         return feature_types
+
+    @staticmethod
+    def _compute_expected_feature_names(
+        grouped_refs: List, full_feature_names: bool
+    ) -> List[str]:
+        """Derive the deterministic feature name list for schema comparison."""
+        names: List[str] = []
+        for table, requested_features in grouped_refs:
+            table_name = table.projection.name_to_use()
+            for fn in requested_features:
+                if fn.startswith("_ts:"):
+                    continue
+                names.append(f"{table_name}__{fn}" if full_feature_names else fn)
+        return names
+
+    @staticmethod
+    def _try_precomputed_fast_path(
+        blobs: List[Optional[bytes]],
+        expected_feature_names: List[str],
+        online_features_response: Any,
+        full_feature_names: bool,
+        num_rows: int,
+        grouped_refs: List,
+        registry: BaseRegistry,
+        project: str,
+    ) -> bool:
+        """Build the response from pre-computed vectors.
+
+        Returns True if the fast path succeeded for ALL entities, False otherwise
+        (caller should fall back to per-FV reads).
+        """
+        from feast.protos.feast.core.PrecomputedFeatureVector_pb2 import (
+            PrecomputedFeatureVector,
+        )
+        from feast.protos.feast.serving.ServingService_pb2 import (
+            FieldStatus,
+            GetOnlineFeaturesResponse,
+        )
+
+        for i, blob in enumerate(blobs):
+            if blob is None:
+                logger.warning(
+                    "Pre-computed vector blob is None for entity index %d", i
+                )
+                return False
+
+        n_features = len(expected_feature_names)
+        expected_set = set(expected_feature_names)
+
+        # Pre-compute feature-index-to-FV-name mapping once (not per entity).
+        feat_fv_names: List[Optional[str]] = []
+        for fname in expected_feature_names:
+            feat_fv_names.append(fname.split("__", 1)[0] if "__" in fname else None)
+
+        # Pre-compute FV TTLs once.
+        fv_ttls: Dict[str, Optional[int]] = {}
+        for table, _ in grouped_refs:
+            ttl = table.ttl
+            fv_ttls[table.projection.name_to_use()] = (
+                int(ttl.total_seconds()) if ttl else None
+            )
+
+        # Check if any FV actually has a TTL — skip TTL logic entirely if not.
+        any_ttl = any(v is not None for v in fv_ttls.values())
+
+        # Parse all blobs, validate schema, build reorder map.
+        # Schema is typically identical for all entities, so validate against the
+        # first and then just verify the rest match the first (not the expected list).
+        first_stored_names: Optional[List[str]] = None
+        reorder_map: Optional[List[int]] = None
+        vectors: List[PrecomputedFeatureVector] = []
+
+        for blob in blobs:
+            vec = PrecomputedFeatureVector()
+            vec.ParseFromString(blob)  # type: ignore[arg-type]
+            vectors.append(vec)
+
+            if first_stored_names is None:
+                first_stored_names = list(vec.feature_names)
+                if set(first_stored_names) != expected_set:
+                    logger.warning(
+                        "Pre-computed vector schema mismatch: stored=%s, expected=%s",
+                        first_stored_names,
+                        expected_feature_names,
+                    )
+                    return False
+                if first_stored_names != expected_feature_names:
+                    name_to_idx = {n: i for i, n in enumerate(first_stored_names)}
+                    reorder_map = [name_to_idx[n] for n in expected_feature_names]
+            else:
+                if (
+                    len(vec.feature_names) != n_features
+                    or list(vec.feature_names) != first_stored_names
+                ):
+                    logger.warning(
+                        "Pre-computed vector schema varies across entities at index %d",
+                        len(vectors) - 1,
+                    )
+                    return False
+
+        PRESENT = FieldStatus.PRESENT
+        OUTSIDE_MAX_AGE = FieldStatus.OUTSIDE_MAX_AGE
+        null_value = ValueProto()
+        null_ts = Timestamp()
+
+        feat_values = [[null_value] * num_rows for _ in range(n_features)]
+        feat_statuses = [[FieldStatus.NOT_FOUND] * num_rows for _ in range(n_features)]
+        ts_list = [null_ts] * num_rows
+
+        now_secs = _time_mod.time() if any_ttl else 0.0
+
+        for row_idx, vec in enumerate(vectors):
+            ts_list[row_idx] = vec.precomputed_at
+
+            # Build per-FV expiry flags once per entity (not per feature).
+            fv_expired: Optional[Dict[str, bool]] = None
+            if any_ttl:
+                fv_ts_map: Dict[str, Timestamp] = {
+                    fvt.feature_view_name: fvt.event_timestamp
+                    for fvt in vec.fv_timestamps
+                }
+                fv_expired = {}
+                for fv_name, ttl_val in fv_ttls.items():
+                    if ttl_val is not None:
+                        event_ts = fv_ts_map.get(fv_name)
+                        if event_ts:
+                            event_secs = event_ts.seconds + event_ts.nanos / 1e9
+                            fv_expired[fv_name] = (now_secs - event_secs) > ttl_val
+                        else:
+                            fv_expired[fv_name] = False
+                    else:
+                        fv_expired[fv_name] = False
+
+            stored_values = vec.values
+            for out_idx in range(n_features):
+                src_idx = reorder_map[out_idx] if reorder_map else out_idx
+                feat_values[out_idx][row_idx] = stored_values[src_idx]
+
+                if fv_expired:
+                    feat_fv = feat_fv_names[out_idx]
+                    if feat_fv and fv_expired.get(feat_fv, False):
+                        feat_statuses[out_idx][row_idx] = OUTSIDE_MAX_AGE
+                        continue
+                feat_statuses[out_idx][row_idx] = PRESENT
+
+        online_features_response.metadata.feature_names.val.extend(
+            expected_feature_names
+        )
+        for f_idx in range(n_features):
+            online_features_response.results.append(
+                GetOnlineFeaturesResponse.FeatureVector(
+                    values=feat_values[f_idx],
+                    statuses=feat_statuses[f_idx],
+                    event_timestamps=ts_list,
+                )
+            )
+        return True
+
+    def write_precomputed_vector(
+        self,
+        config: RepoConfig,
+        feature_service_name: str,
+        project: str,
+        entity_key: EntityKeyProto,
+        vector_bytes: bytes,
+    ) -> None:
+        """Write a pre-computed feature vector blob for a single entity.
+
+        Stores the blob as a ``bytes_val`` feature under a synthetic FeatureView
+        named ``__precomputed__{service_name}``, using the generic
+        ``online_write_batch`` API so this works for every online store without
+        store-specific overrides.
+        """
+        from feast.field import Field
+        from feast.types import Bytes
+
+        synthetic_fv = FeatureView(
+            name=f"__precomputed__{feature_service_name}",
+            entities=[],
+            schema=[Field(name="vector", dtype=Bytes)],
+            source=None,
+        )
+        val = ValueProto(bytes_val=vector_bytes)
+        ts = datetime.utcnow()
+        self.online_write_batch(
+            config=config,
+            table=synthetic_fv,
+            data=[(entity_key, {"vector": val}, ts, None)],
+            progress=None,
+        )
+
+    def read_precomputed_vectors(
+        self,
+        config: RepoConfig,
+        feature_service_name: str,
+        project: str,
+        entity_keys: List[EntityKeyProto],
+    ) -> List[Optional[bytes]]:
+        """Read pre-computed feature vector blobs for a batch of entities.
+
+        Returns a list aligned with *entity_keys*.  Each element is either the
+        serialized ``PrecomputedFeatureVector`` bytes or ``None`` when no
+        pre-computed vector exists for that entity.
+
+        Reads from the synthetic FeatureView written by
+        :meth:`write_precomputed_vector` using the generic ``online_read`` API,
+        so this works for every online store without store-specific overrides.
+        """
+        from feast.field import Field
+        from feast.types import Bytes
+
+        synthetic_fv = FeatureView(
+            name=f"__precomputed__{feature_service_name}",
+            entities=[],
+            schema=[Field(name="vector", dtype=Bytes)],
+            source=None,
+        )
+        try:
+            rows = self.online_read(
+                config=config,
+                table=synthetic_fv,
+                entity_keys=entity_keys,
+                requested_features=["vector"],
+            )
+        except Exception:
+            return [None] * len(entity_keys)
+
+        result: List[Optional[bytes]] = []
+        for _ts, feature_dict in rows:
+            if feature_dict and "vector" in feature_dict:
+                val = feature_dict["vector"]
+                if val.HasField("bytes_val"):
+                    result.append(val.bytes_val)
+                else:
+                    result.append(None)
+            else:
+                result.append(None)
+        return result
 
     @abstractmethod
     def update(

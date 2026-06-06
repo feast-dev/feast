@@ -258,7 +258,7 @@ materialization:
 ```yaml
 openlineage:
   enabled: true
-  transport_type: http  # http, console, file, kafka
+  transport_type: http  # http, console, file, kafka (omit to use OpenLineage SDK defaults)
   transport_url: http://marquez:5000
   transport_endpoint: api/v1/lineage
   namespace: feast
