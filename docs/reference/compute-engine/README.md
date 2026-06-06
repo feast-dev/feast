@@ -57,6 +57,14 @@ An example of built output from FeatureBuilder:
 - Supports point-in-time joins and large-scale materialization
 - Integrates with `SparkOfflineStore` and `SparkMaterializationJob`
 
+### 🌊 FlinkComputeEngine
+
+{% page-ref page="flink.md" %}
+
+- Distributed DAG execution through Apache Flink's PyFlink Table API
+- Supports materialization and historical retrieval with Feast offline stores
+- Integrates with `FlinkMaterializationJob` and `FlinkDAGRetrievalJob`
+
 ### ⚡ RayComputeEngine (contrib)
 
 - Distributed DAG execution via Ray
