@@ -21,6 +21,7 @@ entity rows, feature values) are never included.
 """
 
 import abc
+import contextvars
 import logging
 import sys
 import threading
@@ -31,6 +32,13 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+# ContextVar used by the MCP audit wrapper to propagate a single request_id
+# into the internal REST call so that ``mcp.tools.call`` and
+# ``http.request`` events share the same identifier in SIEM.
+mcp_audit_request_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "mcp_audit_request_id", default=None
+)
 
 
 # ---------------------------------------------------------------------------
