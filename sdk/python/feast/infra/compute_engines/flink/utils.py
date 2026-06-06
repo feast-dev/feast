@@ -16,8 +16,9 @@ def create_flink_table_environment(config: FlinkComputeEngineConfig) -> Any:
         from pyflink.table import EnvironmentSettings, TableEnvironment
     except ImportError as exc:
         raise ImportError(
-            "FlinkComputeEngine requires PyFlink. Install Feast with the `flink` "
-            "extra or otherwise make the `pyflink` package available to Feast."
+            "FlinkComputeEngine requires PyFlink. Install the `flink` extra with "
+            "uv from a Feast source checkout, or otherwise make the `pyflink` "
+            "package available to Feast."
         ) from exc
 
     flink_conf = Configuration()

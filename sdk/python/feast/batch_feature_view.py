@@ -176,7 +176,7 @@ class BatchFeatureView(FeatureView):
             )
         else:
             raise ValueError(
-                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+                f"Unsupported transformation mode: {self.mode} for BatchFeatureView"
             )
 
 

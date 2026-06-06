@@ -17,15 +17,17 @@ the configured online and/or offline store.
 
 ## Configuration
 
-Install Feast with the Flink extra before using the engine:
+Install the Flink extra from a Feast source checkout with `uv` before using the
+engine:
 
 ```bash
-python -m pip install 'feast[flink]'
+uv sync --extra flink --no-dev
 ```
 
-The `flink` extra installs PyFlink directly. Feast's Arrow dependency range is
-kept compatible with PyFlink's supported `pyarrow` range so `feast[flink]`
-resolves without a separate PyFlink install step.
+The `flink` extra installs PyFlink directly. PyFlink currently requires
+`pyarrow<21`, while the default Feast install keeps `pyarrow>=21`; Feast's uv
+lock resolves the Flink extra in a separate dependency fork so normal Feast
+installs do not downgrade Arrow.
 
 Configure the engine in `feature_store.yaml`:
 
