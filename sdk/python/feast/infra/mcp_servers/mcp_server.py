@@ -149,12 +149,17 @@ def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
         return
 
     async def audited_call_tool(ctx: Any, params: Any) -> Any:
+        from feast.audit.audit_logger import mcp_audit_request_id
+
         tool_name = getattr(params, "name", "") if params else ""
         request_id = audit.new_request_id()
         jsonrpc_id: Optional[str] = None
         if hasattr(ctx, "request_id"):
             jsonrpc_id = str(ctx.request_id)
 
+        # Propagate request_id so the internal REST call logged by
+        # AuditLoggingMiddleware uses the same identifier.
+        token = mcp_audit_request_id.set(request_id)
         start = time.monotonic()
         outcome = "success"
         error_detail = ""
@@ -169,6 +174,7 @@ def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
             raise
         finally:
             duration_ms = (time.monotonic() - start) * 1000.0
+            mcp_audit_request_id.reset(token)
             audit.log(
                 AuditEvent(
                     event_type="mcp.tools.call",
