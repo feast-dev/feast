@@ -1,7 +1,8 @@
 """Tests for MCP protocol-layer audit logging (handler wrapping).
 
 Validates ``_wrap_call_tool_handler`` and ``_principal_from_mcp_context``
-from ``feast.infra.mcp_servers.mcp_server``.
+from ``feast.infra.mcp_servers.mcp_server``, including request_id
+correlation between ``mcp.tools.call`` and ``http.request`` events.
 """
 
 import asyncio
@@ -13,6 +14,7 @@ from feast.audit.audit_logger import (
     AuditEvent,
     AuditLogger,
     AuditSink,
+    mcp_audit_request_id,
 )
 from feast.infra.mcp_servers.mcp_server import (
     _principal_from_mcp_context,
@@ -202,6 +204,75 @@ class TestWrapCallToolHandler(unittest.TestCase):
         params = SimpleNamespace(name="tool")
         result = _run(mcp.server._request_handlers["tools/call"](ctx, params))
         self.assertIs(result, sentinel)
+
+    def test_contextvar_propagates_request_id(self):
+        """The wrapper sets mcp_audit_request_id so that AuditLoggingMiddleware
+        on the internal REST call can reuse the same request_id."""
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+        captured_ids: list[str | None] = []
+
+        async def handler(ctx, params):
+            captured_ids.append(mcp_audit_request_id.get())
+            return SimpleNamespace(isError=False)
+
+        mcp = _make_fake_mcp(handler)
+        _wrap_call_tool_handler(mcp, audit)
+
+        ctx = SimpleNamespace(request_id=1)
+        params = SimpleNamespace(name="tool")
+        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+
+        self.assertEqual(len(captured_ids), 1)
+        self.assertIsNotNone(captured_ids[0])
+        self.assertEqual(captured_ids[0], sink.events[0].request_id)
+
+    def test_contextvar_reset_after_call(self):
+        """The ContextVar is cleaned up after the handler completes."""
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+
+        async def handler(ctx, params):
+            return SimpleNamespace(isError=False)
+
+        mcp = _make_fake_mcp(handler)
+        _wrap_call_tool_handler(mcp, audit)
+
+        self.assertIsNone(mcp_audit_request_id.get())
+
+        ctx = SimpleNamespace(request_id=1)
+        params = SimpleNamespace(name="tool")
+        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+
+        self.assertIsNone(mcp_audit_request_id.get())
+
+    def test_mcp_and_rest_events_share_request_id(self):
+        """End-to-end: both mcp.tools.call and http.request events emitted
+        during a single tool invocation share the same request_id."""
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+
+        async def handler(ctx, params):
+            propagated = mcp_audit_request_id.get()
+            audit.log_http_request(
+                request_id=propagated or audit.new_request_id(),
+                method="POST",
+                path="/get-online-features",
+                status_code=200,
+            )
+            return SimpleNamespace(isError=False)
+
+        mcp = _make_fake_mcp(handler)
+        _wrap_call_tool_handler(mcp, audit)
+
+        ctx = SimpleNamespace(request_id=1)
+        params = SimpleNamespace(name="get_online_features")
+        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+
+        self.assertEqual(len(sink.events), 2)
+        http_event = next(e for e in sink.events if e.event_type == "http.request")
+        mcp_event = next(e for e in sink.events if e.event_type == "mcp.tools.call")
+        self.assertEqual(http_event.request_id, mcp_event.request_id)
 
 
 class TestPrincipalFromMcpContext(unittest.TestCase):
