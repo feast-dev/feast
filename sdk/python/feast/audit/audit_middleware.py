@@ -40,6 +40,7 @@ from feast.audit.audit_logger import (
     AuditPrincipal,
     AuditResource,
     AuditSource,
+    mcp_audit_request_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,11 +96,19 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
         if path in ("/health", "/docs", "/openapi.json") or path.startswith("/static"):
             return await call_next(request)
 
-        # Skip MCP endpoints — handled by McpAuditMiddleware
+        # Skip MCP transport endpoints — tool-call auditing is handled at the
+        # protocol layer in mcp_server._wrap_call_tool_handler().
         if path.startswith("/mcp"):
             return await call_next(request)
 
-        request_id = request.headers.get("x-request-id", audit.new_request_id())
+        # If this request was triggered by an MCP tool call, reuse the same
+        # request_id so both events correlate in SIEM.
+        propagated_id = mcp_audit_request_id.get()
+        request_id = (
+            propagated_id
+            or request.headers.get("x-request-id")
+            or audit.new_request_id()
+        )
         request.state.audit_request_id = request_id
 
         start = time.monotonic()
