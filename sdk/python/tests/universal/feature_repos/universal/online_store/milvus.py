@@ -14,7 +14,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         return {
             "type": "milvus",
             "path": self.db_path,
-            "index_type": "IVF_FLAT",
+            "index_type": "FLAT",
             "metric_type": "L2",
             "embedding_dim": 2,
             "vector_enabled": True,
