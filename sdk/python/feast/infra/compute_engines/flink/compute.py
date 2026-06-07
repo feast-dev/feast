@@ -22,7 +22,10 @@ from feast.infra.compute_engines.flink.job import (
     FlinkDAGRetrievalJob,
     FlinkMaterializationJob,
 )
-from feast.infra.compute_engines.flink.utils import create_flink_table_environment
+from feast.infra.compute_engines.flink.utils import (
+    cleanup_flink_temporary_views,
+    create_flink_table_environment,
+)
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
@@ -122,6 +125,8 @@ class FlinkComputeEngine(ComputeEngine):
                 status=MaterializationJobStatus.ERROR,
                 error=exc,
             )
+        finally:
+            cleanup_flink_temporary_views(self.table_env)
 
     def get_historical_features(
         self, registry: BaseRegistry, task: HistoricalRetrievalTask
@@ -138,6 +143,7 @@ class FlinkComputeEngine(ComputeEngine):
             return FlinkDAGRetrievalJob(
                 plan=plan,
                 context=context,
+                table_env=self.table_env,
                 full_feature_names=task.full_feature_name,
             )
         except Exception as exc:
@@ -149,6 +155,7 @@ class FlinkComputeEngine(ComputeEngine):
             return FlinkDAGRetrievalJob(
                 plan=None,
                 context=context,
+                table_env=self.table_env,
                 full_feature_names=task.full_feature_name,
                 error=exc,
             )

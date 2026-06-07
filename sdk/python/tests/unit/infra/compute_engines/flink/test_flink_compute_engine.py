@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import sys
+import types
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, List, Optional
@@ -33,11 +35,13 @@ from feast.infra.compute_engines.flink.nodes import (
     FlinkDedupNode,
     FlinkFilterNode,
     FlinkJoinNode,
+    FlinkOutputNode,
     FlinkSourceReadNode,
     FlinkTransformationNode,
     FlinkValidationNode,
-    _flink_interval_literal,
+    _subtract_flink_intervals,
 )
+from feast.infra.compute_engines.flink.utils import pandas_to_flink_table
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
@@ -61,21 +65,52 @@ def test_flink_extra_does_not_downgrade_default_pyarrow_dependency() -> None:
 
 
 class FakeFlinkTable:
-    def __init__(self, df: pd.DataFrame) -> None:
+    def __init__(self, df: pd.DataFrame, fail_on_to_pandas: bool = False) -> None:
         self._df = df.copy()
+        self.fail_on_to_pandas = fail_on_to_pandas
 
     def to_pandas(self) -> pd.DataFrame:
+        if self.fail_on_to_pandas:
+            raise AssertionError("FlinkOutputNode should not collect via to_pandas()")
         return self._df.copy()
 
     def get_schema(self) -> FakeFlinkSchema:
         return FakeFlinkSchema(list(self._df.columns))
 
+    def execute(self) -> FakeTableResult:
+        return FakeTableResult(self._df)
+
+
+class FakeTableResult:
+    def __init__(self, df: pd.DataFrame) -> None:
+        self._df = df.copy()
+
+    def collect(self) -> FakeCloseableIterator:
+        return FakeCloseableIterator(self._df)
+
+
+class FakeCloseableIterator:
+    def __init__(self, df: pd.DataFrame) -> None:
+        self._rows = iter(df.itertuples(index=False, name=None))
+        self.closed = False
+
+    def __iter__(self) -> FakeCloseableIterator:
+        return self
+
+    def __next__(self) -> tuple[Any, ...]:
+        return next(self._rows)
+
+    def close(self) -> None:
+        self.closed = True
+
 
 class FakeTableEnvironment:
     def __init__(self) -> None:
         self.created_tables: List[pd.DataFrame] = []
+        self.schemas: List[object] = []
         self.split_nums: List[int] = []
         self.views: dict[str, object] = {}
+        self.dropped_views: List[str] = []
         self.queries: List[str] = []
 
     def from_pandas(
@@ -86,6 +121,7 @@ class FakeTableEnvironment:
         split_num: Optional[int] = None,
     ) -> FakeFlinkTable:
         self.created_tables.append(df.copy())
+        self.schemas.append(schema)
         self.split_nums.append(split_num if split_num is not None else splits_num)
         return FakeFlinkTable(df)
 
@@ -93,6 +129,10 @@ class FakeTableEnvironment:
         self, view_path: str, table_or_data_stream: object, *args: object
     ) -> None:
         self.views[view_path] = table_or_data_stream
+
+    def drop_temporary_view(self, view_path: str) -> None:
+        self.dropped_views.append(view_path)
+        self.views.pop(view_path, None)
 
     def sql_query(self, query: str) -> Any:
         self.queries.append(query)
@@ -379,6 +419,109 @@ def _flink_value(df: pd.DataFrame) -> DAGValue:
     )
 
 
+def test_pandas_to_flink_table_builds_typed_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSchemaBuilder:
+        def __init__(self) -> None:
+            self.columns: List[tuple[str, str]] = []
+
+        def column(self, name: str, dtype: str) -> FakeSchemaBuilder:
+            self.columns.append((name, dtype))
+            return self
+
+        def build(self) -> List[tuple[str, str]]:
+            return self.columns
+
+    class FakeSchema:
+        @staticmethod
+        def new_builder() -> FakeSchemaBuilder:
+            return FakeSchemaBuilder()
+
+    class FakeDataTypes:
+        @staticmethod
+        def BOOLEAN() -> str:
+            return "BOOLEAN"
+
+        @staticmethod
+        def TINYINT() -> str:
+            return "TINYINT"
+
+        @staticmethod
+        def SMALLINT() -> str:
+            return "SMALLINT"
+
+        @staticmethod
+        def INT() -> str:
+            return "INT"
+
+        @staticmethod
+        def BIGINT() -> str:
+            return "BIGINT"
+
+        @staticmethod
+        def FLOAT() -> str:
+            return "FLOAT"
+
+        @staticmethod
+        def DOUBLE() -> str:
+            return "DOUBLE"
+
+        @staticmethod
+        def TIMESTAMP(precision: int) -> str:
+            return f"TIMESTAMP({precision})"
+
+        @staticmethod
+        def TIMESTAMP_LTZ(precision: int) -> str:
+            return f"TIMESTAMP_LTZ({precision})"
+
+        @staticmethod
+        def BYTES() -> str:
+            return "BYTES"
+
+        @staticmethod
+        def DATE() -> str:
+            return "DATE"
+
+        @staticmethod
+        def DECIMAL(precision: int, scale: int) -> str:
+            return f"DECIMAL({precision},{scale})"
+
+        @staticmethod
+        def STRING() -> str:
+            return "STRING"
+
+    pyflink_module = types.ModuleType("pyflink")
+    table_module = types.ModuleType("pyflink.table")
+    setattr(table_module, "Schema", FakeSchema)
+    setattr(table_module, "DataTypes", FakeDataTypes)
+    monkeypatch.setitem(sys.modules, "pyflink", pyflink_module)
+    monkeypatch.setitem(sys.modules, "pyflink.table", table_module)
+
+    table_env = FakeTableEnvironment()
+    df = pd.DataFrame(
+        {
+            "driver_id": pd.Series([1, 2], dtype="int64"),
+            "conv_rate": pd.Series([0.1, 0.2], dtype="float64"),
+            "event_timestamp": pd.to_datetime(
+                ["2024-01-01 00:00:00", "2024-01-02 00:00:00"]
+            ),
+            "active": pd.Series([True, False], dtype="bool"),
+        }
+    )
+
+    pandas_to_flink_table(table_env, df, split_num=4)
+
+    assert table_env.schemas[-1] == [
+        ("driver_id", "BIGINT"),
+        ("conv_rate", "DOUBLE"),
+        ("event_timestamp", "TIMESTAMP(3)"),
+        ("active", "BOOLEAN"),
+    ]
+    assert table_env.schemas[-1] != list(df.columns)
+    assert table_env.split_nums == [4]
+
+
 def _native_flink_value(columns: List[str]) -> DAGValue:
     return DAGValue(
         data=FakeNativeFlinkTable(columns),
@@ -469,6 +612,8 @@ def test_flink_historical_retrieval_executes_dag_with_transformation(
     assert job.error() is None
     assert result["driver_id"].tolist() == [1, 2]
     assert result["conv_rate"].tolist() == [0.4, 0.6]
+    assert table_env.dropped_views
+    assert table_env.views == {}
 
 
 def test_flink_historical_retrieval_is_read_only_and_dedupes_per_entity_row(
@@ -570,6 +715,7 @@ def test_flink_historical_retrieval_supports_sql_entity_df(tmp_path: Path) -> No
         "SELECT driver_id, event_timestamp FROM entities" in query
         for query in table_env.queries
     )
+    assert set(table_env.views) == {"entities"}
 
 
 def test_flink_materialize_writes_online_and_offline(tmp_path: Path) -> None:
@@ -579,11 +725,12 @@ def test_flink_materialize_writes_online_and_offline(tmp_path: Path) -> None:
     config = _repo_config(tmp_path, {"type": "flink.engine"})
     offline_store = _offline_store(_feature_data().head(1))
     online_store = MagicMock()
+    table_env = FakeTableEnvironment()
     engine = FlinkComputeEngine(
         repo_config=config,
         offline_store=offline_store,
         online_store=online_store,
-        table_environment=FakeTableEnvironment(),
+        table_environment=table_env,
     )
     task = MaterializationTask(
         project=config.project,
@@ -599,6 +746,42 @@ def test_flink_materialize_writes_online_and_offline(tmp_path: Path) -> None:
     assert jobs[0].error() is None
     online_store.online_write_batch.assert_called_once()
     offline_store.offline_write_batch.assert_called_once()
+    assert table_env.dropped_views
+    assert table_env.views == {}
+
+
+def test_flink_output_node_streams_batches_without_full_pandas_collect(
+    tmp_path: Path,
+) -> None:
+    source = _source()
+    feature_view = _feature_view(source, online=True, offline=True)
+    input_node = InputNode("input")
+    node = FlinkOutputNode(
+        "output",
+        feature_view,
+        FakeTableEnvironment(),
+        split_num=1,
+        write_output=True,
+        inputs=[input_node],
+    )
+    context = _execution_context(
+        tmp_path,
+        {
+            "input": DAGValue(
+                data=FakeFlinkTable(_feature_data().head(2), fail_on_to_pandas=True),
+                format=DAGFormat.FLINK,
+                metadata={"columns": list(_feature_data().columns)},
+            )
+        },
+    )
+    context.repo_config.materialization_config.online_write_batch_size = 1
+    context.online_store = MagicMock()
+    context.offline_store = MagicMock()
+
+    node.execute(context)
+
+    assert context.online_store.online_write_batch.call_count == 2
+    assert context.offline_store.offline_write_batch.call_count == 2
 
 
 def test_flink_engine_reports_materialization_errors(tmp_path: Path) -> None:
@@ -753,13 +936,18 @@ def test_flink_filter_node_renders_ttl_as_valid_flink_interval(
 
     node.execute(context)
 
-    assert _flink_interval_literal(
-        timedelta(days=2, hours=3, minutes=4, seconds=5)
+    assert _subtract_flink_intervals(
+        "`__entity_event_timestamp`", timedelta(days=2, hours=3, minutes=4, seconds=5)
     ) == (
-        "INTERVAL '2' DAY + INTERVAL '3' HOUR + "
-        "INTERVAL '4' MINUTE + INTERVAL '5' SECOND"
+        "`__entity_event_timestamp` - INTERVAL '2' DAY - INTERVAL '3' HOUR "
+        "- INTERVAL '4' MINUTE - INTERVAL '5' SECOND"
     )
-    assert any("INTERVAL '2' DAY" in query for query in table_env.queries)
+    assert any(
+        "`event_timestamp` >= `__entity_event_timestamp` - INTERVAL '2' DAY "
+        "- INTERVAL '3' HOUR - INTERVAL '4' MINUTE - INTERVAL '5' SECOND" in query
+        for query in table_env.queries
+    )
+    assert all("+ INTERVAL" not in query for query in table_env.queries)
 
 
 def test_flink_aggregation_node_groups_features(tmp_path: Path) -> None:

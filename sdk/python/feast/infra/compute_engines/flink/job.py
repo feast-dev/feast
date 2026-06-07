@@ -12,7 +12,10 @@ from feast.infra.common.materialization_job import (
 )
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
-from feast.infra.compute_engines.flink.utils import flink_table_to_arrow
+from feast.infra.compute_engines.flink.utils import (
+    cleanup_flink_temporary_views,
+    flink_table_to_arrow,
+)
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.saved_dataset import SavedDatasetStorage
@@ -23,6 +26,7 @@ class FlinkDAGRetrievalJob(RetrievalJob):
         self,
         plan: Optional[ExecutionPlan],
         context: ExecutionContext,
+        table_env: object,
         full_feature_names: bool,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
@@ -30,6 +34,7 @@ class FlinkDAGRetrievalJob(RetrievalJob):
     ) -> None:
         self._plan = plan
         self._context = context
+        self._table_env = table_env
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
@@ -45,8 +50,11 @@ class FlinkDAGRetrievalJob(RetrievalJob):
                 raise self._error
             if self._plan is None:
                 raise RuntimeError("Execution plan is not set")
-            result = self._plan.execute(self._context)
-            self._arrow_table = flink_table_to_arrow(result.data)
+            try:
+                result = self._plan.execute(self._context)
+                self._arrow_table = flink_table_to_arrow(result.data)
+            finally:
+                cleanup_flink_temporary_views(self._table_env)
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         self._ensure_executed()

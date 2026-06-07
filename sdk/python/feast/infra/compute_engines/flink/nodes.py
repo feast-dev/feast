@@ -16,8 +16,9 @@ from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.flink.utils import (
-    flink_table_to_pandas,
+    flink_table_to_arrow_batches,
     pandas_to_flink_table,
+    register_flink_temporary_view,
 )
 from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
 from feast.infra.offline_stores.offline_utils import (
@@ -47,15 +48,15 @@ def _select_column(alias: str, column: str, output_name: Optional[str] = None) -
     return expr
 
 
-def _flink_interval_literal(value: timedelta) -> str:
+def _flink_interval_literals(value: timedelta) -> List[str]:
     total_seconds = int(value.total_seconds())
     if total_seconds <= 0:
-        return "INTERVAL '0' SECOND"
+        return ["INTERVAL '0' SECOND"]
 
     days, remainder = divmod(total_seconds, 24 * 60 * 60)
     hours, remainder = divmod(remainder, 60 * 60)
     minutes, seconds = divmod(remainder, 60)
-    parts = []
+    parts: List[str] = []
     if days:
         parts.append(f"INTERVAL '{days}' DAY")
     if hours:
@@ -64,7 +65,14 @@ def _flink_interval_literal(value: timedelta) -> str:
         parts.append(f"INTERVAL '{minutes}' MINUTE")
     if seconds:
         parts.append(f"INTERVAL '{seconds}' SECOND")
-    return " + ".join(parts)
+    return parts
+
+
+def _subtract_flink_intervals(timestamp_expr: str, value: timedelta) -> str:
+    result = timestamp_expr
+    for interval in _flink_interval_literals(value):
+        result = f"{result} - {interval}"
+    return result
 
 
 def _get_columns_from_schema(table: Any) -> Optional[List[str]]:
@@ -107,6 +115,7 @@ def _require_sql(table_env: Any, node_name: str) -> None:
 def _register_table(table_env: Any, table: Any, prefix: str) -> str:
     view_name = f"__feast_{prefix}_{uuid.uuid4().hex}"
     table_env.create_temporary_view(view_name, table)
+    register_flink_temporary_view(table_env, view_name)
     return view_name
 
 
@@ -447,11 +456,11 @@ class FlinkFilterNode(DAGNode):
                 f"{_quote_identifier(ENTITY_TS_ALIAS)}"
             )
             if self.ttl:
-                ttl_interval = _flink_interval_literal(self.ttl)
+                lower_bound = _subtract_flink_intervals(
+                    _quote_identifier(ENTITY_TS_ALIAS), self.ttl
+                )
                 conditions.append(
-                    f"{_quote_identifier(timestamp_column)} >= "
-                    f"{_quote_identifier(ENTITY_TS_ALIAS)} - "
-                    f"({ttl_interval})"
+                    f"{_quote_identifier(timestamp_column)} >= {lower_bound}"
                 )
 
         if self.filter_expr:
@@ -708,43 +717,48 @@ class FlinkOutputNode(DAGNode):
         if not self.write_output:
             return output_value
 
-        output_df = flink_table_to_pandas(output_table)
-        output_arrow = pa.Table.from_pandas(output_df)
-
-        if output_arrow.num_rows == 0:
-            return output_value
-
+        columns = _get_columns(output_value)
+        batch_size = context.repo_config.materialization_config.online_write_batch_size
         if self.feature_view.online:
             join_key_to_value_type = {
                 entity.name: entity.dtype.to_value_type()
                 for entity in self.feature_view.entity_columns
             }
-            batch_size = (
-                context.repo_config.materialization_config.online_write_batch_size
-            )
-            batches = (
-                [output_arrow]
-                if batch_size is None
-                else output_arrow.to_batches(max_chunksize=batch_size)
-            )
-            for batch in batches:
-                rows_to_write = _convert_arrow_to_proto(
-                    batch, self.feature_view, join_key_to_value_type
+        else:
+            join_key_to_value_type = {}
+
+        for output_arrow in flink_table_to_arrow_batches(
+            output_table,
+            columns,
+            batch_size,
+        ):
+            if output_arrow.num_rows == 0:
+                continue
+
+            if self.feature_view.online:
+                arrow_batches = (
+                    [output_arrow]
+                    if batch_size is None
+                    else output_arrow.to_batches(max_chunksize=batch_size)
                 )
-                context.online_store.online_write_batch(
+                for batch in arrow_batches:
+                    rows_to_write = _convert_arrow_to_proto(
+                        batch, self.feature_view, join_key_to_value_type
+                    )
+                    context.online_store.online_write_batch(
+                        config=context.repo_config,
+                        table=self.feature_view,
+                        data=rows_to_write,
+                        progress=lambda x: None,
+                    )
+
+            if self.feature_view.offline:
+                context.offline_store.offline_write_batch(
                     config=context.repo_config,
-                    table=self.feature_view,
-                    data=rows_to_write,
+                    feature_view=self.feature_view,
+                    table=output_arrow,
                     progress=lambda x: None,
                 )
-
-        if self.feature_view.offline:
-            context.offline_store.offline_write_batch(
-                config=context.repo_config,
-                feature_view=self.feature_view,
-                table=output_arrow,
-                progress=lambda x: None,
-            )
 
         return output_value
 
