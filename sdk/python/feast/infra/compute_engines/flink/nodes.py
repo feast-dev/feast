@@ -20,16 +20,17 @@ from feast.infra.compute_engines.flink.utils import (
     pandas_to_flink_table,
     register_flink_temporary_view,
 )
-from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
-from feast.infra.offline_stores.offline_utils import (
-    infer_event_timestamp_from_entity_df,
+from feast.infra.compute_engines.utils import (
+    ENTITY_ROW_ID,
+    ENTITY_TS_ALIAS,
+    create_offline_store_retrieval_job,
+    find_entity_timestamp_column,
+    infer_entity_timestamp_column,
 )
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
 
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
-ENTITY_ROW_ID = "__feast_entity_row_id"
 DEDUP_ROW_NUMBER = "__feast_row_number"
 
 
@@ -133,10 +134,9 @@ def _sql_value(
 
 
 def _entity_timestamp_column_from_columns(columns: List[str]) -> str:
-    if ENTITY_TS_ALIAS in columns:
-        return ENTITY_TS_ALIAS
-    if "event_timestamp" in columns:
-        return "event_timestamp"
+    entity_ts_col = find_entity_timestamp_column(columns)
+    if entity_ts_col:
+        return entity_ts_col
     raise ValueError(
         "SQL-based entity_df for FlinkComputeEngine must select an "
         "`event_timestamp` column."
@@ -151,7 +151,7 @@ def _entity_value_from_dataframe(
     entity_df = entity_df.copy()
     entity_df[ENTITY_ROW_ID] = range(len(entity_df))
     entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-    entity_ts_col = infer_event_timestamp_from_entity_df(entity_schema)
+    entity_ts_col = infer_entity_timestamp_column(entity_schema)
     if entity_ts_col != ENTITY_TS_ALIAS:
         entity_df = entity_df.rename(columns={entity_ts_col: ENTITY_TS_ALIAS})
     return (
