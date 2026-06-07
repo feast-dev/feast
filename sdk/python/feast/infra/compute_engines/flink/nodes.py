@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 import pandas as pd
 import pyarrow as pa
 
-from feast import BatchFeatureView, StreamFeatureView
+from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.aggregation import Aggregation, aggregation_specs_to_agg_ops
 from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
@@ -697,7 +697,7 @@ class FlinkOutputNode(DAGNode):
     def __init__(
         self,
         name: str,
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        feature_view: Union[BatchFeatureView, FeatureView, StreamFeatureView],
         table_env: Any,
         split_num: int,
         write_output: bool,

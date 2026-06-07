@@ -51,7 +51,7 @@ class FlinkFeatureBuilder(FeatureBuilder):
 
     def _build(self, view: Any, input_nodes: list[DAGNode] | None) -> DAGNode:
         if view.data_source:
-            last_node = self.build_source_node(view)
+            last_node: DAGNode = self.build_source_node(view)
 
             if self._should_transform(view):
                 last_node = self.build_transformation_node(view, [last_node])
