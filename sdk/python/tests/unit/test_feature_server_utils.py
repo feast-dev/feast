@@ -23,7 +23,6 @@ Related issue: https://github.com/feast-dev/feast/issues/6013
 
 import base64
 import json
-import platform
 import time
 
 import pytest
@@ -642,26 +641,21 @@ class TestPerformance:
             convert_response_to_dict(response)
             MessageToDict(response, preserving_proto_field_name=True)
 
-        start = time.perf_counter()
+        start = time.process_time()
         for _ in range(iterations):
             convert_response_to_dict(response)
-        fast_time = time.perf_counter() - start
+        fast_time = time.process_time() - start
 
-        start = time.perf_counter()
+        start = time.process_time()
         for _ in range(iterations):
             MessageToDict(response, preserving_proto_field_name=True)
-        standard_time = time.perf_counter() - start
+        standard_time = time.process_time() - start
 
         speedup = standard_time / fast_time
         print(f"\nPerformance: fast={fast_time:.3f}s, standard={standard_time:.3f}s")
         print(f"Speedup: {speedup:.2f}x")
 
-        # GitHub-hosted macOS runners show more timing variance on this
-        # microbenchmark while still validating a meaningful speedup.
-        min_speedup = 1.3 if platform.system() == "Darwin" else 1.5
-        assert speedup >= min_speedup, (
-            f"Expected at least {min_speedup:.1f}x speedup, got {speedup:.2f}x"
-        )
+        assert speedup >= 1.5, f"Expected at least 1.5x speedup, got {speedup:.2f}x"
 
 
 class TestStatusNames:
