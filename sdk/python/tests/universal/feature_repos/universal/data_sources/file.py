@@ -1,7 +1,6 @@
 import logging
 import os.path
 import shutil
-import signal
 import subprocess
 import tempfile
 import uuid
@@ -40,50 +39,6 @@ from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import generate_self_signed_cert
 
 logger = logging.getLogger(__name__)
-
-
-def _start_offline_server_process(cmd: list[str]) -> Popen[bytes]:
-    kwargs: dict[str, Any] = {
-        "stdout": subprocess.DEVNULL,
-        "stderr": subprocess.DEVNULL,
-    }
-    if os.name == "posix":
-        kwargs["start_new_session"] = True
-    return subprocess.Popen(cmd, **kwargs)
-
-
-def _stop_offline_server_process(proc: Popen[bytes], port: int) -> None:
-    _signal_offline_server_process(proc, signal.SIGTERM)
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        _signal_offline_server_process(proc, signal.SIGKILL)
-        proc.wait(timeout=10)
-
-    wait_retry_backoff(
-        lambda: (
-            None,
-            not check_port_open("localhost", port),
-        ),
-        timeout_secs=30,
-        timeout_msg=f"Timed out waiting for remote offline server port {port} to close.",
-    )
-
-
-def _signal_offline_server_process(proc: Popen[bytes], sig: signal.Signals) -> None:
-    if os.name == "posix":
-        try:
-            os.killpg(proc.pid, sig)
-            return
-        except ProcessLookupError:
-            return
-
-    if proc.poll() is not None:
-        return
-    if sig == signal.SIGTERM:
-        proc.terminate()
-    else:
-        proc.kill()
 
 
 class FileDataSourceCreator(DataSourceCreator):
@@ -417,7 +372,6 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 
         self.server_port = free_port()
         host = "0.0.0.0"
-        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + str(repo_path),
@@ -427,21 +381,32 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
             "--port",
             str(self.server_port),
         ]
-        self.proc = _start_offline_server_process(cmd)
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
 
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(client_host, self.server_port)),
+            lambda: (None, check_port_open(host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tcp://{}:{}".format(client_host, self.server_port)
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
 
     def teardown(self):
         super().teardown()
         if self.proc is not None:
-            _stop_offline_server_process(self.proc, self.server_port)
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
 
 
 class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
@@ -476,7 +441,6 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
 
         self.server_port = free_port()
         host = "0.0.0.0"
-        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + str(repo_path),
@@ -490,21 +454,23 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             "--cert",
             str(self.tls_cert_path),
         ]
-        self.proc = _start_offline_server_process(cmd)
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
 
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(client_host, self.server_port)),
+            lambda: (None, check_port_open(host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tls://{}:{}".format(client_host, self.server_port)
+        return "grpc+tls://{}:{}".format(host, self.server_port)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         remote_offline_store_config = RemoteOfflineStoreConfig(
             type="remote",
-            host="localhost",
+            host="0.0.0.0",
             port=self.server_port,
             scheme="https",
             cert=self.tls_cert_path,
@@ -514,7 +480,16 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
     def teardown(self):
         super().teardown()
         if self.proc is not None:
-            _stop_offline_server_process(self.proc, self.server_port)
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
 
 
 class RemoteOfflineOidcAuthStoreDataSourceCreator(FileDataSourceCreator):
@@ -535,7 +510,7 @@ auth:
 """
         self.auth_config = auth_config_template.format(keycloak_url=self.keycloak_url)
         self.server_port: int = 0
-        self.proc: Optional[Popen[bytes]] = None
+        self.proc = None
 
     @staticmethod
     def xdist_groups() -> list[str]:
@@ -566,7 +541,6 @@ auth:
 
         self.server_port = free_port()
         host = "0.0.0.0"
-        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + repo_path,
@@ -576,20 +550,22 @@ auth:
             "--port",
             str(self.server_port),
         ]
-        self.proc = _start_offline_server_process(cmd)
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )  # type: ignore
 
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(client_host, self.server_port)),
+            lambda: (None, check_port_open(host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tcp://{}:{}".format(client_host, self.server_port)
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         remote_offline_store_config = RemoteOfflineStoreConfig(
-            type="remote", host="localhost", port=self.server_port
+            type="remote", host="0.0.0.0", port=self.server_port
         )
         return remote_offline_store_config
 
@@ -599,4 +575,13 @@ auth:
     def teardown(self):
         super().teardown()
         if self.proc is not None:
-            _stop_offline_server_process(self.proc, self.server_port)
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
