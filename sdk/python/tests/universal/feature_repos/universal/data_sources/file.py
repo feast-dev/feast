@@ -372,6 +372,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 
         self.server_port = free_port()
         host = "0.0.0.0"
+        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + str(repo_path),
@@ -388,11 +389,11 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(host, self.server_port)),
+            lambda: (None, check_port_open(client_host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tcp://{}:{}".format(host, self.server_port)
+        return "grpc+tcp://{}:{}".format(client_host, self.server_port)
 
     def teardown(self):
         super().teardown()
@@ -441,6 +442,7 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
 
         self.server_port = free_port()
         host = "0.0.0.0"
+        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + str(repo_path),
@@ -461,16 +463,16 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(host, self.server_port)),
+            lambda: (None, check_port_open(client_host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tls://{}:{}".format(host, self.server_port)
+        return "grpc+tls://{}:{}".format(client_host, self.server_port)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         remote_offline_store_config = RemoteOfflineStoreConfig(
             type="remote",
-            host="0.0.0.0",
+            host="localhost",
             port=self.server_port,
             scheme="https",
             cert=self.tls_cert_path,
@@ -541,6 +543,7 @@ auth:
 
         self.server_port = free_port()
         host = "0.0.0.0"
+        client_host = "localhost"
         cmd = [
             "feast",
             "-c" + repo_path,
@@ -557,15 +560,15 @@ auth:
         _time_out_sec: int = 60
         # Wait for server to start
         wait_retry_backoff(
-            lambda: (None, check_port_open(host, self.server_port)),
+            lambda: (None, check_port_open(client_host, self.server_port)),
             timeout_secs=_time_out_sec,
             timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
         )
-        return "grpc+tcp://{}:{}".format(host, self.server_port)
+        return "grpc+tcp://{}:{}".format(client_host, self.server_port)
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         remote_offline_store_config = RemoteOfflineStoreConfig(
-            type="remote", host="0.0.0.0", port=self.server_port
+            type="remote", host="localhost", port=self.server_port
         )
         return remote_offline_store_config
 
