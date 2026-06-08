@@ -28,6 +28,7 @@ import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import { getEntityPermissions } from "../../utils/permissionUtils";
 import { toDate } from "../../utils/timestamp";
+import { feast } from "../../protos";
 import FeatureViewEdgesList from "./FeatureViewEdgesList";
 import useFeatureViewEdgesByEntity from "./useFeatureViewEdgesByEntity";
 import useLoadEntity from "./useLoadEntity";
@@ -35,7 +36,10 @@ import { useApplyEntity } from "../../queries/mutations/useEntityMutations";
 
 const buildEditFormData = (entity: feast.core.IEntity): EntityFormData => {
   const tags = entity.spec?.tags
-    ? Object.entries(entity.spec.tags).map(([key, value]) => ({ key, value }))
+    ? Object.entries(entity.spec.tags).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }))
     : [];
 
   const joinKeys = entity.spec?.joinKey ? [entity.spec.joinKey] : [""];
