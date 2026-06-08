@@ -54,7 +54,7 @@ def _isolate_mlflow_globals():
 
 @pytest.fixture()
 def tracking_uri(tmp_path):
-    uri = str(tmp_path / "mlruns")
+    uri = f"sqlite:///{tmp_path}/mlflow.db"
     mlflow.set_tracking_uri(uri)
     mlflow.set_experiment("test_mlflow")
     yield uri
