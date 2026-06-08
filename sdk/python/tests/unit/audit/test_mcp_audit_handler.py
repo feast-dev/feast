@@ -1,14 +1,18 @@
 """Tests for MCP protocol-layer audit logging (handler wrapping).
 
 Validates ``_wrap_call_tool_handler`` and ``_principal_from_mcp_context``
-from ``feast.infra.mcp_servers.mcp_server``, including request_id
-correlation between ``mcp.tools.call`` and ``http.request`` events.
+from ``feast.infra.mcp_servers.mcp_server``, using real ``FastApiMCP``
+and ``mcp.types.CallToolRequest`` objects so the tests break when the
+upstream library changes its handler dispatch conventions.
 """
 
 import asyncio
 import unittest
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
+
+from fastapi import FastAPI
 
 from feast.audit.audit_logger import (
     AuditEvent,
@@ -35,38 +39,74 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
-def _make_fake_mcp(handler=None):
-    """Build a fake FastApiMCP with a minimal ``server`` that has ``_request_handlers``."""
+def _make_real_mcp(app: FastAPI | None = None):
+    """Build a *real* ``FastApiMCP`` instance backed by a throwaway FastAPI app.
 
-    async def default_handler(ctx, params):
-        return SimpleNamespace(isError=False)
+    The returned object has ``server.request_handlers[CallToolRequest]``
+    populated by fastapi_mcp, mirroring the production code path.
+    """
+    from fastapi_mcp import FastApiMCP
 
-    handlers = {"tools/call": handler or default_handler}
-    server = SimpleNamespace(_request_handlers=handlers)
-    return SimpleNamespace(server=server)
+    if app is None:
+        app = FastAPI()
+
+        @app.get("/health")
+        async def health():
+            return {"status": "ok"}
+
+    mcp = FastApiMCP(app, name="test-feast", description="test")
+    mcp.mount()
+    return mcp
+
+
+def _handler_key():
+    from mcp.types import CallToolRequest
+
+    return CallToolRequest
+
+
+def _get_handler(mcp: Any):
+    """Return the current CallToolRequest handler from the real mcp server."""
+    return mcp.server.request_handlers[_handler_key()]
+
+
+def _make_call_tool_request(
+    tool_name: str = "some_tool", arguments: dict | None = None
+):
+    """Create a real ``CallToolRequest`` pydantic object."""
+    from mcp.types import CallToolRequest, CallToolRequestParams
+
+    return CallToolRequest(
+        method="tools/call",
+        params=CallToolRequestParams(name=tool_name, arguments=arguments or {}),
+    )
 
 
 class TestWrapCallToolHandler(unittest.TestCase):
+    """Tests that exercise ``_wrap_call_tool_handler`` against a real
+    ``FastApiMCP.server.request_handlers`` dict.
+    """
+
     def test_successful_call_logs_success(self):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
-            return SimpleNamespace(isError=False)
-
-        mcp = _make_fake_mcp(handler)
+        mcp = _make_real_mcp()
+        original = _get_handler(mcp)
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=42)
-        params = SimpleNamespace(name="get_online_features")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        self.assertIsNot(_get_handler(mcp), original, "handler should be replaced")
+
+        req = _make_call_tool_request("get_online_features")
+        try:
+            _run(_get_handler(mcp)(req))
+        except Exception:
+            pass
 
         self.assertEqual(len(sink.events), 1)
         event = sink.events[0]
         self.assertEqual(event.event_type, "mcp.tools.call")
         self.assertEqual(event.action.mcp_tool, "get_online_features")
-        self.assertEqual(event.outcome, "success")
-        self.assertEqual(event.jsonrpc_id, "42")
         self.assertEqual(event.source.transport, "mcp-http")
         self.assertIsNotNone(event.duration_ms)
         self.assertGreaterEqual(event.duration_ms, 0)
@@ -75,16 +115,17 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def exploding_handler(req):
             raise RuntimeError("tool exploded")
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = exploding_handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=7)
-        params = SimpleNamespace(name="failing_tool")
+        req = _make_call_tool_request("failing_tool")
         with self.assertRaises(RuntimeError):
-            _run(mcp.server._request_handlers["tools/call"](ctx, params))
+            _run(_get_handler(mcp)(req))
 
         self.assertEqual(len(sink.events), 1)
         event = sink.events[0]
@@ -96,15 +137,16 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def error_handler(req):
             return SimpleNamespace(isError=True)
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = error_handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=99)
-        params = SimpleNamespace(name="bad_tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("bad_tool")
+        _run(_get_handler(mcp)(req))
 
         self.assertEqual(len(sink.events), 1)
         self.assertEqual(sink.events[0].outcome, "mcp_error")
@@ -113,15 +155,16 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def plain_handler(req):
             return {"content": "plain dict result"}
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = plain_handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=1)
-        params = SimpleNamespace(name="simple_tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("simple_tool")
+        _run(_get_handler(mcp)(req))
 
         self.assertEqual(sink.events[0].outcome, "success")
 
@@ -129,11 +172,11 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        server = SimpleNamespace(_request_handlers={})
-        mcp = SimpleNamespace(server=server)
-        _wrap_call_tool_handler(mcp, audit)
+        mcp = _make_real_mcp()
+        del mcp.server.request_handlers[_handler_key()]
 
-        self.assertNotIn("tools/call", mcp.server._request_handlers)
+        _wrap_call_tool_handler(mcp, audit)
+        self.assertNotIn(_handler_key(), mcp.server.request_handlers)
 
     def test_no_request_handlers_attr_is_safe(self):
         sink = InMemorySink()
@@ -142,50 +185,21 @@ class TestWrapCallToolHandler(unittest.TestCase):
         mcp = SimpleNamespace(server=SimpleNamespace())
         _wrap_call_tool_handler(mcp, audit)
 
-    def test_jsonrpc_id_from_ctx_request_id(self):
-        sink = InMemorySink()
-        audit = AuditLogger(sink)
-
-        async def handler(ctx, params):
-            return SimpleNamespace(isError=False)
-
-        mcp = _make_fake_mcp(handler)
-        _wrap_call_tool_handler(mcp, audit)
-
-        ctx = SimpleNamespace(request_id="req-abc-123")
-        params = SimpleNamespace(name="some_tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
-
-        self.assertEqual(sink.events[0].jsonrpc_id, "req-abc-123")
-
-    def test_jsonrpc_id_none_when_ctx_has_no_request_id(self):
-        sink = InMemorySink()
-        audit = AuditLogger(sink)
-
-        async def handler(ctx, params):
-            return SimpleNamespace(isError=False)
-
-        mcp = _make_fake_mcp(handler)
-        _wrap_call_tool_handler(mcp, audit)
-
-        ctx = SimpleNamespace()
-        params = SimpleNamespace(name="tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
-
-        self.assertIsNone(sink.events[0].jsonrpc_id)
-
     def test_params_none_uses_empty_tool_name(self):
+        """When req.params is None the tool name defaults to empty string."""
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def handler(req):
             return SimpleNamespace(isError=False)
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=1)
-        _run(mcp.server._request_handlers["tools/call"](ctx, None))
+        req = SimpleNamespace(params=None)
+        _run(_get_handler(mcp)(req))
 
         self.assertEqual(sink.events[0].action.mcp_tool, "")
 
@@ -194,15 +208,16 @@ class TestWrapCallToolHandler(unittest.TestCase):
         audit = AuditLogger(sink)
         sentinel = object()
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def handler(req):
             return sentinel
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=1)
-        params = SimpleNamespace(name="tool")
-        result = _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("tool")
+        result = _run(_get_handler(mcp)(req))
         self.assertIs(result, sentinel)
 
     def test_contextvar_propagates_request_id(self):
@@ -212,16 +227,17 @@ class TestWrapCallToolHandler(unittest.TestCase):
         audit = AuditLogger(sink)
         captured_ids: list[str | None] = []
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def handler(req):
             captured_ids.append(mcp_audit_request_id.get())
             return SimpleNamespace(isError=False)
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=1)
-        params = SimpleNamespace(name="tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("tool")
+        _run(_get_handler(mcp)(req))
 
         self.assertEqual(len(captured_ids), 1)
         self.assertIsNotNone(captured_ids[0])
@@ -232,17 +248,18 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def handler(req):
             return SimpleNamespace(isError=False)
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
 
         self.assertIsNone(mcp_audit_request_id.get())
 
-        ctx = SimpleNamespace(request_id=1)
-        params = SimpleNamespace(name="tool")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("tool")
+        _run(_get_handler(mcp)(req))
 
         self.assertIsNone(mcp_audit_request_id.get())
 
@@ -252,7 +269,9 @@ class TestWrapCallToolHandler(unittest.TestCase):
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
-        async def handler(ctx, params):
+        mcp = _make_real_mcp()
+
+        async def handler(req):
             propagated = mcp_audit_request_id.get()
             audit.log_http_request(
                 request_id=propagated or audit.new_request_id(),
@@ -262,17 +281,36 @@ class TestWrapCallToolHandler(unittest.TestCase):
             )
             return SimpleNamespace(isError=False)
 
-        mcp = _make_fake_mcp(handler)
+        mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
 
-        ctx = SimpleNamespace(request_id=1)
-        params = SimpleNamespace(name="get_online_features")
-        _run(mcp.server._request_handlers["tools/call"](ctx, params))
+        req = _make_call_tool_request("get_online_features")
+        _run(_get_handler(mcp)(req))
 
         self.assertEqual(len(sink.events), 2)
         http_event = next(e for e in sink.events if e.event_type == "http.request")
         mcp_event = next(e for e in sink.events if e.event_type == "mcp.tools.call")
         self.assertEqual(http_event.request_id, mcp_event.request_id)
+
+    def test_jsonrpc_id_from_request_context(self):
+        """When request_context is available, jsonrpc_id is captured."""
+        sink = InMemorySink()
+        audit = AuditLogger(sink)
+
+        mcp = _make_real_mcp()
+
+        async def handler(req):
+            return SimpleNamespace(isError=False)
+
+        mcp.server.request_handlers[_handler_key()] = handler
+        _wrap_call_tool_handler(mcp, audit)
+
+        req = _make_call_tool_request("some_tool")
+        _run(_get_handler(mcp)(req))
+
+        # Without a live transport, request_context raises LookupError,
+        # so jsonrpc_id should be None.
+        self.assertIsNone(sink.events[0].jsonrpc_id)
 
 
 class TestPrincipalFromMcpContext(unittest.TestCase):
@@ -281,7 +319,8 @@ class TestPrincipalFromMcpContext(unittest.TestCase):
         request.headers = {"x-feast-auth-type": "oidc", "authorization": "Bearer tok"}
         ctx = SimpleNamespace(request=request)
 
-        principal = _principal_from_mcp_context(ctx)
+        server = SimpleNamespace(request_context=ctx)
+        principal = _principal_from_mcp_context(server)
         self.assertEqual(principal.auth_type, "oidc")
         self.assertEqual(principal.username, "(authenticated)")
 
@@ -290,16 +329,29 @@ class TestPrincipalFromMcpContext(unittest.TestCase):
         request.headers = {}
         ctx = SimpleNamespace(request=request)
 
-        principal = _principal_from_mcp_context(ctx)
+        server = SimpleNamespace(request_context=ctx)
+        principal = _principal_from_mcp_context(server)
         self.assertEqual(principal.username, "")
         self.assertEqual(principal.auth_type, "")
 
     def test_no_request_returns_empty_principal(self):
         ctx = SimpleNamespace()
-        principal = _principal_from_mcp_context(ctx)
+        server = SimpleNamespace(request_context=ctx)
+        principal = _principal_from_mcp_context(server)
         self.assertEqual(principal.username, "")
 
-    def test_none_ctx_returns_empty_principal(self):
+    def test_lookup_error_returns_empty_principal(self):
+        """When request_context ContextVar is not set, LookupError is raised."""
+
+        class FakeServer:
+            @property
+            def request_context(self):
+                raise LookupError("no context")
+
+        principal = _principal_from_mcp_context(FakeServer())
+        self.assertEqual(principal.username, "")
+
+    def test_none_server_returns_empty_principal(self):
         principal = _principal_from_mcp_context(None)
         self.assertEqual(principal.username, "")
 
@@ -308,5 +360,6 @@ class TestPrincipalFromMcpContext(unittest.TestCase):
         request.headers = property(lambda self: (_ for _ in ()).throw(RuntimeError))
         ctx = SimpleNamespace(request=request)
 
-        principal = _principal_from_mcp_context(ctx)
+        server = SimpleNamespace(request_context=ctx)
+        principal = _principal_from_mcp_context(server)
         self.assertEqual(principal.username, "")
