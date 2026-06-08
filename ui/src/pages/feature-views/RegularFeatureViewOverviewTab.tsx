@@ -138,6 +138,7 @@ const RegularFeatureViewOverviewTab = ({
       features: formData.features.map((f) => ({
         name: f.name,
         value_type: parseInt(f.valueType, 10),
+        description: f.description,
       })),
       batch_source: formData.batchSource,
       ttl_seconds: formData.ttlValue * (TTL_UNITS[formData.ttlUnit] || 1),

@@ -76,6 +76,7 @@ const useApplyDataSource = () => {
 
   return useMutation(applyDataSource, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["data-sources-rest"]);
       queryClient.invalidateQueries(["data-source-rest"]);
     },
@@ -87,6 +88,7 @@ const useDeleteDataSource = () => {
 
   return useMutation(deleteDataSource, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["data-sources-rest"]);
       queryClient.invalidateQueries(["data-source-rest"]);
     },

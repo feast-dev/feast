@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "react-query";
 interface FeaturePayload {
   name: string;
   value_type: number;
+  description?: string;
 }
 
 interface ApplyFeatureViewPayload {
@@ -77,6 +78,7 @@ const useApplyFeatureView = () => {
 
   return useMutation(applyFeatureView, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["feature-views-rest"]);
       queryClient.invalidateQueries(["feature-view-rest"]);
     },
@@ -88,6 +90,7 @@ const useDeleteFeatureView = () => {
 
   return useMutation(deleteFeatureView, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["feature-views-rest"]);
       queryClient.invalidateQueries(["feature-view-rest"]);
     },

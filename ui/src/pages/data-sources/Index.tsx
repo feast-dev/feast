@@ -39,8 +39,6 @@ const useLoadDatasources = () => {
 };
 
 const filterFn = (data: any[], searchTokens: string[]) => {
-  let filteredByTags = data;
-
   if (searchTokens.length) {
     return data.filter((entry) => {
       const name = entry.name || entry.spec?.name || "";
@@ -105,6 +103,7 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 const Index = () => {
   const { projectName } = useParams();
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const isAllProjects = projectName === "all";
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -144,14 +143,18 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
-          <EuiButton
-            fill
-            iconType="plus"
-            onClick={() => setIsModalOpen(true)}
-            key="create"
-          >
-            Create Data Source
-          </EuiButton>,
+          ...(isAllProjects
+            ? []
+            : [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={() => setIsModalOpen(true)}
+                  key="create"
+                >
+                  Create Data Source
+                </EuiButton>,
+              ]),
           <ExportButton
             data={filterResult ?? []}
             fileName="data_sources"

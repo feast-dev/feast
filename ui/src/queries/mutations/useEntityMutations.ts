@@ -69,6 +69,7 @@ const useApplyEntity = () => {
 
   return useMutation(applyEntity, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["entities-rest"]);
       queryClient.invalidateQueries(["entity-rest"]);
     },
@@ -80,6 +81,7 @@ const useDeleteEntity = () => {
 
   return useMutation(deleteEntity, {
     onSuccess: () => {
+      queryClient.invalidateQueries(["rest"]);
       queryClient.invalidateQueries(["entities-rest"]);
       queryClient.invalidateQueries(["entity-rest"]);
     },

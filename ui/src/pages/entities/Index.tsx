@@ -48,6 +48,7 @@ const formDataToPayload = (formData: EntityFormData, project: string) => ({
 const Index = () => {
   const { projectName } = useParams();
   const { isLoading, isSuccess, isError, data } = useLoadEntities();
+  const isAllProjects = projectName === "all";
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -81,14 +82,18 @@ const Index = () => {
         iconType={EntityIcon}
         pageTitle="Entities"
         rightSideItems={[
-          <EuiButton
-            fill
-            iconType="plus"
-            onClick={() => setIsModalOpen(true)}
-            key="create"
-          >
-            Create Entity
-          </EuiButton>,
+          ...(isAllProjects
+            ? []
+            : [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={() => setIsModalOpen(true)}
+                  key="create"
+                >
+                  Create Entity
+                </EuiButton>,
+              ]),
           <ExportButton
             data={data ?? []}
             fileName="entities"

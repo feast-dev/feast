@@ -222,10 +222,21 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
         database: dsData.snowflakeDatabase,
         schema_: dsData.snowflakeSchema,
       };
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
+      payload.redshift_options = {
+        table: dsData.redshiftTable,
+        database: dsData.redshiftDatabase,
+        schema_: dsData.redshiftSchema,
+      };
     } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
       payload.kafka_options = {
         kafka_bootstrap_servers: dsData.kafkaBootstrapServers,
         topic: dsData.kafkaTopic,
+      };
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
+      payload.spark_options = {
+        table: dsData.sparkTable,
+        path: dsData.sparkPath,
       };
     }
 

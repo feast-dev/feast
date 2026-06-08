@@ -21,11 +21,7 @@ import {
   useSearchQuery,
   useTagsWithSuggestions,
 } from "../../hooks/useSearchInputWithTags";
-import {
-  FEAST_FV_TYPES,
-  genericFVType,
-  regularFVInterface,
-} from "../../parsers/mergedFVTypes";
+import { genericFVType, regularFVInterface } from "../../parsers/mergedFVTypes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
@@ -111,6 +107,7 @@ const formDataToPayload = (formData: FeatureViewFormData, project: string) => ({
   features: formData.features.map((f) => ({
     name: f.name,
     value_type: parseInt(f.valueType, 10),
+    description: f.description,
   })),
   batch_source: formData.batchSource,
   ttl_seconds: formData.ttlValue * (TTL_UNITS[formData.ttlUnit] || 1),
@@ -125,6 +122,7 @@ const formDataToPayload = (formData: FeatureViewFormData, project: string) => ({
 const Index = () => {
   const { projectName } = useParams();
   const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
+  const isAllProjects = projectName === "all";
 
   const entitiesQuery = useResourceQuery<any[]>({
     resourceType: "entities-list-fv-prereq",
@@ -210,14 +208,18 @@ const Index = () => {
         iconType={FeatureViewIcon}
         pageTitle="Feature Views"
         rightSideItems={[
-          <EuiButton
-            fill
-            iconType="plus"
-            onClick={handleCreateClick}
-            key="create"
-          >
-            Create Feature View
-          </EuiButton>,
+          ...(isAllProjects
+            ? []
+            : [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={handleCreateClick}
+                  key="create"
+                >
+                  Create Feature View
+                </EuiButton>,
+              ]),
           <ExportButton
             data={filterResult ?? []}
             fileName="feature_views"
