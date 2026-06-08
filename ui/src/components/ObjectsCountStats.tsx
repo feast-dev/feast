@@ -13,7 +13,10 @@ import useResourceQuery, {
   featureViewListPath,
   featureServiceListPath,
   dataSourceListPath,
+  labelViewListPath,
+  featuresListPath,
   restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
 } from "../queries/useResourceQuery";
 import type { genericFVType } from "../parsers/mergedFVTypes";
 
@@ -53,7 +56,22 @@ const ObjectsCountStats = () => {
     restSelect: (d) => d.dataSources,
   });
 
-  const allOk = fsOk && fvOk && entOk && dsOk;
+  const { data: features, isSuccess: featOk } = useResourceQuery<any[]>({
+    resourceType: "stats-feat",
+    project: projectName,
+    restPath: featuresListPath(projectName),
+    restSelect: (d) => d.features || [],
+  });
+
+  const { data: labelViews, isSuccess: lvOk } = useResourceQuery<any[]>({
+    resourceType: "stats-lv",
+    project: projectName,
+    restPath: labelViewListPath(projectName),
+    restSelect: restLabelViewsFromResponse,
+  });
+
+  const allOk = fsOk && fvOk && entOk && dsOk && featOk && lvOk;
+  const hasLabelViews = (labelViews?.length || 0) > 0;
 
   return (
     <React.Fragment>
@@ -88,6 +106,15 @@ const ObjectsCountStats = () => {
             <EuiFlexItem>
               <EuiStat
                 style={statStyle}
+                description="Features→"
+                onClick={() => navigate(`/p/${projectName}/features`)}
+                title={features?.length || 0}
+                reverse
+              />
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiStat
+                style={statStyle}
                 description="Entities→"
                 onClick={() => navigate(`/p/${projectName}/entity`)}
                 title={entities?.length || 0}
@@ -104,6 +131,25 @@ const ObjectsCountStats = () => {
               />
             </EuiFlexItem>
           </EuiFlexGroup>
+          {hasLabelViews && (
+            <React.Fragment>
+              <EuiSpacer size="m" />
+              <EuiFlexGroup>
+                <EuiFlexItem>
+                  <EuiStat
+                    style={statStyle}
+                    onClick={() => navigate(`/p/${projectName}/label-view`)}
+                    description="Label Views→"
+                    title={labelViews?.length || 0}
+                    reverse
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem />
+                <EuiFlexItem />
+                <EuiFlexItem />
+              </EuiFlexGroup>
+            </React.Fragment>
+          )}
         </React.Fragment>
       )}
     </React.Fragment>

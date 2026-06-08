@@ -17,6 +17,7 @@ import ObjectsCountStats from "../components/ObjectsCountStats";
 import ExplorePanel from "../components/ExplorePanel";
 import useResourceQuery, {
   restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
 } from "../queries/useResourceQuery";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
@@ -60,7 +61,14 @@ const AllProjectsDashboard = () => {
     restSelect: (d) => d.features,
   });
 
-  const loaded = allFVs && allEntities && allDS && allFS && allFeatures;
+  const { data: allLabelViews } = useResourceQuery<any[]>({
+    resourceType: "all-proj-lvs",
+    restPath: "/label_views/all?limit=100&include_relationships=true",
+    restSelect: restLabelViewsFromResponse,
+  });
+
+  const loaded =
+    allFVs && allEntities && allDS && allFS && allFeatures && allLabelViews;
 
   if (!loaded) {
     return <EuiSkeletonText lines={10} />;
@@ -72,6 +80,7 @@ const AllProjectsDashboard = () => {
     dataSources: allDS.length,
     featureServices: allFS.length,
     features: allFeatures.length,
+    labelViews: allLabelViews?.length || 0,
   };
 
   const projects = projectsData?.projects.filter((p) => p.id !== "all") || [];
@@ -85,6 +94,7 @@ const AllProjectsDashboard = () => {
           .length,
         entities: allEntities.filter(matchesProject).length,
         features: allFeatures.filter(matchesProject).length,
+        labelViews: (allLabelViews || []).filter(matchesProject).length,
       },
     };
   });
@@ -153,6 +163,25 @@ const AllProjectsDashboard = () => {
               />
             </EuiFlexItem>
           </EuiFlexGroup>
+          {totalCounts.labelViews > 0 && (
+            <React.Fragment>
+              <EuiSpacer size="m" />
+              <EuiFlexGroup>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={totalCounts.labelViews.toString()}
+                    description="Label Views"
+                    titleSize="m"
+                    textAlign="center"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem />
+                <EuiFlexItem />
+                <EuiFlexItem />
+                <EuiFlexItem />
+              </EuiFlexGroup>
+            </React.Fragment>
+          )}
         </EuiPanel>
 
         <EuiSpacer size="l" />
@@ -203,6 +232,17 @@ const AllProjectsDashboard = () => {
                       </span>
                     </EuiText>
                   </EuiFlexItem>
+                  {project.counts.labelViews > 0 && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.labelViews}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Label Views
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
                 </EuiFlexGroup>
               </EuiCard>
             </EuiFlexItem>

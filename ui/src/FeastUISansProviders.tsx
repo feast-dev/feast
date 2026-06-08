@@ -22,7 +22,8 @@ import FeatureServiceInstance from "./pages/feature-services/FeatureServiceInsta
 import DataSourceInstance from "./pages/data-sources/DataSourceInstance";
 import RootProjectSelectionPage from "./pages/RootProjectSelectionPage";
 import DatasetInstance from "./pages/saved-data-sets/DatasetInstance";
-import DocumentLabelingPage from "./pages/document-labeling/DocumentLabelingPage";
+import LabelViewIndex from "./pages/label-views/Index";
+import LabelViewInstance from "./pages/label-views/LabelViewInstance";
 import PermissionsIndex from "./pages/permissions/Index";
 import LineageIndex from "./pages/lineage/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
@@ -181,14 +182,19 @@ const FeastUISansProvidersInner = ({
                         element={<EntityInstance />}
                       />
 
+                      <Route path="label-view/" element={<LabelViewIndex />} />
+                      <Route
+                        path="label-view/:labelViewName/*"
+                        element={<LabelViewInstance />}
+                      />
+                      <Route
+                        path="label-view/:FeatureViewName/label/:FeatureName/*"
+                        element={<FeatureInstance />}
+                      />
                       <Route path="data-set/" element={<DatasetIndex />} />
                       <Route
                         path="data-set/:datasetName/*"
                         element={<DatasetInstance />}
-                      />
-                      <Route
-                        path="data-labeling/"
-                        element={<DocumentLabelingPage />}
                       />
                       <Route
                         path="permissions/"

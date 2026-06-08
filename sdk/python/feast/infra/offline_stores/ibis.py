@@ -53,8 +53,8 @@ def pull_latest_from_table_or_query_ibis(
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
         fields.append(created_timestamp_column)
-    start_date = start_date.astimezone(tz=timezone.utc)
-    end_date = end_date.astimezone(tz=timezone.utc)
+    start_date = start_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
+    end_date = end_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
     table = data_source_reader(data_source, str(config.repo_path))
 
@@ -66,8 +66,8 @@ def pull_latest_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field] >= ibis.literal(start_date),
-            table[timestamp_field] <= ibis.literal(end_date),
+            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date),
+            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date),
         )
     )
 
@@ -279,9 +279,9 @@ def pull_all_from_table_or_query_ibis(
         timestamp_fields.append(created_timestamp_column)
     fields = join_key_columns + feature_name_columns + timestamp_fields
     if start_date:
-        start_date = start_date.astimezone(tz=timezone.utc)
+        start_date = start_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
     if end_date:
-        end_date = end_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
     table = data_source_reader(data_source, str(config.repo_path))
 
@@ -293,10 +293,10 @@ def pull_all_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field] >= ibis.literal(start_date)
+            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date)
             if start_date
             else ibis.literal(True),
-            table[timestamp_field] <= ibis.literal(end_date)
+            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date)
             if end_date
             else ibis.literal(True),
         )
