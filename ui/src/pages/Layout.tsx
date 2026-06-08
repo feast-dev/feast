@@ -266,7 +266,7 @@ const Layout = () => {
                     width: "100%",
                   }}
                 >
-                  <EuiFlexGroup justifyContent="center">
+                  <EuiFlexGroup justifyContent="center" alignItems="center">
                     <EuiFlexItem
                       grow={false}
                       style={{ width: "600px", maxWidth: "90%" }}
@@ -276,6 +276,7 @@ const Layout = () => {
                         categories={globalCategories}
                       />
                     </EuiFlexItem>
+                    <EuiFlexItem grow={false}></EuiFlexItem>
                   </EuiFlexGroup>
                 </div>
               )}
