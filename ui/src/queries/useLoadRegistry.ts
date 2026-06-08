@@ -114,6 +114,7 @@ const fetchREST = async (
   const [
     entitiesResp,
     featureViewsResp,
+    labelViewsResp,
     featureServicesResp,
     dataSourcesResp,
     savedDatasetsResp,
@@ -131,6 +132,13 @@ const fetchREST = async (
       useAllEndpoint
         ? "/feature_views/all?include_relationships=true"
         : `/feature_views${projectParam}&include_relationships=true`,
+      fetchOptions,
+    ),
+    restFetch<any>(
+      apiBaseUrl,
+      useAllEndpoint
+        ? "/label_views/all?include_relationships=true"
+        : `/label_views${projectParam}&include_relationships=true`,
       fetchOptions,
     ),
     restFetch<any>(
@@ -159,6 +167,7 @@ const fetchREST = async (
 
   const entities = entitiesResp.entities || [];
   const allFeatureViews = featureViewsResp.featureViews || [];
+  const labelViews: any[] = labelViewsResp.featureViews || [];
   const featureServices = featureServicesResp.featureServices || [];
   const dataSources = dataSourcesResp.dataSources || [];
   const savedDatasets = savedDatasetsResp.savedDatasets || [];
@@ -184,6 +193,7 @@ const fetchREST = async (
     featureViews,
     onDemandFeatureViews,
     streamFeatureViews,
+    labelViews,
     featureServices,
     dataSources,
     savedDatasets,

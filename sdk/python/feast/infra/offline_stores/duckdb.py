@@ -30,7 +30,9 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
     assert isinstance(data_source, FileSource)
 
-    if isinstance(data_source.file_format, ParquetFormat):
+    if isinstance(data_source.file_format, ParquetFormat) or (
+        data_source.file_format is None and data_source.path.endswith(".parquet")
+    ):
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
         if data_source.s3_endpoint_override:
@@ -63,7 +65,9 @@ def _write_data_source(
     ):
         raise SavedDatasetLocationAlreadyExists(location=file_options.uri)
 
-    if isinstance(data_source.file_format, ParquetFormat):
+    if data_source.file_format is None or isinstance(
+        data_source.file_format, ParquetFormat
+    ):
         if mode == "overwrite":
             table = table.to_pyarrow()
 
