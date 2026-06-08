@@ -4,10 +4,10 @@ MCP (Model Context Protocol) integration for Feast Feature Server.
 This module provides MCP support for Feast by integrating with fastapi_mcp
 to expose Feast functionality through the Model Context Protocol.
 
-When audit logging is enabled, the ``tools/call`` handler on the low-level
-MCP ``Server`` is wrapped so that every tool invocation is logged with
-typed tool name, outcome, duration, and principal — without parsing raw
-JSON-RPC bodies.
+When audit logging is enabled, the ``CallToolRequest`` handler on the
+low-level MCP ``Server`` is wrapped so that every tool invocation is
+logged with typed tool name, outcome, duration, and principal — without
+parsing raw JSON-RPC bodies.
 """
 
 import logging
@@ -29,8 +29,12 @@ except ImportError:
         "Install it with: pip install fastapi_mcp"
     )
     MCP_AVAILABLE = False
-    # Create placeholder classes for testing
     FastApiMCP = None
+
+try:
+    from mcp.types import CallToolRequest as _CallToolRequest
+except ImportError:
+    _CallToolRequest = None  # type: ignore[assignment,misc]
 
 
 class McpTransportNotSupportedError(RuntimeError):
@@ -144,7 +148,6 @@ def add_mcp_support_to_app(
                 )
                 mcp.mount()
         else:
-            # Defensive guard for programmatic callers.
             raise McpTransportNotSupportedError(
                 f"Unsupported mcp_transport={transport!r}. Expected 'sse' or 'http'."
             )
@@ -174,16 +177,29 @@ def add_mcp_support_to_app(
 # ---------------------------------------------------------------------------
 
 
-def _principal_from_mcp_context(ctx: Any) -> Any:
-    """Extract an ``AuditPrincipal`` from the MCP request context's HTTP headers.
+def _get_call_tool_handler_key() -> Any:
+    """Return the dict key used for CallToolRequest in ``server.request_handlers``.
 
-    Unlike REST endpoints the ``SecurityManager`` ``ContextVar`` is never
-    populated for MCP requests, so we read directly from the HTTP headers
-    that ``fastapi_mcp`` forwards into the request context.
+    mcp 1.x uses the ``CallToolRequest`` *class* as the key in
+    ``server.request_handlers``.
+    """
+    if _CallToolRequest is not None:
+        return _CallToolRequest
+    return None
+
+
+def _principal_from_mcp_context(server: Any) -> Any:
+    """Extract an ``AuditPrincipal`` from the MCP server's request context.
+
+    In mcp 1.x the request context is a ``ContextVar`` accessed via
+    ``server.request_context``. The ``.request`` attribute carries the
+    original Starlette/FastAPI ``Request`` that ``fastapi_mcp`` injects
+    through ``ServerMessageMetadata(request_context=request)``.
     """
     from feast.audit.audit_logger import AuditPrincipal
 
     try:
+        ctx = server.request_context
         request = getattr(ctx, "request", None)
         if request is None:
             return AuditPrincipal()
@@ -201,42 +217,48 @@ def _principal_from_mcp_context(ctx: Any) -> Any:
 
 
 def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
-    """Wrap the MCP server's ``tools/call`` handler with audit logging.
+    """Wrap the MCP server's ``CallToolRequest`` handler with audit logging.
 
-    Operates at the protocol layer so that ``tool_name`` and error status
-    come as typed Python objects — no JSON-RPC body parsing required.
+    In mcp 1.x the handler lives at
+    ``server.request_handlers[CallToolRequest]`` and has the signature
+    ``async def handler(req: CallToolRequest) -> ServerResult``.  The
+    JSON-RPC request_id is available on ``server.request_context``.
     """
     from feast.audit.audit_logger import AuditAction, AuditEvent, AuditSource
 
-    handlers = getattr(mcp.server, "_request_handlers", None)
+    handler_key = _get_call_tool_handler_key()
+    handlers = getattr(mcp.server, "request_handlers", None)
     if handlers is None:
-        logger.warning(
-            "Cannot wrap MCP call_tool handler: _request_handlers not found"
-        )
+        logger.warning("Cannot wrap MCP call_tool handler: request_handlers not found")
         return
 
-    original = handlers.get("tools/call")
-    if original is None:
-        logger.debug("No tools/call handler registered; skipping audit wrapper")
+    if handler_key is None or handler_key not in handlers:
+        logger.debug("No CallToolRequest handler registered; skipping audit wrapper")
         return
 
-    async def audited_call_tool(ctx: Any, params: Any) -> Any:
+    original = handlers[handler_key]
+
+    async def audited_call_tool(req: Any) -> Any:
         from feast.audit.audit_logger import mcp_audit_request_id
 
+        params = getattr(req, "params", None)
         tool_name = getattr(params, "name", "") if params else ""
         request_id = audit.new_request_id()
-        jsonrpc_id: Optional[str] = None
-        if hasattr(ctx, "request_id"):
-            jsonrpc_id = str(ctx.request_id)
 
-        # Propagate request_id so the internal REST call logged by
-        # AuditLoggingMiddleware uses the same identifier.
+        jsonrpc_id: Optional[str] = None
+        try:
+            ctx = mcp.server.request_context
+            if hasattr(ctx, "request_id"):
+                jsonrpc_id = str(ctx.request_id)
+        except LookupError:
+            pass
+
         token = mcp_audit_request_id.set(request_id)
         start = time.monotonic()
         outcome = "success"
         error_detail = ""
         try:
-            result = await original(ctx, params)
+            result = await original(req)
             if hasattr(result, "isError") and result.isError:
                 outcome = "mcp_error"
             return result
@@ -247,12 +269,13 @@ def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
         finally:
             duration_ms = (time.monotonic() - start) * 1000.0
             mcp_audit_request_id.reset(token)
+            principal = _principal_from_mcp_context(mcp.server)
             audit.log(
                 AuditEvent(
                     event_type="mcp.tools.call",
                     request_id=request_id,
                     jsonrpc_id=jsonrpc_id,
-                    principal=_principal_from_mcp_context(ctx),
+                    principal=principal,
                     source=AuditSource(transport="mcp-http"),
                     action=AuditAction(mcp_tool=tool_name),
                     outcome=outcome,
@@ -261,4 +284,4 @@ def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
                 )
             )
 
-    handlers["tools/call"] = audited_call_tool
+    handlers[handler_key] = audited_call_tool
