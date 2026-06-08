@@ -17,6 +17,7 @@ interface FormModalProps {
   onSubmit: () => void;
   children: React.ReactNode;
   width?: number;
+  isSubmitting?: boolean;
 }
 
 const FormModal: React.FC<FormModalProps> = ({
@@ -26,6 +27,7 @@ const FormModal: React.FC<FormModalProps> = ({
   onSubmit,
   children,
   width = 600,
+  isSubmitting = false,
 }) => {
   return (
     <EuiModal onClose={onClose} style={{ width }}>
@@ -38,8 +40,10 @@ const FormModal: React.FC<FormModalProps> = ({
       </EuiModalBody>
 
       <EuiModalFooter>
-        <EuiButtonEmpty onClick={onClose}>Cancel</EuiButtonEmpty>
-        <EuiButton fill onClick={onSubmit}>
+        <EuiButtonEmpty onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </EuiButtonEmpty>
+        <EuiButton fill onClick={onSubmit} isLoading={isSubmitting}>
           {submitLabel}
         </EuiButton>
       </EuiModalFooter>

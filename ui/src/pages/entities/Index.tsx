@@ -52,25 +52,27 @@ const Index = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(
+    null,
+  );
   const applyEntity = useApplyEntity();
 
   useDocumentTitle(`Entities | Feast`);
 
   const handleCreateSubmit = (formData: EntityFormData) => {
+    setSubmitErrorMessage(null);
     const payload = formDataToPayload(formData, projectName || "");
     applyEntity.mutate(payload, {
       onSuccess: () => {
         setIsModalOpen(false);
-        setErrorMessage(null);
+        setSubmitErrorMessage(null);
         setSuccessMessage(`Entity "${formData.name}" created successfully.`);
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
         const message =
           err instanceof Error ? err.message : "An unexpected error occurred.";
-        setErrorMessage(message);
-        setTimeout(() => setErrorMessage(null), 8000);
+        setSubmitErrorMessage(message);
       },
     });
   };
@@ -114,17 +116,6 @@ const Index = () => {
             <EuiSpacer size="m" />
           </>
         )}
-        {errorMessage && (
-          <>
-            <EuiCallOut
-              title={errorMessage}
-              color="danger"
-              iconType="alert"
-              size="s"
-            />
-            <EuiSpacer size="m" />
-          </>
-        )}
         {isLoading && (
           <p>
             <EuiLoadingSpinner size="m" /> Loading
@@ -137,8 +128,13 @@ const Index = () => {
 
       {isModalOpen && (
         <EntityFormModal
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSubmitErrorMessage(null);
+          }}
           onSubmit={handleCreateSubmit}
+          isSubmitting={applyEntity.isLoading}
+          submitError={submitErrorMessage}
         />
       )}
     </EuiPageTemplate>

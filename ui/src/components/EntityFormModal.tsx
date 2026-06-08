@@ -29,6 +29,8 @@ interface EntityFormModalProps {
   onSubmit: (data: EntityFormData) => void;
   initialData?: EntityFormData;
   isEdit?: boolean;
+  isSubmitting?: boolean;
+  submitError?: string | null;
 }
 
 const EMPTY_FORM: EntityFormData = {
@@ -44,6 +46,8 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
   onSubmit,
   initialData,
   isEdit = false,
+  isSubmitting = false,
+  submitError,
 }) => {
   const [formData, setFormData] = useState<EntityFormData>(
     initialData || EMPTY_FORM,
@@ -141,7 +145,24 @@ const EntityFormModal: React.FC<EntityFormModalProps> = ({
       submitLabel={isEdit ? "Update Entity" : "Create Entity"}
       onClose={onClose}
       onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
     >
+      {submitError && (
+        <>
+          <EuiCallOut
+            title={
+              isEdit ? "Unable to update entity" : "Unable to create entity"
+            }
+            color="danger"
+            iconType="alert"
+            size="s"
+          >
+            <p>{submitError}</p>
+          </EuiCallOut>
+          <EuiSpacer size="m" />
+        </>
+      )}
+
       <NameDescriptionOwnerFields
         name={formData.name}
         description={formData.description}
