@@ -9,7 +9,7 @@ from feast import Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.infra.online_stores.redis import RedisOnlineStore, RedisOnlineStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.types import Int32
+from feast.types import Array, Float32, Int32
 
 
 @pytest.fixture
@@ -42,6 +42,39 @@ def feature_view():
         source=file_source,
     )
     return feature_view
+
+
+@pytest.fixture
+def vector_feature_view():
+    file_source = FileSource(name="my_file_source", path="test.parquet")
+    entity = Entity(name="entity", join_keys=["entity"])
+    feature_view = FeatureView(
+        name="vector_feature_view",
+        entities=[entity],
+        schema=[
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_length=2,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="title", dtype=Int32),
+        ],
+        source=file_source,
+    )
+    return feature_view
+
+
+@pytest.fixture
+def vector_repo_config():
+    return RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+        online_store=RedisOnlineStoreConfig(vector_enabled=True, key_ttl_seconds=60),
+    )
 
 
 def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_config):
@@ -482,3 +515,189 @@ def test_online_write_batch_async_exists_and_is_coroutine():
     store = RedisOnlineStore()
     assert hasattr(store, "online_write_batch_async")
     assert inspect.iscoroutinefunction(store.online_write_batch_async)
+
+
+def test_vadd_vectors_normalizes_vectors_and_sets_ttl(
+    redis_online_store: RedisOnlineStore, vector_repo_config, vector_feature_view
+):
+    entity_key = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]
+    )
+    embedding = ValueProto()
+    embedding.float_list_val.val.extend([3.0, 4.0])
+    data = [
+        (
+            entity_key,
+            {"embedding": embedding, "title": ValueProto(int32_val=7)},
+            datetime.now(tz=timezone.utc),
+            None,
+        )
+    ]
+
+    mock_client = MagicMock()
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.return_value = []
+    mock_client.pipeline.return_value = pipe
+
+    redis_online_store._vadd_vectors(
+        mock_client, vector_repo_config, vector_feature_view, data
+    )
+
+    args = pipe.execute_command.call_args.args
+    assert args[0] == "VADD"
+    assert args[1] == "vs:test:vector_feature_view"
+    assert args[2:4] == ("VALUES", "2")
+    assert args[4:6] == ("0.6", "0.8")
+    mock_client.expire.assert_called_once_with(
+        name="vs:test:vector_feature_view", time=60
+    )
+
+
+def test_online_write_batch_skips_stale_rows_for_vector_indexing(
+    redis_online_store: RedisOnlineStore, vector_repo_config, vector_feature_view
+):
+    mock_client = MagicMock()
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.side_effect = [
+        [
+            [Timestamp(seconds=20).SerializeToString()],
+            [None],
+        ],
+        [1],
+    ]
+    mock_client.pipeline.return_value = pipe
+
+    entity_key_old = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]
+    )
+    entity_key_new = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=2)]
+    )
+    embedding_old = ValueProto()
+    embedding_old.float_list_val.val.extend([1.0, 0.0])
+    embedding_new = ValueProto()
+    embedding_new.float_list_val.val.extend([0.0, 1.0])
+    data = [
+        (
+            entity_key_old,
+            {"embedding": embedding_old, "title": ValueProto(int32_val=1)},
+            datetime.fromtimestamp(10, tz=timezone.utc),
+            None,
+        ),
+        (
+            entity_key_new,
+            {"embedding": embedding_new, "title": ValueProto(int32_val=2)},
+            datetime.fromtimestamp(30, tz=timezone.utc),
+            None,
+        ),
+    ]
+
+    with (
+        patch.object(redis_online_store, "_get_client", return_value=mock_client),
+        patch.object(redis_online_store, "_check_vadd_supported", return_value=True),
+        patch.object(redis_online_store, "_vadd_vectors") as mock_vadd,
+    ):
+        redis_online_store.online_write_batch(
+            vector_repo_config, vector_feature_view, data, progress=None
+        )
+
+    vector_batch = mock_vadd.call_args.args[3]
+    assert len(vector_batch) == 1
+    assert vector_batch[0][0] == entity_key_new
+
+
+@pytest.mark.parametrize(
+    ("distance_metric", "score", "expected_distance"),
+    [
+        ("COSINE", 0.75, 0.25),
+        ("L2", 0.5, 1.0),
+    ],
+)
+def test_retrieve_online_documents_v2_converts_scores_to_distances(
+    redis_online_store: RedisOnlineStore,
+    vector_repo_config,
+    vector_feature_view,
+    distance_metric: str,
+    score: float,
+    expected_distance: float,
+):
+    entity_key = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]
+    )
+    entity_id = redis_online_store._vector_element_id(entity_key, 3)
+    embedding = ValueProto()
+    embedding.float_list_val.val.extend([3.0, 4.0])
+    title = ValueProto(int32_val=7)
+    ts = Timestamp(seconds=123, nanos=456)
+
+    mock_client = MagicMock()
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.return_value = [
+        [
+            embedding.SerializeToString(),
+            title.SerializeToString(),
+            ts.SerializeToString(),
+        ]
+    ]
+    mock_client.pipeline.return_value = pipe
+    mock_client.execute_command.return_value = [entity_id, str(score)]
+
+    with (
+        patch.object(redis_online_store, "_get_client", return_value=mock_client),
+        patch.object(redis_online_store, "_check_vadd_supported", return_value=True),
+    ):
+        results = redis_online_store.retrieve_online_documents_v2(
+            config=vector_repo_config,
+            table=vector_feature_view,
+            requested_features=["embedding", "title"],
+            embedding=[3.0, 4.0],
+            top_k=1,
+            distance_metric=distance_metric,
+        )
+
+    assert len(results) == 1
+    event_ts, returned_entity_key, feature_dict = results[0]
+    assert event_ts is not None
+    assert returned_entity_key == entity_key
+    assert feature_dict is not None
+    assert feature_dict["title"].int32_val == 7
+    assert feature_dict["distance"].float_val == pytest.approx(expected_distance)
+
+
+def test_delete_entity_values_removes_vector_members(
+    redis_online_store: RedisOnlineStore, vector_repo_config
+):
+    entity_key = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]
+    )
+    redis_key = redis_online_store._generate_redis_keys_for_entities(
+        vector_repo_config, [entity_key]
+    )[0]
+    vector_id = redis_online_store._vector_element_id(entity_key, 3)
+
+    mock_client = MagicMock()
+    mock_client.scan_iter.side_effect = [
+        iter([redis_key]),
+        iter([b"vs:test:vector_feature_view"]),
+    ]
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.side_effect = [None, None]
+    mock_client.pipeline.return_value = pipe
+
+    with (
+        patch.object(redis_online_store, "_get_client", return_value=mock_client),
+        patch.object(redis_online_store, "_check_vadd_supported", return_value=True),
+    ):
+        redis_online_store.delete_entity_values(vector_repo_config, ["entity"])
+
+    pipe.execute_command.assert_any_call(
+        "VREM", b"vs:test:vector_feature_view", vector_id
+    )
