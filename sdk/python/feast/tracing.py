@@ -111,9 +111,7 @@ def traced_tool_span(
         return
 
     has_traceparent = bool(
-        _HAS_DISTRIBUTED_CTX
-        and request_headers
-        and "traceparent" in request_headers
+        _HAS_DISTRIBUTED_CTX and request_headers and "traceparent" in request_headers
     )
     try:
         parent_ctx: Any = contextlib.nullcontext()
