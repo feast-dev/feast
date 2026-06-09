@@ -3361,6 +3361,37 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  resourceClaims:
+                    description: |-
+                      ResourceClaims defines which ResourceClaims must be allocated
+                      and reserved before the Pod is allowed to start.
+                    items:
+                      description: |-
+                        PodResourceClaim references exactly one ResourceClaim, either directly
+                        or by naming a ResourceClaimTemplate which is...
+                      properties:
+                        name:
+                          description: |-
+                            Name uniquely identifies this resource claim inside the pod.
+                            This must be a DNS_LABEL.
+                          type: string
+                        resourceClaimName:
+                          description: |-
+                            ResourceClaimName is the name of a ResourceClaim object in the same
+                            namespace as this pod.
+                          type: string
+                        resourceClaimTemplateName:
+                          description: |-
+                            ResourceClaimTemplateName is the name of a ResourceClaimTemplate
+                            object in the same namespace as this pod.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   runFeastApplyOnInit:
                     description: Runs feast apply on pod start to populate the registry.
                       Defaults to true. Ignored when DisableInitContainers is true.
@@ -9380,6 +9411,37 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      resourceClaims:
+                        description: |-
+                          ResourceClaims defines which ResourceClaims must be allocated
+                          and reserved before the Pod is allowed to start.
+                        items:
+                          description: |-
+                            PodResourceClaim references exactly one ResourceClaim, either directly
+                            or by naming a ResourceClaimTemplate which is...
+                          properties:
+                            name:
+                              description: |-
+                                Name uniquely identifies this resource claim inside the pod.
+                                This must be a DNS_LABEL.
+                              type: string
+                            resourceClaimName:
+                              description: |-
+                                ResourceClaimName is the name of a ResourceClaim object in the same
+                                namespace as this pod.
+                              type: string
+                            resourceClaimTemplateName:
+                              description: |-
+                                ResourceClaimTemplateName is the name of a ResourceClaimTemplate
+                                object in the same namespace as this pod.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       runFeastApplyOnInit:
                         description: Runs feast apply on pod start to populate the
                           registry. Defaults to true. Ignored when DisableInitContainers
