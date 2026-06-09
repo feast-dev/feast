@@ -8,7 +8,7 @@ functions (UDFs).
 
 A materialization task abstracts over specific technologies or frameworks that are used to materialize data. It allows
 users to use a pure local serialized approach (which is the default LocalComputeEngine), or delegates the
-materialization to seperate components (e.g. AWS Lambda, as implemented by the the LambdaComputeEngine).
+materialization to separate components (e.g. AWS Lambda, as implemented by the LambdaComputeEngine).
 
 If the built-in engines are not sufficient, you can create your own custom materialization engine. Please
 see [this guide](../../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) for more details.
