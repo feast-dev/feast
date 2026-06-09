@@ -74,9 +74,24 @@ class RemoteRegistryConfig(RegistryConfig):
 
     is_tls: bool = False
     """     bool: Set to `True` if you plan to connect to a registry server running in TLS (SSL) mode.
-    If you intend to add the public certificate to the trust store instead of passing it via the `cert` parameter, this field must be set to `True`.
-    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `true` is mandatory.
+    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `True` is mandatory.
     """
+
+    client_cert: StrictStr = ""
+    """ str: Path to the client certificate for mTLS (mutual TLS) authentication.
+    Required when connecting to a server that enforces mutual TLS.
+    Must be provided together with `client_key`.
+    Typically this file ends with `*.crt` or `*.pem`. """
+
+    client_key: StrictStr = ""
+    """ str: Path to the client private key for mTLS (mutual TLS) authentication.
+    Must be provided together with `client_cert`.
+    Typically this file ends with `*.key` or `*.pem`. """
+
+    authority: StrictStr = ""
+    """ str: Override the gRPC :authority header for TLS connections.
+    Required when the connection address differs from the service hostname,
+    e.g. when connecting through a tunnel or proxy for local development. """
 
 
 class RemoteRegistry(BaseRegistry):
@@ -99,19 +114,45 @@ class RemoteRegistry(BaseRegistry):
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
         if registry_config.cert or registry_config.is_tls:
-            cafile = os.getenv("SSL_CERT_FILE") or os.getenv("REQUESTS_CA_BUNDLE")
-            if not cafile and not registry_config.cert:
+            cafile = (
+                registry_config.cert
+                or os.getenv("SSL_CERT_FILE")
+                or os.getenv("REQUESTS_CA_BUNDLE")
+            )
+            if not cafile:
                 raise EnvironmentError(
                     "SSL_CERT_FILE or REQUESTS_CA_BUNDLE environment variable must be set to use secure TLS or set the cert parameter in feature_Store.yaml file under remote registry configuration."
                 )
-            with open(
-                registry_config.cert if registry_config.cert else cafile, "rb"
-            ) as cert_file:
+            if (registry_config.client_cert and not registry_config.client_key) or (
+                not registry_config.client_cert and registry_config.client_key
+            ):
+                raise ValueError(
+                    "Both client_cert and client_key must be provided for mTLS. "
+                    "Only one was set in the remote registry configuration."
+                )
+
+            with open(cafile, "rb") as cert_file:
                 trusted_certs = cert_file.read()
+            private_key: Optional[bytes] = None
+            certificate_chain: Optional[bytes] = None
+            if registry_config.client_cert and registry_config.client_key:
+                with open(registry_config.client_key, "rb") as key_file:
+                    private_key = key_file.read()
+                with open(registry_config.client_cert, "rb") as cert_file:
+                    certificate_chain = cert_file.read()
             tls_credentials = grpc.ssl_channel_credentials(
-                root_certificates=trusted_certs
+                root_certificates=trusted_certs,
+                private_key=private_key,
+                certificate_chain=certificate_chain,
             )
-            return grpc.secure_channel(registry_config.path, tls_credentials)
+
+            options = []
+            if registry_config.authority:
+                options.append(("grpc.default_authority", registry_config.authority))
+
+            return grpc.secure_channel(
+                registry_config.path, tls_credentials, options=options
+            )
         else:
             # Create an insecure gRPC channel
             return grpc.insecure_channel(registry_config.path)
