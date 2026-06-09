@@ -52,7 +52,9 @@ const TrainingExportTab = () => {
   }
 
   const spec = data?.object?.spec || data?.spec || {};
-  const entities: string[] = spec.entities || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
 
   const allFeatureServices = registryData?.objects?.featureServices || [];
   const relevantFeatureServices = allFeatureServices.filter((fs: any) => {
