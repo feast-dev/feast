@@ -22,7 +22,9 @@ const useLoadDataSource = (dataSourceName: string) => {
 
   const consumingFeatureViews = relationships.filter(
     (rel: any) =>
-      rel?.source?.type === "dataSource" && rel?.target?.type === "featureView",
+      rel?.source?.type === "dataSource" &&
+      (rel?.target?.type === "featureView" ||
+        rel?.target?.type === "labelView"),
   );
 
   return {

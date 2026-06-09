@@ -4,6 +4,7 @@ enum FEAST_FV_TYPES {
   regular = "regular",
   ondemand = "ondemand",
   stream = "stream",
+  label = "label",
 }
 
 interface regularFVInterface {
@@ -27,7 +28,18 @@ interface SFVInterface {
   object: feast.core.IStreamFeatureView;
 }
 
-type genericFVType = regularFVInterface | ODFVInterface | SFVInterface;
+interface LabelViewInterface {
+  name: string;
+  type: FEAST_FV_TYPES.label;
+  features: feast.core.IFeatureSpecV2[];
+  object: any;
+}
+
+type genericFVType =
+  | regularFVInterface
+  | ODFVInterface
+  | SFVInterface
+  | LabelViewInterface;
 
 const mergedFVTypes = (objects: feast.core.Registry) => {
   const mergedFVMap: Record<string, genericFVType> = {};
@@ -75,4 +87,10 @@ const mergedFVTypes = (objects: feast.core.Registry) => {
 
 export default mergedFVTypes;
 export { FEAST_FV_TYPES };
-export type { genericFVType, regularFVInterface, ODFVInterface, SFVInterface };
+export type {
+  genericFVType,
+  regularFVInterface,
+  ODFVInterface,
+  SFVInterface,
+  LabelViewInterface,
+};

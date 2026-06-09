@@ -10,7 +10,9 @@ import useResourceQuery, {
   dataSourceListPath,
   savedDatasetListPath,
   featuresListPath,
+  labelViewListPath,
   restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
 } from "../queries/useResourceQuery";
 
 import { DataSourceIcon } from "../graphics/DataSourceIcon";
@@ -21,6 +23,7 @@ import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
+import { LabelViewIcon } from "../graphics/LabelViewIcon";
 import type { genericFVType } from "../parsers/mergedFVTypes";
 
 const SideNav = () => {
@@ -74,6 +77,13 @@ const SideNav = () => {
     },
   );
 
+  const { isSuccess: lvSuccess, data: labelViews } = useResourceQuery<any[]>({
+    resourceType: "sidebar-lvs",
+    project: projectName,
+    restPath: labelViewListPath(projectName),
+    restSelect: restLabelViewsFromResponse,
+  });
+
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
   const toggleOpenOnMobile = () => {
@@ -86,6 +96,7 @@ const SideNav = () => {
   const featureListLabel = `Features ${featSuccess && features && features.length > 0 ? `(${features.length})` : ""}`;
   const featureServicesLabel = `Feature Services ${fsSuccess && featureServices ? `(${featureServices.length})` : ""}`;
   const savedDatasetsLabel = `Datasets ${sdSuccess && savedDatasets ? `(${savedDatasets.length})` : ""}`;
+  const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
 
@@ -150,20 +161,20 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
+          name: labelViewsLabel,
+          id: htmlIdGenerator("labelViews")(),
+          icon: <EuiIcon type={LabelViewIcon} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/label-view`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/label-view`),
+        },
+        {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
           renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
-        },
-        {
-          name: "Data Labeling",
-          id: htmlIdGenerator("dataLabeling")(),
-          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/data-labeling`} />
-          ),
-          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
         },
         {
           name: "Permissions",

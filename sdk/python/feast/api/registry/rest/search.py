@@ -158,6 +158,19 @@ def get_search_router(grpc_handler) -> APIRouter:
                             }
                         )
 
+                # Extract and convert label views
+                label_views = project_resources.get("labelViews", [])
+                for lv in label_views:
+                    results.append(
+                        {
+                            "type": "labelView",
+                            "name": lv.get("spec", {}).get("name", ""),
+                            "description": lv.get("spec", {}).get("description", ""),
+                            "project": current_project,
+                            "tags": lv.get("spec", {}).get("tags", {}),
+                        }
+                    )
+
                 # Extract and convert features
                 features = project_resources.get("features", [])
                 for feature in features:
@@ -169,6 +182,20 @@ def get_search_router(grpc_handler) -> APIRouter:
                             "project": current_project,
                             "featureView": feature.get("featureView", ""),
                             "tags": feature.get("tags", {}),
+                        }
+                    )
+
+                # Extract and convert labels
+                labels = project_resources.get("labels", [])
+                for label in labels:
+                    results.append(
+                        {
+                            "type": "label",
+                            "name": label.get("name", ""),
+                            "description": label.get("description", ""),
+                            "project": current_project,
+                            "labelView": label.get("featureView", ""),
+                            "tags": label.get("tags", {}),
                         }
                     )
 

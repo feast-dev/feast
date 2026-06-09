@@ -92,7 +92,9 @@ def example_feature_store():
         with runner.local_repo(
             get_example_repo("example_feature_repo_1.py"),
             offline_store="file",
-            online_store="milvus",
+            # The vector store tests below use MockVectorStore and only need the
+            # feature view registered; avoid Milvus Lite index setup flakiness.
+            online_store="sqlite",
             apply=False,
             teardown=True,
         ) as store:
