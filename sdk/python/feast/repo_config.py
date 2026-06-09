@@ -231,6 +231,13 @@ class MaterializationConfig(BaseModel):
         Supported compute engines: local, spark, ray. """
 
 
+class DataQualityMonitoringConfig(FeastConfigBaseModel):
+    """Data Quality Monitoring configuration."""
+
+    auto_baseline: StrictBool = True
+    """Whether baseline distribution is computed automatically on ``feast apply``."""
+
+
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
 
@@ -357,6 +364,11 @@ class RepoConfig(FeastBaseModel):
 
     mlflow_config: Optional[Any] = Field(None, alias="mlflow")
     """ MlflowConfig: Configuration for MLflow experiment tracking integration (optional). """
+
+    data_quality_monitoring_config: Optional[DataQualityMonitoringConfig] = Field(
+        None, alias="data_quality_monitoring"
+    )
+    """ DataQualityMonitoringConfig: Data Quality Monitoring configuration (optional). """
 
     def __init__(self, **data: Any):
         super().__init__(**data)

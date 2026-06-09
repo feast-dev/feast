@@ -236,18 +236,45 @@ class DynamoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):
+        """Update DynamoDB table tags using a diff-based approach.
+
+        Instead of removing all tags and re-adding them (which is vulnerable to
+        the eventual-consistency window between UntagResource and TagResource),
+        this method computes the minimal set of changes needed:
+
+        - Only removes tags that are no longer present in new_tags.
+        - Only adds/updates tags whose value has changed or that are new.
+
+        This avoids the race condition described in
+        https://github.com/feast-dev/feast/issues/6418 where calling
+        TagResource immediately after UntagResource can leave a table with no
+        tags due to DynamoDB's asynchronous tag operations.
+        """
         table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
             "TableArn"
         ]
         current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn)[
             "Tags"
         ]
-        if current_tags:
-            remove_keys = [tag["Key"] for tag in current_tags]
-            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=remove_keys)
 
-        if new_tags:
-            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+        current_tag_map = {tag["Key"]: tag["Value"] for tag in current_tags}
+        new_tag_map = {tag["Key"]: tag["Value"] for tag in new_tags}
+
+        # Remove only tags that are no longer in new_tags
+        keys_to_remove = [k for k in current_tag_map if k not in new_tag_map]
+        # Add / update only tags whose value is new or has changed
+        tags_to_add = [
+            {"Key": k, "Value": v}
+            for k, v in new_tag_map.items()
+            if current_tag_map.get(k) != v
+        ]
+
+        if keys_to_remove:
+            dynamodb_client.untag_resource(
+                ResourceArn=table_arn, TagKeys=keys_to_remove
+            )
+        if tags_to_add:
+            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=tags_to_add)
 
     def update(
         self,
