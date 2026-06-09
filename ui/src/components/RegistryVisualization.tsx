@@ -80,6 +80,8 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ff8000"; // Orange
     case FEAST_FCO_TYPES.dataSource:
       return "#cc0000"; // Red
+    case FEAST_FCO_TYPES.labelView:
+      return "#e6570e"; // Deep orange for label views
     case FEAST_FCO_TYPES.mlflowRun:
       return "#0194e2"; // MLflow brand blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -99,6 +101,8 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#fff2e6"; // Light orange
     case FEAST_FCO_TYPES.dataSource:
       return "#ffe6e6"; // Light red
+    case FEAST_FCO_TYPES.labelView:
+      return "#fde8dc"; // Light deep orange
     case FEAST_FCO_TYPES.mlflowRun:
       return "#e6f6fd"; // Light MLflow blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -118,6 +122,8 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "▲"; // Triangle for entity
     case FEAST_FCO_TYPES.dataSource:
       return "◆"; // Diamond for data source
+    case FEAST_FCO_TYPES.labelView:
+      return "◉"; // Bullseye for label view
     case FEAST_FCO_TYPES.mlflowRun:
       return "⬡"; // Hexagon for MLflow run
     case FEAST_FCO_TYPES.mlflowModel:
@@ -159,6 +165,9 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         break;
       case FEAST_FCO_TYPES.featureService:
         path = `/p/${projectName}/feature-service/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.labelView:
+        path = `/p/${projectName}/label-view/${data.label}`;
         break;
       default:
         return;
@@ -422,6 +431,7 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.entity]: [],
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
+    [FEAST_FCO_TYPES.labelView]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
     [FEAST_FCO_TYPES.mlflowModel]: [],
   };
@@ -478,6 +488,7 @@ const Legend = () => {
   const types = [
     { type: FEAST_FCO_TYPES.featureService, label: "Feature Service" },
     { type: FEAST_FCO_TYPES.featureView, label: "Feature View" },
+    { type: FEAST_FCO_TYPES.labelView, label: "Label View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
     { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
@@ -708,6 +719,25 @@ const registryToFlow = (
     });
   });
 
+  objects.labelViews?.forEach((lv: any) => {
+    const lvName = lv.spec?.name;
+    nodes.push({
+      id: `lv-${lvName}`,
+      type: "custom",
+      data: {
+        label: lvName,
+        type: FEAST_FCO_TYPES.labelView,
+        metadata: lv,
+        permissions: permissions
+          ? getEntityPermissions(permissions, FEAST_FCO_TYPES.labelView, lvName)
+          : [],
+        versionNumber: lv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: lvName ? versionInfoMap.get(lvName) : undefined,
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
   const dataSources = new Set<string>();
 
   objects.featureViews?.forEach((fv) => {
@@ -722,6 +752,18 @@ const registryToFlow = (
     }
     if (sfv.spec?.streamSource?.name) {
       dataSources.add(sfv.spec.streamSource.name);
+    }
+  });
+
+  (objects as any).labelViews?.forEach((lv: any) => {
+    if (lv.spec?.source?.name) {
+      dataSources.add(lv.spec.source.name);
+    }
+    if (lv.spec?.source?.batchSource?.name) {
+      dataSources.add(lv.spec.source.batchSource.name);
+    }
+    if (lv.spec?.batchSource?.name) {
+      dataSources.add(lv.spec.batchSource.name);
     }
   });
 
@@ -880,6 +922,8 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "entity";
     case FEAST_FCO_TYPES.dataSource:
       return "ds";
+    case FEAST_FCO_TYPES.labelView:
+      return "lv";
     case FEAST_FCO_TYPES.mlflowRun:
       return "mlflow";
     case FEAST_FCO_TYPES.mlflowModel:

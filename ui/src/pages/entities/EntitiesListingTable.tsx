@@ -30,11 +30,18 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       },
     },
     {
+      name: "Join Key",
+      field: "spec.joinKey",
+      sortable: true,
+    },
+    {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: feast.types.ValueType.Enum | string | undefined) => {
+        if (!valueType) return "—";
+        if (typeof valueType === "string") return valueType;
+        return feast.types.ValueType.Enum[valueType] || String(valueType);
       },
     },
     {
