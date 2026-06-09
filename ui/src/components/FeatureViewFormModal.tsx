@@ -20,11 +20,13 @@ import FeatureFieldEditor, {
 } from "./forms/FeatureFieldEditor";
 import EntityFormModal, { EntityFormData } from "./EntityFormModal";
 import DataSourceFormModal, { DataSourceFormData } from "./DataSourceFormModal";
-import { useLoadEntitiesREST } from "../queries/useLoadEntitiesREST";
-import { useLoadDataSourcesREST } from "../queries/useLoadDataSourcesREST";
 import { useApplyEntity } from "../queries/mutations/useEntityMutations";
 import { useApplyDataSource } from "../queries/mutations/useDataSourceMutations";
 import { feast } from "../protos";
+import useResourceQuery, {
+  entityListPath,
+  dataSourceListPath,
+} from "../queries/useResourceQuery";
 
 const TTL_UNIT_OPTIONS = [
   { value: "seconds", text: "Seconds" },
@@ -32,6 +34,13 @@ const TTL_UNIT_OPTIONS = [
   { value: "hours", text: "Hours" },
   { value: "days", text: "Days" },
 ];
+
+const TTL_UNITS: Record<string, number> = {
+  seconds: 1,
+  minutes: 60,
+  hours: 3600,
+  days: 86400,
+};
 
 interface FeatureViewFormData {
   name: string;
@@ -51,6 +60,8 @@ interface FeatureViewFormModalProps {
   onSubmit: (data: FeatureViewFormData) => void;
   initialData?: FeatureViewFormData;
   isEdit?: boolean;
+  isSubmitting?: boolean;
+  submitError?: string | null;
 }
 
 const EMPTY_FORM: FeatureViewFormData = {
@@ -71,6 +82,8 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
   onSubmit,
   initialData,
   isEdit = false,
+  isSubmitting = false,
+  submitError,
 }) => {
   const [formData, setFormData] = useState<FeatureViewFormData>(
     initialData || EMPTY_FORM,
@@ -81,24 +94,37 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
   const [showDataSourceForm, setShowDataSourceForm] = useState(false);
 
   const { projectName } = useParams();
-  const entitiesQuery = useLoadEntitiesREST(projectName || "");
-  const dataSourcesQuery = useLoadDataSourcesREST(projectName || "");
+
+  const entitiesQuery = useResourceQuery<any[]>({
+    resourceType: "entities-list",
+    project: projectName,
+    restPath: entityListPath(projectName),
+    restSelect: (d) => d.entities,
+  });
+
+  const dataSourcesQuery = useResourceQuery<any[]>({
+    resourceType: "data-sources-list",
+    project: projectName,
+    restPath: dataSourceListPath(projectName),
+    restSelect: (d) => d.dataSources,
+  });
+
   const applyEntity = useApplyEntity();
   const applyDataSource = useApplyDataSource();
 
-  const entities = entitiesQuery.data?.entities || [];
-  const dataSources = dataSourcesQuery.data?.dataSources || [];
+  // REST API returns objects with spec.name; fall back to top-level name
+  const entities: any[] = entitiesQuery.data || [];
+  const dataSources: any[] = dataSourcesQuery.data || [];
 
-  const entityOptions: EuiComboBoxOptionOption<string>[] = entities.map(
-    (e: any) => ({
-      label: e?.spec?.name || e?.name || "",
-    }),
-  );
+  const entityOptions: EuiComboBoxOptionOption<string>[] = entities
+    .map((e: any) => e?.spec?.name || e?.name || "")
+    .filter(Boolean)
+    .map((name: string) => ({ label: name }));
 
-  const dataSourceOptions = dataSources.map((ds: any) => ({
-    value: ds?.name || ds?.spec?.name || "",
-    text: ds?.name || ds?.spec?.name || "",
-  }));
+  const dataSourceOptions = dataSources
+    .map((ds: any) => ds?.spec?.name || ds?.name || "")
+    .filter(Boolean)
+    .map((name: string) => ({ value: name, text: name }));
 
   const hasNoEntities = entitiesQuery.isSuccess && entities.length === 0;
   const hasNoDataSources =
@@ -126,15 +152,26 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
       const hasEmptyName = formData.features.some((f) => !f.name.trim());
       if (hasEmptyName) {
         newErrors.features = "All features must have a name.";
-      }
-      const featureNames = formData.features.map((f) => f.name.trim());
-      if (new Set(featureNames).size !== featureNames.length) {
-        newErrors.features = "Feature names must be unique.";
+      } else {
+        const featureNames = formData.features.map((f) => f.name.trim());
+        if (new Set(featureNames).size !== featureNames.length) {
+          newErrors.features = "Feature names must be unique.";
+        }
+        const invalidName = featureNames.find(
+          (n) => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(n),
+        );
+        if (invalidName) {
+          newErrors.features = `Invalid feature name "${invalidName}". Use only letters, numbers, and underscores.`;
+        }
       }
     }
 
     if (!formData.batchSource.trim()) {
       newErrors.batchSource = "A batch source is required.";
+    }
+
+    if (formData.ttlValue < 0) {
+      newErrors.ttlValue = "TTL must be 0 (never expire) or a positive number.";
     }
 
     const tagKeys = formData.tags.map((t) => t.key).filter((k) => k.trim());
@@ -258,7 +295,26 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
         onClose={onClose}
         onSubmit={handleSubmit}
         width={750}
+        isSubmitting={isSubmitting}
       >
+        {submitError && (
+          <>
+            <EuiCallOut
+              title={
+                isEdit
+                  ? "Unable to update feature view"
+                  : "Unable to create feature view"
+              }
+              color="danger"
+              iconType="alert"
+              size="s"
+            >
+              <p>{submitError}</p>
+            </EuiCallOut>
+            <EuiSpacer size="m" />
+          </>
+        )}
+
         <NameDescriptionOwnerFields
           name={formData.name}
           description={formData.description}
@@ -303,7 +359,13 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
           helpText="Entities that this feature view is associated with."
         >
           <EuiComboBox
-            placeholder="Select entities"
+            placeholder={
+              entitiesQuery.isLoading
+                ? "Loading entities..."
+                : entityOptions.length === 0
+                  ? "No entities available — create one above"
+                  : "Select entities"
+            }
             options={entityOptions}
             selectedOptions={selectedEntityOptions}
             onChange={(selected) =>
@@ -356,13 +418,18 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
               value={formData.batchSource}
               onChange={(e) => updateField("batchSource", e.target.value)}
               isInvalid={!!errors.batchSource}
+              isLoading={dataSourcesQuery.isLoading}
             />
           ) : (
             <EuiFieldText
               value={formData.batchSource}
               onChange={(e) => updateField("batchSource", e.target.value)}
               isInvalid={!!errors.batchSource}
-              placeholder="data_source_name"
+              placeholder={
+                dataSourcesQuery.isLoading
+                  ? "Loading data sources..."
+                  : "Enter data source name"
+              }
             />
           )}
         </EuiFormRow>
@@ -379,7 +446,9 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
 
         <EuiFormRow
           label="TTL (Time to Live)"
-          helpText="How long features remain valid after their event timestamp."
+          isInvalid={!!errors.ttlValue}
+          error={errors.ttlValue}
+          helpText="How long features remain valid after their event timestamp. Set to 0 for no expiry."
         >
           <div style={{ display: "flex", gap: 8 }}>
             <EuiFieldNumber
@@ -388,6 +457,7 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
                 updateField("ttlValue", parseInt(e.target.value) || 0)
               }
               min={0}
+              isInvalid={!!errors.ttlValue}
               style={{ width: 120 }}
             />
             <EuiSelect
@@ -435,3 +505,4 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
 
 export default FeatureViewFormModal;
 export type { FeatureViewFormData };
+export { TTL_UNITS };
