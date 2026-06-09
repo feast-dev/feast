@@ -180,6 +180,14 @@ feast.protos.feast.core.InfraObject\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
+feast.protos.feast.core.LabelView\_pb2 module
+----------------------------------------------
+
+.. automodule:: feast.protos.feast.core.LabelView_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.protos.feast.core.OnDemandFeatureView\_pb2 module
 -------------------------------------------------------
 

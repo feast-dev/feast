@@ -99,6 +99,17 @@ function savedDatasetDetailPath(name: string, project: string): string {
   return `/saved_datasets/${encodeURIComponent(name)}?project=${encodeURIComponent(project)}`;
 }
 
+function labelViewListPath(project?: string): string {
+  if (project && project !== "all") {
+    return `/label_views?project=${encodeURIComponent(project)}&include_relationships=true`;
+  }
+  return "/label_views/all?limit=100&include_relationships=true";
+}
+
+function labelViewDetailPath(name: string, project: string): string {
+  return `/label_views/${encodeURIComponent(name)}?project=${encodeURIComponent(project)}&include_relationships=true`;
+}
+
 function featuresListPath(project?: string): string {
   if (project && project !== "all") {
     return `/features?project=${encodeURIComponent(project)}`;
@@ -120,31 +131,38 @@ function featureDetailPath(
 
 function restFeatureViewsToMergedList(resp: any): genericFVType[] {
   const featureViews = resp?.featureViews || [];
-  return featureViews.map((fv: any) => {
-    const fvType = fv.type;
-    if (fvType === "onDemandFeatureView") {
+  return featureViews
+    .filter((fv: any) => fv.type !== "labelView")
+    .map((fv: any) => {
+      const fvType = fv.type;
+      if (fvType === "onDemandFeatureView") {
+        return {
+          name: fv.spec?.name,
+          type: FEAST_FV_TYPES.ondemand,
+          features: fv.spec?.features || [],
+          object: fv,
+        };
+      }
+      if (fvType === "streamFeatureView") {
+        return {
+          name: fv.spec?.name,
+          type: FEAST_FV_TYPES.stream,
+          features: fv.spec?.features || [],
+          object: fv,
+        };
+      }
       return {
         name: fv.spec?.name,
-        type: FEAST_FV_TYPES.ondemand,
+        type: FEAST_FV_TYPES.regular,
         features: fv.spec?.features || [],
         object: fv,
       };
-    }
-    if (fvType === "streamFeatureView") {
-      return {
-        name: fv.spec?.name,
-        type: FEAST_FV_TYPES.stream,
-        features: fv.spec?.features || [],
-        object: fv,
-      };
-    }
-    return {
-      name: fv.spec?.name,
-      type: FEAST_FV_TYPES.regular,
-      features: fv.spec?.features || [],
-      object: fv,
-    };
-  });
+    });
+}
+
+function restLabelViewsFromResponse(resp: any): any[] {
+  const featureViews = resp?.featureViews || [];
+  return featureViews.filter((fv: any) => fv.type === "labelView");
 }
 
 function restFeatureViewDetailToGeneric(resp: any): genericFVType | undefined {
@@ -162,6 +180,14 @@ function restFeatureViewDetailToGeneric(resp: any): genericFVType | undefined {
     return {
       name: resp.spec.name,
       type: FEAST_FV_TYPES.stream,
+      features: resp.spec.features || [],
+      object: resp,
+    };
+  }
+  if (fvType === "labelView") {
+    return {
+      name: resp.spec.name,
+      type: FEAST_FV_TYPES.label,
       features: resp.spec.features || [],
       object: resp,
     };
@@ -186,8 +212,11 @@ export {
   dataSourceDetailPath,
   savedDatasetListPath,
   savedDatasetDetailPath,
+  labelViewListPath,
+  labelViewDetailPath,
   featuresListPath,
   featureDetailPath,
   restFeatureViewsToMergedList,
   restFeatureViewDetailToGeneric,
+  restLabelViewsFromResponse,
 };

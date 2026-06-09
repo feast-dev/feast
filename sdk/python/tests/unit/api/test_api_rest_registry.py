@@ -2091,8 +2091,16 @@ def test_apply_and_delete_feature_view_via_rest(fastapi_test_app):
             "project": "demo_project",
             "entities": ["user_id"],
             "features": [
-                {"name": "trip_count", "value_type": 2},
-                {"name": "avg_rating", "value_type": 4},
+                {
+                    "name": "trip_count",
+                    "value_type": 2,
+                    "description": "Number of completed trips",
+                },
+                {
+                    "name": "avg_rating",
+                    "value_type": 4,
+                    "description": "Average driver rating",
+                },
             ],
             "ttl_seconds": 86400,
             "online": True,
@@ -2107,7 +2115,10 @@ def test_apply_and_delete_feature_view_via_rest(fastapi_test_app):
     # Verify it exists
     response = fastapi_test_app.get("/feature_views/driver_stats?project=demo_project")
     assert response.status_code == 200
-    assert response.json()["spec"]["name"] == "driver_stats"
+    spec = response.json()["spec"]
+    assert spec["name"] == "driver_stats"
+    assert spec["features"][0]["description"] == "Number of completed trips"
+    assert spec["features"][1]["description"] == "Average driver rating"
 
     # Delete it
     response = fastapi_test_app.delete(
