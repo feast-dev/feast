@@ -53,7 +53,9 @@ const BatchUploadTab = () => {
     `${name}_push_source`;
 
   const features = data?.features || spec.features || [];
-  const entities = spec.entities || [];
+  const entities = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
 
   const handleFileChange = (files: FileList | null) => {
     if (!files || files.length === 0) {

@@ -47,10 +47,13 @@ const ClassificationMethod = () => {
   const spec = data?.object?.spec || data?.spec || {};
   const labelFields: { name: string; valueType?: string }[] =
     spec.features || [];
-  const entities: string[] = spec.entities || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
 
   const configuredValues = annotationConfig?.label_values || {};
   const fieldRoles = annotationConfig?.field_roles || {};
+  const labelWidgets = annotationConfig?.label_widgets || {};
 
   const fetchLabels = async () => {
     setIsLoading(true);
@@ -230,11 +233,30 @@ const ClassificationMethod = () => {
     .map((field) => {
       const configVals = configuredValues[field.name];
       const role = fieldRoles[field.name];
+      const widget = labelWidgets[field.name];
 
       return {
         field: field.name,
         name: field.name,
         render: (value: any, row: LabelRow) => {
+          if (widget === "binary" && configVals && configVals.length === 2) {
+            return (
+              <EuiSelect
+                compressed
+                options={[
+                  { value: "", text: "— select —" },
+                  ...configVals.map((o: string) => ({
+                    value: o,
+                    text: o === "1" ? "Yes (1)" : o === "0" ? "No (0)" : o,
+                  })),
+                ]}
+                value={value != null ? String(value) : ""}
+                onChange={(e) =>
+                  handleFieldChange(row._id, field.name, e.target.value)
+                }
+              />
+            );
+          }
           const dropdownOptions =
             configVals || uniqueValuesForField[field.name] || [];
           if (

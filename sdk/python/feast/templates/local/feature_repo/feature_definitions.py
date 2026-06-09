@@ -5,11 +5,13 @@ from datetime import timedelta
 import pandas as pd
 
 from feast import (
+    ConflictPolicy,
     Entity,
     FeatureService,
     FeatureView,
     Field,
     FileSource,
+    LabelView,
     Project,
     PushSource,
     RequestSource,
@@ -164,4 +166,42 @@ def transformed_conv_rate_fresh(inputs: pd.DataFrame) -> pd.DataFrame:
 driver_activity_v3 = FeatureService(
     name="driver_activity_v3",
     features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
+)
+
+# --- Label Views ---
+# Label views manage mutable human labels for training data, RLHF, and evaluation.
+# They use PushSources so labels can be submitted from the UI or external tools.
+
+driver_quality_labels_source = PushSource(
+    name="driver_quality_labels_push",
+    batch_source=FileSource(
+        name="driver_quality_labels_batch",
+        path="%LABEL_DATA_PATH%",
+        timestamp_field="event_timestamp",
+    ),
+)
+
+driver_quality_labels = LabelView(
+    name="driver_quality_labels",
+    entities=[driver],
+    schema=[
+        Field(name="is_reliable", dtype=Int64),
+        Field(name="quality_score", dtype=Float32),
+        Field(name="reviewer_notes", dtype=String),
+        Field(name="labeler", dtype=String),
+    ],
+    source=driver_quality_labels_source,
+    labeler_field="labeler",
+    conflict_policy=ConflictPolicy.LAST_WRITE_WINS,
+    description="Human quality labels for drivers - used for model training and evaluation",
+    tags={
+        "feast.io/labeling-method": "table",
+        "feast.io/field-role:is_reliable": "label",
+        "feast.io/field-role:quality_score": "label",
+        "feast.io/field-role:reviewer_notes": "metadata",
+        "feast.io/label-values:is_reliable": "1,0",
+        "feast.io/label-widget:is_reliable": "binary",
+        "feast.io/label-widget:quality_score": "number",
+        "feast.io/label-widget:reviewer_notes": "text",
+    },
 )
