@@ -84,6 +84,12 @@ E_CASSANDRA_UNKNOWN_LB_POLICY = (
     "Unknown/unsupported Load Balancing Policy name in Cassandra configuration"
 )
 
+# Cassandra's hard maximum TTL is 20 years (in seconds). A larger TTL is
+# rejected by the server ("ttl is too large" or, when it also overflows the
+# 32-bit int, "Unable to make int from ..."), which would otherwise abort the
+# whole batch and stall a stream on a single bad row.
+CASSANDRA_MAX_TTL = 630_720_000
+
 # CQL command templates (that is, before replacing schema names)
 INSERT_CQL_4_TEMPLATE = (
     "INSERT INTO {fqtable} (feature_name,"
@@ -517,6 +523,14 @@ class CassandraOnlineStore(OnlineStore):
                     )
                     if ttl < 0:
                         # The ttl is negative when the timestamp-adjusted ttl is in the past in which case skip inserting the row
+                        continue
+                    if ttl > CASSANDRA_MAX_TTL:
+                        logger.warning(
+                            f"Skipping row for {fqtable}: computed TTL {ttl}s exceeds "
+                            f"Cassandra's maximum of {CASSANDRA_MAX_TTL}s "
+                            f"(event_timestamp={timestamp}). The source timestamp is "
+                            f"likely invalid."
+                        )
                         continue
 
                     feature_values: tuple[Any, ...] = ()

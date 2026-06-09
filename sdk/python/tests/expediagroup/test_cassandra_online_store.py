@@ -10,6 +10,7 @@ from cassandra.cluster import Cluster
 from feast import Entity, Field, FileSource, RepoConfig, ValueType, utils
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.online_stores.cassandra_online_store.cassandra_online_store import (
+    CASSANDRA_MAX_TTL,
     CassandraOnlineStore,
     CassandraOnlineStoreConfig,
 )
@@ -267,6 +268,55 @@ class TestCassandraOnlineStore:
         )
         count = [row.count for row in result]
         assert count[0] == 10
+
+    def test_cassandra_online_write_batch_skips_ttl_over_cassandra_max(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+        caplog,
+    ):
+        """
+        A row whose computed TTL exceeds Cassandra's 20-year maximum (typically
+        caused by a far-future event_timestamp) must be skipped and logged,
+        not allowed to abort the whole batch. Otherwise a single bad record
+        fails the micro-batch and stalls the stream indefinitely.
+        """
+        session, keyspace = cassandra_session
+        n_good = 5
+        (
+            feature_view,
+            data,
+        ) = self._create_sorted_features_with_one_far_future_row(n_good=n_good)
+        constructed_table_name = (
+            online_store._fq_table_name(
+                keyspace,
+                repo_config.project,
+                feature_view,
+                repo_config.online_store.table_name_format_version,
+            )
+            .split(".")[1]
+            .strip('"')
+        )
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        with caplog.at_level("WARNING"):
+            online_store.online_write_batch(
+                config=repo_config,
+                table=feature_view,
+                data=data,
+                progress=None,
+            )
+
+        # Only the good rows land; the far-future row is skipped, not fatal.
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        assert count[0] == n_good
+        assert any(
+            "exceeds Cassandra's maximum" in rec.message for rec in caplog.records
+        )
 
     def test_cassandra_online_write_batch(
         self,
@@ -565,6 +615,54 @@ class TestCassandraOnlineStore:
             )
             for i in range(n)
         ]
+
+    def _create_sorted_features_with_one_far_future_row(self, n_good=5):
+        fv = SortedFeatureView(
+            name="sortedfeatureview_far_future",
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            entities=[Entity(name="id")],
+            ttl=timedelta(seconds=10),
+            sort_keys=[
+                SortKey(
+                    name="event_timestamp",
+                    value_type=ValueType.UNIX_TIMESTAMP,
+                    default_sort_order=SortOrder.DESC,
+                )
+            ],
+            schema=[
+                Field(name="id", dtype=String),
+                Field(name="text", dtype=String),
+                Field(name="event_timestamp", dtype=UnixTimestamp),
+            ],
+        )
+
+        def row(i, ts):
+            return (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "event_timestamp": ValueProto(
+                        unix_timestamp_val=int(ts.timestamp())
+                    ),
+                },
+                ts,
+                None,
+            )
+
+        now = datetime.utcnow()
+        # A timestamp ~25 years in the future yields a TTL well above
+        # Cassandra's 20-year (CASSANDRA_MAX_TTL) cap.
+        far_future = now + timedelta(seconds=CASSANDRA_MAX_TTL + 31_536_000)
+        data = [row(i, now) for i in range(n_good)]
+        data.append(row(n_good, far_future))
+        return fv, data
 
     def _create_n_test_sample_features(self, n=10):
         fv = SortedFeatureView(
