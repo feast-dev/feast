@@ -1,4 +1,10 @@
-const transformNodeModules = ["@elastic/eui", "uuid", "msw", "until-async"];
+const transformNodeModules = [
+  "@elastic/eui",
+  "uuid",
+  "msw",
+  "until-async",
+  "chroma-js",
+];
 
 module.exports = {
   roots: ["<rootDir>/src"],
@@ -30,7 +36,7 @@ module.exports = {
   moduleNameMapper: {
     "^react-native$": "react-native-web",
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
-    "chroma-js": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs",
+    "^chroma-js$": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs",
     "^reactflow/dist/style\\.css$": "identity-obj-proxy",
   },
   moduleFileExtensions: [

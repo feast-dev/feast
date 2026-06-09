@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -9,6 +9,8 @@ import {
   EuiTitle,
   EuiFieldSearch,
   EuiSpacer,
+  EuiButton,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import DatasourcesListingTable from "./DataSourcesListingTable";
@@ -18,6 +20,10 @@ import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
 import ExportButton from "../../components/ExportButton";
+import DataSourceFormModal, {
+  DataSourceFormData,
+} from "../../components/DataSourceFormModal";
+import { useApplyDataSource } from "../../queries/mutations/useDataSourceMutations";
 import useResourceQuery, {
   dataSourceListPath,
 } from "../../queries/useResourceQuery";
@@ -32,30 +38,103 @@ const useLoadDatasources = () => {
   });
 };
 
-const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
-  let filteredByTags = data;
-
+const filterFn = (data: any[], searchTokens: string[]) => {
   if (searchTokens.length) {
-    return filteredByTags.filter((entry) => {
+    return data.filter((entry) => {
+      const name = entry.name || entry.spec?.name || "";
       return searchTokens.find((token) => {
-        return (
-          token.length >= 3 && entry.name && entry.name.indexOf(token) >= 0
-        );
+        return token.length >= 3 && name.indexOf(token) >= 0;
       });
     });
   }
 
-  return filteredByTags;
+  return data;
+};
+
+const formDataToPayload = (formData: DataSourceFormData, project: string) => {
+  const payload: Record<string, any> = {
+    name: formData.name,
+    project,
+    type: parseInt(formData.sourceType, 10),
+    timestamp_field: formData.timestampField,
+    created_timestamp_column: formData.createdTimestampColumn,
+    description: formData.description,
+    owner: formData.owner,
+    tags: Object.fromEntries(
+      formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
+    ),
+  };
+
+  const st = formData.sourceType;
+  if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
+    payload.file_options = { uri: formData.fileUri };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
+    payload.bigquery_options = {
+      table: formData.bigqueryTable,
+      query: formData.bigqueryQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
+    payload.snowflake_options = {
+      table: formData.snowflakeTable,
+      database: formData.snowflakeDatabase,
+      schema_: formData.snowflakeSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
+    payload.redshift_options = {
+      table: formData.redshiftTable,
+      database: formData.redshiftDatabase,
+      schema_: formData.redshiftSchema,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
+    payload.kafka_options = {
+      kafka_bootstrap_servers: formData.kafkaBootstrapServers,
+      topic: formData.kafkaTopic,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
+    payload.spark_options = {
+      table: formData.sparkTable,
+      path: formData.sparkPath,
+    };
+  }
+
+  return payload;
 };
 
 const Index = () => {
+  const { projectName } = useParams();
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const isAllProjects = projectName === "all";
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const applyDataSource = useApplyDataSource();
 
   useDocumentTitle(`Data Sources | Feast`);
 
   const { searchString, searchTokens, setSearchString } = useSearchQuery();
 
   const filterResult = data ? filterFn(data, searchTokens) : data;
+
+  const handleCreateSubmit = (formData: DataSourceFormData) => {
+    const payload = formDataToPayload(formData, projectName || "");
+    applyDataSource.mutate(payload as any, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(
+          `Data source "${formData.name}" created successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+        setTimeout(() => setErrorMessage(null), 8000);
+      },
+    });
+  };
 
   return (
     <EuiPageTemplate panelled>
@@ -64,14 +143,49 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
+          ...(isAllProjects
+            ? []
+            : [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={() => setIsModalOpen(true)}
+                  key="create"
+                >
+                  Create Data Source
+                </EuiButton>,
+              ]),
           <ExportButton
             data={filterResult ?? []}
             fileName="data_sources"
             formats={["json"]}
+            key="export"
           />,
         ]}
       />
       <EuiPageTemplate.Section>
+        {successMessage && (
+          <>
+            <EuiCallOut
+              title={successMessage}
+              color="success"
+              iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
+        {errorMessage && (
+          <>
+            <EuiCallOut
+              title={errorMessage}
+              color="danger"
+              iconType="alert"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
         {isLoading && (
           <p>
             <EuiLoadingSpinner size="m" /> Loading
@@ -100,6 +214,13 @@ const Index = () => {
           </React.Fragment>
         )}
       </EuiPageTemplate.Section>
+
+      {isModalOpen && (
+        <DataSourceFormModal
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleCreateSubmit}
+        />
+      )}
     </EuiPageTemplate>
   );
 };

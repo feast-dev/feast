@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from feast import Entity, FeatureService, FeatureView
     from feast.data_source import DataSource
     from feast.field import Field
+    from feast.labeling.label_view import LabelView
     from feast.on_demand_feature_view import OnDemandFeatureView
     from feast.stream_feature_view import StreamFeatureView
 
@@ -205,22 +206,24 @@ def _get_data_source_uri(data_source: "DataSource") -> str:
 
 
 def feature_view_to_job(
-    feature_view: "FeatureView",
+    feature_view: "Union[FeatureView, LabelView]",
     namespace: str = "feast",
     include_schema: bool = True,
+    job_type: str = "FEATURE_VIEW",
 ) -> Tuple["Job", List["InputDataset"], List["OutputDataset"]]:
     """
-    Convert a Feast FeatureView to an OpenLineage Job with inputs/outputs.
+    Convert a Feast FeatureView or LabelView to an OpenLineage Job with inputs/outputs.
 
-    A FeatureView represents a transformation from data sources to features,
+    A FeatureView/LabelView represents a transformation from data sources to features/labels,
     so it maps to an OpenLineage Job with:
     - Inputs: The batch and stream sources
-    - Outputs: The feature view itself (as a logical dataset)
+    - Outputs: The feature/label view itself (as a logical dataset)
 
     Args:
-        feature_view: Feast FeatureView object
+        feature_view: Feast FeatureView or LabelView object
         namespace: OpenLineage namespace
         include_schema: Whether to include schema information
+        job_type: Type identifier (FEATURE_VIEW, LABEL_VIEW, etc.)
 
     Returns:
         Tuple of (Job, list of InputDatasets, list of OutputDatasets)

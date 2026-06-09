@@ -14,12 +14,21 @@ interface EntityRelation {
 const parseEntityRelationships = (objects: feast.core.Registry) => {
   const links: EntityRelation[] = [];
 
+  const labelViewNames = new Set(
+    ((objects as any).labelViews || []).map((lv: any) => lv.spec?.name),
+  );
+
   objects.featureServices?.forEach((fs) => {
-    fs.spec?.features!.forEach((feature) => {
+    fs.spec?.features!.forEach((feature: any) => {
+      const viewName = feature?.featureViewName!;
+      const isLabelView =
+        feature?.viewType === "labelView" || labelViewNames.has(viewName);
       links.push({
         source: {
-          type: FEAST_FCO_TYPES["featureView"],
-          name: feature?.featureViewName!,
+          type: isLabelView
+            ? FEAST_FCO_TYPES["labelView"]
+            : FEAST_FCO_TYPES["featureView"],
+          name: viewName,
         },
         target: {
           type: FEAST_FCO_TYPES["featureService"],
@@ -132,6 +141,58 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
         name: fv.spec?.name!,
       },
     });
+  });
+
+  (objects as any).labelViews?.forEach((lv: any) => {
+    lv.spec?.entities?.forEach((ent: string) => {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["entity"],
+          name: ent,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["labelView"],
+          name: lv.spec?.name!,
+        },
+      });
+    });
+
+    if (lv.spec?.source?.name) {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["dataSource"],
+          name: lv.spec.source.name,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["labelView"],
+          name: lv.spec?.name!,
+        },
+      });
+    }
+    if (lv.spec?.source?.batchSource?.name) {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["dataSource"],
+          name: lv.spec.source.batchSource.name,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["labelView"],
+          name: lv.spec?.name!,
+        },
+      });
+    }
+    if (lv.spec?.batchSource?.name) {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["dataSource"],
+          name: lv.spec.batchSource.name,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["labelView"],
+          name: lv.spec?.name!,
+        },
+      });
+    }
   });
 
   return links;
