@@ -15,6 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	authenticationAPIGroup = "authentication.k8s.io"
+	verbCreate             = "create"
+)
+
 // Deploy the feast authorization
 func (authz *FeastAuthorization) Deploy() error {
 	if authz.isKubernetesAuth() {
@@ -152,32 +157,32 @@ func (authz *FeastAuthorization) setFeastClusterRole(clusterRole *rbacv1.Cluster
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"rolebindings"},
-			Verbs:     []string{"list"},
+			Verbs:     []string{verbList},
 		},
 		{
-			APIGroups: []string{"authentication.k8s.io"},
-			Resources: []string{"tokenreviews"},
-			Verbs:     []string{"create"},
+			APIGroups: []string{authenticationAPIGroup},
+			Resources: []string{resourceTokenReviews},
+			Verbs:     []string{verbCreate},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"subjectaccessreviews"},
-			Verbs:     []string{"create"},
+			Verbs:     []string{verbCreate},
 		},
 		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
-			Verbs:     []string{"get", "list", "watch"},
+			Verbs:     []string{verbGet, verbList, verbWatch},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"clusterroles"},
-			Verbs:     []string{"get", "list"},
+			Verbs:     []string{verbGet, verbList},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"clusterrolebindings"},
-			Verbs:     []string{"get", "list"},
+			Verbs:     []string{verbGet, verbList},
 		},
 	}
 	// Don't set controller reference for shared ClusterRole
@@ -238,32 +243,32 @@ func (authz *FeastAuthorization) setFeastRole(role *rbacv1.Role) error {
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"roles", "rolebindings"},
-			Verbs:     []string{"get", "list", "watch"},
+			Verbs:     []string{verbGet, verbList, verbWatch},
 		},
 		{
-			APIGroups: []string{"authentication.k8s.io"},
-			Resources: []string{"tokenreviews"},
-			Verbs:     []string{"create"},
+			APIGroups: []string{authenticationAPIGroup},
+			Resources: []string{resourceTokenReviews},
+			Verbs:     []string{verbCreate},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"subjectaccessreviews"},
-			Verbs:     []string{"create"},
+			Verbs:     []string{verbCreate},
 		},
 		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
-			Verbs:     []string{"get", "list", "watch"},
+			Verbs:     []string{verbGet, verbList, verbWatch},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"clusterroles"},
-			Verbs:     []string{"get", "list"},
+			Verbs:     []string{verbGet, verbList},
 		},
 		{
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"clusterrolebindings"},
-			Verbs:     []string{"get", "list"},
+			Verbs:     []string{verbGet, verbList},
 		},
 	}
 
@@ -347,9 +352,9 @@ func (authz *FeastAuthorization) createOidcClusterRole() error {
 		clusterRole.Labels = authz.getSharedOidcClusterRoleLabels()
 		clusterRole.Rules = []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{"authentication.k8s.io"},
-				Resources: []string{"tokenreviews"},
-				Verbs:     []string{"create"},
+				APIGroups: []string{authenticationAPIGroup},
+				Resources: []string{resourceTokenReviews},
+				Verbs:     []string{verbCreate},
 			},
 		}
 		return nil
@@ -432,7 +437,7 @@ func (authz *FeastAuthorization) setFeastOidcAuthCondition(err error) error {
 	if err != nil {
 		logger := log.FromContext(authz.Handler.Context)
 		cond := feastOidcAuthConditions[metav1.ConditionFalse]
-		cond.Message = "Error: " + err.Error()
+		cond.Message = services.ErrorMessagePrefix + err.Error()
 		apimeta.SetStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, cond)
 		logger.Error(err, "Error deploying the OIDC authorization")
 		return err
@@ -445,13 +450,12 @@ func (authz *FeastAuthorization) setFeastKubernetesAuthCondition(err error) erro
 	if err != nil {
 		logger := log.FromContext(authz.Handler.Context)
 		cond := feastKubernetesAuthConditions[metav1.ConditionFalse]
-		cond.Message = "Error: " + err.Error()
+		cond.Message = services.ErrorMessagePrefix + err.Error()
 		apimeta.SetStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, cond)
 		logger.Error(err, "Error deploying the Kubernetes authorization")
 		return err
-	} else {
-		apimeta.SetStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue])
 	}
+	apimeta.SetStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue])
 	return nil
 }
 

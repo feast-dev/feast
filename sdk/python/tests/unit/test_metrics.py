@@ -1510,6 +1510,8 @@ class TestRetrievalJobToArrowInstrumentation:
         )
 
     def test_row_count_recorded_when_zero(self):
+        """Zero-row result must still record an observation so operators can
+        distinguish 'metric not emitted' from 'query returned 0 rows'."""
         import pyarrow as pa
 
         table = pa.table({"a": pa.array([], type=pa.int64())})
@@ -1517,10 +1519,21 @@ class TestRetrievalJobToArrowInstrumentation:
 
         hist = offline_store_row_count.labels(method="to_arrow")
         before_bucket = hist._buckets[0].get()
+        before_sum = hist._sum.get()
+        before_count = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
 
         job.to_arrow()
 
         assert hist._buckets[0].get() == before_bucket + 1
+        assert hist._sum.get() == before_sum  # 0 rows adds 0 to sum
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before_count + 1
+        )
 
     def test_metrics_skipped_when_offline_features_disabled(self):
         import pyarrow as pa

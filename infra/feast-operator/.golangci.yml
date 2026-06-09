@@ -38,9 +38,11 @@ linters:
         path: api/*
       - linters:
           - dupl
+          - goconst
           - lll
         path: internal/*
       - linters:
+          - goconst
           - lll
         path: test/*
       - linters:

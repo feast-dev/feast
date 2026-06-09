@@ -137,7 +137,7 @@ var _ = Describe("Repo Config", func() {
 				OnlineStore: &feastdevv1.OnlineStore{
 					Persistence: &feastdevv1.OnlineStorePersistence{
 						FilePersistence: &feastdevv1.OnlineStoreFilePersistence{
-							Path: "/data/online.db",
+							Path: dataOnlineDbPath,
 						},
 					},
 				},
@@ -145,7 +145,7 @@ var _ = Describe("Repo Config", func() {
 					Local: &feastdevv1.LocalRegistryConfig{
 						Persistence: &feastdevv1.RegistryPersistence{
 							FilePersistence: &feastdevv1.RegistryFilePersistence{
-								Path: "/data/registry.db",
+								Path: dataRegistryDbPath,
 							},
 						},
 					},
@@ -158,11 +158,11 @@ var _ = Describe("Repo Config", func() {
 			}
 			expectedRegistryConfig = RegistryConfig{
 				RegistryType: "file",
-				Path:         "/data/registry.db",
+				Path:         dataRegistryDbPath,
 			}
 			expectedOnlineConfig = OnlineStoreConfig{
 				Type: "sqlite",
-				Path: "/data/online.db",
+				Path: dataOnlineDbPath,
 			}
 
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
@@ -201,7 +201,7 @@ var _ = Describe("Repo Config", func() {
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
 				OidcAuthz: &feastdevv1.OidcAuthz{
 					SecretRef: &corev1.LocalObjectReference{
-						Name: "oidc-secret",
+						Name: oidcSecretName,
 					},
 				},
 			}
@@ -209,7 +209,7 @@ var _ = Describe("Repo Config", func() {
 
 			secretExtractionFunc := mockOidcConfigFromSecret(map[string]interface{}{
 				string(OidcAuthDiscoveryUrl): "discovery-url",
-				string(OidcClientId):         "client-id",
+				string(OidcClientId):         clientIDValue,
 				string(OidcClientSecret):     "client-secret",
 				string(OidcUsername):         "username",
 				string(OidcPassword):         "password"})
@@ -247,7 +247,7 @@ var _ = Describe("Repo Config", func() {
 				OidcAuthz: &feastdevv1.OidcAuthz{
 					IssuerUrl: "https://keycloak.example.com/realms/cr-wins",
 					SecretRef: &corev1.LocalObjectReference{
-						Name: "oidc-secret",
+						Name: oidcSecretName,
 					},
 				},
 			}
@@ -318,6 +318,30 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+
+			By("Having DQM config with auto_baseline disabled")
+			featureStore = minimalFeatureStore()
+			dqmAutoBaseline := false
+			featureStore.Spec.DataQualityMonitoring = &feastdevv1.DataQualityMonitoringConfig{
+				AutoBaseline: &dqmAutoBaseline,
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.DataQualityMonitoring).NotTo(BeNil())
+			Expect(repoConfig.DataQualityMonitoring.AutoBaseline).To(BeFalse())
+
+			fsYaml, marshalErr := yaml.Marshal(repoConfig)
+			Expect(marshalErr).NotTo(HaveOccurred())
+			Expect(string(fsYaml)).To(ContainSubstring("data_quality_monitoring:"))
+			Expect(string(fsYaml)).To(ContainSubstring("auto_baseline: false"))
+
+			By("Having no DataQualityMonitoring config — should be nil")
+			featureStore = minimalFeatureStore()
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.DataQualityMonitoring).To(BeNil())
 		})
 
 		It("should set feature_server block with type local and all options", func() {
@@ -484,7 +508,7 @@ var _ = Describe("Repo Config", func() {
 			featureStore.Spec.Materialization = &feastdevv1.MaterializationConfig{
 				OnlineWriteBatchSize: &batchSize,
 				ExtraConfig: map[string]string{
-					"pull_latest_features": "false",
+					"pull_latest_features": stringFalse,
 					"max_workers":          "4",
 				},
 			}
@@ -513,7 +537,7 @@ var _ = Describe("Repo Config", func() {
 				ExtraConfig: map[string]string{
 					"namespace":           "my-feast",
 					"producer":            "feast-operator",
-					"emit_on_apply":       "true",
+					"emit_on_apply":       stringTrue,
 					"emit_on_materialize": "false",
 				},
 			}
@@ -567,7 +591,7 @@ var _ = Describe("Repo Config", func() {
 				TransportType: &transportType,
 				TransportUrl:  &transportUrl,
 				ApiKeySecretRef: &corev1.LocalObjectReference{
-					Name: "lineage-secret",
+					Name: lineageSecretName,
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
@@ -595,7 +619,7 @@ var _ = Describe("Repo Config", func() {
 				TransportType: &transportType,
 				TransportUrl:  &transportUrl,
 				ApiKeySecretRef: &corev1.LocalObjectReference{
-					Name: "lineage-secret",
+					Name: lineageSecretName,
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
@@ -609,7 +633,7 @@ var _ = Describe("Repo Config", func() {
 			_, err := getServiceRepoConfig(featureStore, missingKeyMock, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("api_key"))
-			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+			Expect(err.Error()).To(ContainSubstring(lineageSecretName))
 		})
 
 		It("should return error when apiKeySecretRef api_key value is not a string", func() {
@@ -622,7 +646,7 @@ var _ = Describe("Repo Config", func() {
 				TransportType: &transportType,
 				TransportUrl:  &transportUrl,
 				ApiKeySecretRef: &corev1.LocalObjectReference{
-					Name: "lineage-secret",
+					Name: lineageSecretName,
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
@@ -636,7 +660,7 @@ var _ = Describe("Repo Config", func() {
 			_, err := getServiceRepoConfig(featureStore, nonStringMock, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("api_key"))
-			Expect(err.Error()).To(ContainSubstring("lineage-secret"))
+			Expect(err.Error()).To(ContainSubstring(lineageSecretName))
 		})
 
 		It("should not set feature_server block when serving is nil", func() {
@@ -667,14 +691,14 @@ var _ = Describe("Repo Config", func() {
 		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
 			OidcAuthz: &feastdevv1.OidcAuthz{
 				SecretRef: &corev1.LocalObjectReference{
-					Name: "oidc-secret",
+					Name: oidcSecretName,
 				},
 			},
 		}
 		ApplyDefaultsToStatus(featureStore)
 
 		secretExtractionFunc := mockOidcConfigFromSecret(map[string]interface{}{
-			string(OidcClientId):     "client-id",
+			string(OidcClientId):     clientIDValue,
 			string(OidcClientSecret): "client-secret",
 			string(OidcUsername):     "username",
 			string(OidcPassword):     "password"})
@@ -686,7 +710,7 @@ var _ = Describe("Repo Config", func() {
 		featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
 			OidcAuthz: &feastdevv1.OidcAuthz{
 				SecretRef: &corev1.LocalObjectReference{
-					Name: "oidc-secret",
+					Name: oidcSecretName,
 				},
 			},
 		}
@@ -694,7 +718,7 @@ var _ = Describe("Repo Config", func() {
 
 		secretExtractionFunc = mockOidcConfigFromSecret(map[string]interface{}{
 			string(OidcAuthDiscoveryUrl): "discovery-url",
-			string(OidcClientId):         "client-id",
+			string(OidcClientId):         clientIDValue,
 			string(OidcUsername):         "username",
 			string(OidcPassword):         "password"})
 		_, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
@@ -832,7 +856,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
 										SecretKeyNames: feastdevv1.SecretKeyNames{
-											TlsCrt: "tls.crt",
+											TlsCrt: tlsCertKey,
 										},
 									},
 								},
@@ -842,7 +866,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
 										SecretKeyNames: feastdevv1.SecretKeyNames{
-											TlsCrt: "tls.crt",
+											TlsCrt: tlsCertKey,
 										},
 									},
 								},
@@ -862,7 +886,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 											TLS: &feastdevv1.TlsConfigs{
 												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
 												SecretKeyNames: feastdevv1.SecretKeyNames{
-													TlsCrt: "tls.crt",
+													TlsCrt: tlsCertKey,
 												},
 											},
 										},
@@ -901,7 +925,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "offline-tls"},
 										SecretKeyNames: feastdevv1.SecretKeyNames{
-											TlsCrt: "tls.crt",
+											TlsCrt: tlsCertKey,
 										},
 									},
 								},
@@ -911,7 +935,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									TLS: &feastdevv1.TlsConfigs{
 										SecretRef: &corev1.LocalObjectReference{Name: "online-tls"},
 										SecretKeyNames: feastdevv1.SecretKeyNames{
-											TlsCrt: "tls.crt",
+											TlsCrt: tlsCertKey,
 										},
 									},
 								},
@@ -931,7 +955,7 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 											TLS: &feastdevv1.TlsConfigs{
 												SecretRef: &corev1.LocalObjectReference{Name: "registry-tls"},
 												SecretKeyNames: feastdevv1.SecretKeyNames{
-													TlsCrt: "tls.crt",
+													TlsCrt: tlsCertKey,
 												},
 											},
 										},
