@@ -1166,7 +1166,10 @@ def test_dynamodb_online_store_online_read_requested_features_parallel(
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_dynamodb_client(current_tags: list[dict[str, str]], table_arn: str = "arn:aws:dynamodb:us-west-2:123456789012:table/test_table"):
+def _make_mock_dynamodb_client(
+    current_tags: list[dict[str, str]],
+    table_arn: str = "arn:aws:dynamodb:us-west-2:123456789012:table/test_table",
+):
     """Helper: create a pure MagicMock DynamoDB client for tag tests.
     This avoids Moto's authentication issues with DynamoDB tag APIs.
     """
@@ -1174,13 +1177,9 @@ def _make_mock_dynamodb_client(current_tags: list[dict[str, str]], table_arn: st
 
     client = MagicMock()
     # Mock describe_table
-    client.describe_table.return_value = {
-        "Table": {"TableArn": table_arn}
-    }
+    client.describe_table.return_value = {"Table": {"TableArn": table_arn}}
     # Mock list_tags_of_resource
-    client.list_tags_of_resource.return_value = {
-        "Tags": current_tags
-    }
+    client.list_tags_of_resource.return_value = {"Tags": current_tags}
     return client
 
 
@@ -1288,4 +1287,3 @@ def test_update_tags_no_existing_tags_no_new_tags():
 
     client.untag_resource.assert_not_called()
     client.tag_resource.assert_not_called()
-

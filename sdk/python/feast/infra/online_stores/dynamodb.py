@@ -270,7 +270,9 @@ class DynamoDBOnlineStore(OnlineStore):
         ]
 
         if keys_to_remove:
-            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=keys_to_remove)
+            dynamodb_client.untag_resource(
+                ResourceArn=table_arn, TagKeys=keys_to_remove
+            )
         if tags_to_add:
             dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=tags_to_add)
 
