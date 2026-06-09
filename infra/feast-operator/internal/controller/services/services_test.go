@@ -260,6 +260,71 @@ var _ = Describe("Registry Service", func() {
 		})
 	})
 
+	Describe("ResourceClaims Configuration", func() {
+		It("should apply resourceClaims to deployment pod template", func() {
+			featureStore.Spec.Services.ResourceClaims = []corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(Equal([]corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}))
+		})
+
+		It("should have no resourceClaims when field is not set", func() {
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(BeNil())
+		})
+
+		It("should remove resourceClaims when field is removed", func() {
+			featureStore.Spec.Services.ResourceClaims = []corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(HaveLen(1))
+
+			featureStore.Spec.Services.ResourceClaims = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(BeNil())
+		})
+	})
+
 	Describe("NodeSelector Configuration", func() {
 		It("should apply NodeSelector to pod spec when configured", func() {
 			// Set NodeSelector for registry service

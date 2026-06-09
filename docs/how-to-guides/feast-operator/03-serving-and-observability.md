@@ -144,6 +144,78 @@ services:
           subPath: ca.crt
 ```
 
+### Dynamic Resource Allocation (DRA)
+
+Kubernetes [Dynamic Resource Allocation](https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/)
+lets pods request hardware resources (GPUs, FPGAs, etc.) through a claim-based model.
+The FeatureStore CR exposes a pod-level `resourceClaims` field that defines which
+`ResourceClaim` objects must be allocated before the pod starts. Individual service
+containers then reference those claims by name to consume the allocated resources.
+
+**Step 1 — Create a `ResourceClaim`** (or use an existing one):
+
+```yaml
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: my-gpu-claim
+spec:
+  devices:
+    requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.example.com
+```
+
+**Step 2 — Reference the claim in the FeatureStore CR:**
+
+```yaml
+services:
+  # Pod-level: define claims available to any container in the pod
+  resourceClaims:
+    - name: gpu
+      resourceClaimName: my-gpu-claim
+
+  # Container-level: the online store consumes the GPU claim
+  onlineStore:
+    server:
+      resources:
+        claims:
+          - name: gpu
+```
+
+Multiple claims can be defined at the pod level and selectively consumed by different
+service containers:
+
+```yaml
+services:
+  resourceClaims:
+    - name: gpu-claim
+      resourceClaimName: my-gpu
+    - name: fpga-claim
+      resourceClaimName: my-fpga
+
+  onlineStore:
+    server:
+      resources:
+        claims:
+          - name: gpu-claim       # online store uses GPU
+
+  offlineStore:
+    server:
+      resources:
+        claims:
+          - name: fpga-claim      # offline store uses FPGA
+
+  registry:
+    local:
+      server: {}                  # registry uses neither
+```
+
+> **Note**: DRA requires a DRA driver to be installed on the cluster and the appropriate
+> `DeviceClass` and `ResourceSlice` objects to be available. On OpenShift, this is
+> configured at the cluster level for GPU and accelerator resources.
+
 ---
 
 ## TLS

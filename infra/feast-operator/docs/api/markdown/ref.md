@@ -269,6 +269,10 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
+and reserved before the Pod is allowed to start. The resources
+will be made available to those containers which consume them
+by name. |
 
 
 #### FeatureStoreSpec
