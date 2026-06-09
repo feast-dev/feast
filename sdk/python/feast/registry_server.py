@@ -1,7 +1,7 @@
 import logging
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Any, List, Optional, Union, cast
+from typing import Any, Callable, List, Optional, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -12,7 +12,7 @@ from feast import FeatureService, FeatureStore
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.errors import FeastObjectNotFoundException, FeatureViewNotFoundException
+from feast.errors import FeastObjectNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
 from feast.grpc_error_interceptor import ErrorInterceptor
@@ -146,6 +146,8 @@ def apply_sorting(objects: List[Any], sort_by: str, sort_order: str) -> List[Any
 
 
 def _build_any_feature_view_proto(feature_view: BaseFeatureView):
+    from feast.labeling.label_view import LabelView
+
     if isinstance(feature_view, StreamFeatureView):
         arg_name = "stream_feature_view"
         feature_view_proto = feature_view.to_proto()
@@ -155,6 +157,11 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
     elif isinstance(feature_view, OnDemandFeatureView):
         arg_name = "on_demand_feature_view"
         feature_view_proto = feature_view.to_proto()
+    elif isinstance(feature_view, LabelView):
+        arg_name = "label_view"
+        feature_view_proto = feature_view.to_proto()
+    else:
+        raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
     return RegistryServer_pb2.AnyFeatureView(
         feature_view=feature_view_proto if arg_name == "feature_view" else None,
@@ -164,6 +171,7 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
         on_demand_feature_view=feature_view_proto
         if arg_name == "on_demand_feature_view"
         else None,
+        label_view=feature_view_proto if arg_name == "label_view" else None,
     )
 
 
@@ -341,7 +349,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyFeatureView(
         self, request: RegistryServer_pb2.ApplyFeatureViewRequest, context
     ):
+        from feast.labeling.label_view import LabelView
+
         feature_view_type = request.WhichOneof("base_feature_view")
+        feature_view_meta: BaseFeatureView
 
         if feature_view_type == "feature_view":
             feature_view_meta = FeatureView.from_proto(
@@ -355,13 +366,30 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             feature_view_meta = StreamFeatureView.from_proto(
                 request.stream_feature_view, skip_udf=True
             )
+        elif feature_view_type == "label_view":
+            feature_view_meta = LabelView.from_proto(request.label_view)
+        else:
+            raise ValueError(f"Unexpected feature view type: {feature_view_type}")
+
+        getter: Callable
+        if isinstance(feature_view_meta, StreamFeatureView):
+            getter = self.proxied_registry.get_stream_feature_view
+        elif isinstance(feature_view_meta, FeatureView):
+            getter = self.proxied_registry.get_feature_view
+        elif isinstance(feature_view_meta, OnDemandFeatureView):
+            getter = self.proxied_registry.get_on_demand_feature_view
+        elif isinstance(feature_view_meta, LabelView):
+            getter = self.proxied_registry.get_label_view
+        else:
+            getter = self.proxied_registry.get_feature_view
 
         assert_permissions_to_update(
-            resource=feature_view_meta,
-            getter=self.proxied_registry.get_feature_view,
+            resource=cast(FeastObject, feature_view_meta),
+            getter=cast(Callable, getter),
             project=request.project,
         )
 
+        feature_view: BaseFeatureView
         if feature_view_type == "feature_view":
             feature_view = FeatureView.from_proto(request.feature_view)
         elif feature_view_type == "on_demand_feature_view":
@@ -370,6 +398,10 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             )
         elif feature_view_type == "stream_feature_view":
             feature_view = StreamFeatureView.from_proto(request.stream_feature_view)
+        elif feature_view_type == "label_view":
+            feature_view = LabelView.from_proto(request.label_view)
+        else:
+            raise ValueError(f"Unexpected feature view type: {feature_view_type}")
 
         (
             self.proxied_registry.apply_feature_view(
@@ -411,14 +443,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListAllFeatureViews(
         self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
     ):
+        from feast.labeling.label_view import LabelView
+
         all_feature_views = cast(
             list[FeastObject],
-            self.proxied_registry.list_all_feature_views(
-                project=request.project,
-                allow_cache=request.allow_cache,
-                tags=dict(request.tags),
-                skip_udf=True,
-            ),
+            [
+                fv
+                for fv in self.proxied_registry.list_all_feature_views(
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
+                    skip_udf=True,
+                )
+                if not isinstance(fv, LabelView)
+            ],
         )
 
         if (
@@ -546,19 +584,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def DeleteFeatureView(
         self, request: RegistryServer_pb2.DeleteFeatureViewRequest, context
     ):
-        feature_view: Union[StreamFeatureView, FeatureView]
-
-        try:
-            feature_view = self.proxied_registry.get_stream_feature_view(
-                name=request.name, project=request.project, allow_cache=False
-            )
-        except FeatureViewNotFoundException:
-            feature_view = self.proxied_registry.get_feature_view(
-                name=request.name, project=request.project, allow_cache=False
-            )
+        feature_view = self.proxied_registry.get_any_feature_view(
+            name=request.name, project=request.project, allow_cache=False
+        )
 
         assert_permissions(
-            resource=feature_view,
+            resource=cast(FeastObject, feature_view),
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_feature_view(
@@ -647,6 +678,40 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 on_demand_feature_view.to_proto()
                 for on_demand_feature_view in paginated_on_demand_feature_views
             ],
+            pagination=pagination_metadata,
+        )
+
+    def GetLabelView(self, request: RegistryServer_pb2.GetLabelViewRequest, context):
+        return assert_permissions(
+            resource=self.proxied_registry.get_label_view(
+                name=request.name,
+                project=request.project,
+                allow_cache=request.allow_cache,
+            ),
+            actions=[AuthzedAction.DESCRIBE],
+        ).to_proto()
+
+    def ListLabelViews(
+        self, request: RegistryServer_pb2.ListLabelViewsRequest, context
+    ):
+        paginated_label_views, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_label_views(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
+        return RegistryServer_pb2.ListLabelViewsResponse(
+            label_views=[label_view.to_proto() for label_view in paginated_label_views],
             pagination=pagination_metadata,
         )
 
@@ -1167,6 +1232,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         """
         List all features in the registry, optionally filtered by project, feature_view, or name.
         """
+        from feast.labeling.label_view import LabelView
+
         allow_cache = request.allow_cache if hasattr(request, "allow_cache") else True
         feature_views = self.proxied_registry.list_all_feature_views(
             project=request.project,
@@ -1177,15 +1244,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             resources=cast(list[FeastObject], feature_views),
             actions=AuthzedAction.DESCRIBE,
         )
+        requested_kind = (
+            request.kind if hasattr(request, "kind") and request.kind else ""
+        )
         features = []
         for fv in permitted_fvs:
             fv_name = getattr(fv, "name", None)
+            kind = "label" if isinstance(fv, LabelView) else "feature"
+            if requested_kind and kind != requested_kind:
+                continue
             for feature in getattr(fv, "features", []):
                 if request.feature_view and fv_name != request.feature_view:
                     continue
                 if request.name and feature.name != request.name:
                     continue
-                # Get owner and timestamps from feature view
                 owner = ""
                 created_timestamp = None
                 last_updated_timestamp = None
@@ -1211,6 +1283,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         created_timestamp=created_timestamp,
                         last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
+                        kind=kind,
                     )
                 )
         paginated_features, pagination_metadata = apply_pagination_and_sorting(
@@ -1226,6 +1299,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         """
         Get a single feature by project, feature_view, and name.
         """
+        from feast.labeling.label_view import LabelView
+
         allow_cache = getattr(request, "allow_cache", True)
         feature_views = self.proxied_registry.list_all_feature_views(
             project=request.project,
@@ -1239,7 +1314,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             fv_name = getattr(fv, "name", None)
             for feature in getattr(fv, "features", []):
                 if fv_name == request.feature_view and feature.name == request.name:
-                    # Get owner and timestamps from feature view
                     owner = ""
                     created_timestamp = None
                     last_updated_timestamp = None
@@ -1264,6 +1338,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         created_timestamp=created_timestamp,
                         last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
+                        kind="label" if isinstance(fv, LabelView) else "feature",
                     )
         raise FeastObjectNotFoundException(
             f"Feature {request.name} not found in feature view {request.feature_view} in project {request.project}"

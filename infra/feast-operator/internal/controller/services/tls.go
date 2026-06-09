@@ -341,7 +341,7 @@ func (feast *FeastServices) mountOidcCACert(podSpec *corev1.PodSpec, oidcAuthz *
 func (feast *FeastServices) GetCustomCertificatesBundle() CustomCertificatesBundle {
 	var customCertificatesBundle CustomCertificatesBundle
 	configMapList := &corev1.ConfigMapList{}
-	labelSelector := client.MatchingLabels{caBundleAnnotation: "true"}
+	labelSelector := client.MatchingLabels{caBundleAnnotation: stringTrue}
 
 	err := feast.Handler.Client.List(
 		feast.Handler.Context,
@@ -379,7 +379,7 @@ func getPortStr(tls *feastdevv1.TlsConfigs) string {
 func tlsDefaults(tls *feastdevv1.TlsConfigs) {
 	if tls.IsTLS() {
 		if len(tls.SecretKeyNames.TlsCrt) == 0 {
-			tls.SecretKeyNames.TlsCrt = "tls.crt"
+			tls.SecretKeyNames.TlsCrt = tlsCertKey
 		}
 		if len(tls.SecretKeyNames.TlsKey) == 0 {
 			tls.SecretKeyNames.TlsKey = "tls.key"

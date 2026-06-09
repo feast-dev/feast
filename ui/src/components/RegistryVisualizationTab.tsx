@@ -42,6 +42,13 @@ const RegistryVisualizationTab = () => {
           if (sfv.spec?.streamSource?.name)
             dataSources.add(sfv.spec.streamSource.name);
         });
+        objects.labelViews?.forEach((lv: any) => {
+          if (lv.spec?.source?.name) dataSources.add(lv.spec.source.name);
+          if (lv.spec?.source?.batchSource?.name)
+            dataSources.add(lv.spec.source.batchSource.name);
+          if (lv.spec?.batchSource?.name)
+            dataSources.add(lv.spec.batchSource.name);
+        });
         return Array.from(dataSources);
       case "entity":
         return objects.entities?.map((entity: any) => entity.spec?.name) || [];
@@ -54,6 +61,8 @@ const RegistryVisualizationTab = () => {
           ...(objects.streamFeatureViews?.map((sfv: any) => sfv.spec?.name) ||
             []),
         ];
+      case "labelView":
+        return objects.labelViews?.map((lv: any) => lv.spec?.name) || [];
       case "featureService":
         return objects.featureServices?.map((fs: any) => fs.spec?.name) || [];
       default:
@@ -93,6 +102,7 @@ const RegistryVisualizationTab = () => {
                     { value: "dataSource", text: "Data Source" },
                     { value: "entity", text: "Entity" },
                     { value: "featureView", text: "Feature View" },
+                    { value: "labelView", text: "Label View" },
                     { value: "featureService", text: "Feature Service" },
                     ...(mlflowData?.runs?.length
                       ? [{ value: "mlflowRun", text: "MLflow Run" }]

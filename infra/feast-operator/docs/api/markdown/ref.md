@@ -104,6 +104,20 @@ _Appears in:_
 Defaults to "feast apply" & "feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')" |
 
 
+#### DataQualityMonitoringConfig
+
+
+
+DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `autoBaseline` _boolean_ | AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true. |
+
+
 #### DefaultCtrConfigs
 
 
@@ -275,6 +289,7 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `dataQualityMonitoring` _[DataQualityMonitoringConfig](#dataqualitymonitoringconfig)_ | DataQualityMonitoring configures Data Quality Monitoring behaviour. |
 | `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 Mutually exclusive with services.scaling.autoscaling. |
 | `materialization` _[MaterializationConfig](#materializationconfig)_ | Materialization controls feature materialization behavior (batch size, pull strategy).

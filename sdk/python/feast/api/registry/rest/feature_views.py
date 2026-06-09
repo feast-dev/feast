@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 class FeatureModel(BaseModel):
     name: str
     value_type: int = 2
+    description: Optional[str] = ""
 
 
 class ApplyFeatureViewRequestBody(BaseModel):
@@ -307,7 +308,13 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
     def apply_feature_view(body: ApplyFeatureViewRequestBody):
         feature_specs = []
         for f in body.features or []:
-            feature_specs.append(FeatureSpecV2(name=f.name, value_type=f.value_type))
+            feature_specs.append(
+                FeatureSpecV2(
+                    name=f.name,
+                    value_type=f.value_type,
+                    description=f.description or "",
+                )
+            )
 
         batch_source_proto = (
             DataSourceProto(name=body.batch_source) if body.batch_source else None

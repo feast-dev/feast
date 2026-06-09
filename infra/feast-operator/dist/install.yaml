@@ -537,6 +537,16 @@ spec:
                     description: The time zone name for the given schedule, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                     type: string
                 type: object
+              dataQualityMonitoring:
+                description: DataQualityMonitoring configures Data Quality Monitoring
+                  behaviour.
+                properties:
+                  autoBaseline:
+                    default: true
+                    description: AutoBaseline controls whether baseline distribution
+                      is computed automatically on feast apply. Defaults to true.
+                    type: boolean
+                type: object
               feastProject:
                 description: FeastProject is the Feast project id.
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
@@ -6498,6 +6508,16 @@ spec:
                         description: The time zone name for the given schedule, see
                           https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                         type: string
+                    type: object
+                  dataQualityMonitoring:
+                    description: DataQualityMonitoring configures Data Quality Monitoring
+                      behaviour.
+                    properties:
+                      autoBaseline:
+                        default: true
+                        description: AutoBaseline controls whether baseline distribution
+                          is computed automatically on feast apply. Defaults to true.
+                        type: boolean
                     type: object
                   feastProject:
                     description: FeastProject is the Feast project id.

@@ -105,7 +105,10 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 install-python-dependencies-ci: ## Install Python CI dependencies using uv pip sync
 	# Create virtualenv if it doesn't exist
-	uv venv .venv
+	@if [ ! -d .venv ]; then \
+		echo "Creating virtualenv..."; \
+		uv venv .venv; \
+	fi
 	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \

@@ -27,6 +27,7 @@ from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
+from feast.labeling.label_view import LabelView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
@@ -127,6 +128,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
+        label_views=[],
         permissions=[],
     )
 
@@ -212,6 +214,22 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, LabelView) and not any(
+                (obj is lv) for lv in res.label_views
+            ):
+                res.label_views.append(obj)
+                if obj.source is not None and not any(
+                    (obj.source is ds) for ds in res.data_sources
+                ):
+                    res.data_sources.append(obj.source)
+                if (
+                    isinstance(obj.source, PushSource)
+                    and obj.source.batch_source
+                    and not any(
+                        (obj.source.batch_source is ds) for ds in res.data_sources
+                    )
+                ):
+                    res.data_sources.append(obj.source.batch_source)
             elif isinstance(obj, Permission) and not any(
                 (obj is p) for p in res.permissions
             ):
@@ -405,6 +423,51 @@ def apply_total_with_repo_instance(
     finally:
         # Cleanup is handled in the new _apply_diffs method
         pass
+
+    # Submit baseline jobs if needed
+    dqm = store.config.data_quality_monitoring_config
+    if dqm is not None and dqm.auto_baseline:
+        _submit_baseline_jobs(store, project_name, repo)
+
+
+def _submit_baseline_jobs(store, project_name, repo):
+    try:
+        from feast.monitoring.monitoring_service import MonitoringService
+
+        svc = MonitoringService(store)
+        feature_views = list(repo.feature_views)
+        if not feature_views:
+            return
+
+        job_ids = svc.submit_baseline_for_new_features(
+            project=project_name, feature_views=feature_views
+        )
+        if not job_ids:
+            return
+
+        import threading
+
+        def _run_baseline_jobs():
+            for job_id in job_ids:
+                try:
+                    svc.execute_job(job_id)
+                    click.echo(f"  ✓ Baseline computed (job: {job_id})")
+                except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Baseline job %s execution failed (non-critical)",
+                        job_id,
+                        exc_info=True,
+                    )
+
+        click.echo(
+            f"  → Computing baseline metrics in background ({len(job_ids)} job(s))..."
+        )
+        thread = threading.Thread(target=_run_baseline_jobs)
+        thread.start()
+    except Exception:
+        logging.getLogger(__name__).debug(
+            "Monitoring baseline submission skipped (non-critical)", exc_info=True
+        )
 
 
 def log_infra_changes(

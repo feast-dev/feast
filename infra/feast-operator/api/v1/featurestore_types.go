@@ -127,6 +127,9 @@ type FeatureStoreSpec struct {
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
 	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
+	// DataQualityMonitoring configures Data Quality Monitoring behaviour.
+	// +optional
+	DataQualityMonitoring *DataQualityMonitoringConfig `json:"dataQualityMonitoring,omitempty"`
 	// Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
@@ -227,6 +230,13 @@ type BatchEngineConfig struct {
 	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
 	// Key name in the ConfigMap. Defaults to "config" if not specified.
 	ConfigMapKey string `json:"configMapKey,omitempty"`
+}
+
+// DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+type DataQualityMonitoringConfig struct {
+	// AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true.
+	// +kubebuilder:default=true
+	AutoBaseline *bool `json:"autoBaseline,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.

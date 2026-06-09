@@ -24,6 +24,7 @@
   * [Data ingestion](getting-started/concepts/data-ingestion.md)
   * [Entity](getting-started/concepts/entity.md)
   * [Feature view](getting-started/concepts/feature-view.md)
+  * [Label view](getting-started/concepts/label-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
@@ -57,6 +58,7 @@
 * [MCP - AI Agent Example](../examples/mcp_feature_store/README.md)
 * [Feast-Powered AI Agent](../examples/agent_feature_store/README.md)
 * [Demo Notebooks](tutorials/demo-notebooks.md)
+* [Feature Quality Monitoring Quickstart](../examples/monitoring/monitoring-quickstart.ipynb)
 
 ## How-to Guides
 
@@ -90,6 +92,7 @@
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 * [Starting Feast servers in TLS(SSL) Mode](how-to-guides/starting-feast-servers-tls-mode.md)
 * [Importing Features from dbt](how-to-guides/dbt-integration.md)
+* [Feature Quality Monitoring](how-to-guides/feature-monitoring.md)
 
 ## Reference
 

@@ -1,6 +1,6 @@
 # RFC: Feature View Versioning
 
-**Status:** In Review
+**Status:** Accepted
 **Authors:** @farceo
 **Branch:** `featureview-versioning`
 **Date:** 2026-03-17
