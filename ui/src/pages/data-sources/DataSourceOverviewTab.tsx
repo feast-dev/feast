@@ -155,10 +155,10 @@ const DataSourceOverviewTab = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
+        // Error shown inside the modal via submitError prop
         const message =
           err instanceof Error ? err.message : "An unexpected error occurred.";
         setErrorMessage(message);
-        setTimeout(() => setErrorMessage(null), 8000);
       },
     });
   };
@@ -288,10 +288,15 @@ const DataSourceOverviewTab = () => {
 
       {isEditModalOpen && data && (
         <DataSourceFormModal
-          onClose={() => setIsEditModalOpen(false)}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setErrorMessage(null);
+          }}
           onSubmit={handleEditSubmit}
           initialData={buildEditFormData(data)}
           isEdit
+          isSubmitting={applyDataSource.isLoading}
+          submitError={errorMessage}
         />
       )}
     </React.Fragment>
