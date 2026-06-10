@@ -193,10 +193,10 @@ const Index = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
+        // Error shown inside the modal via submitError prop
         const message =
           err instanceof Error ? err.message : "An unexpected error occurred.";
         setErrorMessage(message);
-        setTimeout(() => setErrorMessage(null), 8000);
       },
     });
   };
@@ -312,8 +312,11 @@ const Index = () => {
           onClose={() => {
             setIsModalOpen(false);
             setPrereqWarning(null);
+            setErrorMessage(null);
           }}
           onSubmit={handleCreateSubmit}
+          isSubmitting={applyFeatureView.isLoading}
+          submitError={errorMessage}
         />
       )}
     </EuiPageTemplate>

@@ -400,6 +400,17 @@ type FeatureStoreServices struct {
 	// pod anti-affinity rule to prefer spreading pods across nodes.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// ResourceClaims defines which ResourceClaims must be allocated
+	// and reserved before the Pod is allowed to start. The resources
+	// will be made available to those containers which consume them
+	// by name.
+	//
+	// +patchMergeKey=name
+	// +patchStrategy=merge,retainKeys
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	ResourceClaims []corev1.PodResourceClaim `json:"resourceClaims,omitempty" patchStrategy:"merge,retainKeys" patchMergeKey:"name"`
 }
 
 // ScalingConfig configures horizontal scaling for the FeatureStore deployment.

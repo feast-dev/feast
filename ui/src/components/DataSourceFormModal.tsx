@@ -6,6 +6,7 @@ import {
   EuiSpacer,
   EuiHorizontalRule,
   EuiText,
+  EuiCallOut,
 } from "@elastic/eui";
 import { feast } from "../protos";
 import FormModal from "./forms/FormModal";
@@ -75,6 +76,8 @@ interface DataSourceFormModalProps {
   onSubmit: (data: DataSourceFormData) => void;
   initialData?: DataSourceFormData;
   isEdit?: boolean;
+  isSubmitting?: boolean;
+  submitError?: string | null;
 }
 
 const EMPTY_FORM: DataSourceFormData = {
@@ -100,11 +103,21 @@ const EMPTY_FORM: DataSourceFormData = {
   sparkPath: "",
 };
 
+const BATCH_SOURCE_TYPES = new Set([
+  String(feast.core.DataSource.SourceType.BATCH_FILE),
+  String(feast.core.DataSource.SourceType.BATCH_BIGQUERY),
+  String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE),
+  String(feast.core.DataSource.SourceType.BATCH_REDSHIFT),
+  String(feast.core.DataSource.SourceType.BATCH_SPARK),
+]);
+
 const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
   onClose,
   onSubmit,
   initialData,
   isEdit = false,
+  isSubmitting = false,
+  submitError,
 }) => {
   const [formData, setFormData] = useState<DataSourceFormData>(
     initialData || EMPTY_FORM,
@@ -118,8 +131,11 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     }
   }, [initialData]);
 
+  const isBatchSource = BATCH_SOURCE_TYPES.has(formData.sourceType);
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const st = formData.sourceType;
 
     if (!formData.name.trim()) {
       newErrors.name = "Data source name is required.";
@@ -128,14 +144,20 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
         "Must start with a letter or underscore, and contain only letters, numbers, and underscores.";
     }
 
-    const st = formData.sourceType;
+    // Source-type-specific required fields
     if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
       if (!formData.fileUri.trim()) {
-        newErrors.fileUri = "File URI is required for file sources.";
+        newErrors.fileUri = "File URI is required.";
+      } else if (
+        !/^(s3|gs|gcs|hdfs|abfs|file):\/\/\S+$/.test(formData.fileUri.trim())
+      ) {
+        newErrors.fileUri =
+          "Must be a valid URI (e.g. s3://bucket/path, gs://bucket/path, file:///local/path).";
       }
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
       if (!formData.bigqueryTable.trim() && !formData.bigqueryQuery.trim()) {
-        newErrors.bigqueryTable = "Either table or query is required.";
+        newErrors.bigqueryTable =
+          "Either a table reference or a query is required.";
       }
     } else if (
       st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)
@@ -143,13 +165,47 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
       if (!formData.snowflakeTable.trim()) {
         newErrors.snowflakeTable = "Table name is required for Snowflake.";
       }
+      if (!formData.snowflakeDatabase.trim()) {
+        newErrors.snowflakeDatabase = "Database is required for Snowflake.";
+      }
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
+      if (!formData.redshiftTable.trim()) {
+        newErrors.redshiftTable = "Table name is required for Redshift.";
+      }
+      if (!formData.redshiftDatabase.trim()) {
+        newErrors.redshiftDatabase = "Database is required for Redshift.";
+      }
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
+      if (!formData.sparkTable.trim() && !formData.sparkPath.trim()) {
+        newErrors.sparkTable =
+          "Either a table reference or a path is required for Spark.";
+      }
     } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
       if (!formData.kafkaBootstrapServers.trim()) {
         newErrors.kafkaBootstrapServers = "Bootstrap servers are required.";
+      } else if (
+        !/^[\w.-]+:\d+(,[\w.-]+:\d+)*$/.test(
+          formData.kafkaBootstrapServers.trim(),
+        )
+      ) {
+        newErrors.kafkaBootstrapServers =
+          "Must be in host:port format (e.g. localhost:9092).";
       }
       if (!formData.kafkaTopic.trim()) {
         newErrors.kafkaTopic = "Topic is required.";
       }
+    }
+
+    // Timestamp field required for batch sources (needed for point-in-time correctness)
+    if (isBatchSource && !formData.timestampField.trim()) {
+      newErrors.timestampField =
+        "Timestamp field is required for batch sources. It is used for point-in-time correct feature retrieval.";
+    } else if (
+      formData.timestampField.trim() &&
+      !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(formData.timestampField.trim())
+    ) {
+      newErrors.timestampField =
+        "Must be a valid column name (letters, numbers, underscores).";
     }
 
     const tagKeys = formData.tags.map((t) => t.key).filter((k) => k.trim());
@@ -195,7 +251,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           label="File URI"
           isInvalid={!!errors.fileUri}
           error={errors.fileUri}
-          helpText="s3://path/to/file, gs://path/to/file, or file:///local/path"
+          helpText="Path to parquet or CSV file(s). Supports s3://, gs://, and file:// schemes."
         >
           <EuiFieldText
             value={formData.fileUri}
@@ -225,12 +281,12 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           </EuiFormRow>
           <EuiFormRow
             label="Query"
-            helpText="Alternative to table: a SQL query"
+            helpText="Optional SQL query — use instead of a fixed table reference."
           >
             <EuiFieldText
               value={formData.bigqueryQuery}
               onChange={(e) => updateField("bigqueryQuery", e.target.value)}
-              placeholder="SELECT * FROM ..."
+              placeholder="SELECT * FROM `project.dataset.table`"
             />
           </EuiFormRow>
         </>
@@ -240,6 +296,25 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
       return (
         <>
+          <EuiFormRow
+            label="Database"
+            isInvalid={!!errors.snowflakeDatabase}
+            error={errors.snowflakeDatabase}
+          >
+            <EuiFieldText
+              value={formData.snowflakeDatabase}
+              onChange={(e) => updateField("snowflakeDatabase", e.target.value)}
+              isInvalid={!!errors.snowflakeDatabase}
+              placeholder="MY_DATABASE"
+            />
+          </EuiFormRow>
+          <EuiFormRow label="Schema">
+            <EuiFieldText
+              value={formData.snowflakeSchema}
+              onChange={(e) => updateField("snowflakeSchema", e.target.value)}
+              placeholder="PUBLIC"
+            />
+          </EuiFormRow>
           <EuiFormRow
             label="Table"
             isInvalid={!!errors.snowflakeTable}
@@ -252,20 +327,6 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               placeholder="MY_TABLE"
             />
           </EuiFormRow>
-          <EuiFormRow label="Database">
-            <EuiFieldText
-              value={formData.snowflakeDatabase}
-              onChange={(e) => updateField("snowflakeDatabase", e.target.value)}
-              placeholder="MY_DATABASE"
-            />
-          </EuiFormRow>
-          <EuiFormRow label="Schema">
-            <EuiFieldText
-              value={formData.snowflakeSchema}
-              onChange={(e) => updateField("snowflakeSchema", e.target.value)}
-              placeholder="PUBLIC"
-            />
-          </EuiFormRow>
         </>
       );
     }
@@ -273,17 +334,15 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
       return (
         <>
-          <EuiFormRow label="Table">
-            <EuiFieldText
-              value={formData.redshiftTable}
-              onChange={(e) => updateField("redshiftTable", e.target.value)}
-              placeholder="my_table"
-            />
-          </EuiFormRow>
-          <EuiFormRow label="Database">
+          <EuiFormRow
+            label="Database"
+            isInvalid={!!errors.redshiftDatabase}
+            error={errors.redshiftDatabase}
+          >
             <EuiFieldText
               value={formData.redshiftDatabase}
               onChange={(e) => updateField("redshiftDatabase", e.target.value)}
+              isInvalid={!!errors.redshiftDatabase}
               placeholder="my_database"
             />
           </EuiFormRow>
@@ -292,6 +351,18 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               value={formData.redshiftSchema}
               onChange={(e) => updateField("redshiftSchema", e.target.value)}
               placeholder="public"
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Table"
+            isInvalid={!!errors.redshiftTable}
+            error={errors.redshiftTable}
+          >
+            <EuiFieldText
+              value={formData.redshiftTable}
+              onChange={(e) => updateField("redshiftTable", e.target.value)}
+              isInvalid={!!errors.redshiftTable}
+              placeholder="my_table"
             />
           </EuiFormRow>
         </>
@@ -305,6 +376,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
             label="Bootstrap Servers"
             isInvalid={!!errors.kafkaBootstrapServers}
             error={errors.kafkaBootstrapServers}
+            helpText="Comma-separated list of broker host:port pairs."
           >
             <EuiFieldText
               value={formData.kafkaBootstrapServers}
@@ -312,7 +384,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
                 updateField("kafkaBootstrapServers", e.target.value)
               }
               isInvalid={!!errors.kafkaBootstrapServers}
-              placeholder="localhost:9092"
+              placeholder="broker1:9092,broker2:9092"
             />
           </EuiFormRow>
           <EuiFormRow
@@ -334,14 +406,23 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
       return (
         <>
-          <EuiFormRow label="Table">
+          <EuiFormRow
+            label="Table"
+            isInvalid={!!errors.sparkTable}
+            error={errors.sparkTable}
+            helpText="Spark catalog table reference (catalog.database.table). Provide either table or path."
+          >
             <EuiFieldText
               value={formData.sparkTable}
               onChange={(e) => updateField("sparkTable", e.target.value)}
+              isInvalid={!!errors.sparkTable}
               placeholder="catalog.database.table"
             />
           </EuiFormRow>
-          <EuiFormRow label="Path" helpText="Alternative to table">
+          <EuiFormRow
+            label="Path"
+            helpText="Alternative to table: path to data files (s3://, gs://, hdfs://)."
+          >
             <EuiFieldText
               value={formData.sparkPath}
               onChange={(e) => updateField("sparkPath", e.target.value)}
@@ -366,14 +447,6 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     return null;
   };
 
-  const isBatchSource =
-    formData.sourceType !==
-      String(feast.core.DataSource.SourceType.STREAM_KAFKA) &&
-    formData.sourceType !==
-      String(feast.core.DataSource.SourceType.REQUEST_SOURCE) &&
-    formData.sourceType !==
-      String(feast.core.DataSource.SourceType.PUSH_SOURCE);
-
   return (
     <FormModal
       title={isEdit ? "Edit Data Source" : "Create Data Source"}
@@ -381,7 +454,26 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
       onClose={onClose}
       onSubmit={handleSubmit}
       width={650}
+      isSubmitting={isSubmitting}
     >
+      {submitError && (
+        <>
+          <EuiCallOut
+            title={
+              isEdit
+                ? "Unable to update data source"
+                : "Unable to create data source"
+            }
+            color="danger"
+            iconType="alert"
+            size="s"
+          >
+            <p>{submitError}</p>
+          </EuiCallOut>
+          <EuiSpacer size="m" />
+        </>
+      )}
+
       <NameDescriptionOwnerFields
         name={formData.name}
         description={formData.description}
@@ -396,11 +488,31 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
         descriptionPlaceholder="Describe this data source..."
       />
 
-      <EuiFormRow label="Source Type" helpText="Type of the data source.">
+      <EuiFormRow
+        label="Source Type"
+        helpText="The type of underlying storage system for this data source."
+      >
         <EuiSelect
           options={SOURCE_TYPE_OPTIONS}
           value={formData.sourceType}
-          onChange={(e) => updateField("sourceType", e.target.value)}
+          onChange={(e) => {
+            updateField("sourceType", e.target.value);
+            // Clear source-specific errors when type changes
+            setErrors((prev) => {
+              const next = { ...prev };
+              delete next.fileUri;
+              delete next.bigqueryTable;
+              delete next.snowflakeTable;
+              delete next.snowflakeDatabase;
+              delete next.redshiftTable;
+              delete next.redshiftDatabase;
+              delete next.kafkaBootstrapServers;
+              delete next.kafkaTopic;
+              delete next.sparkTable;
+              delete next.timestampField;
+              return next;
+            });
+          }}
           disabled={isEdit}
         />
       </EuiFormRow>
@@ -419,17 +531,20 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           <EuiSpacer size="m" />
           <EuiFormRow
             label="Timestamp Field"
-            helpText="Event timestamp column name."
+            isInvalid={!!errors.timestampField}
+            error={errors.timestampField}
+            helpText="Column containing the event timestamp. Required for point-in-time correct feature retrieval."
           >
             <EuiFieldText
               value={formData.timestampField}
               onChange={(e) => updateField("timestampField", e.target.value)}
+              isInvalid={!!errors.timestampField}
               placeholder="event_timestamp"
             />
           </EuiFormRow>
           <EuiFormRow
             label="Created Timestamp Column"
-            helpText="Column tracking when the row was created."
+            helpText="Optional: column tracking when the row was written (used for deduplication)."
           >
             <EuiFieldText
               value={formData.createdTimestampColumn}
