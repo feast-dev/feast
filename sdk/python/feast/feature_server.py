@@ -309,7 +309,7 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
     agent's trace tree.
     """
     mlflow_cfg = getattr(store.config, "mlflow", None)
-    if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.enable_tracing:
+    if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.enable_distributed_tracing:
         return
 
     try:
@@ -321,6 +321,12 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
         logger.debug(
             "opentelemetry-instrumentation-fastapi not installed; "
             "cross-process trace linking disabled"
+        )
+    except Exception:
+        logger.warning(
+            "Failed to instrument FastAPI for tracing; "
+            "cross-process trace linking disabled",
+            exc_info=True,
         )
 
 

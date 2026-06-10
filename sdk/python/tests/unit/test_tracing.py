@@ -230,13 +230,13 @@ class TestLazyInit:
         store.config.mlflow.enabled = False
         assert feast.tracing._lazy_init(store) is False
 
-    def test_disabled_when_enable_tracing_false(self):
+    def test_disabled_when_enable_distributed_tracing_false(self):
         import feast.tracing
 
         feast.tracing._initialized = False
         store = MagicMock()
         store.config.mlflow.enabled = True
-        store.config.mlflow.enable_tracing = False
+        store.config.mlflow.enable_distributed_tracing = False
         assert feast.tracing._lazy_init(store) is False
 
     def test_idempotent(self):
@@ -255,7 +255,7 @@ class TestLazyInit:
         feast.tracing._initialized = False
         store = MagicMock()
         store.config.mlflow.enabled = True
-        store.config.mlflow.enable_tracing = True
+        store.config.mlflow.enable_distributed_tracing = True
         store.config.mlflow.get_tracking_uri.return_value = None
         store.config.project = "test_project"
 
@@ -283,17 +283,17 @@ class TestTracedToolSpan:
 
 
 class TestMlflowConfigFields:
-    def test_enable_tracing_default_is_true(self):
+    def test_enable_distributed_tracing_default_is_true(self):
         from feast.mlflow_integration.config import MlflowConfig
 
         cfg = MlflowConfig()
-        assert cfg.enable_tracing is True
+        assert cfg.enable_distributed_tracing is True
 
-    def test_enable_tracing_can_disable(self):
+    def test_enable_distributed_tracing_can_disable(self):
         from feast.mlflow_integration.config import MlflowConfig
 
-        cfg = MlflowConfig(enable_tracing=False)
-        assert cfg.enable_tracing is False
+        cfg = MlflowConfig(enable_distributed_tracing=False)
+        assert cfg.enable_distributed_tracing is False
 
 
 # ---------------------------------------------------------------------------

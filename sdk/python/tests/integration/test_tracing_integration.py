@@ -120,7 +120,7 @@ def feast_objects(driver_parquet):
     return driver, source, fv, fs
 
 
-def _make_store(tmp_path, tracking_uri, *, enable_tracing=True):
+def _make_store(tmp_path, tracking_uri, *, enable_distributed_tracing=True):
     data_dir = tmp_path / "data"
     data_dir.mkdir(exist_ok=True)
 
@@ -134,7 +134,7 @@ def _make_store(tmp_path, tracking_uri, *, enable_tracing=True):
             enabled=True,
             tracking_uri=tracking_uri,
             auto_log=True,
-            enable_tracing=enable_tracing,
+            enable_distributed_tracing=enable_distributed_tracing,
         ),
     )
     return FeatureStore(config=config)
@@ -143,7 +143,7 @@ def _make_store(tmp_path, tracking_uri, *, enable_tracing=True):
 @pytest.fixture()
 def store_with_tracing(driver_parquet, tracking_uri, feast_objects):
     tmp_path, _ = driver_parquet
-    store = _make_store(tmp_path, tracking_uri, enable_tracing=True)
+    store = _make_store(tmp_path, tracking_uri, enable_distributed_tracing=True)
     store.apply(list(feast_objects))
     store.materialize(
         start_date=datetime.now() - timedelta(days=7),
@@ -162,7 +162,7 @@ class TestTracingInitialization:
         self, driver_parquet, tracking_uri, feast_objects
     ):
         tmp_path, _ = driver_parquet
-        store = _make_store(tmp_path, tracking_uri, enable_tracing=True)
+        store = _make_store(tmp_path, tracking_uri, enable_distributed_tracing=True)
         store.apply(list(feast_objects))
         result = feast_tracing._lazy_init(store)
         assert result is True
@@ -173,7 +173,7 @@ class TestTracingInitialization:
         self, driver_parquet, tracking_uri, feast_objects
     ):
         tmp_path, _ = driver_parquet
-        store = _make_store(tmp_path, tracking_uri, enable_tracing=False)
+        store = _make_store(tmp_path, tracking_uri, enable_distributed_tracing=False)
         result = feast_tracing._lazy_init(store)
         assert result is False
 

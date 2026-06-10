@@ -1,39 +1,46 @@
-# Feast MLflow Tracing
+# MLflow Distributed Tracing
+
+When `enable_distributed_tracing` is `true` (the default when `mlflow.enabled=true`), server-side API calls create MLflow trace spans via `mlflow.start_span()`. Spans appear in the MLflow UI **Traces** tab and support parent-child linking via W3C `traceparent` headers.
 
 ## Configuration
 
-Add to `feature_store.yaml`:
+Add `enable_distributed_tracing` to the `mlflow` section of your `feature_store.yaml`:
 
 ```yaml
 mlflow:
   enabled: true
   tracking_uri: "http://localhost:5000"
-  enable_distributed_tracing: true
+  enable_distributed_tracing: true   # default when mlflow.enabled=true
 ```
 
 Start MLflow:
+
 ```bash
 mlflow server --host 0.0.0.0 --port 5000
 ```
 
 All feature server endpoints will emit MLflow traces automatically.
 
----
+See [MLflow Integration](mlflow.md) for the full list of `mlflow` configuration options.
 
-## Automatic Server Traces (MCP & HTTP Clients)
+## Automatic server traces (MCP & HTTP clients)
 
 When any client (Cursor, Claude Desktop, or direct HTTP) calls the Feast feature server, traces are created automatically with no client-side code changes.
 
 Each trace includes:
-- `feast.feature_refs` — which features were served
-- `feast.entity_count` — number of entities in the request
-- `feast.project` — project name
-- `feast.retrieval_type` — `online`
-- `feast.mcp_session_id` — MCP session identifier (when called via MCP)
+
+| Span attribute | Description |
+|----------------|-------------|
+| `feast.feature_refs` | Which features were served |
+| `feast.entity_count` | Number of entities in the request |
+| `feast.project` | Project name |
+| `feast.retrieval_type` | `online` |
+| `feast.mcp_session_id` | MCP session identifier (when called via MCP) |
 
 The `mcp_session_id` groups all tool calls from a single MCP session (e.g., one Cursor chat conversation), allowing you to filter and correlate all feature retrievals made during that session.
 
 **MCP client configuration** (`mcp.json`):
+
 ```json
 {
   "mcpServers": {
@@ -44,11 +51,9 @@ The `mcp_session_id` groups all tool calls from a single MCP session (e.g., one 
 }
 ```
 
-**Result**: Independent traces per request in MLflow, filterable by `feast.mcp_session_id`.
+**Result:** Independent traces per request in MLflow, filterable by `feast.mcp_session_id`.
 
----
-
-## Cross-Process Trace Linking (HTTP Agents)
+## Cross-process trace linking (HTTP agents)
 
 When your agent calls the Feast feature server over HTTP, pass the `traceparent` header to produce a unified trace tree in MLflow.
 
@@ -74,11 +79,9 @@ def my_agent(entity_id: int):
     return response.choices[0].message.content
 ```
 
-**Result**: A single MLflow trace containing both agent spans and Feast server spans.
+**Result:** A single MLflow trace containing both agent spans and Feast server spans.
 
----
-
-## In-Process Feature Context Tagging (SDK Usage)
+## In-process feature context tagging (SDK usage)
 
 When using Feast as a Python library, use `feast_trace_scope` to capture which features were retrieved and attach that metadata to the LLM span.
 
@@ -102,7 +105,7 @@ def my_agent(entity_id: int):
             entity_rows=[{"entity_id": entity_id}],
         )
         ctx.push_retrieval(feature_refs)
-        context_attrs = ctx.get_context_attributes()  # must be inside the scope
+        context_attrs = ctx.get_context_attributes()
 
     with mlflow.start_span(name="llm_call") as span:
         span.set_attributes(context_attrs)
@@ -111,14 +114,13 @@ def my_agent(entity_id: int):
     return response.choices[0].message.content
 ```
 
-**Result**: The LLM span in MLflow contains:
+**Result:** The LLM span in MLflow contains:
+
 - `feast.context_features` — which features were retrieved
 - `feast.context_feature_views` — which feature views were queried
 - `feast.context_feature_count` — number of features
 
----
-
-## API Reference
+## API reference
 
 | Function | Description |
 |----------|-------------|
@@ -127,4 +129,4 @@ def my_agent(entity_id: int):
 | `ctx.push_retrieval(feature_refs)` | Records retrieved feature references |
 | `ctx.get_context_attributes()` | Returns span-ready `dict` of accumulated metadata |
 
-**Important**: Call `ctx.get_context_attributes()` inside the `with feast_trace_scope()` block. The context is cleared on scope exit.
+**Important:** Call `ctx.get_context_attributes()` inside the `with feast_trace_scope()` block. The context is cleared on scope exit.

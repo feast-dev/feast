@@ -275,6 +275,10 @@ class SqliteOnlineStore(OnlineStore):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
+                # SQLite may return timestamps as int/float (epoch) or
+                # datetime depending on how they were stored.  Handle both
+                # explicitly since detect_types=PARSE_DECLTYPES was removed
+                # from the connection to avoid ambiguous auto-parsing.
                 if isinstance(ts, (int, float)):
                     res_ts = datetime.fromtimestamp(ts, tz=timezone.utc)
                 else:
@@ -674,6 +678,8 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key_value in entity_dict:
             res_event_ts: Optional[datetime] = None
             res_entity_key_proto: Optional[EntityKeyProto] = None
+            # See comment in online_read() — timestamps may arrive as
+            # int/float (epoch) or datetime after detect_types removal.
             raw_ts = entity_dict[entity_key_value]["event_ts"]
             if isinstance(raw_ts, (int, float)):
                 res_event_ts = datetime.fromtimestamp(raw_ts, tz=timezone.utc)

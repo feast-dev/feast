@@ -48,7 +48,7 @@ def _lazy_init(store: "FeatureStore") -> bool:
     mlflow_cfg = getattr(store.config, "mlflow", None)
     if mlflow_cfg is None or not mlflow_cfg.enabled:
         return False
-    if not mlflow_cfg.enable_tracing:
+    if not mlflow_cfg.enable_distributed_tracing:
         return False
 
     try:
@@ -137,6 +137,9 @@ def traced_tool_span(
         # Flush before parent_ctx exits — the parent context cleanup
         # removes the trace from MLflow's in-memory manager, so the
         # async exporter must send the span before that happens.
+        # Note: this is a synchronous call that may briefly block, but
+        # it only runs for cross-process linked spans (traceparent
+        # present) and is necessary for correctness.
         if has_traceparent:
             try:
                 _mlflow_mod.flush_trace_async_logging()

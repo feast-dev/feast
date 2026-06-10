@@ -74,10 +74,11 @@ def get_current_context() -> Optional[FeastTraceContext]:
 @contextmanager
 def feast_trace_scope() -> Iterator[FeastTraceContext]:
     """Context manager that creates and cleans up a ``FeastTraceContext``."""
+    prev = getattr(_thread_local, "feast_ctx", None)
     ctx = FeastTraceContext()
     _thread_local.feast_ctx = ctx
     try:
         yield ctx
     finally:
         ctx.clear()
-        _thread_local.feast_ctx = None
+        _thread_local.feast_ctx = prev
