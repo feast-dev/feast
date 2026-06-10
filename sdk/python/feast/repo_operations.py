@@ -424,6 +424,51 @@ def apply_total_with_repo_instance(
         # Cleanup is handled in the new _apply_diffs method
         pass
 
+    # Submit baseline jobs if needed
+    dqm = store.config.data_quality_monitoring_config
+    if dqm is not None and dqm.auto_baseline:
+        _submit_baseline_jobs(store, project_name, repo)
+
+
+def _submit_baseline_jobs(store, project_name, repo):
+    try:
+        from feast.monitoring.monitoring_service import MonitoringService
+
+        svc = MonitoringService(store)
+        feature_views = list(repo.feature_views)
+        if not feature_views:
+            return
+
+        job_ids = svc.submit_baseline_for_new_features(
+            project=project_name, feature_views=feature_views
+        )
+        if not job_ids:
+            return
+
+        import threading
+
+        def _run_baseline_jobs():
+            for job_id in job_ids:
+                try:
+                    svc.execute_job(job_id)
+                    click.echo(f"  ✓ Baseline computed (job: {job_id})")
+                except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Baseline job %s execution failed (non-critical)",
+                        job_id,
+                        exc_info=True,
+                    )
+
+        click.echo(
+            f"  → Computing baseline metrics in background ({len(job_ids)} job(s))..."
+        )
+        thread = threading.Thread(target=_run_baseline_jobs)
+        thread.start()
+    except Exception:
+        logging.getLogger(__name__).debug(
+            "Monitoring baseline submission skipped (non-critical)", exc_info=True
+        )
+
 
 def log_infra_changes(
     views_to_keep: Set[FeatureView], views_to_delete: Set[FeatureView]

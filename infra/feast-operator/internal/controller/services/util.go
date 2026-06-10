@@ -317,7 +317,7 @@ func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error)
 	val := reflect.ValueOf(s)
 
 	// Check that the object is a pointer so we can modify it
-	if val.Kind() != reflect.Ptr || val.IsNil() {
+	if val.Kind() != reflect.Pointer || val.IsNil() {
 		return false, fmt.Errorf("expected a pointer to struct, got %v", val.Kind())
 	}
 

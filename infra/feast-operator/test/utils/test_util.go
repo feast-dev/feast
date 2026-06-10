@@ -27,6 +27,8 @@ const (
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
 	FeatureStoreResourceName = "featurestores.feast.dev"
+	feastCommand             = "feast"
+	listCommand              = "list"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -548,27 +550,27 @@ func VerifyFeastMethods(namespace string, feastDeploymentName string, testDir st
 	}
 	checks := []feastCheck{
 		{
-			command:   []string{"feast", "projects", "list"},
+			command:   []string{feastCommand, "projects", listCommand},
 			expected:  []string{"credit_scoring_local"},
 			logPrefix: "Projects List",
 		},
 		{
-			command:   []string{"feast", "feature-views", "list"},
+			command:   []string{feastCommand, "feature-views", listCommand},
 			expected:  []string{"credit_history", "zipcode_features", "total_debt_calc"},
 			logPrefix: "Feature Views List",
 		},
 		{
-			command:   []string{"feast", "entities", "list"},
+			command:   []string{feastCommand, "entities", listCommand},
 			expected:  []string{"zipcode", "dob_ssn"},
 			logPrefix: "Entities List",
 		},
 		{
-			command:   []string{"feast", "data-sources", "list"},
+			command:   []string{feastCommand, "data-sources", listCommand},
 			expected:  []string{"Zipcode source", "Credit history", "application_data"},
 			logPrefix: "Data Sources List",
 		},
 		{
-			command: []string{"feast", "features", "list"},
+			command: []string{feastCommand, "features", listCommand},
 			expected: []string{
 				"credit_card_due", "mortgage_due", "student_loan_due", "vehicle_loan_due",
 				"hard_pulls", "missed_payments_2y", "missed_payments_1y", "missed_payments_6m",
