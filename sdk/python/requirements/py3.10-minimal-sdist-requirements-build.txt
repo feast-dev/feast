@@ -1024,6 +1024,7 @@ tomli==2.4.1 \
     #   scikit-build-core
     #   setuptools-git-versioning
     #   setuptools-scm
+    #   vcs-versioning
     #   versioneer
     #   yarl
 tomlkit==0.15.0 \

@@ -347,5 +347,3 @@ Start the Feast UI with:
 ```bash
 feast ui --host 127.0.0.1 --port 8888
 ```
-
-See also: [MLflow Distributed Tracing](mlflow-distributed-tracing.md) for cross-process trace linking, automatic server traces, and feature context tagging.
