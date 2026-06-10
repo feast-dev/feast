@@ -130,9 +130,7 @@ const FeatureViewMetricsPanel = ({
       field: "data_source_type",
       name: "Source",
       width: "80px",
-      render: (val: string) => (
-        <EuiBadge color="hollow">{val}</EuiBadge>
-      ),
+      render: (val: string) => <EuiBadge color="hollow">{val}</EuiBadge>,
     },
   ];
 
@@ -229,7 +227,10 @@ const SortableTable = ({
       items={sortedItems}
       columns={columns}
       sorting={{
-        sort: { field: sortField as keyof FeatureViewMetric, direction: sortDirection },
+        sort: {
+          field: sortField as keyof FeatureViewMetric,
+          direction: sortDirection,
+        },
       }}
       onChange={onTableChange}
       compressed

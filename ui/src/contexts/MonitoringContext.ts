@@ -7,7 +7,7 @@ interface MonitoringConfig {
 
 const MonitoringContext = React.createContext<MonitoringConfig>({
   apiBaseUrl: "/api/v1",
-  enabled: true,
+  enabled: false,
 });
 
 export default MonitoringContext;

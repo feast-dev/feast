@@ -1,6 +1,8 @@
 import { useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import MonitoringContext from "../contexts/MonitoringContext";
+import { useDataMode } from "../contexts/DataModeContext";
+import type { FetchOptions } from "../contexts/DataModeContext";
 
 interface FeatureMetric {
   project_id: string;
@@ -101,21 +103,34 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
     ([, v]) => v !== undefined && v !== "",
   );
   if (entries.length === 0) return "";
-  return "?" + entries.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join("&");
+  return (
+    "?" + entries.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join("&")
+  );
 };
 
 const fetchMonitoring = async <T>(
   baseUrl: string,
   path: string,
   params: Record<string, string | undefined>,
+  fetchOptions?: FetchOptions,
 ): Promise<T> => {
   const qs = buildQueryString(params);
-  const res = await fetch(`${baseUrl}${path}${qs}`);
+  const res = await fetch(`${baseUrl}${path}${qs}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...fetchOptions?.headers,
+    },
+    credentials: fetchOptions?.credentials,
+  });
   if (!res.ok) {
     throw new Error(`Failed to fetch ${path}: ${res.status} ${res.statusText}`);
   }
   const text = await res.text();
-  const sanitized = text.replace(/:\s*NaN/g, ": null").replace(/:\s*Infinity/g, ": null").replace(/:\s*-Infinity/g, ": null");
+  const sanitized = text
+    .replace(/:\s*NaN/g, ": null")
+    .replace(/:\s*Infinity/g, ": null")
+    .replace(/:\s*-Infinity/g, ": null");
   return JSON.parse(sanitized);
 };
 
@@ -123,6 +138,7 @@ const STALE_TIME = 30_000;
 
 const useFeatureMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
   const path = filters.is_baseline
     ? "/monitoring/metrics/baseline"
     : "/monitoring/metrics/features";
@@ -133,6 +149,7 @@ const useFeatureMetrics = (filters: MonitoringFilters) => {
         apiBaseUrl,
         path,
         toQueryParams(filters),
+        fetchOptions,
       ),
     { staleTime: STALE_TIME, enabled, retry: 1 },
   );
@@ -165,14 +182,14 @@ const aggregateToFeatureViewMetrics = (
         nullRates.length > 0
           ? nullRates.reduce((a, b) => a + b, 0) / nullRates.length
           : 0,
-      max_null_rate:
-        nullRates.length > 0 ? Math.max(...nullRates) : 0,
+      max_null_rate: nullRates.length > 0 ? Math.max(...nullRates) : 0,
     };
   });
 };
 
 const useFeatureViewMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
   const isBaseline = !!filters.is_baseline;
   return useQuery<FeatureViewMetric[]>(
     ["monitoring-feature-views", filters],
@@ -182,6 +199,7 @@ const useFeatureViewMetrics = (filters: MonitoringFilters) => {
           apiBaseUrl,
           "/monitoring/metrics/baseline",
           toQueryParams(filters),
+          fetchOptions,
         );
         return aggregateToFeatureViewMetrics(features);
       }
@@ -189,6 +207,7 @@ const useFeatureViewMetrics = (filters: MonitoringFilters) => {
         apiBaseUrl,
         "/monitoring/metrics/feature_views",
         toQueryParams(filters),
+        fetchOptions,
       );
     },
     { staleTime: STALE_TIME, enabled, retry: 1 },
@@ -197,6 +216,7 @@ const useFeatureViewMetrics = (filters: MonitoringFilters) => {
 
 const useFeatureServiceMetrics = (filters: MonitoringFilters) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
   return useQuery<FeatureServiceMetric[]>(
     ["monitoring-feature-services", filters],
     () =>
@@ -204,6 +224,7 @@ const useFeatureServiceMetrics = (filters: MonitoringFilters) => {
         apiBaseUrl,
         "/monitoring/metrics/feature_services",
         toQueryParams(filters),
+        fetchOptions,
       ),
     { staleTime: STALE_TIME, enabled, retry: 1 },
   );
@@ -216,6 +237,7 @@ const useBaselineMetrics = (
   dataSourceType?: string,
 ) => {
   const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
   return useQuery<FeatureMetric[]>(
     ["monitoring-baseline", project, featureViewName, featureName],
     () =>
@@ -228,20 +250,7 @@ const useBaselineMetrics = (
           feature_name: featureName,
           data_source_type: dataSourceType,
         },
-      ),
-    { staleTime: STALE_TIME, enabled, retry: 1 },
-  );
-};
-
-const useTimeseriesMetrics = (filters: MonitoringFilters) => {
-  const { apiBaseUrl, enabled } = useContext(MonitoringContext);
-  return useQuery<FeatureMetric[]>(
-    ["monitoring-timeseries", filters],
-    () =>
-      fetchMonitoring<FeatureMetric[]>(
-        apiBaseUrl,
-        "/monitoring/metrics/timeseries",
-        toQueryParams(filters),
+        fetchOptions,
       ),
     { staleTime: STALE_TIME, enabled, retry: 1 },
   );
@@ -249,15 +258,17 @@ const useTimeseriesMetrics = (filters: MonitoringFilters) => {
 
 const useComputeMetrics = () => {
   const { apiBaseUrl } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
   const queryClient = useQueryClient();
   return useMutation(
-    async (body: {
-      project: string;
-      feature_view_name?: string;
-    }) => {
+    async (body: { project: string; feature_view_name?: string }) => {
       const res = await fetch(`${apiBaseUrl}/monitoring/auto_compute`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...fetchOptions?.headers,
+        },
+        credentials: fetchOptions?.credentials,
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -280,7 +291,6 @@ export {
   useFeatureViewMetrics,
   useFeatureServiceMetrics,
   useBaselineMetrics,
-  useTimeseriesMetrics,
   useComputeMetrics,
 };
 export type {

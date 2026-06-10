@@ -22,6 +22,7 @@ interface MetricsFiltersProps {
   onEndDateChange: (d: string) => void;
   onRefresh: () => void;
   isLoading?: boolean;
+  datesDisabled?: boolean;
 }
 
 const GRANULARITY_OPTIONS = [
@@ -53,6 +54,7 @@ const MetricsFilters = ({
   onEndDateChange,
   onRefresh,
   isLoading,
+  datesDisabled,
 }: MetricsFiltersProps) => {
   const fvOptions = [
     { value: "", text: "All Feature Views" },
@@ -92,22 +94,30 @@ const MetricsFilters = ({
         </EuiFormRow>
       </EuiFlexItem>
       <EuiFlexItem grow={1}>
-        <EuiFormRow label="Start Date">
+        <EuiFormRow
+          label="Start Date"
+          helpText={datesDisabled ? "N/A for baseline" : undefined}
+        >
           <EuiFieldText
             type="date"
             value={startDate}
             onChange={(e) => onStartDateChange(e.target.value)}
             compressed
+            disabled={datesDisabled}
           />
         </EuiFormRow>
       </EuiFlexItem>
       <EuiFlexItem grow={1}>
-        <EuiFormRow label="End Date">
+        <EuiFormRow
+          label="End Date"
+          helpText={datesDisabled ? "N/A for baseline" : undefined}
+        >
           <EuiFieldText
             type="date"
             value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
             compressed
+            disabled={datesDisabled}
           />
         </EuiFormRow>
       </EuiFlexItem>

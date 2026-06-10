@@ -59,7 +59,8 @@ const formatNumber = (val: number, compact: boolean): string => {
   const abs = Math.abs(val);
   if (compact && abs >= 1_000_000) return (val / 1_000_000).toFixed(1) + "M";
   if (compact && abs >= 1_000) return (val / 1_000).toFixed(1) + "K";
-  if (abs >= 1) return val.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  if (abs >= 1)
+    return val.toLocaleString(undefined, { maximumFractionDigits: 1 });
   if (abs >= 0.01) return val.toFixed(2);
   return val.toExponential(1);
 };
@@ -210,7 +211,11 @@ const NumericHistogramChart = ({
   return (
     <>
       <EuiPanel hasBorder>
-        <EuiFlexGroup justifyContent="spaceBetween" alignItems="center" gutterSize="none">
+        <EuiFlexGroup
+          justifyContent="spaceBetween"
+          alignItems="center"
+          gutterSize="none"
+        >
           <EuiFlexItem grow={false}>
             {title && (
               <EuiTitle size="xxs">
@@ -310,7 +315,12 @@ const renderCategoricalSvg = (
   const chartHeight = histogram.values.length * rowHeight;
 
   return (
-    <svg width={totalW} height={chartHeight} role="img" aria-label="Category chart">
+    <svg
+      width={totalW}
+      height={chartHeight}
+      role="img"
+      aria-label="Category chart"
+    >
       {histogram.values.map((v, i) => {
         const width = (v.count / maxCount) * barMax;
         const y = i * rowHeight;
@@ -323,7 +333,9 @@ const renderCategoricalSvg = (
               fill="#343741"
               textAnchor="end"
             >
-              {v.value.length > truncLen ? v.value.slice(0, truncLen) + "…" : v.value}
+              {v.value.length > truncLen
+                ? v.value.slice(0, truncLen) + "…"
+                : v.value}
             </text>
             <rect
               x={labelW}
@@ -363,7 +375,11 @@ const CategoricalHistogramChart = ({
   return (
     <>
       <EuiPanel hasBorder>
-        <EuiFlexGroup justifyContent="spaceBetween" alignItems="center" gutterSize="none">
+        <EuiFlexGroup
+          justifyContent="spaceBetween"
+          alignItems="center"
+          gutterSize="none"
+        >
           <EuiFlexItem grow={false}>
             {title && (
               <EuiTitle size="xxs">
@@ -397,7 +413,9 @@ const CategoricalHistogramChart = ({
       {expanded && (
         <EuiModal onClose={() => setExpanded(false)} maxWidth={960}>
           <EuiModalHeader>
-            <EuiModalHeaderTitle>{title || "Category Distribution"}</EuiModalHeaderTitle>
+            <EuiModalHeaderTitle>
+              {title || "Category Distribution"}
+            </EuiModalHeaderTitle>
           </EuiModalHeader>
           <EuiModalBody>
             <div style={{ overflowX: "auto" }}>

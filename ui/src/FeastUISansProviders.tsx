@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import "./index.css";
 
@@ -109,6 +109,23 @@ const FeastUISansProvidersInner = ({
     fetchOptions: feastUIConfigs?.fetchOptions,
   };
 
+  const [autoMonitoringEnabled, setAutoMonitoringEnabled] = useState(false);
+  useEffect(() => {
+    if (feastUIConfigs?.monitoringConfig) return;
+    fetch("/api/v1/monitoring/config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.enabled) setAutoMonitoringEnabled(true);
+      })
+      .catch(() => {});
+  }, [feastUIConfigs?.monitoringConfig]);
+
+  const monitoringConfig: MonitoringConfig =
+    feastUIConfigs?.monitoringConfig || {
+      apiBaseUrl: "/api/v1",
+      enabled: autoMonitoringEnabled,
+    };
+
   return (
     <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
@@ -144,14 +161,7 @@ const FeastUISansProvidersInner = ({
             <FeatureFlagsContext.Provider
               value={feastUIConfigs?.featureFlags || {}}
             >
-              <MonitoringContext.Provider
-                value={
-                  feastUIConfigs?.monitoringConfig || {
-                    apiBaseUrl: "/api/v1",
-                    enabled: true,
-                  }
-                }
-              >
+              <MonitoringContext.Provider value={monitoringConfig}>
                 <ProjectListContext.Provider value={projectListContext}>
                   <Routes>
                     <Route path="/" element={<Layout />}>
@@ -195,7 +205,10 @@ const FeastUISansProvidersInner = ({
                           path="entity/:entityName/*"
                           element={<EntityInstance />}
                         />
-                        <Route path="label-view/" element={<LabelViewIndex />} />
+                        <Route
+                          path="label-view/"
+                          element={<LabelViewIndex />}
+                        />
                         <Route
                           path="label-view/:labelViewName/*"
                           element={<LabelViewInstance />}

@@ -49,15 +49,11 @@ const FeatureMonitoringTab = () => {
     if (!metrics || metrics.length === 0) return null;
     const withData = metrics.filter((m) => m.row_count > 0);
     const candidates = withData.length > 0 ? withData : metrics;
-    return candidates.reduce((a, b) =>
-      a.metric_date > b.metric_date ? a : b,
-    );
+    return candidates.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
   })();
 
   const baselineMetric =
-    baselineMetrics && baselineMetrics.length > 0
-      ? baselineMetrics[0]
-      : null;
+    baselineMetrics && baselineMetrics.length > 0 ? baselineMetrics[0] : null;
 
   if (isError || !latestMetric) {
     return (
@@ -66,15 +62,12 @@ const FeatureMonitoringTab = () => {
         title={<h3>No Monitoring Data</h3>}
         body={
           <p>
-            No monitoring metrics available for this feature. Run a
-            monitoring compute job to generate data quality metrics.
+            No monitoring metrics available for this feature. Run a monitoring
+            compute job to generate data quality metrics.
           </p>
         }
         actions={
-          <EuiButton
-            size="s"
-            href={`/p/${projectName}/monitoring`}
-          >
+          <EuiButton size="s" href={`/p/${projectName}/monitoring`}>
             Go to Monitoring
           </EuiButton>
         }
@@ -91,9 +84,7 @@ const FeatureMonitoringTab = () => {
           {isNumeric && latestMetric.histogram && (
             <NumericHistogramChart
               histogram={latestMetric.histogram as NumericHistogram}
-              baseline={
-                baselineMetric?.histogram as NumericHistogram | null
-              }
+              baseline={baselineMetric?.histogram as NumericHistogram | null}
               title="Distribution"
             />
           )}

@@ -209,17 +209,61 @@ const FeatureMetricsTable = ({
   const [isLegendOpen, setIsLegendOpen] = useState(false);
 
   const columnLegend = [
-    { title: "Feature", description: "Name of the individual feature. Click to view full distribution and detailed statistics." },
-    { title: "Feature View", description: "The feature view this feature belongs to — a logical grouping of related features sharing the same data source." },
-    { title: "Type", description: "Data type: numeric (continuous/discrete numbers) or categorical (strings/labels)." },
-    { title: "Distribution", description: "Compact histogram showing the value distribution. Blue bars = numeric, orange bars = categorical." },
-    { title: "Rows", description: "Total number of rows (data points) observed for this feature in the computed time window." },
-    { title: "Null Rate", description: "Percentage of rows with missing (null) values. Shown as a progress bar colored by severity." },
-    { title: "Health", description: "Data quality indicator based on null rate: Healthy (< 10%), Moderate (10–49%), High (>= 50%)." },
-    { title: "Mean", description: "Arithmetic mean of the feature values. Only shown for numeric features." },
-    { title: "Std Dev", description: "Standard deviation — measures how spread out the values are from the mean. Only for numeric features." },
-    { title: "Freshness", description: "Recency of the underlying data. Green (< 24h old), Yellow (24–72h), Red (> 72h). Hover for the data date." },
-    { title: "Source", description: "Data source type used for metric computation (e.g. batch, stream)." },
+    {
+      title: "Feature",
+      description:
+        "Name of the individual feature. Click to view full distribution and detailed statistics.",
+    },
+    {
+      title: "Feature View",
+      description:
+        "The feature view this feature belongs to — a logical grouping of related features sharing the same data source.",
+    },
+    {
+      title: "Type",
+      description:
+        "Data type: numeric (continuous/discrete numbers) or categorical (strings/labels).",
+    },
+    {
+      title: "Distribution",
+      description:
+        "Compact histogram showing the value distribution. Blue bars = numeric, orange bars = categorical.",
+    },
+    {
+      title: "Rows",
+      description:
+        "Total number of rows (data points) observed for this feature in the computed time window.",
+    },
+    {
+      title: "Null Rate",
+      description:
+        "Percentage of rows with missing (null) values. Shown as a progress bar colored by severity.",
+    },
+    {
+      title: "Health",
+      description:
+        "Data quality indicator based on null rate: Healthy (< 10%), Moderate (10–49%), High (>= 50%).",
+    },
+    {
+      title: "Mean",
+      description:
+        "Arithmetic mean of the feature values. Only shown for numeric features.",
+    },
+    {
+      title: "Std Dev",
+      description:
+        "Standard deviation — measures how spread out the values are from the mean. Only for numeric features.",
+    },
+    {
+      title: "Freshness",
+      description:
+        "Recency of the underlying data. Green (< 24h old), Yellow (24–72h), Red (> 72h). Hover for the data date.",
+    },
+    {
+      title: "Source",
+      description:
+        "Data source type used for metric computation (e.g. batch, stream).",
+    },
   ];
 
   const columns: EuiBasicTableColumn<FeatureMetric>[] = [
@@ -228,9 +272,7 @@ const FeatureMetricsTable = ({
       name: "Feature",
       sortable: true,
       render: (name: string, item: FeatureMetric) => (
-        <EuiLink
-          onClick={() => onFeatureClick(item.feature_view_name, name)}
-        >
+        <EuiLink onClick={() => onFeatureClick(item.feature_view_name, name)}>
           {name}
         </EuiLink>
       ),

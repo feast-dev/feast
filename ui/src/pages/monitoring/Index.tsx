@@ -40,17 +40,33 @@ const MonitoringIndex = () => {
 
   const isBaseline = granularity === "baseline";
 
+  const handleGranularityChange = (g: string) => {
+    setGranularity(g);
+    if (g === "baseline") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
   const filters = useMemo(
     () => ({
       project: projectName || "",
       feature_view_name: selectedFV || undefined,
       granularity: isBaseline ? undefined : granularity || undefined,
       data_source_type: dataSourceType || undefined,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
+      start_date: isBaseline ? undefined : startDate || undefined,
+      end_date: isBaseline ? undefined : endDate || undefined,
       is_baseline: isBaseline || undefined,
     }),
-    [projectName, selectedFV, granularity, isBaseline, dataSourceType, startDate, endDate],
+    [
+      projectName,
+      selectedFV,
+      granularity,
+      isBaseline,
+      dataSourceType,
+      startDate,
+      endDate,
+    ],
   );
 
   const featureQuery = useFeatureMetrics(filters);
@@ -71,9 +87,7 @@ const MonitoringIndex = () => {
   }, [registryData]);
 
   const handleFeatureClick = (fvName: string, featureName: string) => {
-    navigate(
-      `/p/${projectName}/monitoring/feature/${fvName}/${featureName}`,
-    );
+    navigate(`/p/${projectName}/monitoring/feature/${fvName}/${featureName}`);
   };
 
   const uniqueFeatureCount = useMemo(() => {
@@ -98,8 +112,7 @@ const MonitoringIndex = () => {
     });
   };
 
-  const hasError =
-    featureQuery.isError && fvQuery.isError && fsQuery.isError;
+  const hasError = featureQuery.isError && fvQuery.isError && fsQuery.isError;
   const hasData =
     (featureQuery.data && featureQuery.data.length > 0) ||
     (fvQuery.data && fvQuery.data.length > 0);
@@ -191,7 +204,7 @@ const MonitoringIndex = () => {
           selectedFeatureView={selectedFV}
           onFeatureViewChange={setSelectedFV}
           granularity={granularity}
-          onGranularityChange={setGranularity}
+          onGranularityChange={handleGranularityChange}
           dataSourceType={dataSourceType}
           onDataSourceTypeChange={setDataSourceType}
           startDate={startDate}
@@ -200,6 +213,7 @@ const MonitoringIndex = () => {
           onEndDateChange={setEndDate}
           onRefresh={handleRefresh}
           isLoading={featureQuery.isLoading}
+          datesDisabled={isBaseline}
         />
 
         <EuiSpacer />

@@ -46,9 +46,7 @@ const FeatureMetricsDetail = () => {
   const navigate = useNavigate();
   const [selectedGranularity, setSelectedGranularity] = useState("");
 
-  useDocumentTitle(
-    `${featureName} Monitoring | ${featureViewName} | Feast`,
-  );
+  useDocumentTitle(`${featureName} Monitoring | ${featureViewName} | Feast`);
 
   const {
     data: metrics,
@@ -67,9 +65,7 @@ const FeatureMetricsDetail = () => {
   );
 
   const baselineMetric =
-    baselineMetrics && baselineMetrics.length > 0
-      ? baselineMetrics[0]
-      : null;
+    baselineMetrics && baselineMetrics.length > 0 ? baselineMetrics[0] : null;
 
   const availableGranularities = useMemo(() => {
     const granularities = new Set<string>();
@@ -97,7 +93,8 @@ const FeatureMetricsDetail = () => {
     return options;
   }, [availableGranularities, baselineMetric]);
 
-  const effectiveGranularity = selectedGranularity || availableGranularities[0] || "";
+  const effectiveGranularity =
+    selectedGranularity || availableGranularities[0] || "";
 
   const activeMetric = useMemo(() => {
     if (effectiveGranularity === BASELINE_KEY && baselineMetric) {
@@ -114,9 +111,7 @@ const FeatureMetricsDetail = () => {
         a.metric_date > b.metric_date ? a : b,
       );
     }
-    return matching.reduce((a, b) =>
-      a.metric_date > b.metric_date ? a : b,
-    );
+    return matching.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
   }, [metrics, effectiveGranularity, baselineMetric]);
 
   const breadcrumbs = [
@@ -155,8 +150,8 @@ const FeatureMetricsDetail = () => {
               <p>
                 No monitoring metrics found for feature{" "}
                 <strong>{featureName}</strong> in feature view{" "}
-                <strong>{featureViewName}</strong>. Run a monitoring
-                compute job first.
+                <strong>{featureViewName}</strong>. Run a monitoring compute job
+                first.
               </p>
             }
             actions={
@@ -244,9 +239,7 @@ const FeatureMetricsDetail = () => {
           </EuiFlexItem>
 
           <EuiFlexItem grow={1}>
-            <StatsPanel
-              metric={activeMetric}
-            />
+            <StatsPanel metric={activeMetric} />
           </EuiFlexItem>
         </EuiFlexGroup>
 

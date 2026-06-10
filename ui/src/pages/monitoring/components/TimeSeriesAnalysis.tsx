@@ -12,7 +12,16 @@ import type {
   CategoricalHistogram,
 } from "../../../queries/useMonitoringApi";
 
-const COLORS = ["#006BB4", "#54B399", "#E7664C", "#9170B8", "#D36086", "#6092C0", "#D6BF57", "#B9A888"];
+const COLORS = [
+  "#006BB4",
+  "#54B399",
+  "#E7664C",
+  "#9170B8",
+  "#D36086",
+  "#6092C0",
+  "#D6BF57",
+  "#B9A888",
+];
 
 const RANGE_OPTIONS = [
   { value: "24h", inputDisplay: "Last 24 hours" },
@@ -75,6 +84,7 @@ const niceYTicks = (min: number, max: number, count = 5): number[] => {
 interface LineSeriesData {
   label: string;
   color: string;
+  dashArray?: string;
   points: { x: number; y: number; date: string; value: number }[];
 }
 
@@ -172,18 +182,29 @@ const renderMultiLineChart = (
         if (s.points.length === 0) return null;
         const sorted = [...s.points].sort((a, b) => a.x - b.x);
         const pathD = sorted
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${scaleX(p.x)} ${scaleY(p.value)}`)
+          .map(
+            (p, i) =>
+              `${i === 0 ? "M" : "L"} ${scaleX(p.x)} ${scaleY(p.value)}`,
+          )
           .join(" ");
         return (
           <g key={si}>
-            <path d={pathD} fill="none" stroke={s.color} strokeWidth={2} />
+            <path
+              d={pathD}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeDasharray={s.dashArray}
+            />
             {sorted.map((p, i) => (
               <circle
                 key={i}
                 cx={scaleX(p.x)}
                 cy={scaleY(p.value)}
-                r={3}
+                r={s.dashArray ? 4 : 3}
                 fill={s.color}
+                stroke={s.dashArray ? "#fff" : undefined}
+                strokeWidth={s.dashArray ? 1 : undefined}
               />
             ))}
           </g>
@@ -292,7 +313,11 @@ const renderAreaChart = (
   );
 };
 
-const Legend = ({ items }: { items: { label: string; color: string }[] }) => (
+const Legend = ({
+  items,
+}: {
+  items: { label: string; color: string; dashed?: boolean }[];
+}) => (
   <div
     style={{
       display: "flex",
@@ -304,14 +329,28 @@ const Legend = ({ items }: { items: { label: string; color: string }[] }) => (
   >
     {items.map((item, i) => (
       <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <div
-          style={{
-            width: 12,
-            height: 12,
-            backgroundColor: item.color,
-            borderRadius: 2,
-          }}
-        />
+        {item.dashed ? (
+          <svg width={16} height={12}>
+            <line
+              x1={0}
+              y1={6}
+              x2={16}
+              y2={6}
+              stroke={item.color}
+              strokeWidth={2}
+              strokeDasharray="4,2"
+            />
+          </svg>
+        ) : (
+          <div
+            style={{
+              width: 12,
+              height: 12,
+              backgroundColor: item.color,
+              borderRadius: 2,
+            }}
+          />
+        )}
         <span style={{ fontSize: 12, color: "#343741" }}>{item.label}</span>
       </div>
     ))}
@@ -323,7 +362,10 @@ interface TimeSeriesAnalysisProps {
   featureType: string;
 }
 
-const TimeSeriesAnalysis = ({ metrics, featureType }: TimeSeriesAnalysisProps) => {
+const TimeSeriesAnalysis = ({
+  metrics,
+  featureType,
+}: TimeSeriesAnalysisProps) => {
   const [range, setRange] = useState("all");
 
   const filteredMetrics = useMemo(() => {
@@ -342,7 +384,7 @@ const TimeSeriesAnalysis = ({ metrics, featureType }: TimeSeriesAnalysisProps) =
 
   const toX = (m: FeatureMetric) => new Date(m.metric_date).getTime();
   const isNumeric = featureType === "numeric";
-  const hasData = sorted.length >= 2;
+  const hasData = sorted.length >= 1;
 
   return (
     <EuiPanel hasBorder>
@@ -368,8 +410,16 @@ const TimeSeriesAnalysis = ({ metrics, featureType }: TimeSeriesAnalysisProps) =
       <EuiSpacer size="m" />
 
       {!hasData ? (
-        <p style={{ color: "#69707D", fontSize: 13, textAlign: "center", padding: 24 }}>
-          No data points available for the selected time range. Try a wider range.
+        <p
+          style={{
+            color: "#69707D",
+            fontSize: 13,
+            textAlign: "center",
+            padding: 24,
+          }}
+        >
+          No data points available for the selected time range. Try a wider
+          range.
         </p>
       ) : isNumeric ? (
         <NumericTimeSeries metrics={sorted} toX={toX} />
@@ -392,9 +442,11 @@ const NumericTimeSeries = ({
       label: string,
       color: string,
       accessor: (m: FeatureMetric) => number | null,
+      dashArray?: string,
     ): LineSeriesData => ({
       label,
       color,
+      dashArray,
       points: metrics
         .filter((m) => accessor(m) !== null)
         .map((m) => ({
@@ -405,7 +457,7 @@ const NumericTimeSeries = ({
         })),
     });
     return [
-      build("Mean", COLORS[0], (m) => m.mean),
+      build("Mean", COLORS[0], (m) => m.mean, "6,3"),
       build("P50", COLORS[1], (m) => m.p50),
       build("P95", COLORS[2], (m) => m.p95),
     ];
@@ -431,7 +483,7 @@ const NumericTimeSeries = ({
       </div>
       <Legend
         items={[
-          { label: "Mean", color: COLORS[0] },
+          { label: "Mean", color: COLORS[0], dashed: true },
           { label: "P50", color: COLORS[1] },
           { label: "P95", color: COLORS[2] },
         ]}
@@ -564,7 +616,12 @@ const CategoricalTimeSeries = ({
         Top category share over time (%)
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderMultiLineChart(shareSeries, DIMS, "Percentage (%)", shareYFormatter)}
+        {renderMultiLineChart(
+          shareSeries,
+          DIMS,
+          "Percentage (%)",
+          shareYFormatter,
+        )}
       </div>
       <Legend
         items={topCategories.map((cat, i) => ({

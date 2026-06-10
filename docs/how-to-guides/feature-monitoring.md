@@ -43,16 +43,16 @@ Done!
 The baseline reads all available source data and stores the resulting statistics with `is_baseline=TRUE`. This serves as the reference distribution for future drift detection.
 
 Baseline computation is:
-- **Non-blocking** — `feast apply` returns immediately; computation runs asynchronously
+- **Threaded** — runs in a background thread but completes before `feast apply` exits
 - **Idempotent** — only features without existing baselines are computed; re-running `feast apply` won't recompute existing baselines
 
-### Disabling auto-baseline
+### Enabling auto-baseline
 
-To skip automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
+To enable automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
 
 ```yaml
-DataQualityMonitoring:
-  auto_baseline: false
+data_quality_monitoring:
+  auto_baseline: true
 ```
 
 When using the Feast operator, set this in the `FeatureStore` CR:
@@ -63,8 +63,10 @@ kind: FeatureStore
 spec:
   feastProject: my_project
   dataQualityMonitoring:
-    autoBaseline: false
+    autoBaseline: true
 ```
+
+To disable it, set `auto_baseline: false` (or `autoBaseline: false` in the CR).
 
 ## 3. Scheduled monitoring with the CLI
 

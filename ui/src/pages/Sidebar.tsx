@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
 import { EuiIcon, EuiSideNav, htmlIdGenerator } from "@elastic/eui";
 import { Link, useParams } from "react-router-dom";
 import { useMatchSubpath } from "../hooks/useMatchSubpath";
+import MonitoringContext from "../contexts/MonitoringContext";
 import useResourceQuery, {
   entityListPath,
   featureViewListPath,
@@ -84,6 +85,8 @@ const SideNav = () => {
     restSelect: restLabelViewsFromResponse,
   });
 
+  const { enabled: monitoringEnabled } = useContext(MonitoringContext);
+
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
   const toggleOpenOnMobile = () => {
@@ -99,6 +102,7 @@ const SideNav = () => {
   const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
+  const monitoringSelected = useMatchSubpath(`${baseUrl}/monitoring`);
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
@@ -176,24 +180,19 @@ const SideNav = () => {
           renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
-        {
-          name: "Monitoring",
-          id: htmlIdGenerator("monitoring")(),
-          icon: <EuiIcon type="monitoringApp" />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/monitoring`} />
-          ),
-          isSelected: useMatchSubpath(`${baseUrl}/monitoring`),
-        },
-        {
-          name: "Data Labeling",
-          id: htmlIdGenerator("dataLabeling")(),
-          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/data-labeling`} />
-          ),
-          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
-        },
+        ...(monitoringEnabled
+          ? [
+              {
+                name: "Monitoring",
+                id: htmlIdGenerator("monitoring")(),
+                icon: <EuiIcon type="monitoringApp" />,
+                renderItem: (props: any) => (
+                  <Link {...props} to={`${baseUrl}/monitoring`} />
+                ),
+                isSelected: monitoringSelected,
+              },
+            ]
+          : []),
         {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
