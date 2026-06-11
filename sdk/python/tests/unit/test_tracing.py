@@ -107,7 +107,7 @@ class TestFeastTraceScope:
             with feast_trace_scope() as inner:
                 assert get_current_context() is inner
                 assert inner.feature_refs == []
-            assert get_current_context() is None
+            assert get_current_context() is outer
 
 
 # ---------------------------------------------------------------------------

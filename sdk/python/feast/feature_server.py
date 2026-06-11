@@ -309,7 +309,11 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
     agent's trace tree.
     """
     mlflow_cfg = getattr(store.config, "mlflow", None)
-    if mlflow_cfg is None or not mlflow_cfg.enabled or not mlflow_cfg.enable_distributed_tracing:
+    if (
+        mlflow_cfg is None
+        or not mlflow_cfg.enabled
+        or not mlflow_cfg.enable_distributed_tracing
+    ):
         return
 
     try:
