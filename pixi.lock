@@ -2415,8 +2415,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.63.1.dev60+g5ac9591c4
-  sha256: bac0f68b1543789e02bc96dd5e7283aeee13ca2a7806cc4a9fd7ef2b8ebbb96d
+  version: 0.63.1.dev73+g8ef7bbb43.d20260609
+  sha256: c4aa74a7fb1f093d840415413f0bf26a93aac6b5ad2eab94621a7f60a0f1f37b
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2427,7 +2427,8 @@ packages:
   - mmh3
   - numpy>=2.0.0,<3
   - pandas>=1.4.3,<3
-  - pyarrow>=21.0.0
+  - pyarrow>=21.0.0 ; extra != 'flink'
+  - pyarrow>=16.1.0,<21.0.0 ; extra == 'flink'
   - pydantic>=2.10.6
   - pygments>=2.12.0,<3
   - pyyaml>=5.4.0,<7
@@ -2465,6 +2466,7 @@ packages:
   - ibis-framework[duckdb]>=10.0.0 ; extra == 'duckdb'
   - elasticsearch>=8.13.0 ; extra == 'elasticsearch'
   - faiss-cpu>=1.7.0,<=1.10.0 ; extra == 'faiss'
+  - apache-flink>=2.2.1,<3 ; extra == 'flink'
   - google-api-core>=1.23.0,<3 ; extra == 'gcp'
   - googleapis-common-protos>=1.52.0,<2 ; extra == 'gcp'
   - google-cloud-bigquery[pandas]>=2,<4 ; extra == 'gcp'

@@ -169,13 +169,14 @@ class BatchFeatureView(FeatureView):
             TransformationMode.PYTHON,
             TransformationMode.SQL,
             TransformationMode.RAY,
-        ) or self.mode in ("pandas", "python", "sql", "ray"):
+            TransformationMode.FLINK,
+        ) or self.mode in ("pandas", "python", "sql", "ray", "flink"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         else:
             raise ValueError(
-                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+                f"Unsupported transformation mode: {self.mode} for BatchFeatureView"
             )
 
 

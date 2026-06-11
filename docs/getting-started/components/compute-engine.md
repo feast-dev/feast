@@ -24,7 +24,7 @@ engines.
 | SparkComputeEngine      | Runs on Apache Spark, designed for large-scale distributed feature generation.                  | ✅         |      |
 | SnowflakeComputeEngine  | Runs on Snowflake, designed for scalable feature generation using Snowflake SQL.                | ✅         |      |
 | LambdaComputeEngine     | Runs on AWS Lambda, designed for serverless feature generation.                                 | ✅         |      |
-| FlinkComputeEngine      | Runs on Apache Flink, designed for stream processing and real-time feature generation.          | ❌         |      |
+| FlinkComputeEngine      | Runs on Apache Flink, designed for distributed feature generation through PyFlink Table API.    | ✅         |      |
 | RayComputeEngine        | Runs on Ray, designed for distributed feature generation and machine learning workloads.        | ✅         |      |
 ```
 
