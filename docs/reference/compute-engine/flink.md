@@ -11,9 +11,11 @@ feature pipelines through the PyFlink Table API. It implements Feast's unified
 The engine reads data through the configured Feast offline store and executes
 the Feast DAG as PyFlink tables. Offline stores that expose a native
 `to_flink_table(table_env)` retrieval job hand Flink tables directly to the
-engine. The engine then uses Flink Table/SQL operations for join, filter,
-aggregate, dedupe, and projection steps, and writes materialization results to
-the configured online and/or offline store.
+engine. Retrieval jobs that only expose the standard Arrow path are also
+supported and are converted into Flink tables by the engine. The engine then
+uses Flink Table/SQL operations for join, filter, aggregate, dedupe, and
+projection steps, and writes materialization results to the configured online
+and/or offline store.
 
 ## Configuration
 
@@ -93,7 +95,8 @@ are not accepted by the Flink compute engine.
 The Flink engine implements Feast's compute DAG with Flink-specific nodes:
 
 - Source reads from Feast offline stores, preferring native Flink tables when a
-  retrieval job supports `to_flink_table(table_env)`.
+  retrieval job supports `to_flink_table(table_env)` and otherwise converting
+  Arrow results into Flink tables.
 - Transform nodes pass PyFlink tables to `mode="flink"` UDFs and preserve native
   Flink table outputs.
 - Join nodes use Flink SQL temporary views for feature joins and entity joins.
@@ -116,8 +119,6 @@ The Flink engine implements Feast's compute DAG with Flink-specific nodes:
 
 - Windowed aggregations are not yet implemented in the Flink compute engine. Use
   non-windowed Feast aggregations or pre-window upstream in Flink.
-- Offline store retrieval jobs must implement `to_flink_table(table_env)`.
-  Arrow/pandas-only retrieval jobs are rejected instead of converted.
 - JSON value validation is not implemented inside the Flink compute engine
   because the engine does not collect intermediate data out of Flink for
   validation.
