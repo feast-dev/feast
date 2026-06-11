@@ -196,7 +196,6 @@
 * [\[Alpha\] Feature View Versioning](reference/alpha-feature-view-versioning.md)
 * [OpenLineage Integration](reference/openlineage.md)
 * [MLflow Integration](reference/mlflow.md)
-* [MLflow Distributed Tracing](reference/mlflow-distributed-tracing.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)
