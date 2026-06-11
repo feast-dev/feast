@@ -147,11 +147,22 @@ def _entity_value_from_dataframe(
     table_env: Any,
     entity_df: pd.DataFrame,
     split_num: int,
+    join_keys: List[str],
 ) -> tuple[Any, List[str], str]:
     entity_df = entity_df.copy()
+    if entity_df.empty:
+        for join_key in join_keys:
+            if join_key not in entity_df.columns:
+                entity_df[join_key] = pd.Series(dtype="object")
+        entity_ts_col = find_entity_timestamp_column(list(entity_df.columns))
+        if entity_ts_col is None:
+            entity_ts_col = ENTITY_TS_ALIAS
+            entity_df[entity_ts_col] = pd.Series(dtype="datetime64[ns]")
+    else:
+        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+        entity_ts_col = infer_entity_timestamp_column(entity_schema)
+
     entity_df[ENTITY_ROW_ID] = range(len(entity_df))
-    entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-    entity_ts_col = infer_entity_timestamp_column(entity_schema)
     if entity_ts_col != ENTITY_TS_ALIAS:
         entity_df = entity_df.rename(columns={entity_ts_col: ENTITY_TS_ALIAS})
     return (
@@ -219,12 +230,46 @@ def _entity_value_from_context(
     join_keys: List[str],
 ) -> tuple[Any, List[str], str]:
     if isinstance(context.entity_df, pd.DataFrame):
-        return _entity_value_from_dataframe(table_env, context.entity_df, split_num)
+        return _entity_value_from_dataframe(
+            table_env, context.entity_df, split_num, join_keys
+        )
     if isinstance(context.entity_df, str):
         return _entity_value_from_sql(table_env, context.entity_df, join_keys)
     raise TypeError(
         "FlinkComputeEngine entity_df must be a pandas DataFrame, SQL string, or None."
     )
+
+
+def _retrieval_job_to_flink_table(
+    retrieval_job: Any,
+    table_env: Any,
+    split_num: int,
+) -> tuple[Any, List[str]]:
+    to_flink_table = getattr(retrieval_job, "to_flink_table", None)
+    if callable(to_flink_table):
+        flink_table = to_flink_table(table_env)
+        columns = _get_columns_from_schema(flink_table)
+        if columns is None:
+            raise ValueError(
+                "Could not infer columns for source Flink table returned by "
+                "RetrievalJob.to_flink_table(table_env)."
+            )
+        return flink_table, columns
+
+    if not hasattr(retrieval_job, "to_arrow"):
+        raise TypeError(
+            "FlinkComputeEngine source reads require a RetrievalJob with either "
+            "to_flink_table(table_env) or to_arrow()."
+        )
+
+    arrow_table = retrieval_job.to_arrow()
+    if not isinstance(arrow_table, pa.Table):
+        raise TypeError(
+            "RetrievalJob.to_arrow() must return a pyarrow.Table for "
+            "FlinkComputeEngine source reads."
+        )
+    columns = list(arrow_table.column_names)
+    return pandas_to_flink_table(table_env, arrow_table.to_pandas(), split_num), columns
 
 
 class FlinkSourceReadNode(DAGNode):
@@ -254,20 +299,9 @@ class FlinkSourceReadNode(DAGNode):
             start_time=self.start_time,
             end_time=self.end_time,
         )
-        if not hasattr(retrieval_job, "to_flink_table"):
-            raise TypeError(
-                "FlinkComputeEngine source reads require RetrievalJob.to_flink_table("
-                "table_env). Configure an offline store retrieval job that returns "
-                "native PyFlink tables instead of Arrow/pandas results."
-            )
-
-        flink_table = retrieval_job.to_flink_table(self.table_env)
-        columns = _get_columns_from_schema(flink_table)
-        if columns is None:
-            raise ValueError(
-                "Could not infer columns for source Flink table returned by "
-                "RetrievalJob.to_flink_table(table_env)."
-            )
+        flink_table, columns = _retrieval_job_to_flink_table(
+            retrieval_job, self.table_env, self.split_num
+        )
 
         if self.column_info.field_mapping:
             view_name = _register_table(self.table_env, flink_table, "source_read")

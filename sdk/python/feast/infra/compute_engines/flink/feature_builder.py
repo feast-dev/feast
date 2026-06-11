@@ -39,10 +39,7 @@ class FlinkFeatureBuilder(FeatureBuilder):
 
     def _should_join_entity_df(self) -> bool:
         return isinstance(self.task, HistoricalRetrievalTask) and (
-            (
-                isinstance(self.task.entity_df, pd.DataFrame)
-                and not self.task.entity_df.empty
-            )
+            isinstance(self.task.entity_df, pd.DataFrame)
             or (
                 isinstance(self.task.entity_df, str)
                 and bool(self.task.entity_df.strip())

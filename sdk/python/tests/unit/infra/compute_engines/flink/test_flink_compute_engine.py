@@ -549,7 +549,9 @@ def test_repo_config_loads_flink_batch_engine_config(tmp_path: Path) -> None:
     assert config.batch_engine.pandas_split_num == 2
 
 
-def test_flink_source_read_node_rejects_arrow_retrieval_jobs(tmp_path: Path) -> None:
+def test_flink_source_read_node_converts_arrow_retrieval_jobs(
+    tmp_path: Path,
+) -> None:
     offline_store = MagicMock()
     offline_store.pull_all_from_table_or_query.return_value = FakeRetrievalJob(
         pa.Table.from_pandas(_feature_data())
@@ -564,8 +566,11 @@ def test_flink_source_read_node_rejects_arrow_retrieval_jobs(tmp_path: Path) -> 
         split_num=1,
     )
 
-    with pytest.raises(TypeError, match="to_flink_table"):
-        node.execute(context)
+    result = node.execute(context)
+
+    assert result.format == DAGFormat.FLINK
+    assert result.metadata["columns"] == list(_feature_data().columns)
+    assert result.data.to_pandas().equals(_feature_data())
 
 
 def test_flink_historical_retrieval_executes_dag_with_transformation(
@@ -600,7 +605,7 @@ def test_flink_historical_retrieval_executes_dag_with_transformation(
     )
     task = HistoricalRetrievalTask(
         project=config.project,
-        entity_df=pd.DataFrame(),
+        entity_df=None,
         feature_view=feature_view,
         full_feature_name=False,
         registry=_registry(entity),
@@ -614,6 +619,42 @@ def test_flink_historical_retrieval_executes_dag_with_transformation(
     assert result["conv_rate"].tolist() == [0.4, 0.6]
     assert table_env.dropped_views
     assert table_env.views == {}
+
+
+def test_flink_historical_retrieval_with_empty_entity_df_returns_empty_result(
+    tmp_path: Path,
+) -> None:
+    entity = _driver()
+    source = _source()
+    feature_view = _feature_view(source, online=False, offline=False)
+    config = _repo_config(tmp_path, {"type": "flink.engine", "pandas_split_num": 4})
+    table_env = FakeTableEnvironment()
+    engine = FlinkComputeEngine(
+        repo_config=config,
+        offline_store=_offline_store(_feature_data()),
+        online_store=MagicMock(),
+        table_environment=table_env,
+    )
+    task = HistoricalRetrievalTask(
+        project=config.project,
+        entity_df=pd.DataFrame(
+            {
+                "driver_id": pd.Series(dtype="int64"),
+                "event_timestamp": pd.Series(dtype="datetime64[ns]"),
+            }
+        ),
+        feature_view=feature_view,
+        full_feature_name=False,
+        registry=_registry(entity),
+    )
+
+    job = engine.get_historical_features(_registry(entity), task)
+    result = job.to_df()
+
+    assert job.error() is None
+    assert result.empty
+    assert "conv_rate" in result.columns
+    assert table_env.created_tables[-1].empty
 
 
 def test_flink_historical_retrieval_is_read_only_and_dedupes_per_entity_row(
