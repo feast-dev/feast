@@ -15,8 +15,8 @@ Below are some guides on how to add new custom components:
 [adding-support-for-a-new-online-store.md](adding-support-for-a-new-online-store.md)
 {% endcontent-ref %}
 
-{% content-ref url="creating-a-custom-materialization-engine.md" %}
-[creating-a-custom-materialization-engine.md](creating-a-custom-materialization-engine.md)
+{% content-ref url="creating-a-custom-compute-engine.md" %}
+[creating-a-custom-compute-engine.md](creating-a-custom-compute-engine.md)
 {% endcontent-ref %}
 
 {% content-ref url="creating-a-custom-provider.md" %}
