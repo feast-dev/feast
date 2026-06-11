@@ -445,6 +445,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.applyNodeSelector(podSpec)
 	feast.applyTopologySpread(podSpec)
 	feast.applyAffinity(podSpec)
+	feast.applyResourceClaims(podSpec)
 
 	return nil
 }
@@ -1052,6 +1053,13 @@ func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
 				},
 			}},
 		},
+	}
+}
+
+func (feast *FeastServices) applyResourceClaims(podSpec *corev1.PodSpec) {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+	if services != nil && len(services.ResourceClaims) > 0 {
+		podSpec.ResourceClaims = services.ResourceClaims
 	}
 }
 
