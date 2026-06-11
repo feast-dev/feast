@@ -11,7 +11,7 @@ from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames
+from feast.errors import ConflictingFeatureViewNames, FeatureViewNotFoundException
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
@@ -437,6 +437,64 @@ def test_apply_permissions(test_feature_store):
 
     permissions = test_feature_store.list_permissions()
     assert len(permissions) == 0
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_delete_feature_view(test_feature_store):
+    """Test that a feature view can be deleted using objects_to_delete with partial=False."""
+    assert isinstance(test_feature_store, FeatureStore)
+
+    now = pd.Timestamp.utcnow().round("ms")
+    dataframe_source = pd.DataFrame(
+        {
+            "test_key": [1, 2, 1, 3, 3],
+            "feature_value": [0.1, 0.2, 0.3, 4.0, 5.0],
+            "ts_1": [
+                now,
+                now - pd.Timedelta(hours=4),
+                now - pd.Timedelta(hours=3),
+                now - pd.Timedelta(hours=2),
+                now - pd.Timedelta(hours=1),
+            ],
+        }
+    )
+
+    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
+        entity = Entity(
+            name="driver_entity", join_keys=["test_key"], value_type=ValueType.INT64
+        )
+        driver_fv = FeatureView(
+            name="driver_fv_to_delete",
+            entities=[entity],
+            schema=[Field(name="test_key", dtype=Int64)],
+            source=file_source,
+        )
+
+        # Register entity and feature view
+        test_feature_store.apply([entity, driver_fv])
+
+        # Verify feature view exists
+        fvs = test_feature_store.list_batch_feature_views()
+        assert len(fvs) == 1
+        assert fvs[0].name == driver_fv.name
+
+        # Delete the feature view using objects_to_delete
+        test_feature_store.apply(
+            objects=[], objects_to_delete=[driver_fv], partial=False
+        )
+
+        # Verify feature view is deleted
+        fvs = test_feature_store.list_batch_feature_views()
+        assert len(fvs) == 0
+
+        # Verify get_feature_view raises FeatureViewNotFoundException
+        with pytest.raises(FeatureViewNotFoundException):
+            test_feature_store.get_feature_view(driver_fv.name)
 
     test_feature_store.teardown()
 
