@@ -81,7 +81,8 @@ class SparkComputeEngine(ComputeEngine):
     def _get_feature_view_spark_session(
         self, feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
     ) -> SparkSession:
-        spark_conf = self._get_feature_view_engine_config(feature_view)
+        config = self._get_feature_view_engine_config(feature_view)
+        spark_conf = config.get("spark_conf", config)
         return get_or_create_new_spark_session(spark_conf)
 
     def _materialize_one(

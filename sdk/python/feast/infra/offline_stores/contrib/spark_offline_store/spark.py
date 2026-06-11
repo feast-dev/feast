@@ -1239,15 +1239,6 @@ def _make_left_table_query(end_date: datetime, tmp_view_name: str) -> Tuple[str,
     return left_table_query_string, event_timestamp_col
 
 
-def _entity_schema_keys_from(
-    all_entities: List[str], event_timestamp_col: str
-) -> KeysView[str]:
-    # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
-    return cast(
-        KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
-    )
-
-
 def _apply_bfv_transformations(
     spark_session: SparkSession,
     feature_views: List[FeatureView],
@@ -1302,6 +1293,15 @@ def _apply_bfv_transformations(
         updated_contexts.append(ctx)
 
     return updated_contexts
+
+
+def _entity_schema_keys_from(
+    all_entities: List[str], event_timestamp_col: str
+) -> KeysView[str]:
+    # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
+    return cast(
+        KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
+    )
 
 
 def _get_entity_df_event_timestamp_range(
