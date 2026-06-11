@@ -60,6 +60,12 @@ class MlflowConfig(FeastBaseModel):
     """ str: Suffix appended to the project name to form the MLflow
         experiment name for operation logs. Defaults to '-feast-ops'. """
 
+    enable_distributed_tracing: StrictBool = True
+    """ bool: When True and mlflow.enabled=True, server-side API calls
+        create MLflow trace spans via mlflow.start_span().  Spans appear
+        in the MLflow UI Traces tab and support parent-child linking via
+        traceparent headers.  Defaults to True. """
+
     def get_tracking_uri(self) -> Optional[str]:
         """Resolve the effective tracking URI for this config instance."""
         return resolve_tracking_uri(self.tracking_uri)

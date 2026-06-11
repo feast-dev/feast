@@ -300,6 +300,40 @@ async def load_static_artifacts(app: FastAPI, store):
         logger.warning(f"Failed to load static artifacts: {e}")
 
 
+def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> None:
+    """Add OTEL instrumentation to FastAPI if tracing is enabled.
+
+    This enables automatic extraction of ``traceparent`` HTTP headers from
+    incoming requests, creating server spans that link to the caller's trace.
+    When an agent sends traceparent, server spans become children of the
+    agent's trace tree.
+    """
+    mlflow_cfg = getattr(store.config, "mlflow", None)
+    if (
+        mlflow_cfg is None
+        or not mlflow_cfg.enabled
+        or not mlflow_cfg.enable_distributed_tracing
+    ):
+        return
+
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(app)
+        logger.info("FastAPI OTEL instrumentation enabled for trace propagation")
+    except ImportError:
+        logger.debug(
+            "opentelemetry-instrumentation-fastapi not installed; "
+            "cross-process trace linking disabled"
+        )
+    except Exception:
+        logger.warning(
+            "Failed to instrument FastAPI for tracing; "
+            "cross-process trace linking disabled",
+            exc_info=True,
+        )
+
+
 def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
@@ -409,52 +443,73 @@ def get_app(
 
     app = FastAPI(lifespan=lifespan)
 
+    _instrument_app_for_tracing(app, store)
+
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
         response_model=OnlineFeaturesResponse,
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest) -> Any:
-        with feast_metrics.track_request_latency(
-            "/get-online-features",
-        ) as metrics_ctx:
-            features = await _get_features(request, store)
-            feat_count, fv_count = _resolve_feature_counts(features)
-            metrics_ctx.feature_count = feat_count
-            metrics_ctx.feature_view_count = fv_count
+    async def get_online_features(
+        request: GetOnlineFeaturesRequest, raw_request: Request
+    ) -> Any:
+        from feast.tracing import traced_tool_span
 
-            entity_count = len(next(iter(request.entities.values()), []))
-            feast_metrics.track_online_features_entities(entity_count)
+        session_id = raw_request.headers.get("mcp-session-id", "")
+        feature_refs = ",".join(request.features) if request.features else ""
+        entity_count = len(next(iter(request.entities.values()), []))
 
-            read_params = dict(
-                features=features,
-                entity_rows=request.entities,
-                full_feature_names=request.full_feature_names,
-                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
-            )
+        with traced_tool_span(
+            store,
+            "feast.get_online_features",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_refs": feature_refs,
+                "feast.entity_count": str(entity_count),
+                "feast.project": store.config.project,
+                "feast.retrieval_type": "online",
+            },
+            request_headers=dict(raw_request.headers),
+        ):
+            with feast_metrics.track_request_latency(
+                "/get-online-features",
+            ) as metrics_ctx:
+                features = await _get_features(request, store)
+                feat_count, fv_count = _resolve_feature_counts(features)
+                metrics_ctx.feature_count = feat_count
+                metrics_ctx.feature_view_count = fv_count
 
-            audit_start_ms = time.monotonic() * 1000
-            audit_status = "success"
-            try:
-                if store._get_provider().async_supported.online.read:
-                    response = await store.get_online_features_async(**read_params)  # type: ignore
-                else:
-                    response = await run_in_threadpool(
-                        lambda: store.get_online_features(**read_params)  # type: ignore
-                    )
-            except Exception:
-                audit_status = "error"
-                raise
-            finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
+                feast_metrics.track_online_features_entities(entity_count)
+
+                read_params = dict(
+                    features=features,
+                    entity_rows=request.entities,
+                    full_feature_names=request.full_feature_names,
+                    include_feature_view_version_metadata=request.include_feature_view_version_metadata,
                 )
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                audit_start_ms = time.monotonic() * 1000
+                audit_status = "success"
+                try:
+                    if store._get_provider().async_supported.online.read:
+                        response = await store.get_online_features_async(**read_params)  # type: ignore
+                    else:
+                        response = await run_in_threadpool(
+                            lambda: store.get_online_features(**read_params)  # type: ignore
+                        )
+                except Exception:
+                    audit_status = "error"
+                    raise
+                finally:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                return JSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -462,38 +517,56 @@ def get_app(
         response_model=OnlineFeaturesResponse,
     )
     async def retrieve_online_documents(
-        request: GetOnlineDocumentsRequest,
+        request: GetOnlineDocumentsRequest, raw_request: Request
     ) -> Any:
-        with feast_metrics.track_request_latency("/retrieve-online-documents"):
-            logger.warning(
-                "This endpoint is in alpha and will be moved to /get-online-features when stable."
-            )
-            features = await _get_features(request, store)
+        from feast.tracing import traced_tool_span
 
-            read_params = dict(
-                features=features,
-                query=request.query,
-                top_k=request.top_k,
-            )
-            if request.api_version == 2 and request.query_string is not None:
-                read_params["query_string"] = request.query_string
+        session_id = raw_request.headers.get("mcp-session-id", "")
+        feature_refs = ",".join(request.features) if request.features else ""
+        top_k = str(request.top_k) if request.top_k else ""
 
-            if request.api_version == 2:
-                read_params["include_feature_view_version_metadata"] = (
-                    request.include_feature_view_version_metadata
+        with traced_tool_span(
+            store,
+            "feast.retrieve_online_documents",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_refs": feature_refs,
+                "feast.top_k": top_k,
+                "feast.project": store.config.project,
+                "feast.retrieval_type": "document",
+            },
+            request_headers=dict(raw_request.headers),
+        ):
+            with feast_metrics.track_request_latency("/retrieve-online-documents"):
+                logger.warning(
+                    "This endpoint is in alpha and will be moved to /get-online-features when stable."
                 )
-                response = await run_in_threadpool(
-                    lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
-                )
-            else:
-                response = await run_in_threadpool(
-                    lambda: store.retrieve_online_documents(**read_params)  # type: ignore
-                )
+                features = await _get_features(request, store)
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                read_params = dict(
+                    features=features,
+                    query=request.query,
+                    top_k=request.top_k,
+                )
+                if request.api_version == 2 and request.query_string is not None:
+                    read_params["query_string"] = request.query_string
+
+                if request.api_version == 2:
+                    read_params["include_feature_view_version_metadata"] = (
+                        request.include_feature_view_version_metadata
+                    )
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+                    )
+                else:
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                return JSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
@@ -604,19 +677,35 @@ def get_app(
         )
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
-    async def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
-        df = pd.DataFrame(request.df)
-        feature_view_name = request.feature_view_name
-        allow_registry_cache = request.allow_registry_cache
-        resource = await _get_feast_object(feature_view_name, allow_registry_cache)
-        assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
-        await run_in_threadpool(
-            store.write_to_online_store,
-            feature_view_name=feature_view_name,
-            df=df,
-            allow_registry_cache=allow_registry_cache,
-            transform_on_write=request.transform_on_write,
-        )
+    async def write_to_online_store(
+        request: WriteToFeatureStoreRequest, raw_request: Request
+    ) -> None:
+        from feast.tracing import traced_tool_span
+
+        session_id = raw_request.headers.get("mcp-session-id", "")
+
+        with traced_tool_span(
+            store,
+            "feast.write_to_online_store",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_view": request.feature_view_name,
+                "feast.project": store.config.project,
+            },
+            request_headers=dict(raw_request.headers),
+        ):
+            df = pd.DataFrame(request.df)
+            feature_view_name = request.feature_view_name
+            allow_registry_cache = request.allow_registry_cache
+            resource = await _get_feast_object(feature_view_name, allow_registry_cache)
+            assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
+            await run_in_threadpool(
+                store.write_to_online_store,
+                feature_view_name=feature_view_name,
+                df=df,
+                allow_registry_cache=allow_registry_cache,
+                transform_on_write=request.transform_on_write,
+            )
 
     @app.get("/health")
     async def health():

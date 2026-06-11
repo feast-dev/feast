@@ -275,11 +275,18 @@ class SqliteOnlineStore(OnlineStore):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
-                ts = cast(datetime, ts)
-                if ts.tzinfo is not None:
-                    res_ts = ts.astimezone(timezone.utc)
+                # SQLite may return timestamps as int/float (epoch) or
+                # datetime depending on how they were stored.  Handle both
+                # explicitly since detect_types=PARSE_DECLTYPES was removed
+                # from the connection to avoid ambiguous auto-parsing.
+                if isinstance(ts, (int, float)):
+                    res_ts = datetime.fromtimestamp(ts, tz=timezone.utc)
                 else:
-                    res_ts = ts.replace(tzinfo=timezone.utc)
+                    ts = cast(datetime, ts)
+                    if ts.tzinfo is not None:
+                        res_ts = ts.astimezone(timezone.utc)
+                    else:
+                        res_ts = ts.replace(tzinfo=timezone.utc)
 
             if not res:
                 result.append((None, None))
@@ -671,8 +678,13 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key_value in entity_dict:
             res_event_ts: Optional[datetime] = None
             res_entity_key_proto: Optional[EntityKeyProto] = None
-            if isinstance(entity_dict[entity_key_value]["event_ts"], datetime):
-                res_event_ts = entity_dict[entity_key_value]["event_ts"]  # type: ignore[assignment]
+            # See comment in online_read() — timestamps may arrive as
+            # int/float (epoch) or datetime after detect_types removal.
+            raw_ts = entity_dict[entity_key_value]["event_ts"]
+            if isinstance(raw_ts, (int, float)):
+                res_event_ts = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+            elif isinstance(raw_ts, datetime):
+                res_event_ts = raw_ts  # type: ignore[assignment]
 
             if isinstance(
                 entity_dict[entity_key_value]["entity_key_proto"], EntityKeyProto
@@ -701,7 +713,6 @@ def _initialize_conn(
     Path(db_path).parent.mkdir(exist_ok=True)
     db = sqlite3.connect(
         db_path,
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
     if enable_sqlite_vec:
