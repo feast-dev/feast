@@ -23,7 +23,7 @@ COPY --chown=1001:0 internal/controller/ internal/controller/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8
 WORKDIR /
 COPY --from=builder /opt/app-root/src/manager .
 USER 65532:65532
