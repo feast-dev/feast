@@ -30,7 +30,7 @@ Before using label views, you need:
 
 **Generate training datasets.** Compose label views with feature views in a `FeatureService` and retrieve features + labels together with point-in-time correctness.
 
-**Annotate in the UI.** Configure annotation profiles so data scientists can label data directly in the Feast UI — entity forms, document spans, bulk review, or active learning.
+**Data label in the UI.** Configure data labeling profiles (annotation profiles) so data scientists can label data directly in the Feast UI — entity forms, document spans, bulk review, or active learning.
 
 ## Feedback vs Expectations
 
@@ -85,10 +85,10 @@ store.push("agent_feedback_labels_push_source", labels_df)
 
 | Use a **FeatureView** when… | Use a **LabelView** when… |
 |---|---|
-| Data is observational and append-only | Data is a judgment or annotation |
+| Data is observational and append-only | Data is a judgment or data label (annotation) |
 | One source writes the data | Multiple labelers may disagree |
 | No conflict resolution needed | You need governed conflict resolution |
-| No labeling UI needed | You want structured annotation workflows |
+| No labeling UI needed | You want structured data labeling workflows (annotation) |
 
 ## How Label Views Work
 
@@ -164,14 +164,14 @@ store.push("agent_feedback_labels_push_source", labels_df)
 
 Each push appends to the offline store (full history retained) and updates the online store (latest value per key).
 
-### Step 3: Annotate in the Feast UI
+### Step 3: Data label in the Feast UI
 
-Open the label view in the Feast UI **Annotate** tab. The UI reads annotation tags and shows the right workflow:
+Open the label view in the Feast UI **Data Labeling** tab (Annotate tab). The UI reads data labeling tags (annotation tags) and shows the right workflow:
 
 1. Open **Label Views** in the sidebar
-2. Select a label view (check the **Annotation** badge on the list page)
-3. Go to the **Annotate** tab
-4. Choose a method (Entity Form, Document Span, Review & Edit, or Active Learning)
+2. Select a label view (check the **Data Labeling** badge on the list page)
+3. Go to the **Data Labeling** tab (Annotate tab)
+4. Choose a data labeling method (annotation method): Entity Form, Document Span, Review & Edit, or Active Learning
 5. Submit labels — they are pushed to the label view's `PushSource`
 
 ### Step 4: Join labels with features for training
@@ -193,16 +193,16 @@ training_df = store.get_historical_features(
 
 Training pipelines get features and resolved labels in one retrieval call.
 
-## Annotation Profiles
+## Data Labeling Profiles (Annotation Profiles)
 
-Annotation profiles configure **how** labels are created in the UI. Set them via `tags` — no schema changes required.
+Data labeling profiles (annotation profiles) configure **how** labels are created in the UI. Set them via `tags` — no schema changes required.
 
 ### Supported profiles
 
 | Profile | Best for | UI experience |
 |---|---|---|
 | `entity-form` | RLHF, safety review, per-entity feedback | Form — one entity at a time |
-| `document-span` | RAG chunk labeling, span annotation | Load document, label chunks |
+| `document-span` | RAG chunk labeling, span labeling (annotation) | Load document, label chunks |
 | `table` | Bulk review, correcting existing labels | Editable table with dropdowns |
 | `active-learning` | Label high-value unlabeled entities | Queue from a reference feature view |
 
@@ -215,7 +215,7 @@ Answer one question:
 3. **"I need to correct labels in bulk"** → `table`
 4. **"I want to label only the most valuable unlabeled items"** → `active-learning` (requires `reference_feature_view`)
 
-The **Annotate** tab shows only relevant methods per profile:
+The **Data Labeling** tab (Annotate tab) shows only relevant data labeling methods (annotation methods) per profile:
 
 | Profile | Methods shown |
 |---|---|
@@ -228,7 +228,7 @@ The **Annotate** tab shows only relevant methods per profile:
 
 | Tag | Purpose | Example values |
 |---|---|---|
-| `feast.io/labeling-method` | Primary UI workflow | `entity-form`, `document-span`, `table` |
+| `feast.io/labeling-method` | Primary data labeling method (annotation method) | `entity-form`, `document-span`, `table` |
 | `feast.io/field-role:<field>` | Semantic role of a field | `feedback`, `expectation`, `label`, `metadata`, `content`, `span_start`, `span_end` |
 | `feast.io/label-values:<field>` | Allowed label values | `relevant,irrelevant` |
 | `feast.io/label-widget:<field>` | Input widget type | `enum`, `binary`, `text`, `number` |
@@ -325,7 +325,7 @@ When multiple labelers write different values for the same entity, `ConflictPoli
 |---|---|
 | `LAST_WRITE_WINS` | Default. Most recent write wins. |
 | `LABELER_PRIORITY` | Trusted labelers override others (e.g. human over LLM judge). |
-| `MAJORITY_VOTE` | Consensus labeling (e.g. multiple annotators on RAG chunks). |
+| `MAJORITY_VOTE` | Consensus labeling (e.g. multiple labelers on RAG chunks). |
 
 {% hint style="info" %}
 Conflict policies apply to the **offline store** (training). The **online store** always uses last-write-wins. Full label history is always retained in the offline store.
@@ -337,9 +337,9 @@ Conflict policies apply to the **offline store** (training). The **online store*
 
 **Tag field roles.** Set `feast.io/field-role:<field>` to `feedback` or `expectation` so your team and UI know what each field means.
 
-**Match conflict policy to label type.** Use `LABELER_PRIORITY` when humans correct automated judges. Use `MAJORITY_VOTE` for multi-annotator consensus. Use `LAST_WRITE_WINS` for simple feedback streams.
+**Match conflict policy to label type.** Use `LABELER_PRIORITY` when humans correct automated judges. Use `MAJORITY_VOTE` for multi-labeler consensus. Use `LAST_WRITE_WINS` for simple feedback streams.
 
-**Link to features.** Set `reference_feature_view` so the UI and documentation show which feature view the labels annotate.
+**Link to features.** Set `reference_feature_view` so the UI and documentation show which feature view the labels apply to.
 
 **Separate noisy feedback from stable ground truth.** When possible, put expectations in dedicated fields or views with stricter writer conventions (human-only).
 
@@ -347,10 +347,10 @@ Conflict policies apply to the **offline store** (training). The **online store*
 
 * Conflict policies are enforced on offline reads only; online store is always last-write-wins.
 * `LABELER_PRIORITY` requires explicit labeler ordering configuration.
-* Annotation profiles are UI configuration via tags — not enforced at the SDK write path.
+* Data labeling profiles (annotation profiles) are UI configuration via tags — not enforced at the SDK write path.
 
 ## Next steps
 
-* [Feature view](feature-view.md) — immutable features that label views annotate
+* [Feature view](feature-view.md) — immutable features that label views apply labels to
 * [Feature retrieval](feature-retrieval.md) — point-in-time joins for training
 * [ADR-0012: LabelView](../../adr/ADR-0012-label-view.md) — full design rationale
