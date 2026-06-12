@@ -641,15 +641,15 @@ class TestPerformance:
             convert_response_to_dict(response)
             MessageToDict(response, preserving_proto_field_name=True)
 
-        start = time.perf_counter()
+        start = time.process_time()
         for _ in range(iterations):
             convert_response_to_dict(response)
-        fast_time = time.perf_counter() - start
+        fast_time = time.process_time() - start
 
-        start = time.perf_counter()
+        start = time.process_time()
         for _ in range(iterations):
             MessageToDict(response, preserving_proto_field_name=True)
-        standard_time = time.perf_counter() - start
+        standard_time = time.process_time() - start
 
         speedup = standard_time / fast_time
         print(f"\nPerformance: fast={fast_time:.3f}s, standard={standard_time:.3f}s")

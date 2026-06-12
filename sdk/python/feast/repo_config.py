@@ -50,6 +50,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
+    "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {

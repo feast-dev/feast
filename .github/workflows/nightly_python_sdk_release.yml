@@ -1,0 +1,92 @@
+name: nightly python sdk release
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: "Optional base version without the .dev suffix (e.g., 1.2.3). Defaults to the next semantic-release version."
+        required: false
+        type: string
+      dev_number:
+        description: "Optional dev release number. Defaults to the workflow run number."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-python-sdk-release
+  cancel-in-progress: false
+
+jobs:
+  get-nightly-version:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    outputs:
+      nightly_version: ${{ steps.version.outputs.nightly_version }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      INPUT_BASE_VERSION: ${{ inputs.base_version }}
+      INPUT_DEV_NUMBER: ${{ inputs.dev_number }}
+      DEFAULT_DEV_NUMBER: ${{ github.run_number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Get nightly version
+        id: version
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$INPUT_BASE_VERSION" ]]; then
+            BASE_VERSION="${INPUT_BASE_VERSION#v}"
+          else
+            set +e
+            SEMANTIC_OUTPUT=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run 2>&1)
+            SEMANTIC_STATUS=$?
+            set -e
+            echo "$SEMANTIC_OUTPUT"
+
+            BASE_VERSION=$(echo "$SEMANTIC_OUTPUT" | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/' | tail -n 1)
+            if [[ -z "$BASE_VERSION" ]]; then
+              echo "Could not determine a semantic-release next version (exit code: ${SEMANTIC_STATUS}); falling back to next patch after latest stable tag."
+              source infra/scripts/setup-common-functions.sh
+              LATEST_TAG=$(get_tag_release -s)
+              LATEST_VERSION="${LATEST_TAG#v}"
+              IFS=. read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
+              BASE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            fi
+          fi
+
+          if [[ ! "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Base version must match X.Y.Z, got: ${BASE_VERSION}"
+            exit 1
+          fi
+
+          DEV_NUMBER="${INPUT_DEV_NUMBER:-$DEFAULT_DEV_NUMBER}"
+          if [[ ! "$DEV_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Dev number must be numeric, got: ${DEV_NUMBER}"
+            exit 1
+          fi
+
+          NIGHTLY_VERSION="v${BASE_VERSION}.dev${DEV_NUMBER}"
+          echo "Nightly version is ${NIGHTLY_VERSION}"
+          echo "nightly_version=${NIGHTLY_VERSION}" >> "$GITHUB_OUTPUT"
+
+  publish-nightly-python-sdk:
+    needs: get-nightly-version
+    uses: ./.github/workflows/publish_python_sdk.yml
+    secrets: inherit # pragma: allowlist secret
+    with:
+      custom_version: ${{ needs.get-nightly-version.outputs.nightly_version }}
+      checkout_ref: ${{ github.sha }}
+      build_docker_images: false
+      token: ${{ github.token }}
