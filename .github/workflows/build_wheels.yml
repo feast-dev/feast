@@ -7,9 +7,18 @@ on:
   workflow_dispatch: # Allows manual trigger of the workflow
     inputs:
       custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        description: 'Custom version to publish (e.g., v1.2.3 or v1.2.3.dev4) -- only edit if you know what you are doing'
         required: false
         type: string
+      checkout_ref:
+        description: 'Git ref to checkout before building wheels. Defaults to the release version.'
+        required: false
+        type: string
+      build_docker_images:
+        description: 'Build Docker images as part of release verification.'
+        required: true
+        default: true
+        type: boolean
       token:
         description: 'Personal Access Token'
         required: true
@@ -18,9 +27,18 @@ on:
   workflow_call:
     inputs:
       custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        description: 'Custom version to publish (e.g., v1.2.3 or v1.2.3.dev4) -- only edit if you know what you are doing'
         required: false
         type: string
+      checkout_ref:
+        description: 'Git ref to checkout before building wheels. Defaults to the release version.'
+        required: false
+        type: string
+      build_docker_images:
+        description: 'Build Docker images as part of release verification.'
+        required: false
+        default: true
+        type: boolean
       token:
         description: 'Personal Access Token'
         required: true
@@ -48,17 +66,20 @@ jobs:
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
         with:
-          custom_version: ${{ github.event.inputs.custom_version }}
-          token: ${{ github.event.inputs.token }}
+          custom_version: ${{ inputs.custom_version }}
+          token: ${{ inputs.token }}
       - name: Checkout version and install dependencies
         env:
           VERSION: ${{ steps.get-version.outputs.release_version }}
+          CHECKOUT_REF: ${{ inputs.checkout_ref }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
           git fetch --tags
-          git checkout ${VERSION}
+          git checkout "${CHECKOUT_REF:-$VERSION}"
           python -m pip install build
       - name: Build feast
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.get-version.outputs.version_without_prefix }}
         run: python -m build
       - uses: actions/upload-artifact@v4
         with:
@@ -68,6 +89,7 @@ jobs:
   # We add this step so the docker images can be built as part of the pre-release verification steps.
   build-docker-images:
     name: Build Docker images
+    if: ${{ inputs.build_docker_images }}
     runs-on: ubuntu-latest
     needs: [ build-python-wheel ]
     strategy:
@@ -96,8 +118,8 @@ jobs:
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
         with:
-          custom_version: ${{ github.event.inputs.custom_version }}
-          token: ${{ github.event.inputs.token }}
+          custom_version: ${{ inputs.custom_version }}
+          token: ${{ inputs.token }}
       - name: Build image
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
@@ -162,8 +184,8 @@ jobs:
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
         with:
-          custom_version: ${{ github.event.inputs.custom_version }}
-          token: ${{ github.event.inputs.token }}
+          custom_version: ${{ inputs.custom_version }}
+          token: ${{ inputs.token }}
       - name: Validate Feast Version
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
@@ -173,10 +195,10 @@ jobs:
             echo "Error: Failed to get Feast version."
             exit 1
           fi
-          VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
-          OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
-          VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
-          OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+          VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?'
+          OUTPUT_REGEX="^Feast SDK Version: \"${VERSION_REGEX}\"$"
+          VERSION=$(echo "$VERSION_OUTPUT" | grep -oE "$VERSION_REGEX")
+          OUTPUT=$(echo "$VERSION_OUTPUT" | grep -E "$OUTPUT_REGEX")
           echo "Installed Feast Version: $VERSION and using Feast Version: $VERSION_WITHOUT_PREFIX"
           if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
             echo "Correct Feast Version Installed"

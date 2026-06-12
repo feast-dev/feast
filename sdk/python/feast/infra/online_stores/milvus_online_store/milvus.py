@@ -133,8 +133,10 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
-    client: Optional[MilvusClient] = None
-    _collections: Dict[str, Any] = {}
+    def __init__(self):
+        super().__init__()
+        self.client: Optional[MilvusClient] = None
+        self._collections: Dict[str, Any] = {}
 
     def _get_db_path(self, config: RepoConfig) -> str:
         assert (

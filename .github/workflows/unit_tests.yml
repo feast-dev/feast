@@ -2,9 +2,17 @@ name: unit-tests
 
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
   push:
     branches:
       - master
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
