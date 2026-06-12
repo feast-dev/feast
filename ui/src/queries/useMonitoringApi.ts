@@ -137,7 +137,7 @@ const fetchMonitoring = async <T>(
 const STALE_TIME = 30_000;
 
 const useFeatureMetrics = (filters: MonitoringFilters) => {
-  const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { apiBaseUrl } = useContext(MonitoringContext);
   const { fetchOptions } = useDataMode();
   const path = filters.is_baseline
     ? "/monitoring/metrics/baseline"
@@ -151,7 +151,7 @@ const useFeatureMetrics = (filters: MonitoringFilters) => {
         toQueryParams(filters),
         fetchOptions,
       ),
-    { staleTime: STALE_TIME, enabled, retry: 1 },
+    { staleTime: STALE_TIME, retry: 1 },
   );
 };
 
@@ -188,7 +188,7 @@ const aggregateToFeatureViewMetrics = (
 };
 
 const useFeatureViewMetrics = (filters: MonitoringFilters) => {
-  const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { apiBaseUrl } = useContext(MonitoringContext);
   const { fetchOptions } = useDataMode();
   const isBaseline = !!filters.is_baseline;
   return useQuery<FeatureViewMetric[]>(
@@ -210,12 +210,12 @@ const useFeatureViewMetrics = (filters: MonitoringFilters) => {
         fetchOptions,
       );
     },
-    { staleTime: STALE_TIME, enabled, retry: 1 },
+    { staleTime: STALE_TIME, retry: 1 },
   );
 };
 
 const useFeatureServiceMetrics = (filters: MonitoringFilters) => {
-  const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { apiBaseUrl } = useContext(MonitoringContext);
   const { fetchOptions } = useDataMode();
   return useQuery<FeatureServiceMetric[]>(
     ["monitoring-feature-services", filters],
@@ -226,7 +226,7 @@ const useFeatureServiceMetrics = (filters: MonitoringFilters) => {
         toQueryParams(filters),
         fetchOptions,
       ),
-    { staleTime: STALE_TIME, enabled, retry: 1 },
+    { staleTime: STALE_TIME, retry: 1 },
   );
 };
 
@@ -236,7 +236,7 @@ const useBaselineMetrics = (
   featureName?: string,
   dataSourceType?: string,
 ) => {
-  const { apiBaseUrl, enabled } = useContext(MonitoringContext);
+  const { apiBaseUrl } = useContext(MonitoringContext);
   const { fetchOptions } = useDataMode();
   return useQuery<FeatureMetric[]>(
     ["monitoring-baseline", project, featureViewName, featureName],
@@ -252,7 +252,7 @@ const useBaselineMetrics = (
         },
         fetchOptions,
       ),
-    { staleTime: STALE_TIME, enabled, retry: 1 },
+    { staleTime: STALE_TIME, retry: 1 },
   );
 };
 

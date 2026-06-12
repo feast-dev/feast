@@ -1,9 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import { EuiIcon, EuiSideNav, htmlIdGenerator } from "@elastic/eui";
 import { Link, useParams } from "react-router-dom";
 import { useMatchSubpath } from "../hooks/useMatchSubpath";
-import MonitoringContext from "../contexts/MonitoringContext";
 import useResourceQuery, {
   entityListPath,
   featureViewListPath,
@@ -84,8 +83,6 @@ const SideNav = () => {
     restPath: labelViewListPath(projectName),
     restSelect: restLabelViewsFromResponse,
   });
-
-  const { enabled: monitoringEnabled } = useContext(MonitoringContext);
 
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
@@ -180,19 +177,6 @@ const SideNav = () => {
           renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
-        ...(monitoringEnabled
-          ? [
-              {
-                name: "Monitoring",
-                id: htmlIdGenerator("monitoring")(),
-                icon: <EuiIcon type="monitoringApp" />,
-                renderItem: (props: any) => (
-                  <Link {...props} to={`${baseUrl}/monitoring`} />
-                ),
-                isSelected: monitoringSelected,
-              },
-            ]
-          : []),
         {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
@@ -201,6 +185,15 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),
           isSelected: useMatchSubpath(`${baseUrl}/permissions`),
+        },
+        {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: monitoringSelected,
         },
       ],
     },

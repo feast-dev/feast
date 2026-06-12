@@ -77,29 +77,6 @@ def get_monitoring_router(grpc_handler, store=None):
             )
         return store
 
-    @router.get("/monitoring/config", tags=["Monitoring"])
-    def monitoring_config():
-        """Report whether DQM is configured, checking the live config file."""
-        import os
-
-        import yaml
-
-        s = _get_store()
-        dqm = getattr(s.config, "data_quality_monitoring_config", None)
-        if dqm is not None:
-            return {"enabled": True}
-
-        repo_path = getattr(s, "repo_path", None)
-        if repo_path:
-            cfg_file = os.path.join(str(repo_path), "feature_store.yaml")
-            if os.path.exists(cfg_file):
-                with open(cfg_file) as f:
-                    cfg = yaml.safe_load(f)
-                if cfg and cfg.get("data_quality_monitoring"):
-                    return {"enabled": True}
-
-        return {"enabled": False}
-
     # ------------------------------------------------------------------ #
     #  DQM Job: submit and track
     # ------------------------------------------------------------------ #

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 import "./index.css";
 
@@ -109,21 +109,10 @@ const FeastUISansProvidersInner = ({
     fetchOptions: feastUIConfigs?.fetchOptions,
   };
 
-  const [autoMonitoringEnabled, setAutoMonitoringEnabled] = useState(false);
-  useEffect(() => {
-    if (feastUIConfigs?.monitoringConfig) return;
-    fetch("/api/v1/monitoring/config")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.enabled) setAutoMonitoringEnabled(true);
-      })
-      .catch(() => {});
-  }, [feastUIConfigs?.monitoringConfig]);
-
   const monitoringConfig: MonitoringConfig =
     feastUIConfigs?.monitoringConfig || {
       apiBaseUrl: "/api/v1",
-      enabled: autoMonitoringEnabled,
+      enabled: true,
     };
 
   return (
