@@ -81,7 +81,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     grpc_handler = RegistryServer(store.registry)
 
     rest_app = FastAPI(root_path="/api/v1")
-    register_all_routes(rest_app, grpc_handler)
+    register_all_routes(rest_app, grpc_handler, store=store)
 
     class PushRequest(BaseModel):
         push_source_name: str
