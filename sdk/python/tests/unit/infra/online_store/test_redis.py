@@ -614,7 +614,6 @@ def test_online_write_batch_skips_stale_rows_for_vector_indexing(
     ("distance_metric", "score", "expected_distance"),
     [
         ("COSINE", 0.75, 0.25),
-        ("L2", 0.5, 1.0),
     ],
 )
 def test_retrieve_online_documents_v2_converts_scores_to_distances(

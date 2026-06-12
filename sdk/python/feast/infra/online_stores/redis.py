@@ -130,7 +130,9 @@ class RedisOnlineStore(OnlineStore):
             return self._vadd_supported
         try:
             info = client.execute_command("COMMAND", "INFO", "VADD")
-            self._vadd_supported = info is not None and len(info) > 0
+            self._vadd_supported = (
+                info is not None and len(info) > 0 and info[0] is not None
+            )
         except Exception:
             self._vadd_supported = False
         return self._vadd_supported
@@ -198,9 +200,9 @@ class RedisOnlineStore(OnlineStore):
             or getattr(config.online_store, "similarity", None)
         )
         metric = (metric or "COSINE").upper()
-        if metric not in {"COSINE", "L2"}:
+        if metric != "COSINE":
             raise ValueError(
-                f"Unsupported distance metric {metric}. Supported distance metrics are COSINE and L2."
+                f"Unsupported distance metric {metric}. Redis online store only supports COSINE."
             )
         return metric
 
@@ -226,7 +228,7 @@ class RedisOnlineStore(OnlineStore):
         vector_field = vector_fields[0]
         fv_name = _versioned_fv_name(table, config)
         vs_key = self._vector_set_key(config.project, fv_name)
-        metric = self._vector_search_metric(config, table)
+        self._vector_search_metric(config, table)
 
         with client.pipeline(transaction=False) as pipe:
             for entity_key, values, _ts, _created in data:
@@ -241,8 +243,7 @@ class RedisOnlineStore(OnlineStore):
                 floats = [float(v) for v in python_vector]
                 if not floats:
                     continue
-                if metric in {"COSINE", "L2"}:
-                    floats = self._normalize_vector(floats)
+                floats = self._normalize_vector(floats)
                 dim = len(floats)
                 element_id = self._vector_element_id(
                     entity_key, config.entity_key_serialization_version
@@ -332,6 +333,10 @@ class RedisOnlineStore(OnlineStore):
         redis_hash_keys = [_mmh3(f"{fv_name}:{f.name}") for f in table.features]
         redis_hash_keys.append(bytes(f"_ts:{fv_name}", "utf8"))
 
+        # Clean up the Vector Set key unconditionally before the early-return
+        vs_key = self._vector_set_key(config.project, fv_name)
+        client.delete(vs_key)
+
         # Phase 1: collect all matching entity keys from SCAN (no per-key round trips)
         scan_pattern = b"".join([prefix, b"*", config.project.encode("utf8")])
         all_keys = list(client.scan_iter(scan_pattern))
@@ -359,10 +364,6 @@ class RedisOnlineStore(OnlineStore):
                     pipe.hdel(_k, *redis_hash_keys)
                 deleted_count += 1
             pipe.execute()
-
-        # Also delete the Vector Set key if it exists
-        vs_key = self._vector_set_key(config.project, fv_name)
-        client.delete(vs_key)
 
         logger.debug(f"Deleted {deleted_count} rows for feature view {fv_name}")
 
@@ -1048,7 +1049,7 @@ class RedisOnlineStore(OnlineStore):
                 "Use embedding-based vector search instead."
             )
 
-        metric = self._vector_search_metric(config, table, distance_metric)
+        self._vector_search_metric(config, table, distance_metric)
         normalized_embedding = self._normalize_vector(embedding)
 
         client = self._get_client(online_store_config)
@@ -1142,10 +1143,7 @@ class RedisOnlineStore(OnlineStore):
                     val.ParseFromString(val_bin)
                 feature_dict[feat_name] = val
 
-            if metric == "COSINE":
-                distance = max(0.0, 1.0 - float(score))
-            else:
-                distance = math.sqrt(max(0.0, 2.0 * (1.0 - float(score))))
+            distance = max(0.0, 1.0 - float(score))
 
             feature_dict["distance"] = ValueProto(float_val=distance)
 
