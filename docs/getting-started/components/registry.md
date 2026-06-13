@@ -69,6 +69,30 @@ store._registry.delete_validation_reference("my_validation_reference", project=s
 When using `feast apply` via the CLI, you can also use the `objects_to_delete` parameter with `partial=False` to delete objects as part of the apply operation. However, this is less common and typically used in automated deployment scenarios.
 {% endhint %}
 
+### End-to-end example
+
+The following snippet shows the full lifecycle of deleting a feature view from the registry:
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+
+# 1. Verify the object exists before deletion
+print(store.list_batch_feature_views())  # shows my_feature_view
+
+# 2. Delete the feature view
+store.delete_feature_view("my_feature_view")
+
+# 3. Confirm it's gone
+print(store.list_batch_feature_views())  # my_feature_view no longer listed
+
+# Trying to fetch it now raises FeatureViewNotFoundException
+# store.get_feature_view("my_feature_view")
+```
+
+The same pattern works for other registry objects: list/verify the object, call the corresponding `delete_*` method, then list again to confirm the deletion.
+
 ## Accessing the registry from clients
 
 Users can specify the registry through a `feature_store.yaml` config file, or programmatically. We often see teams
