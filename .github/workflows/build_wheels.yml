@@ -195,6 +195,7 @@ jobs:
             echo "Error: Failed to get Feast version."
             exit 1
           fi
+          VERSION_OUTPUT=$(printf '%s\n' "$VERSION_OUTPUT" | python -c 'import re, sys; print(re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", sys.stdin.read()).strip())')
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?'
           OUTPUT_REGEX="^Feast SDK Version: \"${VERSION_REGEX}\"$"
           VERSION=$(echo "$VERSION_OUTPUT" | grep -oE "$VERSION_REGEX")
