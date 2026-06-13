@@ -47,12 +47,12 @@ jobs:
       next_version: ${{ steps.get_versions.outputs.next_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "lts/*"
       - name: Release (Dry Run)
@@ -76,11 +76,11 @@ jobs:
       CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
       NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "lts/*"
       - name: Bump file versions
@@ -96,9 +96,12 @@ jobs:
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
+          brew trust norwoodj/tap
           brew install norwoodj/tap/helm-docs
       - name: Generate helm chart READMEs
         run: make build-helm-docs
@@ -127,19 +130,22 @@ jobs:
       GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: './ui/.nvmrc'
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
+          brew trust norwoodj/tap
           brew install norwoodj/tap/helm-docs
       - name: Install Go
         uses: actions/setup-go@v5
@@ -174,7 +180,7 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
