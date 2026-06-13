@@ -99,6 +99,7 @@ const SideNav = () => {
   const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
+  const monitoringSelected = useMatchSubpath(`${baseUrl}/monitoring`);
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
@@ -184,6 +185,15 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),
           isSelected: useMatchSubpath(`${baseUrl}/permissions`),
+        },
+        {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: monitoringSelected,
         },
       ],
     },

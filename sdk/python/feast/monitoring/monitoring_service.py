@@ -367,7 +367,7 @@ class MonitoringService:
                     feature_view=fv,
                     metrics_list=metrics_list,
                     metric_date=date.today(),
-                    granularity="daily",
+                    granularity="baseline",
                     set_baseline=True,
                     now=now,
                 )
