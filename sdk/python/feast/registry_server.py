@@ -175,6 +175,25 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
     )
 
 
+def _warn_if_auth_disabled(auth_manager_type: AuthManagerType) -> None:
+    """Emit a startup warning when the registry server runs without authentication.
+
+    The registry server accepts control-plane writes (e.g. applying feature
+    views), which materialize user-provided transformation code on this host.
+    When authentication is disabled it accepts those requests unauthenticated,
+    so it should only run inside a trusted network boundary.
+    """
+    if auth_manager_type == AuthManagerType.NONE:
+        logger.warning(
+            "Registry server is starting with authentication disabled "
+            "(auth type 'no_auth'). It will accept unauthenticated requests, "
+            "including feature-view apply operations that load user-provided "
+            "transformation code on this host. Only run the registry server in "
+            "this mode inside a trusted network boundary, and enable "
+            "authentication before exposing it on an untrusted network."
+        )
+
+
 class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def __init__(self, registry: BaseRegistry) -> None:
         super().__init__()
@@ -1353,6 +1372,7 @@ def start_server(
     tls_cert_path: str = "",
 ):
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
+    _warn_if_auth_disabled(auth_manager_type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(
         auth_type=auth_manager_type,
