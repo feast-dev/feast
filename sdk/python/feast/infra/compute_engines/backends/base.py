@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class DataFrameBackend(ABC):
@@ -18,6 +22,8 @@ class DataFrameBackend(ABC):
     Expected implementations include:
     - PandasBackend
     - PolarsBackend
+    - SparkBackend
+    - DaskBackend
     - DuckDBBackend (future)
 
     Methods
@@ -77,3 +83,27 @@ class DataFrameBackend(ABC):
 
     @abstractmethod
     def rename_columns(self, df, columns: dict[str, str]): ...
+
+    @abstractmethod
+    def get_schema(self, df) -> dict[str, "np.dtype"]:
+        """
+        Get the schema of the DataFrame as a dictionary of column names to numpy data types.
+
+        Returns:
+            Dictionary mapping column names to their numpy dtype objects
+        """
+        ...
+
+    @abstractmethod
+    def get_timestamp_range(self, df, timestamp_column: str) -> tuple:
+        """
+        Get the min and max values of a timestamp column.
+
+        Args:
+            df: The DataFrame
+            timestamp_column: Name of the timestamp column
+
+        Returns:
+            Tuple of (min_timestamp, max_timestamp) as datetime objects
+        """
+        ...
