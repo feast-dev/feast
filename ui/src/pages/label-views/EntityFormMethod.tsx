@@ -35,7 +35,9 @@ const EntityFormMethod = ({ annotationConfig }: EntityFormMethodProps) => {
   const { data } = useLoadLabelView(labelViewName || "");
 
   const spec = data?.object?.spec || data?.spec || {};
-  const entities: string[] = spec.entities || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
   const labelFields: { name: string; valueType?: string }[] =
     spec.features || [];
 

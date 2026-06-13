@@ -14,6 +14,7 @@ This guide covers:
 6. [On-demand exploration (transient compute)](#6-on-demand-exploration)
 7. [Integrating with orchestrators](#7-integrating-with-orchestrators)
 8. [Supported backends](#8-supported-backends)
+9. [Monitoring in the Feast UI](#9-monitoring-in-the-feast-ui)
 
 ## 1. Prerequisites
 
@@ -43,16 +44,16 @@ Done!
 The baseline reads all available source data and stores the resulting statistics with `is_baseline=TRUE`. This serves as the reference distribution for future drift detection.
 
 Baseline computation is:
-- **Non-blocking** — `feast apply` returns immediately; computation runs asynchronously
+- **Threaded** — runs in a background thread but completes before `feast apply` exits
 - **Idempotent** — only features without existing baselines are computed; re-running `feast apply` won't recompute existing baselines
 
-### Disabling auto-baseline
+### Enabling auto-baseline
 
-To skip automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
+To enable automatic baseline computation on `feast apply`, set the DQM config in `feature_store.yaml`:
 
 ```yaml
-DataQualityMonitoring:
-  auto_baseline: false
+data_quality_monitoring:
+  auto_baseline: true
 ```
 
 When using the Feast operator, set this in the `FeatureStore` CR:
@@ -63,8 +64,10 @@ kind: FeatureStore
 spec:
   feastProject: my_project
   dataQualityMonitoring:
-    autoBaseline: false
+    autoBaseline: true
 ```
+
+To disable it, set `auto_baseline: false` (or `autoBaseline: false` in the CR).
 
 ## 3. Scheduled monitoring with the CLI
 
@@ -386,3 +389,76 @@ Monitoring respects Feast's existing RBAC:
 - **Compute operations** (`POST /monitoring/compute`, `/auto_compute`, `/compute/log`, `/auto_compute/log`) require `AuthzedAction.UPDATE`
 - **Transient compute** (`POST /monitoring/compute/transient`) requires `AuthzedAction.DESCRIBE`
 - **Read operations** (`GET /monitoring/metrics/*`) require `AuthzedAction.DESCRIBE`
+
+## 9. Monitoring in the Feast UI
+
+The Feast web UI includes a built-in monitoring dashboard accessible from the **Monitoring** item in the sidebar navigation.
+
+### What you see
+
+The monitoring page has three tabs:
+
+| Tab | Shows |
+|-----|-------|
+| **Features** | Per-feature metrics table with null rate, row count, freshness, and health status |
+| **Feature Views** | Aggregated data quality per feature view |
+| **Feature Services** | Aggregated metrics per feature service |
+
+### Filters
+
+At the top of the monitoring page you can filter by:
+
+- **Feature View** — scope to a specific feature view or view all
+- **Granularity** — select Baseline, Daily, Weekly, Biweekly, Monthly, or Quarterly
+- **Source** — filter by batch or log data source
+- **Start/End Date** — filter metrics to a specific date range (disabled for Baseline since baseline uses all data)
+
+### Feature detail page
+
+Clicking any feature row navigates to a detail page showing:
+
+- **Distribution histogram** — expandable/zoomable chart of the feature's value distribution
+- **Statistics panel** — null rate, mean, stddev, min/max, percentiles (p50–p99)
+- **Granularity dropdown** — switch between computed granularities and baseline
+- **Time Series Analysis** — trend charts for aggregate metrics drift (Mean/P50/P95) and null rate evolution over time
+
+### Computing metrics from the UI
+
+Click the **Compute Metrics** button in the page header to trigger an `auto_compute` job. This computes all granularities for all feature views (or the selected feature view if filtered). Results appear after the table refreshes.
+
+The **Refresh** button re-fetches already computed metrics from the backend without triggering new computation.
+
+### When no data is available
+
+If no metrics have been computed yet, the page shows a prompt:
+
+> No monitoring data has been computed for this project. Click "Compute Metrics" to run data quality analysis on your feature views.
+
+If the monitoring backend is unreachable, a warning banner appears:
+
+> Could not connect to the monitoring API. Make sure the Feast registry server is running with monitoring enabled.
+
+### Enabling monitoring for the UI
+
+The monitoring page is always accessible in the sidebar. To see actual data:
+
+1. Add `data_quality_monitoring` to your `feature_store.yaml`:
+
+   ```yaml
+   data_quality_monitoring:
+     auto_baseline: true
+   ```
+
+   Or, when using the Feast operator, set this in the `FeatureStore` CR:
+
+   ```yaml
+   apiVersion: feast.dev/v1
+   kind: FeatureStore
+   spec:
+     feastProject: my_project
+     dataQualityMonitoring:
+       autoBaseline: true
+   ```
+
+2. Run `feast apply` — this computes baseline metrics automatically
+3. Schedule `feast monitor run` (or click "Compute Metrics" in the UI) to generate daily/weekly/monthly metrics

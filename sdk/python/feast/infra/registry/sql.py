@@ -1598,8 +1598,15 @@ class SqlRegistry(CachingRegistry):
             skip_udf: If True, call from_proto() but skip deserializing UDFs
                 (dill.loads). Returns Python objects suitable for filtering and
                 display without requiring the UDF's source module to be installed.
-                Only relevant for feature view types.
+                Only relevant for feature view types that contain UDFs.
         """
+        import inspect
+
+        supports_skip_udf = (
+            skip_udf
+            and "skip_udf" in inspect.signature(python_class.from_proto).parameters
+        )
+
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
@@ -1611,8 +1618,8 @@ class SqlRegistry(CachingRegistry):
                         objects.append(proto)
                     else:
                         obj = (
-                            python_class.from_proto(proto, skip_udf=skip_udf)
-                            if skip_udf
+                            python_class.from_proto(proto, skip_udf=True)
+                            if supports_skip_udf
                             else python_class.from_proto(proto)
                         )
                         if utils.has_all_tags(obj.tags, tags):

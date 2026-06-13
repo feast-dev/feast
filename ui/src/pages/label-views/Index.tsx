@@ -47,7 +47,9 @@ const LabelViewsListingTable = ({ labelViews }: { labelViews: any[] }) => {
     const tags = spec.tags || {};
     return {
       name: spec.name || "Unknown",
-      entities: spec.entities || [],
+      entities: spec.entityColumns?.length
+        ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+        : spec.entities || [],
       conflictPolicy: spec.conflictPolicy || "LAST_WRITE_WINS",
       annotationProfile: tags["feast.io/labeling-method"] || "table",
       labelerField: spec.labelerField || "labeler",

@@ -78,7 +78,9 @@ const LabelViewOverviewTab = () => {
     spec.conflictPolicy ||
     "LAST_WRITE_WINS";
   const labelerField = spec.labelerField || "labeler";
-  const entities: string[] = spec.entities || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
   const features: any[] = spec.features || [];
 
   const schemaColumns: EuiBasicTableColumn<SchemaField>[] = [

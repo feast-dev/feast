@@ -81,7 +81,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     grpc_handler = RegistryServer(store.registry)
 
     rest_app = FastAPI(root_path="/api/v1")
-    register_all_routes(rest_app, grpc_handler)
+    register_all_routes(rest_app, grpc_handler, store=store)
 
     class PushRequest(BaseModel):
         push_source_name: str
@@ -167,15 +167,11 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     class ListLabelsRequest(BaseModel):
         feature_view: str
         limit: Optional[int] = 100
-        start_date: Optional[str] = None
-        end_date: Optional[str] = None
 
     @rest_app.post("/list-labels")
     def list_labels(request: ListLabelsRequest):
         """List resolved labels from the offline store with conflict policy enforcement."""
         try:
-            from datetime import datetime, timedelta, timezone
-
             from feast.labeling.conflict_policy import ConflictPolicy
             from feast.labeling.conflict_resolver import resolve_conflicts
 
@@ -205,17 +201,10 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                 )
 
             feature_names = [f.name for f in fv.features]
-            join_keys = fv.entities if fv.entities else []
-
-            end_date = (
-                pd.Timestamp(request.end_date, tz="UTC").to_pydatetime()
-                if request.end_date
-                else datetime.now(timezone.utc) + timedelta(days=1)
-            )
-            start_date = (
-                pd.Timestamp(request.start_date, tz="UTC").to_pydatetime()
-                if request.start_date
-                else end_date - timedelta(days=366)
+            join_keys = (
+                fv.join_keys
+                if hasattr(fv, "join_keys")
+                else (fv.entities if fv.entities else [])
             )
 
             provider = store._get_provider()
@@ -226,16 +215,26 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
             )
             labeler_field = getattr(fv, "labeler_field", "labeler")
 
-            job = provider.offline_store.pull_all_from_table_or_query(
-                config=store.config,
-                data_source=batch_source,
-                join_key_columns=join_keys,
-                feature_name_columns=feature_names,
-                timestamp_field=timestamp_field,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            df = job.to_df()
+            try:
+                job = provider.offline_store.pull_all_from_table_or_query(
+                    config=store.config,
+                    data_source=batch_source,
+                    join_key_columns=join_keys,
+                    feature_name_columns=feature_names,
+                    timestamp_field=timestamp_field,
+                )
+                df = job.to_df()
+            except Exception:
+                return {
+                    "labels": [],
+                    "columns": join_keys + feature_names,
+                    "feature_names": feature_names,
+                    "entity_names": join_keys,
+                    "total_count": 0,
+                    "total_entities": 0,
+                    "conflict_policy": conflict_policy.value,
+                    "hint": "No label data found yet. Push labels to get started.",
+                }
 
             df = resolve_conflicts(
                 df=df,
@@ -272,14 +271,12 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
 
     class LabelQualityRequest(BaseModel):
         feature_view: str
-        start_date: Optional[str] = None
-        end_date: Optional[str] = None
 
     @rest_app.post("/label-quality")
     def label_quality(request: LabelQualityRequest):
         """Compute label quality metrics with conflict policy enforcement."""
         try:
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timezone
 
             from feast.labeling.conflict_policy import ConflictPolicy
             from feast.labeling.conflict_resolver import resolve_conflicts
@@ -310,17 +307,10 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                 )
 
             feature_names = [f.name for f in fv.features]
-            join_keys = fv.entities if fv.entities else []
-
-            end_date = (
-                pd.Timestamp(request.end_date, tz="UTC").to_pydatetime()
-                if request.end_date
-                else datetime.now(timezone.utc) + timedelta(days=1)
-            )
-            start_date = (
-                pd.Timestamp(request.start_date, tz="UTC").to_pydatetime()
-                if request.start_date
-                else end_date - timedelta(days=366)
+            join_keys = (
+                fv.join_keys
+                if hasattr(fv, "join_keys")
+                else (fv.entities if fv.entities else [])
             )
 
             provider = store._get_provider()
@@ -330,16 +320,32 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                 fv, "conflict_policy", ConflictPolicy.LAST_WRITE_WINS
             )
 
-            job = provider.offline_store.pull_all_from_table_or_query(
-                config=store.config,
-                data_source=batch_source,
-                join_key_columns=join_keys,
-                feature_name_columns=feature_names,
-                timestamp_field=timestamp_field,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            raw_df = job.to_df()
+            try:
+                job = provider.offline_store.pull_all_from_table_or_query(
+                    config=store.config,
+                    data_source=batch_source,
+                    join_key_columns=join_keys,
+                    feature_name_columns=feature_names,
+                    timestamp_field=timestamp_field,
+                )
+                raw_df = job.to_df()
+            except Exception:
+                return {
+                    "total_entities": 0,
+                    "total_annotations": 0,
+                    "feature_names": feature_names,
+                    "distributions": {},
+                    "coverage_pct": {},
+                    "null_counts": {},
+                    "labeler_stats": {},
+                    "staleness_seconds": None,
+                    "oldest_label_ts": None,
+                    "newest_label_ts": None,
+                    "labeler_field": labeler_field,
+                    "conflict_policy": conflict_policy.value,
+                    "hint": "No label data found yet. Push labels to compute quality metrics.",
+                }
+
             total_annotations = len(raw_df)
 
             # Labeler stats computed on raw data (before resolution)
@@ -422,8 +428,6 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     def active_learning_candidates(request: ActiveLearningRequest):
         """Find entities that exist in a reference feature view but have NOT been labeled yet."""
         try:
-            from datetime import datetime, timedelta, timezone
-
             fv_name = request.feature_view
             fv: Any = None
             try:
@@ -470,10 +474,6 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                 )
 
             provider = store._get_provider()
-            end_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-                days=1
-            )
-            start_date = end_date - timedelta(days=366)
 
             # Get all entities from reference feature view
             ref_batch_source = getattr(ref_fv, "batch_source", None)
@@ -488,60 +488,84 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
                     media_type="application/json",
                 )
 
-            ref_join_keys = ref_fv.entities if ref_fv.entities else []
+            ref_join_keys = (
+                ref_fv.join_keys
+                if hasattr(ref_fv, "join_keys")
+                else (ref_fv.entities if ref_fv.entities else [])
+            )
             ref_feature_names = [f.name for f in ref_fv.features]
 
-            ref_job = provider.offline_store.pull_latest_from_table_or_query(
-                config=store.config,
-                data_source=ref_batch_source,
-                join_key_columns=ref_join_keys,
-                feature_name_columns=ref_feature_names[:1],
-                timestamp_field=ref_batch_source.timestamp_field,
-                created_timestamp_column=getattr(
-                    ref_batch_source, "created_timestamp_column", None
-                ),
-                start_date=start_date,
-                end_date=end_date,
-            )
-            ref_df = ref_job.to_df()
+            try:
+                ref_job = provider.offline_store.pull_all_from_table_or_query(
+                    config=store.config,
+                    data_source=ref_batch_source,
+                    join_key_columns=ref_join_keys,
+                    feature_name_columns=ref_feature_names[:1],
+                    timestamp_field=ref_batch_source.timestamp_field,
+                    created_timestamp_column=getattr(
+                        ref_batch_source, "created_timestamp_column", None
+                    ),
+                )
+                ref_df = ref_job.to_df()
+            except Exception:
+                return Response(
+                    content=json.dumps(
+                        {
+                            "detail": f"Could not read reference feature view '{ref_fv_name}'. Ensure data exists."
+                        }
+                    ),
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    media_type="application/json",
+                )
 
             # Get labeled entities from the label view
             label_batch_source = getattr(fv, "batch_source", None)
-            label_join_keys = fv.entities if fv.entities else []
+            label_join_keys = (
+                fv.join_keys
+                if hasattr(fv, "join_keys")
+                else (fv.entities if fv.entities else [])
+            )
             label_feature_names = [f.name for f in fv.features]
 
             labeled_keys: set = set()
             if label_batch_source:
-                label_job = provider.offline_store.pull_latest_from_table_or_query(
-                    config=store.config,
-                    data_source=label_batch_source,
-                    join_key_columns=label_join_keys,
-                    feature_name_columns=label_feature_names,
-                    timestamp_field=label_batch_source.timestamp_field,
-                    created_timestamp_column=getattr(
-                        label_batch_source,
-                        "created_timestamp_column",
-                        None,
-                    ),
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-                label_df = label_job.to_df()
-                if not label_df.empty and label_join_keys:
-                    labeled_keys = set(
-                        label_df[label_join_keys[0]].dropna().astype(str)
+                try:
+                    label_job = provider.offline_store.pull_all_from_table_or_query(
+                        config=store.config,
+                        data_source=label_batch_source,
+                        join_key_columns=label_join_keys,
+                        feature_name_columns=label_feature_names,
+                        timestamp_field=label_batch_source.timestamp_field,
+                        created_timestamp_column=getattr(
+                            label_batch_source,
+                            "created_timestamp_column",
+                            None,
+                        ),
                     )
+                    label_df = label_job.to_df()
+                    if not label_df.empty and label_join_keys:
+                        labeled_keys = set(
+                            label_df[label_join_keys[0]].dropna().astype(str)
+                        )
+                except Exception:
+                    labeled_keys = set()
 
             # Find unlabeled entities (in ref but not in labels)
             common_key = label_join_keys[0] if label_join_keys else ref_join_keys[0]
             unlabeled_entities: List[Dict[str, Any]] = []
 
             if common_key in ref_df.columns:
+                seen_keys: set = set()
                 for _, row in ref_df.iterrows():
                     key_val = (
                         str(row[common_key]) if pd.notna(row[common_key]) else None
                     )
-                    if key_val and key_val not in labeled_keys:
+                    if (
+                        key_val
+                        and key_val not in labeled_keys
+                        and key_val not in seen_keys
+                    ):
+                        seen_keys.add(key_val)
                         entity = {common_key: row[common_key]}
                         unlabeled_entities.append(entity)
                         if len(unlabeled_entities) >= (request.limit or 50):
