@@ -1130,9 +1130,10 @@ class FeatureStore:
                         f"Enable it before materializing."
                     )
                 if hasattr(feature_view, "online") and not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
+                    if not getattr(feature_view, "offline", False):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} is not configured to be served online."
+                        )
                 elif (
                     hasattr(feature_view, "write_to_online_store")
                     and not feature_view.write_to_online_store
