@@ -66,6 +66,16 @@ class MlflowConfig(FeastBaseModel):
         in the MLflow UI Traces tab and support parent-child linking via
         traceparent headers.  Defaults to True. """
 
+    trace_sampling_ratio: float = 1.0
+    """ float: Fraction of requests to trace (0.0–1.0).  Set below 1.0
+        for high-volume production to reduce overhead.  Defaults to 1.0
+        (trace every request). Maps to MLFLOW_TRACE_SAMPLING_RATIO. """
+
+    redact_entity_pii: StrictBool = False
+    """ bool: When True, entity values in span inputs are replaced with
+        ``[REDACTED]`` before the span is sent to MLflow.  Useful when
+        entity keys contain PII.  Defaults to False. """
+
     def get_tracking_uri(self) -> Optional[str]:
         """Resolve the effective tracking URI for this config instance."""
         return resolve_tracking_uri(self.tracking_uri)

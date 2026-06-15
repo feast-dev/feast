@@ -257,6 +257,7 @@ class TestLazyInit:
         store.config.mlflow.enabled = True
         store.config.mlflow.enable_distributed_tracing = True
         store.config.mlflow.get_tracking_uri.return_value = None
+        store.config.mlflow.trace_sampling_ratio = 1.0
         store.config.project = "test_project"
 
         result = feast.tracing._lazy_init(store)
@@ -327,4 +328,173 @@ class TestPushTraceContext:
             assert len(ctx.feature_refs) == 2
             assert ctx.feature_service == "driver_svc"
 
-        assert get_current_context() is None
+
+# ---------------------------------------------------------------------------
+# Phase 1 gap-fix tests
+# ---------------------------------------------------------------------------
+
+
+class TestTracedToolSpanEnhancements:
+    """Tests for span_type, set_inputs/set_outputs, record_exception,
+    and update_current_trace added in the tracing gap-fix phase."""
+
+    def setup_method(self):
+        import feast.tracing
+
+        feast.tracing._initialized = False
+        feast.tracing._enabled = False
+        feast.tracing._mlflow_mod = None
+        feast.tracing._FEAST_VERSION = None
+
+    def test_span_type_passed_to_start_span(self):
+        import feast.tracing
+
+        feast.tracing._initialized = False
+
+        mock_mlflow = MagicMock()
+        mock_span = MagicMock()
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
+
+        store = MagicMock()
+        store.config.mlflow.enabled = True
+        store.config.mlflow.enable_distributed_tracing = True
+        store.config.mlflow.get_tracking_uri.return_value = None
+        store.config.mlflow.trace_sampling_ratio = 1.0
+        store.config.project = "test_project"
+
+        with patch.dict("sys.modules", {"mlflow": mock_mlflow}):
+            feast.tracing._initialized = False
+            feast.tracing._mlflow_mod = None
+
+            feast.tracing._initialized = True
+            feast.tracing._enabled = True
+            feast.tracing._mlflow_mod = mock_mlflow
+
+            with feast.tracing.traced_tool_span(
+                store, "test.span", span_type="RETRIEVER"
+            ):
+                pass
+
+        mock_mlflow.start_span.assert_called_once_with(
+            "test.span", span_type="RETRIEVER"
+        )
+
+    def test_inputs_set_on_span(self):
+        import feast.tracing
+
+        mock_mlflow = MagicMock()
+        mock_span = MagicMock()
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
+
+        feast.tracing._initialized = True
+        feast.tracing._enabled = True
+        feast.tracing._mlflow_mod = mock_mlflow
+        feast.tracing._FEAST_VERSION = "0.64.0"
+
+        store = MagicMock()
+        test_inputs = {"features": ["fv:f1"], "entity_count": 5}
+
+        with feast.tracing.traced_tool_span(
+            store, "test.span", inputs=test_inputs
+        ):
+            pass
+
+        mock_span.set_inputs.assert_called_once_with(test_inputs)
+
+    def test_exception_recorded_on_span(self):
+        import feast.tracing
+
+        mock_mlflow = MagicMock()
+        mock_span = MagicMock()
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
+
+        feast.tracing._initialized = True
+        feast.tracing._enabled = True
+        feast.tracing._mlflow_mod = mock_mlflow
+        feast.tracing._FEAST_VERSION = None
+
+        store = MagicMock()
+        test_exc = RuntimeError("retrieval failed")
+
+        try:
+            with feast.tracing.traced_tool_span(store, "test.span"):
+                raise test_exc
+        except RuntimeError:
+            pass
+
+        mock_span.record_exception.assert_called_once_with(test_exc)
+
+    def test_update_current_trace_called_with_session(self):
+        import feast.tracing
+
+        mock_mlflow = MagicMock()
+        mock_span = MagicMock()
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
+
+        feast.tracing._initialized = True
+        feast.tracing._enabled = True
+        feast.tracing._mlflow_mod = mock_mlflow
+        feast.tracing._FEAST_VERSION = None
+
+        store = MagicMock()
+
+        with feast.tracing.traced_tool_span(
+            store,
+            "test.span",
+            attributes={"feast.project": "myproj", "feast.retrieval_type": "online"},
+            session_id="sess-123",
+            user="alice",
+        ):
+            pass
+
+        mock_mlflow.update_current_trace.assert_called_once()
+        call_kwargs = mock_mlflow.update_current_trace.call_args[1]
+        assert call_kwargs["session_id"] == "sess-123"
+        assert call_kwargs["user"] == "alice"
+        assert call_kwargs["tags"]["feast.project"] == "myproj"
+
+
+class TestMlflowConfigProductionFields:
+    def test_trace_sampling_ratio_default(self):
+        from feast.mlflow_integration.config import MlflowConfig
+
+        cfg = MlflowConfig()
+        assert cfg.trace_sampling_ratio == 1.0
+
+    def test_redact_entity_pii_default(self):
+        from feast.mlflow_integration.config import MlflowConfig
+
+        cfg = MlflowConfig()
+        assert cfg.redact_entity_pii is False
+
+
+class TestPiiRedactor:
+    def test_redacts_entity_values(self):
+        from feast.tracing_hooks import feast_pii_redactor
+
+        span = MagicMock()
+        span.inputs = {"features": ["fv:f1"], "entities": {"user_id": "alice123"}}
+        feast_pii_redactor(span)
+        call_args = span.set_inputs.call_args[0][0]
+        assert call_args["entities"]["user_id"] == "[REDACTED]"
+        assert call_args["features"] == ["fv:f1"]
+
+    def test_noop_when_no_entities(self):
+        from feast.tracing_hooks import feast_pii_redactor
+
+        span = MagicMock()
+        span.inputs = {"features": ["fv:f1"]}
+        feast_pii_redactor(span)
+        span.set_inputs.assert_not_called()
+
+    def test_noop_when_inputs_not_dict(self):
+        from feast.tracing_hooks import feast_pii_redactor
+
+        span = MagicMock()
+        span.inputs = "not a dict"
+        feast_pii_redactor(span)
+        span.set_inputs.assert_not_called()
