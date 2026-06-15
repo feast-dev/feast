@@ -40,7 +40,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from google.protobuf.json_format import MessageToDict
 from pydantic import BaseModel, field_validator
 
 import feast
@@ -52,9 +51,14 @@ from feast.errors import (
     FeastError,
 )
 from feast.feast_object import FeastObject
+from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.permissions.action import WRITE, AuthzedAction
-from feast.permissions.security_manager import assert_permissions
+from feast.permissions.security_manager import (
+    assert_permissions,
+    get_security_manager,
+    is_auth_necessary,
+)
 from feast.permissions.server.rest import inject_user_details
 from feast.permissions.server.utils import (
     ServerType,
@@ -148,28 +152,71 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
-def _resolve_feature_counts(
+def _parse_feature_info(
     features: Union[List[str], "feast.FeatureService"],
 ) -> tuple:
-    """Return (feature_count, feature_view_count) from the resolved features.
+    """Return ``(feature_view_names, feature_count)`` from resolved features.
 
     ``features`` is either a list of ``"feature_view:feature"`` strings or
     a ``FeatureService`` with ``feature_view_projections``.
+
+    Returns:
+        (fv_names, feat_count) where fv_names is a list of unique feature
+        view name strings and feat_count is the total number of features.
     """
     from feast.feature_service import FeatureService
+    from feast.utils import _parse_feature_ref
 
     if isinstance(features, FeatureService):
         projections = features.feature_view_projections
-        fv_count = len(projections)
+        fv_names = [p.name for p in projections]
         feat_count = sum(len(p.features) for p in projections)
     elif isinstance(features, list):
         feat_count = len(features)
-        fv_names = {ref.split(":")[0].split("@")[0] for ref in features if ":" in ref}
-        fv_count = len(fv_names)
+        fv_names = list({_parse_feature_ref(ref)[0] for ref in features if ":" in ref})
     else:
+        fv_names = []
         feat_count = 0
-        fv_count = 0
-    return str(feat_count), str(fv_count)
+    return fv_names, feat_count
+
+
+def _resolve_feature_counts(
+    features: Union[List[str], "feast.FeatureService"],
+) -> tuple:
+    """Return ``(feature_count_str, feature_view_count_str)`` for Prometheus labels."""
+    fv_names, feat_count = _parse_feature_info(features)
+    return str(feat_count), str(len(fv_names))
+
+
+def _emit_online_audit(
+    request: GetOnlineFeaturesRequest,
+    features: Union[List[str], "feast.FeatureService"],
+    entity_count: int,
+    status: str,
+    latency_ms: float,
+):
+    """Best-effort audit log emission for online feature requests."""
+    try:
+        from feast.permissions.security_manager import get_security_manager
+
+        requestor_id = "anonymous"
+        sm = get_security_manager()
+        if sm and sm.current_user:
+            requestor_id = sm.current_user.username or "anonymous"
+
+        fv_names, feat_count = _parse_feature_info(features)
+
+        feast_metrics.emit_online_audit_log(
+            requestor_id=requestor_id,
+            entity_keys=list(request.entities.keys()),
+            entity_count=entity_count,
+            feature_views=fv_names,
+            feature_count=feat_count,
+            status=status,
+            latency_ms=latency_ms,
+        )
+    except Exception:
+        logger.warning("Failed to emit online audit log", exc_info=True)
 
 
 async def _get_features(
@@ -184,7 +231,7 @@ async def _get_features(
             resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
         )
         features = feature_service  # type: ignore
-    else:
+    elif is_auth_necessary(get_security_manager()):
         all_feature_views, all_on_demand_feature_views = await run_in_threadpool(
             utils._get_feature_views_to_use,
             store.registry,
@@ -201,6 +248,8 @@ async def _get_features(
             assert_permissions(
                 resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
             )
+        features = request.features  # type: ignore
+    else:
         features = request.features  # type: ignore
     return features
 
@@ -288,7 +337,6 @@ def get_app(
     """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
-    registry_proto = None
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
     # --- Offline write batching config and batcher ---
@@ -338,8 +386,6 @@ def get_app(
             return
 
         store.refresh_registry()
-        nonlocal registry_proto
-        registry_proto = store.registry.proto()
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -387,20 +433,28 @@ def get_app(
                 include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
-            if store._get_provider().async_supported.online.read:
-                response = await store.get_online_features_async(**read_params)  # type: ignore
-            else:
-                response = await run_in_threadpool(
-                    lambda: store.get_online_features(**read_params)  # type: ignore
+            audit_start_ms = time.monotonic() * 1000
+            audit_status = "success"
+            try:
+                if store._get_provider().async_supported.online.read:
+                    response = await store.get_online_features_async(**read_params)  # type: ignore
+                else:
+                    response = await run_in_threadpool(
+                        lambda: store.get_online_features(**read_params)  # type: ignore
+                    )
+            except Exception:
+                audit_status = "error"
+                raise
+            finally:
+                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                _emit_online_audit(
+                    request, features, entity_count, audit_status, audit_latency_ms
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
-                response.proto,
-                preserving_proto_field_name=True,
-                float_precision=18,
+                convert_response_to_dict, response.proto
             )
-            return response_dict
+            return JSONResponse(content=response_dict)
 
     @app.post(
         "/retrieve-online-documents",
@@ -437,12 +491,9 @@ def get_app(
                 )
 
             response_dict = await run_in_threadpool(
-                MessageToDict,
-                response.proto,
-                preserving_proto_field_name=True,
-                float_precision=18,
+                convert_response_to_dict, response.proto
             )
-            return response_dict
+            return JSONResponse(content=response_dict)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
@@ -569,11 +620,11 @@ def get_app(
 
     @app.get("/health")
     async def health():
-        return (
-            Response(status_code=status.HTTP_200_OK)
-            if registry_proto
-            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
-        )
+        try:
+            store.registry.list_projects(allow_cache=True)
+            return Response(status_code=status.HTTP_200_OK)
+        except Exception:
+            return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     @app.post("/chat")
     async def chat(request: ChatRequest):
@@ -593,12 +644,22 @@ def get_app(
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     async def materialize(request: MaterializeRequest) -> None:
         with feast_metrics.track_request_latency("/materialize"):
-            for feature_view in request.feature_views or []:
-                resource = await _get_feast_object(feature_view, True)
-                assert_permissions(
-                    resource=resource,
-                    actions=[AuthzedAction.WRITE_ONLINE],
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
                 )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
 
             if request.disable_event_timestamp:
                 now = datetime.now()
@@ -624,12 +685,22 @@ def get_app(
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
     async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
         with feast_metrics.track_request_latency("/materialize-incremental"):
-            for feature_view in request.feature_views or []:
-                resource = await _get_feast_object(feature_view, True)
-                assert_permissions(
-                    resource=resource,
-                    actions=[AuthzedAction.WRITE_ONLINE],
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
                 )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
             await run_in_threadpool(
                 store.materialize_incremental,
                 utils.make_tzaware(parser.parse(request.end_ts)),

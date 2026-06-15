@@ -186,6 +186,122 @@ def test_local_dedup_node():
     assert set(df_result["entity_id"]) == {1, 2}
 
 
+def test_local_dedup_node_with_field_mapping_on_join_key():
+    """Regression test for materialization failure when a join key has a field mapping.
+
+    The source-read node renames columns via field_mapping (e.g. ``USERID`` -> ``user_id``)
+    before passing the table to downstream nodes. Without mapping ``column_info.join_keys``
+    the dedup node would look up the pre-mapping name and raise ``KeyError(['USERID'])``.
+
+    See https://github.com/feast-dev/feast/issues/5942.
+    """
+    # Simulate a source-read node output: columns already renamed to the mapped names.
+    df = pd.DataFrame(
+        {
+            "user_id": [1, 1, 2],
+            "value": [100, 200, 300],
+            "event_timestamp": [
+                now - timedelta(seconds=1),
+                now,
+                now,
+            ],
+        }
+    )
+
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(df))}
+    )
+
+    node = LocalDedupNode(
+        name="dedup",
+        backend=backend,
+        column_info=ColumnInfo(
+            # The raw join key matches the source column name; field_mapping maps
+            # it to the user-facing name that the source-read node has already
+            # renamed the column to.
+            join_keys=["USERID"],
+            feature_cols=["value"],
+            ts_col="EVENT_TIMESTAMP",
+            created_ts_col=None,
+            field_mapping={"USERID": "user_id", "EVENT_TIMESTAMP": "event_timestamp"},
+        ),
+    )
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    result = node.execute(context)
+
+    df_result = result.data.to_pandas()
+    assert df_result.shape[0] == 2
+    assert set(df_result["user_id"]) == {1, 2}
+
+
+def test_local_join_node_with_field_mapping_on_join_key():
+    """Regression test for materialization failure when a join key has a field mapping.
+
+    The source-read node renames columns via field_mapping (e.g. ``USERID`` -> ``user_id``)
+    before passing the table to downstream nodes. Without mapping ``column_info.join_keys``
+    the join node would call ``backend.join(..., on=["USERID"], ...)`` and raise
+    ``KeyError(['USERID'])`` because the columns have already been renamed.
+
+    See https://github.com/feast-dev/feast/issues/5942.
+    """
+    # Simulate two source-read node outputs: columns already renamed to the mapped names.
+    left_df = pd.DataFrame(
+        {
+            "user_id": [1, 2],
+            "value": [10, 20],
+            "event_timestamp": [now, now],
+        }
+    )
+    right_df = pd.DataFrame(
+        {
+            "user_id": [1, 2],
+            "other_value": [100, 200],
+            "event_timestamp": [now, now],
+        }
+    )
+
+    context = create_context(
+        node_outputs={
+            "left": ArrowTableValue(pa.Table.from_pandas(left_df)),
+            "right": ArrowTableValue(pa.Table.from_pandas(right_df)),
+        }
+    )
+    # Bypass the trailing entity_df join — this test exercises the input-table
+    # join path that consumed the raw (unmapped) join keys before the fix.
+    context.entity_df = None
+
+    join_node = LocalJoinNode(
+        name="join",
+        backend=backend,
+        column_info=ColumnInfo(
+            # Raw join key matches the source column name; field_mapping maps it
+            # to the user-facing name that the source-read node has already
+            # renamed the column to.
+            join_keys=["USERID"],
+            feature_cols=["value", "other_value"],
+            ts_col="EVENT_TIMESTAMP",
+            created_ts_col=None,
+            field_mapping={"USERID": "user_id", "EVENT_TIMESTAMP": "event_timestamp"},
+        ),
+    )
+    left_input = MagicMock()
+    left_input.name = "left"
+    right_input = MagicMock()
+    right_input.name = "right"
+    join_node.add_input(left_input)
+    join_node.add_input(right_input)
+
+    result = join_node.execute(context)
+
+    df_result = result.data.to_pandas()
+    assert df_result.shape[0] == 2
+    assert set(df_result["user_id"]) == {1, 2}
+    assert "value" in df_result.columns
+    assert "other_value" in df_result.columns
+
+
 def test_local_transformation_node():
     context = create_context(
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}

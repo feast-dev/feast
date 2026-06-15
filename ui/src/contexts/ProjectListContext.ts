@@ -13,6 +13,7 @@ const ProjectEntrySchema = z.object({
 const ProjectsListSchema = z.object({
   default: z.string().optional(),
   projects: z.array(ProjectEntrySchema),
+  mode: z.string().optional(),
 });
 
 type ProjectsListType = z.infer<typeof ProjectsListSchema>;

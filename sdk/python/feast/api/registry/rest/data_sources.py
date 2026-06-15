@@ -1,7 +1,9 @@
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from feast.api.registry.rest.codegen_utils import (
     render_data_source_code,
@@ -19,11 +21,60 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
     parse_tags,
 )
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.registry import RegistryServer_pb2
 from feast.type_map import _convert_value_type_str_to_value_type
 from feast.types import from_value_type
 
 logger = logging.getLogger(__name__)
+
+
+class FileOptionsModel(BaseModel):
+    uri: str = ""
+
+
+class BigQueryOptionsModel(BaseModel):
+    table: str = ""
+    query: str = ""
+
+
+class SnowflakeOptionsModel(BaseModel):
+    table: str = ""
+    database: str = ""
+    schema_: str = ""
+
+
+class RedshiftOptionsModel(BaseModel):
+    table: str = ""
+    database: str = ""
+    schema_: str = ""
+
+
+class KafkaOptionsModel(BaseModel):
+    kafka_bootstrap_servers: str = ""
+    topic: str = ""
+
+
+class SparkOptionsModel(BaseModel):
+    table: str = ""
+    path: str = ""
+
+
+class ApplyDataSourceRequestBody(BaseModel):
+    name: str
+    project: str
+    type: Optional[int] = None
+    timestamp_field: Optional[str] = ""
+    created_timestamp_column: Optional[str] = ""
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = {}
+    owner: Optional[str] = ""
+    file_options: Optional[FileOptionsModel] = None
+    bigquery_options: Optional[BigQueryOptionsModel] = None
+    snowflake_options: Optional[SnowflakeOptionsModel] = None
+    redshift_options: Optional[RedshiftOptionsModel] = None
+    kafka_options: Optional[KafkaOptionsModel] = None
+    spark_options: Optional[SparkOptionsModel] = None
 
 
 def get_data_source_router(grpc_handler) -> APIRouter:
@@ -156,5 +207,70 @@ def get_data_source_router(grpc_handler) -> APIRouter:
                 )
                 result["featureDefinition"] = render_data_source_code(context)
                 return result
+
+    @router.post("/data_sources", status_code=201)
+    def apply_data_source(body: ApplyDataSourceRequestBody):
+        ds_proto = DataSourceProto(
+            name=body.name,
+            timestamp_field=body.timestamp_field or "",
+            created_timestamp_column=body.created_timestamp_column or "",
+            description=body.description or "",
+            tags=body.tags or {},
+            owner=body.owner or "",
+        )
+        if body.type is not None:
+            ds_proto.type = body.type  # type: ignore[assignment]
+
+        if body.file_options:
+            ds_proto.file_options.uri = body.file_options.uri
+        elif body.bigquery_options:
+            ds_proto.bigquery_options.table = body.bigquery_options.table
+            ds_proto.bigquery_options.query = body.bigquery_options.query
+        elif body.snowflake_options:
+            ds_proto.snowflake_options.table = body.snowflake_options.table
+            ds_proto.snowflake_options.database = body.snowflake_options.database
+            ds_proto.snowflake_options.schema = body.snowflake_options.schema_
+        elif body.redshift_options:
+            ds_proto.redshift_options.table = body.redshift_options.table
+            ds_proto.redshift_options.database = body.redshift_options.database
+            ds_proto.redshift_options.schema = body.redshift_options.schema_
+        elif body.kafka_options:
+            ds_proto.kafka_options.kafka_bootstrap_servers = (
+                body.kafka_options.kafka_bootstrap_servers
+            )
+            ds_proto.kafka_options.topic = body.kafka_options.topic
+        elif body.spark_options:
+            ds_proto.spark_options.table = body.spark_options.table
+            ds_proto.spark_options.path = body.spark_options.path
+
+        req = RegistryServer_pb2.ApplyDataSourceRequest(
+            data_source=ds_proto,
+            project=body.project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.ApplyDataSource, req)
+
+        return JSONResponse(
+            status_code=201,
+            content={
+                "name": body.name,
+                "project": body.project,
+                "status": "applied",
+            },
+        )
+
+    @router.delete("/data_sources/{name}")
+    def delete_data_source(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.DeleteDataSourceRequest(
+            name=name,
+            project=project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.DeleteDataSource, req)
+
+        return {"name": name, "project": project, "status": "deleted"}
 
     return router

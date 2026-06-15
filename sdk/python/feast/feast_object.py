@@ -8,12 +8,14 @@ from .data_source import DataSource
 from .entity import Entity
 from .feature_service import FeatureService
 from .feature_view import FeatureView
+from .labeling.label_view import LabelView
 from .on_demand_feature_view import OnDemandFeatureView
 from .permissions.permission import Permission
 from .protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from .protos.feast.core.Entity_pb2 import EntitySpecV2
 from .protos.feast.core.FeatureService_pb2 import FeatureServiceSpec
 from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
+from .protos.feast.core.LabelView_pb2 import LabelViewSpec
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from .protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpec
 from .protos.feast.core.SavedDataset_pb2 import SavedDatasetSpec
@@ -31,6 +33,7 @@ FeastObject = Union[
     OnDemandFeatureView,
     BatchFeatureView,
     StreamFeatureView,
+    LabelView,
     Entity,
     FeatureService,
     DataSource,
@@ -44,6 +47,7 @@ FeastObjectSpecProto = Union[
     FeatureViewSpec,
     OnDemandFeatureViewSpec,
     StreamFeatureViewSpec,
+    LabelViewSpec,
     EntitySpecV2,
     FeatureServiceSpec,
     DataSourceProto,
@@ -58,4 +62,5 @@ ALL_FEATURE_VIEW_TYPES = [
     OnDemandFeatureView,
     BatchFeatureView,
     StreamFeatureView,
+    LabelView,
 ]

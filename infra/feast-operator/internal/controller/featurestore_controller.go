@@ -44,6 +44,7 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/access"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	feastmetrics "github.com/feast-dev/feast/infra/feast-operator/internal/controller/metrics"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/registry"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	routev1 "github.com/openshift/api/route/v1"
@@ -58,7 +59,8 @@ const (
 // FeatureStoreReconciler reconciles a FeatureStore object
 type FeatureStoreReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	Metrics *feastmetrics.FeatureStoreMetrics
 }
 
 // +kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
@@ -90,6 +92,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.V(1).Info("FeatureStore CR not found, has been deleted")
+			if r.Metrics != nil {
+				r.Metrics.DeleteFeatureStore(req.NamespacedName.Namespace, req.NamespacedName.Name)
+			}
 			r.cleanupOnDeletion(ctx, req.NamespacedName.Namespace, req.NamespacedName.Name)
 			return ctrl.Result{}, nil
 		}
@@ -99,11 +104,17 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	currentStatus := cr.Status.DeepCopy()
 
 	if cr.DeletionTimestamp != nil {
+		if r.Metrics != nil {
+			r.Metrics.DeleteFeatureStore(cr.Namespace, cr.Name)
+		}
 		r.cleanupOnDeletion(ctx, cr.Namespace, cr.Name)
 		return ctrl.Result{}, nil
 	}
 
 	result, recErr = r.deployFeast(ctx, cr)
+	if recErr == nil && r.Metrics != nil {
+		r.Metrics.RecordFeatureStore(cr)
+	}
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err = r.Client.Status().Update(ctx, cr); err != nil {
 			if apierrors.IsConflict(err) {

@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -481,6 +482,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.applyNodeSelector(podSpec)
 	feast.applyTopologySpread(podSpec)
 	feast.applyAffinity(podSpec)
+	feast.applyResourceClaims(podSpec)
 
 	return nil
 }
@@ -541,7 +543,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			})
 			if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
 				container.Ports = append(container.Ports, corev1.ContainerPort{
-					Name:          "metrics",
+					Name:          metricsPortName,
 					ContainerPort: MetricsPort,
 					Protocol:      corev1.ProtocolTCP,
 				})
@@ -642,7 +644,7 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
-	baseCommand := "feast"
+	baseCommand := feastCommand
 	options := []string{}
 	logLevel := feast.getLogLevelForType(feastType)
 	if logLevel != nil {
@@ -733,7 +735,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 		workingDir := getOfflineMountPath(feast.Handler.FeatureStore)
 		projectPath := workingDir + "/" + applied.FeastProject
 		container := corev1.Container{
-			Name:  "feast-init",
+			Name:  feastInitContainerName,
 			Image: getFeatureServerImage(),
 			Env: []corev1.EnvVar{
 				{
@@ -786,9 +788,9 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 
 		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
 			applyContainer := corev1.Container{
-				Name:       "feast-apply",
+				Name:       feastApplyContainerName,
 				Image:      getFeatureServerImage(),
-				Command:    []string{"feast", "apply"},
+				Command:    []string{feastCommand, "apply"},
 				WorkingDir: featureRepoDir,
 			}
 			// feast apply needs DB/store connectivity, so inherit env, envFrom
@@ -815,6 +817,17 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 	}
 }
 
+// getServiceAppProtocol returns the appProtocol for a Service port.
+// The registry gRPC service uses the gRPC protocol, which requires HTTP/2.
+// Setting appProtocol allows service meshes (e.g. Istio) and load balancers
+// to correctly classify the traffic and avoid downgrading to HTTP/1.1.
+func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, isRestService bool) *string {
+	if feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled() {
+		return ptr.To("grpc")
+	}
+	return nil
+}
+
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feast.isOpenShiftTls(feastType) {
@@ -833,26 +846,26 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 				// The certificate will include both hostnames as SANs
 				if !isRestService {
 					grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
-					svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+					svc.Annotations[openshiftServingCertSecretAnnotation] = grpcSvcName + tlsNameSuffix // pragma: allowlist secret
 
 					// Add Subject Alternative Names (SANs) for both services
 					grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
 					restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
-					svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+					svc.Annotations[openshiftServingCertSansAnnotation] = grpcHostname + "," + restHostname
 				}
 				// REST service should not have the annotation - it will use the same certificate
 				// from the gRPC service secret (mounted in the pod)
 			} else if grpcEnabled && !restEnabled {
 				// Only gRPC enabled: Use gRPC service name
 				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
-				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+				svc.Annotations[openshiftServingCertSecretAnnotation] = grpcSvcName + tlsNameSuffix // pragma: allowlist secret
 			} else if !grpcEnabled && restEnabled {
 				// Only REST enabled: Use REST service name
-				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+				svc.Annotations[openshiftServingCertSecretAnnotation] = svc.Name + tlsNameSuffix // pragma: allowlist secret
 			}
 		} else {
 			// Standard behavior for non-registry services
-			svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+			svc.Annotations[openshiftServingCertSecretAnnotation] = svc.Name + tlsNameSuffix // pragma: allowlist secret
 		}
 	}
 
@@ -876,17 +889,18 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
-				Name:       scheme,
-				Port:       port,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(targetPort)),
+				Name:        scheme,
+				Port:        port,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(int(targetPort)),
+				AppProtocol: feast.getServiceAppProtocol(feastType, isRestService),
 			},
 		},
 	}
 
 	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
 		svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
-			Name:       "metrics",
+			Name:       metricsPortName,
 			Port:       MetricsPort,
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(int(MetricsPort)),
@@ -1089,6 +1103,13 @@ func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
 	}
 }
 
+func (feast *FeastServices) applyResourceClaims(podSpec *corev1.PodSpec) {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+	if services != nil && len(services.ResourceClaims) > 0 {
+		podSpec.ResourceClaims = services.ResourceClaims
+	}
+}
+
 // mergeNodeSelectors merges existing and operator node selectors
 // Existing selectors are preserved, operator selectors can override existing keys
 func (feast *FeastServices) mergeNodeSelectors(existing, operator map[string]string) map[string]string {
@@ -1200,13 +1221,12 @@ func (feast *FeastServices) setFeastServiceCondition(err error, feastType FeastS
 	if err != nil {
 		logger := log.FromContext(feast.Handler.Context)
 		cond := conditionMap[metav1.ConditionFalse]
-		cond.Message = "Error: " + err.Error()
+		cond.Message = ErrorMessagePrefix + err.Error()
 		apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, cond)
 		logger.Error(err, "Error deploying the FeatureStore "+string(ClientFeastType)+" service")
 		return err
-	} else {
-		apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, conditionMap[metav1.ConditionTrue])
 	}
+	apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, conditionMap[metav1.ConditionTrue])
 	return nil
 }
 

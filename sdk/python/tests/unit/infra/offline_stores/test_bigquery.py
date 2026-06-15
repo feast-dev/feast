@@ -154,6 +154,117 @@ def test_pull_all_from_table_or_query_partition_pruning(mock_get_bigquery_client
     assert "partition_date <= '2021-01-02'" in actual_query
 
 
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_pull_latest_date_type_timestamp_field(mock_get_bigquery_client):
+    mock_get_bigquery_client.return_value = Mock()
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(type="bigquery", dataset="feast"),
+    )
+    test_data_source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_date",
+        timestamp_field_type="DATE",
+    )
+    retrieval_job = BigQueryOfflineStore.pull_latest_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["driver_id"],
+        feature_name_columns=["feature1"],
+        timestamp_field="event_date",
+        created_timestamp_column=None,
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    actual_query = retrieval_job.to_sql()
+    assert (
+        "event_date BETWEEN DATE('2021-01-01') AND DATE('2021-01-02')" in actual_query
+    )
+    assert "TIMESTAMP(" not in actual_query
+
+
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_pull_all_date_type_timestamp_field(mock_get_bigquery_client):
+    mock_get_bigquery_client.return_value = Mock()
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(type="bigquery", dataset="feast"),
+    )
+    test_data_source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_date",
+        timestamp_field_type="DATE",
+    )
+    retrieval_job = BigQueryOfflineStore.pull_all_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["driver_id"],
+        feature_name_columns=["feature1"],
+        timestamp_field="event_date",
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    actual_query = retrieval_job.to_sql()
+    assert (
+        "event_date BETWEEN DATE('2021-01-01') AND DATE('2021-01-02')" in actual_query
+    )
+    assert "TIMESTAMP(" not in actual_query
+
+
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_pull_latest_date_type_with_partition_column(mock_get_bigquery_client):
+    mock_get_bigquery_client.return_value = Mock()
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(type="bigquery", dataset="feast"),
+    )
+    test_data_source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_date",
+        timestamp_field_type="DATE",
+        date_partition_column="_PARTITIONDATE",
+    )
+    retrieval_job = BigQueryOfflineStore.pull_latest_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["driver_id"],
+        feature_name_columns=["feature1"],
+        timestamp_field="event_date",
+        created_timestamp_column=None,
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    actual_query = retrieval_job.to_sql()
+    assert "DATE('2021-01-01')" in actual_query
+    assert "DATE('2021-01-02')" in actual_query
+    assert "_PARTITIONDATE >= '2021-01-01'" in actual_query
+    assert "_PARTITIONDATE <= '2021-01-02'" in actual_query
+
+
+def test_bigquery_source_date_type_proto_roundtrip():
+    source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_date",
+        timestamp_field_type="DATE",
+        date_partition_column="_PARTITIONDATE",
+    )
+    proto = source.to_proto()
+    restored = BigQuerySource.from_proto(proto)
+    assert restored.timestamp_field_type == "DATE"
+    assert restored.date_partition_column == "_PARTITIONDATE"
+    assert restored.timestamp_field == "event_date"
+    assert source == restored
+
+
 class TestBigQuerySourceGetTableQueryString:
     def test_table_only(self):
         source = BigQuerySource(
@@ -200,3 +311,64 @@ class TestBigQuerySourceGetTableQueryString:
             timestamp_field="ts",
         )
         assert source.table == "project.dataset.write_target"
+
+
+class TestOfflineWriteBatch:
+    @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+    def test_offline_write_batch_enables_list_inference(self, mock_get_client):
+        """LoadJobConfig must set parquet_options.enable_list_inference = True
+        so that BigQuery correctly interprets PyArrow list columns from parquet.
+        """
+        from unittest.mock import MagicMock
+
+        source = BigQuerySource(
+            name="test",
+            table="project.dataset.table",
+            timestamp_field="ts",
+        )
+        fv = MagicMock()
+        fv.batch_source = source
+
+        pa_schema = pyarrow.schema(
+            [
+                pyarrow.field("entity_id", pyarrow.string()),
+                pyarrow.field("tags", pyarrow.list_(pyarrow.string())),
+                pyarrow.field("ts", pyarrow.timestamp("us", tz="UTC")),
+            ]
+        )
+        pa_table = pyarrow.table(
+            {
+                "entity_id": ["e1"],
+                "tags": [["a", "b"]],
+                "ts": [datetime(2024, 1, 1, tzinfo=timezone.utc)],
+            },
+            schema=pa_schema,
+        )
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.load_table_from_file.return_value = MagicMock()
+
+        config = RepoConfig(
+            registry="gs://test/registry.db",
+            project="test",
+            provider="gcp",
+            offline_store=BigQueryOfflineStoreConfig(project_id="test-project"),
+            online_store=SqliteOnlineStoreConfig(),
+        )
+
+        with patch(
+            "feast.infra.offline_stores.offline_utils.get_pyarrow_schema_from_batch_source",
+            return_value=(pa_schema, pa_table.column_names),
+        ):
+            BigQueryOfflineStore.offline_write_batch(
+                config=config,
+                feature_view=fv,
+                table=pa_table,
+                progress=None,
+            )
+
+        call_kwargs = mock_client.load_table_from_file.call_args
+        job_config = call_kwargs[1]["job_config"]
+        assert job_config.parquet_options is not None
+        assert job_config.parquet_options.enable_list_inference is True

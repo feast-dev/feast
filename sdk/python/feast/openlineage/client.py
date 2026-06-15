@@ -106,9 +106,12 @@ class FeastOpenLineageClient:
         # Initialize the OpenLineage client
         try:
             transport_config = self._config.get_transport_config()
-            self._client = OpenLineageClient(config={"transport": transport_config})
+            if transport_config is None:
+                self._client = OpenLineageClient()
+            else:
+                self._client = OpenLineageClient(config={"transport": transport_config})
             logger.info(
-                f"OpenLineage client initialized with {self._config.transport_type} transport"
+                f"OpenLineage client initialized with {self._config.transport_type or 'default'} transport"
             )
         except Exception as e:
             logger.error(f"Failed to initialize OpenLineage client: {e}")

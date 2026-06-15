@@ -132,22 +132,22 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: services.DefaultNs,
 		}
 
 		offlineSecretNamespacedName := types.NamespacedName{
-			Name:      "offline-store-secret",
-			Namespace: "default",
+			Name:      services.OfflineStoreSecretName,
+			Namespace: services.DefaultNs,
 		}
 
 		onlineSecretNamespacedName := types.NamespacedName{
-			Name:      "online-store-secret",
-			Namespace: "default",
+			Name:      services.OnlineStoreSecretName,
+			Namespace: services.DefaultNs,
 		}
 
 		registrySecretNamespacedName := types.NamespacedName{
-			Name:      "registry-store-secret",
-			Namespace: "default",
+			Name:      services.RegistryStoreSecretName,
+			Namespace: services.DefaultNs,
 		}
 
 		featurestore := &feastdevv1.FeatureStore{}
@@ -212,7 +212,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 					DBPersistence: &feastdevv1.OfflineStoreDBStorePersistence{
 						Type: string(offlineType),
 						SecretRef: corev1.LocalObjectReference{
-							Name: "offline-store-secret",
+							Name: services.OfflineStoreSecretName,
 						},
 					},
 				}
@@ -220,7 +220,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 					DBPersistence: &feastdevv1.OnlineStoreDBStorePersistence{
 						Type: string(onlineType),
 						SecretRef: corev1.LocalObjectReference{
-							Name: "online-store-secret",
+							Name: services.OnlineStoreSecretName,
 						},
 					},
 				}
@@ -228,7 +228,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 					DBPersistence: &feastdevv1.RegistryDBStorePersistence{
 						Type: string(registryType),
 						SecretRef: corev1.LocalObjectReference{
-							Name: "registry-store-secret",
+							Name: services.RegistryStoreSecretName,
 						},
 						SecretKeyName: "sql_custom_registry_key",
 					},
@@ -291,7 +291,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: services.OnlineStoreSecretName} // pragma: allowlist secret
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = "invalid.secret.key"
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 			resource = &feastdevv1.FeatureStore{}
@@ -316,7 +316,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretTypeYamlString)
 			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
 
-			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: services.OnlineStoreSecretName} // pragma: allowlist secret
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 			resource = &feastdevv1.FeatureStore{}
@@ -364,7 +364,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.DBPersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.DBPersistence.Type).To(Equal(string(offlineType)))
-			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: "offline-store-secret"}))
+			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: services.OfflineStoreSecretName}))
 			Expect(resource.Status.Applied.Services.OfflineStore.Server.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Server.Resources).To(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Server.Image).To(Equal(&services.DefaultImage))
@@ -372,7 +372,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.DBPersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.DBPersistence.Type).To(Equal(string(onlineType)))
-			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: "online-store-secret"}))
+			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: services.OnlineStoreSecretName}))
 			Expect(resource.Status.Applied.Services.OnlineStore.Server.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Server.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Server.Image).To(Equal(&image))
@@ -381,7 +381,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.DBPersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.DBPersistence.Type).To(Equal(string(registryType)))
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: "registry-store-secret"}))
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.DBPersistence.SecretRef).To(Equal(corev1.LocalObjectReference{Name: services.RegistryStoreSecretName}))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.DBPersistence.SecretKeyName).To(Equal("sql_custom_registry_key"))
 			Expect(resource.Status.Applied.Services.Registry.Local.Server.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Server.Resources).To(BeNil())
@@ -461,7 +461,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(secretContainingValidTypeYamlString)
 			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
 
-			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: services.OnlineStoreSecretName} // pragma: allowlist secret
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 			resource = &feastdevv1.FeatureStore{}
@@ -492,7 +492,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			secret.Data[string(services.RegistryDBPersistenceSQLConfigType)] = []byte(invalidSecretRegistryTypeYamlString)
 			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
 
-			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "registry-store-secret"}
+			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: services.RegistryStoreSecretName} // pragma: allowlist secret
 			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretKeyName = ""
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 			resource = &feastdevv1.FeatureStore{}
@@ -676,7 +676,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			// change paths and reconcile
 			resourceNew := resource.DeepCopy()
-			newOnlineSecretName := "offline-store-secret"
+			newOnlineSecretName := services.OfflineStoreSecretName // pragma: allowlist secret
 			newOnlineDBPersistenceType := services.OnlineDBPersistenceSnowflakeConfigType
 			resourceNew.Spec.Services.OnlineStore.Persistence.DBPersistence.Type = string(newOnlineDBPersistenceType)
 			resourceNew.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: newOnlineSecretName}

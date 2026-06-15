@@ -98,6 +98,7 @@ class FeatureViewQueryContext:
     date_partition_column: Optional[
         str
     ]  # this attribute is added because partition pruning affects Athena's query performance.
+    timestamp_field_type: Optional[str]
 
 
 def get_feature_view_query_context(
@@ -160,6 +161,10 @@ def get_feature_view_query_context(
             feature_view.batch_source.date_partition_column,
         )
 
+        timestamp_field_type = getattr(
+            feature_view.batch_source, "timestamp_field_type", ""
+        )
+
         max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
         min_event_timestamp = None
         if feature_view.ttl:
@@ -181,6 +186,7 @@ def get_feature_view_query_context(
             min_event_timestamp=min_event_timestamp,
             max_event_timestamp=max_event_timestamp,
             date_partition_column=date_partition_column,
+            timestamp_field_type=timestamp_field_type or None,
         )
         query_context.append(context)
 
@@ -340,7 +346,7 @@ def get_timestamp_filter_sql(
     date_partition_column: Optional[str] = None,
     tz: Optional[timezone] = None,
     cast_style: Literal[
-        "timestamp", "timestamp_func", "timestamptz", "raw"
+        "timestamp", "timestamp_func", "timestamptz", "raw", "date_func"
     ] = "timestamp",
     date_time_separator: str = "T",
     quote_fields: bool = True,
@@ -355,10 +361,11 @@ def get_timestamp_filter_sql(
         date_partition_column: optional partition column (for pruning)
         tz: optional timezone for datetime inputs
         cast_style: one of:
-            - "timestamp": TIMESTAMP '...'                  → Common Sql engine Snowflake, Redshift etc.
+            - "timestamp": TIMESTAMP '...'              → Common Sql engine Snowflake, Redshift etc.
             - "timestamp_func": TIMESTAMP('...')         → BigQuery, Couchbase etc.
             - "timestamptz": '...'::timestamptz          → PostgreSQL
             - "raw": '...'                               → no cast, string only
+            - "date_func": DATE('...')                   → BigQuery DATE columns
         date_time_separator: separator for datetime strings (default is "T")
             (e.g. "2023-10-01T00:00:00" or "2023-10-01 00:00:00")
         quote_fields: whether to quote the timestamp and partition column names
@@ -384,6 +391,9 @@ def get_timestamp_filter_sql(
             return f"TIMESTAMP '{val_str}'"
         elif cast_style == "timestamp_func":
             return f"TIMESTAMP('{val_str}')"
+        elif cast_style == "date_func":
+            date_str = val_str[:10] if len(val_str) >= 10 else val_str
+            return f"DATE('{date_str}')"
         elif cast_style == "timestamptz":
             return f"'{val_str}'::{cast_style}"
         else:

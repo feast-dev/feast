@@ -17,3 +17,10 @@ spec:
           serverVersion: "1.0.0"
           # transport can be "sse" (default) or "http"
           transport: sse
+    registry:
+      local:
+        server:
+          # MCP on the registry requires REST API to be enabled.
+          restAPI: true
+          mcp:
+            enabled: true

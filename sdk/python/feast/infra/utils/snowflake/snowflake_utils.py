@@ -76,10 +76,6 @@ class GetSnowflakeConnection:
 
             kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
 
-            for k, v in kwargs.items():
-                if k in ["role", "warehouse", "database", "schema_"]:
-                    kwargs[k] = f'"{v}"'
-
             kwargs["schema"] = kwargs.pop("schema_")
 
             # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation

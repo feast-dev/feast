@@ -37,6 +37,7 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "UNIX_TIMESTAMP": "UNIX_TIMESTAMP",
     "MAP": "MAP",
     "JSON": "JSON",
+    "SCALAR_MAP": "SCALAR_MAP",
 }
 
 
@@ -93,6 +94,7 @@ class PrimitiveFeastType(Enum):
     UUID = 13
     TIME_UUID = 14
     DECIMAL = 15
+    SCALAR_MAP = 16
 
     def to_value_type(self) -> ValueType:
         """
@@ -130,6 +132,7 @@ Json = PrimitiveFeastType.JSON
 Uuid = PrimitiveFeastType.UUID
 TimeUuid = PrimitiveFeastType.TIME_UUID
 Decimal = PrimitiveFeastType.DECIMAL
+ScalarMap = PrimitiveFeastType.SCALAR_MAP
 
 SUPPORTED_BASE_TYPES = [
     Invalid,
@@ -167,6 +170,7 @@ PRIMITIVE_FEAST_TYPES_TO_STRING = {
     "UUID": "Uuid",
     "TIME_UUID": "TimeUuid",
     "DECIMAL": "Decimal",
+    "SCALAR_MAP": "ScalarMap",
 }
 
 
@@ -346,6 +350,7 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.DECIMAL: Decimal,
     ValueType.DECIMAL_LIST: Array(Decimal),
     ValueType.DECIMAL_SET: Set(Decimal),
+    ValueType.SCALAR_MAP: ScalarMap,
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {

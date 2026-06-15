@@ -105,7 +105,10 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 install-python-dependencies-ci: ## Install Python CI dependencies using uv pip sync
 	# Create virtualenv if it doesn't exist
-	uv venv .venv
+	@if [ ! -d .venv ]; then \
+		echo "Creating virtualenv..."; \
+		uv venv .venv; \
+	fi
 	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \
@@ -168,9 +171,7 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
 	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
-		--ignore=sdk/python/tests/component/ray \
-		--ignore=sdk/python/tests/component/spark \
-		sdk/python/tests
+		sdk/python/tests/unit
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)

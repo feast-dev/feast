@@ -50,6 +50,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
+    "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -151,6 +152,13 @@ class FeastConfigBaseModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
 
+class McpRegistryConfig(FeastBaseModel):
+    """MCP (Model Context Protocol) configuration for the registry REST server."""
+
+    enabled: StrictBool = False
+    """ bool: Enable MCP support on the REST registry server. """
+
+
 class RegistryConfig(FeastBaseModel):
     """Metadata Store Configuration. Configuration that relates to reading from and writing to the Feast registry."""
 
@@ -191,6 +199,9 @@ class RegistryConfig(FeastBaseModel):
         online store table and can be queried independently. Version history
         tracking in the registry is always active regardless of this setting. """
 
+    mcp: Optional[McpRegistryConfig] = None
+    """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
@@ -221,6 +232,13 @@ class MaterializationConfig(BaseModel):
         Supported compute engines: local, spark, ray. """
 
 
+class DataQualityMonitoringConfig(FeastConfigBaseModel):
+    """Data Quality Monitoring configuration."""
+
+    auto_baseline: StrictBool = True
+    """Whether baseline distribution is computed automatically on ``feast apply``."""
+
+
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
 
@@ -239,8 +257,8 @@ class OpenLineageConfig(FeastBaseModel):
     enabled: StrictBool = False
     """ bool: Whether OpenLineage integration is enabled. Defaults to False. """
 
-    transport_type: StrictStr = "console"
-    """ str: Type of transport (http, console, file, kafka). Defaults to console. """
+    transport_type: Optional[StrictStr] = None
+    """ str: Type of transport (http, console, file, kafka). Defaults to None (uses OpenLineage SDK defaults). """
 
     transport_url: Optional[StrictStr] = None
     """ str: URL for HTTP transport. Required when transport_type is 'http'. """
@@ -345,6 +363,14 @@ class RepoConfig(FeastBaseModel):
     openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
     """ Configuration for OpenLineage data lineage integration (optional). """
 
+    mlflow_config: Optional[Any] = Field(None, alias="mlflow")
+    """ MlflowConfig: Configuration for MLflow experiment tracking integration (optional). """
+
+    data_quality_monitoring_config: Optional[DataQualityMonitoringConfig] = Field(
+        None, alias="data_quality_monitoring"
+    )
+    """ DataQualityMonitoringConfig: Data Quality Monitoring configuration (optional). """
+
     def __init__(self, **data: Any):
         super().__init__(**data)
 
@@ -384,6 +410,11 @@ class RepoConfig(FeastBaseModel):
         self._openlineage: Optional[OpenLineageConfig] = None
         if "openlineage" in data:
             self.openlineage_config = data["openlineage"]
+
+        # Initialize MLflow configuration
+        self._mlflow = None
+        if "mlflow" in data:
+            self.mlflow_config = data["mlflow"]
 
         if self.entity_key_serialization_version < 3:
             warnings.warn(
@@ -484,6 +515,18 @@ class RepoConfig(FeastBaseModel):
             elif self.openlineage_config:
                 self._openlineage = self.openlineage_config
         return self._openlineage
+
+    @property
+    def mlflow(self):
+        """Get the MLflow configuration."""
+        if not self._mlflow:
+            if isinstance(self.mlflow_config, Dict):
+                from feast.mlflow_integration.config import MlflowConfig
+
+                self._mlflow = MlflowConfig(**self.mlflow_config)
+            elif self.mlflow_config:
+                self._mlflow = self.mlflow_config
+        return self._mlflow
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:

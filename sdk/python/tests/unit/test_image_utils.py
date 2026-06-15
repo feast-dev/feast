@@ -17,16 +17,43 @@ import io
 import pytest
 from PIL import Image
 
-pytest.importorskip("torch")
-pytest.importorskip("timm")
-pytest.importorskip("sklearn")
-
+import feast.image_utils as image_utils
 from feast.image_utils import (
     ImageFeatureExtractor,
     combine_embeddings,
     get_image_metadata,
     validate_image_format,
 )
+
+torch = pytest.importorskip("torch")
+pytest.importorskip("timm")
+pytest.importorskip("sklearn")
+
+
+@pytest.fixture(autouse=True)
+def mock_timm_model(monkeypatch):
+    class DummyModel:
+        def eval(self):
+            return self
+
+        def __call__(self, input_tensor):
+            batch_size = input_tensor.shape[0]
+            return torch.arange(1, 5, dtype=torch.float32).repeat(batch_size, 1)
+
+    def create_model(*_args, **_kwargs):
+        return DummyModel()
+
+    def create_transform(**_config):
+        def transform(_image):
+            return torch.ones((3, 224, 224), dtype=torch.float32)
+
+        return transform
+
+    monkeypatch.setattr(image_utils.timm, "create_model", create_model)
+    monkeypatch.setattr(
+        image_utils, "resolve_data_config", lambda *_args, **_kwargs: {}
+    )
+    monkeypatch.setattr(image_utils, "create_transform", create_transform)
 
 
 class TestImageFeatureExtractor:

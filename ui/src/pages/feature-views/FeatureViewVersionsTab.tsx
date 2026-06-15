@@ -63,6 +63,11 @@ const decodeVersionProto = (
       result.features = sfv.spec?.features || [];
       result.entities = sfv.spec?.entities || [];
       result.description = sfv.spec?.description || "";
+    } else if (record.featureViewType === "label_view") {
+      const lv = feast.core.LabelView.decode(bytes);
+      result.features = lv.spec?.features || [];
+      result.entities = lv.spec?.entities || [];
+      result.description = lv.spec?.description || "";
     } else {
       const fv = feast.core.FeatureView.decode(bytes);
       result.features = fv.spec?.features || [];
@@ -114,8 +119,10 @@ const VersionDetail = ({ decoded }: { decoded: DecodedVersion }) => {
                   {
                     field: "valueType",
                     name: "Value Type",
-                    render: (vt: feast.types.ValueType.Enum) =>
-                      feast.types.ValueType.Enum[vt],
+                    render: (vt: feast.types.ValueType.Enum | string) =>
+                      typeof vt === "string"
+                        ? vt
+                        : feast.types.ValueType.Enum[vt] || String(vt || ""),
                   },
                 ]}
               />
@@ -160,13 +167,13 @@ const FeatureViewVersionsTab = ({
         r.featureViewName === featureViewName,
     ) || [];
 
-  const decodedVersions = useMemo(
+  const decodedVersions: DecodedVersion[] = useMemo(
     () => records.map(decodeVersionProto),
     [records],
   );
 
   if (records.length === 0) {
-    return <EuiText>No version history for this feature view.</EuiText>;
+    return <EuiText>No version history available.</EuiText>;
   }
 
   const toggleRow = (versionNumber: number) => {

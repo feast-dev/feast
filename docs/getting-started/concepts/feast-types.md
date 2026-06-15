@@ -12,7 +12,7 @@ Feast supports the following categories of data types:
 - **UUID types**: `Uuid` and `TimeUuid` for universally unique identifiers. Stored as strings at the proto level but deserialized to `uuid.UUID` objects in Python.
 - **Array types**: ordered lists of any primitive type, e.g. `Array(Int64)`, `Array(String)`, `Array(Uuid)`.
 - **Set types**: unordered collections of unique values for any primitive type, e.g. `Set(String)`, `Set(Int64)`. Set types are not inferred by any backend and must be explicitly declared. They are best suited for online serving use cases.
-- **Map types**: dictionary-like structures with string keys and values that can be any supported Feast type (including nested maps), e.g. `Map`, `Array(Map)`.
+- **Map types**: dictionary-like structures. `Map` has string keys and values that can be any supported Feast type (including nested maps), e.g. `Map`, `Array(Map)`. `ScalarMap` has non-string scalar keys (int, float, bool, UUID, Decimal, bytes, datetime) — Feast infers `ScalarMap` automatically when the first key is not a string. `ScalarMap` must be explicitly declared in schema and is not inferred by any backend.
 - **JSON type**: opaque JSON data stored as a string at the proto level but semantically distinct from `String` — backends use native JSON types (`jsonb`, `VARIANT`, etc.), e.g. `Json`, `Array(Json)`.
 - **Struct type**: schema-aware structured type with named, typed fields. Unlike `Map` (which is schema-free), a `Struct` declares its field names and their types, enabling schema validation, e.g. `Struct({"name": String, "age": Int32})`.
 
@@ -41,8 +41,8 @@ Map, JSON, and Struct types are supported across all major Feast backends:
 | Spark | `struct<...>` | `Struct` |
 | Spark | `array<struct<...>>` | `Array(Struct(...))` |
 | MSSQL | `nvarchar(max)` | `Map`, `Json`, `Struct` |
-| DynamoDB | Proto bytes | `Map`, `Json`, `Struct` |
-| Redis | Proto bytes | `Map`, `Json`, `Struct` |
+| DynamoDB | Proto bytes | `Map`, `Json`, `Struct`, `ScalarMap` |
+| Redis | Proto bytes | `Map`, `Json`, `Struct`, `ScalarMap` |
 | Milvus | `VARCHAR` (serialized) | `Map`, `Json`, `Struct` |
 
 **Note**: When the backend native type is ambiguous (e.g., `jsonb` could be `Map`, `Json`, or `Struct`), the **schema-declared Feast type takes precedence**. The backend-to-Feast type mappings above are only used for schema inference when no explicit type is provided.

@@ -6,6 +6,7 @@ import pyarrow
 import pytest
 
 from feast.protos.feast.types.Value_pb2 import Map, MapList
+from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.type_map import (
     _convert_value_type_str_to_value_type,
     _python_dict_to_map_proto,
@@ -86,6 +87,9 @@ def test_python_values_to_proto_values_bool(values):
         (np.array([None]), ValueType.BYTES_LIST, None),
         (np.array([None]), ValueType.STRING_LIST, None),
         (np.array([None]), ValueType.UNIX_TIMESTAMP_LIST, None),
+        ([np.array([], dtype=np.int32)], ValueType.INT32_LIST, []),
+        ([np.array([], dtype=np.float32)], ValueType.FLOAT_LIST, []),
+        ([np.array([], dtype=np.bool_)], ValueType.BOOL_LIST, []),
         ([b"[1,2,3]"], ValueType.INT64_LIST, [1, 2, 3]),
         ([b"[1,2,3]"], ValueType.INT32_LIST, [1, 2, 3]),
         ([b"[1.5,2.5,3.5]"], ValueType.FLOAT_LIST, [1.5, 2.5, 3.5]),
@@ -1953,3 +1957,275 @@ class TestEmptyArrayAsNull:
             "non-empty array in UNIX_TIMESTAMP scalar column should produce null"
         )
         assert result[1].unix_timestamp_val == int(ts.timestamp())
+
+
+class TestValueMapTypes:
+    """Tests for SCALAR_MAP: maps with non-string keys encoded via ScalarMap proto."""
+
+    def test_int_key_roundtrip(self):
+        """Int keys are encoded as int64_key and round-trip back as int."""
+        data = {1: "one", 2: "two", 3: "three"}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        assert protos[0].WhichOneof("val") == "scalar_map_val"
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result == {1: "one", 2: "two", 3: "three"}
+
+    def test_long_key_roundtrip(self):
+        """Large int keys (simulating int64/Long) round-trip correctly."""
+        data = {1513185957000: {"svacct_id": 123, "amount": 99.5}}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[1513185957000]["svacct_id"] == 123
+        assert result[1513185957000]["amount"] == 99.5
+
+    def test_uuid_key_roundtrip(self):
+        """UUID keys are encoded as uuid_key strings and decoded back to uuid.UUID."""
+        key1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        key2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
+        data = {key1: "first", key2: "second"}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[key1] == "first"
+        assert result[key2] == "second"
+
+    def test_type_inference_non_string_keys_returns_scalar_map(self):
+        """python_type_to_feast_value_type infers SCALAR_MAP for non-string-keyed dicts."""
+        assert python_type_to_feast_value_type("f", {1: "a"}) == ValueType.SCALAR_MAP
+        assert (
+            python_type_to_feast_value_type("f", {uuid.uuid4(): "x"})
+            == ValueType.SCALAR_MAP
+        )
+
+    def test_type_inference_string_keys_returns_map(self):
+        """python_type_to_feast_value_type still infers MAP for string-keyed dicts."""
+        assert python_type_to_feast_value_type("f", {"k": "v"}) == ValueType.MAP
+
+    def test_type_inference_empty_dict_returns_map(self):
+        """Empty dict infers MAP (no key to inspect)."""
+        assert python_type_to_feast_value_type("f", {}) == ValueType.MAP
+
+    def test_none_value_roundtrip(self):
+        """None values in SCALAR_MAP are preserved as None."""
+        data = {10: "present", 20: None}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[10] == "present"
+        assert result[20] is None
+
+    def test_null_value_map(self):
+        """None SCALAR_MAP encodes to empty ProtoValue and decodes to None."""
+        protos = python_values_to_proto_values([None], ValueType.SCALAR_MAP)
+        assert protos[0] == ProtoValue()
+        assert feast_value_type_to_python_type(protos[0]) is None
+
+    def test_empty_value_map(self):
+        """Empty dict encodes and decodes as empty SCALAR_MAP."""
+        protos = python_values_to_proto_values([{}], ValueType.SCALAR_MAP)
+        # empty dict has no non-string key to trigger SCALAR_MAP via inference,
+        # but explicit type forces the path
+        result = feast_value_type_to_python_type(protos[0])
+        assert isinstance(result, dict)
+
+    def test_multiple_value_maps_in_batch(self):
+        """Batch of SCALAR_MAP values all encode correctly."""
+        batch = [{1: "a", 2: "b"}, {10: "x"}, None]
+
+        protos = python_values_to_proto_values(batch, ValueType.SCALAR_MAP)
+        assert feast_value_type_to_python_type(protos[0]) == {1: "a", 2: "b"}
+        assert feast_value_type_to_python_type(protos[1]) == {10: "x"}
+        assert feast_value_type_to_python_type(protos[2]) is None
+
+    def test_nested_map_value_in_value_map(self):
+        """SCALAR_MAP can hold nested dicts as values (encoded as MAP vals)."""
+        inner = {"name": "alice", "score": 42}
+        data = {100: inner}
+
+        protos = python_values_to_proto_values([data], ValueType.SCALAR_MAP)
+        result = feast_value_type_to_python_type(protos[0])
+
+        assert result[100]["name"] == "alice"
+        assert result[100]["score"] == 42
+
+    def test_invalid_key_type_raises(self):
+        """Passing an unsupported key type raises TypeError."""
+
+        class Unsupported:
+            pass
+
+        with pytest.raises(TypeError, match="Unsupported key type for SCALAR_MAP"):
+            python_values_to_proto_values([{Unsupported(): "v"}], ValueType.SCALAR_MAP)
+
+    def test_proto_field_name_in_map(self):
+        """scalar_map_val maps to ValueType.SCALAR_MAP in PROTO_VALUE_TO_VALUE_TYPE_MAP."""
+        from feast.type_map import PROTO_VALUE_TO_VALUE_TYPE_MAP
+
+        assert PROTO_VALUE_TO_VALUE_TYPE_MAP["scalar_map_val"] == ValueType.SCALAR_MAP
+
+
+class TestArrowArrayStringListMaterialization:
+    """Regression tests for Array(String) columns from Arrow/Athena materialization.
+
+    Arrow/Athena deserializes Array(String) feature columns as numpy.ndarray with
+    object dtype. Two bugs were triggered:
+
+    1. ValueError: "The truth value of an empty array is ambiguous"
+       — when an empty ndarray reached the scalar null-check `elif not pd.isnull(value)`.
+
+    2. TypeError: "bad argument type for built-in operation"
+       — when proto_type(val=<ndarray>) was called; protobuf rejects ndarrays.
+
+    Both are fixed by _sanitize_list_value, which converts ndarrays to plain Python
+    lists and replaces None elements with a type-appropriate zero/empty default
+    (see _LIST_NONE_DEFAULTS).
+    """
+
+    def test_sanitize_list_value_ndarray(self):
+        """ndarray is converted to a plain Python list."""
+        from feast.type_map import _sanitize_list_value
+
+        arr = np.array(["foo", "bar"], dtype=object)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
+        assert result == ["foo", "bar"]
+        assert isinstance(result, list)
+
+    def test_sanitize_list_value_empty_ndarray(self):
+        """Empty ndarray is converted to an empty Python list."""
+        from feast.type_map import _sanitize_list_value
+
+        arr = np.array([], dtype=object)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
+        assert result == []
+
+    def test_sanitize_list_value_ndarray_with_none(self):
+        """None elements inside a STRING_LIST ndarray are replaced with empty string."""
+        from feast.type_map import _sanitize_list_value
+
+        arr = np.array(["foo", None, "baz"], dtype=object)
+        result = _sanitize_list_value(arr, ValueType.STRING_LIST)
+        assert result == ["foo", "", "baz"]
+
+    def test_sanitize_list_value_plain_list(self):
+        """Plain Python lists without None pass through unchanged."""
+        from feast.type_map import _sanitize_list_value
+
+        lst = ["foo", "bar"]
+        result = _sanitize_list_value(lst, ValueType.STRING_LIST)
+        assert result == ["foo", "bar"]
+
+    def test_sanitize_list_value_plain_list_with_none(self):
+        """None elements in a STRING_LIST plain list are replaced with empty string."""
+        from feast.type_map import _sanitize_list_value
+
+        lst = ["foo", None]
+        result = _sanitize_list_value(lst, ValueType.STRING_LIST)
+        assert result == ["foo", ""]
+
+    def test_sanitize_list_value_numeric_none_replaced(self):
+        """None elements in numeric lists are replaced with a type-appropriate default."""
+        from feast.type_map import _sanitize_list_value
+
+        assert _sanitize_list_value([1, None, 2], ValueType.INT32_LIST) == [1, 0, 2]
+        assert _sanitize_list_value([1, None, 2], ValueType.INT64_LIST) == [1, 0, 2]
+        assert _sanitize_list_value([1.0, None, 2.0], ValueType.FLOAT_LIST) == [
+            1.0,
+            0.0,
+            2.0,
+        ]
+        assert _sanitize_list_value([1.0, None, 2.0], ValueType.DOUBLE_LIST) == [
+            1.0,
+            0.0,
+            2.0,
+        ]
+        assert _sanitize_list_value([True, None, False], ValueType.BOOL_LIST) == [
+            True,
+            False,
+            False,
+        ]
+
+    def test_sanitize_list_value_bytes_none_replaced(self):
+        """None elements in BYTES_LIST are replaced with b''."""
+        from feast.type_map import _sanitize_list_value
+
+        result = _sanitize_list_value([b"x", None], ValueType.BYTES_LIST)
+        assert result == [b"x", b""]
+
+    def test_sanitize_list_value_scalar_passthrough(self):
+        """Non-list, non-ndarray values are returned unchanged."""
+        from feast.type_map import _sanitize_list_value
+
+        assert _sanitize_list_value("hello", ValueType.STRING_LIST) == "hello"
+        assert _sanitize_list_value(42, ValueType.INT32_LIST) == 42
+
+    def test_string_list_from_ndarray(self):
+        """STRING_LIST column with ndarray values materializes without TypeError."""
+        values = [
+            np.array(["foo", "bar"], dtype=object),
+            np.array(["baz"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert len(protos) == 2
+        assert list(protos[0].string_list_val.val) == ["foo", "bar"]
+        assert list(protos[1].string_list_val.val) == ["baz"]
+
+    def test_string_list_from_empty_ndarray(self):
+        """Empty ndarray in a STRING_LIST column must not raise ValueError."""
+        values = [
+            np.array([], dtype=object),
+            np.array(["foo"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert list(protos[0].string_list_val.val) == []
+        assert list(protos[1].string_list_val.val) == ["foo"]
+
+    def test_string_list_from_ndarray_with_none_elements(self):
+        """None elements inside an ndarray must not cause TypeError in protobuf."""
+        values = [
+            np.array(["foo", None, "baz"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        # None is replaced with empty string
+        assert list(protos[0].string_list_val.val) == ["foo", "", "baz"]
+
+    def test_string_list_null_row_produces_empty_proto(self):
+        """A None row (missing user) produces an empty ProtoValue."""
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        values = [
+            None,
+            np.array(["foo"], dtype=object),
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+        assert protos[0] == ProtoValue()
+        assert list(protos[1].string_list_val.val) == ["foo"]
+
+    def test_mixed_batch_simulating_athena_chunk(self):
+        """Simulate a real Athena chunk: mix of ndarray, empty ndarray, and None rows.
+
+        This is the exact scenario that triggered the TypeError during
+        string_list_features materialization.
+        """
+        from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
+
+        # tags / labels column from Athena
+        values = [
+            np.array(["foo", "bar"], dtype=object),  # normal entity
+            np.array([], dtype=object),  # entity with no values set
+            None,  # missing entity (NULL row)
+            np.array(["baz"], dtype=object),  # normal entity
+            np.array(["qux", None], dtype=object),  # entity with partial null
+        ]
+        protos = python_values_to_proto_values(values, ValueType.STRING_LIST)
+
+        assert list(protos[0].string_list_val.val) == ["foo", "bar"]
+        assert list(protos[1].string_list_val.val) == []
+        assert protos[2] == ProtoValue()
+        assert list(protos[3].string_list_val.val) == ["baz"]
+        assert list(protos[4].string_list_val.val) == ["qux", ""]

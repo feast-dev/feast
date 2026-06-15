@@ -9,6 +9,9 @@ class _FakeRegistry:
     def proto(self):
         return object()
 
+    def list_projects(self, allow_cache=True, tags=None):
+        return []
+
 
 class _FakeStore:
     def __init__(self):

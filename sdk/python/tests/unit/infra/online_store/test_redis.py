@@ -468,7 +468,7 @@ def test_online_write_batch_async_skip_dedup_single_pipeline(
                 config, feature_view, data, progress=None
             )
 
-    asyncio.get_event_loop().run_until_complete(_run())
+    asyncio.run(_run())
 
     assert mock_async_client.pipeline.call_count == 1
     async_pipe.hmget.assert_not_called()

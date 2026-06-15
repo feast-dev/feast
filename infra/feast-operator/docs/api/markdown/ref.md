@@ -104,6 +104,20 @@ _Appears in:_
 Defaults to "feast apply" & "feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')" |
 
 
+#### DataQualityMonitoringConfig
+
+
+
+DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `autoBaseline` _boolean_ | AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true. |
+
+
 #### DefaultCtrConfigs
 
 
@@ -255,6 +269,10 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
+and reserved before the Pod is allowed to start. The resources
+will be made available to those containers which consume them
+by name. |
 
 
 #### FeatureStoreSpec
@@ -275,6 +293,7 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `dataQualityMonitoring` _[DataQualityMonitoringConfig](#dataqualitymonitoringconfig)_ | DataQualityMonitoring configures Data Quality Monitoring behaviour. |
 | `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 Mutually exclusive with services.scaling.autoscaling. |
 | `materialization` _[MaterializationConfig](#materializationconfig)_ | Materialization controls feature materialization behavior (batch size, pull strategy).
@@ -496,6 +515,7 @@ McpConfig enables MCP (Model Context Protocol) server support in the feature ser
 When this field is set on ServingConfig, the feature server type is switched to "mcp".
 
 _Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
 - [ServingConfig](#servingconfig)
 
 | Field | Description |
@@ -883,6 +903,8 @@ volume definition in the Volumes field. |
 These options are primarily used for production deployments to optimize performance. |
 | `restAPI` _boolean_ | Enable REST API registry server. |
 | `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
+| `mcp` _[McpConfig](#mcpconfig)_ | Mcp enables MCP (Model Context Protocol) on the REST registry server.
+Requires restAPI to be true. Reuses the same McpConfig struct as the online store. |
 
 
 #### RemoteRegistryConfig
