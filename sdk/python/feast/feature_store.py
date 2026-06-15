@@ -148,7 +148,7 @@ class FeatureStore:
     A FeatureStore object is used to define, create, and retrieve features.
 
     Attributes:
-        config: The config for the feature store.
+        config: The configuration for the feature store.
         repo_path: The path to the feature repo.
         _registry: The registry for the feature store.
         _provider: The provider for the feature store.
