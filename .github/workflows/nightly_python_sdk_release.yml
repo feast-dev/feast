@@ -55,7 +55,7 @@ jobs:
             set -e
             echo "$SEMANTIC_OUTPUT"
 
-            BASE_VERSION=$(echo "$SEMANTIC_OUTPUT" | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/' | tail -n 1)
+            BASE_VERSION=$(echo "$SEMANTIC_OUTPUT" | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/' | tail -n 1 || true)
             if [[ -z "$BASE_VERSION" ]]; then
               echo "Could not determine a semantic-release next version (exit code: ${SEMANTIC_STATUS}); falling back to next patch after latest stable tag."
               source infra/scripts/setup-common-functions.sh
