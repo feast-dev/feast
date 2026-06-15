@@ -360,10 +360,7 @@ class CassandraOnlineStore(OnlineStore):
                 raise CassandraInvalidConfig(E_CASSANDRA_DC_CONFIG_EMPTY)
 
             # Validate: mutually exclusive with hosts / secure_bundle_path
-            if (
-                online_store_config.hosts
-                or online_store_config.secure_bundle_path
-            ):
+            if online_store_config.hosts or online_store_config.secure_bundle_path:
                 raise CassandraInvalidConfig(E_CASSANDRA_DC_CONFIG_CONFLICT)
 
             port = online_store_config.port or 9042
@@ -437,9 +434,7 @@ class CassandraOnlineStore(OnlineStore):
                 if (read_dc and read_dc not in dc_names) or (
                     write_dc and write_dc not in dc_names
                 ):
-                    raise CassandraInvalidConfig(
-                        E_CASSANDRA_DC_ROUTING_INVALID
-                    )
+                    raise CassandraInvalidConfig(E_CASSANDRA_DC_ROUTING_INVALID)
                 self._read_execution_profile = read_dc or default_dc
                 self._write_execution_profile = write_dc or default_dc
             else:
@@ -493,9 +488,7 @@ class CassandraOnlineStore(OnlineStore):
         if online_store_config.load_balancing:
             # construct a proper execution profile embedding
             # the configured LB policy
-            _lbp_name = (
-                online_store_config.load_balancing.load_balancing_policy
-            )
+            _lbp_name = online_store_config.load_balancing.load_balancing_policy
             if _lbp_name == "DCAwareRoundRobinPolicy":
                 lb_policy = DCAwareRoundRobinPolicy(
                     local_dc=online_store_config.load_balancing.local_dc,

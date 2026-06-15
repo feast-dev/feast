@@ -10,7 +10,7 @@ from cassandra.cluster import EXEC_PROFILE_DEFAULT  # noqa: E402
 from feast.infra.online_stores.cassandra_online_store import (  # noqa: E402
     cassandra_online_store as _cos,
 )
-from feast.repo_config import RepoConfig # noqa: E402
+from feast.repo_config import RepoConfig  # noqa: E402
 
 CassandraInvalidConfig = _cos.CassandraInvalidConfig
 CassandraOnlineStore = _cos.CassandraOnlineStore
@@ -27,9 +27,7 @@ _RoutingConfig = CassandraOnlineStoreConfig.CassandraRoutingConfig
 
 # Path to patch so tests never open a real Cassandra connection
 _CLUSTER_PATH = (
-    "feast.infra.online_stores"
-    ".cassandra_online_store"
-    ".cassandra_online_store.Cluster"
+    "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.Cluster"
 )
 
 
@@ -118,10 +116,7 @@ class TestCassandraConfigParsing:
             ],
         )
         assert cfg.datacenters[0].replication_factor == 3
-        assert (
-            cfg.datacenters[0].replication_strategy
-            == "NetworkTopologyStrategy"
-        )
+        assert cfg.datacenters[0].replication_strategy == "NetworkTopologyStrategy"
 
     def test_datacenter_replication_fields_default_to_none(self):
         cfg = CassandraOnlineStoreConfig(
@@ -172,9 +167,7 @@ class TestCassandraMultiDCValidation:
     Validation errors that _get_session raises before touching the driver.
     """
 
-    def test_datacenters_and_hosts_are_mutually_exclusive(
-        self, mock_cluster
-    ):
+    def test_datacenters_and_hosts_are_mutually_exclusive(self, mock_cluster):
         store = CassandraOnlineStore()
         cfg = _repo_config(
             CassandraOnlineStoreConfig(
@@ -188,9 +181,7 @@ class TestCassandraMultiDCValidation:
         ):
             store._get_session(cfg)
 
-    def test_datacenters_and_secure_bundle_are_mutually_exclusive(
-        self, mock_cluster
-    ):
+    def test_datacenters_and_secure_bundle_are_mutually_exclusive(self, mock_cluster):
         store = CassandraOnlineStore()
         cfg = _repo_config(
             CassandraOnlineStoreConfig(
@@ -206,17 +197,11 @@ class TestCassandraMultiDCValidation:
 
     def test_empty_datacenters_list_raises(self, mock_cluster):
         store = CassandraOnlineStore()
-        cfg = _repo_config(
-            CassandraOnlineStoreConfig(keyspace="ks", datacenters=[])
-        )
-        with pytest.raises(
-            CassandraInvalidConfig, match=E_CASSANDRA_DC_CONFIG_EMPTY
-        ):
+        cfg = _repo_config(CassandraOnlineStoreConfig(keyspace="ks", datacenters=[]))
+        with pytest.raises(CassandraInvalidConfig, match=E_CASSANDRA_DC_CONFIG_EMPTY):
             store._get_session(cfg)
 
-    def test_load_balancing_local_dc_not_in_datacenters_raises(
-        self, mock_cluster
-    ):
+    def test_load_balancing_local_dc_not_in_datacenters_raises(self, mock_cluster):
         store = CassandraOnlineStore()
         cfg = _repo_config(
             CassandraOnlineStoreConfig(
@@ -346,9 +331,7 @@ class TestCassandraMultiDCSession:
         profiles = mock_cls.call_args.kwargs["execution_profiles"]
         assert profiles[EXEC_PROFILE_DEFAULT] is profiles["dc1"]
 
-    def test_all_dc_hosts_merged_into_cluster_contact_points(
-        self, mock_cluster
-    ):
+    def test_all_dc_hosts_merged_into_cluster_contact_points(self, mock_cluster):
         """
         Cluster() must receive the union of all DC hosts as contact points.
         """
@@ -390,9 +373,7 @@ class TestCassandraMultiDCSession:
         store._get_session(cfg)
         assert store._read_execution_profile == "dc2"
 
-    def test_routing_write_dc_sets_write_execution_profile(
-        self, mock_cluster
-    ):
+    def test_routing_write_dc_sets_write_execution_profile(self, mock_cluster):
         mock_cls, mock_session = mock_cluster
         store = CassandraOnlineStore()
         cfg = _repo_config(
@@ -409,9 +390,7 @@ class TestCassandraMultiDCSession:
         store._get_session(cfg)
         assert store._write_execution_profile == "dc1"
 
-    def test_no_routing_block_uses_default_dc_for_both_ops(
-        self, mock_cluster
-    ):
+    def test_no_routing_block_uses_default_dc_for_both_ops(self, mock_cluster):
         """Without a routing block, both read and write use the default DC."""
         mock_cls, mock_session = mock_cluster
         store = CassandraOnlineStore()
@@ -429,9 +408,7 @@ class TestCassandraMultiDCSession:
         assert store._read_execution_profile == "dc1"
         assert store._write_execution_profile == "dc1"
 
-    def test_partial_routing_missing_read_dc_falls_back_to_default(
-        self, mock_cluster
-    ):
+    def test_partial_routing_missing_read_dc_falls_back_to_default(self, mock_cluster):
         """routing.read_dc omitted → reads use default DC."""
         mock_cls, mock_session = mock_cluster
         store = CassandraOnlineStore()
@@ -497,9 +474,7 @@ class TestCassandraSingleDCBackwardCompat:
         mock_cls, mock_session = mock_cluster
         store = CassandraOnlineStore()
         cfg = _repo_config(
-            CassandraOnlineStoreConfig(
-                hosts=["127.0.0.1"], port=9042, keyspace="ks"
-            )
+            CassandraOnlineStoreConfig(hosts=["127.0.0.1"], port=9042, keyspace="ks")
         )
         session = store._get_session(cfg)
 
