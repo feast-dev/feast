@@ -56,7 +56,6 @@ def test_rest_registry_server_initializes_correctly(
 
 def test_routes_registered_in_app(mock_store_and_registry):
     from fastapi import FastAPI
-    from fastapi.routing import APIRoute
 
     from feast.api.registry.rest import register_all_routes
 
@@ -67,7 +66,7 @@ def test_routes_registered_in_app(mock_store_and_registry):
     server = MagicMock(store=store)
     register_all_routes(app, grpc_handler, server)
 
-    route_paths = [route.path for route in app.routes if isinstance(route, APIRoute)]
+    route_paths = [getattr(route, "path", None) for route in app.routes]
     assert "/feature_services" in route_paths
     assert "/entities" in route_paths
     assert "/projects" in route_paths
