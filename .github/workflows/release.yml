@@ -96,8 +96,10 @@ jobs:
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
           brew install norwoodj/tap/helm-docs
       - name: Generate helm chart READMEs
@@ -111,7 +113,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.12
+          go-version: 1.25.0
       - name: Build & version operator-specific release files
         run: make -C infra/feast-operator build-installer bundle
 
@@ -137,14 +139,16 @@ jobs:
           node-version-file: './ui/.nvmrc'
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
           brew install norwoodj/tap/helm-docs
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.12
+          go-version: 1.25.0
       - name: Compile Go Test Binaries
         run: |
           cd infra/feast-operator

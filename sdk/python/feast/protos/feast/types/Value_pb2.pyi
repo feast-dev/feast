@@ -97,6 +97,7 @@ class ValueType(google.protobuf.message.Message):
         DECIMAL: ValueType._Enum.ValueType  # 44
         DECIMAL_LIST: ValueType._Enum.ValueType  # 45
         DECIMAL_SET: ValueType._Enum.ValueType  # 46
+        SCALAR_MAP: ValueType._Enum.ValueType  # 47
 
     class Enum(_Enum, metaclass=_EnumEnumTypeWrapper): ...
     INVALID: ValueType.Enum.ValueType  # 0
@@ -142,6 +143,7 @@ class ValueType(google.protobuf.message.Message):
     DECIMAL: ValueType.Enum.ValueType  # 44
     DECIMAL_LIST: ValueType.Enum.ValueType  # 45
     DECIMAL_SET: ValueType.Enum.ValueType  # 46
+    SCALAR_MAP: ValueType.Enum.ValueType  # 47
 
     def __init__(
         self,
@@ -194,6 +196,7 @@ class Value(google.protobuf.message.Message):
     DECIMAL_VAL_FIELD_NUMBER: builtins.int
     DECIMAL_LIST_VAL_FIELD_NUMBER: builtins.int
     DECIMAL_SET_VAL_FIELD_NUMBER: builtins.int
+    SCALAR_MAP_VAL_FIELD_NUMBER: builtins.int
     bytes_val: builtins.bytes
     string_val: builtins.str
     int32_val: builtins.int
@@ -265,6 +268,8 @@ class Value(google.protobuf.message.Message):
     def decimal_list_val(self) -> global___StringList: ...
     @property
     def decimal_set_val(self) -> global___StringSet: ...
+    @property
+    def scalar_map_val(self) -> global___ScalarMap: ...
     def __init__(
         self,
         *,
@@ -310,10 +315,11 @@ class Value(google.protobuf.message.Message):
         decimal_val: builtins.str = ...,
         decimal_list_val: global___StringList | None = ...,
         decimal_set_val: global___StringSet | None = ...,
+        scalar_map_val: global___ScalarMap | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val", "uuid_val", "time_uuid_val", "uuid_list_val", "time_uuid_list_val", "uuid_set_val", "time_uuid_set_val", "list_val", "set_val", "decimal_val", "decimal_list_val", "decimal_set_val"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "scalar_map_val", b"scalar_map_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["bool_list_val", b"bool_list_val", "bool_set_val", b"bool_set_val", "bool_val", b"bool_val", "bytes_list_val", b"bytes_list_val", "bytes_set_val", b"bytes_set_val", "bytes_val", b"bytes_val", "decimal_list_val", b"decimal_list_val", "decimal_set_val", b"decimal_set_val", "decimal_val", b"decimal_val", "double_list_val", b"double_list_val", "double_set_val", b"double_set_val", "double_val", b"double_val", "float_list_val", b"float_list_val", "float_set_val", b"float_set_val", "float_val", b"float_val", "int32_list_val", b"int32_list_val", "int32_set_val", b"int32_set_val", "int32_val", b"int32_val", "int64_list_val", b"int64_list_val", "int64_set_val", b"int64_set_val", "int64_val", b"int64_val", "json_list_val", b"json_list_val", "json_val", b"json_val", "list_val", b"list_val", "map_list_val", b"map_list_val", "map_val", b"map_val", "null_val", b"null_val", "scalar_map_val", b"scalar_map_val", "set_val", b"set_val", "string_list_val", b"string_list_val", "string_set_val", b"string_set_val", "string_val", b"string_val", "struct_list_val", b"struct_list_val", "struct_val", b"struct_val", "time_uuid_list_val", b"time_uuid_list_val", "time_uuid_set_val", b"time_uuid_set_val", "time_uuid_val", b"time_uuid_val", "unix_timestamp_list_val", b"unix_timestamp_list_val", "unix_timestamp_set_val", b"unix_timestamp_set_val", "unix_timestamp_val", b"unix_timestamp_val", "uuid_list_val", b"uuid_list_val", "uuid_set_val", b"uuid_set_val", "uuid_val", b"uuid_val", "val", b"val"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["val", b"val"]) -> typing_extensions.Literal["bytes_val", "string_val", "int32_val", "int64_val", "double_val", "float_val", "bool_val", "unix_timestamp_val", "bytes_list_val", "string_list_val", "int32_list_val", "int64_list_val", "double_list_val", "float_list_val", "bool_list_val", "unix_timestamp_list_val", "null_val", "map_val", "map_list_val", "bytes_set_val", "string_set_val", "int32_set_val", "int64_set_val", "double_set_val", "float_set_val", "bool_set_val", "unix_timestamp_set_val", "json_val", "json_list_val", "struct_val", "struct_list_val", "uuid_val", "time_uuid_val", "uuid_list_val", "time_uuid_list_val", "uuid_set_val", "time_uuid_set_val", "list_val", "set_val", "decimal_val", "decimal_list_val", "decimal_set_val", "scalar_map_val"] | None: ...
 
 global___Value = Value
 
@@ -592,3 +598,87 @@ class RepeatedValue(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
 
 global___RepeatedValue = RepeatedValue
+
+class MapKey(google.protobuf.message.Message):
+    """Map key for maps with non-string keys.
+    Excludes string (handled by Map) and all collection types (not valid as keys).
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    INT32_KEY_FIELD_NUMBER: builtins.int
+    INT64_KEY_FIELD_NUMBER: builtins.int
+    FLOAT_KEY_FIELD_NUMBER: builtins.int
+    DOUBLE_KEY_FIELD_NUMBER: builtins.int
+    BOOL_KEY_FIELD_NUMBER: builtins.int
+    UNIX_TIMESTAMP_KEY_FIELD_NUMBER: builtins.int
+    BYTES_KEY_FIELD_NUMBER: builtins.int
+    UUID_KEY_FIELD_NUMBER: builtins.int
+    TIME_UUID_KEY_FIELD_NUMBER: builtins.int
+    DECIMAL_KEY_FIELD_NUMBER: builtins.int
+    int32_key: builtins.int
+    int64_key: builtins.int
+    float_key: builtins.float
+    double_key: builtins.float
+    bool_key: builtins.bool
+    unix_timestamp_key: builtins.int
+    bytes_key: builtins.bytes
+    uuid_key: builtins.str
+    time_uuid_key: builtins.str
+    decimal_key: builtins.str
+    def __init__(
+        self,
+        *,
+        int32_key: builtins.int = ...,
+        int64_key: builtins.int = ...,
+        float_key: builtins.float = ...,
+        double_key: builtins.float = ...,
+        bool_key: builtins.bool = ...,
+        unix_timestamp_key: builtins.int = ...,
+        bytes_key: builtins.bytes = ...,
+        uuid_key: builtins.str = ...,
+        time_uuid_key: builtins.str = ...,
+        decimal_key: builtins.str = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["bool_key", b"bool_key", "bytes_key", b"bytes_key", "decimal_key", b"decimal_key", "double_key", b"double_key", "float_key", b"float_key", "int32_key", b"int32_key", "int64_key", b"int64_key", "key", b"key", "time_uuid_key", b"time_uuid_key", "unix_timestamp_key", b"unix_timestamp_key", "uuid_key", b"uuid_key"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["bool_key", b"bool_key", "bytes_key", b"bytes_key", "decimal_key", b"decimal_key", "double_key", b"double_key", "float_key", b"float_key", "int32_key", b"int32_key", "int64_key", b"int64_key", "key", b"key", "time_uuid_key", b"time_uuid_key", "unix_timestamp_key", b"unix_timestamp_key", "uuid_key", b"uuid_key"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["key", b"key"]) -> typing_extensions.Literal["int32_key", "int64_key", "float_key", "double_key", "bool_key", "unix_timestamp_key", "bytes_key", "uuid_key", "time_uuid_key", "decimal_key"] | None: ...
+
+global___MapKey = MapKey
+
+class ScalarMapEntry(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    KEY_FIELD_NUMBER: builtins.int
+    VALUE_FIELD_NUMBER: builtins.int
+    @property
+    def key(self) -> global___MapKey: ...
+    @property
+    def value(self) -> global___Value: ...
+    def __init__(
+        self,
+        *,
+        key: global___MapKey | None = ...,
+        value: global___Value | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+global___ScalarMapEntry = ScalarMapEntry
+
+class ScalarMap(google.protobuf.message.Message):
+    """Map with non-string keys. For string-keyed maps use Map."""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    VAL_FIELD_NUMBER: builtins.int
+    @property
+    def val(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ScalarMapEntry]: ...
+    def __init__(
+        self,
+        *,
+        val: collections.abc.Iterable[global___ScalarMapEntry] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["val", b"val"]) -> None: ...
+
+global___ScalarMap = ScalarMap

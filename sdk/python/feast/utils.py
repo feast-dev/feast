@@ -1,6 +1,8 @@
 import copy
 import itertools
+import logging
 import os
+import threading
 import typing
 import warnings
 from collections import Counter, defaultdict
@@ -1246,6 +1248,26 @@ def _get_feature_views_to_use(
         else:
             fv = registry.get_any_feature_view(name, project, allow_cache)
 
+        if hasattr(fv, "enabled") and not fv.enabled:
+            raise ValueError(
+                f"Feature view '{name}' is disabled and cannot serve features. "
+                f"Enable it with `feast feature-views enable {name}` or set enabled=True."
+            )
+
+        # Enforce lifecycle state gate: only serve if state is AVAILABLE_ONLINE
+        # or STATE_UNSPECIFIED (backward compat for pre-state feature views).
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            if isinstance(fv.state, FeatureViewState) and fv.state not in (
+                FeatureViewState.STATE_UNSPECIFIED,
+                FeatureViewState.AVAILABLE_ONLINE,
+            ):
+                raise ValueError(
+                    f"Feature view '{name}' is in state '{fv.state.name}' "
+                    f"and cannot serve features. Only AVAILABLE_ONLINE feature views can serve."
+                )
+
         if isinstance(fv, OnDemandFeatureView):
             od_fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv
@@ -1360,6 +1382,96 @@ def _get_online_request_context(
     )
 
 
+_feature_resolution_cache: Dict[tuple, tuple] = {}
+_feature_resolution_cache_lock = threading.Lock()
+_feature_resolution_registry_ts: Optional[datetime] = None
+
+_logger = logging.getLogger(__name__)
+
+
+def _get_cached_request_context(
+    registry,
+    project: str,
+    features: Union[List[str], "FeatureService"],
+    full_feature_names: bool,
+):
+    """Return the output of _get_online_request_context plus resolved ODFV
+    entity join keys, using a cache that is invalidated whenever the
+    registry refreshes or its cache TTL expires."""
+    from feast.feature_service import FeatureService as _FS
+
+    global _feature_resolution_cache, _feature_resolution_registry_ts
+
+    registry_ts = getattr(registry, "cached_registry_proto_created", None)
+
+    if isinstance(features, _FS):
+        features_key: tuple = ("__fs__", features.name)
+    else:
+        features_key = tuple(features)
+
+    cache_key = (features_key, project, full_feature_names)
+
+    is_cache_valid = getattr(registry, "is_cache_valid", None)
+    registry_cache_valid = is_cache_valid() if callable(is_cache_valid) else False
+
+    if registry_ts is not None and registry_cache_valid:
+        with _feature_resolution_cache_lock:
+            if registry_ts != _feature_resolution_registry_ts:
+                _feature_resolution_cache.clear()
+                _feature_resolution_registry_ts = registry_ts
+                _logger.debug("Feature resolution cache cleared (registry refreshed)")
+            else:
+                cached = _feature_resolution_cache.get(cache_key)
+                if cached is not None:
+                    return cached
+
+    ctx = _get_online_request_context(registry, project, features, full_feature_names)
+
+    (
+        feature_refs,
+        requested_on_demand_feature_views,
+        entity_name_to_join_key_map,
+        entity_type_map,
+        join_keys_set,
+        grouped_refs,
+        requested_result_row_names,
+        needed_request_data,
+        entityless_case,
+    ) = ctx
+
+    odfv_join_keys: set = set()
+    for on_demand_feature_view in requested_on_demand_feature_views:
+        entities_for_odfv = getattr(on_demand_feature_view, "entities", [])
+        if len(entities_for_odfv) > 0 and isinstance(entities_for_odfv[0], str):
+            entities_for_odfv = [
+                registry.get_entity(entity_name, project, allow_cache=True)
+                for entity_name in entities_for_odfv
+            ]
+        odfv_join_keys.update(entities_for_odfv)
+
+    result = (
+        feature_refs,
+        requested_on_demand_feature_views,
+        entity_name_to_join_key_map,
+        entity_type_map,
+        join_keys_set | odfv_join_keys,
+        grouped_refs,
+        frozenset(requested_result_row_names),
+        needed_request_data,
+        entityless_case,
+    )
+
+    registry_ts_after = getattr(registry, "cached_registry_proto_created", None)
+    if registry_ts_after is not None:
+        with _feature_resolution_cache_lock:
+            if registry_ts_after != _feature_resolution_registry_ts:
+                _feature_resolution_cache.clear()
+                _feature_resolution_registry_ts = registry_ts_after
+            _feature_resolution_cache[cache_key] = result
+
+    return result
+
+
 def _prepare_entities_to_read_from_online_store(
     registry,
     project,
@@ -1379,10 +1491,13 @@ def _prepare_entities_to_read_from_online_store(
         entity_type_map,
         join_keys_set,
         grouped_refs,
-        requested_result_row_names,
+        requested_result_row_names_frozen,
         needed_request_data,
         entityless_case,
-    ) = _get_online_request_context(registry, project, features, full_feature_names)
+    ) = _get_cached_request_context(registry, project, features, full_feature_names)
+
+    # Mutable copy — downstream code adds join keys to this set.
+    requested_result_row_names = set(requested_result_row_names_frozen)
 
     # Extract Sequence from RepeatedValue Protobuf.
     entity_value_lists: Dict[str, Union[List[Any], List[ValueProto]]] = {
@@ -1403,23 +1518,6 @@ def _prepare_entities_to_read_from_online_store(
         entity_proto_values = entity_value_lists
 
     num_rows = _validate_entity_values(entity_proto_values)
-
-    odfv_entities: List[Entity] = []
-    request_source_keys: List[str] = []
-    for on_demand_feature_view in requested_on_demand_feature_views:
-        entities_for_odfv = getattr(on_demand_feature_view, "entities", [])
-        if len(entities_for_odfv) > 0 and isinstance(entities_for_odfv[0], str):
-            entities_for_odfv = [
-                registry.get_entity(entity_name, project, allow_cache=True)
-                for entity_name in entities_for_odfv
-            ]
-        odfv_entities.extend(entities_for_odfv)
-        for source in on_demand_feature_view.source_request_sources:
-            source_schema = on_demand_feature_view.source_request_sources[source].schema
-            for column in source_schema:
-                request_source_keys.append(column.name)
-
-    join_keys_set.update(set(odfv_entities))
 
     join_key_values: Dict[str, List[ValueProto]] = {}
     request_data_features: Dict[str, List[ValueProto]] = {}

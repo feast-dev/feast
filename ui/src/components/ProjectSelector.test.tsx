@@ -5,18 +5,10 @@ import userEvent from "@testing-library/user-event";
 
 import FeastUISansProviders from "../FeastUISansProviders";
 
-import {
-  projectsListWithDefaultProject,
-  creditHistoryRegistry,
-  creditHistoryRegistryDB,
-} from "../mocks/handlers";
+import { allRestHandlers } from "../mocks/handlers";
 
 // declare which API requests to mock
-const server = setupServer(
-  projectsListWithDefaultProject,
-  creditHistoryRegistry,
-  creditHistoryRegistryDB,
-);
+const server = setupServer(...allRestHandlers);
 
 // establish API mocking before all tests
 beforeAll(() => server.listen());
@@ -48,12 +40,12 @@ test("in a full App render, it shows the right initial project", async () => {
 
   // Wait for Project Data from Registry to Load
   await screen.findAllByRole("heading", {
-    name: /Project: credit_scoring_aws/i,
+    name: /Project: Credit Score Project/i,
   });
 
   // Before User Event: Heading is the credit scoring project
   screen.getByRole("heading", {
-    name: /credit_scoring_aws/i,
+    name: /Credit Score Project/i,
   });
 
   // Do the select option user event
@@ -78,6 +70,6 @@ test("in a full App render, it shows the right initial project", async () => {
   // ... and the new heading should appear
   // meaning we successfully navigated
   await screen.findByRole("heading", {
-    name: /Project: credit_scoring_aws/i,
+    name: /Project: Credit Score Project/i,
   });
 });

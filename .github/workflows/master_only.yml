@@ -72,6 +72,7 @@ jobs:
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         run: make test-python-integration
       - name: Benchmark python
+        if: matrix.python-version == '3.11'
         env:
           SNOWFLAKE_CI_DEPLOYMENT: ${{ secrets.SNOWFLAKE_CI_DEPLOYMENT }}
           SNOWFLAKE_CI_USER: ${{ secrets.SNOWFLAKE_CI_USER }}
@@ -80,6 +81,7 @@ jobs:
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         run: uv run pytest --verbose --color=yes sdk/python/tests --integration --benchmark --benchmark-autosave --benchmark-save-data --durations=5
       - name: Upload Benchmark Artifact to S3
+        if: matrix.python-version == '3.11'
         run: aws s3 cp --recursive .benchmarks s3://feast-ci-pytest-benchmark
       - name: Minimize uv cache
         run: uv cache prune --ci

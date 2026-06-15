@@ -83,6 +83,14 @@ const Layout = () => {
           getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
         },
         {
+          name: "Label Views",
+          data: data.objects.labelViews || [],
+          getLink: (item: any) => {
+            const lvName = item?.name || item?.spec?.name;
+            return `/p/${projectName}/label-view/${lvName}`;
+          },
+        },
+        {
           name: "Feature Services",
           data: data.objects.featureServices || [],
           getLink: (item: any) => {
@@ -149,6 +157,18 @@ const Layout = () => {
           getLink: (item: any) => {
             const project = item?.projectId || getProjectId(item);
             return `/p/${project}/feature-view/${item.name}`;
+          },
+        },
+        {
+          name: "Label Views",
+          data: (globalData.objects.labelViews || []).map((item: any) => ({
+            ...item,
+            projectId: getProjectId(item),
+          })),
+          getLink: (item: any) => {
+            const lvName = item?.name || item?.spec?.name;
+            const project = item?.projectId || getProjectId(item);
+            return `/p/${project}/label-view/${lvName}`;
           },
         },
         {
@@ -246,7 +266,7 @@ const Layout = () => {
                     width: "100%",
                   }}
                 >
-                  <EuiFlexGroup justifyContent="center">
+                  <EuiFlexGroup justifyContent="center" alignItems="center">
                     <EuiFlexItem
                       grow={false}
                       style={{ width: "600px", maxWidth: "90%" }}
@@ -256,6 +276,7 @@ const Layout = () => {
                         categories={globalCategories}
                       />
                     </EuiFlexItem>
+                    <EuiFlexItem grow={false}></EuiFlexItem>
                   </EuiFlexGroup>
                 </div>
               )}

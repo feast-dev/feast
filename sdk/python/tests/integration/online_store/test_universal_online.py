@@ -532,10 +532,19 @@ async def test_async_online_retrieval_with_event_timestamps(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["dynamodb"])
+@pytest.mark.universal_online_stores
 async def test_async_online_retrieval_with_event_timestamps_dynamo(
-    environment, universal_data_sources
+    dynamodb_local_environment,
 ):
+    """Async online retrieval for DynamoDB with a credential-isolated environment.
+
+    Uses ``dynamodb_local_environment`` (its own DynamoDB Local container +
+    FileDataSourceCreator) so that dummy credentials are set before any boto
+    client is created.  This avoids the expired-STS-token problem that
+    occurs when aiobotocore lazily resolves credentials from the shared
+    environment in CI.
+    """
+    environment, universal_data_sources = dynamodb_local_environment
     await _do_async_retrieval_test(environment, universal_data_sources)
 
 

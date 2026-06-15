@@ -65,6 +65,14 @@ feast.data\_format module
    :undoc-members:
    :show-inheritance:
 
+feast.demos module
+------------------
+
+.. automodule:: feast.demos
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.data\_source module
 -------------------------
 

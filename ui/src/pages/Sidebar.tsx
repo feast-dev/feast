@@ -1,10 +1,19 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import { EuiIcon, EuiSideNav, htmlIdGenerator } from "@elastic/eui";
 import { Link, useParams } from "react-router-dom";
 import { useMatchSubpath } from "../hooks/useMatchSubpath";
-import useLoadRegistry from "../queries/useLoadRegistry";
-import RegistryPathContext from "../contexts/RegistryPathContext";
+import useResourceQuery, {
+  entityListPath,
+  featureViewListPath,
+  featureServiceListPath,
+  dataSourceListPath,
+  savedDatasetListPath,
+  featuresListPath,
+  labelViewListPath,
+  restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
+} from "../queries/useResourceQuery";
 
 import { DataSourceIcon } from "../graphics/DataSourceIcon";
 import { EntityIcon } from "../graphics/EntityIcon";
@@ -14,11 +23,66 @@ import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
+import { LabelViewIcon } from "../graphics/LabelViewIcon";
+import type { genericFVType } from "../parsers/mergedFVTypes";
 
 const SideNav = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const { isSuccess, data } = useLoadRegistry(registryUrl, projectName);
+
+  const { isSuccess: dsSuccess, data: dataSources } = useResourceQuery<any[]>({
+    resourceType: "sidebar-ds",
+    project: projectName,
+    restPath: dataSourceListPath(projectName),
+    restSelect: (d) => d.dataSources,
+  });
+
+  const { isSuccess: entSuccess, data: entities } = useResourceQuery<any[]>({
+    resourceType: "sidebar-entities",
+    project: projectName,
+    restPath: entityListPath(projectName),
+    restSelect: (d) => d.entities,
+  });
+
+  const { isSuccess: fvSuccess, data: featureViews } = useResourceQuery<
+    genericFVType[]
+  >({
+    resourceType: "sidebar-fvs",
+    project: projectName,
+    restPath: featureViewListPath(projectName),
+    restSelect: restFeatureViewsToMergedList,
+  });
+
+  const { isSuccess: featSuccess, data: features } = useResourceQuery<any[]>({
+    resourceType: "sidebar-features",
+    project: projectName,
+    restPath: featuresListPath(projectName),
+    restSelect: (d) => d.features,
+  });
+
+  const { isSuccess: fsSuccess, data: featureServices } = useResourceQuery<
+    any[]
+  >({
+    resourceType: "sidebar-fs",
+    project: projectName,
+    restPath: featureServiceListPath(projectName),
+    restSelect: (d) => d.featureServices,
+  });
+
+  const { isSuccess: sdSuccess, data: savedDatasets } = useResourceQuery<any[]>(
+    {
+      resourceType: "sidebar-sd",
+      project: projectName,
+      restPath: savedDatasetListPath(projectName),
+      restSelect: (d) => d.savedDatasets,
+    },
+  );
+
+  const { isSuccess: lvSuccess, data: labelViews } = useResourceQuery<any[]>({
+    resourceType: "sidebar-lvs",
+    project: projectName,
+    restPath: labelViewListPath(projectName),
+    restSelect: restLabelViewsFromResponse,
+  });
 
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
 
@@ -26,43 +90,16 @@ const SideNav = () => {
     setisSideNavOpenOnMobile(!isSideNavOpenOnMobile);
   };
 
-  const dataSourcesLabel = `Data Sources ${
-    isSuccess && data?.objects.dataSources
-      ? `(${data?.objects.dataSources?.length})`
-      : ""
-  }`;
-
-  const entitiesLabel = `Entities ${
-    isSuccess && data?.objects.entities
-      ? `(${data?.objects.entities?.length})`
-      : ""
-  }`;
-
-  const featureViewsLabel = `Feature Views ${
-    isSuccess && data?.mergedFVList && data?.mergedFVList.length > 0
-      ? `(${data?.mergedFVList.length})`
-      : ""
-  }`;
-
-  const featureListLabel = `Features ${
-    isSuccess && data?.allFeatures && data?.allFeatures.length > 0
-      ? `(${data?.allFeatures.length})`
-      : ""
-  }`;
-
-  const featureServicesLabel = `Feature Services ${
-    isSuccess && data?.objects.featureServices
-      ? `(${data?.objects.featureServices?.length})`
-      : ""
-  }`;
-
-  const savedDatasetsLabel = `Datasets ${
-    isSuccess && data?.objects.savedDatasets
-      ? `(${data?.objects.savedDatasets?.length})`
-      : ""
-  }`;
+  const dataSourcesLabel = `Data Sources ${dsSuccess && dataSources ? `(${dataSources.length})` : ""}`;
+  const entitiesLabel = `Entities ${entSuccess && entities ? `(${entities.length})` : ""}`;
+  const featureViewsLabel = `Feature Views ${fvSuccess && featureViews && featureViews.length > 0 ? `(${featureViews.length})` : ""}`;
+  const featureListLabel = `Features ${featSuccess && features && features.length > 0 ? `(${features.length})` : ""}`;
+  const featureServicesLabel = `Feature Services ${fsSuccess && featureServices ? `(${featureServices.length})` : ""}`;
+  const savedDatasetsLabel = `Datasets ${sdSuccess && savedDatasets ? `(${savedDatasets.length})` : ""}`;
+  const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
+  const monitoringSelected = useMatchSubpath(`${baseUrl}/monitoring`);
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
@@ -125,20 +162,20 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
+          name: labelViewsLabel,
+          id: htmlIdGenerator("labelViews")(),
+          icon: <EuiIcon type={LabelViewIcon} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/label-view`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/label-view`),
+        },
+        {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
           renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
-        },
-        {
-          name: "Data Labeling",
-          id: htmlIdGenerator("dataLabeling")(),
-          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/data-labeling`} />
-          ),
-          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
         },
         {
           name: "Permissions",
@@ -148,6 +185,15 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),
           isSelected: useMatchSubpath(`${baseUrl}/permissions`),
+        },
+        {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: monitoringSelected,
         },
       ],
     },

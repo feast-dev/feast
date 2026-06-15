@@ -127,4 +127,4 @@ To declare new feature definitions, just add code to the feature repository, eit
 ### Next steps
 
 * See [Create a feature repository](../../how-to-guides/feast-snowflake-gcp-aws/create-a-feature-repository.md) to get started with an example feature repository.
-* See [feature_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), or [Feature Views](../../getting-started/concepts/feature-view.md) for more information on the configuration files that live in a feature registry.
+* See [feature_store.yaml](feature-store-yaml.md), [.feastignore](feast-ignore.md), [Registration inferencing](registration-inferencing.md), or [Feature Views](../../getting-started/concepts/feature-view.md) for more information on the configuration files that live in a feature registry.

@@ -15,6 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -121,7 +122,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[BaseFeatureView]:
         pass
 
@@ -130,13 +131,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_all_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_all_feature_views(project, tags)
+        return self._list_all_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_feature_view(self, name: str, project: str) -> FeatureView:
@@ -154,7 +156,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[FeatureView]:
         pass
 
@@ -163,13 +165,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_feature_views(project, tags)
+        return self._list_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_on_demand_feature_view(
@@ -189,7 +192,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_on_demand_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[OnDemandFeatureView]:
         pass
 
@@ -198,13 +201,14 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_on_demand_feature_views(project, tags)
+        return self._list_on_demand_feature_views(project, tags, skip_udf=skip_udf)
 
     @abstractmethod
     def _get_stream_feature_view(self, name: str, project: str) -> StreamFeatureView:
@@ -222,7 +226,7 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_stream_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
     ) -> List[StreamFeatureView]:
         pass
 
@@ -231,13 +235,47 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
+                self.cached_registry_proto, project, tags, skip_udf=skip_udf
+            )
+        return self._list_stream_feature_views(project, tags, skip_udf=skip_udf)
+
+    @abstractmethod
+    def _get_label_view(self, name: str, project: str) -> LabelView:
+        pass
+
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_label_view(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_label_view(name, project)
+
+    @abstractmethod
+    def _list_label_views(
+        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
+    ) -> List[LabelView]:
+        pass
+
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_label_views(
                 self.cached_registry_proto, project, tags
             )
-        return self._list_stream_feature_views(project, tags)
+        return self._list_label_views(project, tags)
 
     @abstractmethod
     def _get_feature_service(self, name: str, project: str) -> FeatureService:
@@ -438,32 +476,26 @@ class CachingRegistry(BaseRegistry):
         except Exception as e:
             logger.debug(f"Error while refreshing registry: {e}", exc_info=True)
 
+    def is_cache_valid(self) -> bool:
+        if (
+            self.cached_registry_proto is None
+            or self.cached_registry_proto == RegistryProto()
+        ):
+            return False
+        if (
+            not hasattr(self, "cached_registry_proto_created")
+            or self.cached_registry_proto_created is None
+        ):
+            return False
+        if self.cached_registry_proto_ttl.total_seconds() > 0 and _utc_now() > (
+            self.cached_registry_proto_created + self.cached_registry_proto_ttl
+        ):
+            return False
+        return True
+
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
-
-            def is_cache_expired():
-                if (
-                    self.cached_registry_proto is None
-                    or self.cached_registry_proto == RegistryProto()
-                ):
-                    return True
-
-                # Cache is expired if creation time is None
-                if (
-                    not hasattr(self, "cached_registry_proto_created")
-                    or self.cached_registry_proto_created is None
-                ):
-                    return True
-
-                # Cache is expired if TTL > 0 and current time exceeds creation + TTL
-                if self.cached_registry_proto_ttl.total_seconds() > 0 and _utc_now() > (
-                    self.cached_registry_proto_created + self.cached_registry_proto_ttl
-                ):
-                    return True
-
-                return False
-
-            if is_cache_expired():
+            if not self.is_cache_valid():
                 if not self._refresh_lock.acquire(blocking=False):
                     logger.debug(
                         "Skipping refresh if lock is already held by another thread"

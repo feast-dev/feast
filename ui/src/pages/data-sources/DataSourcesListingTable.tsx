@@ -32,8 +32,11 @@ const DatasourcesListingTable = ({
       name: "Type",
       field: "type",
       sortable: true,
-      render: (valueType: feast.core.DataSource.SourceType) => {
-        return feast.core.DataSource.SourceType[valueType];
+      render: (valueType: feast.core.DataSource.SourceType | string) => {
+        if (typeof valueType === "string") {
+          return valueType;
+        }
+        return feast.core.DataSource.SourceType[valueType] || String(valueType);
       },
     },
   ];

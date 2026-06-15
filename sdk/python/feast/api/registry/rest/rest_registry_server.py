@@ -76,6 +76,21 @@ class RestRegistryServer:
         self._init_auth()
         self._register_routes()
 
+        registry_cfg = getattr(store.config, "registry", None)
+        mcp_cfg = getattr(registry_cfg, "mcp", None)
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
+            try:
+                from fastapi_mcp import FastApiMCP
+
+                mcp = FastApiMCP(self.app, name="feast-registry-mcp")
+                mcp.mount()
+                logger.info("MCP support enabled on REST registry server")
+            except ImportError:
+                logger.warning(
+                    "MCP support requested but fastapi_mcp is not installed. "
+                    "Install it with: pip install feast[mcp]"
+                )
+
     def _add_exception_handlers(self):
         """Add custom exception handlers to include HTTP status codes in JSON responses."""
 
@@ -220,28 +235,35 @@ class RestRegistryServer:
                     else:
                         object_type = None
                         object_name = None
-                    visit = {
-                        "path": path,
-                        "timestamp": _utc_now().isoformat(),
-                        "project": project,
-                        "user": user,
-                        "object": object_type,
-                        "object_name": object_name,
-                        "method": method,
-                    }
-                    try:
-                        visits_json = self.registry.get_project_metadata(project, key)
-                        visits = json.loads(visits_json) if visits_json else []
-                    except Exception:
-                        visits = []
-                    visits.append(visit)
-                    visits = visits[-self.recent_visits_limit :]
-                    try:
-                        self.registry.set_project_metadata(
-                            project, key, json.dumps(visits)
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to persist recent visits: {e}")
+
+                    response = await call_next(request)
+
+                    if response.status_code < 400:
+                        visit = {
+                            "path": path,
+                            "timestamp": _utc_now().isoformat(),
+                            "project": project,
+                            "user": user,
+                            "object": object_type,
+                            "object_name": object_name,
+                            "method": method,
+                        }
+                        try:
+                            visits_json = self.registry.get_project_metadata(
+                                project, key
+                            )
+                            visits = json.loads(visits_json) if visits_json else []
+                        except Exception:
+                            visits = []
+                        visits.append(visit)
+                        visits = visits[-self.recent_visits_limit :]
+                        try:
+                            self.registry.set_project_metadata(
+                                project, key, json.dumps(visits)
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to persist recent visits: {e}")
+                    return response
                 response = await call_next(request)
                 return response
 

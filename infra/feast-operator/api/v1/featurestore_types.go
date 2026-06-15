@@ -127,6 +127,9 @@ type FeatureStoreSpec struct {
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
 	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
+	// DataQualityMonitoring configures Data Quality Monitoring behaviour.
+	// +optional
+	DataQualityMonitoring *DataQualityMonitoringConfig `json:"dataQualityMonitoring,omitempty"`
 	// Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
@@ -170,7 +173,7 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse;milvus;ray;ray_rag;pytorch_nlp
 	Template string `json:"template,omitempty"`
 }
 
@@ -227,6 +230,13 @@ type BatchEngineConfig struct {
 	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
 	// Key name in the ConfigMap. Defaults to "config" if not specified.
 	ConfigMapKey string `json:"configMapKey,omitempty"`
+}
+
+// DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+type DataQualityMonitoringConfig struct {
+	// AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true.
+	// +kubebuilder:default=true
+	AutoBaseline *bool `json:"autoBaseline,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.
@@ -390,6 +400,17 @@ type FeatureStoreServices struct {
 	// pod anti-affinity rule to prefer spreading pods across nodes.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// ResourceClaims defines which ResourceClaims must be allocated
+	// and reserved before the Pod is allowed to start. The resources
+	// will be made available to those containers which consume them
+	// by name.
+	//
+	// +patchMergeKey=name
+	// +patchStrategy=merge,retainKeys
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	ResourceClaims []corev1.PodResourceClaim `json:"resourceClaims,omitempty" patchStrategy:"merge,retainKeys" patchMergeKey:"name"`
 }
 
 // ScalingConfig configures horizontal scaling for the FeatureStore deployment.
@@ -770,6 +791,7 @@ type WorkerConfigs struct {
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
 // +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+// +kubebuilder:validation:XValidation:rule="!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI) && self.restAPI == true)", message="MCP requires restAPI to be true"
 type RegistryServerConfigs struct {
 	ServerConfigs `json:",inline"`
 
@@ -778,6 +800,11 @@ type RegistryServerConfigs struct {
 
 	// Enable gRPC registry server. Defaults to true if unset.
 	GRPC *bool `json:"grpc,omitempty"`
+
+	// Mcp enables MCP (Model Context Protocol) on the REST registry server.
+	// Requires restAPI to be true. Reuses the same McpConfig struct as the online store.
+	// +optional
+	Mcp *McpConfig `json:"mcp,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

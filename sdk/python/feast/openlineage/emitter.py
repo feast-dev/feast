@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 if TYPE_CHECKING:
     from feast import FeatureService, FeatureView
     from feast.infra.registry.base_registry import BaseRegistry
+    from feast.labeling.label_view import LabelView
     from feast.on_demand_feature_view import OnDemandFeatureView
     from feast.stream_feature_view import StreamFeatureView
 
@@ -140,12 +141,13 @@ class FeastOpenLineageEmitter:
             return []
 
         from feast.feature_view import FeatureView
+        from feast.labeling.label_view import LabelView
         from feast.on_demand_feature_view import OnDemandFeatureView
         from feast.stream_feature_view import StreamFeatureView
 
         results = []
 
-        # Get all feature views at once (includes FeatureView, StreamFeatureView, OnDemandFeatureView)
+        # Get all feature views at once (includes FeatureView, StreamFeatureView, OnDemandFeatureView, LabelView)
         all_feature_views: list = []
         try:
             all_feature_views = registry.list_all_feature_views(
@@ -161,6 +163,8 @@ class FeastOpenLineageEmitter:
                     result = self.emit_on_demand_feature_view_lineage(fv, project)
                 elif isinstance(fv, StreamFeatureView):
                     result = self.emit_stream_feature_view_lineage(fv, project)
+                elif isinstance(fv, LabelView):
+                    result = self.emit_label_view_lineage(fv, project)
                 elif isinstance(fv, FeatureView):
                     result = self.emit_feature_view_lineage(fv, project)
                 else:
@@ -228,6 +232,50 @@ class FeastOpenLineageEmitter:
         except Exception as e:
             logger.error(
                 f"Error emitting feature view lineage for {feature_view.name}: {e}"
+            )
+            return False
+
+    def emit_label_view_lineage(
+        self,
+        label_view: "LabelView",
+        project: str,
+    ) -> bool:
+        """
+        Emit lineage for a label view definition.
+
+        Args:
+            label_view: The label view
+            project: Project name
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.is_enabled:
+            return False
+
+        from feast.openlineage.mappers import feature_view_to_job
+
+        try:
+            namespace = self._get_namespace(project)
+            job, inputs, outputs = feature_view_to_job(
+                label_view,
+                namespace=namespace,
+                job_type="LABEL_VIEW",
+            )
+
+            result = self._client.emit_run_event(
+                job_name=job.name,
+                run_id=str(uuid.uuid4()),
+                event_type=RunState.COMPLETE,
+                inputs=inputs,
+                outputs=outputs,
+                job_facets=job.facets,
+                namespace=namespace,
+            )
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error emitting label view lineage for {label_view.name}: {e}"
             )
             return False
 

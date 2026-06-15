@@ -106,6 +106,10 @@ func getServiceRepoConfig(
 		}
 	}
 
+	if appliedSpec.DataQualityMonitoring != nil {
+		setRepoConfigDataQualityMonitoring(appliedSpec.DataQualityMonitoring, &repoConfig)
+	}
+
 	return repoConfig, nil
 }
 
@@ -259,6 +263,15 @@ func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtr
 			repoConfig.Registry.DBParameters = parametersMap
 		}
 	}
+
+	if services.Registry.Local.Server != nil &&
+		services.Registry.Local.Server.Mcp != nil &&
+		services.Registry.Local.Server.Mcp.Enabled {
+		repoConfig.Registry.Mcp = &RegistryMcpYamlConfig{
+			Enabled: true,
+		}
+	}
+
 	return nil
 }
 
@@ -469,12 +482,21 @@ func setRepoConfigOpenLineage(
 // CRD fields rather than going through ExtraConfig.
 func coerceStringToYamlType(v string) interface{} {
 	switch v {
-	case "true":
+	case stringTrue:
 		return true
-	case "false":
+	case stringFalse:
 		return false
 	}
 	return v
+}
+
+func setRepoConfigDataQualityMonitoring(dqmConfig *feastdevv1.DataQualityMonitoringConfig, repoConfig *RepoConfig) {
+	if dqmConfig.AutoBaseline == nil {
+		return
+	}
+	repoConfig.DataQualityMonitoring = &DataQualityMonitoringYamlConfig{
+		AutoBaseline: *dqmConfig.AutoBaseline,
+	}
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {

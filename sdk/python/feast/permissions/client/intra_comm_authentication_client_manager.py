@@ -29,4 +29,4 @@ class IntraCommAuthClientManager(AuthenticationClientManager):
                 f"No Auth client manager implemented for the auth type:{self.auth_config.type}"
             )
 
-        return jwt.encode(payload, "")
+        return jwt.encode(payload, "", algorithm="none")

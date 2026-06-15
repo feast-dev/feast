@@ -18,6 +18,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -57,15 +58,19 @@ def registry_proto_cache_with_tags(func):
         registry_proto: RegistryProto,
         project: str,
         tags: Optional[dict[str, str]],
+        **kwargs,
     ):
         nonlocal cache_key, cache_value
 
-        key = tuple([id(registry_proto), registry_proto.version_id, project, tags])
+        kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
+        key = tuple(
+            [id(registry_proto), registry_proto.version_id, project, tags, kwargs_key]
+        )
 
         if key == cache_key:
             return cache_value
         else:
-            cache_value = func(registry_proto, project, tags)
+            cache_value = func(registry_proto, project, tags, **kwargs)
             cache_key = key
             return cache_value
 
@@ -145,6 +150,13 @@ def get_any_feature_view(
         ):
             return OnDemandFeatureView.from_proto(on_demand_feature_view)
 
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+
     raise FeatureViewNotFoundException(name, project)
 
 
@@ -154,6 +166,9 @@ def get_feature_view_by_version(
     """Retrieve a feature view snapshot for a specific version from version history."""
     from feast.protos.feast.core.FeatureView_pb2 import (
         FeatureView as FeatureViewProto,
+    )
+    from feast.protos.feast.core.LabelView_pb2 import (
+        LabelView as LabelViewProto,
     )
     from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
         OnDemandFeatureView as OnDemandFeatureViewProto,
@@ -169,6 +184,7 @@ def get_feature_view_by_version(
             and record.project_id == project
             and record.version_number == version_number
         ):
+            fv: BaseFeatureView
             if record.feature_view_type == "feature_view":
                 fv_proto = FeatureViewProto.FromString(record.feature_view_proto)
                 fv = FeatureView.from_proto(fv_proto)
@@ -180,6 +196,9 @@ def get_feature_view_by_version(
                     record.feature_view_proto
                 )
                 fv = OnDemandFeatureView.from_proto(odfv_proto)
+            elif record.feature_view_type == "label_view":
+                lv_proto = LabelViewProto.FromString(record.feature_view_proto)
+                fv = LabelView.from_proto(lv_proto)
             else:
                 raise ValueError(
                     f"Unknown feature view type: {record.feature_view_type}"
@@ -279,31 +298,43 @@ def list_feature_services(
 
 @registry_proto_cache_with_tags
 def list_all_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[BaseFeatureView]:
     return (
-        list_feature_views(registry_proto, project, tags)
-        + list_stream_feature_views(registry_proto, project, tags)
-        + list_on_demand_feature_views(registry_proto, project, tags)
+        list_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_stream_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_label_views(registry_proto, project, tags)
     )
 
 
 @registry_proto_cache_with_tags
 def list_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[FeatureView]:
     feature_views: List[FeatureView] = []
     for feature_view_proto in registry_proto.feature_views:
         if feature_view_proto.spec.project == project and utils.has_all_tags(
             feature_view_proto.spec.tags, tags
         ):
-            feature_views.append(FeatureView.from_proto(feature_view_proto))
+            feature_views.append(
+                FeatureView.from_proto(feature_view_proto, skip_udf=skip_udf)
+            )
     return feature_views
 
 
 @registry_proto_cache_with_tags
 def list_stream_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[StreamFeatureView]:
     stream_feature_views = []
     for stream_feature_view in registry_proto.stream_feature_views:
@@ -311,14 +342,17 @@ def list_stream_feature_views(
             stream_feature_view.spec.tags, tags
         ):
             stream_feature_views.append(
-                StreamFeatureView.from_proto(stream_feature_view)
+                StreamFeatureView.from_proto(stream_feature_view, skip_udf=skip_udf)
             )
     return stream_feature_views
 
 
 @registry_proto_cache_with_tags
 def list_on_demand_feature_views(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
 ) -> List[OnDemandFeatureView]:
     on_demand_feature_views = []
     for on_demand_feature_view in registry_proto.on_demand_feature_views:
@@ -326,9 +360,34 @@ def list_on_demand_feature_views(
             on_demand_feature_view.spec.tags, tags
         ):
             on_demand_feature_views.append(
-                OnDemandFeatureView.from_proto(on_demand_feature_view)
+                OnDemandFeatureView.from_proto(
+                    on_demand_feature_view, skip_udf=skip_udf
+                )
             )
     return on_demand_feature_views
+
+
+def get_label_view(registry_proto: RegistryProto, name: str, project: str) -> LabelView:
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+    raise FeatureViewNotFoundException(name, project)
+
+
+@registry_proto_cache_with_tags
+def list_label_views(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[LabelView]:
+    label_views = []
+    for label_view_proto in registry_proto.label_views:
+        if label_view_proto.spec.project == project and utils.has_all_tags(
+            label_view_proto.spec.tags, tags
+        ):
+            label_views.append(LabelView.from_proto(label_view_proto))
+    return label_views
 
 
 @registry_proto_cache_with_tags

@@ -3,8 +3,6 @@
 ## Description
 
 The MongoDB offline store provides support for reading [MongoDBSource](../data-sources/mongodb.md).
-* Uses a single shared collection with a compound index for all FeatureViews, distinguished by a `feature_view` discriminator field.
-* Entity dataframes can be provided as a Pandas dataframe. The offline store converts entity identifiers into serialized entity keys for efficient lookup against the collection.
 
 ## Getting started
 

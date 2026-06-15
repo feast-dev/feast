@@ -63,7 +63,7 @@ var _ = Describe("Registry Service", func() {
 		ctx = context.Background()
 		typeNamespacedName = types.NamespacedName{
 			Name:      "testfeaturestore",
-			Namespace: "default",
+			Namespace: DefaultNs,
 		}
 
 		featureStore = &feastdevv1.FeatureStore{
@@ -205,8 +205,8 @@ var _ = Describe("Registry Service", func() {
 	Describe("PodAnnotations Configuration", func() {
 		It("should apply podAnnotations to deployment pod template", func() {
 			featureStore.Spec.Services.PodAnnotations = map[string]string{
-				"instrumentation.opentelemetry.io/inject-python": "true",
-				"sidecar.istio.io/inject":                        "true",
+				otelInjectPythonAnnotation: stringTrue,
+				"sidecar.istio.io/inject":  stringTrue,
 			}
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 			Expect(feast.ApplyDefaults()).To(Succeed())
@@ -218,8 +218,8 @@ var _ = Describe("Registry Service", func() {
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 
 			Expect(deployment.Spec.Template.Annotations).To(Equal(map[string]string{
-				"instrumentation.opentelemetry.io/inject-python": "true",
-				"sidecar.istio.io/inject":                        "true",
+				otelInjectPythonAnnotation: stringTrue,
+				"sidecar.istio.io/inject":  stringTrue,
 			}))
 		})
 
@@ -237,7 +237,7 @@ var _ = Describe("Registry Service", func() {
 
 		It("should remove pod template annotations when podAnnotations is removed", func() {
 			featureStore.Spec.Services.PodAnnotations = map[string]string{
-				"instrumentation.opentelemetry.io/inject-python": "true",
+				otelInjectPythonAnnotation: stringTrue,
 			}
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 			Expect(feast.ApplyDefaults()).To(Succeed())
@@ -260,12 +260,77 @@ var _ = Describe("Registry Service", func() {
 		})
 	})
 
+	Describe("ResourceClaims Configuration", func() {
+		It("should apply resourceClaims to deployment pod template", func() {
+			featureStore.Spec.Services.ResourceClaims = []corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(Equal([]corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}))
+		})
+
+		It("should have no resourceClaims when field is not set", func() {
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(BeNil())
+		})
+
+		It("should remove resourceClaims when field is removed", func() {
+			featureStore.Spec.Services.ResourceClaims = []corev1.PodResourceClaim{
+				{
+					Name:              "gpu-claim",
+					ResourceClaimName: ptr.To("my-gpu-claim"),
+				},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(HaveLen(1))
+
+			featureStore.Spec.Services.ResourceClaims = nil
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.ResourceClaims).To(BeNil())
+		})
+	})
+
 	Describe("NodeSelector Configuration", func() {
 		It("should apply NodeSelector to pod spec when configured", func() {
 			// Set NodeSelector for registry service
 			nodeSelector := map[string]string{
-				"kubernetes.io/os": "linux",
-				"node-type":        "compute",
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
 			}
 			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &nodeSelector
 			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
@@ -280,8 +345,8 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify NodeSelector is applied to pod spec
 			expectedNodeSelector := map[string]string{
-				"kubernetes.io/os": "linux",
-				"node-type":        "compute",
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
 			}
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
@@ -289,15 +354,15 @@ var _ = Describe("Registry Service", func() {
 		It("should merge NodeSelectors from multiple services", func() {
 			// Set NodeSelector for registry service
 			registryNodeSelector := map[string]string{
-				"kubernetes.io/os": "linux",
-				"node-type":        "compute",
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
 			}
 			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
 
 			// Set NodeSelector for online store service
 			onlineNodeSelector := map[string]string{
-				"node-type": "online",
-				"zone":      "us-west-1a",
+				nodeTypeLabel: "online",
+				zoneLabel:     "us-west-1a",
 			}
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
 				Server: &feastdevv1.ServerConfigs{
@@ -324,9 +389,9 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify NodeSelector merges all service selectors (online overrides registry for node-type)
 			expectedNodeSelector := map[string]string{
-				"kubernetes.io/os": "linux",
-				"node-type":        "online",
-				"zone":             "us-west-1a",
+				kubernetesOsLabel: linuxOS,
+				"node-type":       "online",
+				zoneLabel:         "us-west-1a",
 			}
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
@@ -381,7 +446,7 @@ var _ = Describe("Registry Service", func() {
 		It("should apply UI service NodeSelector when UI has highest precedence", func() {
 			// Set NodeSelector for online service
 			onlineNodeSelector := map[string]string{
-				"node-type": "online",
+				nodeTypeLabel: "online",
 			}
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
 				Server: &feastdevv1.ServerConfigs{
@@ -448,15 +513,15 @@ var _ = Describe("Registry Service", func() {
 
 			onlineContainer := GetOnlineContainer(*deployment)
 			Expect(onlineContainer).NotTo(BeNil())
-			Expect(onlineContainer.Command).To(Equal([]string{"feast", "serve", "--metrics", "-h", "0.0.0.0", "-p", "6566"}))
+			Expect(onlineContainer.Command).To(Equal([]string{feastCommand, "serve", "--metrics", "-h", hostAllIPv4, "-p", "6566"}))
 			Expect(onlineContainer.Ports).To(ContainElement(corev1.ContainerPort{
-				Name:          "metrics",
+				Name:          metricsPortName,
 				ContainerPort: MetricsPort,
 				Protocol:      corev1.ProtocolTCP,
 			}))
 			metricsPortCount := 0
 			for _, port := range onlineContainer.Ports {
-				if port.Name == "metrics" {
+				if port.Name == metricsPortName {
 					metricsPortCount++
 				}
 			}
@@ -632,19 +697,131 @@ var _ = Describe("Registry Service", func() {
 	})
 })
 
+var _ = Describe("Service AppProtocol Configuration", func() {
+	var (
+		featureStore *feastdevv1.FeatureStore
+		feast        *FeastServices
+		ctx          context.Context
+	)
+
+	BeforeEach(func() {
+		ctx = context.Background()
+		featureStore = &feastdevv1.FeatureStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testfeaturestore-approtocol",
+				Namespace: DefaultNs,
+			},
+			Spec: feastdevv1.FeatureStoreSpec{
+				FeastProject: "testproject",
+				Services: &feastdevv1.FeatureStoreServices{
+					Registry: &feastdevv1.Registry{
+						Local: &feastdevv1.LocalRegistryConfig{
+							Server: &feastdevv1.RegistryServerConfigs{
+								ServerConfigs: feastdevv1.ServerConfigs{
+									ContainerConfigs: feastdevv1.ContainerConfigs{
+										DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+											Image: ptr.To("test-image"),
+										},
+									},
+								},
+								GRPC:    ptr.To(true),
+								RestAPI: ptr.To(false),
+							},
+						},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, featureStore)).To(Succeed())
+		applySpecToStatus(featureStore)
+		feast = &FeastServices{
+			Handler: handler.FeastHandler{
+				Client:       k8sClient,
+				Context:      ctx,
+				Scheme:       k8sClient.Scheme(),
+				FeatureStore: featureStore,
+			},
+		}
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+	})
+
+	AfterEach(func() {
+		Expect(k8sClient.Delete(ctx, featureStore)).To(Succeed())
+	})
+
+	It("should return grpc appProtocol for the registry gRPC service", func() {
+		Expect(feast.isRegistryGrpcEnabled()).To(BeTrue())
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, false)).To(Equal(ptr.To("grpc")))
+	})
+
+	It("should return nil appProtocol for the registry REST service", func() {
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, true)).To(BeNil())
+	})
+
+	It("should return nil appProtocol for the online store service", func() {
+		Expect(feast.getServiceAppProtocol(OnlineFeastType, false)).To(BeNil())
+	})
+
+	It("should return nil appProtocol for the offline store service", func() {
+		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(BeNil())
+	})
+
+	It("should return nil appProtocol when registry gRPC is disabled", func() {
+		featureStore.Spec.Services.Registry.Local.Server.GRPC = ptr.To(false)
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.isRegistryGrpcEnabled()).To(BeFalse())
+		Expect(feast.getServiceAppProtocol(RegistryFeastType, false)).To(BeNil())
+	})
+
+	It("should set grpc appProtocol on the registry gRPC Service port", func() {
+		Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
+		svc := feast.initFeastSvc(RegistryFeastType)
+		Expect(svc).NotTo(BeNil())
+		Expect(feast.setService(svc, RegistryFeastType, false)).To(Succeed())
+
+		Expect(svc.Spec.Ports).To(HaveLen(1))
+		Expect(svc.Spec.Ports[0].AppProtocol).To(Equal(ptr.To("grpc")))
+	})
+
+	It("should not set appProtocol on the registry REST Service port", func() {
+		featureStore.Spec.Services.Registry.Local.Server.RestAPI = ptr.To(true)
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		Expect(feast.deployFeastServiceByType(RegistryFeastType)).To(Succeed())
+		restSvc := feast.initFeastRestSvc(RegistryFeastType)
+		Expect(restSvc).NotTo(BeNil())
+		Expect(feast.setService(restSvc, RegistryFeastType, true)).To(Succeed())
+
+		Expect(restSvc.Spec.Ports).To(HaveLen(1))
+		Expect(restSvc.Spec.Ports[0].AppProtocol).To(BeNil())
+	})
+})
+
 var _ = Describe("Pod Container Failure Messages", func() {
 	It("should detect init container in CrashLoopBackOff", func() {
 		pod := &corev1.Pod{
 			Status: corev1.PodStatus{
 				InitContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "feast-init",
+						Name: feastInitContainerName,
 						State: corev1.ContainerState{
 							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
 						},
 					},
 					{
-						Name: "feast-apply",
+						Name: feastApplyContainerName,
 						State: corev1.ContainerState{
 							Waiting: &corev1.ContainerStateWaiting{
 								Reason:  "CrashLoopBackOff",
@@ -666,7 +843,7 @@ var _ = Describe("Pod Container Failure Messages", func() {
 			Status: corev1.PodStatus{
 				InitContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "feast-apply",
+						Name: feastApplyContainerName,
 						State: corev1.ContainerState{
 							Terminated: &corev1.ContainerStateTerminated{
 								ExitCode: 1,
@@ -688,7 +865,7 @@ var _ = Describe("Pod Container Failure Messages", func() {
 			Status: corev1.PodStatus{
 				InitContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "feast-init",
+						Name: feastInitContainerName,
 						State: corev1.ContainerState{
 							Waiting: &corev1.ContainerStateWaiting{
 								Reason: "PodInitializing",
@@ -706,7 +883,7 @@ var _ = Describe("Pod Container Failure Messages", func() {
 			Status: corev1.PodStatus{
 				ContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "registry",
+						Name: registryName,
 						State: corev1.ContainerState{
 							Waiting: &corev1.ContainerStateWaiting{
 								Reason:  "ImagePullBackOff",
@@ -727,7 +904,7 @@ var _ = Describe("Pod Container Failure Messages", func() {
 			Status: corev1.PodStatus{
 				InitContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "feast-init",
+						Name: feastInitContainerName,
 						State: corev1.ContainerState{
 							Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
 						},
@@ -735,7 +912,7 @@ var _ = Describe("Pod Container Failure Messages", func() {
 				},
 				ContainerStatuses: []corev1.ContainerStatus{
 					{
-						Name: "registry",
+						Name: registryName,
 						State: corev1.ContainerState{
 							Running: &corev1.ContainerStateRunning{},
 						},

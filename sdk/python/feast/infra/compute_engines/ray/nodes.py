@@ -23,7 +23,10 @@ from feast.infra.compute_engines.ray.utils import (
     safe_batch_processor,
     write_to_online_store,
 )
-from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
+from feast.infra.compute_engines.utils import (
+    ENTITY_TS_ALIAS,
+    create_offline_store_retrieval_job,
+)
 from feast.infra.ray_initializer import get_ray_wrapper
 from feast.infra.ray_shared_utils import (
     apply_field_mapping,
@@ -32,9 +35,6 @@ from feast.infra.ray_shared_utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Entity timestamp alias for historical feature retrieval
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 
 class RayReadNode(DAGNode):

@@ -14,7 +14,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import RequestSource
 from feast.entity import Entity
 from feast.errors import RegistryInferenceFailure, SpecifiedFeaturesNotPresentError
-from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView, FeatureViewState
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field, from_value_type
 from feast.proto_utils import transformation_to_proto
@@ -155,6 +155,9 @@ class OnDemandFeatureView(BaseFeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     aggregations: List[Aggregation]
+    enabled: bool
+    state: FeatureViewState
+    _raw_feature_transformation_proto: Optional[Any] = None
 
     def __init__(  # noqa: C901
         self,
@@ -177,6 +180,7 @@ class OnDemandFeatureView(BaseFeatureView):
         track_metrics: bool = False,
         aggregations: Optional[List[Aggregation]] = None,
         version: str = "latest",
+        enabled: bool = True,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -316,6 +320,9 @@ class OnDemandFeatureView(BaseFeatureView):
             )
         self.track_metrics = track_metrics
         self.aggregations = aggregations or []
+        self.enabled = enabled
+
+        self.state = FeatureViewState.STATE_UNSPECIFIED
 
         if input_schema is not None and self.aggregations:
             input_field_names = {f.name for f in input_schema}
@@ -402,6 +409,8 @@ class OnDemandFeatureView(BaseFeatureView):
         fv.features = self.features
         fv.projection = copy.copy(self.projection)
         fv.entity_columns = copy.copy(self.entity_columns)
+        fv.enabled = self.enabled
+        fv.state = self.state
 
         return fv
 
@@ -588,6 +597,8 @@ class OnDemandFeatureView(BaseFeatureView):
             meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         if self.current_version_number is not None:
             meta.current_version_number = self.current_version_number
+        if self.state != FeatureViewState.STATE_UNSPECIFIED:
+            meta.state = self.state.to_proto()
         sources = {}
         for source_name, fv_projection in self.source_feature_view_projections.items():
             sources[source_name] = OnDemandSource(
@@ -609,7 +620,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=self._input_schema_sentinel.to_proto()
             )
 
-        feature_transformation = transformation_to_proto(self.feature_transformation)
+        if getattr(self, "_raw_feature_transformation_proto", None) is not None:
+            feature_transformation = self._raw_feature_transformation_proto
+        else:
+            feature_transformation = transformation_to_proto(
+                self.feature_transformation
+            )
 
         tags = dict(self.tags) if self.tags else {}
         if self.track_metrics:
@@ -635,6 +651,7 @@ class OnDemandFeatureView(BaseFeatureView):
             singleton=self.singleton or False,
             aggregations=[agg.to_proto() for agg in self.aggregations],
             version=self.version,
+            disabled=not self.enabled,
         )
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
@@ -709,6 +726,14 @@ class OnDemandFeatureView(BaseFeatureView):
         # Set additional attributes that aren't part of the constructor
         on_demand_feature_view_obj.entities = optional_fields["entities"]
         on_demand_feature_view_obj.entity_columns = optional_fields["entity_columns"]
+        on_demand_feature_view_obj.enabled = (
+            not on_demand_feature_view_proto.spec.disabled
+        )
+
+        # Restore lifecycle state from meta.
+        on_demand_feature_view_obj.state = FeatureViewState.from_proto(
+            on_demand_feature_view_proto.meta.state
+        )
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
         # Create the default projection.
@@ -726,6 +751,13 @@ class OnDemandFeatureView(BaseFeatureView):
             on_demand_feature_view_obj.current_version_number = 0
         else:
             on_demand_feature_view_obj.current_version_number = None
+
+        if skip_udf and on_demand_feature_view_proto.spec.HasField(
+            "feature_transformation"
+        ):
+            on_demand_feature_view_obj._raw_feature_transformation_proto = (
+                on_demand_feature_view_proto.spec.feature_transformation
+            )
 
         # Set timestamps if present
         cls._set_timestamps_from_proto(
