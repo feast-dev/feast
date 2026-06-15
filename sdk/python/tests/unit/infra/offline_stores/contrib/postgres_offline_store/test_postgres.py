@@ -953,7 +953,10 @@ class TestNonEntityRetrieval:
         from pathlib import Path
         from textwrap import dedent
 
-        from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+        from click.testing import CliRunner
+
+        from feast.cli.cli import cli
+        from feast.feature_store import FeatureStore
 
         runner = CliRunner()
 
@@ -975,46 +978,76 @@ class TestNonEntityRetrieval:
             """)
             )
 
-            repo_example = repo_path / "example.py"
-            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            retrieval_job = MagicMock()
+            retrieval_job.to_df.return_value = pd.DataFrame()
 
-            result = runner.run(["apply"], cwd=repo_path)
-            assert result.returncode == 0
+            with patch.object(
+                FeatureStore, "get_historical_features", return_value=retrieval_job
+            ) as mock_get_historical_features:
+                # Test 1: Both dates provided - should parse correctly
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                        "--start-date",
+                        "2023-01-01 00:00:00",
+                        "--end-date",
+                        "2023-01-07 00:00:00",
+                    ],
+                )
 
-            # Test 1: Both dates provided - should parse correctly
-            result = runner.run(
-                [
-                    "get-historical-features",
-                    "--features",
-                    "driver_hourly_stats:conv_rate",
-                    "--start-date",
-                    "2023-01-01 00:00:00",
-                    "--end-date",
-                    "2023-01-07 00:00:00",
-                ],
-                cwd=repo_path,
-            )
+                assert result.exit_code == 0, result.output
+                assert mock_get_historical_features.call_args.kwargs[
+                    "start_date"
+                ] == datetime(2023, 1, 1)
+                assert mock_get_historical_features.call_args.kwargs[
+                    "end_date"
+                ] == datetime(2023, 1, 7)
 
-            # Should not fail on date parsing
-            stderr_output = result.stderr.decode()
-            assert "Error parsing" not in stderr_output
-            assert "time data" not in stderr_output  # datetime parsing errors
+                # Test 2: Only end date provided - should work (start_date calculated from TTL)
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                        "--end-date",
+                        "2023-01-07 00:00:00",
+                    ],
+                )
 
-            # Test 2: Only end date provided - should work (start_date calculated from TTL)
-            result = runner.run(
-                [
-                    "get-historical-features",
-                    "--features",
-                    "driver_hourly_stats:conv_rate",
-                    "--end-date",
-                    "2023-01-07 00:00:00",
-                ],
-                cwd=repo_path,
-            )
+                assert result.exit_code == 0, result.output
+                assert (
+                    mock_get_historical_features.call_args.kwargs["start_date"] is None
+                )
+                assert mock_get_historical_features.call_args.kwargs[
+                    "end_date"
+                ] == datetime(2023, 1, 7)
 
-            # Should not fail on parameter validation
-            stderr_output = result.stderr.decode()
-            assert "must be provided" not in stderr_output
+                # Test 3: No date or dataframe provided - should fail validation before retrieval.
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                    ],
+                )
+
+                assert result.exit_code == 0, result.output
+                assert (
+                    "Either --dataframe or --start-date and/or --end-date must be provided."
+                    in result.output
+                )
+                assert mock_get_historical_features.call_count == 2
 
 
 class TestPostgreSQLSourceQueryStringAlias:

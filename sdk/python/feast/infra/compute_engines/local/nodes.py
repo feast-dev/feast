@@ -14,16 +14,13 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
+    ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
-)
-from feast.infra.offline_stores.offline_utils import (
-    infer_event_timestamp_from_entity_df,
+    infer_entity_timestamp_column,
 )
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
-
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 
 class LocalSourceReadNode(LocalNode):
@@ -99,7 +96,7 @@ class LocalJoinNode(LocalNode):
             entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
 
             entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-            entity_ts_col = infer_event_timestamp_from_entity_df(entity_schema)
+            entity_ts_col = infer_entity_timestamp_column(entity_schema)
 
             if entity_ts_col != ENTITY_TS_ALIAS:
                 entity_df = self.backend.rename_columns(

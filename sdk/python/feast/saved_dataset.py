@@ -34,6 +34,7 @@ class _StorageRegistry(type):
 
 _DATA_SOURCE_TO_SAVED_DATASET_STORAGE = {
     "FileSource": "feast.infra.offline_stores.file_source.SavedDatasetFileStorage",
+    "SparkSource": "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SavedDatasetSparkStorage",
 }
 
 

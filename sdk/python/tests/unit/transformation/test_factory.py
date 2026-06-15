@@ -17,6 +17,7 @@ class TestTransformationClassForType:
             "sql",
             "spark_sql",
             "spark",
+            "flink",
             "ray",
         }
         assert set(TRANSFORMATION_CLASS_FOR_TYPE.keys()) == expected_types
@@ -67,6 +68,19 @@ class TestGetTransformationClassFromType:
             "feast.transformation.sql_transformation",
             "SQLTransformation",
             "SQLTransformation",
+        )
+
+    @patch("feast.transformation.factory.import_class")
+    def test_flink_type_resolves(self, mock_import):
+        mock_cls = MagicMock()
+        mock_import.return_value = mock_cls
+
+        get_transformation_class_from_type("flink")
+
+        mock_import.assert_called_once_with(
+            "feast.transformation.flink_transformation",
+            "FlinkTransformation",
+            "FlinkTransformation",
         )
 
     def test_invalid_type_raises_value_error(self):
