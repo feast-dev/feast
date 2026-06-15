@@ -811,17 +811,58 @@ def _augment_response_with_on_demand_transforms(
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
+            # A UDF should only get features from the sources it declared. Drop
+            # features that belong to other feature views so it can't read them by
+            # accident (#6158). Join keys, request data and the declared features
+            # stay. substrait filters on its own, so leave it alone.
+            declared_source_names = {
+                projection.name
+                for projection in odfv.source_feature_view_projections.values()
+            }
+            undeclared_columns: set[str] = set()
+            # features the caller asked for that aren't one of our sources
+            for feature_ref in feature_refs:
+                ref_view_name, _, ref_feature_name = _parse_feature_ref(feature_ref)
+                if ref_view_name in requested_odfv_feature_names:
+                    continue
+                if ref_view_name not in declared_source_names:
+                    undeclared_columns.add(ref_feature_name)
+                    undeclared_columns.add(f"{ref_view_name}__{ref_feature_name}")
+            # features that are only in the response because another requested
+            # ODFV needs them as input
+            for other_odfv in requested_on_demand_feature_views:
+                for projection in other_odfv.source_feature_view_projections.values():
+                    if projection.name in declared_source_names:
+                        continue
+                    for feature in projection.features:
+                        undeclared_columns.add(feature.name)
+                        undeclared_columns.add(f"{projection.name}__{feature.name}")
+
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
+                odfv_input_dict = {
+                    k: v
+                    for k, v in initial_response_dict.items()
+                    if k not in undeclared_columns
+                }
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    initial_response_dict
+                    odfv_input_dict
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
+                odfv_input_arrow = initial_response_arrow
+                if odfv.mode == "pandas":
+                    odfv_input_arrow = initial_response_arrow.select(
+                        [
+                            c
+                            for c in initial_response_arrow.column_names
+                            if c not in undeclared_columns
+                        ]
+                    )
                 transformed_features_arrow = odfv.transform_arrow(
-                    initial_response_arrow, full_feature_names
+                    odfv_input_arrow, full_feature_names
                 )
             else:
                 raise Exception(
