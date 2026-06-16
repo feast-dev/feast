@@ -1,6 +1,6 @@
 import logging
 from datetime import date, datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -298,3 +298,21 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
             feature_name=feature_name,
             data_source_type=data_source_type,
         )
+
+    @staticmethod
+    def validate_data_source(
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
+        get_databricks_session(config.offline_store)
+        data_source.validate(config=config)
+
+    @staticmethod
+    def get_table_column_names_and_types_from_data_source(
+        config: RepoConfig,
+        data_source: DataSource,
+    ) -> Iterable[Tuple[str, str]]:
+        assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
+        get_databricks_session(config.offline_store)
+        return data_source.get_table_column_names_and_types(config=config)
