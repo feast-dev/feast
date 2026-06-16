@@ -14,7 +14,7 @@ The Aerospike online store is currently in **preview**. Some functionality may b
 * Partial, server-side upserts via Aerospike Map CDT operations — writing one feature view never clobbers another feature view stored on the same entity.
 * Record-level TTL controlled by a single `ttl_seconds` config option (honours the namespace default, a "never expire" sentinel, or an explicit number of seconds).
 * Per-feature-view **namespace overrides** and **set overrides** — pin individual feature views to RAM-only or SSD-backed namespaces, or isolate one view in its own set, without splitting projects.
-* **Prewriting hook** — a configurable, import-string-resolved callable applied to every write batch for cross-cutting concerns like PII masking, encryption-at-rest or value coercion.
+* **Prewriting hook** — a configurable, import-string-resolved callable applied to every write batch for cross-cutting concerns like PII masking, application-side encryption, or value coercion.
 * Authentication and TLS options for Aerospike Enterprise Edition passed straight through to the Aerospike Python client.
 * `client_kwargs` escape hatch for any advanced client-config field not surfaced on `AerospikeOnlineStoreConfig`.
 * Baseline: Aerospike Server **≥ 6.0** (uses batch-write / batch-operate APIs). The store has been developed against CE 8.x.
@@ -298,7 +298,7 @@ The Aerospike online store uses a **single set per project** with entity-key col
 | :---------------- | :---------------------------------------------------------------------------- |
 | Namespace         | `online_store.namespace` (must be pre-configured on the cluster); per-feature-view override via `online_store.namespace_overrides` |
 | Set               | `online_store.set_name_template` → `"{project}_{collection_suffix}"` by default; per-feature-view override via `online_store.set_overrides` |
-| Key               | `serialize_entity_key(entity_key)` (raw bytes)                                |
+| Key               | `serialize_entity_key(entity_key)` as `bytearray` user key                      |
 | Bin `features`    | Map CDT keyed by feature-view name, each value a map of `feature → native`   |
 | Bin `event_ts`    | Map CDT keyed by feature-view name, each value an int64 epoch-ms timestamp    |
 | Bin `created_ts`  | Top-level int64 epoch-ms timestamp (last `feast materialize`)                |
@@ -308,7 +308,7 @@ The Aerospike online store uses a **single set per project** with entity-key col
 For a single entity carrying features from two feature views (`driver_stats` and `pricing`):
 
 ```text
-key:  (ns="feast", set="my_feature_repo_latest", user_key=<serialized_entity_key bytes>)
+key:  (ns="feast", set="my_feature_repo_latest", user_key=<serialize_entity_key as bytearray>)
 bins:
   features:
     driver_stats:
@@ -326,7 +326,7 @@ bins:
 
 * **Record per entity, bin per concept.** `features` and `event_ts` are Aerospike Map CDT bins, not dynamic bins, which keeps the store within the 15-byte Aerospike bin-name limit regardless of how many feature views a project has.
 * **Partial upserts via Map CDT ops.** Writes use `batch_write` with `map_put_items("features", {<fv>: {...}})` and `map_put("event_ts", <fv>, <epoch_ms>)`. Concurrent writes to different feature views on the same entity never clobber each other — each write mutates only its own map keys.
-* **Entity-key bytes as the Aerospike user key.** Feast's `serialize_entity_key` output is used directly as the user key, so lookups are O(1) and no secondary index is needed.
+* **Entity-key bytes as the Aerospike user key.** Feast's `serialize_entity_key` output is passed as a `bytearray` user key (not `bytes` — the Python client hashes only the first byte of `bytes` keys, which would collapse distinct entities).
 * **Timestamps as int64 epoch milliseconds.** Aerospike has no native datetime type; tz-naive timestamps are treated as UTC per the `OnlineStore` contract.
 
 ### TTL and expiry

@@ -28,7 +28,8 @@ module the YAML references.
 * Feast installed with the Aerospike extra (`pip install 'feast[aerospike]'`).
 * An Aerospike cluster reachable from your writer process. The
   [Aerospike online-store reference](../../../docs/reference/online-stores/aerospike.md)
-  has a docker-compose path for local CE if you don't already have one.
+  shows a minimal local CE config (`127.0.0.1:3000`); run Aerospike however
+  you normally would (Docker, Kubernetes, bare metal).
 * On every process that calls `online_write_batch` through this store
   (materialization workers, the registry CLI host, the feature server if
   you run one), the `FEAST_PII_SALT` environment variable must be set

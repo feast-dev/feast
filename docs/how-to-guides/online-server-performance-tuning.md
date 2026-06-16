@@ -496,7 +496,6 @@ online_store:
 - **`hosts`**: List every seed node. The Aerospike client discovers the rest of the cluster automatically and opens one connection pool per node.
 - **`ttl_seconds: 0`** means "never expire"; omit the key to inherit the namespace's `default-ttl`. Expiry is enforced by the server's `nsup` thread — nothing to delete on the client side.
 - Co-locate the feature server in the **same availability zone / rack** as the Aerospike cluster; sub-millisecond reads are bandwidth- and RTT-sensitive.
-- On the Aerospike side: increase `proto-fd-max` if the feature server reports "max fd" errors, and turn on `partition-tree-sprigs` for namespaces with billions of records to spread index contention.
 
 ### Remote online store tuning
 
