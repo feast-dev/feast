@@ -55,11 +55,14 @@ jobs:
             set -e
             echo "$SEMANTIC_OUTPUT"
 
-            BASE_VERSION=$(echo "$SEMANTIC_OUTPUT" | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/' | tail -n 1)
+            BASE_VERSION=$(printf '%s\n' "$SEMANTIC_OUTPUT" | sed -nE 's/.*The next release version is ([[:digit:].]+)$/\1/p' | tail -n 1)
             if [[ -z "$BASE_VERSION" ]]; then
               echo "Could not determine a semantic-release next version (exit code: ${SEMANTIC_STATUS}); falling back to next patch after latest stable tag."
-              source infra/scripts/setup-common-functions.sh
-              LATEST_TAG=$(get_tag_release -s)
+              LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | sed -nE '/^v[0-9]+\.[0-9]+\.[0-9]+$/{p;q;}')
+              if [[ -z "$LATEST_TAG" ]]; then
+                echo "Could not determine latest stable tag."
+                exit 1
+              fi
               LATEST_VERSION="${LATEST_TAG#v}"
               IFS=. read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
               BASE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
