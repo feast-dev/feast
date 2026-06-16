@@ -4,7 +4,6 @@ import {
   EuiBasicTable,
   EuiPanel,
   EuiSpacer,
-  EuiText,
   EuiTitle,
 } from "@elastic/eui";
 import { useParams } from "react-router-dom";

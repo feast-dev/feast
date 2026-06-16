@@ -18,7 +18,6 @@ import {
   useBaselineMetrics,
 } from "../../queries/useMonitoringApi";
 import type {
-  FeatureMetric,
   NumericHistogram,
   CategoricalHistogram,
 } from "../../queries/useMonitoringApi";
