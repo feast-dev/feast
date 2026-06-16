@@ -3,13 +3,9 @@ import {
   EuiBadge,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiPanel,
   EuiText,
-  EuiTitle,
-  EuiHorizontalRule,
   EuiToolTip,
 } from "@elastic/eui";
-import { formatPermissions } from "../utils/permissionUtils";
 
 interface PermissionsDisplayProps {
   permissions: any[] | undefined;

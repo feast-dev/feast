@@ -6,7 +6,6 @@ import {
   EuiTitle,
   EuiHorizontalRule,
   EuiCodeBlock,
-  EuiSpacer,
   EuiFlexGroup,
   EuiFlexItem,
   EuiBadge,
@@ -161,11 +160,17 @@ const FeatureViewVersionsTab = ({
   const registryQuery = useLoadRegistry(registryUrl, projectName);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
-  const records =
-    registryQuery.data?.objects?.featureViewVersionHistory?.records?.filter(
-      (r: feast.core.IFeatureViewVersionRecord) =>
-        r.featureViewName === featureViewName,
-    ) || [];
+  const records = useMemo(
+    () =>
+      registryQuery.data?.objects?.featureViewVersionHistory?.records?.filter(
+        (r: feast.core.IFeatureViewVersionRecord) =>
+          r.featureViewName === featureViewName,
+      ) || [],
+    [
+      registryQuery.data?.objects?.featureViewVersionHistory?.records,
+      featureViewName,
+    ],
+  );
 
   const decodedVersions: DecodedVersion[] = useMemo(
     () => records.map(decodeVersionProto),
