@@ -32,6 +32,9 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto  # noqa: E402
 from feast.repo_config import RepoConfig  # noqa: E402
 from feast.types import Float64, Int64  # noqa: E402
 from feast.utils import _utc_now  # noqa: E402
+from tests.universal.feature_repos.universal.online_store.aerospike import (  # noqa: E402
+    AEROSPIKE_CE_IMAGE,
+)
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo  # noqa: E402
 
 docker_available = False
@@ -1283,7 +1286,7 @@ async def test_close_releases_client():
 @pytest.fixture(scope="module")
 def aerospike_container():
     """Start a real Aerospike CE container for end-to-end testing."""
-    container = DockerContainer("aerospike:ce-8.0.0.9_1").with_exposed_ports("3000")
+    container = DockerContainer(AEROSPIKE_CE_IMAGE).with_exposed_ports("3000")
     container.start()
     wait_for_logs(container=container, predicate="migrations: complete", timeout=60)
     yield container

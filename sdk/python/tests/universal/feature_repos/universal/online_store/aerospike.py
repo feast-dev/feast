@@ -23,10 +23,9 @@ from tests.universal.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
 )
 
-# Aerospike Community Edition — the Docker Official Image ``aerospike`` uses
-# ``ce-<version>`` tags for CE builds. Pinning to a known-good version keeps
-# CI deterministic; bump when Feast's Aerospike server baseline moves.
-AEROSPIKE_CE_IMAGE = "aerospike:ce-8.0.0.9_1"
+# Aerospike Community Edition — pin a known-good server image so CI stays
+# deterministic; bump when Feast's Aerospike server baseline moves.
+AEROSPIKE_CE_IMAGE = "aerospike/aerospike-server:8.0.0.10_1"
 
 # The Aerospike server prints this line once the default "test" namespace has
 # finished starting up and the service is accepting client connections.
