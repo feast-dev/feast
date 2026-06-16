@@ -3,6 +3,7 @@ import React, {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useCallback,
 } from "react";
 import {
   EuiText,
@@ -16,8 +17,6 @@ import {
   EuiTitle,
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
-
-import { css } from "@emotion/react";
 
 const searchResultsStyles = {
   searchResults: {
@@ -68,11 +67,11 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
     const [searchText, setSearchText] = useState("");
     const inputRef = useRef<HTMLInputElement | null>(null);
 
-    const focusSearchInput = () => {
+    const focusSearchInput = useCallback(() => {
       if (inputRef.current) {
         inputRef.current.focus();
       }
-    };
+    }, []);
 
     useImperativeHandle(
       ref,
