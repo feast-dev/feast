@@ -1,5 +1,4 @@
 import { FEAST_FCO_TYPES } from "../parsers/types";
-import { feast } from "../protos";
 
 /**
  * Get permissions for a specific entity
