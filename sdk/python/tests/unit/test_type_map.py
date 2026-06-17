@@ -2229,3 +2229,55 @@ class TestArrowArrayStringListMaterialization:
         assert protos[2] == ProtoValue()
         assert list(protos[3].string_list_val.val) == ["baz"]
         assert list(protos[4].string_list_val.val) == ["qux", ""]
+
+
+class TestZonedTimestamp:
+    def test_round_trip_preserves_zone(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        dt = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+        protos = python_values_to_proto_values([dt], ValueType.ZONED_TIMESTAMP)
+        assert protos[0].WhichOneof("val") == "zoned_timestamp_val"
+        assert protos[0].zoned_timestamp_val.zone == "America/Los_Angeles"
+
+        converted = feast_value_type_to_python_type(protos[0])
+        # Same instant AND same wall-clock zone (unlike UNIX_TIMESTAMP, which is UTC).
+        assert converted == dt
+        assert str(converted.tzinfo) == "America/Los_Angeles"
+        assert converted.hour == 9
+
+    def test_distinct_zones_same_instant_are_not_collapsed(self):
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo
+
+        la = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+        utc = datetime(2026, 6, 17, 16, 0, 0, tzinfo=timezone.utc)  # same instant
+        protos = python_values_to_proto_values([la, utc], ValueType.ZONED_TIMESTAMP)
+        # Same epoch, different zone preserved.
+        assert (
+            protos[0].zoned_timestamp_val.unix_timestamp
+            == protos[1].zoned_timestamp_val.unix_timestamp
+        )
+        assert protos[0].zoned_timestamp_val.zone == "America/Los_Angeles"
+        assert protos[1].zoned_timestamp_val.zone == "UTC"
+
+    def test_naive_datetime_treated_as_utc(self):
+        from datetime import datetime, timezone
+
+        dt = datetime(2026, 6, 17, 12, 0, 0)  # naive
+        protos = python_values_to_proto_values([dt], ValueType.ZONED_TIMESTAMP)
+        assert protos[0].zoned_timestamp_val.zone == ""
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == dt.replace(tzinfo=timezone.utc)
+
+    def test_null_values(self):
+        protos = python_values_to_proto_values([None], ValueType.ZONED_TIMESTAMP)
+        assert protos[0] == ProtoValue()
+        assert feast_value_type_to_python_type(protos[0]) is None
+
+    def test_value_type_round_trips_to_feast_type(self):
+        from feast.types import ZonedTimestamp, from_value_type
+
+        assert from_value_type(ValueType.ZONED_TIMESTAMP) == ZonedTimestamp
+        assert ZonedTimestamp.to_value_type() == ValueType.ZONED_TIMESTAMP
