@@ -22,6 +22,7 @@ from feast.expediagroup.pydantic_models.stream_format_model import (
     JsonFormatModel,
     ProtoFormatModel,
 )
+from feast.field_constraints import FieldConstraints
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
@@ -133,6 +134,8 @@ class SparkSourceModel(DataSourceModel):
     tags: Optional[Dict[str, str]] = None
     owner: Optional[str] = ""
     timestamp_field: Optional[str] = None
+    # Declarative data quality rules keyed by column name.
+    field_constraints: Optional[Dict[str, FieldConstraints]] = None
 
     def to_data_source(self) -> SparkSource:
         """
@@ -153,6 +156,7 @@ class SparkSourceModel(DataSourceModel):
             tags=self.tags,
             owner=self.owner,
             timestamp_field=self.timestamp_field,
+            field_constraints=self.field_constraints,
         )
         return self._attach_timestamps(source)
 
@@ -181,6 +185,7 @@ class SparkSourceModel(DataSourceModel):
             timestamp_field=data_source.timestamp_field,
             created_timestamp=data_source.created_timestamp,
             last_updated_timestamp=data_source.last_updated_timestamp,
+            field_constraints=data_source.field_constraints,
         )
 
 

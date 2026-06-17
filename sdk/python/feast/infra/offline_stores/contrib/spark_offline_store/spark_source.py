@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
+from feast.field_constraints import FieldConstraints
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -49,6 +50,7 @@ class SparkSource(DataSource):
         timestamp_field: Optional[str] = None,
         date_partition_column: Optional[str] = None,
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
+        field_constraints: Optional[Dict[str, FieldConstraints]] = None,
     ):
         """Creates a SparkSource object.
 
@@ -70,6 +72,9 @@ class SparkSource(DataSource):
                 feature values.
             date_partition_column: The column to partition the data on for faster
                 retrieval. This is useful for large tables and will limit the number ofi
+            field_constraints: Optional declarative data quality rules keyed
+                by column name. Consumed by external feature engineering jobs.
+                Columns without an entry are not validated.
         """
         # If no name, use the table as the default name.
         if name is None and table is None:
@@ -102,6 +107,7 @@ class SparkSource(DataSource):
             path=path,
             file_format=file_format,
             date_partition_column_format=date_partition_column_format,
+            field_constraints=field_constraints,
         )
 
     @property
@@ -139,6 +145,14 @@ class SparkSource(DataSource):
         """
         return self.spark_options.date_partition_column_format
 
+    @property
+    def field_constraints(self):
+        """
+        Returns the per-column data quality constraints declared on this
+        data source, or None if no constraints are set.
+        """
+        return self.spark_options.field_constraints
+
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         assert data_source.HasField("spark_options")
@@ -158,6 +172,7 @@ class SparkSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            field_constraints=spark_options.field_constraints,
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -238,6 +253,7 @@ class SparkSource(DataSource):
             self.table == other.table
             and self.query == other.query
             and self.path == other.path
+            and self.field_constraints == other.field_constraints
         )
 
     def __hash__(self):
@@ -254,6 +270,7 @@ class SparkOptions:
         path: Optional[str],
         file_format: Optional[str],
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
+        field_constraints: Optional[Dict[str, FieldConstraints]] = None,
     ):
         # Check that only one of the ways to load a spark dataframe can be used. We have
         # to treat empty string and null the same due to proto (de)serialization.
@@ -276,6 +293,7 @@ class SparkOptions:
         self._path = path
         self._file_format = file_format
         self._date_partition_column_format = date_partition_column_format
+        self._field_constraints = field_constraints
 
     @property
     def table(self):
@@ -317,6 +335,14 @@ class SparkOptions:
     def date_partition_column_format(self, date_partition_column_format):
         self._date_partition_column_format = date_partition_column_format
 
+    @property
+    def field_constraints(self):
+        return self._field_constraints
+
+    @field_constraints.setter
+    def field_constraints(self, field_constraints):
+        self._field_constraints = field_constraints
+
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.SparkOptions):
         """
@@ -326,6 +352,13 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
+
+        field_constraints: Optional[Dict[str, FieldConstraints]] = None
+        if len(spark_options_proto.field_constraints) > 0:
+            field_constraints = {
+                col: FieldConstraints.from_proto(fc_proto)
+                for col, fc_proto in spark_options_proto.field_constraints.items()
+            }
 
         # TODO: Revert after leveraging the Remote Registry. Conversion from Proto is
         # setting values to empty string if not set.This impacts the Pydantic Model
@@ -344,6 +377,7 @@ class SparkOptions:
                 else None
             ),
             date_partition_column_format=spark_options_proto.date_partition_column_format,
+            field_constraints=field_constraints,
         )
 
         return spark_options
@@ -361,6 +395,9 @@ class SparkOptions:
             file_format=self.file_format,
             date_partition_column_format=self.date_partition_column_format,
         )
+        if self._field_constraints is not None:
+            for col, fc in self._field_constraints.items():
+                spark_options_proto.field_constraints[col].CopyFrom(fc.to_proto())
 
         return spark_options_proto
 

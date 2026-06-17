@@ -208,6 +208,81 @@ def test_idempotent_sparksource_conversion():
     assert pydantic_obj == SparkSourceModel.model_validate(pydantic_json)
 
 
+def test_idempotent_sparksource_conversion_with_field_constraints():
+    from feast import FieldConstraints, Imputation
+
+    field_constraints = {
+        "transaction_id": FieldConstraints(nullable=False, unique=True),
+        "amount": FieldConstraints(
+            nullable=False,
+            min_value=0,
+            imputation=Imputation(strategy="mean"),
+        ),
+        "card_brand": FieldConstraints(
+            nullable=False,
+            allowed_values=["VISA", "MASTERCARD", "AMEX"],
+            imputation=Imputation(strategy="default", default_value="UNKNOWN"),
+        ),
+        "ctr_7_day": FieldConstraints(
+            max_null_pct=0.5,
+            min_value=0,
+            max_value=1,
+            min_compliance=0.999,
+        ),
+    }
+
+    python_obj = SparkSource(
+        name="payment_transactions_source",
+        table="data_dw_offline_feature_store.feature_store_payment_transactions",
+        description="payments table",
+        tags={"eg-application-name": "payments-ml"},
+        owner="payments-ml@expediagroup.com",
+        field_constraints=field_constraints,
+    )
+
+    pydantic_obj = SparkSourceModel.from_data_source(python_obj)
+    assert pydantic_obj.field_constraints == field_constraints
+    converted_python_obj = pydantic_obj.to_data_source()
+    assert python_obj == converted_python_obj
+    assert converted_python_obj.field_constraints == field_constraints
+    feast_proto = converted_python_obj.to_proto()
+    python_obj_from_proto = SparkSource.from_proto(feast_proto)
+    assert python_obj == python_obj_from_proto
+    assert python_obj_from_proto.field_constraints == field_constraints
+
+    pydantic_json = pydantic_obj.model_dump_json()
+    rehydrated = SparkSourceModel.model_validate_json(pydantic_json)
+    assert pydantic_obj == rehydrated
+    assert rehydrated.field_constraints == field_constraints
+    pydantic_dict = pydantic_obj.model_dump()
+    rehydrated = SparkSourceModel.model_validate(pydantic_dict)
+    assert pydantic_obj == rehydrated
+    assert rehydrated.field_constraints == field_constraints
+
+
+def test_sparksource_without_field_constraints_roundtrip_unchanged():
+    python_obj = SparkSource(
+        name="legacy-source",
+        table="some_table",
+        description="no DQ",
+        tags={},
+        owner="feast",
+    )
+    assert python_obj.field_constraints is None
+
+    pydantic_obj = SparkSourceModel.from_data_source(python_obj)
+    assert pydantic_obj.field_constraints is None
+
+    converted = pydantic_obj.to_data_source()
+    assert converted == python_obj
+    assert converted.field_constraints is None
+
+    proto = converted.to_proto()
+    rehydrated = SparkSource.from_proto(proto)
+    assert rehydrated == python_obj
+    assert rehydrated.field_constraints is None
+
+
 def test_idempotent_pushsource_conversion():
     spark_source = SparkSource(
         name="spark-source",

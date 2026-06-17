@@ -24,6 +24,7 @@ option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
@@ -231,6 +232,73 @@ message DataSource {
 
     // Date Format of date partition column (e.g. %Y-%m-%d)
     string date_partition_column_format = 5;
+
+    // Declarative data quality constraints, keyed by column name. Columns
+    // without an entry are not validated. Meant to be consumed by external
+    // feature engineering jobs.
+    map<string, FieldConstraints> field_constraints = 6;
+  }
+
+  // Imputation strategy for filling null values in a column during feature engineering
+  message Imputation {
+    enum Strategy {
+      STRATEGY_UNSPECIFIED = 0;
+      // Fill nulls with a customer-supplied constant (default_value).
+      DEFAULT = 1;
+      // Fill nulls with the mean of the current run's data for this column.
+      MEAN = 2;
+      // Fill nulls with the median of the current run's data for this column.
+      MEDIAN = 3;
+    }
+
+    Strategy strategy = 1;
+
+    // Required when strategy == DEFAULT. Typed via oneof so a string
+    // column cannot accidentally receive a numeric default at registration
+    // time. Ignored for MEAN / MEDIAN.
+    oneof default_value {
+      double  default_double = 2;
+      int64   default_long   = 3;
+      string  default_string = 4;
+      bool    default_bool   = 5;
+    }
+  }
+
+  // Declarative data quality constraints attached to one column on a
+  // SparkSource. Only the fields the customer sets are enforced; unset
+  // fields are not validated.
+  message FieldConstraints {
+    // Null handling.
+    // false => no nulls allowed; true (or unset) => any null rate allowed
+    google.protobuf.BoolValue   nullable      = 1;
+    // e.g. 0.01 = allow up to 1% nulls
+    google.protobuf.DoubleValue max_null_pct  = 2;
+
+    // Numeric range (numeric columns).
+    google.protobuf.DoubleValue min_value     = 3;
+    google.protobuf.DoubleValue max_value     = 4;
+
+    // Minimum row-level compliance for value/range/regex/allowed-values
+    // checks. Default 1.0 (strict). Set below 1.0 when the underlying data
+    // is known-noisy (e.g. floating-point ratios that drift past [0,1] by
+    // ULP-scale rounding error).
+    google.protobuf.DoubleValue min_compliance = 5;
+
+    // Categorical (string/enum columns).
+    repeated string allowed_values = 6;
+
+    // Pattern match (string columns). Regex must compile. Empty == unset.
+    string regex = 7;
+
+    // Uniqueness contract.
+    google.protobuf.BoolValue unique = 8;
+
+    // Escape hatch for library-specific checks. Standard checks belong in typed fields.
+    map<string, string> custom = 9;
+
+    // Optional null-imputation strategy applied to this column before
+    // validation runs. Unset == no imputation.
+    Imputation imputation = 10;
   }
 
   // Defines configuration for custom third-party data sources.

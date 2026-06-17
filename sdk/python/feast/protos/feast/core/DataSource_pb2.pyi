@@ -27,6 +27,7 @@ import google.protobuf.internal.containers
 import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
+import google.protobuf.wrappers_pb2
 import sys
 import typing
 
@@ -364,11 +365,29 @@ class DataSource(google.protobuf.message.Message):
 
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+        class FieldConstraintsEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            @property
+            def value(self) -> global___DataSource.FieldConstraints: ...
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: global___DataSource.FieldConstraints | None = ...,
+            ) -> None: ...
+            def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
         TABLE_FIELD_NUMBER: builtins.int
         QUERY_FIELD_NUMBER: builtins.int
         PATH_FIELD_NUMBER: builtins.int
         FILE_FORMAT_FIELD_NUMBER: builtins.int
         DATE_PARTITION_COLUMN_FORMAT_FIELD_NUMBER: builtins.int
+        FIELD_CONSTRAINTS_FIELD_NUMBER: builtins.int
         table: builtins.str
         """Table name"""
         query: builtins.str
@@ -379,6 +398,12 @@ class DataSource(google.protobuf.message.Message):
         """Format of files at `path` (e.g. parquet, avro, etc)"""
         date_partition_column_format: builtins.str
         """Date Format of date partition column (e.g. %Y-%m-%d)"""
+        @property
+        def field_constraints(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, global___DataSource.FieldConstraints]:
+            """Declarative data quality constraints, keyed by column name. Columns
+            without an entry are not validated. Meant to be consumed by external
+            feature engineering jobs.
+            """
         def __init__(
             self,
             *,
@@ -387,8 +412,152 @@ class DataSource(google.protobuf.message.Message):
             path: builtins.str = ...,
             file_format: builtins.str = ...,
             date_partition_column_format: builtins.str = ...,
+            field_constraints: collections.abc.Mapping[builtins.str, global___DataSource.FieldConstraints] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["date_partition_column_format", b"date_partition_column_format", "field_constraints", b"field_constraints", "file_format", b"file_format", "path", b"path", "query", b"query", "table", b"table"]) -> None: ...
+
+    class Imputation(google.protobuf.message.Message):
+        """Imputation strategy for filling null values in a column during feature engineering"""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class _Strategy:
+            ValueType = typing.NewType("ValueType", builtins.int)
+            V: typing_extensions.TypeAlias = ValueType
+
+        class _StrategyEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[DataSource.Imputation._Strategy.ValueType], builtins.type):  # noqa: F821
+            DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+            STRATEGY_UNSPECIFIED: DataSource.Imputation._Strategy.ValueType  # 0
+            DEFAULT: DataSource.Imputation._Strategy.ValueType  # 1
+            """Fill nulls with a customer-supplied constant (default_value)."""
+            MEAN: DataSource.Imputation._Strategy.ValueType  # 2
+            """Fill nulls with the mean of the current run's data for this column."""
+            MEDIAN: DataSource.Imputation._Strategy.ValueType  # 3
+            """Fill nulls with the median of the current run's data for this column."""
+
+        class Strategy(_Strategy, metaclass=_StrategyEnumTypeWrapper): ...
+        STRATEGY_UNSPECIFIED: DataSource.Imputation.Strategy.ValueType  # 0
+        DEFAULT: DataSource.Imputation.Strategy.ValueType  # 1
+        """Fill nulls with a customer-supplied constant (default_value)."""
+        MEAN: DataSource.Imputation.Strategy.ValueType  # 2
+        """Fill nulls with the mean of the current run's data for this column."""
+        MEDIAN: DataSource.Imputation.Strategy.ValueType  # 3
+        """Fill nulls with the median of the current run's data for this column."""
+
+        STRATEGY_FIELD_NUMBER: builtins.int
+        DEFAULT_DOUBLE_FIELD_NUMBER: builtins.int
+        DEFAULT_LONG_FIELD_NUMBER: builtins.int
+        DEFAULT_STRING_FIELD_NUMBER: builtins.int
+        DEFAULT_BOOL_FIELD_NUMBER: builtins.int
+        strategy: global___DataSource.Imputation.Strategy.ValueType
+        default_double: builtins.float
+        default_long: builtins.int
+        default_string: builtins.str
+        default_bool: builtins.bool
+        def __init__(
+            self,
+            *,
+            strategy: global___DataSource.Imputation.Strategy.ValueType = ...,
+            default_double: builtins.float = ...,
+            default_long: builtins.int = ...,
+            default_string: builtins.str = ...,
+            default_bool: builtins.bool = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["default_bool", b"default_bool", "default_double", b"default_double", "default_long", b"default_long", "default_string", b"default_string", "default_value", b"default_value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["default_bool", b"default_bool", "default_double", b"default_double", "default_long", b"default_long", "default_string", b"default_string", "default_value", b"default_value", "strategy", b"strategy"]) -> None: ...
+        def WhichOneof(self, oneof_group: typing_extensions.Literal["default_value", b"default_value"]) -> typing_extensions.Literal["default_double", "default_long", "default_string", "default_bool"] | None: ...
+
+    class FieldConstraints(google.protobuf.message.Message):
+        """Declarative data quality constraints attached to one column on a
+        SparkSource. Only the fields the customer sets are enforced; unset
+        fields are not validated.
+
+        Primitive bool/double fields are wrapped in google.protobuf.BoolValue /
+        DoubleValue so the message can distinguish "unset" from a meaningful
+        zero/false. Plain proto3 primitives default to zero-values which can't
+        express "unset" without the proto3 `optional` keyword (which requires
+        a newer protoc than the Java build uses).
+        """
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class CustomEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: builtins.str
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: builtins.str = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+        NULLABLE_FIELD_NUMBER: builtins.int
+        MAX_NULL_PCT_FIELD_NUMBER: builtins.int
+        MIN_VALUE_FIELD_NUMBER: builtins.int
+        MAX_VALUE_FIELD_NUMBER: builtins.int
+        MIN_COMPLIANCE_FIELD_NUMBER: builtins.int
+        ALLOWED_VALUES_FIELD_NUMBER: builtins.int
+        REGEX_FIELD_NUMBER: builtins.int
+        UNIQUE_FIELD_NUMBER: builtins.int
+        CUSTOM_FIELD_NUMBER: builtins.int
+        IMPUTATION_FIELD_NUMBER: builtins.int
+        @property
+        def nullable(self) -> google.protobuf.wrappers_pb2.BoolValue:
+            """Null handling.
+            false => no nulls allowed; true (or unset) => any null rate allowed
+            """
+        @property
+        def max_null_pct(self) -> google.protobuf.wrappers_pb2.DoubleValue:
+            """e.g. 0.01 = allow up to 1% nulls"""
+        @property
+        def min_value(self) -> google.protobuf.wrappers_pb2.DoubleValue:
+            """Numeric range (numeric columns)."""
+        @property
+        def max_value(self) -> google.protobuf.wrappers_pb2.DoubleValue: ...
+        @property
+        def min_compliance(self) -> google.protobuf.wrappers_pb2.DoubleValue:
+            """Minimum row-level compliance for value/range/regex/allowed-values
+            checks. Default 1.0 (strict). Set below 1.0 when the underlying data
+            is known-noisy (e.g. floating-point ratios that drift past [0,1] by
+            ULP-scale rounding error).
+            """
+        @property
+        def allowed_values(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+            """Categorical (string/enum columns)."""
+        regex: builtins.str
+        """Pattern match (string columns). Regex must compile. Empty == unset."""
+        @property
+        def unique(self) -> google.protobuf.wrappers_pb2.BoolValue:
+            """Uniqueness contract."""
+        @property
+        def custom(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+            """Escape hatch for library-specific checks. Standard checks belong in typed fields."""
+        @property
+        def imputation(self) -> global___DataSource.Imputation:
+            """Optional null-imputation strategy applied to this column before
+            validation runs. Unset == no imputation.
+            """
+        def __init__(
+            self,
+            *,
+            nullable: google.protobuf.wrappers_pb2.BoolValue | None = ...,
+            max_null_pct: google.protobuf.wrappers_pb2.DoubleValue | None = ...,
+            min_value: google.protobuf.wrappers_pb2.DoubleValue | None = ...,
+            max_value: google.protobuf.wrappers_pb2.DoubleValue | None = ...,
+            min_compliance: google.protobuf.wrappers_pb2.DoubleValue | None = ...,
+            allowed_values: collections.abc.Iterable[builtins.str] | None = ...,
+            regex: builtins.str = ...,
+            unique: google.protobuf.wrappers_pb2.BoolValue | None = ...,
+            custom: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+            imputation: global___DataSource.Imputation | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["imputation", b"imputation", "max_null_pct", b"max_null_pct", "max_value", b"max_value", "min_compliance", b"min_compliance", "min_value", b"min_value", "nullable", b"nullable", "unique", b"unique"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["allowed_values", b"allowed_values", "custom", b"custom", "imputation", b"imputation", "max_null_pct", b"max_null_pct", "max_value", b"max_value", "min_compliance", b"min_compliance", "min_value", b"min_value", "nullable", b"nullable", "regex", b"regex", "unique", b"unique"]) -> None: ...
 
     class CustomSourceOptions(google.protobuf.message.Message):
         """Defines configuration for custom third-party data sources."""
