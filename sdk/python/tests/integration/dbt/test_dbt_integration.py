@@ -1025,6 +1025,16 @@ class TestOnlineFalse:
 class TestDbtCli:
     """Test the `feast dbt import` and `feast dbt list` CLI commands."""
 
+    @staticmethod
+    def _get_cli_output(result) -> str:
+        """Return combined stdout/stderr across Click versions."""
+        stderr = getattr(result, "stderr", "")
+        if not stderr:
+            stderr_bytes = getattr(result, "stderr_bytes", b"")
+            if stderr_bytes:
+                stderr = stderr_bytes.decode("utf-8", errors="replace")
+        return result.output + stderr
+
     def test_dbt_list_command(self, manifest_path):
         from click.testing import CliRunner
 
@@ -1077,7 +1087,7 @@ class TestDbtCli:
 
         runner = CliRunner()
         result = runner.invoke(list_command, ["-m", manifest_path])
-        output = result.output + (result.stderr or "")
+        output = self._get_cli_output(result)
         assert result.exit_code == 1
         assert "dbt-artifacts-parser is required for dbt integration" in output
         assert "feast[dbt]" in output
@@ -1134,7 +1144,7 @@ class TestDbtCli:
             obj={"CHDIR": ".", "FS_YAML_FILE": "feature_store.yaml"},
             catch_exceptions=False,
         )
-        output = result.output + (result.stderr or "")
+        output = self._get_cli_output(result)
         assert result.exit_code == 1
         assert "dbt-artifacts-parser is required for dbt integration" in output
         assert "feast[dbt]" in output
