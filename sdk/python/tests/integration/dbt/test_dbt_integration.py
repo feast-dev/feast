@@ -1061,6 +1061,26 @@ class TestDbtCli:
         assert "driver_id" in result.output
         assert "conv_rate" in result.output
 
+    def test_dbt_list_import_error(self, manifest_path, monkeypatch):
+        from click.testing import CliRunner
+
+        from feast.cli.dbt_import import list_command
+        from feast.dbt.parser import DbtManifestParser
+
+        def _raise_import_error(self):  # pragma: no cover - behavior tested via CLI
+            raise ImportError(
+                "dbt-artifacts-parser is required for dbt integration.\n"
+                "Install with: pip install 'feast[dbt]' or pip install dbt-artifacts-parser"
+            )
+
+        monkeypatch.setattr(DbtManifestParser, "parse", _raise_import_error)
+
+        runner = CliRunner()
+        result = runner.invoke(list_command, ["-m", manifest_path])
+        assert result.exit_code == 1
+        assert "dbt-artifacts-parser is required for dbt integration" in result.output
+        assert "feast[dbt]" in result.output
+
     def test_dbt_import_dry_run(self, manifest_path):
         from click.testing import CliRunner
 
@@ -1085,6 +1105,36 @@ class TestDbtCli:
         )
         assert result.exit_code == 0
         assert "Dry run" in result.output
+
+    def test_dbt_import_import_error(self, manifest_path, monkeypatch):
+        from click.testing import CliRunner
+
+        from feast.cli.dbt_import import import_command
+        from feast.dbt.parser import DbtManifestParser
+
+        def _raise_import_error(self):  # pragma: no cover - behavior tested via CLI
+            raise ImportError(
+                "dbt-artifacts-parser is required for dbt integration.\n"
+                "Install with: pip install 'feast[dbt]' or pip install dbt-artifacts-parser"
+            )
+
+        monkeypatch.setattr(DbtManifestParser, "parse", _raise_import_error)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            import_command,
+            [
+                "-m",
+                manifest_path,
+                "-e",
+                "driver_id",
+                "--dry-run",
+            ],
+            obj={"CHDIR": ".", "FS_YAML_FILE": "feature_store.yaml"},
+        )
+        assert result.exit_code == 1
+        assert "dbt-artifacts-parser is required for dbt integration" in result.output
+        assert "feast[dbt]" in result.output
 
     def test_dbt_import_output_codegen(self, manifest_path, tmp_path):
         from click.testing import CliRunner
