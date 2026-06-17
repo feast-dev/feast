@@ -1077,9 +1077,10 @@ class TestDbtCli:
 
         runner = CliRunner()
         result = runner.invoke(list_command, ["-m", manifest_path])
+        output = result.output + (result.stderr or "")
         assert result.exit_code == 1
-        assert "dbt-artifacts-parser is required for dbt integration" in result.output
-        assert "feast[dbt]" in result.output
+        assert "dbt-artifacts-parser is required for dbt integration" in output
+        assert "feast[dbt]" in output
 
     def test_dbt_import_dry_run(self, manifest_path):
         from click.testing import CliRunner
@@ -1131,10 +1132,12 @@ class TestDbtCli:
                 "--dry-run",
             ],
             obj={"CHDIR": ".", "FS_YAML_FILE": "feature_store.yaml"},
+            catch_exceptions=False,
         )
+        output = result.output + (result.stderr or "")
         assert result.exit_code == 1
-        assert "dbt-artifacts-parser is required for dbt integration" in result.output
-        assert "feast[dbt]" in result.output
+        assert "dbt-artifacts-parser is required for dbt integration" in output
+        assert "feast[dbt]" in output
 
     def test_dbt_import_output_codegen(self, manifest_path, tmp_path):
         from click.testing import CliRunner
