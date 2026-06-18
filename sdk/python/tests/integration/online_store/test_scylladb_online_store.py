@@ -1,23 +1,20 @@
 """Integration tests for ScyllaDBOnlineStore, including vector search.
 
-These tests require a running ScyllaDB cluster. Set the following environment
-variables before running:
+All tests (regular read/write and vector search) run against a local
+ScyllaDB + Vector Store stack started via ``ScyllaDBOnlineStoreCreator``.
+No external cloud cluster is required.
 
-    SCYLLA_HOSTS="host1,host2"   contact points (required to run tests)
+To run against a ScyllaDB Cloud cluster instead, set:
+
+    SCYLLA_HOSTS="host1,host2"   contact points
     SCYLLA_KEYSPACE="feast_test" keyspace (default: feast_test)
     SCYLLA_USERNAME="scylla"     username (optional)
     SCYLLA_PASSWORD="..."        password (optional)
-    SCYLLA_LOCAL_DC="..."        DC name, e.g. AWS_US_EAST_1 (required for vector tests)
-
-Run:
-    SCYLLA_HOSTS=... pytest sdk/python/tests/integration/online_store/test_scylladb_online_store.py -v
+    SCYLLA_LOCAL_DC="..."        DC name, e.g. AWS_US_EAST_1 (required)
 """
 
-from __future__ import annotations
-
 import os
-from datetime import datetime, timezone
-from typing import Dict, List
+from typing import List
 
 import pytest
 
@@ -29,41 +26,52 @@ from feast.infra.online_stores.scylladb_online_store.scylladb import (
     ScyllaDBOnlineStoreConfig,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import FloatList, Value as ValueProto
-from feast.types import Array, Float32, Int64, String
+from feast.protos.feast.types.Value_pb2 import FloatList
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.types import Array, Float32
+from feast.utils import _utc_now
 from feast.value_type import ValueType
-
-# ---------------------------------------------------------------------------
-# Skip entire module when SCYLLA_HOSTS is not set
-# ---------------------------------------------------------------------------
-
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SCYLLA_HOSTS"),
-    reason="Set SCYLLA_HOSTS to run ScyllaDB integration tests",
+from tests.universal.feature_repos.universal.online_store.scylladb import (
+    ScyllaDBOnlineStoreCreator,
 )
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Fixtures
 # ---------------------------------------------------------------------------
 
 
-def _utc_now() -> datetime:
-    return datetime.now(tz=timezone.utc)
-
-
-def _make_config(vector: bool = False) -> RepoConfig:
-    hosts = os.environ.get("SCYLLA_HOSTS", "").split(",")
-    store_cfg = ScyllaDBOnlineStoreConfig(
-        hosts=hosts,
-        keyspace=os.environ.get("SCYLLA_KEYSPACE", "feast_test"),
-        username=os.environ.get("SCYLLA_USERNAME"),
-        password=os.environ.get("SCYLLA_PASSWORD"),
-        local_dc=os.environ.get("SCYLLA_LOCAL_DC"),
-    )
+@pytest.fixture(scope="module")
+def docker_config() -> RepoConfig:
+    """Start a local ScyllaDB container and return a RepoConfig for it."""
+    creator = ScyllaDBOnlineStoreCreator(project_name="integ_test")
+    store_dict = creator.create_online_store()
     cfg = RepoConfig(
         project="integ_test",
         provider="local",
-        online_store=store_cfg,
+        online_store=ScyllaDBOnlineStoreConfig(**store_dict),
+        registry="memory://",
+        entity_key_serialization_version=3,
+    )
+    yield cfg
+    creator.teardown()
+
+
+@pytest.fixture(scope="module")
+def cloud_config():
+    """RepoConfig pointing at a ScyllaDB Cloud cluster (skipped if env vars absent)."""
+    if not os.environ.get("SCYLLA_HOSTS") or not os.environ.get("SCYLLA_LOCAL_DC"):
+        pytest.skip("Set SCYLLA_HOSTS and SCYLLA_LOCAL_DC to run vector search tests")
+    hosts = os.environ["SCYLLA_HOSTS"].split(",")
+    cfg = RepoConfig(
+        project="integ_test",
+        provider="local",
+        online_store=ScyllaDBOnlineStoreConfig(
+            hosts=hosts,
+            keyspace=os.environ.get("SCYLLA_KEYSPACE", "feast_test"),
+            username=os.environ.get("SCYLLA_USERNAME"),
+            password=os.environ.get("SCYLLA_PASSWORD"),
+            local_dc=os.environ["SCYLLA_LOCAL_DC"],
+        ),
         registry="memory://",
         entity_key_serialization_version=3,
     )
@@ -94,7 +102,9 @@ def _make_feature_view(name: str, with_vector: bool = False) -> FeatureView:
         )
     return FeatureView(
         name=name,
-        entities=[Entity(name="item_id", join_keys=["item_id"], value_type=ValueType.STRING)],
+        entities=[
+            Entity(name="item_id", join_keys=["item_id"], value_type=ValueType.STRING)
+        ],
         schema=schema,
         online=True,
         source=source,
@@ -102,13 +112,13 @@ def _make_feature_view(name: str, with_vector: bool = False) -> FeatureView:
 
 
 # ---------------------------------------------------------------------------
-# Tests — regular online store
+# Tests — regular online store (uses Docker via docker_config fixture)
 # ---------------------------------------------------------------------------
 
 
-def test_write_and_read():
+def test_write_and_read(docker_config):
     store = ScyllaDBOnlineStore()
-    cfg = _make_config()
+    cfg = docker_config
     fv = _make_feature_view("test_write_read")
 
     store.update(cfg, [], [fv], [], [], partial=False)
@@ -117,7 +127,14 @@ def test_write_and_read():
         store.online_write_batch(
             cfg,
             fv,
-            [(ek, {"score": ValueProto(float_list_val=FloatList(val=[0.9]))}, _utc_now(), None)],
+            [
+                (
+                    ek,
+                    {"score": ValueProto(float_list_val=FloatList(val=[0.9]))},
+                    _utc_now(),
+                    None,
+                )
+            ],
             None,
         )
         results = store.online_read(cfg, fv, [ek])
@@ -129,9 +146,9 @@ def test_write_and_read():
         store.teardown(cfg, [fv], [])
 
 
-def test_missing_key_returns_none():
+def test_missing_key_returns_none(docker_config):
     store = ScyllaDBOnlineStore()
-    cfg = _make_config()
+    cfg = docker_config
     fv = _make_feature_view("test_missing_key")
 
     store.update(cfg, [], [fv], [], [], partial=False)
@@ -141,7 +158,14 @@ def test_missing_key_returns_none():
         store.online_write_batch(
             cfg,
             fv,
-            [(existing, {"score": ValueProto(float_list_val=FloatList(val=[0.5]))}, _utc_now(), None)],
+            [
+                (
+                    existing,
+                    {"score": ValueProto(float_list_val=FloatList(val=[0.5]))},
+                    _utc_now(),
+                    None,
+                )
+            ],
             None,
         )
         results = store.online_read(cfg, fv, [existing, missing])
@@ -153,19 +177,15 @@ def test_missing_key_returns_none():
 
 
 # ---------------------------------------------------------------------------
-# Tests — vector search
+# Tests — vector search (local Docker stack via docker_config)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not os.environ.get("SCYLLA_LOCAL_DC"),
-    reason="Set SCYLLA_LOCAL_DC to run vector search tests",
-)
-def test_vector_search():
+def test_vector_search(docker_config):
     import time
 
     store = ScyllaDBOnlineStore()
-    cfg = _make_config(vector=True)
+    cfg = docker_config
     fv = _make_feature_view("test_vector_search", with_vector=True)
 
     store.update(cfg, [], [fv], [], [], partial=False)
@@ -178,27 +198,62 @@ def test_vector_search():
         batch = []
         for item_id, vec in rows:
             ek = _make_entity_key(item_id)
-            batch.append((
-                ek,
-                {
-                    "score": ValueProto(float_list_val=FloatList(val=[0.5])),
-                    "embedding": ValueProto(float_list_val=FloatList(val=vec)),
-                },
-                _utc_now(),
-                None,
-            ))
+            batch.append(
+                (
+                    ek,
+                    {
+                        "score": ValueProto(float_list_val=FloatList(val=[0.5])),
+                        "embedding": ValueProto(float_list_val=FloatList(val=vec)),
+                    },
+                    _utc_now(),
+                    None,
+                )
+            )
         store.online_write_batch(cfg, fv, batch, None)
 
-        time.sleep(2)  # allow vector index to propagate
+        # Wait for the vector index to finish building (up to 60 s).
+        deadline = time.time() + 60
+        results = None
+        while time.time() < deadline:
+            try:
+                results = store.retrieve_online_documents_v2(
+                    cfg,
+                    fv,
+                    requested_features=["score", "embedding"],
+                    embedding=[1.0, 0.0, 0.0, 0.0],
+                    top_k=2,
+                )
+                break  # index is ready
+            except Exception as exc:
+                if "still being constructed" in str(exc) or "missing index" in str(exc):
+                    time.sleep(2)
+                else:
+                    raise
+        else:
+            raise TimeoutError("Vector index was not ready within 60 s")
 
-        results = store.retrieve_online_documents_v2(
-            cfg, fv,
-            requested_features=["score", "embedding"],
-            embedding=[1.0, 0.0, 0.0, 0.0],
-            top_k=2,
-        )
+        assert results is not None
         assert len(results) == 2
+
+        # Extract entity IDs from the returned entity key protos.
+        returned_ids = []
         for ts, ek_proto, feats in results:
+            assert ts is not None
             assert feats is not None
+            assert "score" in feats
+            assert "embedding" in feats
+            assert ek_proto is not None
+            returned_ids.append(ek_proto.entity_values[0].string_val)
+
+        # Query is [1,0,0,0]; vec_a=[1,0,0,0] (exact match) and
+        # vec_c=[1,0.1,0,0] are the two nearest neighbours by cosine similarity.
+        # vec_b=[0,1,0,0] is orthogonal and must NOT appear in top-2.
+        assert set(returned_ids) == {"vec_a", "vec_c"}, (
+            f"Expected top-2 neighbours to be vec_a and vec_c, got {returned_ids}"
+        )
+        # Exact match must be ranked first.
+        assert returned_ids[0] == "vec_a", (
+            f"Expected vec_a (exact match) to be ranked first, got {returned_ids[0]}"
+        )
     finally:
         store.teardown(cfg, [fv], [])
