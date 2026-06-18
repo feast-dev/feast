@@ -93,8 +93,7 @@ CREATE_VECTOR_TABLE_CQL = (
 DROP_VECTOR_TABLE_CQL = "DROP TABLE IF EXISTS {fqvectable};"
 
 INSERT_VEC_CQL = (
-    "INSERT INTO {fqvectable} (entity_key, vector_value, event_ts)"
-    " VALUES (?, ?, ?);"
+    "INSERT INTO {fqvectable} (entity_key, vector_value, event_ts) VALUES (?, ?, ?);"
 )
 
 CREATE_VECTOR_INDEX_CQL = (
@@ -391,7 +390,7 @@ class ScyllaDBOnlineStore(OnlineStore):
         logger.info("Creating table %s.", fqtable)
         session.execute(CREATE_TABLE_CQL.format(fqtable=fqtable))
 
-        for feat_name, dim, sim_func in (vec_features or []):
+        for feat_name, dim, sim_func in vec_features or []:
             fqvectable = self._fq_vec_table_name(
                 self._keyspace, project, table, feat_name
             )
@@ -417,7 +416,7 @@ class ScyllaDBOnlineStore(OnlineStore):
         vec_features: Optional[List[Tuple[str, int, str]]] = None,
     ) -> None:
         session = self._get_session(config)
-        for feat_name, _dim, _sim in (vec_features or []):
+        for feat_name, _dim, _sim in vec_features or []:
             fqvectable = self._fq_vec_table_name(
                 self._keyspace, project, table, feat_name
             )
@@ -466,7 +465,9 @@ class ScyllaDBOnlineStore(OnlineStore):
         assert isinstance(online_store_config, ScyllaDBOnlineStoreConfig)
 
         for table in tables:
-            vec_features = _get_vector_features(table, online_store_config.vector_similarity_function)
+            vec_features = _get_vector_features(
+                table, online_store_config.vector_similarity_function
+            )
             self._drop_table(config, project, table, vec_features=vec_features)
 
     # ------------------------------------------------------------------
@@ -542,10 +543,14 @@ class ScyllaDBOnlineStore(OnlineStore):
 
         # --- vector table rows (one per entity per vector feature) ---
         for feat_name, _dim, _sim in vec_features:
-            fqvectable = self._fq_vec_table_name(self._keyspace, project, table, feat_name)
+            fqvectable = self._fq_vec_table_name(
+                self._keyspace, project, table, feat_name
+            )
             vec_insert_cql = INSERT_VEC_CQL.format(fqvectable=fqvectable)
             if vec_insert_cql not in self._prepared_statements:
-                self._prepared_statements[vec_insert_cql] = session.prepare(vec_insert_cql)
+                self._prepared_statements[vec_insert_cql] = session.prepare(
+                    vec_insert_cql
+                )
             vec_insert_stmt = self._prepared_statements[vec_insert_cql]
 
             def _vec_rows(
@@ -715,7 +720,9 @@ class ScyllaDBOnlineStore(OnlineStore):
             )
         sim_expr = sim_expr_template
 
-        fqvectable = self._fq_vec_table_name(self._keyspace, project, table, vec_feature)
+        fqvectable = self._fq_vec_table_name(
+            self._keyspace, project, table, vec_feature
+        )
         ann_cql = ANN_SELECT_CQL.format(
             sim_func_call=sim_expr,
             fqvectable=fqvectable,

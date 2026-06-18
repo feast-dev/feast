@@ -87,7 +87,9 @@ def _make_entity_key(val: str) -> EntityKeyProto:
     )
 
 
-def _make_feature_view(name: str, with_vector: bool = False, ttl: timedelta = None) -> FeatureView:
+def _make_feature_view(
+    name: str, with_vector: bool = False, ttl: timedelta = None
+) -> FeatureView:
     source = FileSource(path="dummy.parquet", timestamp_field="event_timestamp")
     schema: List[Field] = [Field(name="score", dtype=Array(Float32))]
     if with_vector:
@@ -181,14 +183,15 @@ def test_missing_key_returns_none(docker_config):
 
 
 def test_multiple_features_roundtrip(docker_config):
-    """Multiple features of different types all round-trip with the correct value.
-    """
+    """Multiple features of different types all round-trip with the correct value."""
     store = ScyllaDBOnlineStore()
     cfg = docker_config
     source = FileSource(path="dummy.parquet", timestamp_field="event_timestamp")
     fv = FeatureView(
         name="test_multi_features",
-        entities=[Entity(name="item_id", join_keys=["item_id"], value_type=ValueType.STRING)],
+        entities=[
+            Entity(name="item_id", join_keys=["item_id"], value_type=ValueType.STRING)
+        ],
         schema=[
             Field(name="score", dtype=Array(Float32)),
             Field(name="priority", dtype=Int64),
@@ -242,7 +245,11 @@ def test_multiple_entities(docker_config):
         batch = [
             (
                 ek,
-                {"score": ValueProto(float_list_val=FloatList(val=[float(i) * 0.1 + 0.1]))},
+                {
+                    "score": ValueProto(
+                        float_list_val=FloatList(val=[float(i) * 0.1 + 0.1])
+                    )
+                },
                 _utc_now(),
                 None,
             )
@@ -272,13 +279,27 @@ def test_overwrite_uses_latest_value(docker_config):
         store.online_write_batch(
             cfg,
             fv,
-            [(ek, {"score": ValueProto(float_list_val=FloatList(val=[0.1]))}, _utc_now(), None)],
+            [
+                (
+                    ek,
+                    {"score": ValueProto(float_list_val=FloatList(val=[0.1]))},
+                    _utc_now(),
+                    None,
+                )
+            ],
             None,
         )
         store.online_write_batch(
             cfg,
             fv,
-            [(ek, {"score": ValueProto(float_list_val=FloatList(val=[0.9]))}, _utc_now(), None)],
+            [
+                (
+                    ek,
+                    {"score": ValueProto(float_list_val=FloatList(val=[0.9]))},
+                    _utc_now(),
+                    None,
+                )
+            ],
             None,
         )
         results = store.online_read(cfg, fv, [ek])
@@ -308,7 +329,14 @@ def test_event_timestamp_returned(docker_config):
         store.online_write_batch(
             cfg,
             fv,
-            [(ek, {"score": ValueProto(float_list_val=FloatList(val=[0.5]))}, write_ts, None)],
+            [
+                (
+                    ek,
+                    {"score": ValueProto(float_list_val=FloatList(val=[0.5]))},
+                    write_ts,
+                    None,
+                )
+            ],
             None,
         )
         results = store.online_read(cfg, fv, [ek])
@@ -455,8 +483,7 @@ def test_ttl_expiry(docker_config):
         assert len(results) == 1
         ts_after, feats_after = results[0]
         assert feats_after is None, (
-            "Row should have expired and return None, "
-            f"but got features: {feats_after}"
+            f"Row should have expired and return None, but got features: {feats_after}"
         )
     finally:
         store.teardown(cfg, [fv], [])
