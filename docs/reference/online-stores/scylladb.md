@@ -129,8 +129,8 @@ Below is a matrix indicating which functionality is supported by the ScyllaDB on
 | readable by Go                                            | no        |
 | support for entityless feature views                      | yes       |
 | support for concurrent writing to the same key            | no        |
-| support for ttl (time to live) at retrieval               | no        |
-| support for deleting expired data                         | no        |
+| support for ttl (time to live) at retrieval               | yes       |
+| support for deleting expired data                         | yes       |
 | collocated by feature view                                | yes       |
 | collocated by feature service                             | no        |
 | collocated by entity key                                  | no        |
