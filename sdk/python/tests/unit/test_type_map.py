@@ -2281,3 +2281,37 @@ class TestZonedTimestamp:
 
         assert from_value_type(ValueType.ZONED_TIMESTAMP) == ZonedTimestamp
         assert ZonedTimestamp.to_value_type() == ValueType.ZONED_TIMESTAMP
+
+    def test_fixed_offset_zone_round_trips(self):
+        from datetime import datetime, timedelta, timezone
+
+        # A fixed-offset tzinfo has no IANA key, so _zone_name stores it as an
+        # offset string. Decode must preserve the offset rather than dropping to UTC.
+        offset = timezone(timedelta(hours=-7))
+        dt = datetime(2026, 6, 17, 9, 0, 0, tzinfo=offset)
+        protos = python_values_to_proto_values([dt], ValueType.ZONED_TIMESTAMP)
+
+        converted = feast_value_type_to_python_type(protos[0])
+        # Same instant AND same wall-clock offset preserved.
+        assert converted == dt
+        assert converted.utcoffset() == timedelta(hours=-7)
+        assert converted.hour == 9
+
+    def test_str_to_value_type_resolves_zoned_timestamp(self):
+        from feast.type_map import _convert_value_type_str_to_value_type
+
+        # Must not silently fall back to STRING.
+        assert (
+            _convert_value_type_str_to_value_type("ZONED_TIMESTAMP")
+            == ValueType.ZONED_TIMESTAMP
+        )
+
+    def test_not_supported_as_collection_base_type(self):
+        # ZonedTimestamp has no ZONED_TIMESTAMP_LIST/_SET ValueType, so it must be
+        # rejected as an Array/Set base type rather than KeyError-ing later.
+        from feast.types import Array, Set, ZonedTimestamp
+
+        with pytest.raises(ValueError):
+            Array(ZonedTimestamp)
+        with pytest.raises(ValueError):
+            Set(ZonedTimestamp)

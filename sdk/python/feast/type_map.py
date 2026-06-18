@@ -15,9 +15,10 @@
 import decimal
 import json
 import logging
+import re
 import uuid as uuid_module
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -99,10 +100,38 @@ def _zone_from_name(zone: str):
 
         return ZoneInfo(zone)
     except Exception:
-        # Not an IANA name (e.g. a fixed-offset string we couldn't resolve);
-        # fall back to UTC rather than failing the whole read.
+        # Not an IANA name. It may be a fixed-offset string produced by
+        # ``_zone_name`` (e.g. "UTC", "UTC-07:00", "+05:30"); parse it so the
+        # original offset is preserved on round trips rather than silently
+        # shifting the wall-clock time to UTC.
+        offset = _fixed_offset_from_name(zone)
+        if offset is not None:
+            return offset
         logger.warning("Could not resolve zone %r; decoding as UTC", zone)
         return timezone.utc
+
+
+def _fixed_offset_from_name(zone: str) -> Optional[timezone]:
+    """Parse a fixed-offset zone string into a ``timezone``.
+
+    Accepts the forms ``_zone_name`` emits for offset-only tzinfos: a bare
+    ``UTC``/``GMT``, or an offset like ``UTC-07:00``, ``-07:00``, ``+05:30`` or
+    ``+0530``. Returns ``None`` if the string is not a recognizable offset.
+    """
+    text = zone.strip()
+    if text in ("UTC", "GMT"):
+        return timezone.utc
+    match = re.fullmatch(
+        r"(?:UTC|GMT)?([+-])(\d{2}):?(\d{2})",
+        text,
+    )
+    if not match:
+        return None
+    sign, hours, minutes = match.groups()
+    delta = timedelta(hours=int(hours), minutes=int(minutes))
+    if sign == "-":
+        delta = -delta
+    return timezone(delta)
 
 
 def feast_value_type_to_python_type(
@@ -564,6 +593,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL": ValueType.DECIMAL,
         "DECIMAL_LIST": ValueType.DECIMAL_LIST,
         "DECIMAL_SET": ValueType.DECIMAL_SET,
+        "SCALAR_MAP": ValueType.SCALAR_MAP,
+        "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
     }
     return type_map.get(type_str, ValueType.STRING)
 

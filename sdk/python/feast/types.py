@@ -191,13 +191,16 @@ class Array(ComplexFeastType):
 
     def __init__(self, base_type: Union[PrimitiveFeastType, "ComplexFeastType"]):
         # Allow Struct, Array, and Set as base types for nested collections
-        if (
-            not isinstance(base_type, (Struct, Array, Set))
-            and base_type not in SUPPORTED_BASE_TYPES
-        ):
-            raise ValueError(
-                f"Type {type(base_type)} is currently not supported as a base type for Array."
-            )
+        if not isinstance(base_type, (Struct, Array, Set)):
+            # Arrays do not support ZonedTimestamp: there is no ZONED_TIMESTAMP_LIST
+            # ValueType for it to map to.
+            supported_array_types = [
+                t for t in SUPPORTED_BASE_TYPES if t not in (ZonedTimestamp,)
+            ]
+            if base_type not in supported_array_types:
+                raise ValueError(
+                    f"Type {type(base_type)} is currently not supported as a base type for Array."
+                )
 
         self.base_type = base_type
 
@@ -236,8 +239,11 @@ class Set(ComplexFeastType):
     def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
         # Allow Array and Set as base types for nested collections
         if not isinstance(base_type, (Array, Set)):
-            # Sets do not support MAP as a base type
-            supported_set_types = [t for t in SUPPORTED_BASE_TYPES if t not in (Map,)]
+            # Sets do not support MAP as a base type, nor ZonedTimestamp (there is no
+            # ZONED_TIMESTAMP_SET ValueType for it to map to).
+            supported_set_types = [
+                t for t in SUPPORTED_BASE_TYPES if t not in (Map, ZonedTimestamp)
+            ]
             if base_type not in supported_set_types:
                 raise ValueError(
                     f"Type {type(base_type)} is currently not supported as a base type for Set."
