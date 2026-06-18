@@ -98,10 +98,7 @@ documents_fv = FeatureView(
 ```
 {% endcode %}
 
-When `feast apply` runs, the store creates:
-
-- A regular feature table (`{project}_{fv_name}`) for `online_read` / `online_write_batch`.
-- A vector table (`{project}_{fv_name}__{feature}_vec`) with a native `vector<float, N>` column and an HNSW ANN index.
+When `feast apply` runs, the store automatically creates the necessary tables and HNSW ANN index for any feature view with vector-tagged fields.
 
 To query the top-k most similar documents:
 
