@@ -1302,9 +1302,9 @@ sqlalchemy[mypy]==2.0.50 \
     --hash=sha256:f96233858e3df43932ac11589e22520da6e8aeb624b03fedfeebb0e8ea213086 \
     --hash=sha256:faffef4bcc20a1892e65e155293d99d60855bbbc79250ab712819cfd56a8e6bb
     # via feast (pyproject.toml)
-starlette==1.2.1 \
-    --hash=sha256:4de0082d08c8f6764a85a54cf1120d6939507a19905c7768acad2a9f875d2b89 \
-    --hash=sha256:9b9b5ebb992e67d6093741e63c2f59e4f6fff986f81163c087867bd7b924b3f6
+starlette==1.3.1 \
+    --hash=sha256:05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0 \
+    --hash=sha256:c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6
     # via
     #   feast (pyproject.toml)
     #   fastapi
