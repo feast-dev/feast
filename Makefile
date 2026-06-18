@@ -813,12 +813,11 @@ build-helm-docs: ## Build helm docs
 # Note: these require node and yarn to be installed
 
 build-ui: ## Build Feast UI
-	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
-
-build-ui-local: ## Build Feast UI locally
 	cd $(ROOT_DIR)/ui && yarn install && npm run build --omit=dev
 	rm -rf $(ROOT_DIR)/sdk/python/feast/ui/build
 	cp -r $(ROOT_DIR)/ui/build $(ROOT_DIR)/sdk/python/feast/ui/
+
+build-ui-local: build-ui ## Build Feast UI locally
 
 format-ui: ## Format Feast UI
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format

@@ -35,6 +35,7 @@ import {
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadLabelView from "./useLoadLabelView";
 import useLoadRegistry from "../../queries/useLoadRegistry";
+import useAnnotationConfig from "./useAnnotationConfig";
 
 interface CandidateData {
   unlabeled_entities: Record<string, any>[];
@@ -54,6 +55,7 @@ const ActiveLearningTab = () => {
   const name = labelViewName || "";
   const { isLoading, data } = useLoadLabelView(name);
   const { data: registryData } = useLoadRegistry(registryUrl);
+  const { data: annotationConfig } = useAnnotationConfig(name);
 
   const [refFV, setRefFV] = useState("");
   const [limit, setLimit] = useState(50);
@@ -86,6 +88,8 @@ const ActiveLearningTab = () => {
     spec.features || [];
   const labelerField: string | null =
     spec.labelerField || spec.labeler_field || null;
+  const configLabelValues = annotationConfig?.label_values || {};
+  const configLabelWidgets = annotationConfig?.label_widgets || {};
 
   const featureViewOptions = (registryData?.objects?.featureViews || [])
     .filter((fv: any) => {
@@ -543,23 +547,96 @@ print(f"Pushed {len(records)} candidates for annotation")`
                       <EuiForm>
                         {labelFields
                           .filter((f) => f.name !== labelerField)
-                          .map((field) => (
-                            <EuiFormRow
-                              key={field.name}
-                              label={`${field.name}${field.valueType ? ` (${field.valueType})` : ""}`}
-                            >
-                              <EuiFieldText
-                                placeholder={`Enter ${field.name} value`}
-                                value={labelValues[field.name] || ""}
-                                onChange={(e) =>
-                                  setLabelValues((prev) => ({
-                                    ...prev,
-                                    [field.name]: e.target.value,
-                                  }))
-                                }
-                              />
-                            </EuiFormRow>
-                          ))}
+                          .map((field) => {
+                            const widget = configLabelWidgets[field.name];
+                            const values = configLabelValues[field.name];
+                            let input;
+
+                            if (
+                              widget === "binary" &&
+                              values &&
+                              values.length === 2
+                            ) {
+                              input = (
+                                <EuiSuperSelect
+                                  options={[
+                                    { value: "", inputDisplay: "— select —" },
+                                    ...values.map((v: string) => ({
+                                      value: v,
+                                      inputDisplay:
+                                        v === "1"
+                                          ? "Yes (1)"
+                                          : v === "0"
+                                            ? "No (0)"
+                                            : v,
+                                    })),
+                                  ]}
+                                  valueOfSelected={
+                                    labelValues[field.name] || ""
+                                  }
+                                  onChange={(val) =>
+                                    setLabelValues((prev) => ({
+                                      ...prev,
+                                      [field.name]: val,
+                                    }))
+                                  }
+                                />
+                              );
+                            } else if (values && values.length > 0) {
+                              input = (
+                                <EuiSuperSelect
+                                  options={[
+                                    { value: "", inputDisplay: "— select —" },
+                                    ...values.map((v: string) => ({
+                                      value: v,
+                                      inputDisplay: v,
+                                    })),
+                                  ]}
+                                  valueOfSelected={
+                                    labelValues[field.name] || ""
+                                  }
+                                  onChange={(val) =>
+                                    setLabelValues((prev) => ({
+                                      ...prev,
+                                      [field.name]: val,
+                                    }))
+                                  }
+                                />
+                              );
+                            } else if (widget === "number") {
+                              input = (
+                                <EuiFieldNumber
+                                  placeholder={`Enter ${field.name}`}
+                                  value={labelValues[field.name] || ""}
+                                  onChange={(e) =>
+                                    setLabelValues((prev) => ({
+                                      ...prev,
+                                      [field.name]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              );
+                            } else {
+                              input = (
+                                <EuiFieldText
+                                  placeholder={`Enter ${field.name}`}
+                                  value={labelValues[field.name] || ""}
+                                  onChange={(e) =>
+                                    setLabelValues((prev) => ({
+                                      ...prev,
+                                      [field.name]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              );
+                            }
+
+                            return (
+                              <EuiFormRow key={field.name} label={field.name}>
+                                {input}
+                              </EuiFormRow>
+                            );
+                          })}
                         {labelerField && (
                           <EuiFormRow label={`${labelerField} (your identity)`}>
                             <EuiFieldText

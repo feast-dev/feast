@@ -80,8 +80,10 @@ const LabelBrowseTab = () => {
   };
 
   const spec = data?.spec || data?.object?.spec || {};
-  const entities: string[] = spec.entities || [];
-  const features: any[] = spec.features || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
+  const features: any[] = useMemo(() => spec.features || [], [spec.features]);
   const conflictPolicy =
     spec.conflictPolicy || spec.conflict_policy || "LAST_WRITE_WINS";
   const policyLabel =

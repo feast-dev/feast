@@ -453,3 +453,14 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
             file_format=self.spark_options.file_format,
             table_format=self.spark_options.table_format,
         )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> "SavedDatasetSparkStorage":
+        assert isinstance(data_source, SparkSource)
+        return SavedDatasetSparkStorage(
+            table=data_source.table,
+            query=data_source.query,
+            path=data_source.path,
+            file_format=data_source.file_format,
+            table_format=data_source.table_format,
+        )

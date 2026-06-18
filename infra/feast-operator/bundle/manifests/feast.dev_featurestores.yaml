@@ -529,6 +529,16 @@ spec:
                     description: The time zone name for the given schedule, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                     type: string
                 type: object
+              dataQualityMonitoring:
+                description: DataQualityMonitoring configures Data Quality Monitoring
+                  behaviour.
+                properties:
+                  autoBaseline:
+                    default: true
+                    description: AutoBaseline controls whether baseline distribution
+                      is computed automatically on feast apply. Defaults to true.
+                    type: boolean
+                type: object
               feastProject:
                 description: FeastProject is the Feast project id.
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
@@ -3284,6 +3294,9 @@ spec:
                             x-kubernetes-validations:
                             - message: At least one of restAPI or grpc must be true
                               rule: self.restAPI == true || self.grpc == true || !has(self.grpc)
+                            - message: MCP requires restAPI to be true
+                              rule: '!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI)
+                                && self.restAPI == true)'
                         type: object
                       remote:
                         description: RemoteRegistryConfig points to a remote feast
@@ -3340,6 +3353,37 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  resourceClaims:
+                    description: |-
+                      ResourceClaims defines which ResourceClaims must be allocated
+                      and reserved before the Pod is allowed to start.
+                    items:
+                      description: |-
+                        PodResourceClaim references exactly one ResourceClaim, either directly
+                        or by naming a ResourceClaimTemplate which is...
+                      properties:
+                        name:
+                          description: |-
+                            Name uniquely identifies this resource claim inside the pod.
+                            This must be a DNS_LABEL.
+                          type: string
+                        resourceClaimName:
+                          description: |-
+                            ResourceClaimName is the name of a ResourceClaim object in the same
+                            namespace as this pod.
+                          type: string
+                        resourceClaimTemplateName:
+                          description: |-
+                            ResourceClaimTemplateName is the name of a ResourceClaimTemplate
+                            object in the same namespace as this pod.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                   runFeastApplyOnInit:
                     description: Runs feast apply on pod start to populate the registry.
                       Defaults to true. Ignored when DisableInitContainers is true.
@@ -6488,6 +6532,16 @@ spec:
                           https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
                         type: string
                     type: object
+                  dataQualityMonitoring:
+                    description: DataQualityMonitoring configures Data Quality Monitoring
+                      behaviour.
+                    properties:
+                      autoBaseline:
+                        default: true
+                        description: AutoBaseline controls whether baseline distribution
+                          is computed automatically on feast apply. Defaults to true.
+                        type: boolean
+                    type: object
                   feastProject:
                     description: FeastProject is the Feast project id.
                     pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
@@ -9289,6 +9343,9 @@ spec:
                                     true
                                   rule: self.restAPI == true || self.grpc == true
                                     || !has(self.grpc)
+                                - message: MCP requires restAPI to be true
+                                  rule: '!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI)
+                                    && self.restAPI == true)'
                             type: object
                           remote:
                             description: RemoteRegistryConfig points to a remote feast
@@ -9346,6 +9403,37 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      resourceClaims:
+                        description: |-
+                          ResourceClaims defines which ResourceClaims must be allocated
+                          and reserved before the Pod is allowed to start.
+                        items:
+                          description: |-
+                            PodResourceClaim references exactly one ResourceClaim, either directly
+                            or by naming a ResourceClaimTemplate which is...
+                          properties:
+                            name:
+                              description: |-
+                                Name uniquely identifies this resource claim inside the pod.
+                                This must be a DNS_LABEL.
+                              type: string
+                            resourceClaimName:
+                              description: |-
+                                ResourceClaimName is the name of a ResourceClaim object in the same
+                                namespace as this pod.
+                              type: string
+                            resourceClaimTemplateName:
+                              description: |-
+                                ResourceClaimTemplateName is the name of a ResourceClaimTemplate
+                                object in the same namespace as this pod.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       runFeastApplyOnInit:
                         description: Runs feast apply on pod start to populate the
                           registry. Defaults to true. Ignored when DisableInitContainers
