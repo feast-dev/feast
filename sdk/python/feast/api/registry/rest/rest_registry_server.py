@@ -78,7 +78,7 @@ class RestRegistryServer:
 
         registry_cfg = getattr(store.config, "registry", None)
         mcp_cfg = getattr(registry_cfg, "mcp", None)
-        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False) is True:
             try:
                 from fastapi_mcp import FastApiMCP
 
