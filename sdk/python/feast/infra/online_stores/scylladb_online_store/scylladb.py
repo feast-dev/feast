@@ -22,7 +22,7 @@ from cassandra.cluster import (
 )
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
-from cassandra.query import PreparedStatement
+from cassandra.query import ConsistencyLevel, PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
@@ -72,6 +72,11 @@ INSERT_CQL = (
     " VALUES (?, ?, ?, ?, ?);"
 )
 
+INSERT_CQL_TTL = (
+    "INSERT INTO {fqtable} (feature_name, value, entity_key, event_ts, created_ts)"
+    " VALUES (?, ?, ?, ?, ?) USING TTL ?;"
+)
+
 SELECT_CQL = "SELECT {columns} FROM {fqtable} WHERE entity_key = ?;"
 
 # Dedicated table to serve vector queries,
@@ -112,6 +117,7 @@ _CQL_TEMPLATES: Dict[str, Tuple[str, bool]] = {
     "create": (CREATE_TABLE_CQL, False),
     "drop": (DROP_TABLE_CQL, False),
     "insert": (INSERT_CQL, True),
+    "insert_ttl": (INSERT_CQL_TTL, True),
     "select": (SELECT_CQL, True),
 }
 
@@ -309,15 +315,20 @@ class ScyllaDBOnlineStore(OnlineStore):
             exe_profile = ExecutionProfile(
                 request_timeout=online_store_config.request_timeout,
                 load_balancing_policy=lb_policy,
+                consistency_level=ConsistencyLevel.LOCAL_QUORUM,
             )
             execution_profiles: Optional[Dict] = {EXEC_PROFILE_DEFAULT: exe_profile}
         elif online_store_config.request_timeout is not None:
             exe_profile = ExecutionProfile(
                 request_timeout=online_store_config.request_timeout,
+                consistency_level=ConsistencyLevel.LOCAL_QUORUM,
             )
             execution_profiles = {EXEC_PROFILE_DEFAULT: exe_profile}
         else:
-            execution_profiles = None
+            exe_profile = ExecutionProfile(
+                consistency_level=ConsistencyLevel.LOCAL_QUORUM,
+            )
+            execution_profiles = {EXEC_PROFILE_DEFAULT: exe_profile}
 
         cluster_kwargs: Dict[str, Any] = {
             k: v
@@ -334,7 +345,7 @@ class ScyllaDBOnlineStore(OnlineStore):
             **cluster_kwargs,
         )
         self._keyspace = keyspace
-        self._session = self._cluster.connect(self._keyspace)
+        self._session = self._cluster.connect(keyspace)
         return self._session
 
     @staticmethod
@@ -484,29 +495,38 @@ class ScyllaDBOnlineStore(OnlineStore):
         default_sim = online_store_config.vector_similarity_function
         vec_features = _get_vector_features(table, default_sim)
 
-        # --- regular table (vector_value populated for vector feature rows) ---
+        # Compute TTL in seconds from the FeatureView's ttl field (timedelta or None).
+        # ScyllaDB will automatically expire rows after this many seconds, covering
+        # both "support for ttl at retrieval" and "support for deleting expired data".
+        ttl_seconds: Optional[int] = (
+            int(table.ttl.total_seconds()) if table.ttl else None
+        )
+
+        # --- regular table ---
         fqtable = self._fq_table_name(self._keyspace, project, table)
-        insert_stmt = self._get_statement(config, "insert", fqtable)
+        insert_op = "insert_ttl" if ttl_seconds is not None else "insert"
+        insert_stmt = self._get_statement(config, insert_op, fqtable)
 
         session = self._get_session(config)
 
-        # --- main table rows (all features, no vector column) ---
-        def _main_rows() -> Iterable[
-            Tuple[str, bytes, str, datetime, Optional[datetime]]
-        ]:
+        # --- main table rows (all features) ---
+        def _main_rows() -> Iterable[Tuple]:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
                     entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 for feature_name, val in values.items():
-                    yield (
+                    row: Tuple = (
                         feature_name,
                         val.SerializeToString(),
                         entity_key_bin,
                         timestamp,
                         created_ts,
                     )
+                    if ttl_seconds is not None:
+                        row = row + (ttl_seconds,)
+                    yield row
                 if progress:
                     progress(1)
 
