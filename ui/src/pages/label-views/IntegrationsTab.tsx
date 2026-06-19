@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import {
   EuiPanel,
   EuiTitle,
-  EuiHorizontalRule,
   EuiText,
   EuiLoadingSpinner,
   EuiCallOut,
@@ -12,8 +11,6 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiBadge,
-  EuiCopy,
-  EuiButton,
   EuiIcon,
 } from "@elastic/eui";
 import RegistryPathContext from "../../contexts/RegistryPathContext";

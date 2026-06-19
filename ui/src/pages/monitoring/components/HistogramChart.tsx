@@ -291,12 +291,10 @@ const NumericHistogramChart = ({
 const LABEL_WIDTH = 60;
 const BAR_MAX_WIDTH = 320;
 const COUNT_PAD = 80;
-const CAT_SVG_WIDTH = LABEL_WIDTH + BAR_MAX_WIDTH + COUNT_PAD;
 
 const LABEL_WIDTH_EXP = 120;
 const BAR_MAX_WIDTH_EXP = 560;
 const COUNT_PAD_EXP = 100;
-const CAT_SVG_WIDTH_EXP = LABEL_WIDTH_EXP + BAR_MAX_WIDTH_EXP + COUNT_PAD_EXP;
 
 const renderCategoricalSvg = (
   histogram: CategoricalHistogram,
