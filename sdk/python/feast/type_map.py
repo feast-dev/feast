@@ -15,6 +15,7 @@
 import decimal
 import json
 import logging
+import re
 import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -2097,25 +2098,62 @@ def pg_type_code_to_arrow(code: int) -> str:
 
 def athena_to_feast_value_type(athena_type_as_str: str) -> ValueType:
     # Type names from https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    athena_type = athena_type_as_str.lower().strip()
+    if athena_type.startswith("array"):
+        inner_type_match = re.search(r"(?:<|\[)(.+)(?:>|\])", athena_type)
+        if inner_type_match:
+            inner_type = inner_type_match.group(1).strip()
+            inner_feast_type = athena_to_feast_value_type(inner_type)
+
+            list_mapping = {
+                ValueType.BYTES: ValueType.BYTES_LIST,
+                ValueType.STRING: ValueType.STRING_LIST,
+                ValueType.INT32: ValueType.INT32_LIST,
+                ValueType.INT64: ValueType.INT64_LIST,
+                ValueType.DOUBLE: ValueType.DOUBLE_LIST,
+                ValueType.FLOAT: ValueType.FLOAT_LIST,
+                ValueType.BOOL: ValueType.BOOL_LIST,
+                ValueType.UNIX_TIMESTAMP: ValueType.UNIX_TIMESTAMP_LIST,
+                ValueType.MAP: ValueType.MAP_LIST,
+                ValueType.JSON: ValueType.JSON_LIST,
+                ValueType.STRUCT: ValueType.STRUCT_LIST,
+                ValueType.UUID: ValueType.UUID_LIST,
+                ValueType.DECIMAL: ValueType.DECIMAL_LIST,
+            }
+            return list_mapping.get(inner_feast_type, ValueType.VALUE_LIST)
+        return ValueType.VALUE_LIST
+
+    base_type = re.split(r"[(<\[]", athena_type)[0].strip()
+
+    if "timestamp" in base_type or "time" in base_type or "date" in base_type:
+        return ValueType.UNIX_TIMESTAMP
+
     type_map = {
-        "null": ValueType.UNKNOWN,
+        "null": ValueType.UNKNOWN,  # There is a null type, but this preserves backwards compat
         "boolean": ValueType.BOOL,
         "tinyint": ValueType.INT32,
         "smallint": ValueType.INT32,
         "int": ValueType.INT32,
+        "integer": ValueType.INT32,
         "bigint": ValueType.INT64,
         "double": ValueType.DOUBLE,
         "float": ValueType.FLOAT,
+        "real": ValueType.FLOAT,
+        "decimal": ValueType.DECIMAL,
         "binary": ValueType.BYTES,
+        "varbinary": ValueType.BYTES,
         "char": ValueType.STRING,
         "varchar": ValueType.STRING,
         "string": ValueType.STRING,
-        "timestamp": ValueType.UNIX_TIMESTAMP,
         "json": ValueType.JSON,
         "struct": ValueType.STRUCT,
+        "row": ValueType.STRUCT,
         "map": ValueType.MAP,
+        "uuid": ValueType.UUID,
+        "ipaddress": ValueType.STRING,
     }
-    return type_map[athena_type_as_str.lower()]
+
+    return type_map.get(base_type, ValueType.UNKNOWN)
 
 
 def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
