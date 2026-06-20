@@ -273,16 +273,18 @@ def mysql_registry_async(mysql_server):
     yield SqlRegistry(registry_config, "project", None)
 
 
-@pytest.fixture(scope="session")
-def sqlite_registry():
+@pytest.fixture(scope="function")
+def sqlite_registry(tmp_path):
     registry_config = SqlRegistryConfig(
         registry_type="sql",
-        path="sqlite://",
+        path=f"sqlite:///{tmp_path / 'registry.db'}",
         cache_ttl_seconds=2,
         cache_mode="sync",
     )
 
-    yield SqlRegistry(registry_config, "project", None)
+    registry = SqlRegistry(registry_config, "project", None)
+    yield registry
+    registry.teardown()
 
 
 @pytest.fixture(scope="function")
