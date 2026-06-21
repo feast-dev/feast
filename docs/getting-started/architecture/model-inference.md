@@ -17,7 +17,7 @@ of model inference):
 
 *Note: online features can be sourced from batch, streaming, or request data sources.*
 
-These three approaches have different tradeoffs but, in general, have significant implementation differences. 
+These four approaches have different tradeoffs but, in general, have significant implementation differences.
 
 ## 1. Online Model Inference with Online Features
 Online model inference with online features is a powerful approach to serving data-driven machine learning applications.
@@ -78,7 +78,7 @@ if features.to_dict().get('user_data:model_predictions') is None:
     model_predictions = model_server.predict(features)
     store.write_to_online_store(feature_view_name="user_data", df=pd.DataFrame(model_predictions))
 ```
-Note that in this case a seperate call to `write_to_online_store` is required when the underlying data changes and 
+Note that in this case a separate call to `write_to_online_store` is required when the underlying data changes and
 predictions change along with it.
 
 ```python

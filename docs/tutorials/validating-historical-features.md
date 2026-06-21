@@ -661,7 +661,7 @@ _ = job.to_df(validation_reference=validation_reference)
     02/02/2022 02:43:53 PM INFO: Validating data_asset_name None with expectation_suite_name default
 
 
-Validation successfully passed as no exception were raised.
+Validation successfully passed as no exceptions were raised.
 
 
 ### 5. Validating new historical retrieval
