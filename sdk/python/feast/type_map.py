@@ -15,9 +15,10 @@
 import decimal
 import json
 import logging
+import re
 import uuid as uuid_module
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -59,6 +60,7 @@ from feast.protos.feast.types.Value_pb2 import (
     ScalarMapEntry,
     StringList,
     StringSet,
+    ZonedTimestamp,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, SetType, ValueType
@@ -70,6 +72,66 @@ if TYPE_CHECKING:
 NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 
 logger = logging.getLogger(__name__)
+
+
+def _zone_name(tzinfo: Optional[Any]) -> str:
+    """Return a storable zone string for a datetime's tzinfo.
+
+    Prefers the IANA name (e.g. ``zoneinfo.ZoneInfo`` key) so DST is preserved;
+    falls back to a fixed-offset string (e.g. ``-07:00``). A naive datetime
+    (``tzinfo is None``) yields ``""``, which decodes back as UTC.
+    """
+    if tzinfo is None:
+        return ""
+    key = getattr(tzinfo, "key", None)  # zoneinfo.ZoneInfo
+    if key:
+        return key
+    name = str(tzinfo)
+    # zoneinfo prints as the key; pytz prints the name; offsets print as "UTC-07:00"
+    return name
+
+
+def _zone_from_name(zone: str):
+    """Resolve a stored zone string back to a tzinfo. Empty → UTC."""
+    if not zone:
+        return timezone.utc
+    try:
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(zone)
+    except Exception:
+        # Not an IANA name. It may be a fixed-offset string produced by
+        # ``_zone_name`` (e.g. "UTC", "UTC-07:00", "+05:30"); parse it so the
+        # original offset is preserved on round trips rather than silently
+        # shifting the wall-clock time to UTC.
+        offset = _fixed_offset_from_name(zone)
+        if offset is not None:
+            return offset
+        logger.warning("Could not resolve zone %r; decoding as UTC", zone)
+        return timezone.utc
+
+
+def _fixed_offset_from_name(zone: str) -> Optional[timezone]:
+    """Parse a fixed-offset zone string into a ``timezone``.
+
+    Accepts the forms ``_zone_name`` emits for offset-only tzinfos: a bare
+    ``UTC``/``GMT``, or an offset like ``UTC-07:00``, ``-07:00``, ``+05:30`` or
+    ``+0530``. Returns ``None`` if the string is not a recognizable offset.
+    """
+    text = zone.strip()
+    if text in ("UTC", "GMT"):
+        return timezone.utc
+    match = re.fullmatch(
+        r"(?:UTC|GMT)?([+-])(\d{2}):?(\d{2})",
+        text,
+    )
+    if not match:
+        return None
+    sign, hours, minutes = match.groups()
+    delta = timedelta(hours=int(hours), minutes=int(minutes))
+    if sign == "-":
+        delta = -delta
+    return timezone(delta)
 
 
 def feast_value_type_to_python_type(
@@ -126,6 +188,13 @@ def feast_value_type_to_python_type(
         return _handle_map_list_value(val)
     elif val_attr == "scalar_map_val":
         return _handle_scalar_map_value(val)
+
+    # Zoned timestamp: a (instant, zone) message → tz-aware datetime in its own zone.
+    if val_attr == "zoned_timestamp_val":
+        if val.unix_timestamp == NULL_TIMESTAMP_INT_VALUE:
+            return None
+        tz = _zone_from_name(val.zone)
+        return datetime.fromtimestamp(val.unix_timestamp, tz=tz)
 
     # If it's a _LIST or _SET type extract the values.
     if hasattr(val, "val"):
@@ -524,6 +593,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL": ValueType.DECIMAL,
         "DECIMAL_LIST": ValueType.DECIMAL_LIST,
         "DECIMAL_SET": ValueType.DECIMAL_SET,
+        "SCALAR_MAP": ValueType.SCALAR_MAP,
+        "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -1041,6 +1112,35 @@ def _convert_scalar_values_to_proto(
                 out[i] = ProtoValue(unix_timestamp_val=ts)  # type: ignore
         return out
 
+    if feast_value_type == ValueType.ZONED_TIMESTAMP:
+        # Lossless zoned datetime: store the UTC instant plus the originating zone.
+        # Only datetime values are accepted; a naive datetime keeps zone="" (UTC).
+        out = []
+        for value in values:
+            if _is_array_like(value) or value is None or pd.isnull(value):
+                out.append(ProtoValue())
+            elif isinstance(value, datetime):
+                # A naive datetime is interpreted as UTC for the instant, but keeps
+                # zone="" (the "unzoned" sentinel, which decode maps back to UTC).
+                dt = (
+                    value
+                    if value.tzinfo is not None
+                    else value.replace(tzinfo=timezone.utc)
+                )
+                out.append(
+                    ProtoValue(
+                        zoned_timestamp_val=ZonedTimestamp(
+                            unix_timestamp=int(dt.timestamp()),
+                            zone=_zone_name(value.tzinfo),
+                        )
+                    )  # type: ignore
+                )
+            else:
+                raise TypeError(
+                    f"ZONED_TIMESTAMP expects datetime values, got {type(value)}"
+                )
+        return out
+
     field_name, func, valid_scalar_types = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
@@ -1258,6 +1358,7 @@ def _python_value_to_proto_value(
     if (
         feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE
         or feast_value_type == ValueType.UNIX_TIMESTAMP
+        or feast_value_type == ValueType.ZONED_TIMESTAMP
     ):
         scalar_sample = next(
             (v for v in values if _non_empty_value(v) and not _is_array_like(v)),

@@ -54,55 +54,6 @@ const Layout = () => {
   // Load unfiltered data for global search (across all projects)
   const { data: globalData } = useLoadRegistry(globalRegistryPath);
 
-  // Categories for page-level search (filtered to current project)
-  const categories = data
-    ? [
-        {
-          name: "Data Sources",
-          data: data.objects.dataSources || [],
-          getLink: (item: any) => `/p/${projectName}/data-source/${item.name}`,
-        },
-        {
-          name: "Entities",
-          data: data.objects.entities || [],
-          getLink: (item: any) => `/p/${projectName}/entity/${item.name}`,
-        },
-        {
-          name: "Features",
-          data: data.allFeatures || [],
-          getLink: (item: any) => {
-            const featureView = item?.featureView;
-            return featureView
-              ? `/p/${projectName}/feature-view/${featureView}/feature/${item.name}`
-              : "#";
-          },
-        },
-        {
-          name: "Feature Views",
-          data: data.mergedFVList || [],
-          getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
-        },
-        {
-          name: "Label Views",
-          data: data.objects.labelViews || [],
-          getLink: (item: any) => {
-            const lvName = item?.name || item?.spec?.name;
-            return `/p/${projectName}/label-view/${lvName}`;
-          },
-        },
-        {
-          name: "Feature Services",
-          data: data.objects.featureServices || [],
-          getLink: (item: any) => {
-            const serviceName = item?.name || item?.spec?.name;
-            return serviceName
-              ? `/p/${projectName}/feature-service/${serviceName}`
-              : "#";
-          },
-        },
-      ]
-    : [];
-
   // Helper function to extract project ID from an item
   const getProjectId = (item: any): string => {
     // Try different possible locations for the project field
