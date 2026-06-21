@@ -92,6 +92,8 @@ def get_databricks_session(
 
         spark_session = builder.getOrCreate()
 
+    assert spark_session is not None
+
     # Apply configuration defaults
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
 
