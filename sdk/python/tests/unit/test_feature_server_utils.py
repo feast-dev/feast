@@ -55,6 +55,7 @@ from feast.protos.feast.types.Value_pb2 import (
     StringList,
     StringSet,
     Value,
+    ZonedTimestamp,
 )
 
 
@@ -203,6 +204,27 @@ class TestValueToNative:
         v = Value(json_val='{"foo": 1}')
         result = _value_to_native(v)
         assert result == '{"foo": 1}'
+
+    def test_zoned_timestamp_val(self):
+        # 2026-06-09T16:00:00Z viewed in America/Los_Angeles (= 09:00 -07:00).
+        v = Value(
+            zoned_timestamp_val=ZonedTimestamp(
+                unix_timestamp=1781020800, zone="America/Los_Angeles"
+            )
+        )
+        result = _value_to_native(v)
+        # Rendered as an ISO 8601 string in the stored zone, and JSON-serializable.
+        assert isinstance(result, str)
+        assert result == "2026-06-09T09:00:00-07:00"
+        json.dumps(result)
+
+    def test_zoned_timestamp_val_utc(self):
+        v = Value(
+            zoned_timestamp_val=ZonedTimestamp(unix_timestamp=1781020800, zone="")
+        )
+        result = _value_to_native(v)
+        assert result == "2026-06-09T16:00:00+00:00"
+        json.dumps(result)
 
 
 class TestTimestampToStr:
