@@ -91,7 +91,7 @@ If the `schema` parameter is not specified in the creation of the feature view, 
 
 "Entity aliases" can be specified to join `entity_dataframe` columns that do not match the column names in the source table of a FeatureView.
 
-This could be used if a user has no control over these column names or if there are multiple entities are a subclass of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below.
+This could be used if a user has no control over these column names or if multiple entities are subclasses of a more general entity. For example, "spammer" and "reporter" could be aliases of a "user" entity, and "origin" and "destination" could be aliases of a "location" entity as shown below.
 
 It is suggested that you dynamically specify the new FeatureView name using `.with_name` and `join_key_map` override using `.with_join_key_map` instead of needing to register each new copy.
 
@@ -322,4 +322,4 @@ def driver_hourly_stats_stream(df: DataFrame):
     )
 ```
 
-See [here](https://github.com/feast-dev/streaming-tutorial) for a example of how to use stream feature views to register your own streaming data pipelines in Feast.
+See [here](https://github.com/feast-dev/streaming-tutorial) for an example of how to use stream feature views to register your own streaming data pipelines in Feast.

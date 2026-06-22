@@ -462,3 +462,11 @@ The monitoring page is always accessible in the sidebar. To see actual data:
 
 2. Run `feast apply` — this computes baseline metrics automatically
 3. Schedule `feast monitor run` (or click "Compute Metrics" in the UI) to generate daily/weekly/monthly metrics
+
+## Related: Operational and SOX Metrics
+
+Feature Quality Monitoring focuses on **data-level** metrics (distributions, null rates, drift). Feast also provides **operational metrics** for infrastructure observability:
+
+- **Prometheus metrics** (`feast_offline_store_*`, `feast_online_store_*`) — latency, throughput, and error rates for offline/online store operations. See [Python Feature Server — Metrics](../reference/feature-servers/python-feature-server.md).
+- **SOX audit logging** (`feast.audit`) — structured audit events for compliance tracking of feature store operations.
+- **OpenTelemetry integration** — distributed tracing for feature serving requests. See [OpenTelemetry Integration](../getting-started/components/open-telemetry.md).
