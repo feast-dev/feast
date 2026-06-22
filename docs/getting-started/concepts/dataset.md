@@ -1,6 +1,6 @@
 # \[Alpha] Saved dataset
 
-Feast datasets allow for conveniently saving dataframes that include both features and entities to be subsequently used for data analysis and model training. [Data Quality Monitoring](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98) was the primary motivation for creating dataset concept.
+Feast datasets allow for conveniently saving dataframes that include both features and entities to be subsequently used for data analysis and model training. Data Quality Monitoring was the original motivation for creating the dataset concept. Note that the Great Expectations-based validation that used saved datasets is now deprecated in favor of Feast's built-in [Feature Quality Monitoring](../../how-to-guides/feature-monitoring.md) system, which does not require saved datasets.
 
 Dataset's metadata is stored in the Feast registry and raw data (features, entities, additional input keys and timestamp) is stored in the [offline store](../components/offline-store.md).
 
