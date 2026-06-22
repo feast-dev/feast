@@ -24,6 +24,7 @@ Feast supports the following data types:
 | `Bytes` | `bytes` | Binary data |
 | `Bool` | `bool` | Boolean value |
 | `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
+| `ZonedTimestamp` | `datetime` | Timezone-aware datetime preserving its source zone (nullable) |
 | `Uuid` | `uuid.UUID` | UUID (any version) |
 | `TimeUuid` | `uuid.UUID` | Time-based UUID (version 1) |
 | `Decimal` | `decimal.Decimal` | Arbitrary-precision decimal number |
@@ -202,7 +203,8 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Uuid, TimeUuid, Decimal, Array, Set, Map, ScalarMap, Json, Struct
+    Uuid, TimeUuid, Decimal, Array, Set, Map, ScalarMap, Json, Struct,
+    ZonedTimestamp
 )
 
 # Define a data source
@@ -232,6 +234,7 @@ user_features = FeatureView(
         Field(name="profile_picture", dtype=Bytes),
         Field(name="is_active", dtype=Bool),
         Field(name="last_login", dtype=UnixTimestamp),
+        Field(name="event_time", dtype=ZonedTimestamp),
         Field(name="session_id", dtype=Uuid),
         Field(name="event_id", dtype=TimeUuid),
         Field(name="price", dtype=Decimal),
@@ -360,6 +363,43 @@ unique_prices = {decimal.Decimal("9.99"), decimal.Decimal("19.99"), decimal.Deci
 
 {% hint style="warning" %}
 `Decimal` is **not** inferred from any backend schema. You must declare it explicitly in your feature view schema. The pandas dtype for `Decimal` columns is `object` (holding `decimal.Decimal` instances), not a numeric dtype.
+{% endhint %}
+
+### ZonedTimestamp Type Usage Examples
+
+The `ZonedTimestamp` type stores a timezone-aware `datetime` as both the UTC instant
+and its originating zone, so the original wall-clock zone round-trips losslessly.
+By contrast, `UnixTimestamp` always decodes to UTC and discards the source zone.
+
+```python
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+# A datetime in a specific zone — both the instant and "America/Los_Angeles" are kept
+event_time = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+
+# ZonedTimestamp values are returned as tz-aware datetime objects, in their own zone
+response = store.get_online_features(
+    features=["event_features:event_time"],
+    entity_rows=[{"user_id": 1001}],
+)
+result = response.to_dict()
+# result["event_time"][0] == event_time  (same instant AND same zone, e.g. 09:00-07:00)
+
+# Two values at the same instant but different zones stay distinct
+la = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+utc = datetime(2026, 6, 17, 16, 0, 0, tzinfo=timezone.utc)  # same instant as `la`
+
+# A naive (tz-less) datetime is interpreted as UTC
+naive = datetime(2026, 6, 17, 12, 0, 0)  # stored zone is empty, decoded as UTC
+```
+
+{% hint style="warning" %}
+`ZonedTimestamp` is **not** inferred from any backend schema — you must declare it
+explicitly in your feature view schema. It is not supported as an entity key. The
+zone is stored as an IANA name (e.g. `America/Los_Angeles`) when available, falling
+back to a fixed-offset string; offline stores that cannot natively carry a zone may
+normalize to UTC on that backend.
 {% endhint %}
 
 ### Nested Collection Type Usage Examples

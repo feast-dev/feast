@@ -69,6 +69,7 @@ message ValueType {
     DECIMAL_LIST = 45;
     DECIMAL_SET = 46;
     SCALAR_MAP = 47;
+    ZONED_TIMESTAMP = 48;
   }
 }
 
@@ -120,11 +121,23 @@ message Value {
     StringList decimal_list_val = 45;
     StringSet decimal_set_val = 46;
     ScalarMap scalar_map_val = 47;
+    ZonedTimestamp zoned_timestamp_val = 48;
   }
 }
 
 enum Null {
   NULL = 0;
+}
+
+// A timezone-aware datetime: the UTC instant plus its originating zone, so a
+// zoned datetime round-trips losslessly (unlike UNIX_TIMESTAMP, which is decoded
+// as UTC and discards the original zone).
+message ZonedTimestamp {
+  // Epoch seconds (UTC instant), same convention as unix_timestamp_val.
+  int64 unix_timestamp = 1;
+  // IANA zone name (e.g. "America/Los_Angeles") or a fixed-offset string
+  // (e.g. "-07:00", "UTC"). Empty string is treated as UTC on read.
+  string zone = 2;
 }
 
 message BytesList {

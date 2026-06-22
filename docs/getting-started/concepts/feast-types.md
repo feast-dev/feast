@@ -8,6 +8,7 @@ Feast's type system is built on top of [protobuf](https://github.com/protocolbuf
 Feast supports the following categories of data types:
 
 - **Primitive types**: numerical values (`Int32`, `Int64`, `Float32`, `Float64`), `String`, `Bytes`, `Bool`, and `UnixTimestamp`.
+- **Zoned timestamp type**: `ZonedTimestamp` stores a timezone-aware datetime as both the UTC instant and its originating zone, so the original wall-clock zone round-trips losslessly. This differs from `UnixTimestamp`, which is always decoded as UTC and discards the source zone. Use `ZonedTimestamp` when local time-of-day or the offset/zone itself is meaningful. It must be explicitly declared in schema (it is not inferred by any backend), and is not supported as an entity key.
 - **Domain-specific primitives**: `PdfBytes` (PDF binary data for RAG/document pipelines) and `ImageBytes` (image binary data for multimodal pipelines). These are semantic aliases over `Bytes` and must be explicitly declared in schema — no backend infers them.
 - **UUID types**: `Uuid` and `TimeUuid` for universally unique identifiers. Stored as strings at the proto level but deserialized to `uuid.UUID` objects in Python.
 - **Array types**: ordered lists of any primitive type, e.g. `Array(Int64)`, `Array(String)`, `Array(Uuid)`.

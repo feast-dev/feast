@@ -42,7 +42,7 @@ customer = Entity(name="customer_id", join_keys=["customer_id"])
 
 ### Type System
 
-**Scalar types** (from `feast.types`): `Float32`, `Float64`, `Int32`, `Int64`, `String`, `Bool`, `Bytes`, `UnixTimestamp`
+**Scalar types** (from `feast.types`): `Float32`, `Float64`, `Int32`, `Int64`, `String`, `Bool`, `Bytes`, `UnixTimestamp`, `ZonedTimestamp`
 
 **Collection types**: `Array(T)` where T is a scalar type (e.g., `Array(Float32)` for embeddings)
 
