@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
@@ -355,6 +355,214 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
                 "status": "applied",
             },
         )
+
+    @router.put("/feature_views/{name}/enable")
+    def enable_feature_view(
+        name: str,
+        project: str = Query(...),
+    ):
+        from feast.feature_view import FeatureView
+        from feast.on_demand_feature_view import OnDemandFeatureView
+        from feast.stream_feature_view import StreamFeatureView
+
+        req = RegistryServer_pb2.GetAnyFeatureViewRequest(
+            name=name,
+            project=project,
+        )
+        resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
+        any_fv = resp.get("anyFeatureView", {})
+
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Feature view '{name}' not found."},
+            )
+
+        fv.enabled = True
+        apply_req = RegistryServer_pb2.ApplyFeatureViewRequest(
+            project=project, commit=True
+        )
+        if isinstance(fv, StreamFeatureView):
+            apply_req.stream_feature_view.CopyFrom(fv.to_proto())
+        elif isinstance(fv, OnDemandFeatureView):
+            apply_req.on_demand_feature_view.CopyFrom(fv.to_proto())
+        else:
+            apply_req.feature_view.CopyFrom(fv.to_proto())
+        grpc_call(grpc_handler.ApplyFeatureView, apply_req)
+
+        return {"name": name, "project": project, "enabled": True}
+
+    @router.put("/feature_views/{name}/disable")
+    def disable_feature_view(
+        name: str,
+        project: str = Query(...),
+    ):
+        from feast.feature_view import FeatureView
+        from feast.on_demand_feature_view import OnDemandFeatureView
+        from feast.stream_feature_view import StreamFeatureView
+
+        req = RegistryServer_pb2.GetAnyFeatureViewRequest(
+            name=name,
+            project=project,
+        )
+        resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
+        any_fv = resp.get("anyFeatureView", {})
+
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Feature view '{name}' not found."},
+            )
+
+        fv.enabled = False
+        apply_req = RegistryServer_pb2.ApplyFeatureViewRequest(
+            project=project, commit=True
+        )
+        if isinstance(fv, StreamFeatureView):
+            apply_req.stream_feature_view.CopyFrom(fv.to_proto())
+        elif isinstance(fv, OnDemandFeatureView):
+            apply_req.on_demand_feature_view.CopyFrom(fv.to_proto())
+        else:
+            apply_req.feature_view.CopyFrom(fv.to_proto())
+        grpc_call(grpc_handler.ApplyFeatureView, apply_req)
+
+        return {"name": name, "project": project, "enabled": False}
+
+    @router.put("/feature_views/{name}/set-state")
+    def set_feature_view_state(
+        name: str,
+        state: str = Query(...),
+        project: str = Query(...),
+    ):
+        from feast.feature_view import (
+            _VALID_STATE_TRANSITIONS,
+            FeatureView,
+            FeatureViewState,
+        )
+        from feast.on_demand_feature_view import OnDemandFeatureView
+        from feast.stream_feature_view import StreamFeatureView
+
+        try:
+            new_state = FeatureViewState[state.upper()]
+        except KeyError:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": f"Invalid state '{state}'. "
+                    f"Valid states: CREATED, GENERATED, MATERIALIZING, AVAILABLE_ONLINE."
+                },
+            )
+
+        req = RegistryServer_pb2.GetAnyFeatureViewRequest(
+            name=name,
+            project=project,
+        )
+        resp = grpc_call(grpc_handler.GetAnyFeatureView, req)
+        any_fv = resp.get("anyFeatureView", {})
+
+        from google.protobuf.json_format import ParseDict
+
+        fv: Any = None
+        proto: Any = None
+        if "featureView" in any_fv and any_fv["featureView"]:
+            proto = FeatureViewProto()
+            ParseDict(any_fv["featureView"], proto)
+            fv = FeatureView.from_proto(proto)
+        elif "onDemandFeatureView" in any_fv and any_fv["onDemandFeatureView"]:
+            from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+                OnDemandFeatureView as OnDemandFeatureViewProto,
+            )
+
+            proto = OnDemandFeatureViewProto()
+            ParseDict(any_fv["onDemandFeatureView"], proto)
+            fv = OnDemandFeatureView.from_proto(proto)
+        elif "streamFeatureView" in any_fv and any_fv["streamFeatureView"]:
+            from feast.protos.feast.core.StreamFeatureView_pb2 import (
+                StreamFeatureView as StreamFeatureViewProto,
+            )
+
+            proto = StreamFeatureViewProto()
+            ParseDict(any_fv["streamFeatureView"], proto)
+            fv = StreamFeatureView.from_proto(proto)
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Feature view '{name}' not found."},
+            )
+
+        if not fv.state.can_transition_to(new_state):
+            current = fv.state.name
+            allowed = _VALID_STATE_TRANSITIONS.get(fv.state, set())
+            allowed_names = ", ".join(sorted(s.name for s in allowed)) or "none"
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": f"Invalid state transition: {current} -> {new_state.name}. "
+                    f"Allowed transitions from {current}: {allowed_names}."
+                },
+            )
+
+        fv.state = new_state
+        apply_req = RegistryServer_pb2.ApplyFeatureViewRequest(
+            project=project, commit=True
+        )
+        if isinstance(fv, StreamFeatureView):
+            apply_req.stream_feature_view.CopyFrom(fv.to_proto())
+        elif isinstance(fv, OnDemandFeatureView):
+            apply_req.on_demand_feature_view.CopyFrom(fv.to_proto())
+        else:
+            apply_req.feature_view.CopyFrom(fv.to_proto())
+        grpc_call(grpc_handler.ApplyFeatureView, apply_req)
+
+        return {"name": name, "project": project, "state": new_state.name}
 
     @router.delete("/feature_views/{name}")
     def delete_feature_view(
