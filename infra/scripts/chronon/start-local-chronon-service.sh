@@ -16,6 +16,7 @@ JAVA_BIN="${JAVA_BIN:-java}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 CHRONON_PREFLIGHT_ONLY="${CHRONON_PREFLIGHT_ONLY:-0}"
 MONGO_IMPL_JAR="${CHRONON_DIR}/quickstart/mongo-online-impl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar"
+SERVICE_TARGET_DIR="${CHRONON_DIR}/service/target/scala-2.12"
 SERVICE_JAR="${CHRONON_SERVICE_JAR:-}"
 
 find_service_jar() {
@@ -24,7 +25,11 @@ find_service_jar() {
     return
   fi
 
-  find "${CHRONON_DIR}/service/target/scala-2.12" \
+  if [[ ! -d "${SERVICE_TARGET_DIR}" ]]; then
+    return 0
+  fi
+
+  find "${SERVICE_TARGET_DIR}" \
     -maxdepth 1 \
     -type f \
     -name "service-*.jar" \
@@ -45,13 +50,13 @@ Example:
 EOF
 }
 
-SERVICE_JAR="$(find_service_jar)"
-
 if [[ ! -d "${CHRONON_DIR}" ]]; then
   echo "Chronon repo not found at ${CHRONON_DIR}. Set CHRONON_REPO to a local checkout." >&2
   print_setup_help
   exit 1
 fi
+
+SERVICE_JAR="$(find_service_jar)"
 
 if [[ ! -f "${MONGO_IMPL_JAR}" ]]; then
   echo "Missing quickstart Mongo implementation jar at ${MONGO_IMPL_JAR}." >&2
@@ -60,7 +65,11 @@ if [[ ! -f "${MONGO_IMPL_JAR}" ]]; then
 fi
 
 if [[ ! -f "${SERVICE_JAR}" ]]; then
-  echo "Missing Chronon service jar at ${SERVICE_JAR}." >&2
+  if [[ -n "${CHRONON_SERVICE_JAR:-}" ]]; then
+    echo "Missing Chronon service jar at ${SERVICE_JAR}." >&2
+  else
+    echo "Missing Chronon service jar under ${SERVICE_TARGET_DIR}. Set CHRONON_SERVICE_JAR to override." >&2
+  fi
   print_setup_help
   exit 1
 fi
