@@ -146,7 +146,10 @@ class HttpRegistry(BaseRegistry):
 
     def _send_request(self, method: str, url: str, params=None, data=None):
         try:
-            request = httpx.Request(method=method, url=url, params=params, data=data)
+            headers = {"Content-Type": "application/json"} if data is not None else None
+            request = httpx.Request(
+                method=method, url=url, params=params, content=data, headers=headers
+            )
             response = self.http_client.send(request)
             response.raise_for_status()
             return response.json()
