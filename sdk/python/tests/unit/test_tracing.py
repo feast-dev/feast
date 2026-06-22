@@ -353,7 +353,9 @@ class TestTracedToolSpanEnhancements:
 
         mock_mlflow = MagicMock()
         mock_span = MagicMock()
-        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(
+            return_value=mock_span
+        )
         mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
 
         store = MagicMock()
@@ -385,7 +387,9 @@ class TestTracedToolSpanEnhancements:
 
         mock_mlflow = MagicMock()
         mock_span = MagicMock()
-        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(
+            return_value=mock_span
+        )
         mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
 
         feast.tracing._initialized = True
@@ -396,9 +400,7 @@ class TestTracedToolSpanEnhancements:
         store = MagicMock()
         test_inputs = {"features": ["fv:f1"], "entity_count": 5}
 
-        with feast.tracing.traced_tool_span(
-            store, "test.span", inputs=test_inputs
-        ):
+        with feast.tracing.traced_tool_span(store, "test.span", inputs=test_inputs):
             pass
 
         mock_span.set_inputs.assert_called_once_with(test_inputs)
@@ -408,7 +410,9 @@ class TestTracedToolSpanEnhancements:
 
         mock_mlflow = MagicMock()
         mock_span = MagicMock()
-        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(
+            return_value=mock_span
+        )
         mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
 
         feast.tracing._initialized = True
@@ -432,7 +436,9 @@ class TestTracedToolSpanEnhancements:
 
         mock_mlflow = MagicMock()
         mock_span = MagicMock()
-        mock_mlflow.start_span.return_value.__enter__ = MagicMock(return_value=mock_span)
+        mock_mlflow.start_span.return_value.__enter__ = MagicMock(
+            return_value=mock_span
+        )
         mock_mlflow.start_span.return_value.__exit__ = MagicMock(return_value=False)
 
         feast.tracing._initialized = True

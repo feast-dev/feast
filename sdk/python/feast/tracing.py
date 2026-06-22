@@ -85,7 +85,7 @@ def _lazy_init(store: "FeatureStore") -> bool:
         _logger.warning("Failed to set MLflow experiment %r: %s", experiment_name, exc)
 
     sampling = getattr(mlflow_cfg, "trace_sampling_ratio", None)
-    if sampling is not None and sampling < 1.0:
+    if isinstance(sampling, (int, float)) and sampling < 1.0:
         os.environ.setdefault("MLFLOW_TRACE_SAMPLING_RATIO", str(sampling))
 
     try:

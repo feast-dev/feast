@@ -452,8 +452,7 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
             )
     except Exception:
         logger.debug(
-            "Failed to configure MLflow trace destination; "
-            "falling back to default",
+            "Failed to configure MLflow trace destination; falling back to default",
             exc_info=True,
         )
 
