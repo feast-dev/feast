@@ -83,8 +83,21 @@ If validation fails, a `ValidationFailed` exception is raised with details for a
 - Dependency on Great Expectations adds to the install footprint (optional via `feast[ge]`).
 - Automatic profiling capabilities are limited; manual expectation crafting is recommended.
 
+## Superseded
+
+This ADR documents the original GE-based approach which is now **deprecated**. It has been superseded by Feast's built-in [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system (introduced in 2025), which provides:
+
+- Automatic metric computation (null rates, percentiles, histograms) with no external dependencies
+- Monitoring across batch data and serving logs
+- CLI (`feast monitor run`) and REST API for automation
+- Built-in UI monitoring dashboard
+- Support for all offline store backends via SQL push-down
+
+The GE-based integration may be removed in a future release.
+
 ## References
 
 - Original RFC: Feast RFC-027: Data Quality Monitoring 
 - Implementation: `sdk/python/feast/dqm/`, `sdk/python/feast/saved_dataset.py`
-- Documentation: [Data Quality Monitoring](../reference/dqm.md)
+- Documentation: [Data Quality Monitoring (deprecated)](../reference/dqm.md)
+- **New system:** [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md)
