@@ -53,6 +53,30 @@ CHRONON_SERVICE_URL=http://127.0.0.1:19000 \
 uv run python examples/chronon/run_demo.py
 ```
 
+## Checkout Risk Scenario
+
+The richer checkout-risk scenario registers a Feast `FeatureService` over
+Chronon's `quickstart/training_set.v2` join, fetches multiple users from the
+live Chronon service, and prints a small risk summary from purchase and refund
+aggregates:
+
+```bash
+CHRONON_SERVICE_URL=http://127.0.0.1:19000 \
+uv run python examples/chronon/run_demo.py --scenario checkout-risk
+```
+
+By default it retrieves users `5`, `7`, and `999999`. The first two should
+return Chronon quickstart aggregates; `999999` demonstrates how Feast surfaces a
+known entity key with missing Chronon features. You can choose different users:
+
+```bash
+CHRONON_SERVICE_URL=http://127.0.0.1:19000 \
+uv run python examples/chronon/run_demo.py \
+  --scenario checkout-risk \
+  --online-only \
+  --user-ids 5,7,999999
+```
+
 Stop the local stack when done:
 
 ```bash
