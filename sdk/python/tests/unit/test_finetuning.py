@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -284,3 +286,468 @@ class TestRegisterInMlflow:
             mock_mlflow.set_tag.assert_called_once_with("use_case", "red-teaming")
         finally:
             os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Dataset sync: flatten_mlflow_dataset_df
+# ---------------------------------------------------------------------------
+
+
+class TestFlattenMlflowDatasetDf:
+    def _make_df(self, records=None):
+        if records is None:
+            records = [
+                {
+                    "dataset_record_id": "rec-1",
+                    "inputs": {"question": "What is MLflow?", "context": "docs"},
+                    "expectations": {
+                        "expected_response": "MLflow is...",
+                        "guidelines": "Be concise",
+                    },
+                    "source": {"trace": {"trace_id": "tr-xyz789"}},
+                    "tags": {"priority": "high", "reviewer": "jane"},
+                    "last_update_time": "2026-06-15T12:00:00Z",
+                },
+                {
+                    "dataset_record_id": "rec-2",
+                    "inputs": {"question": "What is Feast?"},
+                    "expectations": {"expected_response": "Feast is..."},
+                    "source": {"trace": {"trace_id": "tr-abc123"}},
+                    "tags": {"priority": "low"},
+                    "last_update_time": "2026-06-16T10:00:00Z",
+                },
+            ]
+        return pd.DataFrame(records)
+
+    def test_basic_flattening(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = self._make_df()
+        result = flatten_mlflow_dataset_df(df)
+
+        assert "dataset_record_id" in result.columns
+        assert "input_question" in result.columns
+        assert "input_context" in result.columns
+        assert "expected_response" in result.columns
+        assert "guidelines" in result.columns
+        assert "trace_id" in result.columns
+        assert "tag_priority" in result.columns
+        assert "tag_reviewer" in result.columns
+        assert "event_timestamp" in result.columns
+
+        assert result.iloc[0]["dataset_record_id"] == "rec-1"
+        assert result.iloc[0]["input_question"] == "What is MLflow?"
+        assert result.iloc[0]["expected_response"] == "MLflow is..."
+        assert result.iloc[0]["trace_id"] == "tr-xyz789"
+        assert result.iloc[0]["tag_priority"] == "high"
+
+    def test_missing_optional_columns(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = pd.DataFrame(
+            [
+                {
+                    "dataset_record_id": "rec-1",
+                    "inputs": {"question": "Q1"},
+                    "last_update_time": "2026-06-15T12:00:00Z",
+                }
+            ]
+        )
+        result = flatten_mlflow_dataset_df(df)
+
+        assert "dataset_record_id" in result.columns
+        assert "input_question" in result.columns
+        assert "event_timestamp" in result.columns
+        assert "trace_id" not in result.columns
+
+    def test_null_dict_values(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = pd.DataFrame(
+            [
+                {
+                    "dataset_record_id": "rec-1",
+                    "inputs": None,
+                    "expectations": {"expected_response": "answer"},
+                    "source": None,
+                    "tags": None,
+                    "last_update_time": "2026-06-15T12:00:00Z",
+                }
+            ]
+        )
+        result = flatten_mlflow_dataset_df(df)
+
+        assert result.iloc[0]["expected_response"] == "answer"
+        assert result.iloc[0]["trace_id"] is None
+
+    def test_field_mapping_renames(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = self._make_df()
+        mapping = {"expectations.expected_response": "corrected_response"}
+        result = flatten_mlflow_dataset_df(df, field_mapping=mapping)
+
+        assert "corrected_response" in result.columns
+        assert "expected_response" not in result.columns
+        assert result.iloc[0]["corrected_response"] == "MLflow is..."
+
+    def test_field_mapping_extracts_nested(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = self._make_df()
+        mapping = {"source.trace.trace_id": "mlflow_trace_id"}
+        result = flatten_mlflow_dataset_df(df, field_mapping=mapping)
+
+        assert "mlflow_trace_id" in result.columns
+        assert result.iloc[0]["mlflow_trace_id"] == "tr-xyz789"
+
+    def test_event_timestamp_is_parsed(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = self._make_df()
+        result = flatten_mlflow_dataset_df(df)
+
+        ts = result.iloc[0]["event_timestamp"]
+        assert isinstance(ts, datetime)
+        assert ts.year == 2026
+
+    def test_fallback_to_create_time(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = pd.DataFrame(
+            [
+                {
+                    "dataset_record_id": "rec-1",
+                    "inputs": {"q": "hello"},
+                    "create_time": "2026-01-01T00:00:00Z",
+                }
+            ]
+        )
+        result = flatten_mlflow_dataset_df(df)
+        ts = result.iloc[0]["event_timestamp"]
+        assert isinstance(ts, datetime)
+
+    def test_empty_dataframe(self):
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = pd.DataFrame(columns=["dataset_record_id", "inputs", "last_update_time"])
+        result = flatten_mlflow_dataset_df(df)
+        assert len(result) == 0
+
+    def test_second_record_missing_keys(self):
+        """When different records have different nested keys, missing ones get None."""
+        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
+
+        df = self._make_df()
+        result = flatten_mlflow_dataset_df(df)
+
+        assert result.iloc[1]["input_context"] is None
+        assert result.iloc[1]["tag_reviewer"] is None
+
+
+# ---------------------------------------------------------------------------
+# Dataset sync: sync_mlflow_dataset_to_feast
+# ---------------------------------------------------------------------------
+
+
+class TestSyncMlflowDatasetToFeast:
+    def _make_mock_dataset(self, records):
+        dataset = MagicMock()
+        dataset.to_df.return_value = pd.DataFrame(records)
+        dataset.tags = {}
+        dataset.dataset_id = "ds-123"
+        return dataset
+
+    def _make_mock_store(self):
+        store = MagicMock()
+        store.config = MagicMock()
+        store.config.mlflow = None
+        return store
+
+    @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_full_refresh(self, mock_uri, mock_fetch, mock_set_sync):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {"expected_response": "A1"},
+                "source": {"trace": {"trace_id": "tr-1"}},
+                "tags": {},
+                "last_update_time": "2026-06-15T12:00:00Z",
+            }
+        ]
+        mock_fetch.return_value = self._make_mock_dataset(records)
+        store = self._make_mock_store()
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="test-dataset",
+            feature_view_name="test_fv",
+            incremental=False,
+        )
+
+        assert result.records_fetched == 1
+        assert result.records_ingested == 1
+        assert result.errors == []
+        store.write_to_online_store.assert_called_once()
+        store.push.assert_called_once()
+
+    @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_incremental_filters_old_records(
+        self, mock_uri, mock_fetch, mock_set_sync
+    ):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {},
+                "source": {},
+                "tags": {},
+                "last_update_time": "2026-06-10T12:00:00Z",
+            },
+            {
+                "dataset_record_id": "rec-2",
+                "inputs": {"question": "Q2"},
+                "expectations": {},
+                "source": {},
+                "tags": {},
+                "last_update_time": "2026-06-20T12:00:00Z",
+            },
+        ]
+        dataset = self._make_mock_dataset(records)
+        dataset.tags = {"feast_last_sync_time": "2026-06-15T00:00:00+00:00"}
+        mock_fetch.return_value = dataset
+        store = self._make_mock_store()
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="test-dataset",
+            feature_view_name="test_fv",
+            incremental=True,
+        )
+
+        assert result.records_fetched == 2
+        assert result.records_ingested == 1
+        assert result.new_records == 1
+
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_dry_run_does_not_write(self, mock_uri, mock_fetch):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {},
+                "source": {},
+                "tags": {},
+                "last_update_time": "2026-06-15T12:00:00Z",
+            }
+        ]
+        mock_fetch.return_value = self._make_mock_dataset(records)
+        store = self._make_mock_store()
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="test-dataset",
+            feature_view_name="test_fv",
+            dry_run=True,
+        )
+
+        assert result.records_fetched == 1
+        assert result.records_ingested == 0
+        store.write_to_online_store.assert_not_called()
+        store.push.assert_not_called()
+
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_handles_fetch_failure(self, mock_uri, mock_fetch):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        mock_fetch.return_value = None
+        store = self._make_mock_store()
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="missing-dataset",
+            feature_view_name="test_fv",
+        )
+
+        assert result.records_fetched == 0
+        assert len(result.errors) == 1
+        assert "Failed to fetch" in result.errors[0]
+
+    @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_handles_write_error(self, mock_uri, mock_fetch, mock_set_sync):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {},
+                "source": {},
+                "tags": {},
+                "last_update_time": "2026-06-15T12:00:00Z",
+            }
+        ]
+        mock_fetch.return_value = self._make_mock_dataset(records)
+        store = self._make_mock_store()
+        store.write_to_online_store.side_effect = RuntimeError("Connection failed")
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="test-dataset",
+            feature_view_name="test_fv",
+            incremental=False,
+        )
+
+        assert result.records_ingested == 0
+        assert len(result.errors) == 1
+        assert "Connection failed" in result.errors[0]
+
+    @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_sync_with_field_mapping(self, mock_uri, mock_fetch, mock_set_sync):
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {"expected_response": "A1"},
+                "source": {"trace": {"trace_id": "tr-1"}},
+                "tags": {},
+                "last_update_time": "2026-06-15T12:00:00Z",
+            }
+        ]
+        mock_fetch.return_value = self._make_mock_dataset(records)
+        store = self._make_mock_store()
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            dataset_name="test-dataset",
+            feature_view_name="test_fv",
+            field_mapping={"expectations.expected_response": "corrected_response"},
+            incremental=False,
+        )
+
+        assert result.records_ingested == 1
+        call_args = store.write_to_online_store.call_args
+        written_df = call_args[0][1]
+        assert "corrected_response" in written_df.columns
+
+
+# ---------------------------------------------------------------------------
+# MlflowDatasetSource serialization
+# ---------------------------------------------------------------------------
+
+
+class TestMlflowDatasetSource:
+    def test_to_proto_and_back(self):
+        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
+
+        source = MlflowDatasetSource(
+            name="test-source",
+            dataset_name="agent-feedback-v3",
+            dataset_id="ds-123",
+            experiment_ids=["exp-1", "exp-2"],
+            tracking_uri="http://mlflow:5000",
+            field_mapping={"expectations.expected_response": "corrected_response"},
+            timestamp_field="event_timestamp",
+            record_id_field="dataset_record_id",
+            description="Test MLflow source",
+            tags={"team": "ml"},
+            owner="test@example.com",
+        )
+
+        proto = source._to_proto_impl()
+        restored = MlflowDatasetSource.from_proto(proto)
+
+        assert restored.name == "test-source"
+        assert restored.dataset_name == "agent-feedback-v3"
+        assert restored.dataset_id == "ds-123"
+        assert restored.experiment_ids == ["exp-1", "exp-2"]
+        assert restored.tracking_uri == "http://mlflow:5000"
+        assert restored.record_id_field == "dataset_record_id"
+        assert restored.timestamp_field == "event_timestamp"
+        assert restored.description == "Test MLflow source"
+        assert restored.tags == {"team": "ml"}
+        assert restored.owner == "test@example.com"
+
+    def test_equality(self):
+        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
+
+        kwargs = dict(
+            name="src",
+            dataset_name="ds",
+            tracking_uri="http://mlflow:5000",
+        )
+        s1 = MlflowDatasetSource(**kwargs)
+        s2 = MlflowDatasetSource(**kwargs)
+        assert s1 == s2
+
+    def test_source_type(self):
+        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
+        from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+
+        source = MlflowDatasetSource(name="s", dataset_name="ds")
+        assert source.source_type() == DataSourceProto.CUSTOM_SOURCE
+
+
+# ---------------------------------------------------------------------------
+# DatasetSyncConfig
+# ---------------------------------------------------------------------------
+
+
+class TestDatasetSyncConfig:
+    def test_default_values(self):
+        from feast.mlflow_integration.config import DatasetSyncConfig
+
+        cfg = DatasetSyncConfig()
+        assert cfg.default_field_mapping == {}
+        assert cfg.watermark_key == "feast_last_sync_time"
+        assert cfg.default_batch_size == 10_000
+
+    def test_custom_values(self):
+        from feast.mlflow_integration.config import DatasetSyncConfig
+
+        cfg = DatasetSyncConfig(
+            default_field_mapping={"expectations.response": "answer"},
+            watermark_key="custom_watermark",
+            default_batch_size=5000,
+        )
+        assert cfg.default_field_mapping == {"expectations.response": "answer"}
+        assert cfg.watermark_key == "custom_watermark"
+        assert cfg.default_batch_size == 5000
+
+    def test_mlflow_config_includes_dataset_sync(self):
+        from feast.mlflow_integration.config import DatasetSyncConfig, MlflowConfig
+
+        cfg = MlflowConfig(enabled=True)
+        assert isinstance(cfg.dataset_sync, DatasetSyncConfig)
+        assert cfg.dataset_sync.watermark_key == "feast_last_sync_time"

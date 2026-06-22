@@ -503,3 +503,112 @@ The LLM span is automatically tagged with `feast.context_*` attributes — no ma
 | `install_feast_span_processor()` | Registers a span processor that auto-tags LLM spans with Feast context |
 
 **Important:** Call `ctx.get_context_attributes()` inside the `with feast_trace_scope()` block. The context is cleared on scope exit.
+
+## Dataset sync: MLflow GenAI Datasets → Feast
+
+The `feast datasets sync` command pulls records from an [MLflow GenAI EvaluationDataset](https://mlflow.org/docs/latest/llms/genai/index.html), flattens their nested structure, and pushes them into Feast online and offline stores.
+
+### Feature repository definition
+
+```python
+# feature_repo/mlflow_labels.py
+from datetime import timedelta
+
+from feast import Entity, FeatureView, Field, PushSource
+from feast.types import String
+
+dataset_record = Entity(name="dataset_record", join_keys=["dataset_record_id"])
+
+mlflow_dataset_push = PushSource(name="mlflow_dataset_push")
+
+mlflow_labels_view = FeatureView(
+    name="mlflow_labels",
+    entities=[dataset_record],
+    ttl=timedelta(days=0),
+    schema=[
+        Field(name="trace_id", dtype=String),
+        Field(name="input_question", dtype=String),
+        Field(name="expected_response", dtype=String),
+        Field(name="guidelines", dtype=String),
+    ],
+    source=mlflow_dataset_push,
+    online=True,
+)
+```
+
+### Configuration
+
+Add the `dataset_sync` section under `mlflow` in `feature_store.yaml`:
+
+```yaml
+mlflow:
+  enabled: true
+  tracking_uri: http://mlflow:5000
+  dataset_sync:
+    default_field_mapping:
+      "expectations.expected_response": "corrected_response"
+      "source.trace.trace_id": "trace_id"
+    watermark_key: "feast_last_sync_time"
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dataset_sync.default_field_mapping` | dict | `{}` | Default field mapping overrides (dot-delimited MLflow paths → Feast column names) |
+| `dataset_sync.watermark_key` | string | `"feast_last_sync_time"` | MLflow dataset tag key for incremental sync tracking |
+| `dataset_sync.default_batch_size` | int | `10000` | Batch size for `write_to_online_store` during sync |
+
+### CLI commands
+
+```bash
+# Full sync (all records)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --full-refresh
+
+# Incremental sync (only new/updated since last sync)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels
+
+# Preview flattened records without writing
+feast datasets preview --source agent-feedback-v3 --limit 10
+
+# Dry run (fetch & flatten, no writes)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --dry-run
+
+# Custom field mapping from a JSON file
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --field-mapping mapping.json
+```
+
+### Default flattening rules
+
+| MLflow path | Feast column |
+|---|---|
+| `inputs.X` | `input_X` |
+| `expectations.X` | `X` |
+| `source.trace.trace_id` | `trace_id` |
+| `tags.X` | `tag_X` |
+| `last_update_time` | `event_timestamp` |
+
+Override with a `--field-mapping` JSON file or `dataset_sync.default_field_mapping` in config.
+
+### Incremental sync strategy
+
+After each sync, the command tags the MLflow dataset with the configured watermark key. On the next incremental run, only records with `last_update_time` newer than the watermark are ingested. Use `--full-refresh` to ignore the watermark.
+
+### Retrieving synced features
+
+**Online:**
+
+```python
+store = FeatureStore(repo_path="feature_repo/")
+features = store.get_online_features(
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+    entity_rows=[{"dataset_record_id": "rec-abc123"}],
+).to_dict()
+```
+
+**Offline (batch):**
+
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+).to_df()
+```

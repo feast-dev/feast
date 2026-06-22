@@ -35,6 +35,7 @@ from feast.cli.features import (
     get_historical_features,
     get_online_features,
 )
+from feast.cli.datasets import datasets_cmd
 from feast.cli.finetuning import finetuning_cmd
 from feast.cli.label_views import label_views_cmd
 from feast.cli.monitor import monitor_cmd
@@ -654,6 +655,7 @@ cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
 cli.add_command(serve_transformations_command)
 cli.add_command(dbt_cmd)
+cli.add_command(datasets_cmd)
 cli.add_command(finetuning_cmd)
 cli.add_command(monitor_cmd)
 
