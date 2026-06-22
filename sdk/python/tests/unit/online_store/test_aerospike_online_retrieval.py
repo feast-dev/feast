@@ -578,7 +578,7 @@ def test_online_read_projects_requested_features_server_side():
                 _fake_batch_record(
                     key,
                     {
-                        "features": ["rating", 4.91, "trips_last_7d", 132],
+                        "features": ["rating", 4.91],
                         "event_ts": _datetime_to_epoch_ms(ts),
                     },
                 )
@@ -595,8 +595,7 @@ def test_online_read_projects_requested_features_server_side():
     ts_out, feats = results[0]
     assert ts_out == ts
     assert abs(feats["rating"].double_val - 4.91) < 1e-9
-    assert feats["trips_last_7d"].int64_val == 132
-
+    assert feats["trips_last_7d"] == ValueProto()
     features_op = captured_ops[0]
     assert features_op["op"] == aerospike.OP_MAP_GET_BY_KEY_LIST
     assert features_op["bin"] == "features"
@@ -611,7 +610,7 @@ def test_normalize_projected_features_handles_all_payload_shapes():
     """The shape of the ``features`` payload depends on which op produced it;
     the helper must accept all of them."""
     assert AerospikeOnlineStore._normalize_projected_features(None) is None
-    assert AerospikeOnlineStore._normalize_projected_features([]) is None
+    assert AerospikeOnlineStore._normalize_projected_features([]) == {}
     assert AerospikeOnlineStore._normalize_projected_features(["a", 1, "b", 2]) == {
         "a": 1,
         "b": 2,

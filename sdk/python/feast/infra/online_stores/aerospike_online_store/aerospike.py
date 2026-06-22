@@ -206,10 +206,9 @@ class AerospikeOnlineStoreConfig(FeastConfigBaseModel):
 
     The hook MUST return a row list with the same shape as its input.
     Hooks that raise will fail the whole batch — there is no per-row
-    fallback. The resolved callable is cached on the store instance, so
-    swapping the config to a different hook also requires a new
-    ``AerospikeOnlineStore`` instance (which Feast already does on
-    ``RepoConfig`` change).
+    fallback. The resolved callable is cached on the store instance; if the
+    configured import string changes between calls, it is re-resolved
+    automatically on the next write.
     """
 
     user: Optional[str] = None
@@ -318,6 +317,7 @@ class AerospikeOnlineStore(OnlineStore):
         }
         batch_policy: Dict[str, Any] = {
             "total_timeout": store_cfg.batch_total_timeout_ms,
+            "max_retries": store_cfg.max_retries,
         }
         if store_cfg.socket_timeout_ms is not None:
             # socket_timeout is the per-attempt deadline; without it,
@@ -666,7 +666,7 @@ class AerospikeOnlineStore(OnlineStore):
             fv_event_ts_ms = bins.get("event_ts") if bins else None
             fv_features = self._normalize_projected_features(raw_features)
             docs[user_key] = {
-                "features": {table.name: fv_features} if fv_features else {},
+                "features": {table.name: fv_features} if fv_features is not None else {},
                 "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
             }
 
@@ -719,7 +719,7 @@ class AerospikeOnlineStore(OnlineStore):
             return raw
         if isinstance(raw, list):
             if not raw:
-                return None
+                return {}
             return dict(zip(raw[0::2], raw[1::2]))
         return None
 
