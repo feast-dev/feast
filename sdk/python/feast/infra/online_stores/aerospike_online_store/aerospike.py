@@ -666,7 +666,9 @@ class AerospikeOnlineStore(OnlineStore):
             fv_event_ts_ms = bins.get("event_ts") if bins else None
             fv_features = self._normalize_projected_features(raw_features)
             docs[user_key] = {
-                "features": {table.name: fv_features} if fv_features is not None else {},
+                "features": {table.name: fv_features}
+                if fv_features is not None
+                else {},
                 "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
             }
 
