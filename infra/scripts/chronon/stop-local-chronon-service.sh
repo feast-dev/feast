@@ -10,8 +10,16 @@ SERVICE_PID_FILE="${CHRONON_SERVICE_PID_FILE:-/tmp/chronon-service.pid}"
 if [[ -f "${SERVICE_PID_FILE}" ]]; then
   pid="$(cat "${SERVICE_PID_FILE}")"
   if kill -0 "${pid}" >/dev/null 2>&1; then
-    kill "${pid}" >/dev/null 2>&1 || true
-    wait "${pid}" 2>/dev/null || true
+    kill "-${pid}" >/dev/null 2>&1 || kill "${pid}" >/dev/null 2>&1 || true
+    for _ in {1..20}; do
+      if ! kill -0 "${pid}" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.5
+    done
+    if kill -0 "${pid}" >/dev/null 2>&1; then
+      kill -9 "-${pid}" >/dev/null 2>&1 || kill -9 "${pid}" >/dev/null 2>&1 || true
+    fi
   fi
   rm -f "${SERVICE_PID_FILE}"
 fi

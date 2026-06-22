@@ -13,9 +13,25 @@ SERVICE_HOST="${CHRONON_SERVICE_HOST:-127.0.0.1}"
 SERVICE_PID_FILE="${CHRONON_SERVICE_PID_FILE:-/tmp/chronon-service.pid}"
 SERVICE_LOG_FILE="${CHRONON_SERVICE_LOG_FILE:-/tmp/chronon-service.log}"
 JAVA_BIN="${JAVA_BIN:-java}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 CHRONON_PREFLIGHT_ONLY="${CHRONON_PREFLIGHT_ONLY:-0}"
 MONGO_IMPL_JAR="${CHRONON_DIR}/quickstart/mongo-online-impl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar"
-SERVICE_JAR="${CHRONON_DIR}/service/target/scala-2.12/service-0.0.111-SNAPSHOT.jar"
+SERVICE_JAR="${CHRONON_SERVICE_JAR:-}"
+
+find_service_jar() {
+  if [[ -n "${SERVICE_JAR}" ]]; then
+    echo "${SERVICE_JAR}"
+    return
+  fi
+
+  find "${CHRONON_DIR}/service/target/scala-2.12" \
+    -maxdepth 1 \
+    -type f \
+    -name "service-*.jar" \
+    ! -name "*-sources.jar" \
+    ! -name "*-javadoc.jar" \
+    2>/dev/null | sort | tail -n 1
+}
 
 print_setup_help() {
   cat >&2 <<EOF
@@ -28,6 +44,8 @@ Example:
   CHRONON_REPO=/tmp/chronon infra/scripts/chronon/start-local-chronon-service.sh
 EOF
 }
+
+SERVICE_JAR="$(find_service_jar)"
 
 if [[ ! -d "${CHRONON_DIR}" ]]; then
   echo "Chronon repo not found at ${CHRONON_DIR}. Set CHRONON_REPO to a local checkout." >&2
@@ -92,9 +110,15 @@ wait_for_http() {
   local url="$1"
   local attempts=60
   until curl --fail --silent "${url}" >/dev/null; do
+    if [[ -f "${SERVICE_PID_FILE}" ]] && ! kill -0 "$(cat "${SERVICE_PID_FILE}")" >/dev/null 2>&1; then
+      echo "Chronon service exited before becoming ready. Log: ${SERVICE_LOG_FILE}" >&2
+      tail -100 "${SERVICE_LOG_FILE}" >&2 || true
+      exit 1
+    fi
     attempts=$((attempts - 1))
     if [[ "${attempts}" -le 0 ]]; then
       echo "Chronon service did not become ready at ${url}." >&2
+      tail -100 "${SERVICE_LOG_FILE}" >&2 || true
       exit 1
     fi
     sleep 2
@@ -152,16 +176,13 @@ docker run -d \
 wait_for_data_load
 run_quickstart_online_prep
 
-: > "${SERVICE_LOG_FILE}"
-(
-  cd "${CHRONON_DIR}"
-  exec "${JAVA_BIN}" -jar service/target/scala-2.12/service-0.0.111-SNAPSHOT.jar \
-    run ai.chronon.service.WebServiceVerticle \
-    -Dserver.port="${SERVICE_PORT}" \
-    -conf service/src/main/resources/example_config.json
-) >"${SERVICE_LOG_FILE}" 2>&1 &
-
-echo "$!" > "${SERVICE_PID_FILE}"
+"${PYTHON_BIN}" "${ROOT_DIR}/infra/scripts/chronon/chronon_service_launcher.py" \
+  --chronon-dir "${CHRONON_DIR}" \
+  --java-bin "${JAVA_BIN}" \
+  --service-jar "${SERVICE_JAR}" \
+  --service-port "${SERVICE_PORT}" \
+  --log-file "${SERVICE_LOG_FILE}" \
+  --pid-file "${SERVICE_PID_FILE}"
 wait_for_http "http://${SERVICE_HOST}:${SERVICE_PORT}/ping"
 
 echo "CHRONON_SERVICE_URL=http://${SERVICE_HOST}:${SERVICE_PORT}"
