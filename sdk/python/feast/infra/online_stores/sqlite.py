@@ -64,6 +64,7 @@ from feast.type_map import feast_value_type_to_python_type
 from feast.types import FEAST_VECTOR_TYPES, PrimitiveFeastType
 from feast.utils import (
     _build_retrieve_online_document_record,
+    _distance_to_score,
     _get_feature_view_vector_field_metadata,
     _serialize_vector_to_float_list,
     to_naive_utc,
@@ -873,7 +874,11 @@ class SqliteOnlineStore(OnlineStore):
                 entity_dict[entity_key][vector_field] = _serialize_vector_to_float_list(
                     vector_value
                 )
-            entity_dict[entity_key]["distance"] = ValueProto(float_val=distance)
+            entity_dict[entity_key]["distance"] = ValueProto(
+                float_val=_distance_to_score(distance, distance_metric)
+                if embedding is not None
+                else distance
+            )
             entity_dict[entity_key]["event_ts"] = event_ts
             entity_dict[entity_key]["created_ts"] = created_ts
 

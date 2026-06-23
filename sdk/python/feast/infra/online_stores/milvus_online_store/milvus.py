@@ -48,6 +48,7 @@ from feast.types import (
     from_feast_type,
 )
 from feast.utils import (
+    _distance_to_score,
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
@@ -463,9 +464,13 @@ class MilvusOnlineStore(OnlineStore):
             single_entity_record.update(values_dict)
             for field in required_fields:
                 if field not in single_entity_record:
-                    single_entity_record[field] = _default_for_milvus_type(
-                        collection_field_types.get(field, DataType.VARCHAR)
-                    )
+                    field_type = collection_field_types.get(field, DataType.VARCHAR)
+                    if field == "_placeholder_vector":
+                        single_entity_record[field] = [float("nan")]
+                    else:
+                        single_entity_record[field] = _default_for_milvus_type(
+                            field_type
+                        )
             # Store only the latest event timestamp per entity
             if (
                 entity_key_str not in unique_entities
@@ -943,9 +948,15 @@ class MilvusOnlineStore(OnlineStore):
                     else:
                         val.string_val = str(field_value)
                         res[field] = val
-                distance = hit.get("distance", None)
+                raw_distance = hit.get("distance", None)
                 res["distance"] = (
-                    ValueProto(float_val=distance) if distance else ValueProto()
+                    ValueProto(
+                        float_val=_distance_to_score(raw_distance, distance_metric)
+                    )
+                    if raw_distance is not None and embedding is not None
+                    else ValueProto(float_val=raw_distance)
+                    if raw_distance is not None
+                    else ValueProto()
                 )
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
