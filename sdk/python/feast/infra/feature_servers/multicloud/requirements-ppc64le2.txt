@@ -1,1 +1,19 @@
-snowflake-connector-python @ https://packages.redhat.com/api/pulp-content/public-rhai/rhoai/3.5-EA1/cpu-ubi9-test/snowflake_connector_python-4.4.0-2-cp312-cp312-linux_ppc64le.whl --hash=sha256:59b6031b547f02e84f6e6032948c1f8b7be49fd430d3c21488d87a3170343af8
+--index-url https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.5-EA2/cpu-ubi9/simple/
+
+duckdb==1.5.3 \
+    --hash=sha256:1bf9c5699d62b4aef1f9635250762a68f8ed51e7d69c2f94800c2f2b9ae0f10e
+
+numpy==2.4.6 \
+    --hash=sha256:f07cd840335cc21424fdb1c31a6c1ff7acc27ea0d831c8b8ed30d83d952e9d89
+
+httptools==0.8.0 \
+    --hash=sha256:0d87c67fcf648e1b77acdd1eb0178be0a1252e3aeeec5985a9a7a87ae63dc05f
+
+grpcio==1.81.0 \
+    --hash=sha256:29a9464f0b2f53252958cc929c95641ea79ac4a0364a10d70ec20c0f86b85a26
+
+snowflake-connector-python==4.6.0 \
+    --hash=sha256:eeceee2769be282b2c5d50ca780dcf512dbdc50833071268c1050d7c7db79a26
+
+librt==0.11.0 \
+    --hash=sha256:675b97d0f0ba894e693ec8b6641b7790961725a4ad012e4937baa024fe3d6eb2

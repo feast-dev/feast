@@ -5,12 +5,13 @@ USER 0
 
 COPY requirements.txt requirements.txt
 
-# Run prebuild script conditionally (Power only)
+# Power (ppc64le) only: Install a known stable pyarrow version
+# to avoid compatibility issues with the version from requirements.
 RUN if [ "$(uname -m)" = "ppc64le" ]; then \
-        echo "Power architecture detected. installing required packages..."; \
-        pip install pyarrow==22.0.0 duckdb==1.4.3; \
+        echo "Power architecture detected. Installing pinned pyarrow version..."; \
+        pip install pyarrow==22.0.0; \
     else \
-        echo "Non-Power architecture detected; skipping Power prebuild"; \
+        echo "Non-Power architecture detected; skipping Power-specific pyarrow installation."; \
     fi
 
 RUN pip install -r requirements.txt
@@ -23,7 +24,7 @@ USER 0
 # Runtime shared libraries required by compiled Python extensions:
 #   libicu  - pyarrow (Arrow C++ depends on ICU)
 #   libpq   - psycopg[c] (PostgreSQL C adapter)
-RUN microdnf install -y git libicu libpq python3.12-devel postgresql-devel gcc && microdnf clean all
+RUN microdnf install -y git libicu libpq python3.12-devel postgresql-devel gcc openblas-devel && microdnf clean all
 
 # Copy installed Python packages and entry-point scripts from builder
 COPY --from=builder /opt/app-root/lib /opt/app-root/lib
