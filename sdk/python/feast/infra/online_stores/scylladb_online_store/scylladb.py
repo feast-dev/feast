@@ -52,6 +52,7 @@ E_SCYLLA_INCONSISTENT_AUTH = (
 # CQL templates
 # ---------------------------------------------------------------------------
 
+
 def _build_create_table_cql(fqtable: str, dim: Optional[int]) -> str:
     """Return a CREATE TABLE CQL string, optionally including the vector column.
 
@@ -352,7 +353,7 @@ class ScyllaDBOnlineStore(OnlineStore):
         # Connect without a keyspace first so we can create it if needed.
         session = self._cluster.connect()
         session.execute(
-            f"CREATE KEYSPACE IF NOT EXISTS \"{keyspace}\""
+            f'CREATE KEYSPACE IF NOT EXISTS "{keyspace}"'
             " WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor': '3'};"
         )
         session.set_keyspace(keyspace)
@@ -724,7 +725,9 @@ class ScyllaDBOnlineStore(OnlineStore):
                 "dot": "DOT_PRODUCT",
             }
             candidate = distance_metric.upper()
-            sim_func = _METRIC_ALIASES.get(distance_metric, _METRIC_ALIASES.get(candidate, candidate))
+            sim_func = _METRIC_ALIASES.get(
+                distance_metric, _METRIC_ALIASES.get(candidate, candidate)
+            )
 
         sim_expr_template = _SIM_FUNC_EXPR.get(sim_func)
         if sim_expr_template is None:
@@ -749,7 +752,9 @@ class ScyllaDBOnlineStore(OnlineStore):
         #   2. WHERE feature_name = ?              → vec_feature
         #   3. ORDER BY vector_value ANN OF ?      → embedding
         #   4. LIMIT ?                             → top_k
-        ann_rows = list(session.execute(ann_stmt, (embedding, vec_feature, embedding, top_k)))
+        ann_rows = list(
+            session.execute(ann_stmt, (embedding, vec_feature, embedding, top_k))
+        )
 
         if not ann_rows:
             return []
