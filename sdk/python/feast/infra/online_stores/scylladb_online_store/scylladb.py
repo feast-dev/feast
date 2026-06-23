@@ -52,18 +52,26 @@ E_SCYLLA_INCONSISTENT_AUTH = (
 # CQL templates
 # ---------------------------------------------------------------------------
 
-# Main feature table: one row per (entity_key, feature_name).
-# Vector data lives in its own dedicated table to match query patterns.
-CREATE_TABLE_CQL = """
-    CREATE TABLE IF NOT EXISTS {fqtable} (
-        entity_key   TEXT,
-        feature_name TEXT,
-        value        BLOB,
-        event_ts     TIMESTAMP,
-        created_ts   TIMESTAMP,
-        PRIMARY KEY ((entity_key), feature_name)
-    ) WITH CLUSTERING ORDER BY (feature_name ASC);
-"""
+def _build_create_table_cql(fqtable: str, dim: Optional[int]) -> str:
+    """Return a CREATE TABLE CQL string, optionally including the vector column.
+
+    When *dim* is given a ``vector_value vector<float, dim>`` column is inserted
+    between the BLOB ``value`` column and ``event_ts``.  When *dim* is ``None``
+    the column is omitted entirely and the table schema is fully static.
+    """
+    vec_col = f"vector_value vector<float, {dim}>,\n" if dim else ""
+    return (
+        f"CREATE TABLE IF NOT EXISTS {fqtable} (\n"
+        f"    entity_key   TEXT,\n"
+        f"    feature_name TEXT,\n"
+        f"    value        BLOB,\n"
+        f"    {vec_col}"
+        f"    event_ts     TIMESTAMP,\n"
+        f"    created_ts   TIMESTAMP,\n"
+        f"    PRIMARY KEY ((entity_key), feature_name)\n"
+        f");"
+    )
+
 
 DROP_TABLE_CQL = "DROP TABLE IF EXISTS {fqtable};"
 
@@ -77,43 +85,40 @@ INSERT_CQL_TTL = (
     " VALUES (?, ?, ?, ?, ?) USING TTL ?;"
 )
 
+# INSERT for vector feature rows: populates both the BLOB value (for online_read
+# compatibility) and the native vector_value column (for ANN search).
+# No TTL variant, ScyllaDB ignores TTL on vector-indexed columns, 
+# a future release will fix this,
+# combining TTL with vector features is rejected at feast apply time.
+INSERT_VEC_CQL = (
+    "INSERT INTO {fqtable}"
+    " (feature_name, value, entity_key, event_ts, created_ts, vector_value)"
+    " VALUES (?, ?, ?, ?, ?, ?);"
+)
+
 SELECT_CQL = "SELECT {columns} FROM {fqtable} WHERE entity_key = ?;"
 
-# Dedicated table to serve vector queries,
-# one row per entity, no feature_name column.
-# Named "{project}_{fv_name}__{feature_name}_vec".
-CREATE_VECTOR_TABLE_CQL = (
-    "CREATE TABLE IF NOT EXISTS {{fqvectable}} ("
-    "entity_key TEXT, "
-    "vector_value vector<float, {dim}>, "
-    "event_ts TIMESTAMP, "
-    "PRIMARY KEY (entity_key));"
-)
-
-DROP_VECTOR_TABLE_CQL = "DROP TABLE IF EXISTS {fqvectable};"
-
-INSERT_VEC_CQL = (
-    "INSERT INTO {fqvectable} (entity_key, vector_value, event_ts) VALUES (?, ?, ?);"
-)
-
+# Global vector index on the main feature table.
 CREATE_VECTOR_INDEX_CQL = (
     "CREATE CUSTOM INDEX IF NOT EXISTS {index_name}"
-    " ON {fqvectable} (vector_value)"
+    " ON {fqtable} (vector_value)"
     " USING 'vector_index'"
     " WITH OPTIONS = {{'similarity_function': '{sim_func}'}};"
 )
 
-# ANN query on the dedicated vector table.
+# ANN query on the main feature table.
+# ALLOW FILTERING is required because feature_name is a clustering key.
 ANN_SELECT_CQL = (
     "SELECT entity_key, {sim_func_call} AS score, event_ts"
-    " FROM {fqvectable}"
+    " FROM {fqtable}"
+    " WHERE feature_name = ?"
     " ORDER BY vector_value ANN OF ?"
-    " LIMIT ?;"
+    " LIMIT ?"
+    " ALLOW FILTERING;"
 )
 
 # op_name -> (template, prepare?)
 _CQL_TEMPLATES: Dict[str, Tuple[str, bool]] = {
-    "create": (CREATE_TABLE_CQL, False),
     "drop": (DROP_TABLE_CQL, False),
     "insert": (INSERT_CQL, True),
     "insert_ttl": (INSERT_CQL_TTL, True),
@@ -344,18 +349,19 @@ class ScyllaDBOnlineStore(OnlineStore):
             **cluster_kwargs,
         )
         self._keyspace = keyspace
-        self._session = self._cluster.connect(keyspace)
+        # Connect without a keyspace first so we can create it if needed.
+        session = self._cluster.connect()
+        session.execute(
+            f"CREATE KEYSPACE IF NOT EXISTS \"{keyspace}\""
+            " WITH replication = {'class': 'NetworkTopologyStrategy', 'replication_factor': '3'};"
+        )
+        session.set_keyspace(keyspace)
+        self._session = session
         return self._session
 
     @staticmethod
     def _fq_table_name(keyspace: str, project: str, table: FeatureView) -> str:
         return f'"{keyspace}"."{project}_{table.name}"'
-
-    @staticmethod
-    def _fq_vec_table_name(
-        keyspace: str, project: str, table: FeatureView, feature_name: str
-    ) -> str:
-        return f'"{keyspace}"."{project}_{table.name}__{feature_name}_vec"'
 
     def _get_statement(
         self, config: RepoConfig, op_name: str, fqtable: str, **kwargs: Any
@@ -387,23 +393,17 @@ class ScyllaDBOnlineStore(OnlineStore):
     ) -> None:
         session = self._get_session(config)
         fqtable = self._fq_table_name(self._keyspace, project, table)
+        dim = vec_features[0][1] if vec_features else None
         logger.info("Creating table %s.", fqtable)
-        session.execute(CREATE_TABLE_CQL.format(fqtable=fqtable))
+        session.execute(_build_create_table_cql(fqtable, dim))
 
-        for feat_name, dim, sim_func in vec_features or []:
-            fqvectable = self._fq_vec_table_name(
-                self._keyspace, project, table, feat_name
-            )
-            logger.info("Creating vector table %s.", fqvectable)
-            session.execute(
-                CREATE_VECTOR_TABLE_CQL.format(dim=dim).format(fqvectable=fqvectable)
-            )
-            index_name = f"{project}_{table.name}__{feat_name}_vec_idx"
-            logger.info("Creating vector index %s on %s.", index_name, fqvectable)
+        for _feat_name, _dim, sim_func in vec_features or []:
+            index_name = f"{project}_{table.name}_vec_idx"
+            logger.info("Creating vector index %s on %s.", index_name, fqtable)
             session.execute(
                 CREATE_VECTOR_INDEX_CQL.format(
                     index_name=index_name,
-                    fqvectable=fqvectable,
+                    fqtable=fqtable,
                     sim_func=sim_func,
                 )
             )
@@ -416,12 +416,6 @@ class ScyllaDBOnlineStore(OnlineStore):
         vec_features: Optional[List[Tuple[str, int, str]]] = None,
     ) -> None:
         session = self._get_session(config)
-        for feat_name, _dim, _sim in vec_features or []:
-            fqvectable = self._fq_vec_table_name(
-                self._keyspace, project, table, feat_name
-            )
-            logger.info("Dropping vector table %s.", fqvectable)
-            session.execute(DROP_VECTOR_TABLE_CQL.format(fqvectable=fqvectable))
         fqtable = self._fq_table_name(self._keyspace, project, table)
         logger.info("Dropping table %s.", fqtable)
         session.execute(DROP_TABLE_CQL.format(fqtable=fqtable))
@@ -447,6 +441,12 @@ class ScyllaDBOnlineStore(OnlineStore):
 
         for table in tables_to_keep:
             vec_features = _get_vector_features(table, default_sim)
+            if vec_features and table.ttl:
+                raise ValueError(
+                    f"FeatureView '{table.name}' has both a TTL and vector features. "
+                    "ScyllaDB does not support TTL on vector-indexed columns. "
+                    "Remove the TTL or the vector_index tag."
+                )
             self._create_table(config, project, table, vec_features=vec_features)
 
         for table in tables_to_delete:
@@ -503,14 +503,14 @@ class ScyllaDBOnlineStore(OnlineStore):
             int(table.ttl.total_seconds()) if table.ttl else None
         )
 
-        # --- regular table ---
+        vec_feature_set = {fn for fn, _, _ in vec_features}
         fqtable = self._fq_table_name(self._keyspace, project, table)
         insert_op = "insert_ttl" if ttl_seconds is not None else "insert"
         insert_stmt = self._get_statement(config, insert_op, fqtable)
 
         session = self._get_session(config)
 
-        # --- main table rows (all features) ---
+        # --- non-vector rows (all features except vector features) ---
         def _main_rows() -> Iterable[Tuple]:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
@@ -518,6 +518,8 @@ class ScyllaDBOnlineStore(OnlineStore):
                     entity_key_serialization_version=config.entity_key_serialization_version,
                 ).hex()
                 for feature_name, val in values.items():
+                    if feature_name in vec_feature_set:
+                        continue  # written separately via INSERT_VEC_CQL
                     row: Tuple = (
                         feature_name,
                         val.SerializeToString(),
@@ -541,33 +543,35 @@ class ScyllaDBOnlineStore(OnlineStore):
         if progress:
             progress(1)
 
-        # --- vector table rows (one per entity per vector feature) ---
-        for feat_name, _dim, _sim in vec_features:
-            fqvectable = self._fq_vec_table_name(
-                self._keyspace, project, table, feat_name
-            )
-            vec_insert_cql = INSERT_VEC_CQL.format(fqvectable=fqvectable)
+        # --- vector rows ---
+        # TTL is not used here: TTL + vector features is rejected at feast apply time,
+        # so this path is only reached for TTL-free feature views.
+        if vec_features:
+            vec_insert_cql = INSERT_VEC_CQL.format(fqtable=fqtable)
             if vec_insert_cql not in self._prepared_statements:
                 self._prepared_statements[vec_insert_cql] = session.prepare(
                     vec_insert_cql
                 )
             vec_insert_stmt = self._prepared_statements[vec_insert_cql]
 
-            def _vec_rows(
-                fn: str = feat_name,
-            ) -> Iterable[Tuple[str, Any, datetime]]:
-                for entity_key, values, timestamp, _created_ts in data:
-                    if fn not in values:
-                        continue
+            def _vec_rows() -> Iterable[Tuple]:
+                for entity_key, values, timestamp, created_ts in data:
                     entity_key_bin = serialize_entity_key(
                         entity_key,
                         entity_key_serialization_version=config.entity_key_serialization_version,
                     ).hex()
-                    yield (
-                        entity_key_bin,
-                        list(values[fn].float_list_val.val),
-                        timestamp,
-                    )
+                    for feat_name in vec_feature_set:
+                        if feat_name not in values:
+                            continue
+                        val = values[feat_name]
+                        yield (
+                            feat_name,
+                            val.SerializeToString(),
+                            entity_key_bin,
+                            timestamp,
+                            created_ts,
+                            list(val.float_list_val.val),
+                        )
 
             execute_concurrent_with_args(
                 session,
@@ -710,7 +714,17 @@ class ScyllaDBOnlineStore(OnlineStore):
 
         vec_feature, _dim, sim_func = vec_features[0]
         if distance_metric:
-            sim_func = distance_metric.upper()
+            # Normalize aliases: Feast core uses "L2" for Euclidean distance;
+            # "cosine" (lowercase) is the default in feature_store.py;
+            # "inner_product" / "dot" are aliases for dot-product similarity.
+            _METRIC_ALIASES = {
+                "L2": "EUCLIDEAN",
+                "cosine": "COSINE",
+                "inner_product": "DOT_PRODUCT",
+                "dot": "DOT_PRODUCT",
+            }
+            candidate = distance_metric.upper()
+            sim_func = _METRIC_ALIASES.get(distance_metric, _METRIC_ALIASES.get(candidate, candidate))
 
         sim_expr_template = _SIM_FUNC_EXPR.get(sim_func)
         if sim_expr_template is None:
@@ -720,19 +734,22 @@ class ScyllaDBOnlineStore(OnlineStore):
             )
         sim_expr = sim_expr_template
 
-        fqvectable = self._fq_vec_table_name(
-            self._keyspace, project, table, vec_feature
-        )
+        fqtable = self._fq_table_name(self._keyspace, project, table)
         ann_cql = ANN_SELECT_CQL.format(
             sim_func_call=sim_expr,
-            fqvectable=fqvectable,
+            fqtable=fqtable,
         )
 
         session = self._get_session(config)
         if ann_cql not in self._prepared_statements:
             self._prepared_statements[ann_cql] = session.prepare(ann_cql)
         ann_stmt = self._prepared_statements[ann_cql]
-        ann_rows = list(session.execute(ann_stmt, (embedding, embedding, top_k)))
+        # Parameter order matches the placeholders in ANN_SELECT_CQL:
+        #   1. similarity_<func>(vector_value, ?)  → embedding
+        #   2. WHERE feature_name = ?              → vec_feature
+        #   3. ORDER BY vector_value ANN OF ?      → embedding
+        #   4. LIMIT ?                             → top_k
+        ann_rows = list(session.execute(ann_stmt, (embedding, vec_feature, embedding, top_k)))
 
         if not ann_rows:
             return []
@@ -743,8 +760,7 @@ class ScyllaDBOnlineStore(OnlineStore):
             row.entity_key: row.event_ts for row in ann_rows
         }
 
-        # Batch-fetch full feature values from the main table
-        fqtable = self._fq_table_name(self._keyspace, project, table)
+        # Batch-fetch full feature values from the same main table
         select_stmt = self._get_statement(
             config, "select", fqtable, columns="feature_name, value, event_ts"
         )
