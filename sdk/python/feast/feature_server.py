@@ -555,6 +555,14 @@ def get_app(
             "/v1/vector_stores/{vector_store_id}/search"
         ):
             try:
+                feature_view = await run_in_threadpool(
+                    store.get_feature_view, vector_store_id
+                )
+                assert_permissions(
+                    resource=feature_view,
+                    actions=[AuthzedAction.READ_ONLINE],
+                )
+
                 result = await store.retrieve_online_documents_openai(
                     vector_store_id=vector_store_id,
                     query=request.query,
@@ -579,6 +587,16 @@ def get_app(
                         "error": {
                             "message": f"No vector store found with id '{vector_store_id}'",
                             "type": "not_found_error",
+                        }
+                    },
+                )
+            except ValueError as e:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "error": {
+                            "message": str(e),
+                            "type": "invalid_request_error",
                         }
                     },
                 )

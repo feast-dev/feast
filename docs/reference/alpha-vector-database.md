@@ -107,7 +107,7 @@ The endpoint supports OpenAI-style filters for narrowing results beyond vector s
 }
 ```
 
-String equality filters work on all backends. Numeric and boolean filters require `enable_openai_compatible_store: true` in the online store config.
+For Postgres and SQLite backends, all filtering (including string equality) requires `enable_openai_compatible_store: true` in the online store config. After enabling, run `feast apply` to update the database schema.
 
 ### Response format
 

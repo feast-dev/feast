@@ -3959,10 +3959,11 @@ class FeatureStore:
             query: Natural language query string, or list of strings.
             max_num_results: Maximum number of results to return.
             filters: OpenAI-compatible filters applied to the search.
-            ranking_options: OpenAI-compatible ranking options (accepted
-                but not yet applied).
-            rewrite_query: Whether to rewrite the query (accepted but
-                not yet applied).
+            ranking_options: OpenAI-compatible ranking options. Currently
+                unsupported; a ``ValueError`` is raised if
+                ``score_threshold`` or ``ranker`` are provided.
+            rewrite_query: Whether to rewrite the query. Currently
+                unsupported; a ``ValueError`` is raised if set.
             features_to_retrieve: Specific feature names to return.
                 If None, all features from the feature view are used.
 
@@ -3991,12 +3992,29 @@ class FeatureStore:
                     features_to_retrieve=["name", "description"],
                 )
         """
+        unsupported: List[str] = []
+        if ranking_options:
+            if ranking_options.get("score_threshold") is not None:
+                unsupported.append("ranking_options.score_threshold")
+            if ranking_options.get("ranker") is not None:
+                unsupported.append("ranking_options.ranker")
+        if rewrite_query is not None:
+            unsupported.append("rewrite_query")
+        if unsupported:
+            raise ValueError(
+                f"The following parameters are not yet supported: "
+                f"{', '.join(unsupported)}. Remove them from the request or "
+                f"wait for a future release that implements them."
+            )
+
         feature_view = self.get_feature_view(vector_store_id)
 
         if features_to_retrieve:
             feature_names = features_to_retrieve
         else:
-            feature_names = [f.name for f in feature_view.features]
+            feature_names = [
+                f.name for f in feature_view.features if not f.vector_index
+            ]
 
         features = [f"{feature_view.name}:{name}" for name in feature_names]
         query_text = query if isinstance(query, str) else " ".join(query)

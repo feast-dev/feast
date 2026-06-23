@@ -488,6 +488,8 @@ class RemoteOnlineStore(OnlineStore):
             result_tuples = []
             if requested_features is None:
                 requested_features = []
+            else:
+                requested_features = list(requested_features)
             if "distance" not in requested_features:
                 requested_features.append("distance")
             for row_idx in range(num_results):
