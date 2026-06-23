@@ -87,7 +87,7 @@ INSERT_CQL_TTL = (
 
 # INSERT for vector feature rows: populates both the BLOB value (for online_read
 # compatibility) and the native vector_value column (for ANN search).
-# No TTL variant, ScyllaDB ignores TTL on vector-indexed columns, 
+# No TTL variant, ScyllaDB ignores TTL on vector-indexed columns,
 # a future release will fix this,
 # combining TTL with vector features is rejected at feast apply time.
 INSERT_VEC_CQL = (
