@@ -111,6 +111,35 @@ type OpenLineageConfig struct {
 	// Keys must be valid Feast OpenLineageConfig YAML field names.
 	// +optional
 	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+	// Consumer configures the OpenLineage consumer (event receiver) that enables
+	// Feast to receive and display lineage from external producers (Airflow, Spark, dbt, etc.).
+	// +optional
+	Consumer *OpenLineageConsumerConfig `json:"consumer,omitempty"`
+}
+
+// OpenLineageConsumerConfig configures the OpenLineage consumer (event receiver).
+// When enabled, the Feast REST server exposes POST /api/v1/lineage to receive
+// OpenLineage events from any producer, storing them for visualization in the Feast UI.
+type OpenLineageConsumerConfig struct {
+	// Enable the OpenLineage consumer.
+	Enabled bool `json:"enabled"`
+	// StoreType is the storage backend for lineage events. Currently only "sql" is supported.
+	// +kubebuilder:default="sql"
+	// +kubebuilder:validation:Enum=sql
+	// +optional
+	StoreType *string `json:"storeType,omitempty"`
+	// Reference to a Secret containing the key "connection_string" for a separate
+	// lineage database. If omitted, the SQL registry database is reused.
+	// +optional
+	ConnectionStringSecretRef *corev1.LocalObjectReference `json:"connectionStringSecretRef,omitempty"`
+	// Reference to a Secret containing the key "api_key" that producers must
+	// provide in the X-API-Key header when sending events.
+	// +optional
+	ApiKeySecretRef *corev1.LocalObjectReference `json:"apiKeySecretRef,omitempty"`
+	// NamespaceMapping maps OpenLineage namespaces to Feast projects for
+	// RBAC-based filtering of lineage data in the UI.
+	// +optional
+	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
 }
 
 // FeatureStoreSpec defines the desired state of FeatureStore

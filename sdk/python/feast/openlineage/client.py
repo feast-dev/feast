@@ -82,6 +82,8 @@ class FeastOpenLineageClient:
                    load from environment variables.
             feature_store: Optional FeatureStore instance for context.
         """
+        self._local_processor = None
+
         if not OPENLINEAGE_AVAILABLE:
             logger.warning(
                 "OpenLineage is not installed. Lineage events will not be emitted. "
@@ -132,6 +134,23 @@ class FeastOpenLineageClient:
         """Get the default namespace."""
         return self._config.namespace
 
+    def set_local_processor(self, processor) -> None:
+        """Attach a local OpenLineageProcessor so emitted events are also ingested locally."""
+        self._local_processor = processor
+
+    def _event_to_dict(self, event: Any) -> Optional[Dict[str, Any]]:
+        """Convert an OL event object to a plain dict for the local processor."""
+        try:
+            if hasattr(event, "to_dict"):
+                return event.to_dict()
+            if hasattr(event, "__dict__"):
+                import json
+
+                return json.loads(json.dumps(event, default=str))
+        except Exception as e:
+            logger.debug(f"Could not serialize event for local processor: {e}")
+        return None
+
     def emit(self, event: Any) -> bool:
         """
         Emit an OpenLineage event.
@@ -148,6 +167,15 @@ class FeastOpenLineageClient:
 
         try:
             self._client.emit(event)
+
+            if self._local_processor is not None:
+                event_dict = self._event_to_dict(event)
+                if event_dict:
+                    try:
+                        self._local_processor.process_event(event_dict)
+                    except Exception as le:
+                        logger.debug(f"Local processor ingest failed (non-fatal): {le}")
+
             return True
         except Exception as e:
             logger.error(f"Failed to emit OpenLineage event: {e}")
