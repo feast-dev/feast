@@ -33,6 +33,8 @@ import type {
   OpenLineageGraphData,
   OpenLineageNode,
 } from "../queries/useLoadOpenLineageGraph";
+import { useRunHistory, useRunDetail } from "../queries/useLoadRunHistory";
+import type { RunSummary } from "../queries/useLoadRunHistory";
 
 const nodeWidth = 280;
 const nodeHeight = 65;
@@ -309,6 +311,189 @@ const ProducerLegend: React.FC<{ producers: string[] }> = ({ producers }) => {
           <div style={{ fontSize: 12, color: text }}>{item.label}</div>
         </div>
       ))}
+    </div>
+  );
+};
+
+// ── Run History helpers ──
+
+const formatTimestamp = (ts: number | null): string => {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString();
+};
+
+const formatDuration = (start: number | null, end: number | null): string => {
+  if (!start || !end) return "—";
+  const ms = end - start;
+  if (ms < 1000) return `${ms}ms`;
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${s % 60}s`;
+};
+
+const stateColor = (state: string): string => {
+  switch (state.toUpperCase()) {
+    case "COMPLETE":
+      return "#00BFB3";
+    case "FAIL":
+      return "#FF6666";
+    case "RUNNING":
+    case "START":
+      return "#6092C0";
+    case "ABORT":
+      return "#D36086";
+    default:
+      return "#98A2B3";
+  }
+};
+
+const RunHistorySection: React.FC<{
+  jobNamespace: string;
+  jobName: string;
+  isDarkMode: boolean;
+}> = ({ jobNamespace, jobName, isDarkMode }) => {
+  const { data, isLoading } = useRunHistory(jobNamespace, jobName);
+  const [selectedRunId, setSelectedRunId] = useState<string | undefined>();
+  const { data: runDetail, isLoading: detailLoading } =
+    useRunDetail(selectedRunId);
+
+  const runs = data?.runs || [];
+
+  if (isLoading) {
+    return (
+      <div style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Run History</div>
+        <EuiLoadingSpinner size="s" />
+      </div>
+    );
+  }
+
+  if (runs.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+        Run History ({runs.length})
+      </div>
+      <table
+        style={{
+          width: "100%",
+          fontSize: 11,
+          borderCollapse: "collapse",
+        }}
+      >
+        <thead>
+          <tr
+            style={{
+              borderBottom: `1px solid ${isDarkMode ? "#343741" : "#ddd"}`,
+            }}
+          >
+            <th style={{ textAlign: "left", padding: "4px 0" }}>Run</th>
+            <th style={{ textAlign: "left", padding: "4px 0" }}>Status</th>
+            <th style={{ textAlign: "left", padding: "4px 0" }}>Started</th>
+            <th style={{ textAlign: "left", padding: "4px 0" }}>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((run: RunSummary) => (
+            <tr
+              key={run.run_id}
+              style={{
+                borderBottom: `1px solid ${isDarkMode ? "#2a2b30" : "#eee"}`,
+                cursor: "pointer",
+                background:
+                  selectedRunId === run.run_id
+                    ? isDarkMode
+                      ? "#2a2b30"
+                      : "#f0f4ff"
+                    : "transparent",
+              }}
+              onClick={() =>
+                setSelectedRunId(
+                  selectedRunId === run.run_id ? undefined : run.run_id,
+                )
+              }
+            >
+              <td
+                style={{
+                  padding: "3px 0",
+                  fontFamily: "monospace",
+                  fontSize: 10,
+                }}
+                title={run.run_id}
+              >
+                {run.run_id.substring(0, 8)}…
+              </td>
+              <td style={{ padding: "3px 0" }}>
+                <EuiBadge color={stateColor(run.state)}>{run.state}</EuiBadge>
+              </td>
+              <td style={{ padding: "3px 0", fontSize: 10 }}>
+                {formatTimestamp(run.started_at)}
+              </td>
+              <td style={{ padding: "3px 0", fontSize: 10 }}>
+                {formatDuration(run.started_at, run.ended_at)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {selectedRunId && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: 8,
+            background: isDarkMode ? "#25262b" : "#f7f8fc",
+            borderRadius: 4,
+            fontSize: 11,
+          }}
+        >
+          {detailLoading ? (
+            <EuiLoadingSpinner size="s" />
+          ) : runDetail ? (
+            <>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Run {runDetail.run_id.substring(0, 8)}… I/O
+              </div>
+              {runDetail.inputs.length > 0 && (
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ color: "#888", marginBottom: 2 }}>Inputs:</div>
+                  {runDetail.inputs.map((io) => (
+                    <div
+                      key={`${io.namespace}:${io.name}`}
+                      style={{ fontFamily: "monospace", paddingLeft: 8 }}
+                    >
+                      {io.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {runDetail.outputs.length > 0 && (
+                <div>
+                  <div style={{ color: "#888", marginBottom: 2 }}>Outputs:</div>
+                  {runDetail.outputs.map((io) => (
+                    <div
+                      key={`${io.namespace}:${io.name}`}
+                      style={{ fontFamily: "monospace", paddingLeft: 8 }}
+                    >
+                      {io.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {runDetail.inputs.length === 0 &&
+                runDetail.outputs.length === 0 && (
+                  <div style={{ color: "#888" }}>
+                    No I/O recorded for this run
+                  </div>
+                )}
+            </>
+          ) : (
+            <div style={{ color: "#888" }}>Run details not available</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -655,6 +840,14 @@ const NodeDetailPanel: React.FC<{
             </div>
           ))}
         </div>
+      )}
+
+      {node.type === "job" && (
+        <RunHistorySection
+          jobNamespace={node.namespace}
+          jobName={node.name}
+          isDarkMode={isDarkMode}
+        />
       )}
     </div>
   );

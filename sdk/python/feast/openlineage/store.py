@@ -652,6 +652,117 @@ class OpenLineageStore:
             rows = conn.execute(select(tbl)).fetchall()
             return [dict(r._mapping) for r in rows]
 
+    # ── Cleanup methods ──
+
+    def purge_all(self):
+        """Delete all data from all OpenLineage tables."""
+        table_order = [
+            "run_io",
+            "runs",
+            "lineage_edges",
+            "dataset_symlinks",
+            "events",
+            "datasets",
+            "jobs",
+        ]
+        with self._engine.begin() as conn:
+            for tbl_name in table_order:
+                conn.execute(OL_TABLES[tbl_name].delete())
+        logger.info("Purged all OpenLineage data")
+
+    def purge_namespace(self, namespace: str):
+        """Delete all data associated with a specific namespace."""
+        with self._engine.begin() as conn:
+            tbl_runs = OL_TABLES["runs"]
+            run_ids_q = select(tbl_runs.c.run_id).where(
+                tbl_runs.c.job_namespace == namespace
+            )
+            run_ids = [r[0] for r in conn.execute(run_ids_q).fetchall()]
+            if run_ids:
+                tbl_rio = OL_TABLES["run_io"]
+                conn.execute(tbl_rio.delete().where(tbl_rio.c.run_id.in_(run_ids)))
+                conn.execute(tbl_runs.delete().where(tbl_runs.c.run_id.in_(run_ids)))
+
+            tbl_ev = OL_TABLES["events"]
+            conn.execute(tbl_ev.delete().where(tbl_ev.c.job_namespace == namespace))
+
+            tbl_edges = OL_TABLES["lineage_edges"]
+            conn.execute(
+                tbl_edges.delete().where(
+                    (tbl_edges.c.source_namespace == namespace)
+                    | (tbl_edges.c.target_namespace == namespace)
+                )
+            )
+
+            tbl_sym = OL_TABLES["dataset_symlinks"]
+            conn.execute(
+                tbl_sym.delete().where(
+                    (tbl_sym.c.dataset_namespace == namespace)
+                    | (tbl_sym.c.linked_namespace == namespace)
+                )
+            )
+
+            tbl_ds = OL_TABLES["datasets"]
+            conn.execute(tbl_ds.delete().where(tbl_ds.c.dataset_namespace == namespace))
+
+            tbl_jobs = OL_TABLES["jobs"]
+            conn.execute(tbl_jobs.delete().where(tbl_jobs.c.job_namespace == namespace))
+
+        logger.info(f"Purged OpenLineage data for namespace: {namespace}")
+
+    # ── Run query methods ──
+
+    def get_runs(
+        self,
+        job_namespace: Optional[str] = None,
+        job_name: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """Get runs, optionally filtered by job."""
+        tbl = OL_TABLES["runs"]
+        query = (
+            select(tbl).order_by(tbl.c.updated_at.desc()).limit(limit).offset(offset)
+        )
+        if job_namespace:
+            query = query.where(tbl.c.job_namespace == job_namespace)
+        if job_name:
+            query = query.where(tbl.c.job_name == job_name)
+        with self._engine.connect() as conn:
+            rows = conn.execute(query).fetchall()
+            return [dict(row._mapping) for row in rows]
+
+    def get_run_detail(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single run with its I/O datasets."""
+        tbl_runs = OL_TABLES["runs"]
+        tbl_rio = OL_TABLES["run_io"]
+        with self._engine.connect() as conn:
+            run_row = conn.execute(
+                select(tbl_runs).where(tbl_runs.c.run_id == run_id)
+            ).first()
+            if not run_row:
+                return None
+            run = dict(run_row._mapping)
+
+            io_rows = conn.execute(
+                select(tbl_rio).where(tbl_rio.c.run_id == run_id)
+            ).fetchall()
+            run["inputs"] = []
+            run["outputs"] = []
+            for io_row in io_rows:
+                io = dict(io_row._mapping)
+                entry = {
+                    "namespace": io["dataset_namespace"],
+                    "name": io["dataset_name"],
+                    "facets": _safe_parse_json(io.get("facets_json")),
+                }
+                if io["io_type"] == "INPUT":
+                    run["inputs"].append(entry)
+                else:
+                    run["outputs"].append(entry)
+            run["facets"] = _safe_parse_json(run.pop("facets_json", None))
+            return run
+
     def get_all_lineage_edges(
         self, namespaces: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
@@ -665,6 +776,15 @@ class OpenLineageStore:
         with self._engine.connect() as conn:
             rows = conn.execute(query).fetchall()
             return [dict(row._mapping) for row in rows]
+
+
+def _safe_parse_json(val: Optional[str]) -> Optional[Any]:
+    if not val:
+        return None
+    try:
+        return json.loads(val)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def _parse_timestamp(ts_str: str) -> int:

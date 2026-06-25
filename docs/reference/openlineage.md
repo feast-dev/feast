@@ -311,6 +311,12 @@ When the consumer is enabled, the following endpoints are available on the Feast
 
 Both endpoints require the `X-API-Key` header (or `Authorization: Bearer <key>`) if `consumer.api_key` is configured.
 
+#### Admin Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/lineage/openlineage/reset` | `DELETE` | Purge all OpenLineage data. Accepts optional `?namespace=X` to delete only a specific namespace. Requires API key. |
+
 #### OpenLineage Query Endpoints (UI-facing)
 
 | Endpoint | Method | Description |
@@ -320,6 +326,8 @@ Both endpoints require the `X-API-Key` header (or `Authorization: Bearer <key>`)
 | `/lineage/openlineage/events` | `GET` | Browse stored events with filtering |
 | `/lineage/openlineage/jobs` | `GET` | List all known OpenLineage jobs |
 | `/lineage/openlineage/datasets` | `GET` | List all known OpenLineage datasets |
+| `/lineage/openlineage/runs` | `GET` | List runs with optional `?job_namespace=X&job_name=Y` filtering |
+| `/lineage/openlineage/runs/{run_id}` | `GET` | Single run detail with input/output datasets |
 
 #### Registry Query Endpoints
 
@@ -381,7 +389,7 @@ When the consumer is enabled, the lineage page in the Feast UI shows two tabs:
 
 **Lineage tab**
 
-- **OpenLineage Graph** (default) — shows lineage from all OpenLineage producers with cross-producer connectivity. Nodes are color-coded by producer (colors generated dynamically). The graph supports filtering by type, producer, and object name. Clicking a node opens a **detail panel** showing description, schema, tags, features, entities, data quality metrics, data source info, and other facets.
+- **OpenLineage Graph** (default) — shows lineage from all OpenLineage producers with cross-producer connectivity. Nodes are color-coded by producer (colors generated dynamically). The graph supports filtering by type, producer, and object name. Clicking a node opens a **detail panel** showing description, schema, tags, features, entities, data quality metrics, data source info, other facets, and **run history** (for job nodes — see [Per-Run Lineage](#per-run-lineage-run-history)).
 - **Feast Only Lineage** (checkbox) — switches to the original Feast registry view (DataSource → FeatureView → FeatureService) powered entirely by the Feast registry.
 
 **Events tab**
@@ -404,6 +412,54 @@ The OpenLineage consumer integrates with Feast's existing RBAC:
 
 - **Write access** (producers sending events): Authenticated via API key in the `X-API-Key` header
 - **Read access** (UI viewing lineage): Namespace-based filtering maps OpenLineage namespaces to Feast projects. Users see only lineage data for namespaces they have access to via the `namespace_mapping` configuration
+
+### Lineage Cleanup / Reset
+
+Over time the OpenLineage store accumulates historical data. Two mechanisms are provided for cleanup:
+
+#### Admin Reset Endpoint
+
+Use the `DELETE /lineage/openlineage/reset` endpoint to purge lineage data. The endpoint requires the same API key used for event ingestion.
+
+```bash
+# Purge ALL OpenLineage data
+curl -X DELETE -H "X-API-Key: your-key" \
+  http://localhost:8080/api/v1/lineage/openlineage/reset
+
+# Purge only a specific namespace
+curl -X DELETE -H "X-API-Key: your-key" \
+  "http://localhost:8080/api/v1/lineage/openlineage/reset?namespace=airflow://prod-cluster"
+```
+
+A full purge deletes data from all seven `openlineage_*` tables. A namespace-scoped purge deletes jobs, datasets, runs, events, edges, and symlinks associated with that namespace, leaving other namespaces intact.
+
+#### Feast Teardown Hook
+
+When you run `feast teardown`, Feast automatically cleans up OpenLineage data for the project's namespace (if the consumer is configured). This ensures that tearing down a Feast project doesn't leave orphaned lineage data behind.
+
+```bash
+# Tears down the Feast project AND its OpenLineage lineage
+feast teardown
+```
+
+### Per-Run Lineage (Run History)
+
+The consumer tracks individual pipeline runs in the `openlineage_runs` table. When you click on a **job node** in the OpenLineage Graph, the detail panel shows a **Run History** section with:
+
+- A table of past runs: truncated run ID, status badge (COMPLETE, FAIL, RUNNING, ABORT), start time, and duration
+- Click any run to expand its **inputs and outputs** — the specific datasets that run consumed and produced
+
+#### Run History API
+
+```bash
+# List runs for a specific job
+curl "http://localhost:8080/api/v1/lineage/openlineage/runs?job_namespace=spark://emr-cluster&job_name=feature_engineering"
+
+# Get a single run with its I/O datasets
+curl "http://localhost:8080/api/v1/lineage/openlineage/runs/{run_id}"
+```
+
+The run detail response includes `inputs` and `outputs` arrays, each containing the dataset namespace, name, and any I/O facets recorded by the producer.
 
 ### Database Schema
 

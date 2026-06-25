@@ -166,6 +166,31 @@ def get_consumer_router(
             },
         )
 
+    # ── Admin endpoints ──
+
+    @router.delete("/lineage/openlineage/reset")
+    async def reset_lineage(
+        namespace: Optional[str] = Query(None),
+        x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+        authorization: Optional[str] = Header(None),
+    ):
+        """
+        Purge OpenLineage data. Requires API key.
+
+        If ?namespace=X is provided, only that namespace's data is deleted.
+        Otherwise, all OpenLineage data is purged.
+        """
+        api_key = getattr(config, "consumer_api_key", None)
+        if not _verify_api_key(api_key, x_api_key, authorization):
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        if namespace:
+            store.purge_namespace(namespace)
+            return {"status": "success", "message": f"Purged namespace: {namespace}"}
+        else:
+            store.purge_all()
+            return {"status": "success", "message": "Purged all OpenLineage data"}
+
     # ── Query endpoints ──
 
     @router.get("/lineage/openlineage/events")
@@ -282,6 +307,32 @@ def get_consumer_router(
         symlinks = store.get_all_symlinks()
 
         return {"nodes": nodes, "edges": edges, "symlinks": symlinks}
+
+    # ── Run history endpoints ──
+
+    @router.get("/lineage/openlineage/runs")
+    def list_runs(
+        job_namespace: Optional[str] = Query(None),
+        job_name: Optional[str] = Query(None),
+        limit: int = Query(50, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+    ):
+        """List runs, optionally filtered by job namespace and name."""
+        runs = store.get_runs(
+            job_namespace=job_namespace,
+            job_name=job_name,
+            limit=limit,
+            offset=offset,
+        )
+        return {"runs": runs, "total": len(runs)}
+
+    @router.get("/lineage/openlineage/runs/{run_id}")
+    def get_run_detail(run_id: str):
+        """Get a single run with its input and output datasets."""
+        run = store.get_run_detail(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        return run
 
     def _get_namespace_filter(ns_callable) -> Optional[List[str]]:
         if ns_callable:
