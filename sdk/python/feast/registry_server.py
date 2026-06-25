@@ -35,6 +35,7 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.protos.feast.registry.RegistryServer_pb2 import Feature, ListFeaturesResponse
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -179,6 +180,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def __init__(self, registry: BaseRegistry) -> None:
         super().__init__()
         self.proxied_registry = registry
+
+    def Proto(self, request: Empty, context) -> RegistryProto:
+        return self.proxied_registry.proto()
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
         entity = cast(
