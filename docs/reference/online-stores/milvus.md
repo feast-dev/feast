@@ -12,9 +12,9 @@ In order to use this online store, you'll need to install the Milvus extra (alon
 `pip install 'feast[milvus]'`
 
 {% hint style="warning" %}
-**Migrating from milvus-lite 2.x.x to 3.0.0+**
+**Upgrading to milvus-lite 3.0.0+**
 
-Feast now requires `milvus-lite>=3.0.0`. The `.db` files created by the original milvus-lite 2.x.x storage format are **not compatible** with the milvus-lite 3.0.0+ engine. If you are upgrading from a previous version, you will need to re-import your data into a new database — automatic migration is not available.
+Feast supports both milvus-lite 2.x and 3.x. However, if you upgrade from milvus-lite 2.x.x to 3.0.0+, the `.db` files created by the original storage format are **not compatible** with the milvus-lite 3.0.0+ engine. You will need to re-import your data into a new database — automatic migration is not available.
 
 See the [milvus-lite GitHub page](https://github.com/milvus-io/milvus-lite) for more details.
 {% endhint %}
