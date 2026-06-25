@@ -1,17 +1,28 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   EuiPageTemplate,
   EuiTitle,
   EuiSpacer,
   EuiSkeletonText,
   EuiEmptyPrompt,
+  EuiButtonGroup,
 } from "@elastic/eui";
 
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import RegistryVisualizationTab from "../../components/RegistryVisualizationTab";
+import { LineageGraph } from "../../components/OpenLineageGraph";
+import LineageEventsList from "../../components/LineageEventsList";
+import { useLoadOpenLineageGraph } from "../../queries/useLoadOpenLineageGraph";
 import { useParams } from "react-router-dom";
+
+type ActiveTab = "lineage" | "events";
+
+const tabButtons = [
+  { id: "lineage", label: "Lineage" },
+  { id: "events", label: "Events" },
+];
 
 const LineagePage = () => {
   useDocumentTitle("Feast Lineage");
@@ -22,7 +33,14 @@ const LineagePage = () => {
     projectName,
   );
 
-  // Show message for "All Projects" view
+  const [activeTab, setActiveTab] = useState<ActiveTab>("lineage");
+  const [registryOnly, setRegistryOnly] = useState(false);
+
+  const olGraphQuery = useLoadOpenLineageGraph();
+
+  const olConsumerAvailable =
+    !olGraphQuery.isError && olGraphQuery.data !== undefined;
+
   if (projectName === "all") {
     return (
       <EuiPageTemplate panelled>
@@ -81,7 +99,66 @@ const LineagePage = () => {
           />
         )}
 
-        {isSuccess && <RegistryVisualizationTab />}
+        {isSuccess && (
+          <>
+            {olConsumerAvailable ? (
+              <>
+                <EuiButtonGroup
+                  legend="Select lineage tab"
+                  options={tabButtons}
+                  idSelected={activeTab}
+                  onChange={(id) => setActiveTab(id as ActiveTab)}
+                  buttonSize="m"
+                  isFullWidth={false}
+                />
+                <EuiSpacer size="l" />
+
+                {activeTab === "lineage" && (
+                  <>
+                    {registryOnly ? (
+                      <RegistryVisualizationTab
+                        feastOnlyCheckbox={
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={registryOnly}
+                              onChange={(e) =>
+                                setRegistryOnly(e.target.checked)
+                              }
+                            />
+                            {" Feast Only Lineage"}
+                          </label>
+                        }
+                      />
+                    ) : (
+                      <LineageGraph
+                        olData={olGraphQuery.data}
+                        olLoading={olGraphQuery.isLoading}
+                        olError={olGraphQuery.isError}
+                        feastOnlyCheckbox={
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={registryOnly}
+                              onChange={(e) =>
+                                setRegistryOnly(e.target.checked)
+                              }
+                            />
+                            {" Feast Only Lineage"}
+                          </label>
+                        }
+                      />
+                    )}
+                  </>
+                )}
+
+                {activeTab === "events" && <LineageEventsList />}
+              </>
+            ) : (
+              <RegistryVisualizationTab />
+            )}
+          </>
+        )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
