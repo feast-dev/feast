@@ -7,6 +7,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestParseFVSampleRate_Default(t *testing.T) {
+	os.Unsetenv("FEAST_FV_METRICS_SAMPLE_RATE")
+	os.Unsetenv("FEAST_METRICS_SAMPLE_RATE")
+	assert.Equal(t, DefaultFVSampleRate, ParseFVSampleRate())
+}
+
+func TestParseFVSampleRate_FVSpecificEnvVar(t *testing.T) {
+	os.Setenv("FEAST_FV_METRICS_SAMPLE_RATE", "0.2")
+	defer os.Unsetenv("FEAST_FV_METRICS_SAMPLE_RATE")
+	assert.Equal(t, 0.2, ParseFVSampleRate())
+}
+
+func TestIsMetricsClientEnabled(t *testing.T) {
+	os.Unsetenv("ENABLE_FV_LEVEL_METRICS")
+	os.Unsetenv("ENABLE_MISSING_KEY_METRICS")
+	assert.False(t, IsMetricsClientEnabled())
+
+	os.Setenv("ENABLE_FV_LEVEL_METRICS", "true")
+	assert.True(t, IsMetricsClientEnabled())
+	os.Unsetenv("ENABLE_FV_LEVEL_METRICS")
+
+	os.Setenv("ENABLE_MISSING_KEY_METRICS", "true")
+	assert.True(t, IsMetricsClientEnabled())
+	os.Unsetenv("ENABLE_MISSING_KEY_METRICS")
+}
+
 func TestGetStatsDAddress(t *testing.T) {
 	tests := []struct {
 		name     string

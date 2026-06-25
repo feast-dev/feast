@@ -33,6 +33,7 @@ type HttpServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService
 	metricsClient  metrics.StatsdClient
+	metricsCtx     *MetricsContext
 	config         *registry.RepoConfig
 	server         *http.Server
 }
@@ -325,7 +326,13 @@ type getOnlineFeaturesRequest struct {
 }
 
 func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService, metricsClient metrics.StatsdClient, config *registry.RepoConfig) *HttpServer {
-	return &HttpServer{fs: fs, loggingService: loggingService, metricsClient: metricsClient, config: config}
+	return &HttpServer{
+		fs:             fs,
+		loggingService: loggingService,
+		metricsClient:  metricsClient,
+		metricsCtx:     NewMetricsContext(metricsClient, config),
+		config:         config,
+	}
 }
 
 func parseIncludeMetadata(r *http.Request) (bool, error) {
@@ -408,6 +415,9 @@ func (s *HttpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		requestContextProto[key] = value.ToProto()
 	}
 
+	fvNames := extractFVNamesFromRequest(request.Features, featureService)
+	t0 := time.Now()
+
 	featureVectors, err = s.fs.GetOnlineFeatures(
 		ctx,
 		request.Features,
@@ -415,6 +425,8 @@ func (s *HttpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		entitiesProto,
 		requestContextProto,
 		request.FullFeatureNames)
+
+	latencyMs := float64(time.Since(t0).Microseconds()) / 1000.0
 
 	defer func() {
 		if featureVectors != nil {
@@ -424,19 +436,13 @@ func (s *HttpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting feature vector")
+		s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, true)
 		writeJSONError(w, fmt.Errorf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
 		return
 	}
 
-	if s.metricsClient != nil && s.config != nil {
-		agg := metrics.NewLookupMetricsAggregator(
-			s.config.Project,
-			metrics.GetOnlineStoreType(s.config),
-			s.metricsClient,
-		)
-		agg.RecordFromFeatureVectors(featureVectors)
-		agg.Emit()
-	}
+	s.metricsCtx.EmitLookupMetrics(featureVectors)
+	s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, false)
 
 	var featureNames []string
 	var results []map[string]interface{}
@@ -619,6 +625,9 @@ func (s *HttpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	fvNames := extractFVNamesFromRequest(request.Features, featureService)
+	t0 := time.Now()
+
 	rangeFeatureVectors, err := s.fs.GetOnlineFeaturesRange(
 		ctx,
 		request.Features,
@@ -630,6 +639,8 @@ func (s *HttpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		requestContextProto,
 		request.FullFeatureNames)
 
+	latencyMs := float64(time.Since(t0).Microseconds()) / 1000.0
+
 	defer func() {
 		if rangeFeatureVectors != nil {
 			go releaseCGORangeMemory(rangeFeatureVectors)
@@ -638,19 +649,13 @@ func (s *HttpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting range feature vectors")
+		s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, true)
 		writeJSONError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	if s.metricsClient != nil && s.config != nil {
-		agg := metrics.NewLookupMetricsAggregator(
-			s.config.Project,
-			metrics.GetOnlineStoreType(s.config),
-			s.metricsClient,
-		)
-		agg.RecordFromRangeFeatureVectors(rangeFeatureVectors)
-		agg.Emit()
-	}
+	s.metricsCtx.EmitRangeLookupMetrics(rangeFeatureVectors)
+	s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, false)
 
 	featureNames, entities, results, err := processFeatureVectors(
 		rangeFeatureVectors, includeMetadata, entitiesProto)

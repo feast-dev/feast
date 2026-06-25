@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/errors"
@@ -30,12 +32,19 @@ type grpcServingServiceServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService
 	metricsClient  metrics.StatsdClient
+	metricsCtx     *MetricsContext
 	config         *registry.RepoConfig
 	serving.UnimplementedServingServiceServer
 }
 
 func NewGrpcServingServiceServer(fs *feast.FeatureStore, loggingService *logging.LoggingService, metricsClient metrics.StatsdClient, config *registry.RepoConfig) *grpcServingServiceServer {
-	return &grpcServingServiceServer{fs: fs, loggingService: loggingService, metricsClient: metricsClient, config: config}
+	return &grpcServingServiceServer{
+		fs:             fs,
+		loggingService: loggingService,
+		metricsClient:  metricsClient,
+		metricsCtx:     NewMetricsContext(metricsClient, config),
+		config:         config,
+	}
 }
 
 func (s *grpcServingServiceServer) GetFeastServingInfo(ctx context.Context, request *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error) {
@@ -77,6 +86,9 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 		return nil, err
 	}
 
+	fvNames := extractFVNamesFromRequest(featuresOrService.FeaturesRefs, featuresOrService.FeatureService)
+	t0 := time.Now()
+
 	featureVectors, err := s.fs.GetOnlineFeatures(
 		ctx,
 		featuresOrService.FeaturesRefs,
@@ -85,20 +97,16 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 		request.GetRequestContext(),
 		request.GetFullFeatureNames())
 
+	latencyMs := float64(time.Since(t0).Microseconds()) / 1000.0
+
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting online features")
+		s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, true)
 		return nil, errors.GrpcFromError(err)
 	}
 
-	if s.metricsClient != nil && s.config != nil {
-		agg := metrics.NewLookupMetricsAggregator(
-			s.config.Project,
-			metrics.GetOnlineStoreType(s.config),
-			s.metricsClient,
-		)
-		agg.RecordFromFeatureVectors(featureVectors)
-		agg.Emit()
-	}
+	s.metricsCtx.EmitLookupMetrics(featureVectors)
+	s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, false)
 
 	resp := &serving.GetOnlineFeaturesResponse{
 		Results: make([]*serving.GetOnlineFeaturesResponse_FeatureVector, 0),
@@ -165,6 +173,9 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		return nil, err
 	}
 
+	fvNames := extractFVNamesFromRequest(featuresOrService.FeaturesRefs, featuresOrService.FeatureService)
+	t0 := time.Now()
+
 	rangeFeatureVectors, err := s.fs.GetOnlineFeaturesRange(
 		ctx,
 		featuresOrService.FeaturesRefs,
@@ -177,20 +188,16 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		request.GetFullFeatureNames(),
 	)
 
+	latencyMs := float64(time.Since(t0).Microseconds()) / 1000.0
+
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting online features range")
+		s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, true)
 		return nil, errors.GrpcFromError(err)
 	}
 
-	if s.metricsClient != nil && s.config != nil {
-		agg := metrics.NewLookupMetricsAggregator(
-			s.config.Project,
-			metrics.GetOnlineStoreType(s.config),
-			s.metricsClient,
-		)
-		agg.RecordFromRangeFeatureVectors(rangeFeatureVectors)
-		agg.Emit()
-	}
+	s.metricsCtx.EmitRangeLookupMetrics(rangeFeatureVectors)
+	s.metricsCtx.EmitFVReadMetrics(fvNames, latencyMs, false)
 
 	entities := request.GetEntities()
 	results := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0, len(rangeFeatureVectors))

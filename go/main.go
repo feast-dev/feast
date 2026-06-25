@@ -106,18 +106,18 @@ func main() {
 	}
 
 	var metricsClient metrics.StatsdClient
-	if metrics.IsMissingKeyMetricsEnabled() {
+	if metrics.IsMetricsClientEnabled() {
 		if addr := metrics.GetStatsDAddress(); addr != "" {
 			client, clientErr := statsd.New(addr)
 			if clientErr != nil {
-				log.Error().Err(clientErr).Msg("Failed to create statsd client for missing key metrics")
+				log.Error().Err(clientErr).Msg("Failed to create statsd client for metrics")
 			} else {
 				metricsClient = client
 				defer client.Close()
-				log.Info().Msg("Missing key metrics enabled")
+				log.Info().Msg("Metrics client enabled (FV metrics, missing key metrics, or both)")
 			}
 		} else {
-			log.Warn().Msg("ENABLE_MISSING_KEY_METRICS is true but DD_AGENT_HOST is not set")
+			log.Warn().Msg("ENABLE_FV_LEVEL_METRICS/ENABLE_MISSING_KEY_METRICS is true but DD_AGENT_HOST is not set")
 		}
 	}
 
