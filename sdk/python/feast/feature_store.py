@@ -1675,6 +1675,28 @@ class FeatureStore:
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
         self.registry.teardown()
+        self._teardown_openlineage()
+
+    def _teardown_openlineage(self):
+        """Clean up OpenLineage data for this project's namespace during teardown."""
+        try:
+            if (
+                hasattr(self.config, "openlineage")
+                and self.config.openlineage is not None
+                and self.config.openlineage.enabled
+            ):
+                ol_config = self.config.openlineage.to_openlineage_config()
+                consumer_cfg = getattr(ol_config, "consumer", None)
+                if consumer_cfg and getattr(consumer_cfg, "enabled", False):
+                    conn_str = getattr(consumer_cfg, "connection_string", None)
+                    if conn_str:
+                        from feast.openlineage.store import OpenLineageStore
+
+                        ol_store = OpenLineageStore(connection_string=conn_str)
+                        namespace = f"{self.project}/{self.project}"
+                        ol_store.purge_namespace(namespace)
+        except Exception as e:
+            warnings.warn(f"Failed to clean up OpenLineage data during teardown: {e}")
 
     def get_historical_features(
         self,

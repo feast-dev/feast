@@ -362,12 +362,22 @@ type MaterializationYamlConfig struct {
 // emit_on_apply, emit_on_materialize, transport-specific options, etc.) appear at
 // the same YAML level as the typed connection fields.
 type OpenLineageYamlConfig struct {
-	Enabled           bool                   `yaml:"enabled"`
-	TransportType     *string                `yaml:"transport_type,omitempty"`
-	TransportUrl      *string                `yaml:"transport_url,omitempty"`
-	TransportEndpoint *string                `yaml:"transport_endpoint,omitempty"`
-	ApiKey            *string                `yaml:"api_key,omitempty"`
-	ExtraConfig       map[string]interface{} `yaml:",inline,omitempty"`
+	Enabled           bool                           `yaml:"enabled"`
+	TransportType     *string                        `yaml:"transport_type,omitempty"`
+	TransportUrl      *string                        `yaml:"transport_url,omitempty"`
+	TransportEndpoint *string                        `yaml:"transport_endpoint,omitempty"`
+	ApiKey            *string                        `yaml:"api_key,omitempty"`
+	ExtraConfig       map[string]interface{}         `yaml:",inline,omitempty"`
+	Consumer          *OpenLineageConsumerYamlConfig `yaml:"consumer,omitempty"`
+}
+
+// OpenLineageConsumerYamlConfig maps to the openlineage.consumer section of feature_store.yaml.
+type OpenLineageConsumerYamlConfig struct {
+	Enabled          bool              `yaml:"enabled"`
+	StoreType        *string           `yaml:"store_type,omitempty"`
+	ConnectionString *string           `yaml:"connection_string,omitempty"`
+	ApiKey           *string           `yaml:"api_key,omitempty"`
+	NamespaceMapping map[string]string `yaml:"namespace_mapping,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.

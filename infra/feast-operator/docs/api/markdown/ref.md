@@ -726,6 +726,31 @@ emit_on_materialize) and transport-specific options (e.g. kafka
 bootstrap_servers, topic; file path). Boolean values ("true"/"false") and
 integer values are automatically coerced to their native YAML types.
 Keys must be valid Feast OpenLineageConfig YAML field names. |
+| `consumer` _[OpenLineageConsumerConfig](#openlineageconsumerconfig)_ | Consumer configures the OpenLineage consumer (event receiver) that enables
+Feast to receive and display lineage from external producers (Airflow, Spark, dbt, etc.). |
+
+
+#### OpenLineageConsumerConfig
+
+
+
+OpenLineageConsumerConfig configures the OpenLineage consumer (event receiver).
+When enabled, the Feast REST server exposes POST /api/v1/lineage to receive
+OpenLineage events from any producer, storing them for visualization in the Feast UI.
+
+_Appears in:_
+- [OpenLineageConfig](#openlineageconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable the OpenLineage consumer. |
+| `storeType` _string_ | StoreType is the storage backend for lineage events. Currently only "sql" is supported. |
+| `connectionStringSecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "connection_string" for a separate
+lineage database. If omitted, the SQL registry database is reused. |
+| `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" that producers must
+provide in the X-API-Key header when sending events. |
+| `namespaceMapping` _object (keys:string, values:string)_ | NamespaceMapping maps OpenLineage namespaces to Feast projects for
+RBAC-based filtering of lineage data in the UI. |
 
 
 #### OptionalCtrConfigs

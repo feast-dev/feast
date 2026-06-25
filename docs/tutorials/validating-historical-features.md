@@ -1,5 +1,9 @@
 # Validating historical features with Great Expectations
 
+{% hint style="warning" %}
+**Deprecated:** This tutorial demonstrates the legacy Great Expectations-based validation which is deprecated. For new projects, use Feast's built-in [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system which provides automatic metrics computation, drift detection, and a monitoring UI — with no external dependencies required. See also the [Monitoring Quickstart notebook](../../examples/monitoring/monitoring-quickstart.ipynb).
+{% endhint %}
+
 In this tutorial, we will use the public dataset of Chicago taxi trips to present data validation capabilities of Feast.
 - The original dataset is stored in BigQuery and consists of raw data for each taxi trip (one row per trip) since 2013.
 - We will generate several training datasets (aka historical features in Feast) for different periods and evaluate expectations made on one dataset against another.
