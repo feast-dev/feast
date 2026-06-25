@@ -150,6 +150,14 @@ class RemoteOnlineStore(OnlineStore):
         if val_attr in ("uuid_set_val", "time_uuid_set_val"):
             return list(getattr(proto_value, val_attr).val)
 
+        # UnixTimestamp values are stored as int64 (epoch seconds) in proto.
+        # Return them directly to avoid feast_value_type_to_python_type
+        # converting to datetime objects which are not JSON-serializable.
+        if val_attr == "unix_timestamp_val":
+            return getattr(proto_value, val_attr)
+        if val_attr in ("unix_timestamp_list_val", "unix_timestamp_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
         return feast_value_type_to_python_type(proto_value)
 
     _STATUS_MAP = {
