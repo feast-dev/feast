@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openlineage-producer-secret
+  namespace: feast
+stringData:
+  api_key: "your-marquez-api-key"  #pragma: allowlist secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openlineage-consumer-secret
+  namespace: feast
+stringData:
+  api_key: "consumer-api-key-for-producers"  #pragma: allowlist secret
+---
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-openlineage-consumer
+  namespace: feast
+spec:
+  feastProject: my_project
+  services:
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: registry-db-secret
+  openlineage:
+    enabled: true
+    transportType: http
+    transportUrl: "http://localhost:8080/api"
+    transportEndpoint: "v1/lineage"
+    apiKeySecretRef:
+      name: openlineage-producer-secret
+    extraConfig:
+      namespace: "my_project"
+      producer: "feast-operator"
+      emit_on_apply: "true"
+      emit_on_materialize: "true"
+    # consumer enables Feast as an OpenLineage event receiver.
+    # External producers (Airflow, Spark, dbt) can POST events to
+    # the Feast REST server at POST /api/v1/lineage.
+    # The Feast UI then displays lineage from all producers in
+    # Registry, OpenLineage, and Merged views.
+    consumer:
+      enabled: true
+      storeType: sql
+      # Optional: use a separate database for lineage storage.
+      # If omitted, the SQL registry database is reused.
+      # connectionStringSecretRef:
+      #   name: lineage-db-secret
+      apiKeySecretRef:
+        name: openlineage-consumer-secret
+      # namespaceMapping maps OL namespaces to Feast projects
+      # for RBAC-scoped visibility in the UI.
+      namespaceMapping:
+        airflow_production: my_project
+        spark_etl: my_project
+        dbt_analytics: my_project

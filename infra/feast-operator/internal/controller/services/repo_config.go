@@ -466,6 +466,54 @@ func setRepoConfigOpenLineage(
 		yamlCfg.ApiKey = &apiKeyStr
 	}
 
+	if ol.Consumer != nil {
+		consumerCfg := &OpenLineageConsumerYamlConfig{
+			Enabled:          ol.Consumer.Enabled,
+			StoreType:        ol.Consumer.StoreType,
+			NamespaceMapping: ol.Consumer.NamespaceMapping,
+		}
+
+		if ol.Consumer.ConnectionStringSecretRef != nil {
+			params, err := secretExtractionFunc("", ol.Consumer.ConnectionStringSecretRef.Name, "")
+			if err != nil {
+				return fmt.Errorf("failed to read consumer connection string from secret %s: %w",
+					ol.Consumer.ConnectionStringSecretRef.Name, err)
+			}
+			connStr, exists := params["connection_string"]
+			if !exists {
+				return fmt.Errorf("secret %q does not contain the required key \"connection_string\"",
+					ol.Consumer.ConnectionStringSecretRef.Name)
+			}
+			connStrStr, ok := connStr.(string)
+			if !ok {
+				return fmt.Errorf("key \"connection_string\" in secret %q must be a string, got %T",
+					ol.Consumer.ConnectionStringSecretRef.Name, connStr)
+			}
+			consumerCfg.ConnectionString = &connStrStr
+		}
+
+		if ol.Consumer.ApiKeySecretRef != nil {
+			params, err := secretExtractionFunc("", ol.Consumer.ApiKeySecretRef.Name, "")
+			if err != nil {
+				return fmt.Errorf("failed to read consumer API key from secret %s: %w",
+					ol.Consumer.ApiKeySecretRef.Name, err)
+			}
+			apiKey, exists := params["api_key"]
+			if !exists {
+				return fmt.Errorf("secret %q does not contain the required key \"api_key\"",
+					ol.Consumer.ApiKeySecretRef.Name)
+			}
+			apiKeyStr, ok := apiKey.(string)
+			if !ok {
+				return fmt.Errorf("key \"api_key\" in secret %q must be a string, got %T",
+					ol.Consumer.ApiKeySecretRef.Name, apiKey)
+			}
+			consumerCfg.ApiKey = &apiKeyStr
+		}
+
+		yamlCfg.Consumer = consumerCfg
+	}
+
 	repoConfig.OpenLineage = yamlCfg
 	return nil
 }

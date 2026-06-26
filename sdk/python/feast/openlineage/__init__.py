@@ -59,7 +59,7 @@ Usage:
 """
 
 from feast.openlineage.client import FeastOpenLineageClient
-from feast.openlineage.config import OpenLineageConfig
+from feast.openlineage.config import OpenLineageConfig, OpenLineageConsumerConfig
 from feast.openlineage.emitter import FeastOpenLineageEmitter
 from feast.openlineage.facets import (
     FeastDataSourceFacet,
@@ -75,6 +75,7 @@ __all__ = [
     "FeastOpenLineageClient",
     "FeastOpenLineageEmitter",
     "OpenLineageConfig",
+    "OpenLineageConsumerConfig",
     # Facets (custom Feast metadata in lineage events)
     "FeastFeatureViewFacet",
     "FeastFeatureServiceFacet",

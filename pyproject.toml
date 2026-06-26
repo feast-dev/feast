@@ -95,8 +95,8 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus>=2.5,<3",
-    "milvus-lite==2.4.12",
+    "pymilvus>=2.5",
+    "milvus-lite>=2.4.12",
     "feast[setuptools]"
 ]
 mongodb = [

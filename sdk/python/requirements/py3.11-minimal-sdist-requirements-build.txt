@@ -378,10 +378,6 @@ hatch-vcs==0.5.0 \
     # via
     #   filelock
     #   platformdirs
-hatchling==1.27.0 \
-    --hash=sha256:971c296d9819abb3811112fc52c7a9751c8d381898f36533bb16f9791e941fd6 \
-    --hash=sha256:d3a2f3567c4f926ea39849cdf924c7e99e6686c9c8e288ae1037c8fa2a5d937b
-    # via pymilvus
 hatchling==1.30.1 \
     --hash=sha256:161eacafb3c6f91526e92116d21426369f2c36e98c36a864f11a96345ad4ee31 \
     --hash=sha256:eee4fd45357f72ebb3d7a42e5d72cfb5e29ed426d79e8836288926c4258d5f2e
@@ -403,6 +399,7 @@ hatchling==1.30.1 \
     #   jsonschema
     #   jsonschema-specifications
     #   mcp
+    #   milvus-lite
     #   platformdirs
     #   pyarrow-hotfix
     #   pydantic
@@ -672,21 +669,21 @@ markupsafe==3.0.3 \
     --hash=sha256:f9e130248f4462aaa8e2552d547f36ddadbeaa573879158d721bbd33dfe4743a \
     --hash=sha256:fed51ac40f757d41b7c48425901843666a6677e3e8eb0abcff09e4ba6e664f50
     # via jinja2
-maturin==1.13.3 \
-    --hash=sha256:0ef257e692cc756c87af5bea95ddfe7d3ac49d3376a7a87f728d63f06e7b6f8b \
-    --hash=sha256:1cc0a110b224ca90406b668a3e3c1f5a515062e59e26292f6dbaf5fd4909c6f3 \
-    --hash=sha256:2389fe92d017cea9d94e521fa0175314a4c52f79a1057b901fbc9f8686ef7d0b \
-    --hash=sha256:3cc13929ca82aefa4adbf0f2c35419369796213c6fb0eb24e914945f50ef5d8c \
-    --hash=sha256:3db93337ed97e60ffc878aa8b493cd7ae44d3a5e1a37256db3a4491f57565018 \
-    --hash=sha256:4667ef609ab446c1b5e0bfe4f9fb99699ab6d8548433f8d1a684256e0b67217f \
-    --hash=sha256:49fd6ab08da28098ccf37afca24cdba72376ba9c1eedf9dd25ff82ed771961ff \
-    --hash=sha256:4cd478e6e4c56251e48ed079b8efd55b30bc5c09cf695a1bdafaeb582ee735a0 \
-    --hash=sha256:53b08bd075649ce96513ad9abf241a43cb685ed6e9e7790f8dbc2d66e95d8323 \
-    --hash=sha256:771e1e9e71a278e56db01552e0d1acfd1464259f9575b6e72842f893cd299079 \
-    --hash=sha256:a2675e25f313034ae6f57388cf14818f87d8961c4a96795287f3e155f59beb11 \
-    --hash=sha256:b6741d7bf4af97da937528fd1e523c6ab54f53d9a21870fa735d6e67fd88e273 \
-    --hash=sha256:c00ea6428dea17bf616fe93770837634454b28c2de1a876e42ef8036c616079a \
-    --hash=sha256:def4a435ea9d2ee93b18ba579dc8c9cf898889a66f312cd379b5e374ec3e3ad6
+maturin==1.14.1 \
+    --hash=sha256:15cea8fcb3ba47dd636f50092bb34baea8b04ac777392f23e6bf8a9a61efb894 \
+    --hash=sha256:1a04de0a20188f95c721b5702eed18140bdcccb28c386797093eca3f62f4d4e0 \
+    --hash=sha256:3c9f94640ecc4895e94abaf834a0684430032c865b2748a36c12461fd9252fdd \
+    --hash=sha256:522292398945442cdafa9daeb2271b2340fbde57027b818f923f88eab04174f8 \
+    --hash=sha256:5282dffd4b539d2be245f4e5b1a5ab6bc1033b58f4a4872f5833f9d43c954aa4 \
+    --hash=sha256:994a0c8ba3ad8a92b3a9ee1b02645d200d610216b15cff5102b0fe65e8e08666 \
+    --hash=sha256:9d6577a62cd08e0ceba7a0db06fb098e0c9b1b3429bad747a4f3a18215a1b3df \
+    --hash=sha256:a131d912b5267e640bc96d70f4914e10590aed64082ec9abacba7cea52004224 \
+    --hash=sha256:be18fc568fb76884c0205456336892a75105ec398e6b667cd777c6268bd06d69 \
+    --hash=sha256:be80866363e605d137991b491a741a84cde9ae350183c4c85f49690ca9aaaa65 \
+    --hash=sha256:cd457cd88961156e26379e1155bd287cc0ec1c8b2f1582b0660fb31b87c8842d \
+    --hash=sha256:dfc54ae32e6fcb18302193ab9a30b0b25eefffba994ae13238974805533ef75e \
+    --hash=sha256:f3306078070c1508fd715b9116070cbcaff5959024272a9f1e6f5cb29768b86c \
+    --hash=sha256:ffe5ad71f21d1e6603c4dd75f7fee34adf5ed5ebcebb692886549888ebb329ed
     # via
     #   ast-serialize
     #   cryptography
@@ -698,9 +695,9 @@ meson-python==0.15.0 \
     --hash=sha256:3ae38253ff02b2e947a05e362a2eaf5a9a09d133c5666b4123399ee5fbf2e591 \
     --hash=sha256:fddb73eecd49e89c1c41c87937cd89c2d0b65a1c63ba28238681d4bd9484d26f
     # via pandas
-meson-python==0.19.0 \
-    --hash=sha256:67b5906c37404396d23c195e12c8825506074460d4a2e7083266b845d14f0298 \
-    --hash=sha256:9959d198aa69b57fcfd354a34518c6f795b781a73ed0656f4d01660160cc2553
+meson-python==0.20.0 \
+    --hash=sha256:6a744cf0c09e76ecbdc58cfa374b48c8902dac1b74479628238634efbf36aec9 \
+    --hash=sha256:6d9726ae6cd37e22f210c74b364b30180a68c20442e97ff09f3c566a414af738
     # via numpy
 meson==1.7.1 \
     --hash=sha256:155780a5be87f6dd7f427ad8bcbf0f2b2c5f62ee5fdacca7caa9de8439a24b89 \
@@ -945,9 +942,9 @@ setuptools-rust==1.12.1 \
     # via
     #   libcst
     #   maturin
-setuptools-scm==10.0.5 \
-    --hash=sha256:bbba8fe754516cdefd017f4456721775e6ef9662bd7887fb52ae26813d4838c3 \
-    --hash=sha256:f611037d8aae618221503b8fa89319f073438252ae3420e01c9ceec249131a0a
+setuptools-scm==10.1.2 \
+    --hash=sha256:24079818acc46e99aae0d65b8d511fafe965970d9cbd060c7b9f7275ded520fb \
+    --hash=sha256:8bb17e208fb22ebc11e4eaf6d765955db1903eefd21a3f0ed5518fc3fb186e84
     # via
     #   anyio
     #   cachetools
@@ -960,7 +957,6 @@ setuptools-scm==10.0.5 \
     #   pluggy
     #   pyarrow
     #   pybindgen
-    #   pymilvus
     #   setuptools-rust
     #   sqlglot
     #   tabulate
@@ -1048,9 +1044,9 @@ uv-dynamic-versioning==0.14.0 \
     --hash=sha256:574fbc07e87ace45c01d55967ad3b864871257b98ff5b8ac87c261227ac8db5b \
     --hash=sha256:e087c346a786e98d41292ac2315180fb700cedfb30565fc973d64ce11a112387
     # via mcp
-vcs-versioning==1.1.1 \
-    --hash=sha256:b541e2ba79fc6aaa3850f8a7f88af43d97c1c80649c01142ee4146eddbc599e4 \
-    --hash=sha256:fabd75a3cab7dd8ac02fe24a3a9ba936bf258667b5a62ed468c9a1da0f5775bc
+vcs-versioning==2.1.0 \
+    --hash=sha256:118bf4b9f86f92e9ec33a94ec24aca0eed8f880fc88736697914d3a876758551 \
+    --hash=sha256:66d9e2c2afd792090bc381aec985d6cd82cb935be35910a742e0af31ca4be61e
     # via setuptools-scm
 versioneer==0.29 \
     --hash=sha256:0f1a137bb5d6811e96a79bb0486798aeae9b9c6efc24b389659cebb0ee396cb9 \
