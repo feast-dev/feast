@@ -514,7 +514,7 @@ class CassandraOnlineStore(OnlineStore):
             lb_execution_profiles = None
 
         # additional optional keyword args to Cluster
-        branch_a_kwargs: Dict[str, Any] = {
+        cluster_kwargs_branch_a: Dict[str, Any] = {
             k: v
             for k, v in {
                 "protocol_version": protocol_version,
@@ -526,14 +526,14 @@ class CassandraOnlineStore(OnlineStore):
         # creation of Cluster (Cassandra vs. Astra)
         if hosts:
             self._cluster = Cluster(
-                hosts, port=port, auth_provider=auth_provider, **branch_a_kwargs
+                hosts, port=port, auth_provider=auth_provider, **cluster_kwargs_branch_a
             )
         else:
             # we use 'secure_bundle_path'
             self._cluster = Cluster(
                 cloud={"secure_connect_bundle": secure_bundle_path},
                 auth_provider=auth_provider,
-                **branch_a_kwargs,
+                **cluster_kwargs_branch_a,
             )
 
         # creation of Session
