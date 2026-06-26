@@ -15,6 +15,7 @@ Feast integrates with popular vector databases to store and retrieve embedding v
 * **Elasticsearch**: Scalable vector search capabilities
 * **Postgres with PGVector**: SQL-based vector operations
 * **Qdrant**: Purpose-built vector database integration
+* **ScyllaDB**: Native `vector<float, N>` type with HNSW ANN index, full `retrieve_online_documents_v2` support
 
 These integrations allow you to:
 - Store embeddings as features
