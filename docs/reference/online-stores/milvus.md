@@ -11,6 +11,14 @@ In order to use this online store, you'll need to install the Milvus extra (alon
 
 `pip install 'feast[milvus]'`
 
+{% hint style="warning" %}
+**Upgrading to milvus-lite 3.0.0+**
+
+Feast supports both milvus-lite 2.x and 3.x. However, if you upgrade from milvus-lite 2.x.x to 3.0.0+, the `.db` files created by the original storage format are **not compatible** with the milvus-lite 3.0.0+ engine. You will need to re-import your data into a new database — automatic migration is not available.
+
+See the [milvus-lite GitHub page](https://github.com/milvus-io/milvus-lite) for more details.
+{% endhint %}
+
 You can get started by using any of the other templates (e.g. `feast init -t gcp` or `feast init -t snowflake` or `feast init -t aws`), and then swapping in Redis as the online store as seen below in the examples.
 
 ## Examples
