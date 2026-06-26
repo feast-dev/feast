@@ -2415,8 +2415,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.63.1.dev73+g8ef7bbb43.d20260609
-  sha256: c4aa74a7fb1f093d840415413f0bf26a93aac6b5ad2eab94621a7f60a0f1f37b
+  version: 0.64.1.dev10+g21896cef5.d20260625
+  sha256: ebeed53ceb9bc74388d4fb3585e658e12204f06771e63a217d45eb474e9bc0d9
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2488,8 +2488,8 @@ packages:
   - timm>=0.6.0 ; extra == 'image'
   - pillow>=8.0.0 ; extra == 'image'
   - scikit-learn>=1.0.0 ; extra == 'image'
-  - pymilvus>=2.5,<3 ; extra == 'milvus'
-  - milvus-lite==2.4.12 ; extra == 'milvus'
+  - pymilvus>=2.5 ; extra == 'milvus'
+  - milvus-lite>=2.4.12 ; extra == 'milvus'
   - feast[setuptools] ; extra == 'milvus'
   - pymongo>=4.13.0,<5.0.0 ; extra == 'mongodb'
   - dnspython>=2.0.0 ; extra == 'mongodb'
