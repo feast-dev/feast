@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import StrictBool, StrictInt, StrictStr
 
@@ -27,6 +27,23 @@ def resolve_tracking_uri(configured_uri: Optional[str] = None) -> Optional[str]:
     if configured_uri:
         return configured_uri
     return os.environ.get("MLFLOW_TRACKING_URI")
+
+
+class DatasetSyncConfig(FeastBaseModel):
+    """Configuration for the ``feast datasets sync`` command."""
+
+    default_field_mapping: Dict[str, str] = {}
+    """ dict: Default field mapping overrides applied during dataset sync.
+        Keys are dot-delimited MLflow paths (e.g. 'expectations.expected_response'),
+        values are target Feast column names. """
+
+    watermark_key: StrictStr = "feast_last_sync_time"
+    """ str: MLflow dataset tag key used to track the last sync timestamp
+        for incremental syncing. Defaults to 'feast_last_sync_time'. """
+
+    default_batch_size: StrictInt = 10_000
+    """ int: Default batch size for write_to_online_store during sync.
+        Defaults to 10000. """
 
 
 class MlflowConfig(FeastBaseModel):
@@ -59,6 +76,26 @@ class MlflowConfig(FeastBaseModel):
     ops_experiment_suffix: StrictStr = "-feast-ops"
     """ str: Suffix appended to the project name to form the MLflow
         experiment name for operation logs. Defaults to '-feast-ops'. """
+
+    enable_distributed_tracing: StrictBool = True
+    """ bool: When True and mlflow.enabled=True, server-side API calls
+        create MLflow trace spans via mlflow.start_span().  Spans appear
+        in the MLflow UI Traces tab and support parent-child linking via
+        traceparent headers.  Defaults to True. """
+
+    trace_sampling_ratio: float = 1.0
+    """ float: Fraction of requests to trace (0.0–1.0).  Set below 1.0
+        for high-volume production to reduce overhead.  Defaults to 1.0
+        (trace every request). Maps to MLFLOW_TRACE_SAMPLING_RATIO. """
+
+    redact_entity_pii: StrictBool = False
+    """ bool: When True, entity values in span inputs are replaced with
+        ``[REDACTED]`` before the span is sent to MLflow.  Useful when
+        entity keys contain PII.  Defaults to False. """
+
+    dataset_sync: DatasetSyncConfig = DatasetSyncConfig()
+    """ DatasetSyncConfig: Configuration for the ``feast datasets sync``
+        command (field mapping, watermark key, batch size). """
 
     def get_tracking_uri(self) -> Optional[str]:
         """Resolve the effective tracking URI for this config instance."""

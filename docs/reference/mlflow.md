@@ -51,6 +51,7 @@ mlflow:
   entity_df_max_rows: 100000             # default
   log_operations: false                  # default
   ops_experiment_suffix: "-feast-ops"    # default
+  enable_distributed_tracing: true       # default
 ```
 
 ### Configuration options
@@ -64,6 +65,7 @@ mlflow:
 | `entity_df_max_rows` | int | `100000` | Skip entity DataFrame artifact upload for DataFrames exceeding this limit |
 | `log_operations` | bool | `false` | Log `feast apply` and `feast materialize` to a separate MLflow experiment |
 | `ops_experiment_suffix` | string | `"-feast-ops"` | Suffix appended to project name for the operations experiment |
+| `enable_distributed_tracing` | bool | `true` | When enabled, server-side API calls create MLflow trace spans. Supports parent-child linking via `traceparent` headers. See [Distributed tracing](#distributed-tracing) |
 
 ### Tracking URI resolution
 
@@ -344,4 +346,269 @@ Start the Feast UI with:
 
 ```bash
 feast ui --host 127.0.0.1 --port 8888
+```
+
+## Distributed tracing
+
+When `enable_distributed_tracing` is `true` (the default when `mlflow.enabled=true`), server-side API calls create MLflow trace spans via `mlflow.start_span()`. Spans appear in the MLflow UI **Traces** tab and support parent-child linking via W3C `traceparent` headers.
+
+All feature server endpoints will emit MLflow traces automatically.
+
+### Automatic server traces (MCP & HTTP clients)
+
+When any client (Cursor, Claude Desktop, or direct HTTP) calls the Feast feature server, traces are created automatically with no client-side code changes.
+
+Each trace includes:
+
+| Span attribute | Description |
+|----------------|-------------|
+| `feast.feature_refs` | Which features were served |
+| `feast.entity_count` | Number of entities in the request |
+| `feast.project` | Project name |
+| `feast.retrieval_type` | `online` |
+| `feast.mcp_session_id` | MCP session identifier (when called via MCP) |
+
+The `mcp_session_id` groups all tool calls from a single MCP session (e.g., one Cursor chat conversation), allowing you to filter and correlate all feature retrievals made during that session.
+
+**MCP client configuration** (`mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "feast": {
+      "url": "http://127.0.0.1:6567/mcp"
+    }
+  }
+}
+```
+
+**Result:** Independent traces per request in MLflow, filterable by `feast.mcp_session_id`.
+
+### Cross-process trace linking (HTTP agents)
+
+When your agent calls the Feast feature server over HTTP, pass the `traceparent` header to produce a unified trace tree in MLflow.
+
+```python
+import mlflow
+import requests
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    headers = mlflow.tracing.get_tracing_context_headers_for_http_request()
+
+    resp = requests.post(
+        "http://feast-server:6567/get-online-features",
+        json={"features": [...], "entities": {...}},
+        headers=headers,
+    )
+    features = resp.json()
+
+    response = llm.chat.completions.create(...)
+    return response.choices[0].message.content
+```
+
+**Result:** A single MLflow trace containing both agent spans and Feast server spans.
+
+### In-process feature context tagging (SDK usage)
+
+When using Feast as a Python library, use `feast_trace_scope` to capture which features were retrieved and attach that metadata to the LLM span.
+
+```python
+import mlflow
+from feast import FeatureStore
+from feast.tracing_context import feast_trace_scope
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+
+store = FeatureStore(repo_path=".")
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    feature_refs = ["my_view:feature_a", "my_view:feature_b"]
+
+    with feast_trace_scope() as ctx:
+        features = store.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"entity_id": entity_id}],
+        )
+        ctx.push_retrieval(feature_refs)
+        context_attrs = ctx.get_context_attributes()
+
+    with mlflow.start_span(name="llm_call") as span:
+        span.set_attributes(context_attrs)
+        response = llm.chat.completions.create(...)
+
+    return response.choices[0].message.content
+```
+
+**Result:** The LLM span in MLflow contains:
+
+- `feast.context_features` — which features were retrieved
+- `feast.context_feature_views` — which feature views were queried
+- `feast.context_feature_count` — number of features
+
+### Automatic LLM span tagging
+
+Instead of manually calling `ctx.get_context_attributes()` and `span.set_attributes(...)`, you can install the Feast span processor once at agent startup. It automatically tags any `LLM` / `CHAT_MODEL` span with Feast feature context when a `FeastTraceContext` is active:
+
+```python
+from feast.tracing_hooks import install_feast_span_processor
+
+install_feast_span_processor()
+```
+
+With this installed, the agent code simplifies to:
+
+```python
+import mlflow
+from feast import FeatureStore
+from feast.tracing_context import feast_trace_scope
+from feast.tracing_hooks import install_feast_span_processor
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+install_feast_span_processor()
+
+store = FeatureStore(repo_path=".")
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    feature_refs = ["my_view:feature_a", "my_view:feature_b"]
+
+    with feast_trace_scope() as ctx:
+        features = store.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"entity_id": entity_id}],
+        )
+        ctx.push_retrieval(feature_refs)
+
+    response = llm.chat.completions.create(...)
+    return response.choices[0].message.content
+```
+
+The LLM span is automatically tagged with `feast.context_*` attributes — no manual `set_attributes` call needed.
+
+### Tracing API reference
+
+| Function | Description |
+|----------|-------------|
+| `mlflow.tracing.get_tracing_context_headers_for_http_request()` | Returns `dict` with `traceparent` header for cross-process linking |
+| `feast_trace_scope()` | Context manager that creates a `FeastTraceContext` (clears on exit) |
+| `ctx.push_retrieval(feature_refs)` | Records retrieved feature references |
+| `ctx.get_context_attributes()` | Returns span-ready `dict` of accumulated metadata |
+| `install_feast_span_processor()` | Registers a span processor that auto-tags LLM spans with Feast context |
+
+**Important:** Call `ctx.get_context_attributes()` inside the `with feast_trace_scope()` block. The context is cleared on scope exit.
+
+## Dataset sync: MLflow GenAI Datasets → Feast
+
+The `feast datasets sync` command pulls records from an [MLflow GenAI EvaluationDataset](https://mlflow.org/docs/latest/llms/genai/index.html), flattens their nested structure, and pushes them into Feast online and offline stores.
+
+### Feature repository definition
+
+```python
+# feature_repo/mlflow_labels.py
+from datetime import timedelta
+
+from feast import Entity, FeatureView, Field, PushSource
+from feast.types import String
+
+dataset_record = Entity(name="dataset_record", join_keys=["dataset_record_id"])
+
+mlflow_dataset_push = PushSource(name="mlflow_dataset_push")
+
+mlflow_labels_view = FeatureView(
+    name="mlflow_labels",
+    entities=[dataset_record],
+    ttl=timedelta(days=0),
+    schema=[
+        Field(name="trace_id", dtype=String),
+        Field(name="input_question", dtype=String),
+        Field(name="expected_response", dtype=String),
+        Field(name="guidelines", dtype=String),
+    ],
+    source=mlflow_dataset_push,
+    online=True,
+)
+```
+
+### Configuration
+
+Add the `dataset_sync` section under `mlflow` in `feature_store.yaml`:
+
+```yaml
+mlflow:
+  enabled: true
+  tracking_uri: http://mlflow:5000
+  dataset_sync:
+    default_field_mapping:
+      "expectations.expected_response": "corrected_response"
+      "source.trace.trace_id": "trace_id"
+    watermark_key: "feast_last_sync_time"
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dataset_sync.default_field_mapping` | dict | `{}` | Default field mapping overrides (dot-delimited MLflow paths → Feast column names) |
+| `dataset_sync.watermark_key` | string | `"feast_last_sync_time"` | MLflow dataset tag key for incremental sync tracking |
+| `dataset_sync.default_batch_size` | int | `10000` | Batch size for `write_to_online_store` during sync |
+
+### CLI commands
+
+```bash
+# Full sync (all records)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --full-refresh
+
+# Incremental sync (only new/updated since last sync)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels
+
+# Preview flattened records without writing
+feast datasets preview --source agent-feedback-v3 --limit 10
+
+# Dry run (fetch & flatten, no writes)
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --dry-run
+
+# Custom field mapping from a JSON file
+feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --field-mapping mapping.json
+```
+
+### Default flattening rules
+
+| MLflow path | Feast column |
+|---|---|
+| `inputs.X` | `input_X` |
+| `expectations.X` | `X` |
+| `source.trace.trace_id` | `trace_id` |
+| `tags.X` | `tag_X` |
+| `last_update_time` | `event_timestamp` |
+
+Override with a `--field-mapping` JSON file or `dataset_sync.default_field_mapping` in config.
+
+### Incremental sync strategy
+
+After each sync, the command tags the MLflow dataset with the configured watermark key. On the next incremental run, only records with `last_update_time` newer than the watermark are ingested. Use `--full-refresh` to ignore the watermark.
+
+### Retrieving synced features
+
+**Online:**
+
+```python
+store = FeatureStore(repo_path="feature_repo/")
+features = store.get_online_features(
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+    entity_rows=[{"dataset_record_id": "rec-abc123"}],
+).to_dict()
+```
+
+**Offline (batch):**
+
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+).to_df()
 ```

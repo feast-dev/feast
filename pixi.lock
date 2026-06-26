@@ -2415,8 +2415,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.63.1.dev73+g8ef7bbb43.d20260609
-  sha256: c4aa74a7fb1f093d840415413f0bf26a93aac6b5ad2eab94621a7f60a0f1f37b
+  version: 0.63.1.dev109+gc7f541ff3.d20260615
+  sha256: 6d08352814784278a640483a0b5461a62cbc11f5cfc0e7e4452074df53a33451
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2498,6 +2498,11 @@ packages:
   - pymysql ; extra == 'mysql'
   - types-pymysql ; extra == 'mysql'
   - openlineage-python>=1.40.0 ; extra == 'openlineage'
+  - mlflow>=2.14.0 ; extra == 'mlflow'
+  - opentelemetry-api>=1.28.0 ; extra == 'mlflow'
+  - opentelemetry-sdk>=1.28.0 ; extra == 'mlflow'
+  - opentelemetry-instrumentation-fastapi>=0.49b0 ; extra == 'mlflow'
+  - opentelemetry-instrumentation-httpx>=0.49b0 ; extra == 'mlflow'
   - prometheus-client ; extra == 'opentelemetry'
   - psutil ; extra == 'opentelemetry'
   - pyspark>=4.0.0 ; extra == 'spark'
@@ -2520,7 +2525,6 @@ packages:
   - snowflake-connector-python[pandas]>=3.7,<5 ; extra == 'snowflake'
   - sqlite-vec==0.1.6 ; extra == 'sqlite-vec'
   - fastapi-mcp ; extra == 'mcp'
-  - mlflow>=2.10.0 ; extra == 'mlflow'
   - dbt-artifacts-parser ; extra == 'dbt'
   - pytest>=6.0.0,<8 ; extra == 'test'
   - pytest-xdist>=3.8.0 ; extra == 'test'

@@ -267,6 +267,32 @@ class FeatureStore:
                 return 0
         return 0
 
+    def _push_trace_context(
+        self,
+        features: Union[List[str], "FeatureService"],
+    ) -> None:
+        """Push retrieval metadata into the active FeastTraceContext, if any.
+
+        Zero-overhead when no ``feast_trace_scope()`` is active (returns
+        immediately).  Called from every retrieval method so that
+        agent-side LLM spans can be tagged with the Feast context that
+        grounded them.
+        """
+        from feast.tracing_context import get_current_context
+
+        ctx = get_current_context()
+        if ctx is None:
+            return
+
+        try:
+            feature_refs = utils._get_features(
+                self.registry, self.project, features, allow_cache=True
+            )
+            fs_name = features.name if isinstance(features, FeatureService) else None
+            ctx.push_retrieval(feature_refs=feature_refs, feature_service=fs_name)
+        except Exception:
+            pass
+
     _FS_NAME_INDEX_TTL_SECONDS = 300
 
     def _rebuild_fs_name_index(self) -> None:
@@ -1856,6 +1882,8 @@ class FeatureStore:
             **kwargs,
         )
 
+        self._push_trace_context(features)
+
         # Auto-log to MLflow if configured
         try:
             if self.mlflow is not None and self.config.mlflow.auto_log:
@@ -3399,6 +3427,8 @@ class FeatureStore:
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
+        self._push_trace_context(features)
+
         # Auto-log to MLflow if configured
         try:
             if self.mlflow is not None and self.config.mlflow.auto_log:
@@ -3475,6 +3505,8 @@ class FeatureStore:
             full_feature_names=full_feature_names,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
+
+        self._push_trace_context(features)
 
         try:
             if self.mlflow is not None and self.config.mlflow.auto_log:
@@ -3626,6 +3658,9 @@ class FeatureStore:
         feature_types = {
             f.name: f.dtype.to_value_type() for f in requested_feature_view.features
         }
+
+        self._push_trace_context(features)
+
         return OnlineResponse(online_features_response, feature_types=feature_types)
 
     def retrieve_online_documents_v2(
@@ -3788,7 +3823,7 @@ class FeatureStore:
             )
 
         provider = self._get_provider()
-        return self._retrieve_from_online_store_v2(
+        response = self._retrieve_from_online_store_v2(
             provider,
             requested_feature_view,
             requested_features,
@@ -3798,6 +3833,10 @@ class FeatureStore:
             query_string,
             include_feature_view_version_metadata,
         )
+
+        self._push_trace_context(features)
+
+        return response
 
     def _retrieve_from_online_store(
         self,

@@ -80,11 +80,11 @@ class TestMCPServerUnit(unittest.TestCase):
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
 
-        # Verify FastApiMCP was called correctly
         mock_fast_api_mcp.assert_called_once_with(
             mock_app,
             name="test-server",
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+            headers=["authorization", "mcp-session-id"],
         )
 
         mock_mcp_instance.mount_sse.assert_called_once()
@@ -106,11 +106,11 @@ class TestMCPServerUnit(unittest.TestCase):
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
 
-        # Verify FastApiMCP was called with default name
         mock_fast_api_mcp.assert_called_once_with(
             mock_app,
             name="feast-feature-store",
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+            headers=["authorization", "mcp-session-id"],
         )
 
         self.assertEqual(result, mock_mcp_instance)
