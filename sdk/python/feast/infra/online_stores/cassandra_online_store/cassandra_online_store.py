@@ -507,12 +507,14 @@ class CassandraOnlineStore(OnlineStore):
                 request_timeout=online_store_config.request_timeout,
                 load_balancing_policy=lb_policy,
             )
-            execution_profiles = {EXEC_PROFILE_DEFAULT: exe_profile}
+            execution_profiles: Optional[Dict[Any, ExecutionProfile]] = {
+                EXEC_PROFILE_DEFAULT: exe_profile
+            }
         else:
             execution_profiles = None
 
         # additional optional keyword args to Cluster
-        cluster_kwargs = {
+        cluster_kwargs: Dict[str, Any] = {
             k: v
             for k, v in {
                 "protocol_version": protocol_version,
