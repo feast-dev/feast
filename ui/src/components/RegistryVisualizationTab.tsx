@@ -16,7 +16,13 @@ import RegistryVisualization from "./RegistryVisualization";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { filterPermissionsByAction } from "../utils/permissionUtils";
 
-const RegistryVisualizationTab = () => {
+interface RegistryVisualizationTabProps {
+  feastOnlyCheckbox?: React.ReactNode;
+}
+
+const RegistryVisualizationTab: React.FC<RegistryVisualizationTabProps> = ({
+  feastOnlyCheckbox,
+}) => {
   const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(
@@ -93,70 +99,6 @@ const RegistryVisualizationTab = () => {
       {isSuccess && data && (
         <>
           <EuiSpacer size="l" />
-          <EuiFlexGroup style={{ marginBottom: 16 }}>
-            <EuiFlexItem grow={false} style={{ width: 200 }}>
-              <EuiFormRow label="Filter by type">
-                <EuiSelect
-                  options={[
-                    { value: "", text: "All" },
-                    { value: "dataSource", text: "Data Source" },
-                    { value: "entity", text: "Entity" },
-                    { value: "featureView", text: "Feature View" },
-                    { value: "labelView", text: "Label View" },
-                    { value: "featureService", text: "Feature Service" },
-                    ...(mlflowData?.runs?.length
-                      ? [{ value: "mlflowRun", text: "MLflow Run" }]
-                      : []),
-                  ]}
-                  value={selectedObjectType}
-                  onChange={(e) => {
-                    setSelectedObjectType(e.target.value);
-                    setSelectedObjectName(""); // Reset name when type changes
-                  }}
-                  aria-label="Select object type"
-                />
-              </EuiFormRow>
-            </EuiFlexItem>
-            <EuiFlexItem grow={false} style={{ width: 300 }}>
-              <EuiFormRow label="Select object">
-                <EuiSelect
-                  options={[
-                    { value: "", text: "All" },
-                    ...getObjectOptions(data.objects, selectedObjectType).map(
-                      (name: string) => ({
-                        value: name,
-                        text: name,
-                      }),
-                    ),
-                  ]}
-                  value={selectedObjectName}
-                  onChange={(e) => setSelectedObjectName(e.target.value)}
-                  aria-label="Select object"
-                  disabled={selectedObjectType === ""}
-                />
-              </EuiFormRow>
-            </EuiFlexItem>
-            <EuiFlexItem grow={false} style={{ width: 300 }}>
-              <EuiFormRow label="Filter by permissions">
-                <EuiSelect
-                  options={[
-                    { value: "", text: "All" },
-                    { value: "CREATE", text: "CREATE" },
-                    { value: "DESCRIBE", text: "DESCRIBE" },
-                    { value: "UPDATE", text: "UPDATE" },
-                    { value: "DELETE", text: "DELETE" },
-                    { value: "READ_ONLINE", text: "READ_ONLINE" },
-                    { value: "READ_OFFLINE", text: "READ_OFFLINE" },
-                    { value: "WRITE_ONLINE", text: "WRITE_ONLINE" },
-                    { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
-                  ]}
-                  value={selectedPermissionAction}
-                  onChange={(e) => setSelectedPermissionAction(e.target.value)}
-                  aria-label="Filter by permissions"
-                />
-              </EuiFormRow>
-            </EuiFlexItem>
-          </EuiFlexGroup>
           <RegistryVisualization
             registryData={data.objects}
             relationships={data.relationships}
@@ -178,6 +120,76 @@ const RegistryVisualizationTab = () => {
                 : undefined
             }
             mlflowRuns={mlflowData?.runs?.length ? mlflowData.runs : undefined}
+            extraCheckboxes={feastOnlyCheckbox}
+            filterControls={
+              <EuiFlexGroup style={{ marginBottom: 16 }}>
+                <EuiFlexItem grow={false} style={{ width: 200 }}>
+                  <EuiFormRow label="Filter by type">
+                    <EuiSelect
+                      options={[
+                        { value: "", text: "All" },
+                        { value: "dataSource", text: "Data Source" },
+                        { value: "entity", text: "Entity" },
+                        { value: "featureView", text: "Feature View" },
+                        { value: "labelView", text: "Label View" },
+                        { value: "featureService", text: "Feature Service" },
+                        ...(mlflowData?.runs?.length
+                          ? [{ value: "mlflowRun", text: "MLflow Run" }]
+                          : []),
+                      ]}
+                      value={selectedObjectType}
+                      onChange={(e) => {
+                        setSelectedObjectType(e.target.value);
+                        setSelectedObjectName("");
+                      }}
+                      aria-label="Select object type"
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+                <EuiFlexItem grow={false} style={{ width: 300 }}>
+                  <EuiFormRow label="Select object">
+                    <EuiSelect
+                      options={[
+                        { value: "", text: "All" },
+                        ...getObjectOptions(
+                          data.objects,
+                          selectedObjectType,
+                        ).map((name: string) => ({
+                          value: name,
+                          text: name,
+                        })),
+                      ]}
+                      value={selectedObjectName}
+                      onChange={(e) => setSelectedObjectName(e.target.value)}
+                      aria-label="Select object"
+                      disabled={selectedObjectType === ""}
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+                <EuiFlexItem grow={false} style={{ width: 300 }}>
+                  <EuiFormRow label="Filter by permissions">
+                    <EuiSelect
+                      options={[
+                        { value: "", text: "All" },
+                        { value: "CREATE", text: "CREATE" },
+                        { value: "DESCRIBE", text: "DESCRIBE" },
+                        { value: "UPDATE", text: "UPDATE" },
+                        { value: "DELETE", text: "DELETE" },
+                        { value: "READ_ONLINE", text: "READ_ONLINE" },
+                        { value: "READ_OFFLINE", text: "READ_OFFLINE" },
+                        { value: "WRITE_ONLINE", text: "WRITE_ONLINE" },
+                        { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
+                      ]}
+                      value={selectedPermissionAction}
+                      onChange={(e) =>
+                        setSelectedPermissionAction(e.target.value)
+                      }
+                      aria-label="Filter by permissions"
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            }
           />
         </>
       )}

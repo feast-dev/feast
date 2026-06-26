@@ -86,6 +86,10 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#0194e2"; // MLflow brand blue
     case FEAST_FCO_TYPES.mlflowModel:
       return "#7b2d8e"; // Purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#e67300"; // Deep orange for OL jobs
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#3366cc"; // Steel blue for OL datasets
     default:
       return "#666666"; // Gray
   }
@@ -107,6 +111,10 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#e6f6fd"; // Light MLflow blue
     case FEAST_FCO_TYPES.mlflowModel:
       return "#f3e6f9"; // Light purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#fff0e0"; // Light deep orange
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#e0ecff"; // Light steel blue
     default:
       return "#f0f0f0"; // Light gray
   }
@@ -128,6 +136,10 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "⬡"; // Hexagon for MLflow run
     case FEAST_FCO_TYPES.mlflowModel:
       return "⬢"; // Filled hexagon for registered model
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "⚙"; // Gear for OL job
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "⬡"; // Hexagon for OL dataset
     default:
       return "●"; // Default circle
   }
@@ -434,6 +446,8 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.labelView]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
     [FEAST_FCO_TYPES.mlflowModel]: [],
+    [FEAST_FCO_TYPES.openlineageJob]: [],
+    [FEAST_FCO_TYPES.openlineageDataset]: [],
   };
 
   isolatedNodes.forEach((node) => {
@@ -928,6 +942,10 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "mlflow";
     case FEAST_FCO_TYPES.mlflowModel:
       return "model";
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "ol-job";
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "ol-ds";
     default:
       return "unknown";
   }
@@ -940,6 +958,8 @@ interface RegistryVisualizationProps {
   filterNode?: { type: FEAST_FCO_TYPES; name: string };
   permissions?: any[];
   mlflowRuns?: MlflowRunData[];
+  extraCheckboxes?: React.ReactNode;
+  filterControls?: React.ReactNode;
 }
 
 const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
@@ -949,6 +969,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   filterNode,
   permissions,
   mlflowRuns,
+  extraCheckboxes,
+  filterControls,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -1066,7 +1088,15 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         <EuiTitle size="s">
           <h2>Lineage</h2>
         </EuiTitle>
-        <div style={{ display: "flex", gap: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            alignItems: "center",
+            fontSize: 13,
+          }}
+        >
+          {extraCheckboxes}
           <label>
             <input
               type="checkbox"
@@ -1086,6 +1116,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         </div>
       </div>
       <EuiSpacer size="m" />
+      {filterControls}
 
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
