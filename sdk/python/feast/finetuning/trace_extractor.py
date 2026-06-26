@@ -78,7 +78,7 @@ def extract_from_traces(
             f"MLflow experiment '{experiment_name}' not found at {tracking_uri}"
         )
 
-    traces = mlflow.search_traces(
+    traces_df = mlflow.search_traces(
         experiment_ids=[experiment.experiment_id],
         max_results=max_results,
         **({"filter_string": filter_string} if filter_string else {}),
@@ -87,17 +87,17 @@ def extract_from_traces(
     examples: List[FinetuningExample] = []
     skipped = 0
 
-    for trace in traces:
+    for _, row in traces_df.iterrows():
+        trace_id = row.get("trace_id") or row.get("request_id") or "unknown"
         try:
+            trace = mlflow.get_trace(str(trace_id))
             example = _process_trace(trace)
             if example is not None:
                 examples.append(example)
             else:
                 skipped += 1
         except Exception:
-            logger.warning(
-                "Failed to process trace %s", _get_trace_id(trace), exc_info=True
-            )
+            logger.warning("Failed to process trace %s", trace_id, exc_info=True)
             skipped += 1
 
     if skipped:

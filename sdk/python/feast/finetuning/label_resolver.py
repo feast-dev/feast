@@ -11,7 +11,7 @@ Two resolution paths:
 
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, List
 
 import pandas as pd
 
@@ -56,9 +56,16 @@ def resolve_labels_from_feast(
     if not examples:
         return examples
 
+    def _get_join_value(ex: "FinetuningExample") -> Any:
+        if join_key == "trace_id":
+            return ex.trace_id
+        if ex.entity_values and join_key in ex.entity_values:
+            return ex.entity_values[join_key]
+        return ex.trace_id
+
     entity_df = pd.DataFrame(
         {
-            join_key: [ex.trace_id for ex in examples],
+            join_key: [_get_join_value(ex) for ex in examples],
             "event_timestamp": [
                 datetime.fromtimestamp(
                     ex.metadata.get("trace_timestamp_ms", 0) / 1000,
@@ -86,7 +93,7 @@ def resolve_labels_from_feast(
     trace_to_row = {row[join_key]: row for _, row in result_df.iterrows()}
 
     for ex in examples:
-        row = trace_to_row.get(ex.trace_id)
+        row = trace_to_row.get(_get_join_value(ex))
         if row is None:
             continue
 

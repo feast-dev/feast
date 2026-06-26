@@ -63,7 +63,14 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastAp
         elif transport == "sse":
             mount_sse = getattr(mcp, "mount_sse", None)
             if mount_sse is not None:
-                mount_sse()
+                # Defer SSE mount to app startup so fastapi_mcp finishes
+                # internal init before clients can connect. Without this,
+                # eager MCP clients (e.g. Cursor) hit a race where the
+                # initialize handshake arrives before the server is ready.
+                @app.on_event("startup")
+                async def _deferred_mcp_sse_mount():
+                    mount_sse()
+                    logger.info("MCP SSE endpoint mounted (deferred to startup)")
             else:
                 logger.warning(
                     "transport sse not supported, fallback to the deprecated mount()."

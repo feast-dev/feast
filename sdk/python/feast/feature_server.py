@@ -573,6 +573,9 @@ def get_app(
 
         await store.initialize()
         async_refresh()
+        # Instrument inside lifespan so it runs post-fork in each
+        # gunicorn worker, avoiding OTEL/gRPC state corruption.
+        _instrument_app_for_tracing(app, store)
         try:
             yield
         finally:
@@ -582,8 +585,6 @@ def get_app(
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
-
-    _instrument_app_for_tracing(app, store)
 
     @app.post(
         "/get-online-features",
