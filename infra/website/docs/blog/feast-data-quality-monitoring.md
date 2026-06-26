@@ -2,7 +2,7 @@
 title: Data Quality Monitoring in Feast 0.64
 description: Feast 0.64 adds native data quality monitoring with baseline metrics, batch and serving-log analysis, REST APIs, CLI workflows, and a built-in monitoring UI.
 date: 2026-06-26
-authors: ["Jitendra Yejare", "Francisco Javier Arceo"]
+authors: ["Jitendra Yejare", "Nikhil Kathole", "Francisco Javier Arceo"]
 ---
 
 <div class="hero-image">
