@@ -29,6 +29,7 @@ import LineageIndex from "./pages/lineage/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
 import MonitoringIndex from "./pages/monitoring/Index";
 import FeatureMetricsDetail from "./pages/monitoring/FeatureMetricsDetail";
+import ComputeEngineIndex from "./pages/compute-engines/Index";
 
 import TabsRegistryContext, {
   FeastTabsRegistryInterface,
@@ -223,6 +224,10 @@ const FeastUISansProvidersInner = ({
                         <Route
                           path="monitoring/feature/:featureViewName/:featureName"
                           element={<FeatureMetricsDetail />}
+                        />
+                        <Route
+                          path="compute-engine/*"
+                          element={<ComputeEngineIndex />}
                         />
                       </Route>
                     </Route>
