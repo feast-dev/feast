@@ -138,12 +138,24 @@ The page includes three main tabs:
 
 At the top of the page, users can filter by feature view, granularity, source type, and date range. Baseline is treated as its own view because it represents all baseline data rather than a normal date window. The page also includes a Compute Metrics action that triggers DQM computation from the UI, plus Refresh for reloading already computed results.
 
+<div class="content-image">
+  <img src="/images/blog/feast-dqm-ui-all-features.png" alt="Feast DQM Monitoring dashboard showing feature metrics, filters, histograms, and health status" loading="lazy">
+</div>
+
 Clicking a feature opens a detail page with:
 
 - a distribution chart for numeric histograms or categorical values
 - a statistics panel with null rate, mean, standard deviation, min, max, and percentiles
 - a granularity selector that can switch between computed windows and baseline
 - time-series charts for metric drift, including aggregate statistics and null-rate trends
+
+<div class="content-image">
+  <img src="/images/blog/feast-dqm-ui-numeric-feature.png" alt="Feast DQM numeric feature detail page with distribution chart, statistics, and time-series analysis" loading="lazy">
+</div>
+
+<div class="content-image">
+  <img src="/images/blog/feast-dqm-ui-categorical-feature.png" alt="Feast DQM categorical feature detail page with category distribution and statistics" loading="lazy">
+</div>
 
 This is the workflow we wanted: feature owners can start from a table of health signals, filter down to the part of the feature store they care about, and then drill into the exact feature whose distribution changed.
 
