@@ -108,6 +108,14 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
   );
 };
 
+class MonitoringApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 const fetchMonitoring = async <T>(
   baseUrl: string,
   path: string,
@@ -124,7 +132,10 @@ const fetchMonitoring = async <T>(
     credentials: fetchOptions?.credentials,
   });
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${path}: ${res.status} ${res.statusText}`);
+    throw new MonitoringApiError(
+      res.status,
+      `Failed to fetch ${path}: ${res.status} ${res.statusText}`,
+    );
   }
   const text = await res.text();
   const sanitized = text
@@ -133,6 +144,9 @@ const fetchMonitoring = async <T>(
     .replace(/:\s*-Infinity/g, ": null");
   return JSON.parse(sanitized);
 };
+
+const isServiceUnavailable = (error: unknown): boolean =>
+  error instanceof MonitoringApiError && error.status === 503;
 
 const STALE_TIME = 30_000;
 
@@ -287,6 +301,7 @@ const useComputeMetrics = () => {
 };
 
 export {
+  isServiceUnavailable,
   useFeatureMetrics,
   useFeatureViewMetrics,
   useFeatureServiceMetrics,

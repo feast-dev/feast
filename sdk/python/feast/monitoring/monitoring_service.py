@@ -92,7 +92,11 @@ class MonitoringService:
         project: Optional[str] = None,
         feature_view_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Detect date ranges from source data and compute all granularities."""
+        """Detect date ranges from source data and compute all granularities.
+
+        Also computes baseline for any features that don't have one yet
+        (idempotent -- features with existing baselines are skipped).
+        """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
@@ -101,6 +105,7 @@ class MonitoringService:
         feature_views = self._resolve_feature_views(project, feature_view_name)
         total_features = 0
         total_views = 0
+        baseline_features = 0
         granularities_computed = set()
 
         for fv in feature_views:
@@ -117,6 +122,32 @@ class MonitoringService:
                     continue
 
                 now = datetime.now(timezone.utc)
+
+                # Compute baseline for features that don't have one yet
+                fields_needing_baseline = self._get_features_without_baseline(
+                    project, fv
+                )
+                if fields_needing_baseline:
+                    bl_fields = self._classify_fields(
+                        fv, fields=fields_needing_baseline
+                    )
+                    if bl_fields:
+                        bl_metrics = self._compute_feature_metrics(
+                            fv,
+                            bl_fields,
+                            _EPOCH,
+                            _FAR_FUTURE,
+                        )
+                        self._save_computed_metrics(
+                            project=project,
+                            feature_view=fv,
+                            metrics_list=bl_metrics,
+                            metric_date=date.today(),
+                            granularity="baseline",
+                            set_baseline=True,
+                            now=now,
+                        )
+                        baseline_features += len(bl_metrics)
 
                 for granularity, window in GRANULARITY_WINDOWS.items():
                     window_start = max_ts - window
@@ -155,6 +186,7 @@ class MonitoringService:
             "status": "completed",
             "computed_feature_views": total_views,
             "computed_features": total_features,
+            "baseline_features": baseline_features,
             "granularities": sorted(granularities_computed),
             "duration_ms": duration_ms,
         }

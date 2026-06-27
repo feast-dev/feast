@@ -275,6 +275,28 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
         table: dsData.sparkTable,
         path: dsData.sparkPath,
       };
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
+      payload.trino_options = {
+        table: dsData.trinoTable,
+        query: dsData.trinoQuery,
+      };
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_ATHENA)) {
+      payload.athena_options = {
+        table: dsData.athenaTable,
+        query: dsData.athenaQuery,
+        database: dsData.athenaDatabase,
+        data_source: dsData.athenaDataSource,
+      };
+    } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
+      payload.kinesis_options = {
+        region: dsData.kinesisRegion,
+        stream_name: dsData.kinesisStreamName,
+      };
+    } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
+      payload.custom_options = {
+        class_name: dsData.customSourceClassName,
+        config: dsData.customSourceConfig,
+      };
     }
 
     applyDataSource.mutate(payload as any, {

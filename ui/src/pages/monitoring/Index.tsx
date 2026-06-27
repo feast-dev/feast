@@ -14,6 +14,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import {
+  isServiceUnavailable,
   useFeatureMetrics,
   useFeatureViewMetrics,
   useFeatureServiceMetrics,
@@ -33,7 +34,7 @@ const MonitoringIndex = () => {
   const { data: registryData } = useLoadRegistry(registryUrl, projectName);
 
   const [selectedFV, setSelectedFV] = useState("");
-  const [granularity, setGranularity] = useState("baseline");
+  const [granularity, setGranularity] = useState("daily");
   const [dataSourceType, setDataSourceType] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -112,7 +113,13 @@ const MonitoringIndex = () => {
     });
   };
 
-  const hasError = featureQuery.isError && fvQuery.isError && fsQuery.isError;
+  const allFailed = featureQuery.isError && fvQuery.isError && fsQuery.isError;
+  const monitoringNotEnabled =
+    allFailed &&
+    isServiceUnavailable(featureQuery.error) &&
+    isServiceUnavailable(fvQuery.error) &&
+    isServiceUnavailable(fsQuery.error);
+  const hasError = allFailed && !monitoringNotEnabled;
   const hasData =
     (featureQuery.data && featureQuery.data.length > 0) ||
     (fvQuery.data && fvQuery.data.length > 0);
@@ -161,6 +168,43 @@ const MonitoringIndex = () => {
       ),
     },
   ];
+
+  if (monitoringNotEnabled) {
+    return (
+      <EuiPageTemplate panelled>
+        <EuiPageTemplate.Header
+          restrictWidth
+          iconType="monitoringApp"
+          pageTitle="Monitoring"
+          description="Feature quality and data health metrics for your feature store."
+        />
+        <EuiPageTemplate.Section>
+          <EuiEmptyPrompt
+            iconType="alert"
+            color="subdued"
+            title={<h2>Monitoring Is Not Enabled</h2>}
+            body={
+              <>
+                <p>
+                  Data quality monitoring is not configured for this Feast
+                  deployment.
+                </p>
+                <p>
+                  To enable monitoring, add the following to your{" "}
+                  <code>feature_store.yaml</code>:
+                </p>
+                <pre style={{ textAlign: "left", display: "inline-block" }}>
+                  {`data_quality_monitoring:
+  auto_baseline: true`}
+                </pre>
+                <p>Then restart the Feast registry server.</p>
+              </>
+            }
+          />
+        </EuiPageTemplate.Section>
+      </EuiPageTemplate>
+    );
+  }
 
   return (
     <EuiPageTemplate panelled>
