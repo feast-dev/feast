@@ -36,6 +36,7 @@ from feast.errors import (
     PermissionNotFoundException,
     ProjectNotFoundException,
     ProjectObjectNotFoundException,
+    SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -1292,6 +1293,23 @@ class Registry(BaseRegistry):
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
+
+    def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+
+        for idx, existing_saved_dataset_proto in enumerate(
+            self.cached_registry_proto.saved_datasets
+        ):
+            if (
+                existing_saved_dataset_proto.spec.name == name
+                and existing_saved_dataset_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.saved_datasets[idx]
+                if commit:
+                    self.commit()
+                return
+        raise SavedDatasetNotFound(name, project=project)
 
     def apply_validation_reference(
         self,

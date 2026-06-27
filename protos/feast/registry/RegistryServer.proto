@@ -67,6 +67,12 @@ service RegistryServer{
   rpc ListSavedDatasets (ListSavedDatasetsRequest) returns (ListSavedDatasetsResponse) {}
   rpc DeleteSavedDataset (DeleteSavedDatasetRequest) returns (google.protobuf.Empty) {}
 
+  // SavedDataset Operation RPCs
+  rpc CreateDatasetFromRetrieval (CreateDatasetFromRetrievalRequest) returns (CreateDatasetFromRetrievalResponse) {}
+  rpc GetDatasetData (GetDatasetDataRequest) returns (GetDatasetDataResponse) {}
+  rpc GetDatasetJobStatus (GetDatasetJobStatusRequest) returns (GetDatasetJobStatusResponse) {}
+  rpc ListDatasetJobs (ListDatasetJobsRequest) returns (ListDatasetJobsResponse) {}
+
   // ValidationReference RPCs
   rpc ApplyValidationReference (ApplyValidationReferenceRequest) returns (google.protobuf.Empty) {}
   rpc GetValidationReference (GetValidationReferenceRequest) returns (feast.core.ValidationReference) {}
@@ -421,6 +427,71 @@ message DeleteSavedDatasetRequest {
     string name = 1;
     string project = 2;
     bool commit = 3;
+}
+
+// SavedDataset Operations
+
+message CreateDatasetFromRetrievalRequest {
+    string name = 1;
+    string project = 2;
+    string feature_service_name = 3;
+    repeated string features = 4;
+    string entity_source_type = 5;
+    string entity_source_path = 6;
+    repeated string entity_keys = 8;
+    string entity_values = 9;
+    string start_date = 10;
+    string end_date = 11;
+    string extra_columns = 12;
+    string storage_type = 13;
+    string storage_path = 14;
+    map<string, string> tags = 15;
+    bool allow_overwrite = 16;
+}
+
+message CreateDatasetFromRetrievalResponse {
+    string job_id = 1;
+    string status = 2;
+}
+
+message GetDatasetDataRequest {
+    string name = 1;
+    string project = 2;
+    int32 limit = 3;
+}
+
+message TabularRow {
+    repeated string values = 1;
+}
+
+message GetDatasetDataResponse {
+    repeated string columns = 1;
+    repeated TabularRow rows = 2;
+    int32 total_rows = 3;
+    int32 sample_size = 4;
+}
+
+message GetDatasetJobStatusRequest {
+    string job_id = 1;
+}
+
+message GetDatasetJobStatusResponse {
+    string job_id = 1;
+    string dataset_name = 2;
+    string project = 3;
+    string status = 4;
+    string created_at = 5;
+    string completed_at = 6;
+    string error = 7;
+}
+
+message ListDatasetJobsRequest {
+    string project = 1;
+    string status_filter = 2;
+}
+
+message ListDatasetJobsResponse {
+    repeated GetDatasetJobStatusResponse jobs = 1;
 }
 
 // ValidationReference
