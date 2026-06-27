@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import pandas as pd
 import pyarrow
 import pyspark
-from pydantic import StrictStr
+from pydantic import StrictBool, StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
@@ -17,9 +17,22 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 )
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 logger = logging.getLogger(__name__)
+
+
+class UCRegistrationConfig(FeastConfigBaseModel):
+    """Configuration for Unity Catalog feature table registration during ``feast apply``."""
+
+    enabled: StrictBool = True
+    """Whether to register feature views as UC feature tables on ``feast apply``."""
+
+    catalog: Optional[StrictStr] = None
+    """Default catalog for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_catalog``."""
+
+    schema: Optional[StrictStr] = None
+    """Default schema for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_schema``."""
 
 
 class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
@@ -40,6 +53,9 @@ class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
 
     default_schema: Optional[StrictStr] = None
     """Default schema name to use in Unity Catalog"""
+
+    uc_registration: Optional[UCRegistrationConfig] = None
+    """Configuration for UC feature table registration during ``feast apply``."""
 
 
 def get_databricks_session(
