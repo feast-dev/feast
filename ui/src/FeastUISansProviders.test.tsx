@@ -65,27 +65,27 @@ test("routes are reachable", async () => {
   // Wait for content to load
   await screen.findByText(/Explore this Project/i);
 
-  const mainRoutesNames = [
-    "Data Sources",
-    "Entities",
-    "Feature Views",
-    "Feature Services",
-    "Datasets",
+  const mainRoutes = [
+    { link: "Data Sources", heading: "Data Sources" },
+    { link: "Entities", heading: "Entities" },
+    { link: "Feature Views", heading: "Feature Views" },
+    { link: "Feature Services", heading: "Feature Services" },
+    { link: "Datasets", heading: "Data Catalog" },
   ];
 
-  for (const routeName of mainRoutesNames) {
+  for (const { link, heading } of mainRoutes) {
     // Main heading shouldn't start with the route name
     expect(
-      screen.queryByRole("heading", { name: routeName, level: 1 }),
+      screen.queryByRole("heading", { name: heading, level: 1 }),
     ).toBeNull();
 
-    const routeRegExp = new RegExp(routeName, "i");
+    const routeRegExp = new RegExp(link, "i");
 
     await user.click(screen.getByRole("link", { name: routeRegExp }));
 
     // Should land on a page with the heading
     screen.getByRole("heading", {
-      name: routeName,
+      name: heading,
       level: 1,
     });
   }

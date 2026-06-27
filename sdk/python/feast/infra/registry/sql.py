@@ -1039,6 +1039,15 @@ class SqlRegistry(CachingRegistry):
             "saved_dataset_proto",
         )
 
+    def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
+        return self._delete_object(
+            saved_datasets,
+            name,
+            project,
+            "saved_dataset_name",
+            SavedDatasetNotFound,
+        )
+
     def apply_validation_reference(
         self,
         validation_reference: ValidationReference,

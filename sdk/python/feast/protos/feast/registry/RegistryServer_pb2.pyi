@@ -1276,6 +1276,237 @@ class DeleteSavedDatasetRequest(google.protobuf.message.Message):
 
 global___DeleteSavedDatasetRequest = DeleteSavedDatasetRequest
 
+class CreateDatasetFromRetrievalRequest(google.protobuf.message.Message):
+    """SavedDataset Operations"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    FEATURE_SERVICE_NAME_FIELD_NUMBER: builtins.int
+    FEATURES_FIELD_NUMBER: builtins.int
+    ENTITY_SOURCE_TYPE_FIELD_NUMBER: builtins.int
+    ENTITY_SOURCE_PATH_FIELD_NUMBER: builtins.int
+    ENTITY_KEYS_FIELD_NUMBER: builtins.int
+    ENTITY_VALUES_FIELD_NUMBER: builtins.int
+    START_DATE_FIELD_NUMBER: builtins.int
+    END_DATE_FIELD_NUMBER: builtins.int
+    EXTRA_COLUMNS_FIELD_NUMBER: builtins.int
+    STORAGE_TYPE_FIELD_NUMBER: builtins.int
+    STORAGE_PATH_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    ALLOW_OVERWRITE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    feature_service_name: builtins.str
+    @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    entity_source_type: builtins.str
+    entity_source_path: builtins.str
+    @property
+    def entity_keys(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    entity_values: builtins.str
+    start_date: builtins.str
+    end_date: builtins.str
+    extra_columns: builtins.str
+    storage_type: builtins.str
+    storage_path: builtins.str
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    allow_overwrite: builtins.bool
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        feature_service_name: builtins.str = ...,
+        features: collections.abc.Iterable[builtins.str] | None = ...,
+        entity_source_type: builtins.str = ...,
+        entity_source_path: builtins.str = ...,
+        entity_keys: collections.abc.Iterable[builtins.str] | None = ...,
+        entity_values: builtins.str = ...,
+        start_date: builtins.str = ...,
+        end_date: builtins.str = ...,
+        extra_columns: builtins.str = ...,
+        storage_type: builtins.str = ...,
+        storage_path: builtins.str = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        allow_overwrite: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_overwrite", b"allow_overwrite", "end_date", b"end_date", "entity_keys", b"entity_keys", "entity_source_path", b"entity_source_path", "entity_source_type", b"entity_source_type", "entity_values", b"entity_values", "extra_columns", b"extra_columns", "feature_service_name", b"feature_service_name", "features", b"features", "name", b"name", "project", b"project", "start_date", b"start_date", "storage_path", b"storage_path", "storage_type", b"storage_type", "tags", b"tags"]) -> None: ...
+
+global___CreateDatasetFromRetrievalRequest = CreateDatasetFromRetrievalRequest
+
+class CreateDatasetFromRetrievalResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOB_ID_FIELD_NUMBER: builtins.int
+    STATUS_FIELD_NUMBER: builtins.int
+    job_id: builtins.str
+    status: builtins.str
+    def __init__(
+        self,
+        *,
+        job_id: builtins.str = ...,
+        status: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["job_id", b"job_id", "status", b"status"]) -> None: ...
+
+global___CreateDatasetFromRetrievalResponse = CreateDatasetFromRetrievalResponse
+
+class GetDatasetDataRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    LIMIT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    limit: builtins.int
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        limit: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["limit", b"limit", "name", b"name", "project", b"project"]) -> None: ...
+
+global___GetDatasetDataRequest = GetDatasetDataRequest
+
+class TabularRow(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    VALUES_FIELD_NUMBER: builtins.int
+    @property
+    def values(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        values: collections.abc.Iterable[builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["values", b"values"]) -> None: ...
+
+global___TabularRow = TabularRow
+
+class GetDatasetDataResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    COLUMNS_FIELD_NUMBER: builtins.int
+    ROWS_FIELD_NUMBER: builtins.int
+    TOTAL_ROWS_FIELD_NUMBER: builtins.int
+    SAMPLE_SIZE_FIELD_NUMBER: builtins.int
+    @property
+    def columns(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
+    @property
+    def rows(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___TabularRow]: ...
+    total_rows: builtins.int
+    sample_size: builtins.int
+    def __init__(
+        self,
+        *,
+        columns: collections.abc.Iterable[builtins.str] | None = ...,
+        rows: collections.abc.Iterable[global___TabularRow] | None = ...,
+        total_rows: builtins.int = ...,
+        sample_size: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["columns", b"columns", "rows", b"rows", "sample_size", b"sample_size", "total_rows", b"total_rows"]) -> None: ...
+
+global___GetDatasetDataResponse = GetDatasetDataResponse
+
+class GetDatasetJobStatusRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOB_ID_FIELD_NUMBER: builtins.int
+    job_id: builtins.str
+    def __init__(
+        self,
+        *,
+        job_id: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["job_id", b"job_id"]) -> None: ...
+
+global___GetDatasetJobStatusRequest = GetDatasetJobStatusRequest
+
+class GetDatasetJobStatusResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOB_ID_FIELD_NUMBER: builtins.int
+    DATASET_NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    STATUS_FIELD_NUMBER: builtins.int
+    CREATED_AT_FIELD_NUMBER: builtins.int
+    COMPLETED_AT_FIELD_NUMBER: builtins.int
+    ERROR_FIELD_NUMBER: builtins.int
+    job_id: builtins.str
+    dataset_name: builtins.str
+    project: builtins.str
+    status: builtins.str
+    created_at: builtins.str
+    completed_at: builtins.str
+    error: builtins.str
+    def __init__(
+        self,
+        *,
+        job_id: builtins.str = ...,
+        dataset_name: builtins.str = ...,
+        project: builtins.str = ...,
+        status: builtins.str = ...,
+        created_at: builtins.str = ...,
+        completed_at: builtins.str = ...,
+        error: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["completed_at", b"completed_at", "created_at", b"created_at", "dataset_name", b"dataset_name", "error", b"error", "job_id", b"job_id", "project", b"project", "status", b"status"]) -> None: ...
+
+global___GetDatasetJobStatusResponse = GetDatasetJobStatusResponse
+
+class ListDatasetJobsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    STATUS_FILTER_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    status_filter: builtins.str
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        status_filter: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["project", b"project", "status_filter", b"status_filter"]) -> None: ...
+
+global___ListDatasetJobsRequest = ListDatasetJobsRequest
+
+class ListDatasetJobsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    JOBS_FIELD_NUMBER: builtins.int
+    @property
+    def jobs(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___GetDatasetJobStatusResponse]: ...
+    def __init__(
+        self,
+        *,
+        jobs: collections.abc.Iterable[global___GetDatasetJobStatusResponse] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["jobs", b"jobs"]) -> None: ...
+
+global___ListDatasetJobsResponse = ListDatasetJobsResponse
+
 class ApplyValidationReferenceRequest(google.protobuf.message.Message):
     """ValidationReference"""
 
