@@ -1,12 +1,21 @@
 import React from "react";
-import { EuiBasicTable } from "@elastic/eui";
+import { EuiBasicTable, EuiBadge } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
-import { toDate } from "../../utils/timestamp";
 
 interface DatasetsListingTableProps {
-  datasets: feast.core.ISavedDataset[];
+  datasets: any[];
+}
+
+function detectStorageType(dataset: any): string {
+  const storage = dataset?.spec?.storage;
+  if (!storage) return "—";
+  if (storage.fileStorage) return "File";
+  if (storage.bigqueryStorage) return "BigQuery";
+  if (storage.snowflakeStorage) return "Snowflake";
+  if (storage.redshiftStorage) return "Redshift";
+  if (storage.sparkStorage) return "Spark";
+  return "—";
 }
 
 const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
@@ -17,27 +26,58 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
       name: "Name",
       field: "spec.name",
       sortable: true,
-      render: (name: string) => {
+      render: (name: string, item: any) => {
+        const itemProject = item.project || item.spec?.project || projectName;
         return (
-          <EuiCustomLink to={`/p/${projectName}/data-set/${name}`}>
-            {name}
+          <EuiCustomLink to={`/p/${itemProject}/data-set/${name}`}>
+            <strong>{name}</strong>
           </EuiCustomLink>
         );
       },
     },
     {
-      name: "Source Feature Service",
-      field: "spec.featureService",
+      name: "Features",
+      render: (item: any) => (item.spec?.features || []).length,
+      width: "90px",
+    },
+    {
+      name: "Retrieval Keys",
+      render: (item: any) =>
+        (item.spec?.joinKeys || item.spec?.join_keys || []).length,
+      width: "90px",
+    },
+    {
+      name: "Storage",
+      render: (item: any) => (
+        <EuiBadge color="hollow">{detectStorageType(item)}</EuiBadge>
+      ),
+      width: "120px",
+    },
+    {
+      name: "Feature Service",
+      render: (item: any) =>
+        item.spec?.featureServiceName || item.spec?.feature_service_name || "—",
     },
     {
       name: "Created",
-      render: (item: feast.core.ISavedDataset) => {
-        return toDate(item?.meta?.createdTimestamp!).toLocaleString("en-CA")!;
+      render: (item: any) => {
+        const ts = item.meta?.createdTimestamp || item.meta?.created_timestamp;
+        if (!ts) return "—";
+        try {
+          return new Date(ts).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        } catch {
+          return "—";
+        }
       },
+      width: "140px",
     },
   ];
 
-  const getRowProps = (item: feast.core.ISavedDataset) => {
+  const getRowProps = (item: any) => {
     return {
       "data-test-subj": `row-${item.spec?.name}`,
     };
