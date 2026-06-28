@@ -27,7 +27,9 @@ from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration impo
     _resolve_uc_path,
     _should_register,
     register_uc_feature_tables,
+    write_uc_materialized_data,
 )
+from feast.repo_config import RepoConfig
 
 
 def make_mock_field(name: str, dtype_str: str = "", nullable: bool = True):
@@ -446,3 +448,192 @@ def test_register_uc_feature_tables_skips_when_missing_catalog():
             register_uc_feature_tables(config, [fv], "proj")
 
     fe_client.create_table.assert_not_called()
+
+
+# ──────────────────────────────────────────────
+#  Tests for write_uc_materialized_data (L3)
+# ──────────────────────────────────────────────
+
+
+def _run_write_with_mock(
+    config,
+    fv,
+    df,
+    project,
+    table_exists: bool = False,
+    mock_spark_session=None,
+):
+    """Helper to run write_uc_materialized_data with mocked external deps."""
+    fe_module = MagicMock()
+    fe_module.FeatureEngineeringClient = MagicMock()
+    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+        with patch(
+            "feast.infra.offline_stores.contrib.spark_offline_store.uc_registration.get_databricks_session"
+        ) as mock_get_session:
+            fe_client = MagicMock()
+            fe_module.FeatureEngineeringClient.return_value = fe_client
+            if mock_spark_session is None:
+                mock_session = MagicMock()
+            else:
+                mock_session = mock_spark_session
+            mock_session.catalog.tableExists.return_value = table_exists
+            mock_get_session.return_value = mock_session
+            write_uc_materialized_data(config, fv, df, project)
+    return fe_client, mock_session
+
+
+def test_write_uc_materialized_data_skips_wrong_offline_store():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=MagicMock(),
+    )
+    fv = MagicMock(spec=FeatureView)
+    write_uc_materialized_data(config, fv, MagicMock(), "test")
+
+
+def test_write_uc_materialized_data_skips_when_disabled():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            uc_registration=UCRegistrationConfig(enabled=False),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    write_uc_materialized_data(config, fv, MagicMock(), "test")
+
+
+def test_write_uc_materialized_data_skips_opt_out():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            default_catalog="cat",
+            default_schema="sch",
+            uc_registration=UCRegistrationConfig(enabled=True),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {"uc.register_as_feature_table": "false"}
+    fv.name = "opt_out_fv"
+
+    fe_module = MagicMock()
+    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+        write_uc_materialized_data(config, fv, MagicMock(), "test")
+
+    fe_module.FeatureEngineeringClient.assert_not_called()
+
+
+def test_write_uc_materialized_data_skips_materialize_offline_false():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            default_catalog="cat",
+            default_schema="sch",
+            uc_registration=UCRegistrationConfig(enabled=True),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {"uc.materialize_offline": "false"}
+    fv.name = "skip_mat_fv"
+
+    fe_module = MagicMock()
+    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+        write_uc_materialized_data(config, fv, MagicMock(), "test")
+
+    fe_module.FeatureEngineeringClient.assert_not_called()
+
+
+def test_write_uc_materialized_data_skips_missing_catalog():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            default_catalog=None,
+            default_schema="sch",
+            uc_registration=UCRegistrationConfig(enabled=True),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {}
+    fv.name = "test_fv"
+
+    fe_module = MagicMock()
+    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+        write_uc_materialized_data(config, fv, MagicMock(), "test")
+
+    fe_module.FeatureEngineeringClient.assert_not_called()
+
+
+def test_write_uc_materialized_data_writes_merge():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            default_catalog="cat",
+            default_schema="sch",
+            uc_registration=UCRegistrationConfig(enabled=True),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {}
+    fv.name = "test_fv"
+    fv.entity_columns = []
+    fv.features = []
+    fv.batch_source = MagicMock()
+    fv.batch_source.timestamp_field = None
+    fv.description = ""
+    fv.owner = None
+
+    fe_client, _ = _run_write_with_mock(
+        config, fv, MagicMock(), "test", table_exists=True
+    )
+
+    fe_client.write_table.assert_called_once()
+    call_args = fe_client.write_table.call_args[1]
+    assert call_args["name"] == "`cat`.`sch`.`test_fv`"
+    assert call_args["mode"] == "merge"
+
+
+def test_write_uc_materialized_data_creates_then_writes():
+    config = RepoConfig(
+        registry="file:///tmp/reg.db",
+        project="test",
+        provider="local",
+        offline_store=DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            default_catalog="cat",
+            default_schema="sch",
+            uc_registration=UCRegistrationConfig(enabled=True),
+        ),
+    )
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {}
+    fv.name = "new_fv"
+    fv.entity_columns = []
+    fv.features = []
+    fv.batch_source = MagicMock()
+    fv.batch_source.timestamp_field = None
+    fv.description = ""
+    fv.owner = None
+
+    fe_client, _ = _run_write_with_mock(
+        config, fv, MagicMock(), "test", table_exists=False
+    )
+
+    fe_client.create_table.assert_called_once()
+    fe_client.write_table.assert_called_once()
+    assert fe_client.write_table.call_args[1]["mode"] == "merge"

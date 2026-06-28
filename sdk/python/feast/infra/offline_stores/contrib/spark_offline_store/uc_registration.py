@@ -15,7 +15,7 @@ Global defaults come from ``UCRegistrationConfig`` (inside
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 from pyspark.sql import SparkSession
@@ -29,6 +29,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import
     DatabricksUCOfflineStoreConfig,
     get_databricks_session,
 )
+from feast.repo_config import RepoConfig
 
 logger = logging.getLogger(__name__)
 
@@ -387,3 +388,104 @@ def register_uc_feature_tables(
                 f"  ✗ Failed to register UC feature table: {fv.name} "
                 f"(check logs for details)"
             )
+
+
+def write_uc_materialized_data(
+    config: RepoConfig,
+    fv: FeatureView,
+    df: Any,
+    project: str,
+) -> None:
+    """Write materialized features into the Unity Catalog feature table.
+
+    Only active when the offline store is ``databricks_uc`` and
+    ``uc_registration.enabled`` is True.
+    """
+    if not isinstance(config.offline_store, DatabricksUCOfflineStoreConfig):
+        return
+
+    uc_config = config.offline_store.uc_registration
+    if uc_config is None or not uc_config.enabled:
+        return
+
+    # Check for per-FeatureView opt-out tags
+    if not _should_register(fv):
+        logger.info(f"Skipping UC materialization for {fv.name} (opt-out)")
+        return
+
+    if fv.tags.get("uc.materialize_offline", "true").lower() == "false":
+        logger.info(
+            f"Skipping UC materialization for {fv.name} (materialize_offline=false)"
+        )
+        return
+
+    try:
+        from databricks.feature_engineering import FeatureEngineeringClient
+    except ImportError:
+        logger.warning(
+            "databricks-feature-engineering is not installed; "
+            "skipping UC-backed materialization."
+        )
+        return
+
+    # Resolve UC path
+    default_catalog = uc_config.catalog or config.offline_store.default_catalog
+    default_schema = uc_config.uc_schema or config.offline_store.default_schema
+    catalog, schema, table = _resolve_uc_path(fv, default_catalog, default_schema)
+    if not catalog or not schema:
+        logger.warning(
+            f"Cannot materialize to UC for {fv.name}: missing catalog or schema."
+        )
+        return
+
+    full_name = _build_full_table_name(catalog, schema, table)
+
+    # Get Spark session and construct Spark DataFrame if needed
+    try:
+        spark_session = get_databricks_session(config.offline_store)
+    except Exception as e:
+        logger.warning(
+            "Could not create Databricks Spark session for UC materialization: %s", e
+        )
+        return
+
+    import pyarrow as pa
+
+    if isinstance(df, pa.Table):
+        # Convert pyarrow Table to pandas, then to Spark DataFrame
+        spark_df = spark_session.createDataFrame(df.to_pandas())
+    else:
+        spark_df = df
+
+    fe_client = FeatureEngineeringClient()
+
+    # If the feature table does not exist in UC, register/create it first
+    if not _table_exists(spark_session, full_name):
+        primary_keys = _get_primary_keys(fv)
+        try:
+            _create_uc_feature_table(
+                fe_client,
+                spark_session,
+                fv,
+                full_name,
+                primary_keys,
+                project,
+            )
+            logger.info(f"Created UC feature table: {full_name}")
+        except Exception as e:
+            logger.exception(
+                f"Failed to create UC feature table {full_name} during materialization"
+            )
+            raise e
+
+    # Write/merge into the UC table
+    try:
+        fe_client.write_table(
+            name=full_name,
+            df=spark_df,
+            mode="merge",
+        )
+        logger.info(f"Successfully materialized features to UC table: {full_name}")
+    except Exception as e:
+        logger.exception(f"Failed to write/merge to UC feature table {full_name}")
+        raise e
