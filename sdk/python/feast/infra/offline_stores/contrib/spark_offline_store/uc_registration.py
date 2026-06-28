@@ -89,15 +89,17 @@ def _feast_to_spark_type_simple(field):
         "STRING": StringType(),
         "UTF8": StringType(),
         "BINARY": BinaryType(),
+        "BYTES": BinaryType(),
         "TIMESTAMP": TimestampType(),
         "TIMESTAMP_TZ": TimestampType(),
+        "UNIXTIMESTAMP": TimestampType(),
         "DATE": DateType(),
         "DATE32": DateType(),
     }
 
     if type_name.startswith("LIST<") or type_name.startswith("ARRAY<"):
         return ArrayType(StringType())
-    if "DOUBLE" in type_name or "FLOAT" in type_name and "64" in type_name:
+    if "DOUBLE" in type_name or ("FLOAT" in type_name and "64" in type_name):
         return DoubleType()
     if "LIST" in type_name or "ARRAY" in type_name:
         return ArrayType(StringType())
@@ -114,7 +116,7 @@ def _resolve_uc_path(
     fv: FeatureView,
     default_catalog: Optional[str],
     default_schema: Optional[str],
-) -> Tuple[str, str, str]:
+) -> Tuple[Optional[str], Optional[str], str]:
     """Resolve the (catalog, schema, table_name) for a feature view.
 
     Prioritises per‑FV tag overrides, then global defaults, then the
@@ -364,7 +366,7 @@ def register_uc_feature_tables(
     fe_client = FeatureEngineeringClient()
 
     default_catalog = uc_config.catalog or config.default_catalog
-    default_schema = uc_config.schema or config.default_schema
+    default_schema = uc_config.uc_schema or config.default_schema
 
     for fv in feature_views:
         try:

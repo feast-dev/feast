@@ -31,7 +31,7 @@ class UCRegistrationConfig(FeastConfigBaseModel):
     catalog: Optional[StrictStr] = None
     """Default catalog for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_catalog``."""
 
-    schema: Optional[StrictStr] = None
+    uc_schema: Optional[StrictStr] = None
     """Default schema for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_schema``."""
 
 
