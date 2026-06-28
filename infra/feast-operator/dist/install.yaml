@@ -801,6 +801,59 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
+                  consumer:
+                    description: |-
+                      Consumer configures the OpenLineage consumer (event receiver) that enables
+                      Feast to receive and display lineage from...
+                    properties:
+                      apiKeySecretRef:
+                        description: |-
+                          Reference to a Secret containing the key "api_key" that producers must
+                          provide in the X-API-Key header when sending...
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      connectionStringSecretRef:
+                        description: |-
+                          Reference to a Secret containing the key "connection_string" for a separate
+                          lineage database.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      enabled:
+                        description: Enable the OpenLineage consumer.
+                        type: boolean
+                      namespaceMapping:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          NamespaceMapping maps OpenLineage namespaces to Feast projects for
+                          RBAC-based filtering of lineage data in the UI.
+                        type: object
+                      storeType:
+                        default: sql
+                        description: StoreType is the storage backend for lineage
+                          events. Currently only "sql" is supported.
+                        enum:
+                        - sql
+                        type: string
+                    required:
+                    - enabled
+                    type: object
                   enabled:
                     description: Enable OpenLineage integration.
                     type: boolean
@@ -6807,6 +6860,59 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
+                      consumer:
+                        description: |-
+                          Consumer configures the OpenLineage consumer (event receiver) that enables
+                          Feast to receive and display lineage from...
+                        properties:
+                          apiKeySecretRef:
+                            description: |-
+                              Reference to a Secret containing the key "api_key" that producers must
+                              provide in the X-API-Key header when sending...
+                            properties:
+                              name:
+                                default: ""
+                                description: |-
+                                  Name of the referent.
+                                  This field is effectively required, but due to backwards compatibility is
+                                  allowed to be empty.
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          connectionStringSecretRef:
+                            description: |-
+                              Reference to a Secret containing the key "connection_string" for a separate
+                              lineage database.
+                            properties:
+                              name:
+                                default: ""
+                                description: |-
+                                  Name of the referent.
+                                  This field is effectively required, but due to backwards compatibility is
+                                  allowed to be empty.
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          enabled:
+                            description: Enable the OpenLineage consumer.
+                            type: boolean
+                          namespaceMapping:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              NamespaceMapping maps OpenLineage namespaces to Feast projects for
+                              RBAC-based filtering of lineage data in the UI.
+                            type: object
+                          storeType:
+                            default: sql
+                            description: StoreType is the storage backend for lineage
+                              events. Currently only "sql" is supported.
+                            enum:
+                            - sql
+                            type: string
+                        required:
+                        - enabled
+                        type: object
                       enabled:
                         description: Enable OpenLineage integration.
                         type: boolean
