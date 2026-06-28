@@ -264,7 +264,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ):
                 registry_proto.permissions.append(permission.to_proto())
 
-        registry_proto.last_updated.FromDatetime(datetime.now(timezone.utc))
+        # Carry the registry's real last_updated/version_id rather than stamping "now":
+        # this proto is rebuilt from individual list calls (for RBAC filtering), but it must
+        # not look like a fresh commit on every call — clients such as the remote feature
+        # server key cache freshness off this metadata. Reading these two scalar fields from
+        # the source proto leaks nothing RBAC-protected (no objects are copied from it).
+        source_proto = self.proxied_registry.proto()
+        registry_proto.last_updated.CopyFrom(source_proto.last_updated)
+        registry_proto.version_id = source_proto.version_id
         return registry_proto
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):

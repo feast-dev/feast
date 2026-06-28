@@ -6,6 +6,7 @@ permissions). Under ``NoAuthConfig`` filtering is a no-op, so the full registry 
 returned; with auth enabled only ``DESCRIBE``-permitted objects are included.
 """
 
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from google.protobuf.empty_pb2 import Empty
@@ -14,8 +15,14 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feast_object import FeastObject
 from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.registry_server import RegistryServer
 from feast.value_type import ValueType
+
+# The registry's authentic metadata, returned by _FakeRegistry.proto(). Proto() must carry these
+# through rather than stamping "now" (issue #6558 review feedback).
+_REGISTRY_LAST_UPDATED = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+_REGISTRY_VERSION_ID = "test-version-id"
 
 
 class _FakeRegistry:
@@ -25,6 +32,14 @@ class _FakeRegistry:
         self._projects = projects
         self._entities = entities_by_project
         self._data_sources = data_sources_by_project
+
+    def proto(self) -> RegistryProto:
+        # Source of the authentic last_updated / version_id metadata. Proto() reads only these
+        # scalar fields from here (no objects), so RBAC filtering is unaffected.
+        proto = RegistryProto()
+        proto.version_id = _REGISTRY_VERSION_ID
+        proto.last_updated.FromDatetime(_REGISTRY_LAST_UPDATED)
+        return proto
 
     def list_projects(self, allow_cache: bool = False, tags=None):
         return self._projects
@@ -80,8 +95,10 @@ def test_proto_returns_full_registry_when_no_auth():
     assert {p.spec.name for p in result.projects} == {"proj_a", "proj_b"}
     assert {e.spec.name for e in result.entities} == {"driver", "customer", "merchant"}
     assert {d.name for d in result.data_sources} == {"src_a"}
-    # last_updated is stamped so cache consumers see a fresh timestamp.
-    assert result.HasField("last_updated")
+    # last_updated / version_id are carried from the registry's real proto (not stamped "now"),
+    # so cache consumers see the registry's authentic freshness metadata.
+    assert result.version_id == _REGISTRY_VERSION_ID
+    assert result.last_updated.ToDatetime(tzinfo=timezone.utc) == _REGISTRY_LAST_UPDATED
 
 
 def test_proto_filters_by_describe_permission():
