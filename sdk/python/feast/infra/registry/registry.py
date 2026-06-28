@@ -58,7 +58,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, to_naive_utc
 from feast.version_utils import (
     generate_version_id,
     parse_version,
@@ -1093,11 +1093,7 @@ class Registry(BaseRegistry):
         )
         if updated_since is not None:
             # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
-            cutoff = (
-                updated_since.astimezone(timezone.utc).replace(tzinfo=None)
-                if updated_since.tzinfo
-                else updated_since
-            )
+            cutoff = to_naive_utc(updated_since)
             feature_views = [
                 fv
                 for fv in feature_views

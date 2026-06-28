@@ -62,7 +62,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now, has_all_tags
+from feast.utils import _utc_now, has_all_tags, to_naive_utc
 
 logger = logging.getLogger(__name__)
 
@@ -664,11 +664,7 @@ class SnowflakeRegistry(BaseRegistry):
                 registry_proto, project, tags, skip_udf=skip_udf
             )
             if updated_since is not None:
-                cutoff = (
-                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
-                    if updated_since.tzinfo
-                    else updated_since
-                )
+                cutoff = to_naive_utc(updated_since)
                 feature_views = [
                     fv
                     for fv in feature_views
@@ -701,11 +697,7 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
         if updated_since is not None:
-            cutoff = (
-                updated_since.astimezone(timezone.utc).replace(tzinfo=None)
-                if updated_since.tzinfo
-                else updated_since
-            )
+            cutoff = to_naive_utc(updated_since)
             feature_views = [
                 fv
                 for fv in feature_views

@@ -3,7 +3,7 @@ import logging
 import threading
 import warnings
 from abc import abstractmethod
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +23,7 @@ from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, to_naive_utc
 
 logger = logging.getLogger(__name__)
 
@@ -145,11 +145,7 @@ class CachingRegistry(BaseRegistry):
             )
             if updated_since is not None:
                 # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
-                cutoff = (
-                    updated_since.astimezone(timezone.utc).replace(tzinfo=None)
-                    if updated_since.tzinfo
-                    else updated_since
-                )
+                cutoff = to_naive_utc(updated_since)
                 feature_views = [
                     fv
                     for fv in feature_views

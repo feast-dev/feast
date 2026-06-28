@@ -2,7 +2,7 @@ import logging
 from datetime import timezone
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from google.protobuf import timestamp_pb2
 from google.protobuf.duration_pb2 import Duration
@@ -280,10 +280,19 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         if updated_since is not None:
             from datetime import datetime
 
-            dt = datetime.fromisoformat(updated_since.replace("Z", "+00:00"))
-            ts = timestamp_pb2.Timestamp()
+            try:
+                dt = datetime.fromisoformat(updated_since.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Invalid 'updated_since' value '{updated_since}'; expected an "
+                        "ISO-8601 timestamp (e.g. 2024-01-01T00:00:00Z)."
+                    ),
+                )
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
+            ts = timestamp_pb2.Timestamp()
             ts.FromDatetime(dt.astimezone(timezone.utc))
             updated_since_proto = ts
 
