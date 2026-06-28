@@ -9,7 +9,9 @@ from feast.infra.offline_stores.iceberg.registration import (
     _resolve_uc_path,
     _should_register,
     register_uc_feature_tables,
+    write_uc_materialized_data,
 )
+from feast.repo_config import RepoConfig
 
 
 def make_mock_field(name: str, dtype_str: str = "", nullable: bool = True):
