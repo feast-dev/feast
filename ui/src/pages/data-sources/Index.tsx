@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -14,8 +14,8 @@ import {
 } from "@elastic/eui";
 
 import DatasourcesListingTable from "./DataSourcesListingTable";
+import DataSourceCatalog from "./DataSourceCatalog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
 import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
@@ -95,6 +95,28 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
       table: formData.sparkTable,
       path: formData.sparkPath,
     };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
+    payload.trino_options = {
+      table: formData.trinoTable,
+      query: formData.trinoQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ATHENA)) {
+    payload.athena_options = {
+      table: formData.athenaTable,
+      query: formData.athenaQuery,
+      database: formData.athenaDatabase,
+      data_source: formData.athenaDataSource,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
+    payload.kinesis_options = {
+      region: formData.kinesisRegion,
+      stream_name: formData.kinesisStreamName,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
+    payload.custom_options = {
+      class_name: formData.customSourceClassName,
+      config: formData.customSourceConfig,
+    };
   }
 
   return payload;
@@ -105,7 +127,11 @@ const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
   const isAllProjects = projectName === "all";
 
+  const [showCatalog, setShowCatalog] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [preselectedSourceType, setPreselectedSourceType] = useState<
+    string | null
+  >(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const applyDataSource = useApplyDataSource();
@@ -116,11 +142,73 @@ const Index = () => {
 
   const filterResult = data ? filterFn(data, searchTokens) : data;
 
+  const hasExistingSources = isSuccess && data && data.length > 0;
+  const isEmpty = isSuccess && (!data || data.length === 0);
+
+  const modalInitialData = useMemo(() => {
+    if (!preselectedSourceType) return undefined;
+    return {
+      name: "",
+      description: "",
+      owner: "",
+      sourceType: preselectedSourceType,
+      timestampField: "",
+      createdTimestampColumn: "",
+      tags: [] as { key: string; value: string }[],
+      fileUri: "",
+      bigqueryTable: "",
+      bigqueryQuery: "",
+      snowflakeTable: "",
+      snowflakeDatabase: "",
+      snowflakeSchema: "",
+      redshiftTable: "",
+      redshiftDatabase: "",
+      redshiftSchema: "",
+      kafkaBootstrapServers: "",
+      kafkaTopic: "",
+      sparkTable: "",
+      sparkPath: "",
+      kinesisRegion: "",
+      kinesisStreamName: "",
+      trinoTable: "",
+      trinoQuery: "",
+      athenaTable: "",
+      athenaQuery: "",
+      athenaDatabase: "",
+      athenaDataSource: "",
+      customSourceClassName: "",
+      customSourceConfig: "",
+      rayReaderType: "parquet",
+      rayPath: "",
+      rayReaderOptions: "",
+      postgresTable: "",
+      postgresQuery: "",
+      mongodbCollection: "",
+      clickhouseTable: "",
+      clickhouseQuery: "",
+      mssqlTable: "",
+      mssqlConnectionStr: "",
+      oracleTable: "",
+      oracleConnectionStr: "",
+      couchbaseDatabase: "",
+      couchbaseScope: "",
+      couchbaseCollection: "",
+      couchbaseQuery: "",
+    };
+  }, [preselectedSourceType]);
+
+  const handleSelectType = (sourceType: string) => {
+    setPreselectedSourceType(sourceType);
+    setIsModalOpen(true);
+  };
+
   const handleCreateSubmit = (formData: DataSourceFormData) => {
     const payload = formDataToPayload(formData, projectName || "");
     applyDataSource.mutate(payload as any, {
       onSuccess: () => {
         setIsModalOpen(false);
+        setPreselectedSourceType(null);
+        setShowCatalog(false);
         setErrorMessage(null);
         setSuccessMessage(
           `Data source "${formData.name}" created successfully.`,
@@ -128,7 +216,6 @@ const Index = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
-        // Error shown inside the modal via submitError prop
         const message =
           err instanceof Error ? err.message : "An unexpected error occurred.";
         setErrorMessage(message);
@@ -143,13 +230,13 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
-          ...(isAllProjects
+          ...(isAllProjects || showCatalog
             ? []
             : [
                 <EuiButton
                   fill
                   iconType="plus"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setShowCatalog(true)}
                   key="create"
                 >
                   Create Data Source
@@ -175,7 +262,7 @@ const Index = () => {
             <EuiSpacer size="m" />
           </>
         )}
-        {errorMessage && (
+        {errorMessage && !isModalOpen && (
           <>
             <EuiCallOut
               title={errorMessage}
@@ -186,32 +273,73 @@ const Index = () => {
             <EuiSpacer size="m" />
           </>
         )}
-        {isLoading && (
-          <p>
-            <EuiLoadingSpinner size="m" /> Loading
-          </p>
-        )}
-        {isError && <p>We encountered an error while loading.</p>}
-        {isSuccess && !data && <DataSourceIndexEmptyState />}
-        {isSuccess && data && data.length > 0 && filterResult && (
-          <React.Fragment>
-            <EuiFlexGroup>
-              <EuiFlexItem grow={2}>
-                <EuiTitle size="xs">
-                  <h2>Search</h2>
+
+        {showCatalog && !isAllProjects && (
+          <>
+            <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
+              <EuiFlexItem grow={false}>
+                <EuiTitle size="s">
+                  <h2>Select a Data Source Type</h2>
                 </EuiTitle>
-                <EuiFieldSearch
-                  value={searchString}
-                  fullWidth={true}
-                  onChange={(e) => {
-                    setSearchString(e.target.value);
-                  }}
-                />
               </EuiFlexItem>
+              {hasExistingSources && (
+                <EuiFlexItem grow={false}>
+                  <EuiButton
+                    onClick={() => setShowCatalog(false)}
+                    iconType="arrowLeft"
+                    size="s"
+                  >
+                    Back to Data Sources
+                  </EuiButton>
+                </EuiFlexItem>
+              )}
             </EuiFlexGroup>
             <EuiSpacer size="m" />
-            <DatasourcesListingTable dataSources={filterResult} />
-          </React.Fragment>
+            <DataSourceCatalog onSelectType={handleSelectType} />
+          </>
+        )}
+
+        {!showCatalog && (
+          <>
+            {isLoading && (
+              <p>
+                <EuiLoadingSpinner size="m" /> Loading
+              </p>
+            )}
+            {isError && <p>We encountered an error while loading.</p>}
+            {isEmpty && !isAllProjects && (
+              <>
+                <EuiTitle size="s">
+                  <h2>No data sources yet — create your first connection</h2>
+                </EuiTitle>
+                <EuiSpacer size="l" />
+                <DataSourceCatalog onSelectType={handleSelectType} />
+              </>
+            )}
+            {isEmpty && isAllProjects && (
+              <p>No data sources found across projects.</p>
+            )}
+            {hasExistingSources && filterResult && (
+              <React.Fragment>
+                <EuiFlexGroup>
+                  <EuiFlexItem grow={2}>
+                    <EuiTitle size="xs">
+                      <h2>Search</h2>
+                    </EuiTitle>
+                    <EuiFieldSearch
+                      value={searchString}
+                      fullWidth={true}
+                      onChange={(e) => {
+                        setSearchString(e.target.value);
+                      }}
+                    />
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+                <EuiSpacer size="m" />
+                <DatasourcesListingTable dataSources={filterResult} />
+              </React.Fragment>
+            )}
+          </>
         )}
       </EuiPageTemplate.Section>
 
@@ -219,11 +347,13 @@ const Index = () => {
         <DataSourceFormModal
           onClose={() => {
             setIsModalOpen(false);
+            setPreselectedSourceType(null);
             setErrorMessage(null);
           }}
           onSubmit={handleCreateSubmit}
           isSubmitting={applyDataSource.isLoading}
           submitError={errorMessage}
+          initialData={modalInitialData}
         />
       )}
     </EuiPageTemplate>

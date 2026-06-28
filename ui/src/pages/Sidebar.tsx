@@ -24,6 +24,7 @@ import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
 import { LabelViewIcon } from "../graphics/LabelViewIcon";
+import { ComputeEngineIcon } from "../graphics/ComputeEngineIcon";
 import type { genericFVType } from "../parsers/mergedFVTypes";
 
 const SideNav = () => {
@@ -194,6 +195,15 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/monitoring`} />
           ),
           isSelected: monitoringSelected,
+        },
+        {
+          name: "Compute & Jobs",
+          id: htmlIdGenerator("computeEngine")(),
+          icon: <EuiIcon type={ComputeEngineIcon} />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/compute-engine`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/compute-engine`),
         },
       ],
     },

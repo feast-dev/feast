@@ -78,7 +78,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     from feast.api.registry.rest import register_all_routes
     from feast.registry_server import RegistryServer
 
-    grpc_handler = RegistryServer(store.registry)
+    grpc_handler = RegistryServer(store.registry, store=store)
 
     rest_app = FastAPI(root_path="/api/v1")
     register_all_routes(rest_app, grpc_handler, store=store)

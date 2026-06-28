@@ -62,4 +62,4 @@ def test_routes_registered_in_app():
     server = MagicMock()
     register_all_routes(app, grpc_handler, server)
 
-    assert app.include_router.call_count == 13
+    assert app.include_router.call_count == 14
