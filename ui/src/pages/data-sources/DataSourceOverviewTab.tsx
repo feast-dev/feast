@@ -69,6 +69,38 @@ const buildEditFormData = (ds: any): DataSourceFormData => {
     kafkaTopic: spec.kafkaOptions?.topic || ds.kafkaOptions?.topic || "",
     sparkTable: spec.sparkOptions?.table || ds.sparkOptions?.table || "",
     sparkPath: spec.sparkOptions?.path || ds.sparkOptions?.path || "",
+    kinesisRegion:
+      spec.kinesisOptions?.region || ds.kinesisOptions?.region || "",
+    kinesisStreamName:
+      spec.kinesisOptions?.streamName || ds.kinesisOptions?.streamName || "",
+    trinoTable: spec.trinoOptions?.table || ds.trinoOptions?.table || "",
+    trinoQuery: spec.trinoOptions?.query || ds.trinoOptions?.query || "",
+    athenaTable: spec.athenaOptions?.table || ds.athenaOptions?.table || "",
+    athenaQuery: spec.athenaOptions?.query || ds.athenaOptions?.query || "",
+    athenaDatabase:
+      spec.athenaOptions?.database || ds.athenaOptions?.database || "",
+    athenaDataSource:
+      spec.athenaOptions?.dataSource || ds.athenaOptions?.dataSource || "",
+    customSourceClassName:
+      spec.customOptions?.className || ds.customOptions?.className || "",
+    customSourceConfig:
+      spec.customOptions?.config || ds.customOptions?.config || "",
+    rayReaderType: "",
+    rayPath: "",
+    rayReaderOptions: "",
+    postgresTable: "",
+    postgresQuery: "",
+    mongodbCollection: "",
+    clickhouseTable: "",
+    clickhouseQuery: "",
+    mssqlTable: "",
+    mssqlConnectionStr: "",
+    oracleTable: "",
+    oracleConnectionStr: "",
+    couchbaseDatabase: "",
+    couchbaseScope: "",
+    couchbaseCollection: "",
+    couchbaseQuery: "",
   };
 };
 
@@ -115,6 +147,28 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
     payload.spark_options = {
       table: formData.sparkTable,
       path: formData.sparkPath,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
+    payload.trino_options = {
+      table: formData.trinoTable,
+      query: formData.trinoQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ATHENA)) {
+    payload.athena_options = {
+      table: formData.athenaTable,
+      query: formData.athenaQuery,
+      database: formData.athenaDatabase,
+      data_source: formData.athenaDataSource,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
+    payload.kinesis_options = {
+      region: formData.kinesisRegion,
+      stream_name: formData.kinesisStreamName,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
+    payload.custom_options = {
+      class_name: formData.customSourceClassName,
+      config: formData.customSourceConfig,
     };
   }
 
