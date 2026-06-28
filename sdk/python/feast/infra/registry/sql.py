@@ -485,26 +485,36 @@ class SqlRegistry(CachingRegistry):
         return fv
 
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]], **kwargs
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
+        **kwargs,
     ) -> List[BaseFeatureView]:
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags, **kwargs),
-            )
-            + cast(
-                list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags, **kwargs),
-            )
-            + cast(
-                list[BaseFeatureView],
-                self._list_on_demand_feature_views(
-                    project=project, tags=tags, **kwargs
+                self._list_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
                 ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_label_views(project=project, tags=tags, **kwargs),
+                self._list_stream_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_on_demand_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_label_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
             )
         )
 

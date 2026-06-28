@@ -361,6 +361,9 @@ def mock_snowflake_registry():
         registry.registry_config = config
         registry.registry_path = "db.schema"
         registry.cache_mode = "sync"
+        # list_all_feature_views also aggregates label views; default to none so the
+        # updated_since tests only need to stub the feature-view list methods they exercise.
+        registry.list_label_views = MagicMock(return_value=[])
         yield registry
 
 
