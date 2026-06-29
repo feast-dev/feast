@@ -24,6 +24,7 @@ For testing patterns and debugging, also read `skills/feast-testing/SKILL.md`.
 
 - **Unit tests**: add or update tests in `sdk/python/tests/unit/infra/<subsystem>/`
 - **Integration tests**: run `make test-python-integration-local`; add a universal test case in `sdk/python/tests/integration/` if the change affects retrieval or materialization behavior
+- **SQL registry binary columns**: in `infra/registry/sql.py`, a new column that stores a serialized proto or blob metadata must use `ProtoBytes`, not `LargeBinary` directly — `LargeBinary` maps to MySQL `BLOB` (64 KB cap) and silently truncates large protos
 - **Protos**: if you add a field to a proto message, recompile with `make protos` and update serialization helpers in `proto_registry_utils.py`
 - **Both SDKs**: if the change affects online serving, check whether the Go server (`go/`) also needs updating
 - **Skills/Rules**: if the change introduces new patterns, interfaces, or conventions that agents should follow, update the relevant section in `skills/feast-architecture/SKILL.md` (and `skills/feast-testing/SKILL.md` if testing patterns changed)
