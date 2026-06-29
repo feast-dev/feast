@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: featurestores.feast.dev
 spec:
   group: feast.dev
@@ -121,8 +121,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -328,7 +327,7 @@ spec:
                       activeDeadlineSeconds:
                         description: |-
                           Specifies the duration in seconds relative to the startTime that the job
-                          may be continuously active before the system tr
+                          may be continuously active before the system...
                         format: int64
                         type: integer
                       backoffLimit:
@@ -504,8 +503,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -879,8 +877,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -1341,8 +1338,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -1806,8 +1802,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -2251,7 +2246,7 @@ spec:
                       supplementalGroups:
                         description: |-
                           A list of groups applied to the first process run in each container, in addition
-                          to the container's primary GID, the fsG
+                          to the container's primary GID, the...
                         items:
                           format: int64
                           type: integer
@@ -2313,8 +2308,7 @@ spec:
                             value:
                               description: |-
                                 Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any
+                                using the previously defined environment variables in the container and...
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -2612,7 +2606,7 @@ spec:
                         awsElasticBlockStore:
                           description: |-
                             awsElasticBlockStore represents an AWS Disk resource that is attached to a
-                            kubelet's host machine and then exposed to th
+                            kubelet's host machine and then exposed to...
                           properties:
                             fsType:
                               description: fsType is the filesystem type of the volume
@@ -2662,7 +2656,7 @@ spec:
                             kind:
                               description: 'kind expected values are Shared: multiple
                                 blob disks per storage account  Dedicated: single
-                                blob disk per storage accoun'
+                                blob disk per storage...'
                               type: string
                             readOnly:
                               description: |-
@@ -2789,7 +2783,7 @@ spec:
                             items:
                               description: |-
                                 items if unspecified, each key-value pair in the Data field of the referenced
-                                ConfigMap will be projected into the volum
+                                ConfigMap will be projected into the...
                               items:
                                 description: Maps a string key to a path within a
                                   volume.
@@ -2829,7 +2823,7 @@ spec:
                         csi:
                           description: csi (Container Storage Interface) represents
                             ephemeral storage that is handled by certain external
-                            CSI drivers (Beta fea
+                            CSI drivers (Beta...
                           properties:
                             driver:
                               description: driver is the name of the CSI driver that
@@ -2841,7 +2835,7 @@ spec:
                             nodePublishSecretRef:
                               description: |-
                                 nodePublishSecretRef is a reference to the secret object containing
-                                sensitive information to pass to the CSI driver to c
+                                sensitive information to pass to the CSI driver to...
                               properties:
                                 name:
                                   default: ""
@@ -2903,7 +2897,7 @@ spec:
                                   mode:
                                     description: |-
                                       Optional: mode bits used to set permissions on this file, must be an octal value
-                                      between 0000 and 0777 or a decimal valu
+                                      between 0000 and 0777 or a decimal...
                                     format: int32
                                     type: integer
                                   path:
@@ -3152,9 +3146,9 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                             wwids:
-                              description: "wwids Optional: FC volume world wide identifiers
-                                (wwids)\nEither wwids or combination of targetWWNs
-                                and lun must be set, "
+                              description: |-
+                                wwids Optional: FC volume world wide identifiers (wwids)
+                                Either wwids or combination of targetWWNs and lun must be set,...
                               items:
                                 type: string
                               type: array
@@ -3189,7 +3183,7 @@ spec:
                             secretRef:
                               description: |-
                                 secretRef is Optional: secretRef is reference to the secret object containing
-                                sensitive information to pass to the plugi
+                                sensitive information to pass to the...
                               properties:
                                 name:
                                   default: ""
@@ -3210,7 +3204,7 @@ spec:
                             datasetName:
                               description: |-
                                 datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker
-                                should be considered as depreca
+                                should be considered as...
                               type: string
                             datasetUUID:
                               description: datasetUUID is the UUID of the dataset.
@@ -3220,7 +3214,7 @@ spec:
                         gcePersistentDisk:
                           description: |-
                             gcePersistentDisk represents a GCE Disk resource that is attached to a
-                            kubelet's host machine and then exposed to the po
+                            kubelet's host machine and then exposed to the...
                           properties:
                             fsType:
                               description: fsType is filesystem type of the volume
@@ -3554,7 +3548,7 @@ spec:
                                       items:
                                         description: |-
                                           items if unspecified, each key-value pair in the Data field of the referenced
-                                          ConfigMap will be projected into the volum
+                                          ConfigMap will be projected into the...
                                         items:
                                           description: Maps a string key to a path
                                             within a volume.
@@ -3625,7 +3619,7 @@ spec:
                                             mode:
                                               description: |-
                                                 Optional: mode bits used to set permissions on this file, must be an octal value
-                                                between 0000 and 0777 or a decimal valu
+                                                between 0000 and 0777 or a decimal...
                                               format: int32
                                               type: integer
                                             path:
@@ -3674,7 +3668,7 @@ spec:
                                       items:
                                         description: |-
                                           items if unspecified, each key-value pair in the Data field of the referenced
-                                          Secret will be projected into the volume a
+                                          Secret will be projected into the volume...
                                         items:
                                           description: Maps a string key to a path
                                             within a volume.
@@ -3755,12 +3749,12 @@ spec:
                             registry:
                               description: |-
                                 registry represents a single or multiple Quobyte Registry services
-                                specified as a string as host:port pair (multiple ent
+                                specified as a string as host:port pair (multiple...
                               type: string
                             tenant:
                               description: |-
                                 tenant owning the given Quobyte volume in the Backend
-                                Used with dynamically provisioned Quobyte volumes, value is set by
+                                Used with dynamically provisioned Quobyte volumes, value is set...
                               type: string
                             user:
                               description: |-
@@ -3916,7 +3910,7 @@ spec:
                             items:
                               description: |-
                                 items If unspecified, each key-value pair in the Data field of the referenced
-                                Secret will be projected into the volume a
+                                Secret will be projected into the volume...
                               items:
                                 description: Maps a string key to a path within a
                                   volume.
@@ -4102,8 +4096,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -4311,7 +4304,7 @@ spec:
                           activeDeadlineSeconds:
                             description: |-
                               Specifies the duration in seconds relative to the startTime that the job
-                              may be continuously active before the system tr
+                              may be continuously active before the system...
                             format: int64
                             type: integer
                           backoffLimit:
@@ -4490,8 +4483,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -4870,8 +4862,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -5340,8 +5331,7 @@ spec:
                                     value:
                                       description: |-
                                         Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any
+                                        using the previously defined environment variables in the container and...
                                       type: string
                                     valueFrom:
                                       description: Source for the environment variable's
@@ -5817,8 +5807,7 @@ spec:
                                         value:
                                           description: |-
                                             Variable references $(VAR_NAME) are expanded
-                                            using the previously defined environment variables in the container and
-                                            any
+                                            using the previously defined environment variables in the container and...
                                           type: string
                                         valueFrom:
                                           description: Source for the environment
@@ -6273,7 +6262,7 @@ spec:
                           supplementalGroups:
                             description: |-
                               A list of groups applied to the first process run in each container, in addition
-                              to the container's primary GID, the fsG
+                              to the container's primary GID, the...
                             items:
                               format: int64
                               type: integer
@@ -6336,8 +6325,7 @@ spec:
                                 value:
                                   description: |-
                                     Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any
+                                    using the previously defined environment variables in the container and...
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -6637,7 +6625,7 @@ spec:
                             awsElasticBlockStore:
                               description: |-
                                 awsElasticBlockStore represents an AWS Disk resource that is attached to a
-                                kubelet's host machine and then exposed to th
+                                kubelet's host machine and then exposed to...
                               properties:
                                 fsType:
                                   description: fsType is the filesystem type of the
@@ -6687,7 +6675,7 @@ spec:
                                 kind:
                                   description: 'kind expected values are Shared: multiple
                                     blob disks per storage account  Dedicated: single
-                                    blob disk per storage accoun'
+                                    blob disk per storage...'
                                   type: string
                                 readOnly:
                                   description: |-
@@ -6815,7 +6803,7 @@ spec:
                                 items:
                                   description: |-
                                     items if unspecified, each key-value pair in the Data field of the referenced
-                                    ConfigMap will be projected into the volum
+                                    ConfigMap will be projected into the...
                                   items:
                                     description: Maps a string key to a path within
                                       a volume.
@@ -6855,7 +6843,7 @@ spec:
                             csi:
                               description: csi (Container Storage Interface) represents
                                 ephemeral storage that is handled by certain external
-                                CSI drivers (Beta fea
+                                CSI drivers (Beta...
                               properties:
                                 driver:
                                   description: driver is the name of the CSI driver
@@ -6868,7 +6856,7 @@ spec:
                                 nodePublishSecretRef:
                                   description: |-
                                     nodePublishSecretRef is a reference to the secret object containing
-                                    sensitive information to pass to the CSI driver to c
+                                    sensitive information to pass to the CSI driver to...
                                   properties:
                                     name:
                                       default: ""
@@ -6932,7 +6920,7 @@ spec:
                                       mode:
                                         description: |-
                                           Optional: mode bits used to set permissions on this file, must be an octal value
-                                          between 0000 and 0777 or a decimal valu
+                                          between 0000 and 0777 or a decimal...
                                         format: int32
                                         type: integer
                                       path:
@@ -7184,9 +7172,9 @@ spec:
                                   type: array
                                   x-kubernetes-list-type: atomic
                                 wwids:
-                                  description: "wwids Optional: FC volume world wide
-                                    identifiers (wwids)\nEither wwids or combination
-                                    of targetWWNs and lun must be set, "
+                                  description: |-
+                                    wwids Optional: FC volume world wide identifiers (wwids)
+                                    Either wwids or combination of targetWWNs and lun must be set,...
                                   items:
                                     type: string
                                   type: array
@@ -7221,7 +7209,7 @@ spec:
                                 secretRef:
                                   description: |-
                                     secretRef is Optional: secretRef is reference to the secret object containing
-                                    sensitive information to pass to the plugi
+                                    sensitive information to pass to the...
                                   properties:
                                     name:
                                       default: ""
@@ -7242,7 +7230,7 @@ spec:
                                 datasetName:
                                   description: |-
                                     datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker
-                                    should be considered as depreca
+                                    should be considered as...
                                   type: string
                                 datasetUUID:
                                   description: datasetUUID is the UUID of the dataset.
@@ -7252,7 +7240,7 @@ spec:
                             gcePersistentDisk:
                               description: |-
                                 gcePersistentDisk represents a GCE Disk resource that is attached to a
-                                kubelet's host machine and then exposed to the po
+                                kubelet's host machine and then exposed to the...
                               properties:
                                 fsType:
                                   description: fsType is filesystem type of the volume
@@ -7588,7 +7576,7 @@ spec:
                                           items:
                                             description: |-
                                               items if unspecified, each key-value pair in the Data field of the referenced
-                                              ConfigMap will be projected into the volum
+                                              ConfigMap will be projected into the...
                                             items:
                                               description: Maps a string key to a
                                                 path within a volume.
@@ -7661,7 +7649,7 @@ spec:
                                                 mode:
                                                   description: |-
                                                     Optional: mode bits used to set permissions on this file, must be an octal value
-                                                    between 0000 and 0777 or a decimal valu
+                                                    between 0000 and 0777 or a decimal...
                                                   format: int32
                                                   type: integer
                                                 path:
@@ -7710,7 +7698,7 @@ spec:
                                           items:
                                             description: |-
                                               items if unspecified, each key-value pair in the Data field of the referenced
-                                              Secret will be projected into the volume a
+                                              Secret will be projected into the volume...
                                             items:
                                               description: Maps a string key to a
                                                 path within a volume.
@@ -7791,12 +7779,12 @@ spec:
                                 registry:
                                   description: |-
                                     registry represents a single or multiple Quobyte Registry services
-                                    specified as a string as host:port pair (multiple ent
+                                    specified as a string as host:port pair (multiple...
                                   type: string
                                 tenant:
                                   description: |-
                                     tenant owning the given Quobyte volume in the Backend
-                                    Used with dynamically provisioned Quobyte volumes, value is set by
+                                    Used with dynamically provisioned Quobyte volumes, value is set...
                                   type: string
                                 user:
                                   description: |-
@@ -7952,7 +7940,7 @@ spec:
                                 items:
                                   description: |-
                                     items If unspecified, each key-value pair in the Data field of the referenced
-                                    Secret will be projected into the volume a
+                                    Secret will be projected into the volume...
                                   items:
                                     description: Maps a string key to a path within
                                       a volume.
@@ -8101,10 +8089,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -8251,35 +8236,6 @@ metadata:
   name: feast-operator-manager-role
 rules:
 - apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - batch
-  resources:
-  - cronjobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - configmaps
@@ -8309,6 +8265,35 @@ rules:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - feast.dev
   resources:

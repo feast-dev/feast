@@ -3,16 +3,20 @@
 package onlinestore
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -538,4 +542,127 @@ func TestResolveFeatureValue_AlreadyLowercaseFeature(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, serving.FieldStatus_PRESENT, status)
 	assert.Equal(t, "hello", val.(*types.Value).GetStringVal())
+}
+
+func sampleEntityKey() *types.EntityKey {
+	return &types.EntityKey{
+		JoinKeys: []string{"user_id"},
+		EntityValues: []*types.Value{
+			{Val: &types.Value_Int64Val{Int64Val: 42}},
+		},
+	}
+}
+
+func serializedHex(t *testing.T, key *types.EntityKey, version int64) string {
+	t.Helper()
+	b, err := utils.SerializeEntityKey(key, version)
+	require.NoError(t, err)
+	return hex.EncodeToString(*b)
+}
+
+func TestBuildCassandraEntityKeys_UsesConfiguredVersion(t *testing.T) {
+	key := sampleEntityKey()
+
+	for _, tc := range []struct {
+		name    string
+		version int64
+	}{
+		{"version2", 2},
+		{"version3", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &CassandraOnlineStore{
+				config: &registry.RepoConfig{
+					EntityKeySerializationVersion: tc.version,
+				},
+			}
+
+			cassandraKeys, keyToIdx, err := store.buildCassandraEntityKeys([]*types.EntityKey{key})
+			require.NoError(t, err)
+			require.Len(t, cassandraKeys, 1)
+
+			gotHex := cassandraKeys[0].(string)
+			wantHex := serializedHex(t, key, tc.version)
+
+			assert.Equal(t, wantHex, gotHex,
+				"hex key for version %d should match utils.SerializeEntityKey output", tc.version)
+			assert.Equal(t, 0, keyToIdx[gotHex])
+		})
+	}
+
+	storeV2 := &CassandraOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 2}}
+	storeV3 := &CassandraOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 3}}
+	keysV2, _, _ := storeV2.buildCassandraEntityKeys([]*types.EntityKey{key})
+	keysV3, _, _ := storeV3.buildCassandraEntityKeys([]*types.EntityKey{key})
+	assert.NotEqual(t, keysV2[0], keysV3[0],
+		"v2 and v3 serialized keys must differ for the same entity key")
+}
+
+func TestBuildCassandraEntityKeys_ZeroVersionDefaultsToV3(t *testing.T) {
+	key := sampleEntityKey()
+
+	store := &CassandraOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 0},
+	}
+	keys, _, err := store.buildCassandraEntityKeys([]*types.EntityKey{key})
+	require.NoError(t, err)
+
+	wantHex := serializedHex(t, key, 3)
+	assert.Equal(t, wantHex, keys[0].(string), "zero version should produce v3 keys")
+}
+
+func TestResolvedEntityKeySerializationVersion(t *testing.T) {
+	assert.Equal(t, int64(3), (&CassandraOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 0}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(2), (&CassandraOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 2}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(3), (&CassandraOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 3}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(3), (&CassandraOnlineStore{config: nil}).resolvedEntityKeySerializationVersion(), "nil config should default to v3 without panicking")
+}
+
+func TestWarnPotentialVersionMismatch_DeduplicatesPerRequest(t *testing.T) {
+	store := &CassandraOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	const view = "my_feature_view"
+
+	store.warnPotentialVersionMismatch([]string{view}, 5)
+	_, warned := store.versionMismatchWarned.Load(view)
+	assert.True(t, warned, "view should be recorded after first call")
+
+	store.warnPotentialVersionMismatch([]string{view}, 5)
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 1, count, "only one entry should exist for the view after repeated calls")
+
+	const otherView = "other_feature_view"
+	store.warnPotentialVersionMismatch([]string{otherView}, 3)
+	count = 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 2, count, "each distinct request should have its own warning entry")
+}
+
+func TestWarnPotentialVersionMismatch_MultiViewDedupIsOrderIndependent(t *testing.T) {
+	store := &CassandraOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	store.warnPotentialVersionMismatch([]string{"view_a", "view_b"}, 4)
+	store.warnPotentialVersionMismatch([]string{"view_b", "view_a"}, 4)
+
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 1, count, "same set of views in any order should dedupe to one entry")
+}
+
+func TestWarnPotentialVersionMismatch_EmptyViewsIsNoop(t *testing.T) {
+	store := &CassandraOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	store.warnPotentialVersionMismatch(nil, 5)
+	store.warnPotentialVersionMismatch([]string{}, 5)
+
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 0, count, "no warning entry should be recorded for an empty view set")
 }

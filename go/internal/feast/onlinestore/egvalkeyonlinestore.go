@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
@@ -53,6 +54,10 @@ type ValkeyOnlineStore struct {
 
 	// Number of keys to read in a batch
 	ReadBatchSize int
+
+	// Tracks request shapes for which a potential serialization-version-mismatch warning has
+	// already been emitted, so the warning fires at most once per shape per process lifetime.
+	versionMismatchWarned sync.Map
 }
 
 func parseConnectionString(onlineStoreConfig map[string]interface{}, valkeyStoreType valkeyType) (valkey.ClientOption, error) {
@@ -257,6 +262,15 @@ func (v *ValkeyOnlineStore) buildValkeyKeys(entityKeys []*types.EntityKey) ([]*[
 	return valkeyKeys, nil
 }
 
+func (v *ValkeyOnlineStore) resolvedEntityKeySerializationVersion() int64 {
+	return resolveEntityKeySerializationVersion(v.config)
+}
+
+func (v *ValkeyOnlineStore) warnPotentialVersionMismatch(views []string, numKeys int) {
+	warnPotentialEntityKeyVersionMismatch(
+		&v.versionMismatchWarned, "Valkey", v.resolvedEntityKeySerializationVersion(), views, numKeys)
+}
+
 func (v *ValkeyOnlineStore) OnlineReadV2(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
 	return v.OnlineRead(ctx, entityKeys, featureViewNames, featureNames)
 }
@@ -282,6 +296,9 @@ func (v *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	}
 
 	var resContainsNonNil bool
+	// viewsWithData records which feature views returned at least one non-nil value across all
+	// entity keys. Used after the read completes to detect a complete miss (possible version mismatch).
+	viewsWithData := make(map[string]bool)
 	for entityIndex, values := range v.client.DoMulti(ctx, cmds...) {
 
 		if err := values.Error(); err != nil {
@@ -324,6 +341,7 @@ func (v *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 				if value, _, err = utils.UnmarshalStoredProto([]byte(valueString)); err != nil {
 					return nil, errors.New("error converting parsed valkey Value to types.Value")
 				}
+				viewsWithData[featureViewName] = true
 			}
 
 			if _, ok := timeStampMap[featureViewName]; !ok {
@@ -351,6 +369,23 @@ func (v *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 		if !resContainsNonNil {
 			results[entityIndex] = nil
 		}
+	}
+
+	// Only warn if EVERY requested feature view returned zero data. A single sparse view is
+	// normal; a complete miss across the whole request is a stronger — though not conclusive —
+	// signal of a possible serialization version mismatch. Warn once (deduped) per request shape.
+	requestedViews := make(map[string]struct{})
+	for _, viewName := range featureViewNames {
+		requestedViews[viewName] = struct{}{}
+	}
+	missedViews := make([]string, 0, len(requestedViews))
+	for viewName := range requestedViews {
+		if !viewsWithData[viewName] {
+			missedViews = append(missedViews, viewName)
+		}
+	}
+	if len(requestedViews) > 0 && len(missedViews) == len(requestedViews) {
+		v.warnPotentialVersionMismatch(missedViews, len(entityKeys))
 	}
 
 	return results, nil
@@ -550,6 +585,7 @@ func (v *ValkeyOnlineStore) processEntityKey(
 	limit int64,
 	results [][]RangeFeatureData,
 	featNames, fvNames []string,
+	sawAnyRow *atomic.Bool,
 ) error {
 	select {
 	case <-ctx.Done():
@@ -650,6 +686,11 @@ func (v *ValkeyOnlineStore) processEntityKey(
 			}
 			continue
 		}
+		// At least one stored member exists for this entity/feature view — record that the
+		// request returned data so OnlineReadRange can detect a complete miss across all keys.
+		if sawAnyRow != nil {
+			sawAnyRow.Store(true)
+		}
 		// build list of hash fields to retrieve
 		fields := append(append([]string{}, grp.FieldHashes...), grp.TsKey)
 		if err := valkeyBatchHMGET(
@@ -739,6 +780,11 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 
 	results := make([][]RangeFeatureData, len(groupedRefs.EntityKeys))
 
+	// sawAnyRow is set by the first entity goroutine that finds at least one stored member.
+	// If it remains false after all goroutines finish, every entity key got a complete miss —
+	// a possible (not guaranteed) indicator of a serialization version mismatch.
+	var sawAnyRow atomic.Bool
+
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(groupedRefs.EntityKeys))
 
@@ -757,6 +803,7 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 				limit,
 				results,
 				featNames, fvNames,
+				&sawAnyRow,
 			); err != nil {
 				errChan <- err
 			}
@@ -776,6 +823,16 @@ func (v *ValkeyOnlineStore) OnlineReadRange(
 	if len(allErrors) > 0 {
 		return nil, errors.Join(allErrors...)
 	}
+
+	// Complete miss across all entity keys — warn once if this looks like a version mismatch.
+	if !sawAnyRow.Load() {
+		requestedViews := make([]string, 0, len(fvGroups))
+		for fv := range fvGroups {
+			requestedViews = append(requestedViews, fv)
+		}
+		v.warnPotentialVersionMismatch(requestedViews, len(groupedRefs.EntityKeys))
+	}
+
 	return results, nil
 }
 

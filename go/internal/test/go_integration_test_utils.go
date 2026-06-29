@@ -274,11 +274,13 @@ func SetupInitializedRepo(basePath string) error {
 	}
 	t := time.Now()
 
-	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
+	formattedEndTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
 
-	materializeCommand := exec.Command(feastExec, "materialize-incremental", formattedTime)
+	// Use an explicit start time far enough in the past to include test data.
+	// Test parquet files have timestamps from 2021-2022, so we start from 2021-01-01.
+	materializeCommand := exec.Command(feastExec, "materialize", "2021-01-01T00:00:00", formattedEndTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = featureRepoPath
 	out, err = materializeCommand.CombinedOutput()

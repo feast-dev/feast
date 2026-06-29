@@ -355,3 +355,59 @@ func TestGetValkeyTraceServiceName(t *testing.T) {
 		os.Unsetenv("DD_SERVICE")
 	})
 }
+
+func TestValkeyResolvedEntityKeySerializationVersion(t *testing.T) {
+	assert.Equal(t, int64(3), (&ValkeyOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 0}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(2), (&ValkeyOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 2}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(3), (&ValkeyOnlineStore{config: &registry.RepoConfig{EntityKeySerializationVersion: 3}}).resolvedEntityKeySerializationVersion())
+	assert.Equal(t, int64(3), (&ValkeyOnlineStore{config: nil}).resolvedEntityKeySerializationVersion(), "nil config should default to v3 without panicking")
+}
+
+func TestValkeyWarnPotentialVersionMismatch_DeduplicatesPerRequest(t *testing.T) {
+	store := &ValkeyOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	const view = "my_feature_view"
+
+	store.warnPotentialVersionMismatch([]string{view}, 5)
+	_, warned := store.versionMismatchWarned.Load(view)
+	assert.True(t, warned, "view should be recorded after first call")
+
+	store.warnPotentialVersionMismatch([]string{view}, 5)
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 1, count, "only one entry should exist for the view after repeated calls")
+
+	const otherView = "other_feature_view"
+	store.warnPotentialVersionMismatch([]string{otherView}, 3)
+	count = 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 2, count, "each distinct request should have its own warning entry")
+}
+
+func TestValkeyWarnPotentialVersionMismatch_MultiViewDedupIsOrderIndependent(t *testing.T) {
+	store := &ValkeyOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	store.warnPotentialVersionMismatch([]string{"view_a", "view_b"}, 4)
+	store.warnPotentialVersionMismatch([]string{"view_b", "view_a"}, 4)
+
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 1, count, "same set of views in any order should dedupe to one entry")
+}
+
+func TestValkeyWarnPotentialVersionMismatch_EmptyViewsIsNoop(t *testing.T) {
+	store := &ValkeyOnlineStore{
+		config: &registry.RepoConfig{EntityKeySerializationVersion: 3},
+	}
+
+	store.warnPotentialVersionMismatch(nil, 5)
+	store.warnPotentialVersionMismatch([]string{}, 5)
+
+	count := 0
+	store.versionMismatchWarned.Range(func(_, _ any) bool { count++; return true })
+	assert.Equal(t, 0, count, "no warning entry should be recorded for an empty view set")
+}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -45,6 +46,8 @@ type CassandraOnlineStore struct {
 
 	// Caches table names instead of generating the table name every time
 	tableNameCache sync.Map
+
+	versionMismatchWarned sync.Map
 }
 
 type CassandraConfig struct {
@@ -393,7 +396,7 @@ func (c *CassandraOnlineStore) buildCassandraEntityKeys(entityKeys []*types.Enti
 	cassandraKeys := make([]any, len(entityKeys))
 	cassandraKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
-		var key, err = utils.SerializeEntityKey(entityKeys[i], 2)
+		var key, err = utils.SerializeEntityKey(entityKeys[i], c.resolvedEntityKeySerializationVersion())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -402,6 +405,15 @@ func (c *CassandraOnlineStore) buildCassandraEntityKeys(entityKeys []*types.Enti
 		cassandraKeyToEntityIndex[encodedKey] = i
 	}
 	return cassandraKeys, cassandraKeyToEntityIndex, nil
+}
+
+func (c *CassandraOnlineStore) resolvedEntityKeySerializationVersion() int64 {
+	return resolveEntityKeySerializationVersion(c.config)
+}
+
+func (c *CassandraOnlineStore) warnPotentialVersionMismatch(views []string, numKeys int) {
+	warnPotentialEntityKeyVersionMismatch(
+		&c.versionMismatchWarned, "Cassandra", c.resolvedEntityKeySerializationVersion(), views, numKeys)
 }
 
 func (c *CassandraOnlineStore) validateUniqueFeatureNames(featureViewNames []string) error {
@@ -499,7 +511,9 @@ func (c *CassandraOnlineStore) executeBatchV2(
 	var deserializedValue *types.Value
 
 	batchFeatures := make(map[string]map[string]*FeatureData)
+	rowsScanned := 0
 	for scanner.Next() {
+		rowsScanned++
 		err := scanner.Scan(&entityKey, &featureName, &eventTs, &valueStr)
 		if err != nil {
 			return nil, fmt.Errorf("could not read row in query for (entity key, feature name, value, event ts): %w", err)
@@ -528,6 +542,15 @@ func (c *CassandraOnlineStore) executeBatchV2(
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to scan features: %w", err)
+	}
+
+	// OnlineReadV2 issues a single batch that covers this feature view's full set of entity
+	// keys, so rowsScanned == 0 here means the entire request missed for the only view
+	// involved. That is exactly the "all requested views missed" condition, so warning
+	// directly from this single-batch path is safe (unlike the V1 OnlineRead path, which
+	// splits keys across batches and must aggregate results before deciding).
+	if rowsScanned == 0 {
+		c.warnPotentialVersionMismatch([]string{job.ViewName}, len(job.EntityKeys))
 	}
 
 	for _, serializedEntityKey := range job.EntityKeys {
@@ -591,6 +614,10 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 
 	batches := c.createBatches(serializedEntityKeys)
 
+	// viewsWithData records which feature views had at least one row returned by Cassandra.
+	// Used after all batches complete to detect per-view complete misses (possible version mismatch).
+	viewsWithData := &sync.Map{}
+
 	g.Go(func() error {
 		defer close(jobsChan)
 
@@ -635,13 +662,27 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 	for job := range jobsChan {
 		g.Go(func(j BatchJob) func() error {
 			return func() error {
-				return c.executeBatch(ctx, j, serializedEntityKeyToIndex, results, featureNamesToIdx)
+				return c.executeBatch(ctx, j, serializedEntityKeyToIndex, results, featureNamesToIdx, viewsWithData)
 			}
 		}(job))
 	}
 
 	if err := g.Wait(); err != nil {
 		return nil, err
+	}
+
+	// After all batches: only warn if EVERY requested feature view returned zero rows. A
+	// single view missing is normal (sparse/cold entities); a complete miss across the whole
+	// request is a stronger — though still not conclusive — signal of a possible
+	// serialization version mismatch. Warn once (deduped) for the full set of views.
+	missedViews := make([]string, 0, len(viewGroups))
+	for viewName := range viewGroups {
+		if _, hasData := viewsWithData.Load(viewName); !hasData {
+			missedViews = append(missedViews, viewName)
+		}
+	}
+	if len(viewGroups) > 0 && len(missedViews) == len(viewGroups) {
+		c.warnPotentialVersionMismatch(missedViews, len(entityKeys))
 	}
 
 	return results, nil
@@ -653,6 +694,7 @@ func (c *CassandraOnlineStore) executeBatch(
 	serializedEntityKeyToIndex map[string]int,
 	results [][]FeatureData,
 	featureNamesToIdx map[string]int,
+	viewsWithData *sync.Map,
 ) error {
 	iter := c.session.Query(job.CQLStatement, job.EntityKeys...).WithContext(ctx).Iter()
 	defer iter.Close()
@@ -665,7 +707,9 @@ func (c *CassandraOnlineStore) executeBatch(
 	var deserializedValue *types.Value
 
 	batchFeatures := make(map[string]map[string]*FeatureData)
+	rowsScanned := 0
 	for scanner.Next() {
+		rowsScanned++
 		err := scanner.Scan(&entityKey, &featureName, &eventTs, &valueStr)
 		if err != nil {
 			return fmt.Errorf("could not read row in query for (entity key, feature name, value, event ts): %w", err)
@@ -694,6 +738,12 @@ func (c *CassandraOnlineStore) executeBatch(
 
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("failed to scan features: %w", err)
+	}
+
+	// Mark this feature view as having returned data so OnlineRead can determine
+	// per-view whether a complete miss occurred across all batches.
+	if rowsScanned > 0 && viewsWithData != nil {
+		viewsWithData.Store(job.ViewName, struct{}{})
 	}
 
 	for _, serializedEntityKey := range job.EntityKeys {
@@ -914,6 +964,11 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 	var waitGroup sync.WaitGroup
 	errorsChannel := make(chan error, nBatches)
 
+	// sawAnyRow is set to true by the first goroutine that returns at least one row.
+	// If it remains false after all batches finish, every entity key got a complete miss —
+	// a possible indicator of a serialization version mismatch.
+	var sawAnyRow atomic.Bool
+
 	canonicalFeats := make([]string, len(groupedRefs.FeatureNames))
 	isSortKey := make([]bool, len(groupedRefs.FeatureNames))
 	for i, name := range groupedRefs.FeatureNames {
@@ -950,6 +1005,7 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 					continue
 				}
 
+				sawAnyRow.Store(true)
 				rowData := results[rowIdx]
 
 				for i, featName := range groupedRefs.FeatureNames {
@@ -1009,6 +1065,12 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 
 	if len(allErrors) > 0 {
 		return nil, errors.Join(allErrors...)
+	}
+
+	// OnlineReadRange handles a single feature view, so a complete miss across all batches is
+	// the "all requested views missed" condition. Warn once if this looks like a version mismatch.
+	if !sawAnyRow.Load() {
+		c.warnPotentialVersionMismatch([]string{prepCtx.featureViewName}, len(groupedRefs.EntityKeys))
 	}
 
 	return results, nil
