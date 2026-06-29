@@ -18,11 +18,12 @@ from feast.infra.offline_stores.bigquery import (
     BigQueryOfflineStoreConfig,
     BigQueryRetrievalJob,
     _bq_create_entity_union_table,
-
 )
-from feast.infra.offline_stores.offline_utils import gather_all_entities
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
-from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+from feast.infra.offline_stores.offline_utils import (
+    FeatureViewQueryContext,
+    gather_all_entities,
+)
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 
@@ -145,9 +146,7 @@ class TestBqCreateEntityUnionTable:
 
     @patch("feast.infra.offline_stores.bigquery.block_until_done")
     @patch("feast.infra.offline_stores.bigquery._utc_now")
-    def test_single_view_creates_table_with_correct_sql(
-        self, mock_utc_now, mock_block
-    ):
+    def test_single_view_creates_table_with_correct_sql(self, mock_utc_now, mock_block):
         mock_utc_now.return_value = END
         client = self._make_client()
         fv = _make_feature_view_mock("fv1", ["customer_id"])
@@ -271,7 +270,9 @@ class TestBqCreateEntityUnionTable:
 
         sql = client.query.call_args[0][0]
         assert "2023-01-01T00:00:00" in sql  # start_date
-        assert "2024-01-01T00:00:00" in sql  # end_date (appears twice: WHERE + entity_ts value)
+        assert (
+            "2024-01-01T00:00:00" in sql
+        )  # end_date (appears twice: WHERE + entity_ts value)
         assert "BETWEEN TIMESTAMP(" in sql
 
     @patch("feast.infra.offline_stores.bigquery.block_until_done")
@@ -319,9 +320,9 @@ class TestBqCreateEntityUnionTable:
         client.update_table.assert_called_once()
         updated_table = client.update_table.call_args[0][0]
         # expiry should be 30 minutes after _utc_now()
-        assert updated_table.expires == datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(
-            minutes=30
-        )
+        assert updated_table.expires == datetime(
+            2024, 1, 1, tzinfo=timezone.utc
+        ) + timedelta(minutes=30)
 
 
 # ---------------------------------------------------------------------------
@@ -338,7 +339,9 @@ def repo_config():
 def mock_bq_client():
     client = MagicMock()
     client.project = "my-project"
-    client.query.return_value = MagicMock(state="DONE", exception=lambda timeout=None: None)
+    client.query.return_value = MagicMock(
+        state="DONE", exception=lambda timeout=None: None
+    )
     client.get_table.return_value = MagicMock()
     return client
 
@@ -348,8 +351,12 @@ class TestGetHistoricalFeaturesNonEntityMode:
     @patch("feast.infra.offline_stores.bigquery._utc_now")
     @patch("feast.infra.offline_stores.bigquery._bq_create_entity_union_table")
     @patch("feast.infra.offline_stores.bigquery._upload_entity_df")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_non_entity_mode_calls_union_table_not_upload(
@@ -403,8 +410,12 @@ class TestGetHistoricalFeaturesNonEntityMode:
     @patch("feast.infra.offline_stores.bigquery._utc_now")
     @patch("feast.infra.offline_stores.bigquery._bq_create_entity_union_table")
     @patch("feast.infra.offline_stores.bigquery._upload_entity_df")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_non_entity_mode_uses_entity_ts_as_timestamp_col(
@@ -455,8 +466,12 @@ class TestGetHistoricalFeaturesNonEntityMode:
     @patch("feast.infra.offline_stores.bigquery._utc_now")
     @patch("feast.infra.offline_stores.bigquery._bq_create_entity_union_table")
     @patch("feast.infra.offline_stores.bigquery._upload_entity_df")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_non_entity_mode_passes_start_and_end_to_union_table(
@@ -507,8 +522,12 @@ class TestGetHistoricalFeaturesNonEntityMode:
     @patch("feast.infra.offline_stores.bigquery.block_until_done")
     @patch("feast.infra.offline_stores.bigquery._utc_now")
     @patch("feast.infra.offline_stores.bigquery._bq_create_entity_union_table")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_non_entity_mode_returns_retrieval_job(
@@ -553,8 +572,12 @@ class TestGetHistoricalFeaturesNonEntityMode:
     @patch("feast.infra.offline_stores.bigquery.block_until_done")
     @patch("feast.infra.offline_stores.bigquery._utc_now")
     @patch("feast.infra.offline_stores.bigquery._bq_create_entity_union_table")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_non_entity_mode_metadata_excludes_timestamp_col_from_keys(
@@ -610,9 +633,15 @@ class TestGetHistoricalFeaturesEntityDfMode:
     @patch("feast.infra.offline_stores.bigquery._get_entity_df_event_timestamp_range")
     @patch("feast.infra.offline_stores.bigquery._get_entity_schema")
     @patch("feast.infra.offline_stores.bigquery.offline_utils.get_expected_join_keys")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.assert_expected_columns_in_entity_df")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.assert_expected_columns_in_entity_df"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_entity_df_mode_calls_upload_not_union_table(
@@ -671,9 +700,15 @@ class TestGetHistoricalFeaturesEntityDfMode:
     @patch("feast.infra.offline_stores.bigquery._get_entity_df_event_timestamp_range")
     @patch("feast.infra.offline_stores.bigquery._get_entity_schema")
     @patch("feast.infra.offline_stores.bigquery.offline_utils.get_expected_join_keys")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.assert_expected_columns_in_entity_df")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context")
-    @patch("feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query")
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.assert_expected_columns_in_entity_df"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.get_feature_view_query_context"
+    )
+    @patch(
+        "feast.infra.offline_stores.bigquery.offline_utils.build_point_in_time_query"
+    )
     @patch("feast.infra.offline_stores.bigquery._get_table_reference_for_new_entity")
     @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
     def test_entity_df_sql_string_mode_works(

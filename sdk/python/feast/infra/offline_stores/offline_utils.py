@@ -431,8 +431,6 @@ def get_timestamp_filter_sql(
     return " AND ".join(filters) if filters else ""
 
 
-
-
 def gather_all_entities(fv_query_contexts: List[FeatureViewQueryContext]):
     all_entities: List[str] = []
     for ctx in fv_query_contexts:

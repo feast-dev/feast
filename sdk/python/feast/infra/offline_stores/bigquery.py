@@ -369,6 +369,7 @@ class BigQueryOfflineStore(OfflineStore):
                 expected_join_keys = offline_utils.get_expected_join_keys(
                     project, feature_views, registry
                 )
+                assert entity_schema is not None
                 offline_utils.assert_expected_columns_in_entity_df(
                     entity_schema, expected_join_keys, event_timestamp_col
                 )
