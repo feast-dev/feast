@@ -2424,8 +2424,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.60.1.dev301+gcef6fa632
-  sha256: 8ab015050c832f342b967557f0d379aec897696b511d6bd6791e6f1b39c91d79
+  version: 0.64.1.dev40+g82a6918c1.d20260717
+  sha256: 5ab6cffee504478fb0d04132e90e2ea5afa7776ff5e0cd695853e25e71239657
   requires_dist:
   - attrs
   - click>=7.0.0,<9.0.0
@@ -2511,6 +2511,7 @@ packages:
   - prometheus-client ; extra == 'opentelemetry'
   - psutil ; extra == 'opentelemetry'
   - pyspark>=4.0.0 ; extra == 'spark'
+  - pyiceberg>=0.7.0 ; extra == 'iceberg'
   - trino>=0.305.0,<0.400.0 ; extra == 'trino'
   - regex ; extra == 'trino'
   - psycopg[binary,pool]>=3.2.5 ; extra == 'postgres'
@@ -2548,7 +2549,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
