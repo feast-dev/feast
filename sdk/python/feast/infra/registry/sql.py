@@ -485,26 +485,36 @@ class SqlRegistry(CachingRegistry):
         return fv
 
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]], **kwargs
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
+        **kwargs,
     ) -> List[BaseFeatureView]:
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags, **kwargs),
-            )
-            + cast(
-                list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags, **kwargs),
-            )
-            + cast(
-                list[BaseFeatureView],
-                self._list_on_demand_feature_views(
-                    project=project, tags=tags, **kwargs
+                self._list_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
                 ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_label_views(project=project, tags=tags, **kwargs),
+                self._list_stream_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_on_demand_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_label_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
             )
         )
 
@@ -1597,6 +1607,7 @@ class SqlRegistry(CachingRegistry):
         tags: Optional[dict[str, str]] = None,
         proto_only: bool = False,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ):
         """
         Args:
@@ -1618,6 +1629,17 @@ class SqlRegistry(CachingRegistry):
 
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
+            if updated_since is not None:
+                # Ensure naive datetimes are treated as UTC, consistent with
+                # the Python-side filters that compare against offset-naive UTC
+                # last_updated_timestamp values from protobuf.
+                if updated_since.tzinfo is None:
+                    updated_since_utc = updated_since.replace(tzinfo=timezone.utc)
+                else:
+                    updated_since_utc = updated_since.astimezone(timezone.utc)
+                stmt = stmt.where(
+                    table.c.last_updated_timestamp >= int(updated_since_utc.timestamp())
+                )
             rows = conn.execute(stmt).all()
             if rows:
                 objects = []

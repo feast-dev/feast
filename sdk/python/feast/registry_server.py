@@ -539,6 +539,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     ):
         from feast.labeling.label_view import LabelView
 
+        updated_since = None
+        if request.HasField("updated_since"):
+            updated_since = request.updated_since.ToDatetime().replace(
+                tzinfo=timezone.utc
+            )
+
         all_feature_views = cast(
             list[FeastObject],
             [
@@ -548,6 +554,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     allow_cache=request.allow_cache,
                     tags=dict(request.tags),
                     skip_udf=True,
+                    updated_since=updated_since,
                 )
                 if not isinstance(fv, LabelView)
             ],
