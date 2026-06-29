@@ -35,6 +35,7 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.protos.feast.registry.RegistryServer_pb2 import Feature, ListFeaturesResponse
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -180,6 +181,98 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         super().__init__()
         self.proxied_registry = registry
         self.store = store
+
+    def Proto(self, request: Empty, context) -> RegistryProto:
+        """Build a RegistryProto from individually RBAC-filtered list calls.
+
+        The ``RegistryServer.Proto`` RPC must honor the same permission checks as the
+        other RPCs rather than returning ``proxied_registry.proto()`` directly, which
+        would bypass RBAC and expose every object (entities, feature views, data
+        sources, permissions, projects, etc.) regardless of authorization.
+
+        Each object type is filtered with ``permitted_resources(..., DESCRIBE)``: under
+        ``NoAuthConfig`` this is a no-op (the full registry is returned, so remote
+        registries keep working), while with auth enabled the caller only sees the
+        objects they are permitted to ``DESCRIBE``.
+        """
+
+        def describable(resources: list) -> list:
+            return permitted_resources(
+                resources=cast(list[FeastObject], resources),
+                actions=AuthzedAction.DESCRIBE,
+            )
+
+        registry_proto = RegistryProto()
+
+        for project in describable(self.proxied_registry.list_projects()):
+            registry_proto.projects.append(project.to_proto())
+            project_name = project.name
+
+            for entity in describable(
+                self.proxied_registry.list_entities(project=project_name)
+            ):
+                registry_proto.entities.append(entity.to_proto())
+
+            for data_source in describable(
+                self.proxied_registry.list_data_sources(project=project_name)
+            ):
+                registry_proto.data_sources.append(data_source.to_proto())
+
+            for feature_view in describable(
+                self.proxied_registry.list_feature_views(project=project_name)
+            ):
+                registry_proto.feature_views.append(feature_view.to_proto())
+
+            for stream_feature_view in describable(
+                self.proxied_registry.list_stream_feature_views(project=project_name)
+            ):
+                registry_proto.stream_feature_views.append(
+                    stream_feature_view.to_proto()
+                )
+
+            for on_demand_feature_view in describable(
+                self.proxied_registry.list_on_demand_feature_views(project=project_name)
+            ):
+                registry_proto.on_demand_feature_views.append(
+                    on_demand_feature_view.to_proto()
+                )
+
+            for label_view in describable(
+                self.proxied_registry.list_label_views(project=project_name)
+            ):
+                registry_proto.label_views.append(label_view.to_proto())
+
+            for feature_service in describable(
+                self.proxied_registry.list_feature_services(project=project_name)
+            ):
+                registry_proto.feature_services.append(feature_service.to_proto())
+
+            for saved_dataset in describable(
+                self.proxied_registry.list_saved_datasets(project=project_name)
+            ):
+                registry_proto.saved_datasets.append(saved_dataset.to_proto())
+
+            for validation_reference in describable(
+                self.proxied_registry.list_validation_references(project=project_name)
+            ):
+                registry_proto.validation_references.append(
+                    validation_reference.to_proto()
+                )
+
+            for permission in describable(
+                self.proxied_registry.list_permissions(project=project_name)
+            ):
+                registry_proto.permissions.append(permission.to_proto())
+
+        # Carry the registry's real last_updated/version_id rather than stamping "now":
+        # this proto is rebuilt from individual list calls (for RBAC filtering), but it must
+        # not look like a fresh commit on every call — clients such as the remote feature
+        # server key cache freshness off this metadata. Reading these two scalar fields from
+        # the source proto leaks nothing RBAC-protected (no objects are copied from it).
+        source_proto = self.proxied_registry.proto()
+        registry_proto.last_updated.CopyFrom(source_proto.last_updated)
+        registry_proto.version_id = source_proto.version_id
+        return registry_proto
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
         entity = cast(
