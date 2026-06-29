@@ -18,8 +18,9 @@ from feast.infra.offline_stores.bigquery import (
     BigQueryOfflineStoreConfig,
     BigQueryRetrievalJob,
     _bq_create_entity_union_table,
-    _gather_all_entities,
+
 )
+from feast.infra.offline_stores.offline_utils import gather_all_entities
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -101,32 +102,32 @@ def _make_feature_view_mock(
 class TestGatherAllEntities:
     def test_single_feature_view(self):
         ctx = _make_fv_context("fv1", ["customer_id", "item_id"])
-        assert _gather_all_entities([ctx]) == ["customer_id", "item_id"]
+        assert gather_all_entities([ctx]) == ["customer_id", "item_id"]
 
     def test_multiple_views_overlapping_entities(self):
         ctx1 = _make_fv_context("fv1", ["customer_id", "item_id"])
         ctx2 = _make_fv_context("fv2", ["customer_id", "store_id"])
-        result = _gather_all_entities([ctx1, ctx2])
+        result = gather_all_entities([ctx1, ctx2])
         # customer_id should appear only once; order is first-seen
         assert result == ["customer_id", "item_id", "store_id"]
 
     def test_multiple_views_disjoint_entities(self):
         ctx1 = _make_fv_context("fv1", ["driver_id"])
         ctx2 = _make_fv_context("fv2", ["customer_id"])
-        result = _gather_all_entities([ctx1, ctx2])
+        result = gather_all_entities([ctx1, ctx2])
         assert result == ["driver_id", "customer_id"]
 
     def test_entityless_feature_view(self):
         ctx = _make_fv_context("fv1", [])
-        assert _gather_all_entities([ctx]) == []
+        assert gather_all_entities([ctx]) == []
 
     def test_empty_list(self):
-        assert _gather_all_entities([]) == []
+        assert gather_all_entities([]) == []
 
     def test_preserves_insertion_order(self):
         ctx1 = _make_fv_context("fv1", ["z_entity", "a_entity"])
         ctx2 = _make_fv_context("fv2", ["a_entity", "m_entity"])
-        result = _gather_all_entities([ctx1, ctx2])
+        result = gather_all_entities([ctx1, ctx2])
         assert result == ["z_entity", "a_entity", "m_entity"]
 
 
