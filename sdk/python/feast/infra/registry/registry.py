@@ -58,7 +58,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, to_naive_utc
 from feast.version_utils import (
     generate_version_id,
     parse_version,
@@ -1083,13 +1083,24 @@ class Registry(BaseRegistry):
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_all_feature_views(
+        feature_views = proto_registry_utils.list_all_feature_views(
             registry_proto, project, tags, skip_udf=skip_udf
         )
+        if updated_since is not None:
+            # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
+            cutoff = to_naive_utc(updated_since)
+            feature_views = [
+                fv
+                for fv in feature_views
+                if fv.last_updated_timestamp is not None
+                and fv.last_updated_timestamp >= cutoff
+            ]
+        return feature_views
 
     def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
