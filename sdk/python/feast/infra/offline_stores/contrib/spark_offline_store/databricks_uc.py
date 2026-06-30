@@ -1,4 +1,5 @@
 import logging
+import warnings
 from datetime import date, datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -6,7 +7,6 @@ import pandas as pd
 import pyarrow
 import pyspark
 from pydantic import StrictStr
-from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast import FeatureView
@@ -15,16 +15,23 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
     SparkOfflineStoreConfig,
 )
+from feast.infra.offline_stores.contrib.spark_offline_store.utils import (
+    get_databricks_connect_session,
+)
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 
 logger = logging.getLogger(__name__)
 
+_DEPRECATION_MSG = (
+    "DatabricksUCOfflineStore is deprecated and will be removed in a future release. "
+    "Use type: spark in feature_store.yaml with a UnityCatalogSource data source instead."
+)
+
 
 class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
     type: StrictStr = "databricks_uc"
-    """Offline store type selector"""
 
     workspace_host: Optional[StrictStr] = None
     """Databricks workspace host (e.g. adb-xxxx.azuredatabricks.net)"""
@@ -45,64 +52,14 @@ class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
 def get_databricks_session(
     store_config: DatabricksUCOfflineStoreConfig,
 ) -> SparkSession:
-    # Check if there is already an active session
-    spark_session = SparkSession.getActiveSession()
-    if not spark_session:
-        workspace_host = store_config.workspace_host
-        token = store_config.token
-        cluster_id = store_config.cluster_id
-
-        # Clean host URL if it starts with https://
-        if workspace_host:
-            if workspace_host.startswith("https://"):
-                workspace_host = workspace_host[8:]
-            elif workspace_host.startswith("http://"):
-                workspace_host = workspace_host[7:]
-
-        if workspace_host and cluster_id:
-            # Databricks Connect V2 initialization (Spark Connect URI format)
-            conn_str = f"sc://{workspace_host}:443/"
-            params = []
-            if token:
-                params.append(f"token={token}")
-            params.append(f"x-databricks-cluster-id={cluster_id}")
-            if params:
-                conn_str = f"{conn_str};{';'.join(params)}"
-
-            try:
-                from databricks.connect import DatabricksSession
-
-                builder = DatabricksSession.builder.remote(conn_str)
-            except ImportError:
-                # Fallback to standard PySpark remote connect if databricks-connect not installed
-                builder = SparkSession.builder.remote(conn_str)
-        else:
-            try:
-                from databricks.connect import DatabricksSession
-
-                builder = DatabricksSession.builder
-            except ImportError:
-                builder = SparkSession.builder
-
-        spark_conf = store_config.spark_conf
-        if spark_conf:
-            builder = builder.config(
-                conf=SparkConf().setAll([(k, v) for k, v in spark_conf.items()])
-            )
-
-        spark_session = builder.getOrCreate()
-
-    assert spark_session is not None
-
-    # Apply configuration defaults
-    spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
-
-    if store_config.default_catalog:
-        spark_session.sql(f"USE CATALOG `{store_config.default_catalog}`")
-    if store_config.default_schema:
-        spark_session.sql(f"USE SCHEMA `{store_config.default_schema}`")
-
-    return spark_session
+    return get_databricks_connect_session(
+        host=store_config.workspace_host,
+        token=store_config.token,
+        cluster_id=store_config.cluster_id,
+        catalog=store_config.default_catalog,
+        schema=store_config.default_schema,
+        spark_conf=store_config.spark_conf if store_config.spark_conf else None,
+    )
 
 
 class DatabricksUCOfflineStore(SparkOfflineStore):
@@ -117,8 +74,8 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
-        # Initialize/Retrieve the Databricks Spark Session so it's registered as active
         get_databricks_session(config.offline_store)
 
         return SparkOfflineStore.pull_latest_from_table_or_query(
@@ -143,6 +100,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RetrievalJob:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -168,6 +126,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -189,6 +148,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -210,6 +170,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         histogram_bins: int = 20,
         top_n: int = 10,
     ) -> List[Dict[str, Any]]:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -230,6 +191,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         data_source: DataSource,
         timestamp_field: str,
     ) -> Optional[datetime]:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -241,6 +203,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
 
     @staticmethod
     def ensure_monitoring_tables(config: RepoConfig) -> None:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -252,6 +215,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         metric_type: str,
         metrics: List[Dict[str, Any]],
     ) -> None:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -270,6 +234,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
     ) -> List[Dict[str, Any]]:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -290,6 +255,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         feature_name: Optional[str] = None,
         data_source_type: Optional[str] = None,
     ) -> None:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
 
@@ -306,6 +272,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         config: RepoConfig,
         data_source: DataSource,
     ):
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
         data_source.validate(config=config)
@@ -315,6 +282,7 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         config: RepoConfig,
         data_source: DataSource,
     ) -> Iterable[Tuple[str, str]]:
+        warnings.warn(_DEPRECATION_MSG, FutureWarning, stacklevel=2)
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
         get_databricks_session(config.offline_store)
         return data_source.get_table_column_names_and_types(config=config)
