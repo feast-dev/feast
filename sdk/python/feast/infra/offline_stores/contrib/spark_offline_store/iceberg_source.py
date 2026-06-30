@@ -83,13 +83,30 @@ class IcebergRestCatalogSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
-            get_spark_session_or_start_new_with_repoconfig,
-        )
+        if isinstance(self, UnityCatalogSource):
+            import os
 
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
-        )
+            from feast.infra.offline_stores.contrib.spark_offline_store.utils import (
+                get_databricks_connect_session,
+            )
+
+            token = os.environ.get(self.token_env_var, "")
+            spark_session = get_databricks_connect_session(
+                host=self.endpoint,
+                token=token,
+                cluster_id=self.cluster_id,
+                catalog=self.warehouse,
+                schema=self.namespace,
+            )
+        else:
+            from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+                get_spark_session_or_start_new_with_repoconfig,
+            )
+
+            spark_session = get_spark_session_or_start_new_with_repoconfig(
+                store_config=config.offline_store
+            )
+
         df = spark_session.sql(f"SELECT * FROM {self.get_table_query_string()}")
         return ((field.name, field.dataType.simpleString()) for field in df.schema)
 
@@ -116,6 +133,9 @@ class IcebergRestCatalogSource(DataSource):
             tags=dict(data_source.tags) or None,
             owner=data_source.owner or "",
             date_partition_column=data_source.date_partition_column or None,
+            date_partition_column_format=config.get(
+                "date_partition_column_format", "%Y-%m-%d"
+            ),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -128,6 +148,7 @@ class IcebergRestCatalogSource(DataSource):
             "table": self._table,
             "token_env_var": self.token_env_var,
             "credential_vending": self.credential_vending,
+            "date_partition_column_format": self._date_partition_column_format,
         }
 
         proto = DataSourceProto(
@@ -164,6 +185,8 @@ class IcebergRestCatalogSource(DataSource):
             and self._table == other._table
             and self.token_env_var == other.token_env_var
             and self.credential_vending == other.credential_vending
+            and self._date_partition_column_format
+            == other._date_partition_column_format
         )
 
     def __hash__(self):
@@ -240,6 +263,9 @@ class UnityCatalogSource(IcebergRestCatalogSource):
             tags=dict(data_source.tags) or None,
             owner=data_source.owner or "",
             date_partition_column=data_source.date_partition_column or None,
+            date_partition_column_format=config.get(
+                "date_partition_column_format", "%Y-%m-%d"
+            ),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -255,6 +281,7 @@ class UnityCatalogSource(IcebergRestCatalogSource):
             "cluster_id": self.cluster_id,
             "register_as_feature_table": self.register_as_feature_table,
             "sync_lineage": self.sync_lineage,
+            "date_partition_column_format": self._date_partition_column_format,
         }
 
         proto = DataSourceProto(
@@ -285,7 +312,8 @@ class UnityCatalogSource(IcebergRestCatalogSource):
         if not isinstance(other, UnityCatalogSource):
             return False
         return (
-            self.register_as_feature_table == other.register_as_feature_table
+            self.cluster_id == other.cluster_id
+            and self.register_as_feature_table == other.register_as_feature_table
             and self.sync_lineage == other.sync_lineage
         )
 

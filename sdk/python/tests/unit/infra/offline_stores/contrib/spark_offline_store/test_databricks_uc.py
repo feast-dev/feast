@@ -475,6 +475,7 @@ def test_get_databricks_connect_session_active(mock_get_active):
     )
 
     mock_session = MagicMock()
+    mock_session.conf.get.return_value = "sc://adb-123.databricks.net:443/"
     mock_get_active.return_value = mock_session
 
     session = get_databricks_connect_session(
