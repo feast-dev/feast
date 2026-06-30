@@ -343,14 +343,19 @@ class BigQueryOfflineStore(OfflineStore):
             )
             entity_schema_keys = entity_schema.keys()
             all_entities = []
-            fv_query_contexts_pre = None
             start_date = entity_df_event_timestamp_range[0]
             end_date = entity_df_event_timestamp_range[1]
+            fv_query_contexts_pre = offline_utils.get_feature_view_query_context(
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
+            )
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
             if non_entity_mode:
-                assert fv_query_contexts_pre is not None
                 _bq_create_entity_union_table(
                     client=client,
                     table_name=table_reference,
@@ -376,9 +381,8 @@ class BigQueryOfflineStore(OfflineStore):
                 )
 
             # Generate the BigQuery SQL query from the query context
-            assert fv_query_contexts_pre is not None
             query = offline_utils.build_point_in_time_query(
-                feature_view_query_contexts=fv_query_contexts_pre,  # using pre created context
+                feature_view_query_contexts=fv_query_contexts_pre,
                 left_table_query_string=table_reference,
                 entity_df_event_timestamp_col=event_timestamp_col,
                 entity_df_columns=entity_schema_keys,
@@ -636,7 +640,7 @@ def _bq_create_entity_union_table(
             if col in ctx_entities_set:
                 select_entities.append(f"`{col}`")
             else:
-                select_entities.append(f"CAST(NULL AS STRING) AS `{col}`")
+                select_entities.append(f"NULL AS `{col}`")
 
         per_view_selects.append(
             f"SELECT DISTINCT {', '.join(select_entities)} "
