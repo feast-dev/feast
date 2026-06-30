@@ -64,6 +64,7 @@ online_store:
   read_timeout_ms: 150            # hard deadline for a single-record get
   write_timeout_ms: 300           # hard deadline for a single-record put/operate
   batch_total_timeout_ms: 500     # hard deadline for online_read / online_write_batch
+  batch_max_records: 1000         # chunk size for batch_write / batch_operate
   socket_timeout_ms: 50           # per-attempt deadline so max_retries can fire
   max_retries: 2
 ```
@@ -75,6 +76,12 @@ online_store:
 > `socket_timeout_ms` as well so each individual attempt has its own (shorter)
 > deadline; without it, `max_retries` effectively never fires because the
 > first attempt is allowed to consume the entire total deadline.
+
+> **Batch chunking.** `online_read` and `online_write_batch` split large
+> requests into chunks of at most `batch_max_records` (default `1000`).
+> Aerospike enforces a per-node batch limit via the server `batch-max-requests`
+> setting (historically `5000`). Lower `batch_max_records` if your cluster cap
+> is tighter; raise it only when the server limit and client timeouts allow.
 
 ### Aerospike Enterprise with authentication
 

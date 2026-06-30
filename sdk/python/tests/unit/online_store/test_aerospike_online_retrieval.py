@@ -7,6 +7,7 @@ write/read/admin dispatch with a mocked Aerospike client). One end-to-end test
 is marked with ``@_requires_docker`` and is skipped when Docker is unavailable.
 """
 
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -390,6 +391,76 @@ def test_online_write_batch_empty_short_circuits():
     assert progress_calls == [0]
 
 
+def test_chunked_splits_without_partial_tail():
+    chunks = list(AerospikeOnlineStore._chunked([1, 2, 3, 4, 5], 2))
+    assert chunks == [[1, 2], [3, 4], [5]]
+
+
+def test_get_client_thread_safe_single_connect(monkeypatch):
+    """Concurrent first callers must share one client, not leak connections."""
+    connect_count = 0
+    connect_lock = threading.Lock()
+
+    def fake_client(cfg):
+        fake = MagicMock()
+
+        def connect():
+            nonlocal connect_count
+            with connect_lock:
+                connect_count += 1
+            time.sleep(0.05)
+            return fake
+
+        fake.connect = connect
+        return fake
+
+    monkeypatch.setattr(aerospike, "client", fake_client)
+    store = AerospikeOnlineStore()
+    config = _aerospike_repo_config()
+    barrier = threading.Barrier(8)
+
+    def worker():
+        barrier.wait()
+        store._get_client(config)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert connect_count == 1
+
+
+def test_online_write_batch_chunks_at_batch_max_records():
+    config = _aerospike_repo_config(batch_max_records=100)
+    fv = SimpleNamespace(name="fv")
+    store = AerospikeOnlineStore()
+    fake_client = MagicMock()
+    store._client = fake_client
+
+    ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = [
+        (
+            _entity_key("id", i),
+            {"x": ValueProto(int64_val=i)},
+            ts,
+            None,
+        )
+        for i in range(250)
+    ]
+    progress_calls: list[int] = []
+    store.online_write_batch(config, fv, rows, progress=progress_calls.append)
+
+    assert fake_client.batch_write.call_count == 3
+    sizes = [
+        len(call.args[0].batch_records)
+        for call in fake_client.batch_write.call_args_list
+    ]
+    assert sizes == [100, 100, 50]
+    assert progress_calls == [100, 200, 250]
+
+
 # ---------------------------------------------------------------------------
 # Read path: online_read dispatches and converts via batch_operate
 # ---------------------------------------------------------------------------
@@ -467,6 +538,40 @@ def test_online_read_empty_keys_returns_empty():
     fv = _read_feature_view()
     assert store.online_read(_aerospike_repo_config(), fv, []) == []
     assert not store._client.batch_operate.called
+
+
+def test_online_read_chunks_at_batch_max_records():
+    config = _aerospike_repo_config(batch_max_records=100)
+    fv = _read_feature_view()
+    store = AerospikeOnlineStore()
+    entity_keys = [_entity_key("driver_id", i) for i in range(250)]
+    ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    def fake_batch_operate(keys, ops):
+        return SimpleNamespace(
+            batch_records=[
+                _fake_batch_record(
+                    key,
+                    {
+                        "features": {"rating": 4.0, "trips_last_7d": 10},
+                        "event_ts": _datetime_to_epoch_ms(ts),
+                    },
+                )
+                for key in keys
+            ]
+        )
+
+    fake_client = MagicMock()
+    fake_client.batch_operate.side_effect = fake_batch_operate
+    store._client = fake_client
+
+    results = store.online_read(config, fv, entity_keys)
+
+    assert fake_client.batch_operate.call_count == 3
+    sizes = [len(call.args[0]) for call in fake_client.batch_operate.call_args_list]
+    assert sizes == [100, 100, 50]
+    assert len(results) == 250
+    assert all(feats is not None for _, feats in results)
 
 
 def test_online_read_record_exists_but_fv_not_present_returns_none():

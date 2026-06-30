@@ -3,18 +3,21 @@ from __future__ import annotations
 import asyncio
 import functools
 import importlib
+import threading
 from datetime import datetime, timezone
 from logging import getLogger
 from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Literal,
     Optional,
     Sequence,
     Set,
     Tuple,
+    TypeVar,
     Union,
 )
 
@@ -87,6 +90,13 @@ PrewritingHook = Callable[
 # is applied on each put so map-creation on the first write picks up the
 # ordering; subsequent puts keep it.
 _ORDERED_MAP_POLICY: Dict[str, Any] = {"map_order": aerospike.MAP_KEY_ORDERED}
+
+# Aerospike server ``batch-max-requests`` defaults to 5000 on many clusters (0
+# means unlimited on newer releases). Stay well under that so materialization
+# and wide feature-server requests do not trip BatchMaxRequestError (code 151).
+_DEFAULT_BATCH_MAX_RECORDS: int = 1_000
+
+_T = TypeVar("_T")
 
 
 def _datetime_to_epoch_ms(dt: datetime) -> int:
@@ -256,6 +266,15 @@ class AerospikeOnlineStoreConfig(FeastConfigBaseModel):
     max_retries: int = 2
     """Maximum number of automatic retries on transient errors."""
 
+    batch_max_records: int = _DEFAULT_BATCH_MAX_RECORDS
+    """Maximum records per ``batch_write`` / ``batch_operate`` call.
+
+    Aerospike enforces a per-node batch size via the server ``batch-max-requests``
+    setting (historically 5000). Feast chunks read and write paths to this limit
+    so large materializations and wide online-serving requests do not fail the
+    whole batch when the server cap is exceeded.
+    """
+
     client_kwargs: Dict[str, Any] = {}
     """Escape hatch for any Aerospike client configuration not surfaced above.
     Merged into the client config passed to ``aerospike.client()``."""
@@ -290,64 +309,87 @@ class AerospikeOnlineStore(OnlineStore):
         # store to a different hook) re-resolves on next call.
         self._prewriting_hook: Optional[PrewritingHook] = None
         self._prewriting_hook_spec: Optional[str] = None
+        self._client_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Lifecycle / connection management
     # ------------------------------------------------------------------
+    @staticmethod
+    def _chunked(items: Sequence[_T], chunk_size: int) -> Iterator[Sequence[_T]]:
+        """Yield slices of ``items`` no larger than ``chunk_size``."""
+        if chunk_size <= 0:
+            raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+        for start in range(0, len(items), chunk_size):
+            yield items[start : start + chunk_size]
+
+    def _batch_max_records(self, config: RepoConfig) -> int:
+        store_cfg = config.online_store
+        if not isinstance(store_cfg, AerospikeOnlineStoreConfig):
+            raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
+        return store_cfg.batch_max_records
+
     def _get_client(self, config: RepoConfig) -> aerospike.Client:
         """Lazily create and cache an Aerospike client on first use.
 
         The underlying C client maintains its own connection pool, so a single
-        cached instance is safe to share across calls on this store.
+        cached instance is safe to share across calls on this store. Creation
+        is guarded by a lock so concurrent first callers in a threaded feature
+        server do not leak extra connections.
         """
         if self._client is not None:
             return self._client
 
-        if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
-            raise RuntimeError(f"{config.online_store.type = }. It must be aerospike.")
-        store_cfg = config.online_store
+        with self._client_lock:
+            if self._client is not None:
+                return self._client
 
-        read_policy: Dict[str, Any] = {
-            "total_timeout": store_cfg.read_timeout_ms,
-            "max_retries": store_cfg.max_retries,
-        }
-        write_policy: Dict[str, Any] = {
-            "total_timeout": store_cfg.write_timeout_ms,
-            "max_retries": store_cfg.max_retries,
-        }
-        batch_policy: Dict[str, Any] = {
-            "total_timeout": store_cfg.batch_total_timeout_ms,
-            "max_retries": store_cfg.max_retries,
-        }
-        if store_cfg.socket_timeout_ms is not None:
-            # socket_timeout is the per-attempt deadline; without it,
-            # total_timeout is the whole budget and retries never fire.
-            read_policy["socket_timeout"] = store_cfg.socket_timeout_ms
-            write_policy["socket_timeout"] = store_cfg.socket_timeout_ms
-            batch_policy["socket_timeout"] = store_cfg.socket_timeout_ms
-
-        client_config: Dict[str, Any] = {
-            "hosts": [tuple(h) for h in store_cfg.hosts],
-            "policies": {
-                "read": read_policy,
-                "write": write_policy,
-                "batch": batch_policy,
-            },
-            **store_cfg.client_kwargs,
-        }
-        if store_cfg.user:
-            if store_cfg.password is None:
-                raise ValueError(
-                    "AerospikeOnlineStoreConfig.user is set but password is not."
+            if not isinstance(config.online_store, AerospikeOnlineStoreConfig):
+                raise RuntimeError(
+                    f"{config.online_store.type = }. It must be aerospike."
                 )
-            client_config["user"] = store_cfg.user
-            client_config["password"] = store_cfg.password.get_secret_value()
-            client_config["auth_mode"] = _AUTH_MODE_TO_CONSTANT[store_cfg.auth_mode]
-        if store_cfg.tls:
-            client_config["tls"] = store_cfg.tls
+            store_cfg = config.online_store
 
-        self._client = aerospike.client(client_config).connect()
-        return self._client
+            read_policy: Dict[str, Any] = {
+                "total_timeout": store_cfg.read_timeout_ms,
+                "max_retries": store_cfg.max_retries,
+            }
+            write_policy: Dict[str, Any] = {
+                "total_timeout": store_cfg.write_timeout_ms,
+                "max_retries": store_cfg.max_retries,
+            }
+            batch_policy: Dict[str, Any] = {
+                "total_timeout": store_cfg.batch_total_timeout_ms,
+                "max_retries": store_cfg.max_retries,
+            }
+            if store_cfg.socket_timeout_ms is not None:
+                # socket_timeout is the per-attempt deadline; without it,
+                # total_timeout is the whole budget and retries never fire.
+                read_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+                write_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+                batch_policy["socket_timeout"] = store_cfg.socket_timeout_ms
+
+            client_config: Dict[str, Any] = {
+                "hosts": [tuple(h) for h in store_cfg.hosts],
+                "policies": {
+                    "read": read_policy,
+                    "write": write_policy,
+                    "batch": batch_policy,
+                },
+                **store_cfg.client_kwargs,
+            }
+            if store_cfg.user:
+                if store_cfg.password is None:
+                    raise ValueError(
+                        "AerospikeOnlineStoreConfig.user is set but password is not."
+                    )
+                client_config["user"] = store_cfg.user
+                client_config["password"] = store_cfg.password.get_secret_value()
+                client_config["auth_mode"] = _AUTH_MODE_TO_CONSTANT[store_cfg.auth_mode]
+            if store_cfg.tls:
+                client_config["tls"] = store_cfg.tls
+
+            self._client = aerospike.client(client_config).connect()
+            return self._client
 
     def _set_name(self, config: RepoConfig, fv_name: Optional[str] = None) -> str:
         """Resolve the Aerospike set name for a feature view.
@@ -568,17 +610,23 @@ class AerospikeOnlineStore(OnlineStore):
         client = self._get_client(config)
         namespace = self._namespace_for_fv(config, table.name)
         set_name = self._set_name(config, table.name)
-        batch = self._build_batch_writes(config, table, data, namespace, set_name)
-        if batch.batch_records:
-            client.batch_write(batch)
-            # Per-record result codes must be inspected: client.batch_write
-            # only raises if the whole request was rejected. A partial failure
-            # (e.g. a single-partition timeout) is otherwise silent, which in
-            # an online-serving path presents downstream as "model saw stale
-            # features" weeks after the fact.
-            self._raise_on_batch_errors(batch.batch_records, set_name, op="write")
-        if progress:
-            progress(len(data))
+        chunk_size = self._batch_max_records(config)
+        written = 0
+        for chunk in self._chunked(data, chunk_size):
+            batch = self._build_batch_writes(
+                config, table, list(chunk), namespace, set_name
+            )
+            if batch.batch_records:
+                client.batch_write(batch)
+                # Per-record result codes must be inspected: client.batch_write
+                # only raises if the whole request was rejected. A partial failure
+                # (e.g. a single-partition timeout) is otherwise silent, which in
+                # an online-serving path presents downstream as "model saw stale
+                # features" weeks after the fact.
+                self._raise_on_batch_errors(batch.batch_records, set_name, op="write")
+            written += len(chunk)
+            if progress:
+                progress(written)
 
     # ------------------------------------------------------------------
     # Read path
@@ -618,59 +666,64 @@ class AerospikeOnlineStore(OnlineStore):
         client = self._get_client(config)
         ns = self._namespace_for_fv(config, table.name)
         set_name = self._set_name(config, table.name)
-
-        keys = [
-            (
-                ns,
-                set_name,
-                bytearray(
-                    serialize_entity_key(
-                        k,
-                        entity_key_serialization_version=config.entity_key_serialization_version,
-                    )
-                ),
-            )
-            for k in entity_keys
-        ]
         read_ops = self._build_read_ops(table.name, requested_features)
-
-        batch = client.batch_operate(keys, read_ops)
+        chunk_size = self._batch_max_records(config)
 
         # ``ids`` and ``docs`` use immutable ``bytes`` because ``bytearray`` is
         # unhashable and can't key a dict. Keys on the wire must stay
         # ``bytearray`` (see ``_aerospike_key``) — we only convert here for
         # lookup.
-        ids = [bytes(user_key) for _, _, user_key in keys]
+        ids: List[bytes] = []
         docs: Dict[bytes, Dict[str, Any]] = {}
-        # batch_operate preserves request order. We pair each response with
-        # the original user-key rather than ``br.key[2]``: the Aerospike
-        # client may return the key in a different representation (e.g. only
-        # the first byte as a str when the write didn't use POLICY_KEY_SEND
-        # for reads).
-        for user_key, br in zip(ids, batch.batch_records):
-            if br.result == _AS_ERR_RECORD_NOT_FOUND:
-                continue
-            if br.result == _AS_ERR_OP_NOT_APPLICABLE:
-                # The record exists but the nested feature-view slot doesn't;
-                # treat as a miss to match the OnlineStore contract.
-                continue
-            if br.result != _AS_OK:
-                raise RuntimeError(
-                    f"Aerospike batch_operate returned a non-OK status for "
-                    f"entity (ns={ns}, set={set_name}): result={br.result}"
+
+        for entity_chunk in self._chunked(entity_keys, chunk_size):
+            keys = [
+                (
+                    ns,
+                    set_name,
+                    bytearray(
+                        serialize_entity_key(
+                            k,
+                            entity_key_serialization_version=config.entity_key_serialization_version,
+                        )
+                    ),
                 )
-            if br.record is None:
-                continue
-            _, _, bins = br.record
-            raw_features = bins.get("features") if bins else None
-            fv_event_ts_ms = bins.get("event_ts") if bins else None
-            fv_features = self._normalize_projected_features(raw_features)
-            docs[user_key] = {
-                "features": {table.name: fv_features}
-                if fv_features is not None
-                else {},
-                "event_timestamps": {table.name: _epoch_ms_to_datetime(fv_event_ts_ms)},
-            }
+                for k in entity_chunk
+            ]
+            batch = client.batch_operate(keys, read_ops)
+            chunk_ids = [bytes(user_key) for _, _, user_key in keys]
+            ids.extend(chunk_ids)
+            # batch_operate preserves request order. We pair each response with
+            # the original user-key rather than ``br.key[2]``: the Aerospike
+            # client may return the key in a different representation (e.g. only
+            # the first byte as a str when the write didn't use POLICY_KEY_SEND
+            # for reads).
+            for user_key, br in zip(chunk_ids, batch.batch_records):
+                if br.result == _AS_ERR_RECORD_NOT_FOUND:
+                    continue
+                if br.result == _AS_ERR_OP_NOT_APPLICABLE:
+                    # The record exists but the nested feature-view slot doesn't;
+                    # treat as a miss to match the OnlineStore contract.
+                    continue
+                if br.result != _AS_OK:
+                    raise RuntimeError(
+                        f"Aerospike batch_operate returned a non-OK status for "
+                        f"entity (ns={ns}, set={set_name}): result={br.result}"
+                    )
+                if br.record is None:
+                    continue
+                _, _, bins = br.record
+                raw_features = bins.get("features") if bins else None
+                fv_event_ts_ms = bins.get("event_ts") if bins else None
+                fv_features = self._normalize_projected_features(raw_features)
+                docs[user_key] = {
+                    "features": {table.name: fv_features}
+                    if fv_features is not None
+                    else {},
+                    "event_timestamps": {
+                        table.name: _epoch_ms_to_datetime(fv_event_ts_ms)
+                    },
+                }
 
         return self._convert_raw_docs_to_proto(ids, docs, table)
 
@@ -867,10 +920,11 @@ class AerospikeOnlineStore(OnlineStore):
 
     async def close(self) -> None:
         """Release the cached Aerospike client, if any."""
-        if self._client is None:
-            return
-        client = self._client
-        self._client = None
+        with self._client_lock:
+            if self._client is None:
+                return
+            client = self._client
+            self._client = None
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, client.close)
 
@@ -987,6 +1041,7 @@ class AerospikeOnlineStore(OnlineStore):
         # meaning.
         for ns, set_name in sorted(pairs):
             client.truncate(ns, set_name, 0)
-        if self._client is not None:
-            self._client.close()
-            self._client = None
+        with self._client_lock:
+            if self._client is not None:
+                self._client.close()
+                self._client = None
