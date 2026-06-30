@@ -322,7 +322,10 @@ class BigQueryOfflineStore(OfflineStore):
             )
             all_entities = offline_utils.gather_all_entities(fv_query_contexts_pre)
             event_timestamp_col = "entity_ts"
-            entity_schema_keys = list(all_entities) + [event_timestamp_col]
+            entity_schema_keys: KeysView[str] = cast(
+                KeysView[str],
+                {k: None for k in (all_entities + [event_timestamp_col])}.keys(),
+            )
 
             entity_schema = None
         else:
@@ -373,6 +376,7 @@ class BigQueryOfflineStore(OfflineStore):
                 )
 
             # Generate the BigQuery SQL query from the query context
+            assert fv_query_contexts_pre is not None
             query = offline_utils.build_point_in_time_query(
                 feature_view_query_contexts = fv_query_contexts_pre, #using pre created context
                 left_table_query_string=table_reference,
