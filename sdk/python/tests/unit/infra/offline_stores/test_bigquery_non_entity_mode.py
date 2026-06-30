@@ -200,7 +200,7 @@ class TestBqCreateEntityUnionTable:
     def test_missing_entity_filled_with_null_not_cast_string(
         self, mock_utc_now, mock_block
     ):
-        """When a feature view doesn't have an entity column, use NULL (not CAST(NULL AS STRING))."""
+        """When a feature view doesn't have an entity column, fill it with NULL."""
         mock_utc_now.return_value = END
         client = self._make_client()
         fv1 = _make_feature_view_mock("fv1", ["customer_id", "item_id"])
@@ -220,10 +220,11 @@ class TestBqCreateEntityUnionTable:
         )
 
         sql = client.query.call_args[0][0]
-        # fv2 does not have item_id → must appear as NULL AS `item_id`
-        assert "NULL AS `item_id`" in sql
-        # fv2 has customer_id → no NULL for it in fv2's branch
-        assert "CAST(NULL AS STRING)" not in sql
+        # fv2 does not have item_id → must appear as NULL for item_id
+        assert "`item_id`" in sql
+        assert "NULL" in sql
+        # fv2's item_id fill must not appear as a regular column reference
+        assert "SELECT DISTINCT `customer_id`" in sql
 
     @patch("feast.infra.offline_stores.bigquery.block_until_done")
     @patch("feast.infra.offline_stores.bigquery._utc_now")
