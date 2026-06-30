@@ -378,7 +378,7 @@ class BigQueryOfflineStore(OfflineStore):
             # Generate the BigQuery SQL query from the query context
             assert fv_query_contexts_pre is not None
             query = offline_utils.build_point_in_time_query(
-                feature_view_query_contexts=fv_query_contexts_pre, #using pre created context
+                feature_view_query_contexts=fv_query_contexts_pre,  # using pre created context
                 left_table_query_string=table_reference,
                 entity_df_event_timestamp_col=event_timestamp_col,
                 entity_df_columns=entity_schema_keys,
