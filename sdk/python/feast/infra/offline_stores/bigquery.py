@@ -640,7 +640,7 @@ def _bq_create_entity_union_table(
             if col in ctx_entities_set:
                 select_entities.append(f"`{col}`")
             else:
-                select_entities.append(f"NULL AS `{col}`")
+                select_entities.append(f"CAST(NULL AS STRING) AS `{col}`")
 
         per_view_selects.append(
             f"SELECT DISTINCT {', '.join(select_entities)} "
