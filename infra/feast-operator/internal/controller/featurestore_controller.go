@@ -60,6 +60,7 @@ type FeatureStoreReconciler struct {
 	Metrics *feastmetrics.FeatureStoreMetrics
 }
 
+// +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=feast.dev,resources=featurestores/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
