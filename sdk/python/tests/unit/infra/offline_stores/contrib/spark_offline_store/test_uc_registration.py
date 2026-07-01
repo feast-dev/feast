@@ -1,28 +1,10 @@
 from unittest.mock import MagicMock, patch
 
-from pyspark.sql.types import (
-    ArrayType,
-    BinaryType,
-    BooleanType,
-    DoubleType,
-    FloatType,
-    IntegerType,
-    LongType,
-    StringType,
-    StructType,
-    TimestampType,
-)
-
 from feast import FeatureView
-from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import (
-    DatabricksUCOfflineStoreConfig,
-    UCRegistrationConfig,
-)
-from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration import (
-    _build_full_table_name,
-    _build_spark_schema,
-    _build_uc_tags,
-    _feast_to_spark_type_simple,
+from feast.infra.offline_stores.iceberg.catalog_config import IcebergCatalogConfig
+from feast.infra.offline_stores.iceberg.catalog_manager import _feast_to_iceberg_type
+from feast.infra.offline_stores.iceberg.registration import (
+    _build_tags,
     _get_primary_keys,
     _resolve_uc_path,
     _should_register,
@@ -33,8 +15,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration impo
 def make_mock_field(name: str, dtype_str: str = "", nullable: bool = True):
     field = MagicMock()
     field.name = name
-    # _feast_to_spark_type_simple does str(dtype).upper()
-    # When dtype_str is empty, dtype will be None -> StringType fallback
     if dtype_str:
 
         class FakeDtype:
@@ -47,76 +27,56 @@ def make_mock_field(name: str, dtype_str: str = "", nullable: bool = True):
     return field
 
 
-def test_feast_to_spark_type_simple_none():
-    field = make_mock_field("col", "")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, StringType)
+def test_feast_to_iceberg_type_none():
+    assert _feast_to_iceberg_type(None) == "string"
 
 
-def test_feast_to_spark_type_simple_int32():
-    field = make_mock_field("col", "Int32")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, IntegerType)
+def test_feast_to_iceberg_type_int32():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Int32").dtype) == "int"
 
 
-def test_feast_to_spark_type_simple_int64():
-    field = make_mock_field("col", "Int64")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, LongType)
+def test_feast_to_iceberg_type_int64():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Int64").dtype) == "long"
 
 
-def test_feast_to_spark_type_simple_float32():
-    field = make_mock_field("col", "Float32")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, FloatType)
+def test_feast_to_iceberg_type_float32():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Float32").dtype) == "float"
 
 
-def test_feast_to_spark_type_simple_float64():
-    field = make_mock_field("col", "Float64")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, DoubleType)
+def test_feast_to_iceberg_type_float64():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Float64").dtype) == "double"
 
 
-def test_feast_to_spark_type_simple_string():
-    field = make_mock_field("col", "String")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, StringType)
+def test_feast_to_iceberg_type_string():
+    assert _feast_to_iceberg_type(make_mock_field("col", "String").dtype) == "string"
 
 
-def test_feast_to_spark_type_simple_bool():
-    field = make_mock_field("col", "Bool")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, BooleanType)
+def test_feast_to_iceberg_type_bool():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Bool").dtype) == "boolean"
 
 
-def test_feast_to_spark_type_simple_bytes():
-    field = make_mock_field("col", "Bytes")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, BinaryType)
+def test_feast_to_iceberg_type_bytes():
+    assert _feast_to_iceberg_type(make_mock_field("col", "Bytes").dtype) == "binary"
 
 
-def test_feast_to_spark_type_simple_unix_timestamp():
-    field = make_mock_field("col", "UnixTimestamp")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, TimestampType)
+def test_feast_to_iceberg_type_unix_timestamp():
+    t = _feast_to_iceberg_type(make_mock_field("col", "UnixTimestamp").dtype)
+    assert t == "timestamp"
 
 
-def test_feast_to_spark_type_simple_list():
-    field = make_mock_field("col", "List<String>")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, ArrayType)
+def test_feast_to_iceberg_type_list():
+    t = _feast_to_iceberg_type(make_mock_field("col", "List<String>").dtype)
+    assert t == "list<string>"
 
 
-def test_feast_to_spark_type_simple_array():
-    field = make_mock_field("col", "Array<Int32>")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, ArrayType)
+def test_feast_to_iceberg_type_array():
+    t = _feast_to_iceberg_type(make_mock_field("col", "Array<Int32>").dtype)
+    assert t == "list<string>"
 
 
-def test_feast_to_spark_type_simple_unknown():
-    field = make_mock_field("col", "UnknownType")
-    result = _feast_to_spark_type_simple(field)
-    assert isinstance(result, StringType)
+def test_feast_to_iceberg_type_unknown():
+    t = _feast_to_iceberg_type(make_mock_field("col", "UnknownType").dtype)
+    assert t == "string"
 
 
 def test_should_register_default():
@@ -185,14 +145,14 @@ def test_resolve_uc_path_tag_overrides_none_default():
     assert table == "fv_name"
 
 
-def test_build_uc_tags():
+def test_build_tags():
     fv = MagicMock(spec=FeatureView)
     fv.tags = {
         "env": "prod",
         "uc.register_as_feature_table": "false",
         "owner": "team_a",
     }
-    tags = _build_uc_tags(fv, "my_project")
+    tags = _build_tags(fv, "my_project")
     assert tags["env"] == "prod"
     assert tags["owner"] == "team_a"
     assert "uc.register_as_feature_table" not in tags
@@ -200,10 +160,10 @@ def test_build_uc_tags():
     assert tags["feast_project"] == "my_project"
 
 
-def test_build_uc_tags_empty_tags():
+def test_build_tags_empty_tags():
     fv = MagicMock(spec=FeatureView)
     fv.tags = {}
-    tags = _build_uc_tags(fv, "proj")
+    tags = _build_tags(fv, "proj")
     assert tags["feast_managed"] == "feast"
     assert tags["feast_project"] == "proj"
 
@@ -222,100 +182,31 @@ def test_get_primary_keys_empty():
     assert _get_primary_keys(fv) == []
 
 
-def test_build_full_table_name_all_parts():
-    assert _build_full_table_name("cat", "sch", "table") == "`cat`.`sch`.`table`"
+def _make_catalog_config(**overrides) -> IcebergCatalogConfig:
+    defaults = {
+        "type": "rest",
+        "endpoint": "https://test.databricks.net/api/2.1/unity-catalog/iceberg",
+        "warehouse": "test_cat",
+        "namespace": "test_sch",
+    }
+    merged = {**defaults, **overrides}
+    return IcebergCatalogConfig(**merged)
 
 
-def test_build_full_table_name_no_catalog():
-    assert _build_full_table_name(None, "sch", "table") == "`sch`.`table`"
+def test_register_uc_feature_tables_skips_when_missing_pyiceberg():
+    config = _make_catalog_config()
+    with patch.dict("sys.modules", {"pyiceberg": None}):
+        register_uc_feature_tables(config, [], "test_project")
+    # No error means skip silently
 
 
-def test_build_full_table_name_no_schema():
-    assert _build_full_table_name("cat", None, "table") == "`cat`.`table`"
+@patch("feast.infra.offline_stores.iceberg.registration.load_catalog")
+def test_register_uc_feature_tables_creates_new_table(mock_load_catalog):
+    mock_catalog = MagicMock()
+    mock_load_catalog.return_value = mock_catalog
+    mock_catalog.load_table.side_effect = Exception("table not found")
 
-
-def test_build_full_table_name_only_table():
-    assert _build_full_table_name(None, None, "table") == "`table`"
-
-
-def test_build_spark_schema():
-    fv = MagicMock(spec=FeatureView)
-    id_field = make_mock_field("entity_id", "Int32")
-    feat_field = make_mock_field("feature_val", "Float64")
-    fv.entity_columns = [id_field]
-    fv.features = [feat_field]
-    fv.batch_source = MagicMock()
-    fv.batch_source.timestamp_field = "event_ts"
-
-    schema = _build_spark_schema(fv)
-
-    assert isinstance(schema, StructType)
-    fields = schema.fields
-    assert fields[0].name == "entity_id"
-    assert isinstance(fields[0].dataType, IntegerType)
-    assert fields[0].nullable is False
-
-    assert fields[1].name == "feature_val"
-    assert isinstance(fields[1].dataType, DoubleType)
-    assert fields[1].nullable is True
-
-    assert fields[2].name == "event_ts"
-    assert isinstance(fields[2].dataType, TimestampType)
-    assert fields[2].nullable is True
-
-
-def test_build_spark_schema_no_timestamp():
-    fv = MagicMock(spec=FeatureView)
-    id_field = make_mock_field("id", "Int64")
-    fv.entity_columns = [id_field]
-    fv.features = []
-    fv.batch_source = MagicMock()
-    fv.batch_source.timestamp_field = None
-
-    schema = _build_spark_schema(fv)
-    assert len(schema.fields) == 1
-    assert schema.fields[0].name == "id"
-
-
-def test_register_uc_feature_tables_skips_when_disabled():
-    config = DatabricksUCOfflineStoreConfig(type="databricks_uc")
-    register_uc_feature_tables(config, [], "test_project")
-    # No error means success (skip silently)
-
-
-def test_register_uc_feature_tables_skips_when_no_uc_config():
-    config = DatabricksUCOfflineStoreConfig(
-        type="databricks_uc",
-        uc_registration=UCRegistrationConfig(enabled=False),
-    )
-    register_uc_feature_tables(config, [], "test_project")
-    # No error means success
-
-
-def _run_with_mock_fe(config, fvs, project, table_exists: bool = False):
-    """Helper to run register_uc_feature_tables with mocked external deps."""
-    fe_module = MagicMock()
-    fe_module.FeatureEngineeringClient = MagicMock()
-    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
-        with patch(
-            "feast.infra.offline_stores.contrib.spark_offline_store.uc_registration.get_databricks_session"
-        ) as mock_get_session:
-            fe_client = MagicMock()
-            fe_module.FeatureEngineeringClient.return_value = fe_client
-            mock_session = MagicMock()
-            mock_session.catalog.tableExists.return_value = table_exists
-            mock_get_session.return_value = mock_session
-            register_uc_feature_tables(config, fvs, project)
-    return fe_client, mock_session
-
-
-def test_register_uc_feature_tables_creates_new_table():
-    config = DatabricksUCOfflineStoreConfig(
-        type="databricks_uc",
-        default_catalog="cat",
-        default_schema="sch",
-        uc_registration=UCRegistrationConfig(enabled=True),
-    )
+    config = _make_catalog_config()
 
     fv = MagicMock(spec=FeatureView)
     fv.tags = {}
@@ -327,37 +218,28 @@ def test_register_uc_feature_tables_creates_new_table():
     fv.description = "test description"
     fv.owner = "user1"
 
-    fe_client, mock_session = _run_with_mock_fe(
-        config, [fv], "proj", table_exists=False
-    )
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.table_exists",
+        return_value=False,
+    ):
+        with patch(
+            "feast.infra.offline_stores.iceberg.registration.create_feature_table"
+        ) as mock_create:
+            register_uc_feature_tables(config, [fv], "proj")
 
-    fe_client.create_table.assert_called_once()
-    call_kwargs = fe_client.create_table.call_args[1]
-    assert call_kwargs["name"] == "`cat`.`sch`.`test_fv`"
-    assert call_kwargs["primary_keys"] == []
+    mock_create.assert_called_once()
+    call_kwargs = mock_create.call_args[1]
+    assert call_kwargs["namespace"] == "test_sch"
+    assert call_kwargs["table_name"] == "test_fv"
     assert call_kwargs["description"] == "test description"
 
 
-@patch(
-    "feast.infra.offline_stores.contrib.spark_offline_store.uc_registration.get_databricks_session"
-)
-def test_register_uc_feature_tables_updates_existing(
-    mock_get_session,
-):
-    mock_session = MagicMock()
-    mock_get_session.return_value = mock_session
-    mock_session.catalog.tableExists.return_value = True
+@patch("feast.infra.offline_stores.iceberg.registration.load_catalog")
+def test_register_uc_feature_tables_updates_existing(mock_load_catalog):
+    mock_catalog = MagicMock()
+    mock_load_catalog.return_value = mock_catalog
 
-    fe_module = MagicMock()
-    fe_client = MagicMock()
-    fe_module.FeatureEngineeringClient.return_value = fe_client
-
-    config = DatabricksUCOfflineStoreConfig(
-        type="databricks_uc",
-        default_catalog="cat",
-        default_schema="sch",
-        uc_registration=UCRegistrationConfig(enabled=True),
-    )
+    config = _make_catalog_config()
 
     fv = MagicMock(spec=FeatureView)
     fv.tags = {}
@@ -369,31 +251,28 @@ def test_register_uc_feature_tables_updates_existing(
     fv.description = "test description"
     fv.owner = "user1"
 
-    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
-        register_uc_feature_tables(config, [fv], "proj")
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.table_exists",
+        return_value=True,
+    ):
+        with patch(
+            "feast.infra.offline_stores.iceberg.registration.update_table_properties"
+        ) as mock_update:
+            register_uc_feature_tables(config, [fv], "proj")
 
-    fe_client.create_table.assert_not_called()
-    mock_session.sql.assert_any_call(
-        "COMMENT ON TABLE `cat`.`sch`.`test_fv` IS 'test description'"
-    )
+    mock_update.assert_called_once()
+    call_kwargs = mock_update.call_args[1]
+    assert call_kwargs["namespace"] == "test_sch"
+    assert call_kwargs["table_name"] == "test_fv"
+    assert call_kwargs["description"] == "test description"
 
 
-@patch(
-    "feast.infra.offline_stores.contrib.spark_offline_store.uc_registration.get_databricks_session"
-)
-def test_register_uc_feature_tables_skips_opt_out(
-    mock_get_session,
-):
-    mock_session = MagicMock()
-    mock_get_session.return_value = mock_session
-    mock_session.catalog.tableExists.return_value = False
+@patch("feast.infra.offline_stores.iceberg.registration.load_catalog")
+def test_register_uc_feature_tables_skips_opt_out(mock_load_catalog):
+    mock_catalog = MagicMock()
+    mock_load_catalog.return_value = mock_catalog
 
-    config = DatabricksUCOfflineStoreConfig(
-        type="databricks_uc",
-        default_catalog="cat",
-        default_schema="sch",
-        uc_registration=UCRegistrationConfig(enabled=True),
-    )
+    config = _make_catalog_config()
 
     fv = MagicMock(spec=FeatureView)
     fv.tags = {"uc.register_as_feature_table": "false"}
@@ -405,44 +284,41 @@ def test_register_uc_feature_tables_skips_opt_out(
     fv.description = ""
     fv.owner = None
 
-    fe_module = MagicMock()
-    fe_client = MagicMock()
-    fe_module.FeatureEngineeringClient.return_value = fe_client
-    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.create_feature_table"
+    ) as mock_create:
         register_uc_feature_tables(config, [fv], "proj")
 
-    # Per-view opt-out means create_table should NOT be called
-    fe_client.create_table.assert_not_called()
+    mock_create.assert_not_called()
 
 
-def test_register_uc_feature_tables_skips_when_missing_catalog():
-    fe_module = MagicMock()
-    fe_client = MagicMock()
-    fe_module.FeatureEngineeringClient.return_value = fe_client
-    with patch.dict("sys.modules", {"databricks.feature_engineering": fe_module}):
+@patch("feast.infra.offline_stores.iceberg.registration.load_catalog")
+def test_register_uc_feature_tables_skips_when_missing_catalog(
+    mock_load_catalog,
+):
+    mock_catalog = MagicMock()
+    mock_load_catalog.return_value = mock_catalog
+
+    fv = MagicMock(spec=FeatureView)
+    fv.tags = {}
+    fv.name = "no_cat_fv"
+    fv.entity_columns = []
+    fv.features = []
+    fv.batch_source = MagicMock()
+    fv.batch_source.timestamp_field = None
+    fv.description = ""
+    fv.owner = None
+
+    # Use a config with empty warehouse/namespace to simulate missing catalog info
+    config_no_warehouse = _make_catalog_config(warehouse="", namespace="")
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.create_feature_table"
+    ) as mock_create:
         with patch(
-            "feast.infra.offline_stores.contrib.spark_offline_store.uc_registration.get_databricks_session"
-        ) as mock_get_session:
-            mock_session = MagicMock()
-            mock_get_session.return_value = mock_session
+            "feast.infra.offline_stores.iceberg.registration.update_table_properties"
+        ) as mock_update:
+            register_uc_feature_tables(config_no_warehouse, [fv], "proj")
 
-            config = DatabricksUCOfflineStoreConfig(
-                type="databricks_uc",
-                default_catalog=None,
-                default_schema=None,
-                uc_registration=UCRegistrationConfig(enabled=True),
-            )
-
-            fv = MagicMock(spec=FeatureView)
-            fv.tags = {}
-            fv.name = "no_cat_fv"
-            fv.entity_columns = []
-            fv.features = []
-            fv.batch_source = MagicMock()
-            fv.batch_source.timestamp_field = None
-            fv.description = ""
-            fv.owner = None
-
-            register_uc_feature_tables(config, [fv], "proj")
-
-    fe_client.create_table.assert_not_called()
+    mock_create.assert_not_called()
+    mock_update.assert_not_called()

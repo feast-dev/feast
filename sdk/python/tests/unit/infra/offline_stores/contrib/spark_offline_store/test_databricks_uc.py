@@ -12,33 +12,70 @@ from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.infra.offline_stores.iceberg.catalog_config import IcebergCatalogConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
+
+
+def _catalog_config(**overrides) -> IcebergCatalogConfig:
+    defaults = {
+        "type": "rest",
+        "endpoint": "https://adb-12345.azuredatabricks.net/api/2.1/unity-catalog/iceberg",
+        "warehouse": "main",
+        "namespace": "default",
+    }
+    return IcebergCatalogConfig(**{**defaults, **overrides})
 
 
 def test_config_parsing():
     config_dict = {
         "type": "databricks_uc",
-        "workspace_host": "adb-12345.azuredatabricks.net",
-        "token": "dapi123456",
-        "cluster_id": "0123-4567-abcde",
-        "default_catalog": "main",
-        "default_schema": "default",
+        "catalog": {
+            "type": "rest",
+            "endpoint": "https://adb-12345.azuredatabricks.net/api/2.1/unity-catalog/iceberg",
+            "warehouse": "main",
+            "namespace": "default",
+            "token_env_var": "DATABRICKS_TOKEN",
+        },
         "spark_conf": {"spark.sql.shuffle.partitions": "10"},
     }
     config = DatabricksUCOfflineStoreConfig(**config_dict)
     assert config.type == "databricks_uc"
-    assert config.workspace_host == "adb-12345.azuredatabricks.net"
-    assert config.token == "dapi123456"
-    assert config.cluster_id == "0123-4567-abcde"
-    assert config.default_catalog == "main"
-    assert config.default_schema == "default"
+    assert config.catalog.warehouse == "main"
+    assert config.catalog.namespace == "default"
+    assert config.catalog.token_env_var == "DATABRICKS_TOKEN"
     assert config.spark_conf == {"spark.sql.shuffle.partitions": "10"}
+
+
+def test_config_with_uc_registration():
+    config_dict = {
+        "type": "databricks_uc",
+        "catalog": {
+            "type": "rest",
+            "endpoint": "https://adb-12345.azuredatabricks.net/api/2.1/unity-catalog/iceberg",
+            "warehouse": "prod_ml",
+            "namespace": "features",
+        },
+        "uc_registration": {
+            "enabled": True,
+            "catalog": "override_cat",
+            "uc_schema": "override_sch",
+        },
+    }
+    config = DatabricksUCOfflineStoreConfig(**config_dict)
+    assert config.uc_registration is not None
+    assert config.uc_registration.enabled is True
+    assert config.uc_registration.catalog == "override_cat"
+    assert config.uc_registration.uc_schema == "override_sch"
 
 
 def test_config_forbidden_extra():
     with pytest.raises(ValidationError):
-        DatabricksUCOfflineStoreConfig(type="databricks_uc", invalid_key="some_val")
+        DatabricksUCOfflineStoreConfig(
+            type="databricks_uc",
+            catalog=_catalog_config(),
+            invalid_key="some_val",
+        )
 
 
 @patch("pyspark.sql.SparkSession.getActiveSession")
@@ -48,8 +85,7 @@ def test_get_databricks_session_active(mock_get_active):
 
     config = DatabricksUCOfflineStoreConfig(
         type="databricks_uc",
-        default_catalog="my_catalog",
-        default_schema="my_schema",
+        catalog=_catalog_config(warehouse="my_catalog", namespace="my_schema"),
     )
 
     session = get_databricks_session(config)
@@ -73,9 +109,11 @@ def test_get_databricks_session_new_remote(mock_builder, mock_get_active):
 
     config = DatabricksUCOfflineStoreConfig(
         type="databricks_uc",
-        workspace_host="https://adb-12345.azuredatabricks.net",
-        token="dapi123",
-        cluster_id="0123-4567-abcde",
+        catalog=_catalog_config(
+            endpoint="https://adb-12345.azuredatabricks.net/api/2.1/unity-catalog/iceberg",
+            warehouse="main",
+            namespace="default",
+        ),
         spark_conf={"spark.some.option": "value"},
     )
 
@@ -83,7 +121,7 @@ def test_get_databricks_session_new_remote(mock_builder, mock_get_active):
 
     assert session == mock_session
     mock_builder.remote.assert_called_once_with(
-        "sc://adb-12345.azuredatabricks.net:443/;token=dapi123;x-databricks-cluster-id=0123-4567-abcde"
+        "sc://adb-12345.azuredatabricks.net:443/"
     )
 
 
@@ -104,8 +142,9 @@ def test_get_historical_features_delegation(mock_parent_features, mock_get_sessi
         online_store=SqliteOnlineStoreConfig(type="sqlite"),
         offline_store=DatabricksUCOfflineStoreConfig(
             type="databricks_uc",
-            workspace_host="adb-123.databricks.com",
-            cluster_id="123",
+            catalog=_catalog_config(
+                endpoint="https://adb-123.databricks.com/api/2.1/unity-catalog/iceberg",
+            ),
         ),
     )
 
@@ -154,8 +193,9 @@ def test_pull_latest_from_table_or_query_delegation(
         online_store=SqliteOnlineStoreConfig(type="sqlite"),
         offline_store=DatabricksUCOfflineStoreConfig(
             type="databricks_uc",
-            workspace_host="adb-123.databricks.com",
-            cluster_id="123",
+            catalog=_catalog_config(
+                endpoint="https://adb-123.databricks.com/api/2.1/unity-catalog/iceberg",
+            ),
         ),
     )
 

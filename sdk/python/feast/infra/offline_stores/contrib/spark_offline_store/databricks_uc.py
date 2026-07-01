@@ -15,6 +15,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
     SparkOfflineStoreConfig,
 )
+from feast.infra.offline_stores.iceberg.catalog_config import IcebergCatalogConfig
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -26,33 +27,38 @@ class UCRegistrationConfig(FeastConfigBaseModel):
     """Configuration for Unity Catalog feature table registration during ``feast apply``."""
 
     enabled: StrictBool = True
-    """Whether to register feature views as UC feature tables on ``feast apply``."""
+    """Whether to register feature views as catalog feature tables on ``feast apply``."""
 
     catalog: Optional[StrictStr] = None
-    """Default catalog for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_catalog``."""
+    """Default catalog for feature tables. Overrides ``IcebergCatalogConfig.warehouse``."""
 
     uc_schema: Optional[StrictStr] = None
-    """Default schema for UC feature tables. Overrides ``DatabricksUCOfflineStoreConfig.default_schema``."""
+    """Default schema for feature tables. Overrides ``IcebergCatalogConfig.namespace``."""
 
 
 class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
+    """Offline store configuration for Databricks Unity Catalog.
+
+    Uses an Iceberg REST Catalog connection to resolve table metadata
+    and a Spark session (via Databricks Connect or standard Spark) to
+    read and write data.
+    """
+
     type: StrictStr = "databricks_uc"
     """Offline store type selector"""
 
-    workspace_host: Optional[StrictStr] = None
-    """Databricks workspace host (e.g. adb-xxxx.azuredatabricks.net)"""
+    catalog: IcebergCatalogConfig
+    """Iceberg REST Catalog connection configuration.
 
-    token: Optional[StrictStr] = None
-    """Databricks Personal Access Token (PAT)"""
+    For Databricks UC::
 
-    cluster_id: Optional[StrictStr] = None
-    """Databricks Cluster ID to connect to for Databricks Connect"""
-
-    default_catalog: Optional[StrictStr] = None
-    """Default catalog name to use in Unity Catalog"""
-
-    default_schema: Optional[StrictStr] = None
-    """Default schema name to use in Unity Catalog"""
+        catalog:
+            type: rest
+            endpoint: https://<workspace>.databricks.net/api/2.1/unity-catalog/iceberg
+            warehouse: prod_ml
+            namespace: features
+            token_env_var: DATABRICKS_TOKEN
+    """
 
     uc_registration: Optional[UCRegistrationConfig] = None
     """Configuration for UC feature table registration during ``feast apply``."""
@@ -61,27 +67,30 @@ class DatabricksUCOfflineStoreConfig(SparkOfflineStoreConfig):
 def get_databricks_session(
     store_config: DatabricksUCOfflineStoreConfig,
 ) -> SparkSession:
-    # Check if there is already an active session
+    """Create (or reuse) a Databricks Spark session.
+
+    Uses ``IcebergCatalogConfig`` to derive the Databricks workspace
+    host and token, then initializes a Databricks Connect session.
+
+    Falls back to a regular Spark session when ``databricks-connect``
+    is not installed.
+    """
     spark_session = SparkSession.getActiveSession()
     if not spark_session:
-        workspace_host = store_config.workspace_host
-        token = store_config.token
-        cluster_id = store_config.cluster_id
+        catalog_cfg = store_config.catalog
+        endpoint = catalog_cfg.endpoint
 
-        # Clean host URL if it starts with https://
+        # Extract workspace host from the Iceberg REST endpoint URL.
+        # UC endpoints look like:
+        #   https://<workspace>.databricks.net/api/2.1/unity-catalog/iceberg
+        workspace_host = _extract_workspace_host(endpoint)
+        token = _resolve_token(catalog_cfg)
+
         if workspace_host:
-            if workspace_host.startswith("https://"):
-                workspace_host = workspace_host[8:]
-            elif workspace_host.startswith("http://"):
-                workspace_host = workspace_host[7:]
-
-        if workspace_host and cluster_id:
-            # Databricks Connect V2 initialization (Spark Connect URI format)
             conn_str = f"sc://{workspace_host}:443/"
             params = []
             if token:
                 params.append(f"token={token}")
-            params.append(f"x-databricks-cluster-id={cluster_id}")
             if params:
                 conn_str = f"{conn_str};{';'.join(params)}"
 
@@ -90,7 +99,6 @@ def get_databricks_session(
 
                 builder = DatabricksSession.builder.remote(conn_str)
             except ImportError:
-                # Fallback to standard PySpark remote connect if databricks-connect not installed
                 builder = SparkSession.builder.remote(conn_str)
         else:
             try:
@@ -110,18 +118,48 @@ def get_databricks_session(
 
     assert spark_session is not None
 
-    # Apply configuration defaults
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
 
-    if store_config.default_catalog:
-        spark_session.sql(f"USE CATALOG `{store_config.default_catalog}`")
-    if store_config.default_schema:
-        spark_session.sql(f"USE SCHEMA `{store_config.default_schema}`")
+    if store_config.catalog.warehouse:
+        spark_session.sql(f"USE CATALOG `{store_config.catalog.warehouse}`")
+    if store_config.catalog.namespace:
+        spark_session.sql(f"USE SCHEMA `{store_config.catalog.namespace}`")
 
     return spark_session
 
 
+def _extract_workspace_host(endpoint: str) -> Optional[str]:
+    """Extract the Databricks workspace host from an Iceberg REST endpoint URL."""
+    if not endpoint:
+        return None
+    cleaned = endpoint
+    if cleaned.startswith("https://"):
+        cleaned = cleaned[8:]
+    elif cleaned.startswith("http://"):
+        cleaned = cleaned[7:]
+    # Stop at the first slash (path portion)
+    idx = cleaned.find("/")
+    if idx != -1:
+        cleaned = cleaned[:idx]
+    return cleaned if cleaned else None
+
+
+def _resolve_token(catalog_cfg: IcebergCatalogConfig) -> str:
+    """Resolve the bearer token from the configured env var."""
+    import os
+
+    return os.environ.get(catalog_cfg.token_env_var, "")
+
+
 class DatabricksUCOfflineStore(SparkOfflineStore):
+    """Databricks Unity Catalog offline store.
+
+    A thin wrapper around ``SparkOfflineStore`` that ensures a
+    Databricks Connect session is active before delegating to the
+    parent class.  Table metadata is resolved via the Iceberg REST
+    Catalog (``IcebergCatalogConfig`` / ``pyiceberg``).
+    """
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -134,7 +172,6 @@ class DatabricksUCOfflineStore(SparkOfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DatabricksUCOfflineStoreConfig)
-        # Initialize/Retrieve the Databricks Spark Session so it's registered as active
         get_databricks_session(config.offline_store)
 
         return SparkOfflineStore.pull_latest_from_table_or_query(

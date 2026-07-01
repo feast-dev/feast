@@ -1688,7 +1688,7 @@ class FeatureStore:
         from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import (
             DatabricksUCOfflineStoreConfig,
         )
-        from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration import (
+        from feast.infra.offline_stores.iceberg.registration import (
             register_uc_feature_tables,
         )
 
@@ -1707,7 +1707,7 @@ class FeatureStore:
         if not fvs:
             return
 
-        register_uc_feature_tables(self.config.offline_store, fvs, self.project)
+        register_uc_feature_tables(self.config.offline_store.catalog, fvs, self.project)
 
     def _register_uc_feature_tables_legacy(self, objects: List[Any]) -> None:
         """Register feature views as UC feature tables (legacy apply path).
@@ -1718,7 +1718,7 @@ class FeatureStore:
         from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import (
             DatabricksUCOfflineStoreConfig,
         )
-        from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration import (
+        from feast.infra.offline_stores.iceberg.registration import (
             register_uc_feature_tables,
         )
 
@@ -1733,7 +1733,7 @@ class FeatureStore:
         if not fvs:
             return
 
-        register_uc_feature_tables(self.config.offline_store, fvs, self.project)
+        register_uc_feature_tables(self.config.offline_store.catalog, fvs, self.project)
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
