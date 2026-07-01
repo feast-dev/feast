@@ -172,6 +172,9 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
 	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--cov=feast \
+		--cov-report=xml \
+		--cov-report=term-missing \
 		sdk/python/tests/unit
 
 # Fast unit tests only
