@@ -55,6 +55,7 @@ def _is_fips_enabled() -> bool:
         with open("/proc/sys/crypto/fips_enabled") as f:
             return f.read().strip() == "1"
     except (FileNotFoundError, PermissionError, OSError):
+        logger.debug("Could not detect FIPS mode (Linux-only feature)")
         return False
 
 
