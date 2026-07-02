@@ -264,6 +264,7 @@ class SnowflakeRegistry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.prepare_for_apply(self, project, allow_cache=True)
         return self._apply_object(
             "FEATURE_SERVICES",
             project,

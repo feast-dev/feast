@@ -1,7 +1,5 @@
 import {
   EuiBadge,
-  EuiButtonEmpty,
-  EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHorizontalRule,
@@ -12,13 +10,10 @@ import {
   EuiTitle,
   EuiToolTip,
 } from "@elastic/eui";
-import React, { useState } from "react";
+import React from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
-import FeatureViewFormModal, {
-  FeatureViewFormData,
-} from "../../components/FeatureViewFormModal";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
@@ -26,7 +21,6 @@ import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
 import useLoadFeatureUsage from "../../queries/useLoadFeatureUsage";
-import { useApplyFeatureView } from "../../queries/mutations/useFeatureViewMutations";
 import { getEntityPermissions } from "../../utils/permissionUtils";
 import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
@@ -47,55 +41,6 @@ interface RegularFeatureViewOverviewTabProps {
   data: feast.core.IFeatureView;
   permissions?: any[];
 }
-
-const buildEditFormData = (
-  fv: feast.core.IFeatureView,
-): FeatureViewFormData => {
-  const tags = fv.spec?.tags
-    ? Object.entries(fv.spec.tags).map(([key, value]) => ({ key, value }))
-    : [];
-
-  const features = (fv.spec?.features || []).map((f) => ({
-    name: f.name || "",
-    valueType: String(f.valueType ?? 0),
-    description: f.description || "",
-  }));
-
-  let ttlValue = 0;
-  let ttlUnit = "seconds";
-  if (fv.spec?.ttl?.seconds) {
-    const secs =
-      typeof fv.spec.ttl.seconds === "number"
-        ? fv.spec.ttl.seconds
-        : ((fv.spec.ttl.seconds as any).toNumber?.() ?? 0);
-    if (secs > 0 && secs % 86400 === 0) {
-      ttlValue = secs / 86400;
-      ttlUnit = "days";
-    } else if (secs > 0 && secs % 3600 === 0) {
-      ttlValue = secs / 3600;
-      ttlUnit = "hours";
-    } else if (secs > 0 && secs % 60 === 0) {
-      ttlValue = secs / 60;
-      ttlUnit = "minutes";
-    } else {
-      ttlValue = secs;
-      ttlUnit = "seconds";
-    }
-  }
-
-  return {
-    name: fv.spec?.name || "",
-    description: fv.spec?.description || "",
-    owner: fv.spec?.owner || "",
-    entities: fv.spec?.entities || [],
-    features,
-    batchSource: fv.spec?.batchSource?.name || "",
-    ttlValue,
-    ttlUnit,
-    online: fv.spec?.online ?? true,
-    tags,
-  };
-};
 
 const RegularFeatureViewOverviewTab = ({
   data,
@@ -118,55 +63,6 @@ const RegularFeatureViewOverviewTab = ({
     : [];
   const numOfFs = fsNames.length;
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const applyFeatureView = useApplyFeatureView();
-
-  const TTL_UNITS: Record<string, number> = {
-    days: 86400,
-    hours: 3600,
-    minutes: 60,
-    seconds: 1,
-  };
-
-  const handleEditSubmit = (formData: FeatureViewFormData) => {
-    const payload = {
-      name: formData.name,
-      project: projectName || "",
-      entities: formData.entities,
-      features: formData.features.map((f) => ({
-        name: f.name,
-        value_type: parseInt(f.valueType, 10),
-        description: f.description,
-      })),
-      batch_source: formData.batchSource,
-      ttl_seconds: formData.ttlValue * (TTL_UNITS[formData.ttlUnit] || 1),
-      online: formData.online,
-      description: formData.description,
-      owner: formData.owner,
-      tags: Object.fromEntries(
-        formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
-      ),
-    };
-    applyFeatureView.mutate(payload, {
-      onSuccess: () => {
-        setIsEditModalOpen(false);
-        setErrorMessage(null);
-        setSuccessMessage(
-          `Feature view "${formData.name}" updated successfully.`,
-        );
-        setTimeout(() => setSuccessMessage(null), 5000);
-      },
-      onError: (err: unknown) => {
-        // Error shown inside the modal via submitError prop
-        const message =
-          err instanceof Error ? err.message : "An unexpected error occurred.";
-        setErrorMessage(message);
-      },
-    });
-  };
-
   const fvUsage = usageData?.feature_usage?.[fvName];
   const runCount = fvUsage?.run_count ?? 0;
   const lastUsed = fvUsage?.last_used ?? null;
@@ -175,39 +71,6 @@ const RegularFeatureViewOverviewTab = ({
 
   return (
     <React.Fragment>
-      {successMessage && (
-        <>
-          <EuiCallOut
-            title={successMessage}
-            color="success"
-            iconType="check"
-            size="s"
-          />
-          <EuiSpacer size="m" />
-        </>
-      )}
-      {errorMessage && (
-        <>
-          <EuiCallOut
-            title={errorMessage}
-            color="danger"
-            iconType="alert"
-            size="s"
-          />
-          <EuiSpacer size="m" />
-        </>
-      )}
-      <EuiFlexGroup justifyContent="flexEnd">
-        <EuiFlexItem grow={false}>
-          <EuiButtonEmpty
-            iconType="pencil"
-            onClick={() => setIsEditModalOpen(true)}
-          >
-            Edit Feature View
-          </EuiButtonEmpty>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiSpacer size="s" />
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
@@ -373,20 +236,6 @@ const RegularFeatureViewOverviewTab = ({
           })}
         </React.Fragment>
       </EuiPanel>
-
-      {isEditModalOpen && data && (
-        <FeatureViewFormModal
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setErrorMessage(null);
-          }}
-          onSubmit={handleEditSubmit}
-          initialData={buildEditFormData(data)}
-          isEdit
-          isSubmitting={applyFeatureView.isLoading}
-          submitError={errorMessage}
-        />
-      )}
     </React.Fragment>
   );
 };
