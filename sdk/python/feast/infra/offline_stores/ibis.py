@@ -477,8 +477,15 @@ def point_in_time_join(
 
 def list_s3_files(path: str, endpoint_url: str) -> List[str]:
     import boto3
+    from botocore.config import Config
 
-    s3 = boto3.client("s3", endpoint_url=endpoint_url)
+    from feast.utils import get_user_agent
+
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        config=Config(user_agent_extra=get_user_agent()),
+    )
     if path.startswith("s3://"):
         path = path[len("s3://") :]
     bucket, prefix = path.split("/", 1)
