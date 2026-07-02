@@ -51,7 +51,7 @@ feature_server:
   mcp_server_version: "1.0.0"
 ```
 
-Once enabled, any MCP-compatible agent -- whether built with LangChain, LlamaIndex, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `retrieve-online-documents` for vector similarity search, and `write-to-online-store` for persisting agent state.
+Once enabled, any MCP-compatible agent -- whether built with LangChain, LlamaIndex, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `search` for vector similarity search, `vector_store_search` for OpenAI-compatible text search, and `write-to-online-store` for persisting agent state.
 
 ## A Concrete Example: Customer-Support Agent with Memory
 
