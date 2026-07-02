@@ -612,6 +612,60 @@ class DeleteFeatureViewRequest(google.protobuf.message.Message):
 
 global___DeleteFeatureViewRequest = DeleteFeatureViewRequest
 
+class EnableFeatureViewRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "project", b"project"]) -> None: ...
+
+global___EnableFeatureViewRequest = EnableFeatureViewRequest
+
+class DisableFeatureViewRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "project", b"project"]) -> None: ...
+
+global___DisableFeatureViewRequest = DisableFeatureViewRequest
+
+class SetFeatureViewStateRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    STATE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    state: feast.core.FeatureView_pb2.FeatureViewState.ValueType
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        state: feast.core.FeatureView_pb2.FeatureViewState.ValueType = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "project", b"project", "state", b"state"]) -> None: ...
+
+global___SetFeatureViewStateRequest = SetFeatureViewStateRequest
+
 class AnyFeatureView(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 

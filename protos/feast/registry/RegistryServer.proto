@@ -36,6 +36,9 @@ service RegistryServer{
   // FeatureView RPCs
   rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
   rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc EnableFeatureView (EnableFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc DisableFeatureView (DisableFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc SetFeatureViewState (SetFeatureViewStateRequest) returns (google.protobuf.Empty) {}
   rpc GetAnyFeatureView (GetAnyFeatureViewRequest) returns (GetAnyFeatureViewResponse) {}
   rpc ListAllFeatureViews (ListAllFeatureViewsRequest) returns (ListAllFeatureViewsResponse) {}
 
@@ -260,6 +263,22 @@ message DeleteFeatureViewRequest {
     string name = 1;
     string project = 2;
     bool commit = 3;
+}
+
+message EnableFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+}
+
+message DisableFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+}
+
+message SetFeatureViewStateRequest {
+  string name = 1;
+  string project = 2;
+  feast.core.FeatureViewState state = 3;
 }
 
 message AnyFeatureView {

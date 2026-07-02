@@ -397,4 +397,52 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
 
         return {"name": name, "project": project, "status": "deleted"}
 
+    @router.post("/feature_views/{name}/enable")
+    def enable_feature_view(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.EnableFeatureViewRequest(
+            name=name,
+            project=project,
+        )
+        grpc_call(grpc_handler.EnableFeatureView, req)
+        return {"name": name, "project": project, "status": "enabled"}
+
+    @router.post("/feature_views/{name}/disable")
+    def disable_feature_view(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.DisableFeatureViewRequest(
+            name=name,
+            project=project,
+        )
+        grpc_call(grpc_handler.DisableFeatureView, req)
+        return {"name": name, "project": project, "status": "disabled"}
+
+    @router.post("/feature_views/{name}/state")
+    def set_feature_view_state(
+        name: str,
+        state: str = Query(...),
+        project: str = Query(...),
+    ):
+        from feast.feature_view import FeatureViewState
+
+        try:
+            state_enum = FeatureViewState[state.upper()]
+        except KeyError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid state '{state}'.",
+            )
+
+        req = RegistryServer_pb2.SetFeatureViewStateRequest(
+            name=name,
+            project=project,
+            state=state_enum.to_proto(),
+        )
+        grpc_call(grpc_handler.SetFeatureViewState, req)
+        return {"name": name, "project": project, "status": state.upper()}
+
     return router
