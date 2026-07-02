@@ -453,6 +453,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.prepare_for_apply(self, project, allow_cache=True)
         now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
