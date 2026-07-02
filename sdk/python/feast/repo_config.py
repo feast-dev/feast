@@ -66,6 +66,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
+    "aerospike": "feast.infra.online_stores.aerospike_online_store.AerospikeOnlineStore",
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
