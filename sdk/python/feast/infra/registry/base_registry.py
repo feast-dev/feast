@@ -937,7 +937,7 @@ class BaseRegistry(ABC):
         Deletes a project or raises an ProjectNotFoundException exception if not found.
 
         Args:
-            project: Feast project name that needs to be deleted
+            name: Feast project name that needs to be deleted
             commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError

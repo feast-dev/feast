@@ -70,7 +70,7 @@ def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
 
     Args:
         auth_type: The authorization manager type.
-        registry: The feature store registry.
+        fs: The feature store instance.
     """
     if auth_type == AuthManagerType.NONE:
         no_security_manager()
