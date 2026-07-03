@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+import os
+from unittest.mock import MagicMock, mock_open, patch
 
 import assertpy
 
@@ -7,7 +8,11 @@ from feast.infra.offline_stores.remote import (
     RemoteOfflineStoreConfig,
     _create_retrieval_metadata,
 )
-from feast.offline_server import OfflineServer
+from feast.offline_server import (
+    OfflineServer,
+    _configure_grpc_fips,
+    _is_fips_enabled,
+)
 
 
 def test_create_retrieval_metadata_with_sql_string():
@@ -86,3 +91,49 @@ def test_offline_server_get_historical_features_passes_sql_to_store():
     assertpy.assert_that(result).is_equal_to(mock_job)
     _, kwargs = mock_offline_store.get_historical_features.call_args
     assertpy.assert_that(kwargs["entity_df"]).is_equal_to(sql)
+
+
+def test_is_fips_enabled_returns_true():
+    with patch("builtins.open", mock_open(read_data="1\n")):
+        assert _is_fips_enabled() is True
+
+
+def test_is_fips_enabled_returns_false():
+    with patch("builtins.open", mock_open(read_data="0\n")):
+        assert _is_fips_enabled() is False
+
+
+def test_is_fips_enabled_missing_file():
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        assert _is_fips_enabled() is False
+
+
+def test_configure_grpc_fips_sets_cipher_suites():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {}, clear=False),
+    ):
+        os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+        _configure_grpc_fips()
+        assert "GRPC_SSL_CIPHER_SUITES" in os.environ
+        assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
+        del os.environ["GRPC_SSL_CIPHER_SUITES"]
+
+
+def test_configure_grpc_fips_respects_existing_env():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {"GRPC_SSL_CIPHER_SUITES": "custom"}, clear=False),
+    ):
+        _configure_grpc_fips()
+        assert os.environ["GRPC_SSL_CIPHER_SUITES"] == "custom"
+
+
+def test_configure_grpc_fips_noop_without_fips():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=False),
+        patch.dict(os.environ, {}, clear=False),
+    ):
+        os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+        _configure_grpc_fips()
+        assert "GRPC_SSL_CIPHER_SUITES" not in os.environ

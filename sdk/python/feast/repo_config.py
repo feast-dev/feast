@@ -67,6 +67,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
+    "aerospike": "feast.infra.online_stores.aerospike_online_store.AerospikeOnlineStore",
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
@@ -240,6 +241,25 @@ class DataQualityMonitoringConfig(FeastConfigBaseModel):
     """Whether baseline distribution is computed automatically on ``feast apply``."""
 
 
+class OpenLineageConsumerConfig(FeastBaseModel):
+    """Configuration for the OpenLineage consumer (event receiver)."""
+
+    enabled: StrictBool = False
+    """ bool: Whether the consumer is enabled. """
+
+    store_type: StrictStr = "sql"
+    """ str: Storage backend type. Currently only 'sql' is supported. """
+
+    connection_string: Optional[StrictStr] = None
+    """ str: Optional separate database connection string. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: API key for authenticating producers sending events. """
+
+    namespace_mapping: Optional[Dict[str, str]] = None
+    """ dict: Map of OL namespace -> Feast project for RBAC scoping. """
+
+
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
 
@@ -282,9 +302,25 @@ class OpenLineageConfig(FeastBaseModel):
     emit_on_materialize: StrictBool = True
     """ bool: Emit lineage events during materialization. """
 
+    consumer: Optional[OpenLineageConsumerConfig] = None
+    """ OpenLineageConsumerConfig: Consumer (event receiver) configuration. """
+
     def to_openlineage_config(self):
         """Convert to feast.openlineage.OpenLineageConfig."""
         from feast.openlineage.config import OpenLineageConfig as OLConfig
+        from feast.openlineage.config import (
+            OpenLineageConsumerConfig as OLConsumerConfig,
+        )
+
+        consumer = None
+        if self.consumer:
+            consumer = OLConsumerConfig(
+                enabled=self.consumer.enabled,
+                store_type=self.consumer.store_type,
+                connection_string=self.consumer.connection_string,
+                api_key=self.consumer.api_key,
+                namespace_mapping=self.consumer.namespace_mapping or {},
+            )
 
         return OLConfig(
             enabled=self.enabled,
@@ -296,6 +332,7 @@ class OpenLineageConfig(FeastBaseModel):
             producer=self.producer,
             emit_on_apply=self.emit_on_apply,
             emit_on_materialize=self.emit_on_materialize,
+            consumer=consumer or OLConsumerConfig(),
         )
 
 

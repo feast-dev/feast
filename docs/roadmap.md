@@ -62,6 +62,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [SingleStore](https://docs.feast.dev/reference/online-stores/singlestore)
   * [x] [Couchbase](https://docs.feast.dev/reference/online-stores/couchbase)
   * [x] [MongoDB](https://docs.feast.dev/reference/online-stores/mongodb)
+  * [x] [Aerospike](https://docs.feast.dev/reference/online-stores/aerospike)
   * [x] [Qdrant (vector store)](https://docs.feast.dev/reference/online-stores/qdrant)
   * [x] [Milvus (vector store)](https://docs.feast.dev/reference/online-stores/milvus)
   * [x] [Faiss (vector store)](https://docs.feast.dev/reference/online-stores/faiss)

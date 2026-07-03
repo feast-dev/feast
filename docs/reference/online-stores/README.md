@@ -58,6 +58,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [mongodb.md](mongodb.md)
 {% endcontent-ref %}
 
+{% content-ref url="aerospike.md" %}
+[aerospike.md](aerospike.md)
+{% endcontent-ref %}
+
 {% content-ref url="hazelcast.md" %}
 [hazelcast.md](hazelcast.md)
 {% endcontent-ref %}
