@@ -14,12 +14,13 @@ from feast.infra.compute_engines.spark_application.job import (
     SparkApplicationMaterializationJob,
     _STATE_MAP,
 )
+from feast.feature_view import FeatureViewState
 
 
 def _make_repo_config(
     online_store_type="redis",
     registry_path="s3://bucket/registry.db",
-    registry_address=None,
+    registry_address="feast-server:6566",
     offline_store_type="dask",
     spark_conf=None,
 ):
@@ -80,11 +81,11 @@ def test_rejects_sqlite_online_store():
         _make_engine(online_store_type="sqlite")
 
 
-# ── Test 3: EC-2 rejects local registry without registry_address ──
+# ── Test 3: registry_address is mandatory ──
 
-def test_rejects_local_registry_without_address():
-    with pytest.raises(ValueError, match="local file"):
-        _make_engine(registry_path="/local/registry.db")
+def test_rejects_missing_registry_address():
+    with pytest.raises(ValueError, match="registry_address is required"):
+        _make_engine(registry_address=None)
 
 
 # ── Test 4: EC-2 accepts local registry WITH registry_address ──
@@ -107,26 +108,16 @@ def test_build_driver_repo_config_rewrites():
     assert d["registry"] == {"registry_type": "remote", "path": "feast-server:6566"}
 
 
-# ── Test 6: _build_driver_repo_config — spark_conf placed in batch_engine ──
+# ── Test 6: _build_driver_repo_config — batch_engine is just type (no spark_conf copy) ──
 
-def test_build_driver_repo_config_spark_conf():
-    engine = _make_engine(spark_conf={"spark.new": "from_engine", "spark.existing": "from_engine"})
+def test_build_driver_repo_config_batch_engine_minimal():
+    engine = _make_engine(spark_conf={"spark.new": "from_engine"})
     d = engine._build_driver_repo_config()
-    assert d["batch_engine"]["spark_conf"]["spark.new"] == "from_engine"
-    assert d["batch_engine"]["spark_conf"]["spark.existing"] == "from_engine"
-    # offline_store spark_conf left untouched
+    assert d["batch_engine"] == {"type": "spark.engine"}
     assert d["offline_store"]["spark_conf"]["spark.existing"] == "value"
 
 
-# ── Test 7: _build_driver_repo_config — no registry rewrite without address ──
-
-def test_build_driver_repo_config_no_registry_rewrite():
-    engine = _make_engine(registry_address=None)
-    d = engine._build_driver_repo_config()
-    assert d["registry"] == {"registry_type": "file", "path": "s3://bucket/registry.db"}
-
-
-# ── Test 8: CR structure ──
+# ── Test 7: CR structure ──
 
 def test_cr_structure():
     engine = _make_engine()
@@ -139,6 +130,16 @@ def test_cr_structure():
     assert "driver" in cr["spec"]
     assert "executor" in cr["spec"]
     assert cr["metadata"]["name"] == "feast-sa-abcd1234"
+
+
+# ── Test 8: CR sparkConf includes driver env passthrough ──
+
+def test_cr_driver_env_passthrough():
+    engine = _make_engine()
+    cr = engine._build_spark_application_cr("abcd1234")
+    spark_conf = cr["spec"]["sparkConf"]
+    assert spark_conf["spark.kubernetes.driverEnv.FEAST_SECRET_NAME"] == "feast-sa-abcd1234"
+    assert spark_conf["spark.kubernetes.driverEnv.FEAST_SECRET_NAMESPACE"] == "default"
 
 
 # ── Test 9: Status mapping covers all 14 states ──
@@ -167,11 +168,9 @@ def test_cleanup_swallows_404(mock_client, mock_k8s_config):
         repo_config=repo_config, offline_store=None, online_store=None
     )
 
-    # Mock both delete calls to raise 404
     engine.custom_api.delete_namespaced_custom_object.side_effect = ApiException(status=404)
     engine.core_v1.delete_namespaced_secret.side_effect = ApiException(status=404)
 
-    # Should not raise
     engine._cleanup("test-id")
 
 
@@ -188,6 +187,7 @@ def test_timeout_sets_error(mock_time, mock_client, mock_k8s_config):
     repo_config = _make_repo_config()
     repo_config.batch_engine = SparkApplicationComputeEngineConfig(
         image="test", job_timeout_seconds=1, poll_interval_seconds=1,
+        registry_address="feast-server:6566",
     )
     engine = SparkApplicationComputeEngine(
         repo_config=repo_config, offline_store=None, online_store=None
@@ -215,3 +215,78 @@ def test_job_naming_under_63_chars():
     job = SparkApplicationMaterializationJob("abcdef12", "default", mock_api)
     assert len(job.job_id()) <= 63
     assert job.job_id() == "feast-sa-abcdef12"
+
+
+# ── Test 13: _build_per_fv_jobs — all succeeded ──
+
+def test_build_per_fv_jobs_all_succeeded():
+    engine = _make_engine()
+    mock_registry = MagicMock()
+
+    fv1 = MagicMock()
+    fv1.name = "fv_1"
+    fv1.state = FeatureViewState.AVAILABLE_ONLINE
+    fv2 = MagicMock()
+    fv2.name = "fv_2"
+    fv2.state = FeatureViewState.AVAILABLE_ONLINE
+    mock_registry.get_feature_view.side_effect = [fv1, fv2]
+
+    task1 = MagicMock()
+    task1.feature_view.name = "fv_1"
+    task1.project = "test"
+    task2 = MagicMock()
+    task2.feature_view.name = "fv_2"
+    task2.project = "test"
+
+    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
+    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1", parent_job)
+
+    assert len(jobs) == 2
+    assert all(j.status() != MaterializationJobStatus.ERROR for j in jobs)
+
+
+# ── Test 14: _build_per_fv_jobs — partial failure ──
+
+def test_build_per_fv_jobs_partial_failure():
+    engine = _make_engine()
+    mock_registry = MagicMock()
+
+    fv_ok = MagicMock()
+    fv_ok.name = "fv_ok"
+    fv_ok.state = FeatureViewState.AVAILABLE_ONLINE
+    fv_fail = MagicMock()
+    fv_fail.name = "fv_fail"
+    fv_fail.state = FeatureViewState.MATERIALIZING
+    mock_registry.get_feature_view.side_effect = [fv_ok, fv_fail]
+
+    task_ok = MagicMock()
+    task_ok.feature_view.name = "fv_ok"
+    task_ok.project = "test"
+    task_fail = MagicMock()
+    task_fail.feature_view.name = "fv_fail"
+    task_fail.project = "test"
+
+    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
+    jobs = engine._build_per_fv_jobs(mock_registry, [task_ok, task_fail], "job1", parent_job)
+
+    assert len(jobs) == 2
+    assert jobs[0].status() != MaterializationJobStatus.ERROR
+    assert jobs[1].status() == MaterializationJobStatus.ERROR
+    assert "fv_fail" in str(jobs[1].error())
+
+
+# ── Test 15: _build_per_fv_jobs — single task returns parent job directly ──
+
+def test_build_per_fv_jobs_single_task():
+    engine = _make_engine()
+    mock_registry = MagicMock()
+    task = MagicMock()
+    task.feature_view.name = "fv_1"
+    task.project = "test"
+
+    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", parent_job)
+
+    assert len(jobs) == 1
+    assert jobs[0] is parent_job
+    mock_registry.get_feature_view.assert_not_called()

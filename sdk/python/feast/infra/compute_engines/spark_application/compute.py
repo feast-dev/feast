@@ -23,6 +23,7 @@ from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.feature_view import FeatureViewState
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
@@ -49,7 +50,6 @@ class SparkApplicationComputeEngine(ComputeEngine):
         )
         self.config = repo_config.batch_engine
 
-        # EC-3: SQLite online store — data written inside pod is lost on termination
         online_type = getattr(repo_config.online_store, "type", "")
         if online_type == "sqlite":
             raise ValueError(
@@ -59,25 +59,16 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 "Use a network-accessible store: redis, postgres, etc."
             )
 
-        # EC-2: Registry access — pod must be able to reach registry
+        # EC-2: registry_address required — pod reports materialization results
+        # back to the Feast server via gRPC. Without it, the server cannot
+        # determine per-FV success/failure after a batched SparkApplication run.
         if not self.config.registry_address:
-            registry = repo_config.registry
-            if hasattr(registry, "path") and registry.path:
-                path = registry.path
-                is_remote = any(
-                    path.startswith(s)
-                    for s in ("s3://", "gs://", "hdfs://", "http://", "https://", "postgresql", "mysql")
-                )
-                if not is_remote:
-                    raise ValueError(
-                        f"Registry path '{path}' is a local file. "
-                        f"SparkApplication pods cannot access the Feast "
-                        f"server's filesystem. Either:\n"
-                        f"  1. Set registry_address to the Feast registry "
-                        f"gRPC endpoint (recommended), or\n"
-                        f"  2. Use a remote registry path (s3://, gs://), or\n"
-                        f"  3. Switch to registry_type: 'sql' or 'remote'."
-                    )
+            raise ValueError(
+                "registry_address is required for spark_application engine. "
+                "Set it to the Feast server's gRPC endpoint "
+                "(e.g., feast-server.namespace.svc.cluster.local:6566). "
+                "The Feast Operator sets this automatically."
+            )
 
         k8s_config.load_config()
         self.k8s_client = client.ApiClient()
@@ -117,7 +108,13 @@ class SparkApplicationComputeEngine(ComputeEngine):
         tasks: Union[MaterializationTask, List[MaterializationTask]],
         **kwargs,
     ) -> List[MaterializationJob]:
-        """Batch all materialization tasks into a single SparkApplication."""
+        """Batch all materialization tasks into a single SparkApplication.
+
+        The pod calls apply_materialization (via gRPC → Feast server → registry)
+        for each FV it successfully materializes. After the pod finishes, we read
+        each FV's state from the registry: AVAILABLE_ONLINE = succeeded,
+        still MATERIALIZING = failed.
+        """
         if isinstance(tasks, MaterializationTask):
             tasks = [tasks]
 
@@ -151,7 +148,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
 
         job = SparkApplicationMaterializationJob(job_id, self.config.namespace, self.custom_api)
         self._wait_for_completion(job)
-        return [job for _ in tasks]
+        return self._build_per_fv_jobs(registry, tasks, job_id, job)
 
     def _build_driver_repo_config(self) -> dict:
         """Build feature_store.yaml for the SparkApplication driver pod.
@@ -168,11 +165,9 @@ class SparkApplicationComputeEngine(ComputeEngine):
         offline_store is NOT rewritten — respects user's configured data sources.
         User should configure offline_store: spark for full distributed performance.
         """
-        config_dict = self.repo_config.model_dump(by_alias=True)
+        config_dict = self.repo_config.model_dump(by_alias=True, mode="json")
 
         config_dict["batch_engine"] = {"type": "spark.engine"}
-        if self.config.spark_conf:
-            config_dict["batch_engine"]["spark_conf"] = self.config.spark_conf
 
         if self.config.registry_address:
             config_dict["registry"] = {
@@ -182,8 +177,38 @@ class SparkApplicationComputeEngine(ComputeEngine):
 
         return config_dict
 
+    def _build_per_fv_jobs(
+        self,
+        registry: BaseRegistry,
+        tasks: List[MaterializationTask],
+        job_id: str,
+        job: SparkApplicationMaterializationJob,
+    ) -> List[MaterializationJob]:
+        """Read each FV's state from registry to determine per-FV success/failure.
+
+        The pod calls apply_materialization for each succeeded FV, which sets
+        state to AVAILABLE_ONLINE. FVs still in MATERIALIZING were not processed.
+        """
+        if len(tasks) <= 1:
+            return [job for _ in tasks]
+
+        jobs: List[MaterializationJob] = []
+        for task in tasks:
+            fv = registry.get_feature_view(task.feature_view.name, task.project)
+            if getattr(fv, "state", None) == FeatureViewState.AVAILABLE_ONLINE:
+                jobs.append(job)
+            else:
+                jobs.append(SparkApplicationMaterializationJob(
+                    job_id, self.config.namespace, self.custom_api,
+                    error=Exception(
+                        f"Feature view '{task.feature_view.name}' was not "
+                        f"materialized by the SparkApplication pod"
+                    ),
+                ))
+        return jobs
+
     def _create_secret(self, job_id: str, tasks: List[MaterializationTask]):
-        feast_config_yaml = yaml.dump(self._build_driver_repo_config())
+        feast_config_yaml = yaml.dump(self._build_driver_repo_config(), default_flow_style=False)
         mat_config = {
             "operation": "materialize",
             "tasks": [
@@ -216,6 +241,16 @@ class SparkApplicationComputeEngine(ComputeEngine):
         )
 
     def _build_spark_application_cr(self, job_id: str) -> dict:
+        driver_env_conf = {
+            "spark.kubernetes.driverEnv.FEAST_SECRET_NAME": f"feast-sa-{job_id}",
+            "spark.kubernetes.driverEnv.FEAST_SECRET_NAMESPACE": self.config.namespace,
+        }
+        for entry in self.config.env:
+            name = entry.get("name", "")
+            value = entry.get("value", "")
+            if name and value:
+                driver_env_conf[f"spark.kubernetes.driverEnv.{name}"] = value
+
         spec = {
             "type": "Python",
             "mode": "cluster",
@@ -227,8 +262,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
             "sparkConf": {
                 "spark.scheduler.mode": "FAIR",
                 **(self.config.spark_conf or {}),
-                "spark.kubernetes.driverEnv.FEAST_SECRET_NAME": f"feast-sa-{job_id}",
-                "spark.kubernetes.driverEnv.FEAST_SECRET_NAMESPACE": self.config.namespace,
+                **driver_env_conf,
             },
             "restartPolicy": {
                 "type": self.config.restart_policy,

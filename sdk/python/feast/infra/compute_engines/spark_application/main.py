@@ -72,6 +72,10 @@ def _materialize_one_fv(spark_session, config, task_info):
         project=thread_store.project,
         tqdm_builder=lambda length: tqdm(total=length, ncols=100),
     )
+
+    thread_store.registry.apply_materialization(fv, thread_store.project, start, end)
+    logger.info(f"Applied materialization metadata for {fv_name}")
+
     elapsed = time.time() - t0
     return fv_name, elapsed
 

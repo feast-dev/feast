@@ -428,6 +428,115 @@ class FeatureStore:
         """Public accessor for the provider instance."""
         return self._get_provider()
 
+    def _rollback_fv_states(
+        self,
+        feature_views: list,
+        previous_states: dict,
+    ) -> None:
+        """Restore feature views to their pre-materialization states."""
+        for fv in feature_views:
+            prev = previous_states.get(fv.name)
+            if (
+                hasattr(fv, "state")
+                and prev is not None
+                and prev != FeatureViewState.STATE_UNSPECIFIED
+            ):
+                fv.state = prev
+                self.registry.apply_feature_view(
+                    fv, self.project, commit=True
+                )
+
+    def _transition_fv_to_materializing(
+        self,
+        feature_view,
+        already_transitioned: list,
+        previous_states: dict,
+    ) -> None:
+        """
+        Transition a feature view to MATERIALIZING state.
+
+        Rolls back all already-transitioned FVs if this one can't transition.
+        """
+        previous_state = getattr(feature_view, "state", None)
+        if (
+            hasattr(feature_view, "state")
+            and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+        ):
+            if not feature_view.state.can_transition_to(
+                FeatureViewState.MATERIALIZING
+            ):
+                self._rollback_fv_states(already_transitioned, previous_states)
+                raise ValueError(
+                    f"FeatureView {feature_view.name} cannot transition "
+                    f"from {feature_view.state.name} to MATERIALIZING."
+                )
+            feature_view.state = FeatureViewState.MATERIALIZING
+            self.registry.apply_feature_view(
+                feature_view, self.project, commit=True
+            )
+        previous_states[feature_view.name] = previous_state
+
+    def _submit_and_process_materialization_jobs(
+        self,
+        provider,
+        tasks: list,
+        regular_fvs: list,
+        previous_states: dict,
+        fv_start_dates: dict,
+    ) -> None:
+        """
+        Submit all tasks to the engine in one call and process the results.
+
+        For each returned job: record watermark on success, roll back state on
+        error. If the engine itself raises, all states are rolled back.
+        """
+        from feast.infra.common.materialization_job import (
+            MaterializationJobStatus,
+        )
+
+        batch_start = time.monotonic()
+        try:
+            jobs = provider.batch_engine.materialize(self.registry, tasks)
+        except Exception:
+            self._rollback_fv_states(regular_fvs, previous_states)
+            raise
+
+        first_error = None
+        succeeded_fvs = []
+        failed_fvs = []
+
+        for fv, job in zip(regular_fvs, jobs):
+            fv_status = job.status()
+
+            if fv_status == MaterializationJobStatus.ERROR:
+                failed_fvs.append(fv)
+                if first_error is None and job.error():
+                    first_error = job.error()
+            else:
+                succeeded_fvs.append(fv)
+
+        if failed_fvs:
+            self._rollback_fv_states(failed_fvs, previous_states)
+
+        for fv in succeeded_fvs:
+            self.registry.apply_materialization(
+                fv,
+                self.project,
+                fv_start_dates[fv.name],
+                fv_start_dates["__end_date__"],
+            )
+
+        _tracker = _get_track_materialization()
+        if _tracker is not None:
+            elapsed = time.monotonic() - batch_start
+            for fv in succeeded_fvs:
+                _tracker(fv.name, True, elapsed)
+            for fv in failed_fvs:
+                _tracker(fv.name, False, elapsed)
+
+        if first_error:
+            raise first_error
+
     @property
     def openlineage_emitter(self) -> Optional[Any]:
         """Gets the OpenLineage emitter of this feature store."""
@@ -2140,6 +2249,21 @@ class FeatureStore:
 
         _mat_start = time.monotonic()
         try:
+            from feast.infra.common.materialization_job import (
+                MaterializationTask,
+            )
+
+            provider = self._get_provider()
+            end_date_tz = utils.make_tzaware(end_date) or _utc_now()
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
+            tasks: list = []
+            regular_fvs: list = []
+            previous_states: dict = {}
+            fv_start_dates: dict = {"__end_date__": end_date_tz}
+
             for feature_view in feature_views_to_materialize:
                 if isinstance(feature_view, OnDemandFeatureView):
                     if feature_view.write_to_online_store:
@@ -2166,138 +2290,54 @@ class FeatureStore:
                             end_date,
                             full_feature_names=full_feature_names,
                         )
+                    continue
 
-            regular_fvs = [
-                fv
-                for fv in feature_views_to_materialize
-                if not isinstance(fv, OnDemandFeatureView)
-            ]
+                fv_start_date = feature_view.most_recent_end_time
+                if fv_start_date is None:
+                    if feature_view.ttl is None:
+                        raise Exception(
+                            f"No start time found for feature view {feature_view.name}. materialize_incremental() requires"
+                            f" either a ttl to be set or for materialize() to have been run at least once."
+                        )
+                    elif feature_view.ttl.total_seconds() > 0:
+                        fv_start_date = _utc_now() - feature_view.ttl
+                    else:
+                        # TODO(felixwang9817): Find the earliest timestamp for this specific feature
+                        # view from the offline store, and set the start date to that timestamp.
+                        print(
+                            f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}, "
+                            "the start date will be set to 1 year before the current time."
+                        )
+                        fv_start_date = _utc_now() - timedelta(weeks=52)
 
-            if regular_fvs:
-                # Deferred import: top-level causes circular import via
-                # feast.__init__ -> feature_store -> materialization_job -> feast
-                from feast.infra.common.materialization_job import (
-                    MaterializationJobStatus,
-                    MaterializationTask,
+                fv_start_date = utils.make_tzaware(fv_start_date)
+                fv_start_dates[feature_view.name] = fv_start_date
+
+                print(
+                    f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
+                    f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(fv_start_date.replace(microsecond=0))}{Style.RESET_ALL}"
+                    f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
                 )
 
-                provider = self._get_provider()
-                end_date_tz = utils.make_tzaware(end_date) or _utc_now()
-
-                # Compute per-FV start dates and transition all to MATERIALIZING
-                # before submitting work to the engine.
-                previous_states: dict = {}
-                fv_start_dates: dict = {}
-
-                for fv in regular_fvs:
-                    fv_start_date = fv.most_recent_end_time
-                    if fv_start_date is None:
-                        if fv.ttl is None:
-                            raise Exception(
-                                f"No start time found for feature view {fv.name}. materialize_incremental() requires"
-                                f" either a ttl to be set or for materialize() to have been run at least once."
-                            )
-                        elif fv.ttl.total_seconds() > 0:
-                            fv_start_date = _utc_now() - fv.ttl
-                        else:
-                            print(
-                                f"Since the ttl is 0 for feature view {Style.BRIGHT + Fore.GREEN}{fv.name}{Style.RESET_ALL}, "
-                                "the start date will be set to 1 year before the current time."
-                            )
-                            fv_start_date = _utc_now() - timedelta(weeks=52)
-
-                    fv_start_dates[fv.name] = utils.make_tzaware(fv_start_date)
-
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{fv.name}{Style.RESET_ALL}"
-                        f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(fv_start_date.replace(microsecond=0))}{Style.RESET_ALL}"
-                        f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
-                    )
-
-                    previous_states[fv.name] = getattr(fv, "state", None)
-                    if (
-                        hasattr(fv, "state")
-                        and fv.state != FeatureViewState.STATE_UNSPECIFIED
-                    ):
-                        if not fv.state.can_transition_to(
-                            FeatureViewState.MATERIALIZING
-                        ):
-                            raise ValueError(
-                                f"FeatureView {fv.name} cannot transition "
-                                f"from {fv.state.name} to MATERIALIZING."
-                            )
-                        fv.state = FeatureViewState.MATERIALIZING
-                        self.registry.apply_feature_view(
-                            fv, self.project, commit=True
-                        )
-
-                def tqdm_builder(length):
-                    return tqdm(total=length, ncols=100)
-
-                tasks = [
+                self._transition_fv_to_materializing(
+                    feature_view, regular_fvs, previous_states
+                )
+                regular_fvs.append(feature_view)
+                tasks.append(
                     MaterializationTask(
                         project=self.project,
-                        feature_view=fv,
-                        start_time=fv_start_dates[fv.name],
+                        feature_view=feature_view,
+                        start_time=fv_start_date,
                         end_time=end_date_tz,
                         tqdm_builder=tqdm_builder,
                     )
-                    for fv in regular_fvs
-                ]
+                )
 
-                fv_batch_start = time.monotonic()
-                try:
-                    jobs = provider.batch_engine.materialize(
-                        self.registry, tasks
-                    )
-                except Exception:
-                    for fv in regular_fvs:
-                        prev = previous_states[fv.name]
-                        if (
-                            prev is not None
-                            and prev != FeatureViewState.STATE_UNSPECIFIED
-                        ):
-                            fv.state = prev
-                            self.registry.apply_feature_view(
-                                fv, self.project, commit=True
-                            )
-                    raise
-
-                errors = []
-                for fv, job in zip(regular_fvs, jobs):
-                    fv_status = job.status()
-                    fv_success = fv_status != MaterializationJobStatus.ERROR
-
-                    if fv_status == MaterializationJobStatus.SUCCEEDED:
-                        self.registry.apply_materialization(
-                            fv,
-                            self.project,
-                            fv_start_dates[fv.name],
-                            end_date_tz,
-                        )
-                    elif fv_status == MaterializationJobStatus.ERROR:
-                        prev = previous_states[fv.name]
-                        if (
-                            prev is not None
-                            and prev != FeatureViewState.STATE_UNSPECIFIED
-                        ):
-                            fv.state = prev
-                            self.registry.apply_feature_view(
-                                fv, self.project, commit=True
-                            )
-                        if job.error():
-                            errors.append(job.error())
-
-                    _tracker = _get_track_materialization()
-                    if _tracker is not None:
-                        _tracker(
-                            fv.name,
-                            fv_success,
-                            time.monotonic() - fv_batch_start,
-                        )
-
-                if errors:
-                    raise errors[0]
+            if tasks:
+                self._submit_and_process_materialization_jobs(
+                    provider, tasks, regular_fvs,
+                    previous_states, fv_start_dates,
+                )
 
             materialized_fv_names = [
                 fv.name
@@ -2389,6 +2429,22 @@ class FeatureStore:
 
         _mat_start = time.monotonic()
         try:
+            from feast.infra.common.materialization_job import (
+                MaterializationTask,
+            )
+
+            provider = self._get_provider()
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
+            tasks: list = []
+            regular_fvs: list = []
+            previous_states: dict = {}
+            fv_start_dates: dict = {"__end_date__": end_date}
+
             for feature_view in feature_views_to_materialize:
                 if isinstance(feature_view, OnDemandFeatureView):
                     if feature_view.write_to_online_store:
@@ -2401,113 +2457,33 @@ class FeatureStore:
                             end_date,
                             full_feature_names=full_feature_names,
                         )
+                    continue
 
-            regular_fvs = [
-                fv
-                for fv in feature_views_to_materialize
-                if not isinstance(fv, OnDemandFeatureView)
-            ]
-
-            if regular_fvs:
-                # Deferred import: top-level causes circular import via
-                # feast.__init__ -> feature_store -> materialization_job -> feast
-                from feast.infra.common.materialization_job import (
-                    MaterializationJobStatus,
-                    MaterializationTask,
+                print(
+                    f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                 )
 
-                provider = self._get_provider()
-                start_date = utils.make_tzaware(start_date)
-                end_date = utils.make_tzaware(end_date)
-
-                # Transition all FVs to MATERIALIZING before submitting work.
-                previous_states: dict = {}
-                for fv in regular_fvs:
-                    print(
-                        f"{Style.BRIGHT + Fore.GREEN}{fv.name}{Style.RESET_ALL}:"
-                    )
-                    previous_states[fv.name] = getattr(fv, "state", None)
-                    if (
-                        hasattr(fv, "state")
-                        and fv.state != FeatureViewState.STATE_UNSPECIFIED
-                    ):
-                        if not fv.state.can_transition_to(
-                            FeatureViewState.MATERIALIZING
-                        ):
-                            raise ValueError(
-                                f"FeatureView {fv.name} cannot transition "
-                                f"from {fv.state.name} to MATERIALIZING."
-                            )
-                        fv.state = FeatureViewState.MATERIALIZING
-                        self.registry.apply_feature_view(
-                            fv, self.project, commit=True
-                        )
-
-                def tqdm_builder(length):
-                    return tqdm(total=length, ncols=100)
-
-                tasks = [
+                self._transition_fv_to_materializing(
+                    feature_view, regular_fvs, previous_states
+                )
+                regular_fvs.append(feature_view)
+                fv_start_dates[feature_view.name] = start_date
+                tasks.append(
                     MaterializationTask(
                         project=self.project,
-                        feature_view=fv,
+                        feature_view=feature_view,
                         start_time=start_date,
                         end_time=end_date,
                         tqdm_builder=tqdm_builder,
                         disable_event_timestamp=disable_event_timestamp,
                     )
-                    for fv in regular_fvs
-                ]
+                )
 
-                fv_start = time.monotonic()
-                try:
-                    jobs = provider.batch_engine.materialize(
-                        self.registry, tasks
-                    )
-                except Exception:
-                    for fv in regular_fvs:
-                        prev = previous_states[fv.name]
-                        if (
-                            prev is not None
-                            and prev != FeatureViewState.STATE_UNSPECIFIED
-                        ):
-                            fv.state = prev
-                            self.registry.apply_feature_view(
-                                fv, self.project, commit=True
-                            )
-                    raise
-
-                errors = []
-                for fv, job in zip(regular_fvs, jobs):
-                    fv_status = job.status()
-                    fv_success = fv_status != MaterializationJobStatus.ERROR
-
-                    if fv_status == MaterializationJobStatus.SUCCEEDED:
-                        self.registry.apply_materialization(
-                            fv, self.project, start_date, end_date,
-                        )
-                    elif fv_status == MaterializationJobStatus.ERROR:
-                        prev = previous_states[fv.name]
-                        if (
-                            prev is not None
-                            and prev != FeatureViewState.STATE_UNSPECIFIED
-                        ):
-                            fv.state = prev
-                            self.registry.apply_feature_view(
-                                fv, self.project, commit=True
-                            )
-                        if job.error():
-                            errors.append(job.error())
-
-                    _tracker = _get_track_materialization()
-                    if _tracker is not None:
-                        _tracker(
-                            fv.name,
-                            fv_success,
-                            time.monotonic() - fv_start,
-                        )
-
-                if errors:
-                    raise errors[0]
+            if tasks:
+                self._submit_and_process_materialization_jobs(
+                    provider, tasks, regular_fvs,
+                    previous_states, fv_start_dates,
+                )
 
             materialized_fv_names = [
                 fv.name
