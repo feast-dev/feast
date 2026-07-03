@@ -223,6 +223,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     height: auto;
     border-radius: 4px;
     margin: 32px 0;
+    cursor: zoom-in;
   }
 
   /* Hero Image */
@@ -339,4 +340,67 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
       font-size: 18px;
     }
   }
-</style> 
+</style>
+
+<script>
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  const img = document.createElement('img');
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+
+  function open(src: string, alt: string) {
+    img.src = src;
+    img.alt = alt;
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  overlay.addEventListener('click', close);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  document.querySelectorAll('.blog-content img').forEach((el) => {
+    el.addEventListener('click', () => {
+      const image = el as HTMLImageElement;
+      open(image.src, image.alt);
+    });
+  });
+</script>
+
+<style is:global>
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  .lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .lightbox-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+</style>
+

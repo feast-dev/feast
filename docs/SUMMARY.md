@@ -164,6 +164,7 @@
   * [SingleStore](reference/online-stores/singlestore.md)
   * [Milvus](reference/online-stores/milvus.md)
   * [MongoDB](reference/online-stores/mongodb.md)
+  * [Aerospike](reference/online-stores/aerospike.md)
   * [Elasticsearch](reference/online-stores/elasticsearch.md)
   * [Qdrant](reference/online-stores/qdrant.md)
   * [Faiss](reference/online-stores/faiss.md)
