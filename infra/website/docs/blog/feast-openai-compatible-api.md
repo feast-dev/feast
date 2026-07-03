@@ -292,14 +292,14 @@ This makes Feast's vector search speak OpenAI's protocol. It doesn't turn Feast 
 |---|---|
 | `POST /v1/vector_stores/{id}/search` | Creating vector stores via the API |
 | Plain text queries with server-side embedding | Client-provided embedding vectors on this endpoint |
-| OpenAI-format filters (string, numeric, compound) | `ranking_options` and `rewrite_query` (accepted but ignored) |
+| OpenAI-format filters (string, numeric, compound) | `ranking_options.score_threshold`, `ranking_options.ranker`, `rewrite_query: true` (rejected with 422) |
 | All Feast online store backends | Standalone `/v1/embeddings` endpoint |
 
 Feature views are still defined in Python and managed through `feast apply`. Data is still ingested through Feast's existing write paths. The OpenAI-compatible layer is a read API that gives standard access to what's already in your feature store.
 
 ## Deploying on Kubernetes
 
-The `deploy-openai-compat/` directory in the Feast repository has Kubernetes manifests that deploy the feature server with an Ollama sidecar for local embedding:
+Below is an example Kubernetes setup that deploys the feature server with an Ollama sidecar for local embedding:
 
 ```yaml
 # configmap.yaml (embedding model section)

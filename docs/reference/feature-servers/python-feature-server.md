@@ -553,7 +553,7 @@ embedding_model:
   api_key: ${OPENAI_API_KEY}
 ```
 
-Any [LiteLLM](https://docs.litellm.ai/)-supported provider works (OpenAI, Ollama, Azure, Cohere, etc.). See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
+Two providers are supported: **LiteLLM** (default) for API-backed models (OpenAI, Ollama, Azure, Cohere, etc.) and **Sentence Transformers** (`provider: sentence_transformers`) for local inference without an API key. See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
 
 ### Example
 

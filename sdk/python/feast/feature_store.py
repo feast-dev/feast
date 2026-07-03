@@ -110,7 +110,11 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
-from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+from feast.utils import (
+    _distance_to_score,
+    _get_feature_view_vector_field_metadata,
+    _utc_now,
+)
 from feast.version_utils import parse_version
 
 try:
@@ -4173,7 +4177,8 @@ class FeatureStore:
                 unsupported; a ``ValueError`` is raised if
                 ``score_threshold`` or ``ranker`` are provided.
             rewrite_query: Whether to rewrite the query. Currently
-                unsupported; a ``ValueError`` is raised if set.
+                unsupported; ``False`` (the default/no-op) is accepted,
+                but ``True`` raises a ``ValueError``.
             features_to_retrieve: Specific feature names to return.
                 If None, all features from the feature view are used.
 
@@ -4193,8 +4198,8 @@ class FeatureStore:
             Vector search (embedding model configured in YAML)::
 
                 # feature_store.yaml has:
-                #   feature_server:
-                #     query_embedding_model: text-embedding-3-small
+                #   embedding_model:
+                #     model: text-embedding-3-small
                 result = await store.retrieve_online_documents_openai(
                     vector_store_id="product_embeddings",
                     query="wireless audio device",
@@ -4208,7 +4213,7 @@ class FeatureStore:
                 unsupported.append("ranking_options.score_threshold")
             if ranking_options.get("ranker") is not None:
                 unsupported.append("ranking_options.ranker")
-        if rewrite_query is not None:
+        if rewrite_query is True:
             unsupported.append("rewrite_query")
         if unsupported:
             raise ValueError(
@@ -4218,6 +4223,11 @@ class FeatureStore:
             )
 
         feature_view = self.get_feature_view(vector_store_id)
+
+        vector_field_metadata = _get_feature_view_vector_field_metadata(feature_view)
+        distance_metric: Optional[str] = None
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
+            distance_metric = vector_field_metadata.vector_search_metric
 
         if features_to_retrieve:
             feature_names = features_to_retrieve
@@ -4268,7 +4278,8 @@ class FeatureStore:
                 for key, values in response_dict.items():
                     val = values[i] if i < len(values) else None
                     if key == "distance":
-                        score = float(val) if val is not None else 0.0
+                        raw = float(val) if val is not None else 0.0
+                        score = _distance_to_score(raw, distance_metric)
                     elif key not in entity_key_names:
                         attributes[key] = val
                         if isinstance(val, str):

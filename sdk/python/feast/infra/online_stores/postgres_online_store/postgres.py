@@ -46,7 +46,7 @@ from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQ
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.utils import _build_retrieve_online_document_record, _distance_to_score
+from feast.utils import _build_retrieve_online_document_record
 
 SUPPORTED_DISTANCE_METRICS_DICT = {
     "cosine": "<=>",
@@ -1044,9 +1044,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                         "vector_distance"
                     ] != float("inf"):
                         dist_val = ValueProto()
-                        dist_val.double_val = _distance_to_score(
-                            entity_data["vector_distance"], distance_metric
-                        )
+                        dist_val.double_val = entity_data["vector_distance"]
                         features["distance"] = dist_val
 
                     if embedding is None or query_string is not None:

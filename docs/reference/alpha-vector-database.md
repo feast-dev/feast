@@ -50,14 +50,25 @@ This is useful for AI agents and LLM tool-calling workflows where the client can
 
 ### Requirements
 
-- An `embedding_model` section in your `feature_store.yaml` (uses [LiteLLM](https://docs.litellm.ai/) for provider support):
+- An `embedding_model` section in your `feature_store.yaml`. Two providers are supported:
 
-```yaml
-embedding_model:
-  model: text-embedding-3-small
-  api_key: ${OPENAI_API_KEY}
-  # api_base, api_version, dimensions are optional
-```
+  **LiteLLM** (default) — API-backed models via [LiteLLM](https://docs.litellm.ai/) (OpenAI, Azure, Ollama, Cohere, etc.):
+
+  ```yaml
+  embedding_model:
+    provider: litellm          # default; can be omitted
+    model: text-embedding-3-small
+    api_key: ${OPENAI_API_KEY}
+    # api_base, api_version, dimensions are optional
+  ```
+
+  **Sentence Transformers** — local inference, no API key required (`pip install sentence-transformers`):
+
+  ```yaml
+  embedding_model:
+    provider: sentence_transformers
+    model: all-MiniLM-L6-v2
+  ```
 
 - A feature view with `vector_index=True` on a vector field, materialized to an online store that supports vector search.
 - For metadata filtering with numeric or boolean comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply` to update the schema.
@@ -82,8 +93,8 @@ curl -X POST http://localhost:6566/v1/vector_stores/my_feature_view/search \
 | `query` | `string` or `list[string]` | (required) | Plain text search query. Lists are joined with spaces before embedding. |
 | `max_num_results` | `int` | `10` | Maximum number of results to return. |
 | `filters` | `object` | `null` | OpenAI-style filters (see below). |
-| `ranking_options` | `object` | `null` | Accepted but not yet applied. |
-| `rewrite_query` | `bool` | `null` | Accepted but not yet applied. |
+| `ranking_options` | `object` | `null` | Accepted for forward compatibility, but currently ignored. Setting `score_threshold` or `ranker` inside it will return a 422 error. |
+| `rewrite_query` | `bool` | `null` | `false` (the default/no-op) is accepted. `true` is not yet supported and will return a 422 error. |
 | `metadata` | `object` | `null` | Optional. `metadata.features_to_retrieve` selects specific features. |
 
 ### Filters
@@ -133,6 +144,16 @@ Responses follow the OpenAI `vector_store.search_results.page` schema:
   "next_page": null
 }
 ```
+
+The `score` field is a higher-is-better relevance score derived from the raw vector distance using a metric-dependent conversion:
+
+| Distance metric | Conversion | Range |
+|----------------|------------|-------|
+| L2 (default) | `1 / (1 + distance)` | (0, 1] |
+| Cosine | `1 - distance` | [0, 1] |
+| Inner product / dot | `-distance` | varies |
+
+The metric is determined by `vector_search_metric` on the feature view's vector field, not by an API parameter. When `features_to_retrieve` is omitted, all non-vector features are returned by default (vector embedding columns are excluded).
 
 Pagination is not yet implemented; `has_more` is always `false`.
 

@@ -48,7 +48,6 @@ from feast.types import (
     from_feast_type,
 )
 from feast.utils import (
-    _distance_to_score,
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
@@ -950,11 +949,7 @@ class MilvusOnlineStore(OnlineStore):
                         res[field] = val
                 raw_distance = hit.get("distance", None)
                 res["distance"] = (
-                    ValueProto(
-                        float_val=_distance_to_score(raw_distance, distance_metric)
-                    )
-                    if raw_distance is not None and embedding is not None
-                    else ValueProto(float_val=raw_distance)
+                    ValueProto(float_val=raw_distance)
                     if raw_distance is not None
                     else ValueProto()
                 )
