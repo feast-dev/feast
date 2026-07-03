@@ -1,3 +1,4 @@
+from typing import Dict, Optional
 from unittest.mock import MagicMock, patch
 
 from feast import FeatureView
@@ -11,7 +12,6 @@ from feast.infra.offline_stores.iceberg.registration import (
     register_uc_feature_tables,
     write_uc_materialized_data,
 )
-from feast.repo_config import RepoConfig
 
 
 def make_mock_field(name: str, dtype_str: str = "", nullable: bool = True):
@@ -324,3 +324,145 @@ def test_register_uc_feature_tables_skips_when_missing_catalog(
 
     mock_create.assert_not_called()
     mock_update.assert_not_called()
+
+
+# ──────────────────────────────────────────────
+#  Tests for write_uc_materialized_data (L3)
+# ──────────────────────────────────────────────
+
+
+def _make_catalog_config_for_mat(
+    warehouse: str = "cat",
+    namespace: str = "sch",
+) -> IcebergCatalogConfig:
+    return IcebergCatalogConfig(
+        type="rest",
+        endpoint="https://example.com/api/iceberg",
+        warehouse=warehouse,
+        namespace=namespace,
+    )
+
+
+def _make_mock_fv_for_mat(
+    name: str = "test_fv",
+    tags: Optional[Dict] = None,
+) -> FeatureView:
+    fv = MagicMock(spec=FeatureView)
+    fv.name = name
+    fv.tags = tags or {}
+    fv.entity_columns = []
+    fv.features = []
+    fv.batch_source = MagicMock()
+    fv.batch_source.timestamp_field = None
+    fv.description = ""
+    fv.owner = None
+    return fv
+
+
+def test_write_uc_materialized_data_skips_opt_out():
+    """Tag uc.register_as_feature_table=false → skip."""
+    catalog_config = _make_catalog_config_for_mat()
+    fv = _make_mock_fv_for_mat(tags={"uc.register_as_feature_table": "false"})
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+    ) as mock_load:
+        write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_load.assert_not_called()
+
+
+def test_write_uc_materialized_data_skips_materialize_offline_false():
+    """Tag uc.materialize_offline=false → skip."""
+    catalog_config = _make_catalog_config_for_mat()
+    fv = _make_mock_fv_for_mat(tags={"uc.materialize_offline": "false"})
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+    ) as mock_load:
+        write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_load.assert_not_called()
+
+
+def test_write_uc_materialized_data_skips_missing_catalog():
+    """Missing catalog/schema → skip (log warning)."""
+    catalog_config = _make_catalog_config_for_mat(warehouse="", namespace="")
+    fv = _make_mock_fv_for_mat()
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+    ) as mock_load:
+        write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_load.assert_not_called()
+
+
+def test_write_uc_materialized_data_skips_catalog_load_failure():
+    """load_catalog raises → skip."""
+    catalog_config = _make_catalog_config_for_mat()
+    fv = _make_mock_fv_for_mat()
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+        side_effect=Exception("connection error"),
+    ) as mock_load:
+        write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_load.assert_called_once()
+
+
+def test_write_uc_materialized_data_writes_merge_existing_table():
+    """Existing table → write_materialized_data (merge) is called."""
+    catalog_config = _make_catalog_config_for_mat()
+    fv = _make_mock_fv_for_mat()
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+    ) as mock_load:
+        with patch(
+            "feast.infra.offline_stores.iceberg.registration.table_exists",
+            return_value=True,
+        ) as mock_exists:
+            with patch(
+                "feast.infra.offline_stores.iceberg.registration.write_materialized_data",
+            ) as mock_write:
+                mock_catalog = MagicMock()
+                mock_load.return_value = mock_catalog
+
+                write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_exists.assert_called_once()
+    mock_write.assert_called_once()
+    _, kwargs = mock_write.call_args
+    assert kwargs["namespace"] == "sch"
+    assert kwargs["table_name"] == "test_fv"
+    assert kwargs["mode"] == "merge"
+
+
+def test_write_uc_materialized_data_creates_then_writes():
+    """New table → create_feature_table then write_materialized_data."""
+    catalog_config = _make_catalog_config_for_mat()
+    fv = _make_mock_fv_for_mat()
+
+    with patch(
+        "feast.infra.offline_stores.iceberg.registration.load_catalog",
+    ) as mock_load:
+        with patch(
+            "feast.infra.offline_stores.iceberg.registration.table_exists",
+            return_value=False,
+        ):
+            with patch(
+                "feast.infra.offline_stores.iceberg.registration.create_feature_table",
+            ) as mock_create:
+                with patch(
+                    "feast.infra.offline_stores.iceberg.registration.write_materialized_data",
+                ) as mock_write:
+                    mock_catalog = MagicMock()
+                    mock_load.return_value = mock_catalog
+
+                    write_uc_materialized_data(catalog_config, fv, MagicMock(), "proj")
+
+    mock_create.assert_called_once()
+    mock_write.assert_called_once()
+    assert mock_write.call_args[1]["mode"] == "merge"

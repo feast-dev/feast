@@ -408,15 +408,17 @@ class LocalOutputNode(LocalNode):
             )
 
         # UC-backed materialization hook (Phase L3)
-        from feast.infra.offline_stores.contrib.spark_offline_store.uc_registration import (
-            write_uc_materialized_data,
-        )
+        catalog_config = getattr(context.repo_config.offline_store, "catalog", None)
+        if catalog_config is not None:
+            from feast.infra.offline_stores.iceberg.registration import (
+                write_uc_materialized_data,
+            )
 
-        write_uc_materialized_data(
-            config=context.repo_config,
-            fv=self.feature_view,
-            df=input_table,
-            project=context.repo_config.project,
-        )
+            write_uc_materialized_data(
+                catalog_config=catalog_config,
+                fv=self.feature_view,
+                df=input_table,
+                project=context.repo_config.project,
+            )
 
         return output

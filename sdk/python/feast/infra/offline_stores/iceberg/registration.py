@@ -17,7 +17,7 @@ Global defaults come from ``UCRegistrationConfig`` (inside
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 
@@ -28,6 +28,7 @@ from feast.infra.offline_stores.iceberg.catalog_manager import (
     load_catalog,
     table_exists,
     update_table_properties,
+    write_materialized_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -186,3 +187,95 @@ def register_uc_feature_tables(
                 f"  ✗ Failed to register catalog table: {fv.name} "
                 f"(check logs for details)"
             )
+
+
+_MATERIALIZE_OFFLINE_KEY = "uc.materialize_offline"
+
+
+def write_uc_materialized_data(
+    catalog_config: IcebergCatalogConfig,
+    fv: FeatureView,
+    df: Any,
+    project: str,
+) -> None:
+    """Write materialized features into an Iceberg REST Catalog table.
+
+    Converts ``pa.Table`` to Spark DataFrame if needed, then performs
+    a MERGE INTO via the catalog manager.
+
+    Skips silently when any guard condition fails:
+    - ``register_as_feature_table`` tag is ``"false"``
+    - ``materialize_offline`` tag is ``"false"``
+    - The UC path (catalog/schema) cannot be resolved
+    - The catalog cannot be reached (logged)
+    """
+    if not _should_register(fv):
+        logger.info("Skipping UC materialization for %s (opt-out)", fv.name)
+        return
+
+    if fv.tags.get(_MATERIALIZE_OFFLINE_KEY, "true").lower() == "false":
+        logger.info(
+            "Skipping UC materialization for %s (materialize_offline=false)",
+            fv.name,
+        )
+        return
+
+    catalog_name, schema, table = _resolve_uc_path(
+        fv, catalog_config.warehouse, catalog_config.namespace
+    )
+    if not catalog_name or not schema:
+        logger.warning(
+            "Cannot materialize to UC for %s: missing catalog or schema.",
+            fv.name,
+        )
+        return
+
+    try:
+        catalog = load_catalog(catalog_config)
+    except Exception as e:
+        logger.warning("Could not create Iceberg catalog for materialization: %s", e)
+        return
+
+    if not table_exists(catalog, schema, table):
+        try:
+            create_feature_table(
+                catalog=catalog,
+                namespace=schema,
+                table_name=table,
+                entity_columns=fv.entity_columns,
+                feature_columns=fv.features,
+                primary_keys=_get_primary_keys(fv),
+                timestamp_field=getattr(fv.batch_source, "timestamp_field", None),
+                description=fv.description or "",
+                owner=fv.owner or "",
+                project=project,
+                tags=_build_tags(fv, project),
+            )
+            logger.info("Created catalog table %s.%s.%s", catalog_name, schema, table)
+        except Exception:
+            logger.exception(
+                "Failed to create catalog table %s.%s.%s",
+                catalog_name,
+                schema,
+                table,
+            )
+            raise
+
+    import pyarrow as pa
+
+    if isinstance(df, pa.Table):
+        from pyspark.sql import SparkSession
+
+        spark = SparkSession.builder.getOrCreate()
+        spark_df = spark.createDataFrame(df.to_pandas())
+    else:
+        spark_df = df
+
+    write_materialized_data(
+        catalog=catalog,
+        namespace=schema,
+        table_name=table,
+        spark_df=spark_df,
+        mode="merge",
+    )
+    logger.info("Materialized features to %s.%s.%s", catalog_name, schema, table)
