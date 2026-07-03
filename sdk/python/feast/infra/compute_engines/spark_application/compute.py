@@ -12,7 +12,7 @@ from kubernetes.client.exceptions import ApiException
 from feast import RepoConfig
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
-from feast.feature_view import FeatureView
+from feast.feature_view import FeatureView, FeatureViewState
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
@@ -23,11 +23,12 @@ from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.feature_view import FeatureViewState
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
-from .config import SparkApplicationComputeEngineConfig  # noqa: F401 — required for Feast config resolution
+from .config import (
+    SparkApplicationComputeEngineConfig,  # noqa: F401 — required for Feast config resolution
+)
 from .job import SparkApplicationMaterializationJob
 
 logger = logging.getLogger(__name__)
@@ -79,8 +80,12 @@ class SparkApplicationComputeEngine(ComputeEngine):
     def update(
         self,
         project: str,
-        views_to_delete: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
-        views_to_keep: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]],
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
@@ -124,7 +129,9 @@ class SparkApplicationComputeEngine(ComputeEngine):
             self._create_secret(job_id, tasks)
         except ApiException as e:
             job = SparkApplicationMaterializationJob(
-                job_id, self.config.namespace, self.custom_api,
+                job_id,
+                self.config.namespace,
+                self.custom_api,
                 error=Exception(f"Secret creation failed: {e.reason}"),
             )
             return [job for _ in tasks]
@@ -141,12 +148,16 @@ class SparkApplicationComputeEngine(ComputeEngine):
         except ApiException as e:
             self._cleanup(job_id)
             job = SparkApplicationMaterializationJob(
-                job_id, self.config.namespace, self.custom_api,
+                job_id,
+                self.config.namespace,
+                self.custom_api,
                 error=Exception(f"SparkApplication creation failed: {e.reason}"),
             )
             return [job for _ in tasks]
 
-        job = SparkApplicationMaterializationJob(job_id, self.config.namespace, self.custom_api)
+        job = SparkApplicationMaterializationJob(
+            job_id, self.config.namespace, self.custom_api
+        )
         self._wait_for_completion(job)
         return self._build_per_fv_jobs(registry, tasks, job_id, job)
 
@@ -198,17 +209,23 @@ class SparkApplicationComputeEngine(ComputeEngine):
             if getattr(fv, "state", None) == FeatureViewState.AVAILABLE_ONLINE:
                 jobs.append(job)
             else:
-                jobs.append(SparkApplicationMaterializationJob(
-                    job_id, self.config.namespace, self.custom_api,
-                    error=Exception(
-                        f"Feature view '{task.feature_view.name}' was not "
-                        f"materialized by the SparkApplication pod"
-                    ),
-                ))
+                jobs.append(
+                    SparkApplicationMaterializationJob(
+                        job_id,
+                        self.config.namespace,
+                        self.custom_api,
+                        error=Exception(
+                            f"Feature view '{task.feature_view.name}' was not "
+                            f"materialized by the SparkApplication pod"
+                        ),
+                    )
+                )
         return jobs
 
     def _create_secret(self, job_id: str, tasks: List[MaterializationTask]):
-        feast_config_yaml = yaml.dump(self._build_driver_repo_config(), default_flow_style=False)
+        feast_config_yaml = yaml.dump(
+            self._build_driver_repo_config(), default_flow_style=False
+        )
         mat_config = {
             "operation": "materialize",
             "tasks": [
@@ -271,7 +288,10 @@ class SparkApplicationComputeEngine(ComputeEngine):
             },
             "timeToLiveSeconds": self.config.ttl_seconds_after_finished,
             "volumes": [
-                {"name": "feast-config", "secret": {"secretName": f"feast-sa-{job_id}"}},
+                {
+                    "name": "feast-config",
+                    "secret": {"secretName": f"feast-sa-{job_id}"},
+                },
                 *self.config.volumes,
             ],
             "driver": {
@@ -376,11 +396,15 @@ class SparkApplicationComputeEngine(ComputeEngine):
     def _cleanup(self, job_id: str):
         for fn in [
             lambda: self.custom_api.delete_namespaced_custom_object(
-                "sparkoperator.k8s.io", "v1beta2", self.config.namespace,
-                "sparkapplications", f"feast-sa-{job_id}",
+                "sparkoperator.k8s.io",
+                "v1beta2",
+                self.config.namespace,
+                "sparkapplications",
+                f"feast-sa-{job_id}",
             ),
             lambda: self.core_v1.delete_namespaced_secret(
-                f"feast-sa-{job_id}", self.config.namespace,
+                f"feast-sa-{job_id}",
+                self.config.namespace,
             ),
         ]:
             try:

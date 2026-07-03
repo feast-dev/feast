@@ -442,9 +442,7 @@ class FeatureStore:
                 and prev != FeatureViewState.STATE_UNSPECIFIED
             ):
                 fv.state = prev
-                self.registry.apply_feature_view(
-                    fv, self.project, commit=True
-                )
+                self.registry.apply_feature_view(fv, self.project, commit=True)
 
     def _transition_fv_to_materializing(
         self,
@@ -462,18 +460,14 @@ class FeatureStore:
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
         ):
-            if not feature_view.state.can_transition_to(
-                FeatureViewState.MATERIALIZING
-            ):
+            if not feature_view.state.can_transition_to(FeatureViewState.MATERIALIZING):
                 self._rollback_fv_states(already_transitioned, previous_states)
                 raise ValueError(
                     f"FeatureView {feature_view.name} cannot transition "
                     f"from {feature_view.state.name} to MATERIALIZING."
                 )
             feature_view.state = FeatureViewState.MATERIALIZING
-            self.registry.apply_feature_view(
-                feature_view, self.project, commit=True
-            )
+            self.registry.apply_feature_view(feature_view, self.project, commit=True)
         previous_states[feature_view.name] = previous_state
 
     def _submit_and_process_materialization_jobs(
@@ -2335,8 +2329,11 @@ class FeatureStore:
 
             if tasks:
                 self._submit_and_process_materialization_jobs(
-                    provider, tasks, regular_fvs,
-                    previous_states, fv_start_dates,
+                    provider,
+                    tasks,
+                    regular_fvs,
+                    previous_states,
+                    fv_start_dates,
                 )
 
             materialized_fv_names = [
@@ -2481,8 +2478,11 @@ class FeatureStore:
 
             if tasks:
                 self._submit_and_process_materialization_jobs(
-                    provider, tasks, regular_fvs,
-                    previous_states, fv_start_dates,
+                    provider,
+                    tasks,
+                    regular_fvs,
+                    previous_states,
+                    fv_start_dates,
                 )
 
             materialized_fv_names = [

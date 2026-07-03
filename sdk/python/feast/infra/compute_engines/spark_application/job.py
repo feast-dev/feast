@@ -54,13 +54,19 @@ class SparkApplicationMaterializationJob(MaterializationJob):
 
         obj = self._get_cr_with_retry()
         if obj is None:
-            return MaterializationJobStatus.ERROR if self._error else MaterializationJobStatus.RUNNING
+            return (
+                MaterializationJobStatus.ERROR
+                if self._error
+                else MaterializationJobStatus.RUNNING
+            )
 
         state = obj.get("status", {}).get("applicationState", {}).get("state", "")
         result = _STATE_MAP.get(state, MaterializationJobStatus.WAITING)
         if result == MaterializationJobStatus.ERROR:
-            msg = obj.get("status", {}).get("applicationState", {}).get(
-                "errorMessage", f"SparkApplication failed: {state}"
+            msg = (
+                obj.get("status", {})
+                .get("applicationState", {})
+                .get("errorMessage", f"SparkApplication failed: {state}")
             )
             self._error = Exception(msg)
         return result

@@ -1,20 +1,18 @@
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from feast.feature_view import FeatureViewState
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
-    MaterializationTask,
 )
 from feast.infra.compute_engines.spark_application.config import (
     SparkApplicationComputeEngineConfig,
 )
 from feast.infra.compute_engines.spark_application.job import (
-    SparkApplicationMaterializationJob,
     _STATE_MAP,
+    SparkApplicationMaterializationJob,
 )
-from feast.feature_view import FeatureViewState
 
 
 def _make_repo_config(
@@ -36,14 +34,19 @@ def _make_repo_config(
         registry_address=registry_address,
         spark_conf=spark_conf,
     )
-    config.model_dump = MagicMock(return_value={
-        "project": "test",
-        "provider": "local",
-        "batch_engine": {"type": "spark_application"},
-        "offline_store": {"type": offline_store_type, "spark_conf": {"spark.existing": "value"}},
-        "online_store": {"type": online_store_type},
-        "registry": {"registry_type": "file", "path": registry_path},
-    })
+    config.model_dump = MagicMock(
+        return_value={
+            "project": "test",
+            "provider": "local",
+            "batch_engine": {"type": "spark_application"},
+            "offline_store": {
+                "type": offline_store_type,
+                "spark_conf": {"spark.existing": "value"},
+            },
+            "online_store": {"type": online_store_type},
+            "registry": {"registry_type": "file", "path": registry_path},
+        }
+    )
     return config
 
 
@@ -54,6 +57,7 @@ def _make_engine(mock_client, mock_k8s_config, **kwargs):
     from feast.infra.compute_engines.spark_application.compute import (
         SparkApplicationComputeEngine,
     )
+
     repo_config = _make_repo_config(**kwargs)
     return SparkApplicationComputeEngine(
         repo_config=repo_config, offline_store=None, online_store=None
@@ -61,6 +65,7 @@ def _make_engine(mock_client, mock_k8s_config, **kwargs):
 
 
 # ── Test 1: Config defaults + required field ──
+
 
 def test_config_defaults_and_required_image():
     c = SparkApplicationComputeEngineConfig(image="quay.io/test:v1")
@@ -76,12 +81,14 @@ def test_config_defaults_and_required_image():
 
 # ── Test 2: EC-3 rejects SQLite ──
 
+
 def test_rejects_sqlite_online_store():
     with pytest.raises(ValueError, match="SQLite"):
         _make_engine(online_store_type="sqlite")
 
 
 # ── Test 3: registry_address is mandatory ──
+
 
 def test_rejects_missing_registry_address():
     with pytest.raises(ValueError, match="registry_address is required"):
@@ -90,12 +97,16 @@ def test_rejects_missing_registry_address():
 
 # ── Test 4: EC-2 accepts local registry WITH registry_address ──
 
+
 def test_accepts_local_registry_with_address():
-    engine = _make_engine(registry_path="/local/registry.db", registry_address="feast:6570")
+    engine = _make_engine(
+        registry_path="/local/registry.db", registry_address="feast:6570"
+    )
     assert engine is not None
 
 
 # ── Test 5: _build_driver_repo_config — two rewrites (batch_engine + registry) ──
+
 
 def test_build_driver_repo_config_rewrites():
     engine = _make_engine(
@@ -110,6 +121,7 @@ def test_build_driver_repo_config_rewrites():
 
 # ── Test 6: _build_driver_repo_config — batch_engine is just type (no spark_conf copy) ──
 
+
 def test_build_driver_repo_config_batch_engine_minimal():
     engine = _make_engine(spark_conf={"spark.new": "from_engine"})
     d = engine._build_driver_repo_config()
@@ -118,6 +130,7 @@ def test_build_driver_repo_config_batch_engine_minimal():
 
 
 # ── Test 7: CR structure ──
+
 
 def test_cr_structure():
     engine = _make_engine()
@@ -134,15 +147,20 @@ def test_cr_structure():
 
 # ── Test 8: CR sparkConf includes driver env passthrough ──
 
+
 def test_cr_driver_env_passthrough():
     engine = _make_engine()
     cr = engine._build_spark_application_cr("abcd1234")
     spark_conf = cr["spec"]["sparkConf"]
-    assert spark_conf["spark.kubernetes.driverEnv.FEAST_SECRET_NAME"] == "feast-sa-abcd1234"
+    assert (
+        spark_conf["spark.kubernetes.driverEnv.FEAST_SECRET_NAME"]
+        == "feast-sa-abcd1234"
+    )
     assert spark_conf["spark.kubernetes.driverEnv.FEAST_SECRET_NAMESPACE"] == "default"
 
 
 # ── Test 9: Status mapping covers all 14 states ──
+
 
 def test_state_map_coverage():
     assert len(_STATE_MAP) == 14
@@ -155,10 +173,12 @@ def test_state_map_coverage():
 
 # ── Test 10: Cleanup swallows 404 ──
 
+
 @patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
 @patch("feast.infra.compute_engines.spark_application.compute.client")
 def test_cleanup_swallows_404(mock_client, mock_k8s_config):
     from kubernetes.client.exceptions import ApiException
+
     from feast.infra.compute_engines.spark_application.compute import (
         SparkApplicationComputeEngine,
     )
@@ -168,13 +188,16 @@ def test_cleanup_swallows_404(mock_client, mock_k8s_config):
         repo_config=repo_config, offline_store=None, online_store=None
     )
 
-    engine.custom_api.delete_namespaced_custom_object.side_effect = ApiException(status=404)
+    engine.custom_api.delete_namespaced_custom_object.side_effect = ApiException(
+        status=404
+    )
     engine.core_v1.delete_namespaced_secret.side_effect = ApiException(status=404)
 
     engine._cleanup("test-id")
 
 
 # ── Test 11: Timeout sets error on job (does not raise) ──
+
 
 @patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
 @patch("feast.infra.compute_engines.spark_application.compute.client")
@@ -186,7 +209,9 @@ def test_timeout_sets_error(mock_time, mock_client, mock_k8s_config):
 
     repo_config = _make_repo_config()
     repo_config.batch_engine = SparkApplicationComputeEngineConfig(
-        image="test", job_timeout_seconds=1, poll_interval_seconds=1,
+        image="test",
+        job_timeout_seconds=1,
+        poll_interval_seconds=1,
         registry_address="feast-server:6566",
     )
     engine = SparkApplicationComputeEngine(
@@ -210,6 +235,7 @@ def test_timeout_sets_error(mock_time, mock_client, mock_k8s_config):
 
 # ── Test 12: Job naming < 63 chars ──
 
+
 def test_job_naming_under_63_chars():
     mock_api = MagicMock()
     job = SparkApplicationMaterializationJob("abcdef12", "default", mock_api)
@@ -218,6 +244,7 @@ def test_job_naming_under_63_chars():
 
 
 # ── Test 13: _build_per_fv_jobs — all succeeded ──
+
 
 def test_build_per_fv_jobs_all_succeeded():
     engine = _make_engine()
@@ -247,6 +274,7 @@ def test_build_per_fv_jobs_all_succeeded():
 
 # ── Test 14: _build_per_fv_jobs — partial failure ──
 
+
 def test_build_per_fv_jobs_partial_failure():
     engine = _make_engine()
     mock_registry = MagicMock()
@@ -267,7 +295,9 @@ def test_build_per_fv_jobs_partial_failure():
     task_fail.project = "test"
 
     parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
-    jobs = engine._build_per_fv_jobs(mock_registry, [task_ok, task_fail], "job1", parent_job)
+    jobs = engine._build_per_fv_jobs(
+        mock_registry, [task_ok, task_fail], "job1", parent_job
+    )
 
     assert len(jobs) == 2
     assert jobs[0].status() != MaterializationJobStatus.ERROR
@@ -276,6 +306,7 @@ def test_build_per_fv_jobs_partial_failure():
 
 
 # ── Test 15: _build_per_fv_jobs — single task returns parent job directly ──
+
 
 def test_build_per_fv_jobs_single_task():
     engine = _make_engine()
