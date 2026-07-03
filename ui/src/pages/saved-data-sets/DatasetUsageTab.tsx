@@ -5,7 +5,6 @@ import {
   EuiText,
   EuiSpacer,
   EuiCodeBlock,
-  EuiHorizontalRule,
   EuiFlexGroup,
   EuiFlexItem,
   EuiCallOut,
