@@ -197,9 +197,10 @@ class SparkOfflineStore(OfflineStore):
             RuntimeWarning,
         )
 
-        spark_session = _resolve_spark_session_for_source(
-            feature_views[0].batch_source, config
-        )
+        batch_source = feature_views[0].batch_source
+        if batch_source is None:
+            raise ValueError("batch_source is required for the Spark offline store")
+        spark_session = _resolve_spark_session_for_source(batch_source, config)
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
