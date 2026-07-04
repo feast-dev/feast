@@ -26,7 +26,6 @@ from feast.infra.offline_stores.iceberg.catalog_config import IcebergCatalogConf
 from feast.infra.offline_stores.iceberg.catalog_manager import (
     create_feature_table,
     load_catalog,
-    table_exists,
     update_table_properties,
     write_materialized_data,
 )
@@ -108,20 +107,7 @@ def _register_single_feature_view(
     owner = fv.owner or ""
     tags = _build_tags(fv, project)
 
-    if table_exists(catalog, namespace, table_name):
-        update_table_properties(
-            catalog=catalog,
-            namespace=namespace,
-            table_name=table_name,
-            description=description,
-            owner=owner,
-            project=project,
-            tags=tags,
-        )
-        click.echo(
-            f"  ✓ Updated catalog table: {catalog_name}.{namespace}.{table_name}"
-        )
-    else:
+    try:
         create_feature_table(
             catalog=catalog,
             namespace=namespace,
@@ -137,6 +123,24 @@ def _register_single_feature_view(
         )
         click.echo(
             f"  ✓ Created catalog table: {catalog_name}.{namespace}.{table_name}"
+        )
+    except Exception as e:
+        from pyiceberg.exceptions import TableAlreadyExistsError
+
+        if not isinstance(e, TableAlreadyExistsError):
+            raise
+
+        update_table_properties(
+            catalog=catalog,
+            namespace=namespace,
+            table_name=table_name,
+            description=description,
+            owner=owner,
+            project=project,
+            tags=tags,
+        )
+        click.echo(
+            f"  ✓ Updated catalog table: {catalog_name}.{namespace}.{table_name}"
         )
 
 
