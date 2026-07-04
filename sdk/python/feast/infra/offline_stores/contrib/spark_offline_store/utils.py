@@ -43,7 +43,7 @@ def get_databricks_connect_session(
     spark_session = SparkSession.getActiveSession()
     if spark_session and host:
         try:
-            current_uri = spark_session.conf.get("spark.connect.client.uri", "")
+            current_uri = spark_session.conf.get("spark.connect.client.uri", "") or ""
             expected_uri = _expected_connect_uri(host)
             if expected_uri not in current_uri:
                 logger.info(

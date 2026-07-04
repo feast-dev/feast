@@ -350,7 +350,7 @@ def _merge_into(
     pk_cols = [pk.strip() for pk in primary_keys_str.split(",") if pk.strip()]
 
     if not pk_cols:
-        spark_df.sql_ctx.sql(f"INSERT INTO {full_name} SELECT * FROM {temp_view}")
+        spark_df.sparkSession.sql(f"INSERT INTO {full_name} SELECT * FROM {temp_view}")
         return
 
     join_cond = " AND ".join(f"target.`{pk}` = source.`{pk}`" for pk in pk_cols)
@@ -368,4 +368,4 @@ def _merge_into(
         f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({source_cols})"
     )
 
-    spark_df.sql_ctx.sql(merge_sql)
+    spark_df.sparkSession.sql(merge_sql)
