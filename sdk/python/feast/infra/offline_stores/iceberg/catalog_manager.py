@@ -285,9 +285,12 @@ def update_table_properties(
     """Update Iceberg table properties with current Feast metadata."""
     table = catalog.load_table((namespace, table_name))
 
+    existing_pks_str = table.properties.get(FEAST_PRIMARY_KEYS_PROP, "")
+    existing_ts = table.properties.get(FEAST_TIMESTAMP_KEY_PROP, "")
+
     new_props = _build_iceberg_properties(
-        primary_keys=[],
-        timestamp_key=None,
+        primary_keys=[pk.strip() for pk in existing_pks_str.split(",") if pk.strip()],
+        timestamp_key=existing_ts or None,
         description=description,
         owner=owner,
         project=project,
@@ -340,7 +343,7 @@ def _merge_into(
 
     Requires Spark 3.x with Iceberg support.
     """
-    full_name = f"{namespace}.{table_name}"
+    full_name = f"`{namespace}`.`{table_name}`"
     temp_view = f"_feast_merge_{table_name}"
 
     spark_df.createOrReplaceTempView(temp_view)

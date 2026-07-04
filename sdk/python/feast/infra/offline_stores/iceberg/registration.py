@@ -240,23 +240,25 @@ def write_uc_materialized_data(
         logger.warning("Could not create Iceberg catalog for materialization: %s", e)
         return
 
-    if not table_exists(catalog, schema, table):
-        try:
-            create_feature_table(
-                catalog=catalog,
-                namespace=schema,
-                table_name=table,
-                entity_columns=fv.entity_columns,
-                feature_columns=fv.features,
-                primary_keys=_get_primary_keys(fv),
-                timestamp_field=getattr(fv.batch_source, "timestamp_field", None),
-                description=fv.description or "",
-                owner=fv.owner or "",
-                project=project,
-                tags=_build_tags(fv, project),
-            )
-            logger.info("Created catalog table %s.%s.%s", catalog_name, schema, table)
-        except Exception:
+    try:
+        create_feature_table(
+            catalog=catalog,
+            namespace=schema,
+            table_name=table,
+            entity_columns=fv.entity_columns,
+            feature_columns=fv.features,
+            primary_keys=_get_primary_keys(fv),
+            timestamp_field=getattr(fv.batch_source, "timestamp_field", None),
+            description=fv.description or "",
+            owner=fv.owner or "",
+            project=project,
+            tags=_build_tags(fv, project),
+        )
+        logger.info("Created catalog table %s.%s.%s", catalog_name, schema, table)
+    except Exception as e:
+        from pyiceberg.exceptions import TableAlreadyExistsError
+
+        if not isinstance(e, TableAlreadyExistsError):
             logger.exception(
                 "Failed to create catalog table %s.%s.%s",
                 catalog_name,
@@ -268,10 +270,17 @@ def write_uc_materialized_data(
     import pyarrow as pa
 
     if isinstance(df, pa.Table):
-        from pyspark.sql import SparkSession
+        try:
+            from pyspark.sql import SparkSession
 
-        spark = SparkSession.builder.getOrCreate()
-        spark_df = spark.createDataFrame(df.to_pandas())
+            spark = SparkSession.builder.getOrCreate()
+            spark_df = spark.createDataFrame(df)
+        except ImportError:
+            logger.warning(
+                "pyspark is not installed; skipping UC materialization for %s",
+                fv.name,
+            )
+            return
     else:
         spark_df = df
 
