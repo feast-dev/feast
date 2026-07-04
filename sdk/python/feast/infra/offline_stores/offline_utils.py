@@ -429,3 +429,12 @@ def get_timestamp_filter_sql(
             filters.append(f"{dp_field} <= '{format_date(end_date)}'")
 
     return " AND ".join(filters) if filters else ""
+
+
+def gather_all_entities(fv_query_contexts: List[FeatureViewQueryContext]):
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities

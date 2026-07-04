@@ -2421,8 +2421,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.63.1.dev113+g5c17b8d85.d20260628
-  sha256: d15effc66d050583d3951905950d474615aa17f79a141ece417575d458962030
+  version: 0.64.1.dev48+g10a1fb32b.d20260630
+  sha256: 36b2ec53e444a094df5ce68594025cea29abcb5e164586f145d6dd7e5f92c1ff
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2455,6 +2455,7 @@ packages:
   - psutil
   - bigtree>=0.19.2
   - pyjwt
+  - aerospike>=19.0.0,<20.0.0 ; extra == 'aerospike'
   - boto3>=1.38.27 ; extra == 'aws'
   - fsspec>=2024.1.0 ; extra == 'aws'
   - aiobotocore>=2 ; extra == 'aws'
