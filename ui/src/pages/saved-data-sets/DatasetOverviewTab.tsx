@@ -64,7 +64,7 @@ const DatasetOverviewTab = () => {
     );
   }
 
-  const { isLoading, isSuccess, isError, data } = useLoadDataset(datasetName);
+  const { isLoading, isError, data } = useLoadDataset(datasetName);
 
   if (isLoading) {
     return (
