@@ -35,6 +35,7 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.protos.feast.registry.RegistryServer_pb2 import Feature, ListFeaturesResponse
 from feast.saved_dataset import SavedDataset, ValidationReference
@@ -176,9 +177,102 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
 
 
 class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
-    def __init__(self, registry: BaseRegistry) -> None:
+    def __init__(self, registry: BaseRegistry, store=None) -> None:
         super().__init__()
         self.proxied_registry = registry
+        self.store = store
+
+    def Proto(self, request: Empty, context) -> RegistryProto:
+        """Build a RegistryProto from individually RBAC-filtered list calls.
+
+        The ``RegistryServer.Proto`` RPC must honor the same permission checks as the
+        other RPCs rather than returning ``proxied_registry.proto()`` directly, which
+        would bypass RBAC and expose every object (entities, feature views, data
+        sources, permissions, projects, etc.) regardless of authorization.
+
+        Each object type is filtered with ``permitted_resources(..., DESCRIBE)``: under
+        ``NoAuthConfig`` this is a no-op (the full registry is returned, so remote
+        registries keep working), while with auth enabled the caller only sees the
+        objects they are permitted to ``DESCRIBE``.
+        """
+
+        def describable(resources: list) -> list:
+            return permitted_resources(
+                resources=cast(list[FeastObject], resources),
+                actions=AuthzedAction.DESCRIBE,
+            )
+
+        registry_proto = RegistryProto()
+
+        for project in describable(self.proxied_registry.list_projects()):
+            registry_proto.projects.append(project.to_proto())
+            project_name = project.name
+
+            for entity in describable(
+                self.proxied_registry.list_entities(project=project_name)
+            ):
+                registry_proto.entities.append(entity.to_proto())
+
+            for data_source in describable(
+                self.proxied_registry.list_data_sources(project=project_name)
+            ):
+                registry_proto.data_sources.append(data_source.to_proto())
+
+            for feature_view in describable(
+                self.proxied_registry.list_feature_views(project=project_name)
+            ):
+                registry_proto.feature_views.append(feature_view.to_proto())
+
+            for stream_feature_view in describable(
+                self.proxied_registry.list_stream_feature_views(project=project_name)
+            ):
+                registry_proto.stream_feature_views.append(
+                    stream_feature_view.to_proto()
+                )
+
+            for on_demand_feature_view in describable(
+                self.proxied_registry.list_on_demand_feature_views(project=project_name)
+            ):
+                registry_proto.on_demand_feature_views.append(
+                    on_demand_feature_view.to_proto()
+                )
+
+            for label_view in describable(
+                self.proxied_registry.list_label_views(project=project_name)
+            ):
+                registry_proto.label_views.append(label_view.to_proto())
+
+            for feature_service in describable(
+                self.proxied_registry.list_feature_services(project=project_name)
+            ):
+                registry_proto.feature_services.append(feature_service.to_proto())
+
+            for saved_dataset in describable(
+                self.proxied_registry.list_saved_datasets(project=project_name)
+            ):
+                registry_proto.saved_datasets.append(saved_dataset.to_proto())
+
+            for validation_reference in describable(
+                self.proxied_registry.list_validation_references(project=project_name)
+            ):
+                registry_proto.validation_references.append(
+                    validation_reference.to_proto()
+                )
+
+            for permission in describable(
+                self.proxied_registry.list_permissions(project=project_name)
+            ):
+                registry_proto.permissions.append(permission.to_proto())
+
+        # Carry the registry's real last_updated/version_id rather than stamping "now":
+        # this proto is rebuilt from individual list calls (for RBAC filtering), but it must
+        # not look like a fresh commit on every call — clients such as the remote feature
+        # server key cache freshness off this metadata. Reading these two scalar fields from
+        # the source proto leaks nothing RBAC-protected (no objects are copied from it).
+        source_proto = self.proxied_registry.proto()
+        registry_proto.last_updated.CopyFrom(source_proto.last_updated)
+        registry_proto.version_id = source_proto.version_id
+        return registry_proto
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
         entity = cast(
@@ -445,6 +539,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     ):
         from feast.labeling.label_view import LabelView
 
+        updated_since = None
+        if request.HasField("updated_since"):
+            updated_since = request.updated_since.ToDatetime().replace(
+                tzinfo=timezone.utc
+            )
+
         all_feature_views = cast(
             list[FeastObject],
             [
@@ -454,6 +554,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     allow_cache=request.allow_cache,
                     tags=dict(request.tags),
                     skip_udf=True,
+                    updated_since=updated_since,
                 )
                 if not isinstance(fv, LabelView)
             ],
@@ -877,6 +978,268 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
         return Empty()
+
+    def _require_store(self):
+        if not self.store:
+            raise Exception("FeatureStore is not available for dataset operations.")
+
+    def resolve_feature_service_metadata(
+        self, feature_service_name: str, project: str
+    ) -> tuple:
+        """Resolve features and join keys from a feature service.
+
+        Returns:
+            (features, join_keys) where features is a list of "fv:feature" refs
+            and join_keys is a list of entity join key column names.
+        """
+        self._require_store()
+        fs = self.proxied_registry.get_feature_service(
+            feature_service_name, project, allow_cache=True
+        )
+        features = []
+        join_keys: set = set()
+        for proj in fs.feature_view_projections:
+            fv_name = proj.name_to_use()
+            for f in proj.features:
+                features.append(f"{fv_name}:{f.name}")
+            try:
+                fv = self.proxied_registry.get_feature_view(
+                    proj.name, project, allow_cache=True
+                )
+                for jk in fv.join_keys:
+                    join_keys.add(jk)
+            except Exception:
+                pass
+        return features, list(join_keys)
+
+    def CreateDatasetFromRetrieval(
+        self,
+        request: RegistryServer_pb2.CreateDatasetFromRetrievalRequest,
+        context,
+    ):
+        import pandas as pd
+
+        from feast.dataset_job_manager import DatasetJob, get_dataset_job_manager
+        from feast.dataset_utils import (
+            build_entity_df_from_inline,
+            build_saved_dataset_storage,
+            coerce_value,
+        )
+        from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+
+        self._require_store()
+
+        dummy_dataset = SavedDataset(
+            name=request.name,
+            features=[],
+            join_keys=[],
+            storage=SavedDatasetFileStorage(path=""),
+        )
+        assert_permissions(resource=dummy_dataset, actions=[AuthzedAction.CREATE])
+
+        store = self.store
+        job_manager = get_dataset_job_manager()
+        dataset_name = request.name.strip()
+
+        entity_source_type = request.entity_source_type
+        entity_keys = list(request.entity_keys)
+        entity_values = request.entity_values
+        start_date = request.start_date or None
+        end_date = request.end_date or None
+        extra_columns = request.extra_columns or None
+        entity_source_path = request.entity_source_path or None
+        feature_service_name = request.feature_service_name or None
+        features_list = list(request.features) if request.features else None
+        storage_type = request.storage_type
+        storage_path = request.storage_path
+        tags = dict(request.tags) if request.tags else {}
+        allow_overwrite = request.allow_overwrite
+
+        def _execute_create(job: DatasetJob):
+            if entity_source_type == "inline":
+                entity_df = build_entity_df_from_inline(
+                    entity_keys=entity_keys,
+                    entity_values=entity_values,
+                    start_date=start_date,
+                    end_date=end_date,
+                    extra_columns=extra_columns,
+                )
+            else:
+                entity_df = pd.read_parquet(entity_source_path)
+                for col in ["event_timestamp", "datetime", "timestamp"]:
+                    if col in entity_df.columns:
+                        entity_df[col] = pd.to_datetime(entity_df[col])
+                        break
+                if extra_columns:
+                    for col_line in extra_columns.strip().split("\n"):
+                        col_line = col_line.strip()
+                        if "=" in col_line:
+                            col_name, col_value = col_line.split("=", 1)
+                            col_name = col_name.strip()
+                            col_value = col_value.strip()
+                            if col_name:
+                                entity_df[col_name] = coerce_value(col_value)
+
+            features = (
+                store.get_feature_service(feature_service_name)
+                if feature_service_name
+                else features_list
+            )
+            storage = build_saved_dataset_storage(storage_type, storage_path.strip())
+
+            store.create_dataset_from_retrieval(
+                name=dataset_name,
+                entity_df=entity_df,
+                features=features,
+                storage=storage,
+                tags=tags,
+                allow_overwrite=allow_overwrite,
+            )
+
+        job = job_manager.submit_job(
+            name=dataset_name,
+            project=request.project.strip(),
+            task_fn=_execute_create,
+            metadata={
+                "storage_type": storage_type,
+                "storage_path": storage_path,
+            },
+        )
+
+        return RegistryServer_pb2.CreateDatasetFromRetrievalResponse(
+            job_id=job.job_id,
+            status=job.status.value,
+        )
+
+    def GetDatasetData(
+        self,
+        request: RegistryServer_pb2.GetDatasetDataRequest,
+        context,
+    ):
+        import json
+
+        import pandas as pd
+
+        self._require_store()
+
+        dataset = self.store.registry.get_saved_dataset(
+            request.name, self.store.project
+        )
+        assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
+
+        limit = request.limit if request.limit > 0 else 10
+        df = self.store.retrieve_dataset_data(request.name, limit=limit)
+
+        if df.empty:
+            return RegistryServer_pb2.GetDatasetDataResponse(
+                columns=[], rows=[], total_rows=0, sample_size=0
+            )
+
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].astype(str)
+
+        columns = list(df.columns)
+        rows = []
+        for _, row in df.iterrows():
+            rows.append(
+                RegistryServer_pb2.TabularRow(
+                    values=[json.dumps(v, default=str) for v in row.tolist()]
+                )
+            )
+
+        return RegistryServer_pb2.GetDatasetDataResponse(
+            columns=columns,
+            rows=rows,
+            total_rows=len(df),
+            sample_size=len(df),
+        )
+
+    def GetDatasetJobStatus(
+        self,
+        request: RegistryServer_pb2.GetDatasetJobStatusRequest,
+        context,
+    ):
+        from feast.dataset_job_manager import get_dataset_job_manager
+        from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+
+        job_manager = get_dataset_job_manager()
+        job = job_manager.get_job(request.job_id)
+        if not job:
+            raise FeastObjectNotFoundException(
+                f"Dataset job '{request.job_id}' not found"
+            )
+
+        dummy_dataset = SavedDataset(
+            name=job.name,
+            features=[],
+            join_keys=[],
+            storage=SavedDatasetFileStorage(path=""),
+        )
+        assert_permissions(resource=dummy_dataset, actions=[AuthzedAction.DESCRIBE])
+
+        return RegistryServer_pb2.GetDatasetJobStatusResponse(
+            job_id=job.job_id,
+            dataset_name=job.name,
+            project=job.project,
+            status=job.status.value,
+            created_at=job.created_at or "",
+            completed_at=job.completed_at or "",
+            error=job.error or "",
+        )
+
+    def ListDatasetJobs(
+        self,
+        request: RegistryServer_pb2.ListDatasetJobsRequest,
+        context,
+    ):
+        from feast.dataset_job_manager import JobStatus as JS
+        from feast.dataset_job_manager import get_dataset_job_manager
+        from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+
+        job_manager = get_dataset_job_manager()
+        status_filter = None
+        if request.status_filter:
+            try:
+                status_filter = JS(request.status_filter)
+            except ValueError:
+                pass
+
+        jobs = job_manager.list_jobs(
+            project=request.project or None, status=status_filter
+        )
+
+        permitted_jobs = []
+        for j in jobs:
+            dummy_dataset = SavedDataset(
+                name=j.name,
+                features=[],
+                join_keys=[],
+                storage=SavedDatasetFileStorage(path=""),
+            )
+            try:
+                assert_permissions(
+                    resource=dummy_dataset, actions=[AuthzedAction.DESCRIBE]
+                )
+                permitted_jobs.append(j)
+            except Exception:
+                continue
+
+        job_responses = []
+        for j in permitted_jobs:
+            job_responses.append(
+                RegistryServer_pb2.GetDatasetJobStatusResponse(
+                    job_id=j.job_id,
+                    dataset_name=j.name,
+                    project=j.project,
+                    status=j.status.value,
+                    created_at=j.created_at or "",
+                    completed_at=j.completed_at or "",
+                    error=j.error or "",
+                )
+            )
+
+        return RegistryServer_pb2.ListDatasetJobsResponse(jobs=job_responses)
 
     def ApplyValidationReference(
         self, request: RegistryServer_pb2.ApplyValidationReferenceRequest, context
@@ -1365,7 +1728,7 @@ def start_server(
         interceptors=_grpc_interceptors(auth_manager_type),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
-        RegistryServer(store.registry), server
+        RegistryServer(store.registry, store=store), server
     )
     # Add health check service to server
     health_servicer = health.HealthServicer()

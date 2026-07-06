@@ -386,10 +386,6 @@ hatch-vcs==0.5.0 \
     # via
     #   filelock
     #   platformdirs
-hatchling==1.27.0 \
-    --hash=sha256:971c296d9819abb3811112fc52c7a9751c8d381898f36533bb16f9791e941fd6 \
-    --hash=sha256:d3a2f3567c4f926ea39849cdf924c7e99e6686c9c8e288ae1037c8fa2a5d937b
-    # via pymilvus
 hatchling==1.30.1 \
     --hash=sha256:161eacafb3c6f91526e92116d21426369f2c36e98c36a864f11a96345ad4ee31 \
     --hash=sha256:eee4fd45357f72ebb3d7a42e5d72cfb5e29ed426d79e8836288926c4258d5f2e
@@ -411,6 +407,7 @@ hatchling==1.30.1 \
     #   jsonschema
     #   jsonschema-specifications
     #   mcp
+    #   milvus-lite
     #   platformdirs
     #   pyarrow-hotfix
     #   pydantic
@@ -933,9 +930,9 @@ setuptools-rust==1.12.1 \
     # via
     #   libcst
     #   maturin
-setuptools-scm==10.0.5 \
-    --hash=sha256:bbba8fe754516cdefd017f4456721775e6ef9662bd7887fb52ae26813d4838c3 \
-    --hash=sha256:f611037d8aae618221503b8fa89319f073438252ae3420e01c9ceec249131a0a
+setuptools-scm==10.1.2 \
+    --hash=sha256:24079818acc46e99aae0d65b8d511fafe965970d9cbd060c7b9f7275ded520fb \
+    --hash=sha256:8bb17e208fb22ebc11e4eaf6d765955db1903eefd21a3f0ed5518fc3fb186e84
     # via
     #   anyio
     #   cachetools
@@ -949,7 +946,6 @@ setuptools-scm==10.0.5 \
     #   pluggy
     #   pyarrow
     #   pybindgen
-    #   pymilvus
     #   setuptools-rust
     #   sqlglot
     #   tabulate
@@ -1055,9 +1051,9 @@ uv-dynamic-versioning==0.14.0 \
     --hash=sha256:574fbc07e87ace45c01d55967ad3b864871257b98ff5b8ac87c261227ac8db5b \
     --hash=sha256:e087c346a786e98d41292ac2315180fb700cedfb30565fc973d64ce11a112387
     # via mcp
-vcs-versioning==1.1.1 \
-    --hash=sha256:b541e2ba79fc6aaa3850f8a7f88af43d97c1c80649c01142ee4146eddbc599e4 \
-    --hash=sha256:fabd75a3cab7dd8ac02fe24a3a9ba936bf258667b5a62ed468c9a1da0f5775bc
+vcs-versioning==2.1.0 \
+    --hash=sha256:118bf4b9f86f92e9ec33a94ec24aca0eed8f880fc88736697914d3a876758551 \
+    --hash=sha256:66d9e2c2afd792090bc381aec985d6cd82cb935be35910a742e0af31ca4be61e
     # via setuptools-scm
 versioneer==0.29 \
     --hash=sha256:0f1a137bb5d6811e96a79bb0486798aeae9b9c6efc24b389659cebb0ee396cb9 \

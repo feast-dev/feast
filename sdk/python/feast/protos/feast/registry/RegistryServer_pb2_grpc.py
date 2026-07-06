@@ -168,6 +168,26 @@ class RegistryServerStub(object):
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.DeleteSavedDatasetRequest.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
+        self.CreateDatasetFromRetrieval = channel.unary_unary(
+                '/feast.registry.RegistryServer/CreateDatasetFromRetrieval',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalResponse.FromString,
+                )
+        self.GetDatasetData = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetDatasetData',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataResponse.FromString,
+                )
+        self.GetDatasetJobStatus = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetDatasetJobStatus',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusResponse.FromString,
+                )
+        self.ListDatasetJobs = channel.unary_unary(
+                '/feast.registry.RegistryServer/ListDatasetJobs',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsResponse.FromString,
+                )
         self.ApplyValidationReference = channel.unary_unary(
                 '/feast.registry.RegistryServer/ApplyValidationReference',
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ApplyValidationReferenceRequest.SerializeToString,
@@ -465,6 +485,31 @@ class RegistryServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateDatasetFromRetrieval(self, request, context):
+        """SavedDataset Operation RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetDatasetData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetDatasetJobStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListDatasetJobs(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ApplyValidationReference(self, request, context):
         """ValidationReference RPCs
         """
@@ -750,6 +795,26 @@ def add_RegistryServerServicer_to_server(servicer, server):
                     servicer.DeleteSavedDataset,
                     request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.DeleteSavedDatasetRequest.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+            ),
+            'CreateDatasetFromRetrieval': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateDatasetFromRetrieval,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalResponse.SerializeToString,
+            ),
+            'GetDatasetData': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDatasetData,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataResponse.SerializeToString,
+            ),
+            'GetDatasetJobStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDatasetJobStatus,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusResponse.SerializeToString,
+            ),
+            'ListDatasetJobs': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListDatasetJobs,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsResponse.SerializeToString,
             ),
             'ApplyValidationReference': grpc.unary_unary_rpc_method_handler(
                     servicer.ApplyValidationReference,
@@ -1349,6 +1414,74 @@ class RegistryServer(object):
         return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/DeleteSavedDataset',
             feast_dot_registry_dot_RegistryServer__pb2.DeleteSavedDatasetRequest.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateDatasetFromRetrieval(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/CreateDatasetFromRetrieval',
+            feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.CreateDatasetFromRetrievalResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetDatasetData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetDatasetData',
+            feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.GetDatasetDataResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetDatasetJobStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetDatasetJobStatus',
+            feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.GetDatasetJobStatusResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListDatasetJobs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListDatasetJobs',
+            feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.ListDatasetJobsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

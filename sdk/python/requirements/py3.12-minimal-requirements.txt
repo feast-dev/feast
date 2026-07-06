@@ -582,6 +582,19 @@ durationpy==0.10 \
     --hash=sha256:1fa6893409a6e739c9c72334fc65cca1f355dbdd93405d30f726deb5bde42fba \
     --hash=sha256:3b41e1b601234296b4fb368338fdcd3e13e0b4fb5b67345948f4f2bf9868b286
     # via kubernetes
+faiss-cpu==1.14.3 \
+    --hash=sha256:0a5eb27184123c7ac1060c6b862978eabf0e30c1369ccf8bdb1497d35c06ad3d \
+    --hash=sha256:1d734cfa9ac90b6a5dfed3a27cb706d05f22824703dafc3969b4e2071877a31c \
+    --hash=sha256:20414d5c98fb6ab9eedfb3df79841865911c2d67b6efe829dc46adfeab6f51b1 \
+    --hash=sha256:54b0ea832be5bce75ef9abf1297fe4613d760bf7cfe7a963da040cb0314e8f58 \
+    --hash=sha256:8780b526c06e57aad90a8c4655dfba2ff1b3195bd600ff4499752fc45159c9fc \
+    --hash=sha256:a9369863290a3f0e033757e4c10577b6ef7431f1cede394dabd0a137e4e2ed45 \
+    --hash=sha256:b28ba083e8c02f2c9be03783402537fd3f00d27e68799c44bf88931500ee12ec \
+    --hash=sha256:cdcb90850cb4b7c27d270839b37bcc0dc8d1fb6a62d1e13053e51ac95061ca25 \
+    --hash=sha256:ea2340f675db59af8db6da4535b541ce6948d68a008989c656c292c7b0c77127 \
+    --hash=sha256:f278003d00c30c90cf118b98428bb96f73eba4b9dadac6993c788966d2e983bd \
+    --hash=sha256:f9d0e84d909194f63f027bbd3c1e35e905e48c9345c2db6e6f24da09a6bc5906
+    # via milvus-lite
 fastapi==0.138.0 \
     --hash=sha256:b6f54fd1bd72c80b0f899f172c61a600f6f7af9b43d4d772a018f35624048cb0 \
     --hash=sha256:d445a4877636ad191e7053e08c9bf98cb921a6756776848400bb773d1740c061
@@ -768,9 +781,9 @@ google-auth-oauthlib==1.4.0 \
     # via
     #   pandas-gbq
     #   pydata-google-auth
-google-cloud-bigquery[pandas]==3.42.0 \
-    --hash=sha256:4491a75f82d905101e75b690ca4c6791984bf4f50653706747537b05baa90213 \
-    --hash=sha256:9df6a73043363cad17000c29591ed829be5f630ec30b85b29bc29062ab8b19a4
+google-cloud-bigquery[pandas]==3.42.1 \
+    --hash=sha256:159143c1b7248858f35549c09efea5d031c2883145623419ea7c505a50c0899a \
+    --hash=sha256:3c6878f424fc2b21f0bb414ca7262abd008465575a7b7c44c552105278a18914
     # via
     #   feast (pyproject.toml)
     #   pandas-gbq
@@ -778,9 +791,9 @@ google-cloud-bigquery-storage==2.39.0 \
     --hash=sha256:8c192b6263804f7bdd6f57a17e763ba7f03fa4e53d7ecafca0187e0fd6467d48 \
     --hash=sha256:d5afd90ad06cf24d9167316cca70ab5b344e880fc13031d7392aa78ee76b8bb6
     # via feast (pyproject.toml)
-google-cloud-bigtable==2.38.0 \
-    --hash=sha256:0ad24f0106c2eb0f38e278b1641052e65882a4da0141d1f9ad78ea691724aaa3 \
-    --hash=sha256:9f6a4bdbefb34d0420f41c574d9805d8a63d080d10be5a176205e3b322c122a1
+google-cloud-bigtable==2.39.0 \
+    --hash=sha256:4af2dd1babb799ee2509f9c7eb02904fdd841abc360a09f4ec3bc414dba7d2cc \
+    --hash=sha256:7f6ce53cc18beba84bdfc6eff4c3367bdaed16d46c5821e3189eb27cddeb6be6
     # via feast (pyproject.toml)
 google-cloud-core==2.6.0 \
     --hash=sha256:6d63ac8e5eca6d9e4319d0a1e2265fadcd7f1049904378caecfa01cf52dd869e \
@@ -918,6 +931,7 @@ grpcio==1.81.1 \
     #   grpcio-health-checking
     #   grpcio-reflection
     #   grpcio-status
+    #   milvus-lite
     #   pymilvus
 grpcio-health-checking==1.81.1 \
     --hash=sha256:cbc6a4171825ec64389de2f062d296ba129a5c27eefd0dd55fa837909184bdf9 \
@@ -1360,11 +1374,9 @@ mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
     # via markdown-it-py
-milvus-lite==2.4.12 \
-    --hash=sha256:20087663e7b4385050b7ad08f1f03404426d4c87b1ff91d5a8723eee7fd49e88 \
-    --hash=sha256:334037ebbab60243b5d8b43d54ca2f835d81d48c3cda0c6a462605e588deb05d \
-    --hash=sha256:a0f3a5ddbfd19f4a6b842b2fd3445693c796cde272b701a1646a94c1ac45d3d7 \
-    --hash=sha256:e8d4f7cdd5f731efd6faeee3715d280fd91a5f9b4d89312664d56401f65b1473
+milvus-lite==3.0 \
+    --hash=sha256:2c35d0d046b1faae3402cde1fb73d65f51ee8c6aba65f54de1dda46f7bb18b9b \
+    --hash=sha256:d9a094eab84bdaa4253da3721482282c939da1cce6f4e1759f947e8d3e53406e
     # via feast (pyproject.toml)
 mmh3==5.2.1 \
     --hash=sha256:022aa1a528604e6c83d0a7705fdef0b5355d897a9e0fa3a8d26709ceaa06965d \
@@ -1725,7 +1737,9 @@ numpy==2.5.0 \
     #   feast (pyproject.toml)
     #   dask
     #   db-dtypes
+    #   faiss-cpu
     #   ibis-framework
+    #   milvus-lite
     #   pandas
     #   pandas-gbq
 oauthlib==3.3.1 \
@@ -1814,6 +1828,7 @@ packaging==26.2 \
     # via
     #   dask
     #   db-dtypes
+    #   faiss-cpu
     #   google-cloud-bigquery
     #   gunicorn
     #   ibis-framework
@@ -2158,6 +2173,7 @@ pyarrow==24.0.0 \
     #   db-dtypes
     #   google-cloud-bigquery
     #   ibis-framework
+    #   milvus-lite
     #   pandas-gbq
     #   snowflake-connector-python
 pyarrow-hotfix==0.7 \
@@ -2330,9 +2346,8 @@ pyjwt[crypto]==2.13.0 \
     #   feast (pyproject.toml)
     #   mcp
     #   snowflake-connector-python
-pymilvus==2.6.15 \
-    --hash=sha256:329a20fed7eb78607306ec80289f55151d9238bcfd3ecc61605b653c268326aa \
-    --hash=sha256:c9e67810b40973d917010c176c6c07d3221a8c65b577bd924ae74fb222da8500
+pymilvus==3.0.0 \
+    --hash=sha256:57c8e7c87fbbf579f122b4df893949bc78e50bca2988527864891bd544817b05
     # via feast (pyproject.toml)
 pymysql==1.2.0 \
     --hash=sha256:62169ce6d5510f08e140c5e7990ee884a9764024e4a9a27b2cc11f1099322ae0 \
@@ -2631,6 +2646,7 @@ setuptools==80.10.2 \
     #   feast (pyproject.toml)
     #   pandas-gbq
     #   pydata-google-auth
+    #   pymilvus
 shellingham==1.5.4 \
     --hash=sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686 \
     --hash=sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de
@@ -2824,9 +2840,7 @@ toolz==1.1.0 \
 tqdm==4.68.3 \
     --hash=sha256:00dfa48452b6b6cfae3dd9885636c23d3422d1ec97c66d96818cbd5e0821d482 \
     --hash=sha256:39832cc2def2789a6f29df83f172db7416cea70052c0907a57801c5f2fdccb03
-    # via
-    #   feast (pyproject.toml)
-    #   milvus-lite
+    # via feast (pyproject.toml)
 typeguard==4.5.2 \
     --hash=sha256:5a16dcac23502039299c97c8941651bc33d7ea8cc4b2f7d6bbb1b528f6eea423 \
     --hash=sha256:fcf9de18bd945cdb4c7b996e12b4c51ce83f92f191314a6d7cf1739586ec98cf

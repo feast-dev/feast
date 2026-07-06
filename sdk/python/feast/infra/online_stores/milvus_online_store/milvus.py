@@ -235,6 +235,18 @@ class MilvusOnlineStore(OnlineStore):
                                 max_length=field_max_length,
                             )
                         )
+            has_vector_field = any(
+                f.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR)
+                for f in fields
+            )
+            if not has_vector_field:
+                fields.append(
+                    FieldSchema(
+                        name="_placeholder_vector",
+                        dtype=DataType.FLOAT_VECTOR,
+                        dim=1,
+                    )
+                )
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
@@ -345,10 +357,13 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            # Ensure all required fields exist, setting missing ones to empty strings
+            # Ensure all required fields exist, setting missing ones to defaults
             for field in required_fields:
                 if field not in single_entity_record:
-                    single_entity_record[field] = ""
+                    if field == "_placeholder_vector":
+                        single_entity_record[field] = [float("nan")]
+                    else:
+                        single_entity_record[field] = ""
             # Store only the latest event timestamp per entity
             if (
                 entity_key_str not in unique_entities
