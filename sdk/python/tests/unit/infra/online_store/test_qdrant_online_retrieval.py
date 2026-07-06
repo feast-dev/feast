@@ -329,8 +329,10 @@ def test_retrieve_online_documents_v2_hybrid_dedupes_entities_and_keeps_best_sco
     assert entity_b.entity_values[0].int64_val == 2
     assert features_a is not None
     assert features_b is not None
+    # In hybrid mode, distance holds the fused RRF score (first/best per entity).
+    # text_rank is not populated because RRF doesn't preserve individual sub-scores.
     assert features_a["distance"].float_val == pytest.approx(0.9)
-    assert features_a["text_rank"].float_val == pytest.approx(0.7)
+    assert "text_rank" not in features_a
     assert features_b["distance"].float_val == pytest.approx(0.8)
 
 
