@@ -33,6 +33,7 @@ from feast.types import (
     ValueType,
 )
 from feast.utils import _utc_now
+from feast.vector_store_utils import feature_view_to_vs_id
 from feast.wait import wait_retry_backoff
 from tests.universal.feature_repos.repo_configuration import (
     Environment,
@@ -1524,6 +1525,7 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
 
     fv, _, df = _setup_documents_with_categories(fs)
     vector_dim = 2
+    vs_id = feature_view_to_vs_id(fs.project, "item_embeddings")
 
     fake_embedding = list(np.random.random(vector_dim))
 
@@ -1554,10 +1556,10 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
     for item_result in result["data"]:
         assert "file_id" in item_result
         fid = item_result["file_id"]
-        assert fid.startswith("item_embeddings_")
+        assert fid.startswith(f"{vs_id}_")
         seen_file_ids.add(fid)
         assert "filename" in item_result
-        assert item_result["filename"] == "item_embeddings"
+        assert item_result["filename"] == vs_id
         assert "score" in item_result
         assert isinstance(item_result["score"], float)
         assert "attributes" in item_result

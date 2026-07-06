@@ -533,15 +533,19 @@ The feature server exposes `POST /search` for vector similarity search against o
 
 `POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
 
-## OpenAI-Compatible Vector Store Search
+## OpenAI-Compatible Vector Store API
 
-The feature server exposes an OpenAI-compatible vector store search endpoint. This allows clients (including LLM agents and tool-calling frameworks) to search vector data with plain text queries, without computing embeddings client-side.
+The feature server exposes OpenAI-compatible vector store endpoints. This allows clients (including LLM agents and tool-calling frameworks) to discover and search vector data with plain text queries, without computing embeddings client-side.
 
-### Endpoint
+Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from the project name and feature view name.
 
-`POST /v1/vector_stores/{vector_store_id}/search`
+### Endpoints
 
-The `vector_store_id` path parameter is the **feature view name**.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/v1/vector_stores` | List all vector stores (RBAC: `DESCRIBE` per feature view) |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | Get a single vector store (RBAC: `DESCRIBE`) |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | Search a vector store (RBAC: `READ_ONLINE`) |
 
 ### Configuration
 
@@ -555,10 +559,31 @@ embedding_model:
 
 Two providers are supported: **LiteLLM** (default) for API-backed models (OpenAI, Ollama, Azure, Cohere, etc.) and **Sentence Transformers** (`provider: sentence_transformers`) for local inference without an API key. See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
 
-### Example
+### List vector stores
 
 ```bash
-curl -X POST http://localhost:6566/v1/vector_stores/product_catalog/search \
+curl http://localhost:6566/v1/vector_stores
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
+      "object": "vector_store",
+      "name": "product_catalog",
+      "status": "completed",
+      "created_at": 1717200000
+    }
+  ]
+}
+```
+
+### Search example
+
+```bash
+curl -X POST http://localhost:6566/v1/vector_stores/vs_a1b2c3d4e5f6a1b2c3d4e5f6/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "wireless noise-cancelling headphones",
@@ -579,8 +604,8 @@ The response follows the OpenAI `vector_store.search_results.page` format:
   "search_query": ["wireless noise-cancelling headphones"],
   "data": [
     {
-      "file_id": "product_catalog_42",
-      "filename": "product_catalog",
+      "file_id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6_42",
+      "filename": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
       "score": 0.92,
       "attributes": {"name": "Sony WH-1000XM5", "category": "Electronics"},
       "content": [{"type": "text", "text": "Sony WH-1000XM5"}]

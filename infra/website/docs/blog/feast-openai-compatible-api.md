@@ -13,7 +13,9 @@ If you've tried to connect an AI agent to Feast's vector search, you've probably
 
 Until now, the workaround was ugly. You'd call an embedding provider (OpenAI, Ollama, whatever) to turn the text into a float array, then pass that array to Feast's vector search endpoint (`POST /search`, formerly `retrieve-online-documents`). Every client had to know both APIs, carry both sets of credentials, and run glue code whose only job was bridging the gap.
 
-Feast now has a new endpoint: `POST /v1/vector_stores/{feature_view}/search`. It follows the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format. You send text, Feast handles the embedding internally, and you get results back in the same JSON shape that OpenAI returns. No float arrays, no extra SDK.
+Feast now has a new endpoint: `POST /v1/vector_stores/{vector_store_id}/search`. It follows the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format, including proper `vs_{hash}` identifiers for vector stores. You send text, Feast handles the embedding internally, and you get results back in the same JSON shape that OpenAI returns. No float arrays, no extra SDK.
+
+Each feature view with vector search enabled gets a deterministic `vs_` identifier (e.g. `vs_a1b2c3d4e5f6...`). Discover them via `GET /v1/vector_stores`.
 
 ## The two-API tax
 
@@ -58,8 +60,13 @@ With the new endpoint, that same search looks like this:
 ```python
 import requests
 
+# First, discover your vector store IDs
+stores = requests.get("http://feast-server:6566/v1/vector_stores").json()
+vs_id = stores["data"][0]["id"]  # e.g. "vs_a1b2c3d4e5f6..."
+
+# Then search using the vs_ identifier
 result = requests.post(
-    "http://feast-server:6566/v1/vector_stores/product_catalog/search",
+    f"http://feast-server:6566/v1/vector_stores/{vs_id}/search",
     json={
         "query": "wireless noise-cancelling headphones",
         "max_num_results": 5,
@@ -171,10 +178,31 @@ feast apply
 feast serve
 ```
 
-### Step 4: Search
+### Step 4: Discover your vector store ID
 
 ```bash
-curl -X POST http://localhost:6566/v1/vector_stores/product_catalog/search \
+curl http://localhost:6566/v1/vector_stores
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
+      "object": "vector_store",
+      "name": "product_catalog",
+      "status": "completed",
+      "created_at": 1717200000
+    }
+  ]
+}
+```
+
+### Step 5: Search
+
+```bash
+curl -X POST http://localhost:6566/v1/vector_stores/vs_a1b2c3d4e5f6a1b2c3d4e5f6/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "wireless noise-cancelling headphones",
@@ -190,8 +218,8 @@ Response:
   "search_query": ["wireless noise-cancelling headphones"],
   "data": [
     {
-      "file_id": "product_catalog_42",
-      "filename": "product_catalog",
+      "file_id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6_42",
+      "filename": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
       "score": 0.92,
       "attributes": {
         "name": "Sony WH-1000XM5",
@@ -277,7 +305,9 @@ Now the search tool is just text in, structured results out. An agent calls it t
 |---|---|---|
 | Structured feature lookup | `get-online-features` | Get customer profiles, account data, etc. |
 | Vector search | `search` | Search with a pre-computed embedding vector (or text via `api_version: 2`) |
-| Vector search (OpenAI format) | `/v1/vector_stores/{id}/search` | Search with plain text, embedding handled server-side |
+| List vector stores | `GET /v1/vector_stores` | Discover available vector stores and their `vs_` IDs |
+| Get vector store | `GET /v1/vector_stores/{id}` | Get metadata for a specific vector store |
+| Vector search (OpenAI format) | `POST /v1/vector_stores/{id}/search` | Search with plain text, embedding handled server-side |
 | Write features / memory | `write-to-online-store` | Persist agent state, update features |
 
 `POST /retrieve-online-documents` remains available as a deprecated alias for `POST /search`.
@@ -290,7 +320,9 @@ This makes Feast's vector search speak OpenAI's protocol. It doesn't turn Feast 
 
 | Works today | Not yet |
 |---|---|
-| `POST /v1/vector_stores/{id}/search` | Creating vector stores via the API |
+| `GET /v1/vector_stores` (list) | Creating vector stores via the API |
+| `GET /v1/vector_stores/{id}` (get) | |
+| `POST /v1/vector_stores/{id}/search` | |
 | Plain text queries with server-side embedding | Client-provided embedding vectors on this endpoint |
 | OpenAI-format filters (string, numeric, compound) | `ranking_options.score_threshold`, `ranking_options.ranker`, `rewrite_query: true` (rejected with 422) |
 | All Feast online store backends | Standalone `/v1/embeddings` endpoint |
@@ -332,7 +364,11 @@ ollama pull nomic-embed-text
 Configure your `feature_store.yaml` with an `embedding_model` section, define a feature view with vector search enabled, run `feast apply`, load your data, start the server with `feast serve`, and search:
 
 ```bash
-curl -s http://localhost:6566/v1/vector_stores/your_feature_view/search \
+# Discover your vector store IDs
+curl -s http://localhost:6566/v1/vector_stores | python -m json.tool
+
+# Search using the vs_ identifier from the list response
+curl -s http://localhost:6566/v1/vector_stores/YOUR_VS_ID/search \
   -H "Content-Type: application/json" \
   -d '{"query": "your search query", "max_num_results": 5}' | python -m json.tool
 ```

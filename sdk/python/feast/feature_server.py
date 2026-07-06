@@ -68,6 +68,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.vector_store_utils import VectorStoreRegistry, build_vector_store_object
 
 
 # TODO: deprecate this in favor of push features
@@ -138,6 +139,14 @@ class OpenAISearchRequest(BaseModel):
     ranking_options: Optional[OpenAIRankingOptions] = None
     rewrite_query: Optional[bool] = None
     metadata: Optional[OpenAISearchMetadata] = None
+
+
+class OpenAIVectorStoreObject(BaseModel):
+    id: str
+    object: str = "vector_store"
+    name: str
+    status: str = "completed"
+    created_at: int = 0
 
 
 class FeatureVectorResponse(BaseModel):
@@ -349,6 +358,8 @@ def get_app(
     - `/get-online-features`: Get online features
     - `/search`: Vector similarity search (RAG)
     - `/retrieve-online-documents`: Deprecated alias for `/search`
+    - `/v1/vector_stores`: List vector stores (GET)
+    - `/v1/vector_stores/{vector_store_id}`: Get a vector store (GET)
     - `/v1/vector_stores/{vector_store_id}/search`: OpenAI-compatible vector search
     - `/push`: Push features to the feature store
     - `/write-to-online-store`: Write to the online store
@@ -406,11 +417,14 @@ def get_app(
         if active_timer:
             active_timer.cancel()
 
+    vs_registry = VectorStoreRegistry(store)
+
     def async_refresh():
         if shutting_down:
             return
 
         store.refresh_registry()
+        vs_registry.refresh()
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -543,6 +557,41 @@ def get_app(
             request, metrics_path="/retrieve-online-documents"
         )
 
+    @app.get(
+        "/v1/vector_stores",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def list_vector_stores() -> JSONResponse:
+        permitted: list = []
+        for obj in vs_registry.list_vector_stores():
+            fv = vs_registry.resolve(obj["id"])
+            try:
+                assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+                permitted.append(obj)
+            except Exception:
+                pass
+        return JSONResponse(content={"object": "list", "data": permitted})
+
+    @app.get(
+        "/v1/vector_stores/{vector_store_id}",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def get_vector_store(vector_store_id: str) -> JSONResponse:
+        try:
+            fv = vs_registry.resolve(vector_store_id)
+            assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+        except FeatureViewNotFoundException:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "message": f"No vector store found with id '{vector_store_id}'",
+                        "type": "not_found_error",
+                    }
+                },
+            )
+        return JSONResponse(content=build_vector_store_object(store.project, fv))
+
     @app.post(
         "/v1/vector_stores/{vector_store_id}/search",
         dependencies=[Depends(inject_user_details)],
@@ -555,17 +604,16 @@ def get_app(
             "/v1/vector_stores/{vector_store_id}/search"
         ):
             try:
-                feature_view = await run_in_threadpool(
-                    store.get_feature_view, vector_store_id
-                )
+                feature_view = vs_registry.resolve(vector_store_id)
                 assert_permissions(
                     resource=feature_view,
                     actions=[AuthzedAction.READ_ONLINE],
                 )
 
                 result = await store.retrieve_online_documents_openai(
-                    vector_store_id=vector_store_id,
+                    vector_store_id=feature_view.name,
                     query=request.query,
+                    vs_id=vector_store_id,
                     max_num_results=request.max_num_results or 10,
                     filters=request.filters,
                     ranking_options=(

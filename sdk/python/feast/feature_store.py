@@ -115,6 +115,7 @@ from feast.utils import (
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
+from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
 try:
@@ -4151,6 +4152,8 @@ class FeatureStore:
         self,
         vector_store_id: str,
         query: Union[str, List[str]],
+        *,
+        vs_id: Optional[str] = None,
         max_num_results: int = 10,
         filters: Optional[
             Union[ComparisonFilter, CompoundFilter, Dict[str, Any]]
@@ -4223,6 +4226,7 @@ class FeatureStore:
             )
 
         feature_view = self.get_feature_view(vector_store_id)
+        display_id = vs_id or feature_view_to_vs_id(self.project, vector_store_id)
 
         vector_field_metadata = _get_feature_view_vector_field_metadata(feature_view)
         distance_metric: Optional[str] = None
@@ -4291,14 +4295,14 @@ class FeatureStore:
                         for k in sorted(entity_key_names)
                         if k in response_dict and i < len(response_dict[k])
                     ]
-                    file_id = f"{vector_store_id}_{'_'.join(key_parts)}"
+                    file_id = f"{display_id}_{'_'.join(key_parts)}"
                 else:
-                    file_id = f"{vector_store_id}_{i}"
+                    file_id = f"{display_id}_{i}"
 
                 result_data.append(
                     {
                         "file_id": file_id,
-                        "filename": vector_store_id,
+                        "filename": display_id,
                         "score": score,
                         "attributes": attributes,
                         "content": content_parts
