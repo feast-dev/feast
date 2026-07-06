@@ -148,10 +148,11 @@ func ExtractTransformationResponse(
 		}
 
 		result = append(result, &onlineserving.FeatureVector{
-			Name:       featureName,
-			Values:     outRecord.Column(idx),
-			Statuses:   statuses,
-			Timestamps: timestamps,
+			Name:            featureName,
+			FeatureViewName: featureView.Base.Name,
+			Values:          outRecord.Column(idx),
+			Statuses:        statuses,
+			Timestamps:      timestamps,
 		})
 	}
 

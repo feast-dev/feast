@@ -46,9 +46,9 @@ func TestAggregator_AllNotFound(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := newTestAggregator(fake)
 
-	agg.Record("user_fv__age", serving.FieldStatus_NOT_FOUND)
-	agg.Record("user_fv__age", serving.FieldStatus_NOT_FOUND)
-	agg.Record("user_fv__age", serving.FieldStatus_NOT_FOUND)
+	agg.Record("user_fv__age", "user_fv", serving.FieldStatus_NOT_FOUND)
+	agg.Record("user_fv__age", "user_fv", serving.FieldStatus_NOT_FOUND)
+	agg.Record("user_fv__age", "user_fv", serving.FieldStatus_NOT_FOUND)
 	agg.Emit()
 
 	notFoundCalls := filterCalls(fake.calls, LookupNotFoundMetric)
@@ -67,9 +67,9 @@ func TestAggregator_AllNullOrExpired(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := newTestAggregator(fake)
 
-	agg.Record("order_fv__amt", serving.FieldStatus_NULL_VALUE)
-	agg.Record("order_fv__amt", serving.FieldStatus_NULL_VALUE)
-	agg.Record("order_fv__amt", serving.FieldStatus_OUTSIDE_MAX_AGE)
+	agg.Record("order_fv__amt", "order_fv", serving.FieldStatus_NULL_VALUE)
+	agg.Record("order_fv__amt", "order_fv", serving.FieldStatus_NULL_VALUE)
+	agg.Record("order_fv__amt", "order_fv", serving.FieldStatus_OUTSIDE_MAX_AGE)
 	agg.Emit()
 
 	nullCalls := filterCalls(fake.calls, LookupNullOrExpiredMetric)
@@ -88,11 +88,11 @@ func TestAggregator_MixedStatuses(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := newTestAggregator(fake)
 
-	agg.Record("fv_a__f1", serving.FieldStatus_PRESENT)
-	agg.Record("fv_a__f1", serving.FieldStatus_NOT_FOUND)
-	agg.Record("fv_b__f2", serving.FieldStatus_NULL_VALUE)
-	agg.Record("fv_b__f2", serving.FieldStatus_PRESENT)
-	agg.Record("fv_b__f2", serving.FieldStatus_OUTSIDE_MAX_AGE)
+	agg.Record("fv_a__f1", "fv_a", serving.FieldStatus_PRESENT)
+	agg.Record("fv_a__f1", "fv_a", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv_b__f2", "fv_b", serving.FieldStatus_NULL_VALUE)
+	agg.Record("fv_b__f2", "fv_b", serving.FieldStatus_PRESENT)
+	agg.Record("fv_b__f2", "fv_b", serving.FieldStatus_OUTSIDE_MAX_AGE)
 	agg.Emit()
 
 	notFoundCalls := filterCalls(fake.calls, LookupNotFoundMetric)
@@ -117,8 +117,8 @@ func TestAggregator_AllPresent(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := newTestAggregator(fake)
 
-	agg.Record("fv__f1", serving.FieldStatus_PRESENT)
-	agg.Record("fv__f1", serving.FieldStatus_PRESENT)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_PRESENT)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_PRESENT)
 	agg.Emit()
 
 	// No not_found or null_or_expired calls
@@ -136,7 +136,7 @@ func TestAggregator_AllPresent(t *testing.T) {
 
 func TestAggregator_NilSafe(t *testing.T) {
 	var agg *LookupMetricsAggregator
-	agg.Record("fv__f1", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_NOT_FOUND)
 	agg.RecordFromFeatureVectors(nil)
 	agg.RecordFromRangeFeatureVectors(nil)
 	agg.Emit()
@@ -151,7 +151,7 @@ func TestAggregator_Tags(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := NewLookupMetricsAggregator("mlpfs", "eg-valkey", fake, 1.0)
 
-	agg.Record("hotel_fv__price", serving.FieldStatus_NOT_FOUND)
+	agg.Record("hotel_fv__price", "hotel_fv", serving.FieldStatus_NOT_FOUND)
 	agg.Emit()
 
 	notFoundCalls := filterCalls(fake.calls, LookupNotFoundMetric)
@@ -169,12 +169,14 @@ func TestRecordFromFeatureVectors(t *testing.T) {
 
 	vectors := []*onlineserving.FeatureVector{
 		{
-			Name:     "fv_a__f1",
-			Statuses: []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_NOT_FOUND},
+			Name:            "fv_a__f1",
+			FeatureViewName: "fv_a",
+			Statuses:        []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_NOT_FOUND},
 		},
 		{
-			Name:     "fv_a__f2",
-			Statuses: []serving.FieldStatus{serving.FieldStatus_NOT_FOUND, serving.FieldStatus_NOT_FOUND},
+			Name:            "fv_a__f2",
+			FeatureViewName: "fv_a",
+			Statuses:        []serving.FieldStatus{serving.FieldStatus_NOT_FOUND, serving.FieldStatus_NOT_FOUND},
 		},
 	}
 
@@ -207,7 +209,8 @@ func TestRecordFromRangeFeatureVectors(t *testing.T) {
 
 	vectors := []*onlineserving.RangeFeatureVector{
 		{
-			Name: "sfv__f1",
+			Name:            "sfv__f1",
+			FeatureViewName: "sfv",
 			RangeStatuses: [][]serving.FieldStatus{
 				{serving.FieldStatus_PRESENT, serving.FieldStatus_NOT_FOUND},
 				{serving.FieldStatus_NOT_FOUND},
@@ -246,29 +249,6 @@ func TestIsMissingKeyMetricsEnabled(t *testing.T) {
 }
 
 func TestGetOnlineStoreType(t *testing.T) {
-}
-
-func TestExtractFeatureView(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"standard format", "hotel_fv__price", "hotel_fv"},
-		{"with underscore in feature", "hotel_fv__review_score_avg", "hotel_fv"},
-		{"multiple feature views", "user_fv__age", "user_fv"},
-		{"long feature view name", "ranking_signals_fv__score", "ranking_signals_fv"},
-		{"no double underscore", "age", "unknown"},
-		{"colon separator", "hotel_fv:price", "unknown"},
-		{"empty string", "", "unknown"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractFeatureView(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }
 
 // findTag extracts the value portion of a tag matching the given prefix.
@@ -334,8 +314,8 @@ func TestSampling_AdjustsCountsCorrectly(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := NewLookupMetricsAggregator("test_project", "redis", fake, 0.5)
 
-	agg.Record("fv__f1", serving.FieldStatus_NOT_FOUND)
-	agg.Record("fv__f1", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_NOT_FOUND)
 	agg.Emit()
 
 	notFoundCalls := filterCalls(fake.calls, LookupNotFoundMetric)
@@ -349,8 +329,8 @@ func TestSampling_NoAdjustmentWhenNotSampling(t *testing.T) {
 	fake := &fakeStatsdClient{}
 	agg := NewLookupMetricsAggregator("test_project", "redis", fake, 1.0)
 
-	agg.Record("fv__f1", serving.FieldStatus_NOT_FOUND)
-	agg.Record("fv__f1", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_NOT_FOUND)
+	agg.Record("fv__f1", "fv", serving.FieldStatus_NOT_FOUND)
 	agg.Emit()
 
 	notFoundCalls := filterCalls(fake.calls, LookupNotFoundMetric)

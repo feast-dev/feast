@@ -29,24 +29,29 @@ import (
 FeatureVector type represent result of retrieving single feature for multiple rows.
 It can be imagined as a column in output dataframe / table.
 It contains of feature name, list of values (across all rows),
-list of statuses and list of timestamp. All these lists have equal length.
+list of statuses and list of timestamp. FeatureViewName contains the name of the
+feature view this vector belongs to, used for metrics tagging to avoid string parsing.
+All these lists have equal length.
 And this length is also equal to number of entity rows received in request.
 */
 type FeatureVector struct {
-	Name       string
-	Values     interface{}
-	Statuses   []serving.FieldStatus
-	Timestamps []*timestamppb.Timestamp
+	Name            string
+	FeatureViewName string
+	Values          interface{}
+	Statuses        []serving.FieldStatus
+	Timestamps      []*timestamppb.Timestamp
 }
 
 /*
 RangeFeatureVector type represent result of retrieving a range of features for multiple entities.
 It is similar to FeatureVector but contains a list of lists of values, a list of lists of statuses and a list of lists
 of timestamps where each inner list represents the range of values, statuses, timestamps for a single entity.
+FeatureViewName contains the name of the feature view this vector belongs to.
 Each of these lists are of equal dimensionality.
 */
 type RangeFeatureVector struct {
 	Name            string
+	FeatureViewName string
 	RangeValues     interface{}
 	RangeStatuses   [][]serving.FieldStatus
 	RangeTimestamps [][]*timestamppb.Timestamp
@@ -766,10 +771,16 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 	vectors := make([]*FeatureVector, numFeatures)
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
+		// Determine feature view name from groupRef
+		featureViewName = ""
+		if featureIndex < len(groupRef.FeatureViewNames) {
+			featureViewName = groupRef.FeatureViewNames[featureIndex]
+		}
 		currentVector := &FeatureVector{
-			Name:       groupRef.AliasedFeatureNames[featureIndex],
-			Statuses:   make([]serving.FieldStatus, numRows),
-			Timestamps: make([]*timestamppb.Timestamp, numRows),
+			Name:            groupRef.AliasedFeatureNames[featureIndex],
+			FeatureViewName: featureViewName,
+			Statuses:        make([]serving.FieldStatus, numRows),
+			Timestamps:      make([]*timestamppb.Timestamp, numRows),
 		}
 		vectors[featureIndex] = currentVector
 		protoValues := make([]*prototypes.Value, numRows)
@@ -839,7 +850,12 @@ func TransposeRangeFeatureRowsIntoColumns(
 	vectors := make([]*RangeFeatureVector, numFeatures)
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
-		currentVector := initializeRangeFeatureVector(groupRef.AliasedFeatureNames[featureIndex], numRows)
+		// Determine feature view name from groupRef
+		featureViewName := ""
+		if featureIndex < len(groupRef.FeatureViewNames) {
+			featureViewName = groupRef.FeatureViewNames[featureIndex]
+		}
+		currentVector := initializeRangeFeatureVector(groupRef.AliasedFeatureNames[featureIndex], featureViewName, numRows)
 		vectors[featureIndex] = currentVector
 
 		rangeValuesByRow := make([]*prototypes.RepeatedValue, numRows)
@@ -879,9 +895,10 @@ func TransposeRangeFeatureRowsIntoColumns(
 	return vectors, nil
 }
 
-func initializeRangeFeatureVector(name string, numRows int) *RangeFeatureVector {
+func initializeRangeFeatureVector(name, featureViewName string, numRows int) *RangeFeatureVector {
 	return &RangeFeatureVector{
 		Name:            name,
+		FeatureViewName: featureViewName,
 		RangeStatuses:   make([][]serving.FieldStatus, numRows),
 		RangeTimestamps: make([][]*timestamppb.Timestamp, numRows),
 	}
@@ -1070,10 +1087,11 @@ func EntitiesToFeatureVectors(entityColumns map[string]*prototypes.RepeatedValue
 			return nil, errors.GrpcFromError(err)
 		}
 		vectors = append(vectors, &FeatureVector{
-			Name:       entityName,
-			Values:     entityColumn,
-			Statuses:   presentVector,
-			Timestamps: timestampVector,
+			Name:            entityName,
+			FeatureViewName: "", // Entity columns don't belong to a feature view
+			Values:          entityColumn,
+			Statuses:        presentVector,
+			Timestamps:      timestampVector,
 		})
 	}
 	return vectors, nil
