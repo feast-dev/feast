@@ -471,6 +471,44 @@ class QdrantOnlineStore(OnlineStore):
             Optional[Dict[str, ValueProto]],
         ]
     ]:
+        """Retrieve documents from Qdrant with all requested features per entity.
+
+        Qdrant stores one point per feature, so this method searches on the
+        vector (and/or sparse) field and then joins the remaining features via
+        a scroll query keyed on entity_key.
+
+        Three search modes are supported:
+
+        * **Dense only** (``embedding`` provided, no ``query_string``): standard
+          nearest-neighbour search on the named dense vector.
+        * **Sparse / text only** (``query_string`` provided, no ``embedding``):
+          BM25 keyword search on the sparse vector field.
+        * **Hybrid** (both ``embedding`` *and* ``query_string``): two prefetch
+          queries (dense + sparse) fused via Reciprocal Rank Fusion (RRF).
+          The returned ``distance`` value is the **fused RRF rank score**, not a
+          raw cosine similarity or BM25 relevance.  ``text_rank`` is not
+          populated in hybrid mode because individual sub-scores are unavailable
+          after fusion.
+
+        Args:
+            config: Feast repo configuration.
+            table: The FeatureView whose collection to search.
+            requested_features: Feature names to return for each hit entity.
+            embedding: Dense query vector (required unless ``query_string`` given).
+            top_k: Maximum number of unique entities to return.
+            distance_metric: Optional metric name for validation.  The actual
+                metric used is always the one configured on the collection at
+                creation time (``online_store.similarity``).
+            query_string: Text query for sparse / hybrid search (requires
+                ``text_search_enabled: true`` in the online store config).
+            include_feature_view_version_metadata: Reserved for future use.
+
+        Returns:
+            A list of ``(timestamp, entity_key_proto, feature_dict)`` tuples
+            ordered by descending relevance.  ``feature_dict`` includes a
+            ``distance`` entry (float) and, for text-only search, a
+            ``text_rank`` entry.
+        """
         online_store_config = config.online_store
         assert isinstance(online_store_config, QdrantOnlineStoreConfig)
 
@@ -490,6 +528,16 @@ class QdrantOnlineStore(OnlineStore):
         metric = (distance_metric or online_store_config.similarity or "cosine").lower()
         if metric not in DISTANCE_MAPPING:
             raise ValueError(f"Unsupported distance metric: {metric}")
+        configured = (online_store_config.similarity or "cosine").lower()
+        if distance_metric is not None and metric != configured:
+            logger.warning(
+                "distance_metric=%r differs from the collection's configured "
+                "similarity=%r. Qdrant always uses the metric set at collection "
+                "creation time; the distance_metric parameter has no effect on "
+                "the query.",
+                distance_metric,
+                configured,
+            )
 
         client = self._get_client(config)
         collection_name = table.name
@@ -506,6 +554,7 @@ class QdrantOnlineStore(OnlineStore):
 
         sparse_score_by_entity: Dict[bytes, float] = {}
         dense_score_by_entity: Dict[bytes, float] = {}
+        fused_score_by_entity: Dict[bytes, float] = {}
         hit_order: List[bytes] = []
         hit_payload_by_entity: Dict[bytes, Dict[str, Any]] = {}
 
@@ -526,9 +575,12 @@ class QdrantOnlineStore(OnlineStore):
                     limit=top_k,
                 ),
             ]
-            # One Qdrant point per feature: the same entity may appear twice in
-            # fused results (embedding + text_field). Request extra points so we
-            # can dedupe to top_k unique entities.
+            # Qdrant stores one point per feature. In RRF fusion the same
+            # entity can appear twice — once from the embedding point and once
+            # from the text_field point. We request top_k * 2 points so that
+            # after deduplication we still have up to top_k unique entities.
+            # This factor assumes exactly 2 point types participate in fusion
+            # (the dense embedding and the sparse text_field).
             response = client.query_points(
                 collection_name=collection_name,
                 prefetch=prefetches,
@@ -562,9 +614,6 @@ class QdrantOnlineStore(OnlineStore):
             points = response.points
 
         is_hybrid = embedding is not None and query_string is not None
-        text_feature_name = (
-            _resolve_text_feature(table, online_store_config) if is_hybrid else None
-        )
 
         for point in points:
             payload = point.payload or {}
@@ -576,12 +625,11 @@ class QdrantOnlineStore(OnlineStore):
             hit_payload_by_entity.setdefault(entity_key_bin, payload)
             if point.score is not None:
                 score = float(point.score)
-                feature_name = payload.get("feature_name")
                 if is_hybrid:
-                    if feature_name == vector_field_name:
-                        dense_score_by_entity.setdefault(entity_key_bin, score)
-                    elif feature_name == text_feature_name:
-                        sparse_score_by_entity.setdefault(entity_key_bin, score)
+                    # RRF fusion produces a single fused rank score per point,
+                    # not the original cosine/BM25 sub-scores. Keep the first
+                    # (highest) fused score per entity.
+                    fused_score_by_entity.setdefault(entity_key_bin, score)
                 else:
                     if embedding is not None:
                         dense_score_by_entity.setdefault(entity_key_bin, score)
@@ -609,12 +657,16 @@ class QdrantOnlineStore(OnlineStore):
         ] = []
         for entity_key_bin in hit_order:
             payload = hit_payload_by_entity[entity_key_bin]
-            distance = dense_score_by_entity.get(entity_key_bin)
-            text_rank = (
-                sparse_score_by_entity.get(entity_key_bin)
-                if query_string is not None
-                else None
-            )
+            if is_hybrid:
+                distance = fused_score_by_entity.get(entity_key_bin)
+                text_rank = None
+            else:
+                distance = dense_score_by_entity.get(entity_key_bin)
+                text_rank = (
+                    sparse_score_by_entity.get(entity_key_bin)
+                    if query_string is not None
+                    else None
+                )
             results.append(
                 self._build_v2_result(
                     entity_key_bin,
