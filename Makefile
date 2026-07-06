@@ -89,10 +89,18 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
-	# Install CPU-only torch first to prevent CUDA dependency issues
+	# Install CPU-only torch first to prevent CUDA dependency issues.
+	# torch is pre-installed via pip (not uv) because uv's rustls stack has a TLS
+	# handshake incompatibility with PyTorch's download-r2.pytorch.org CDN; pip uses
+	# OpenSSL which handles it correctly. uv pip sync then sees torch already at the
+	# right version and skips re-downloading it.
 	pip uninstall torch torchvision -y || true
 	@if [ "$$(uname -s)" = "Linux" ]; then \
-		echo "Installing dependencies with torch CPU index for Linux..."; \
+		echo "Pre-installing torch CPU wheels via pip..."; \
+		TORCH_VER=$$(grep "^torch==" sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt | cut -d= -f3 | tr -d ' \\'); \
+		TORCHVISION_VER=$$(grep "^torchvision==" sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt | cut -d= -f3 | tr -d ' \\'); \
+		pip install --extra-index-url https://download.pytorch.org/whl/cpu torch==$${TORCH_VER}+cpu torchvision==$${TORCHVISION_VER}+cpu; \
+		echo "Installing remaining dependencies via uv..."; \
 		uv pip sync --system --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	else \
 		echo "Installing dependencies from PyPI for macOS..."; \
