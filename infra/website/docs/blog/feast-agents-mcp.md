@@ -338,7 +338,7 @@ export OPENAI_BASE_URL="http://localhost:11434/v1"
 export LLM_MODEL="llama3.1:8b"
 ./run_demo.sh
 
-# Any OpenAI-compatible provider (Azure, vLLM, LiteLLM, etc.)
+# Any OpenAI-compatible provider (Azure, vLLM, etc.)
 export OPENAI_API_KEY="your-key"  # pragma: allowlist secret
 export OPENAI_BASE_URL="https://your-endpoint/v1"
 export LLM_MODEL="your-model"

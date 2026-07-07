@@ -1,7 +1,7 @@
 ---
-title: "Making Feast Speak OpenAI: Vector Search Without the Glue Code"
+title: "Using Feast's OpenAI Compatible Search API"
 description: "Feast now exposes an OpenAI-compatible vector store search endpoint. Send a plain text query, get results back in the standard OpenAI format. No client-side embeddings required."
-date: 2026-05-15
+date: 2026-07-07
 authors: ["Chaitanya Patel", "Nikhil Kathole"]
 ---
 
@@ -80,7 +80,7 @@ No embedding SDK. No raw vectors. The request and response match OpenAI's format
 
 When Feast receives this request, it:
 
-1. Embeds the query server-side using the model configured in `feature_store.yaml` (via [LiteLLM](https://docs.litellm.ai/), which supports OpenAI, Ollama, Azure, Cohere, HuggingFace, and 100+ other providers).
+1. Embeds the query server-side using the model configured in `feature_store.yaml` (via [Sentence Transformers](https://www.sbert.net/) for local inference — no external API key required).
 2. Runs vector similarity search against the feature view's online store (Postgres/pgvector, Milvus, Elasticsearch, SQLite, or whatever backend you've configured).
 3. Applies filters if you provided any, using string equality, numeric comparisons, or compound AND/OR conditions in the OpenAI filter format.
 4. Returns results in OpenAI's `vector_store.search_results.page` format.
@@ -110,35 +110,20 @@ online_store:
   enable_openai_compatible_store: true
 
 embedding_model:
-  model: text-embedding-3-small
-  api_key: ${OPENAI_API_KEY}
+  provider: sentence_transformers   # default; can be omitted
+  model: all-MiniLM-L6-v2
 ```
 
-Feast uses [LiteLLM](https://docs.litellm.ai/) under the hood, so any provider works:
+Feast uses [Sentence Transformers](https://www.sbert.net/) for embedding, so everything runs locally — no external API key required. You can use any HuggingFace model compatible with `SentenceTransformer`:
 
 ```yaml
-# OpenAI
+# Default — lightweight, fast
 embedding_model:
-  model: text-embedding-3-small
-  api_key: sk-...
+  model: all-MiniLM-L6-v2
 
-# Ollama (local, no API key needed)
+# Higher quality, larger model
 embedding_model:
-  model: ollama/nomic-embed-text
-  api_base: http://localhost:11434
-
-# Azure OpenAI
-embedding_model:
-  model: azure/text-embedding-ada-002
-  api_key: ${AZURE_API_KEY}
-  api_base: https://your-resource.openai.azure.com
-  api_version: "2024-02-01"
-
-# Any OpenAI-compatible endpoint (vLLM, LiteLLM proxy, etc.)
-embedding_model:
-  model: text-embedding-3-small
-  api_key: ${API_KEY}
-  api_base: https://your-endpoint/v1
+  model: BAAI/bge-small-en-v1.5
 ```
 
 ### Step 2: Define a feature view with vector search
@@ -331,13 +316,13 @@ Feature views are still defined in Python and managed through `feast apply`. Dat
 
 ## Deploying on Kubernetes
 
-Below is an example Kubernetes setup that deploys the feature server with an Ollama sidecar for local embedding:
+Below is an example Kubernetes setup that deploys the feature server with Sentence Transformers for local embedding:
 
 ```yaml
 # configmap.yaml (embedding model section)
 embedding_model:
-  model: ollama/nomic-embed-text
-  api_base: http://feast-ollama:11434
+  provider: sentence_transformers
+  model: all-MiniLM-L6-v2
 ```
 
 ```yaml
@@ -354,11 +339,8 @@ With this setup, embedding happens in-cluster. Nothing leaves your network.
 ## Try it yourself
 
 ```bash
-# Install Feast with LiteLLM support
-pip install feast litellm
-
-# If using Ollama for local embeddings (no API key needed)
-ollama pull nomic-embed-text
+# Install Feast with Sentence Transformers support
+pip install feast sentence-transformers
 ```
 
 Configure your `feature_store.yaml` with an `embedding_model` section, define a feature view with vector search enabled, run `feast apply`, load your data, start the server with `feast serve`, and search:

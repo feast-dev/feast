@@ -198,7 +198,7 @@ class FeatureStore:
                 At most one of 'fs_yaml_file' and 'config' can be set.
             embedding_provider (optional): Custom embedding provider implementing
                 the :class:`~feast.embedder.EmbeddingProvider` protocol. When not
-                supplied, a :class:`~feast.embedder.LiteLLMEmbeddingProvider` is
+                supplied, a :class:`~feast.embedder.SentenceTransformersEmbeddingProvider` is
                 created from ``embedding_model`` in ``feature_store.yaml``.
 
         Raises:
@@ -410,13 +410,7 @@ class FeatureStore:
                     "configured in feature_store.yaml. Either pass an "
                     "embedding_provider to FeatureStore() or add an "
                     "'embedding_model' section to feature_store.yaml.\n"
-                    "Examples:\n"
-                    "  # LiteLLM (API-backed — OpenAI, Azure, Ollama, …)\n"
-                    "  embedding_model:\n"
-                    "    provider: litellm\n"
-                    "    model: text-embedding-3-small\n"
-                    "    api_key: sk-...\n\n"
-                    "  # Sentence Transformers (local, no API key required)\n"
+                    "Example:\n"
                     "  embedding_model:\n"
                     "    provider: sentence_transformers\n"
                     "    model: all-MiniLM-L6-v2"
@@ -4165,8 +4159,8 @@ class FeatureStore:
         """
         OpenAI-compatible vector store search.
 
-        Accepts a raw query string, optionally embeds it via LiteLLM
-        (when ``query_embedding_model`` is configured in feature_store.yaml),
+        Accepts a raw query string, embeds it via the configured embedding
+        provider (when ``embedding_model`` is configured in feature_store.yaml),
         and returns results in OpenAI's ``vector_store.search_results.page``
         format.
 

@@ -50,25 +50,15 @@ This is useful for AI agents and LLM tool-calling workflows where the client can
 
 ### Requirements
 
-- An `embedding_model` section in your `feature_store.yaml`. Two providers are supported:
-
-  **LiteLLM** (default) — API-backed models via [LiteLLM](https://docs.litellm.ai/) (OpenAI, Azure, Ollama, Cohere, etc.):
+- An `embedding_model` section in your `feature_store.yaml`. Feast uses [Sentence Transformers](https://www.sbert.net/) for local embedding — no external API key required (`pip install sentence-transformers`):
 
   ```yaml
   embedding_model:
-    provider: litellm          # default; can be omitted
-    model: text-embedding-3-small
-    api_key: ${OPENAI_API_KEY}
-    # api_base, api_version, dimensions are optional
-  ```
-
-  **Sentence Transformers** — local inference, no API key required (`pip install sentence-transformers`):
-
-  ```yaml
-  embedding_model:
-    provider: sentence_transformers
+    provider: sentence_transformers   # default; can be omitted
     model: all-MiniLM-L6-v2
   ```
+
+  Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol and passing an instance to `FeatureStore`.
 
 - A feature view with `vector_index=True` on a vector field, materialized to an online store that supports vector search.
 - For metadata filtering with numeric or boolean comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply` to update the schema.

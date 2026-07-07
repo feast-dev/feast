@@ -553,11 +553,11 @@ Add an `embedding_model` section to your `feature_store.yaml`:
 
 ```yaml
 embedding_model:
-  model: text-embedding-3-small
-  api_key: ${OPENAI_API_KEY}
+  provider: sentence_transformers   # default; can be omitted
+  model: all-MiniLM-L6-v2
 ```
 
-Two providers are supported: **LiteLLM** (default) for API-backed models (OpenAI, Ollama, Azure, Cohere, etc.) and **Sentence Transformers** (`provider: sentence_transformers`) for local inference without an API key. See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
+Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
 
 ### List vector stores
 
