@@ -2424,8 +2424,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.64.1.dev43+g62f787425
-  sha256: c70a5aa8ddb601588c2aebe6ee791f55b2797d6e2d77a822de53ca3c71874f03
+  version: 0.1.dev4634+g955403e8e.d20260723
+  sha256: 6fabc7e003548d64df6763bbd673f7af429ea810c6dd5a1bbeef5c9dad918b94
   requires_dist:
   - attrs
   - click>=7.0.0,<9.0.0
@@ -2518,6 +2518,7 @@ packages:
   - psycopg[c,pool]>=3.2.5 ; extra == 'postgres-c'
   - torch>=2.7.0 ; extra == 'pytorch'
   - torchvision>=0.22.1 ; extra == 'pytorch'
+  - pinecone>=5.0 ; extra == 'pinecone'
   - qdrant-client>=1.12.0 ; extra == 'qdrant'
   - transformers>=4.36.0 ; extra == 'rag'
   - datasets>=3.6.0 ; extra == 'rag'
@@ -2549,7 +2550,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,pinecone,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
