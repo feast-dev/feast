@@ -112,7 +112,7 @@ install-python-dependencies-ci: ## Install Python CI dependencies using uv pip s
 	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \
-		uv pip sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	else \
 		echo "Installing dependencies from PyPI for macOS..."; \
 		uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
