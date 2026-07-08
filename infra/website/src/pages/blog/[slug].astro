@@ -106,7 +106,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     max-width: 1024px;
     padding: 0 20px;
     word-break: break-word;
-    color: rgb(0, 0, 0);
+    color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizelegibility;
     font-feature-settings: "ss03";
@@ -116,7 +116,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     font-family: var(--font-sans);
     font-size: 20px;
     line-height: 1.5;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0 auto 24px;
     max-width: 768px;
   }
@@ -124,7 +124,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-meta {
     font-family: var(--font-sans);
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     display: flex;
     gap: 16px;
     justify-content: center;
@@ -197,7 +197,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
 
   /* Code blocks */
   .blog-content :global(pre) {
-    background: #f6f8fa;
+    background: var(--color-surface);
     padding: 16px;
     border-radius: 4px;
     overflow-x: auto;
@@ -207,7 +207,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(code) {
     font-family: var(--font-mono);
     font-size: 14px;
-    background: #f6f8fa;
+    background: var(--color-surface);
     padding: 2px 4px;
     border-radius: 3px;
   }
@@ -259,7 +259,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
 
   .blog-content :global(figcaption) {
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     text-align: center;
     margin-top: 8px;
   }
@@ -278,9 +278,9 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(blockquote) {
     margin: 24px 0;
     padding-left: 16px;
-    border-left: 4px solid #ddd;
+    border-left: 4px solid var(--color-border);
     font-style: italic;
-    color: #555;
+    color: var(--color-text-secondary);
   }
 
   /* Tables */
@@ -293,12 +293,12 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(th),
   .blog-content :global(td) {
     padding: 12px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     text-align: left;
   }
 
   .blog-content :global(th) {
-    background: #f6f8fa;
+    background: var(--color-surface);
     font-weight: 600;
   }
 
