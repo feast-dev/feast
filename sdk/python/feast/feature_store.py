@@ -1935,10 +1935,32 @@ class FeatureStore:
                 f"The RetrievalJob {type(from_)} must implement the metadata property."
             )
 
+        # Derive actual entity join keys from feature views rather than using
+        # all metadata keys (which include ODFV request-data inputs).
+        entity_join_keys: List[str] = []
+        try:
+            all_fv_join_keys: set = set()
+            for feat_ref in from_.metadata.features:
+                fv_name = feat_ref.split(":")[0]
+                try:
+                    fv = self.get_feature_view(fv_name)
+                    for jk in fv.join_keys:
+                        all_fv_join_keys.add(jk)
+                except Exception:
+                    pass
+            if all_fv_join_keys:
+                entity_join_keys = [
+                    k for k in from_.metadata.keys if k in all_fv_join_keys
+                ]
+            else:
+                entity_join_keys = list(from_.metadata.keys)
+        except Exception:
+            entity_join_keys = list(from_.metadata.keys)
+
         dataset = SavedDataset(
             name=name,
             features=from_.metadata.features,
-            join_keys=from_.metadata.keys,
+            join_keys=entity_join_keys,
             full_feature_names=from_.full_feature_names,
             storage=storage,
             tags=tags,
@@ -1989,6 +2011,75 @@ class FeatureStore:
             config=self.config, dataset=dataset
         )
         return dataset.with_retrieval_job(retrieval_job)
+
+    def create_dataset_from_retrieval(
+        self,
+        name: str,
+        entity_df: "pd.DataFrame",
+        features: Union[List[str], "FeatureService"],
+        storage: "SavedDatasetStorage",
+        tags: Optional[Dict[str, str]] = None,
+        allow_overwrite: bool = False,
+    ) -> "SavedDataset":
+        """Run historical retrieval and persist the result as a saved dataset.
+
+        This is a convenience method that combines get_historical_features and
+        create_saved_dataset into a single call.
+
+        Args:
+            name: Name for the saved dataset (must be unique within project).
+            entity_df: DataFrame with entity columns and event_timestamp.
+            features: Feature references or a FeatureService.
+            storage: Storage backend to persist the dataset to.
+            tags: Optional key-value metadata.
+            allow_overwrite: Whether to overwrite existing data at storage path.
+
+        Returns:
+            The created SavedDataset with retrieval job attached.
+        """
+        retrieval_job = self.get_historical_features(
+            entity_df=entity_df, features=features
+        )
+        return self.create_saved_dataset(
+            from_=retrieval_job,
+            name=name,
+            storage=storage,
+            tags=tags,
+            allow_overwrite=allow_overwrite,
+        )
+
+    def retrieve_dataset_data(
+        self,
+        name: str,
+        limit: int = 10,
+    ) -> "pd.DataFrame":
+        """Retrieve preview data from a saved dataset's storage.
+
+        Args:
+            name: Name of the saved dataset in the registry.
+            limit: Maximum number of rows to return.
+
+        Returns:
+            pandas DataFrame with up to `limit` rows from the dataset.
+
+        Raises:
+            SavedDatasetNotFound: If the dataset doesn't exist.
+            ValueError: If data cannot be retrieved from storage.
+        """
+        dataset = self.registry.get_saved_dataset(name, self.project)
+        provider = self._get_provider()
+
+        try:
+            retrieval_job = provider.retrieve_saved_dataset(
+                config=self.config, dataset=dataset
+            )
+            df = retrieval_job.to_df()
+        except Exception as e:
+            raise ValueError(f"Unable to load preview for dataset '{name}': {e}") from e
+
+        if df.empty:
+            return df
+        return df.head(limit)
 
     def _materialize_odfv(
         self,

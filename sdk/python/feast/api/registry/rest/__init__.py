@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI
 
+from feast.api.registry.rest.compute_engines import get_compute_engine_router
 from feast.api.registry.rest.data_sources import get_data_source_router
 from feast.api.registry.rest.entities import get_entity_router
 from feast.api.registry.rest.feature_services import get_feature_service_router
@@ -34,13 +35,14 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_lineage_router(grpc_handler))
     app.include_router(get_permission_router(grpc_handler))
     app.include_router(get_project_router(grpc_handler))
-    app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_search_router(grpc_handler))
     app.include_router(get_metrics_router(grpc_handler, server))
     resolved_store = store or (
         server.store if server and hasattr(server, "store") else None
     )
+    app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_monitoring_router(grpc_handler, store=resolved_store))
+    app.include_router(get_compute_engine_router(grpc_handler, store=resolved_store))
 
     _register_openlineage_consumer(app, resolved_store)
 

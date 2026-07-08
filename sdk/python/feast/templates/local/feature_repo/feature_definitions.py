@@ -199,7 +199,7 @@ driver_quality_labels = LabelView(
         "feast.io/field-role:is_reliable": "label",
         "feast.io/field-role:quality_score": "label",
         "feast.io/field-role:reviewer_notes": "metadata",
-        "feast.io/label-values:is_reliable": "1,0",
+        "feast.io/label-values:is_reliable": "1 0",
         "feast.io/label-widget:is_reliable": "binary",
         "feast.io/label-widget:quality_score": "number",
         "feast.io/label-widget:reviewer_notes": "text",

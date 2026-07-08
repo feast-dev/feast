@@ -33,7 +33,7 @@ class RestRegistryServer:
     def __init__(self, store: FeatureStore):
         self.store = store
         self.registry = store.registry
-        self.grpc_handler = RegistryServer(self.registry)
+        self.grpc_handler = RegistryServer(self.registry, store=self.store)
         recent_visit_logging_cfg = {}
         feature_server_cfg = getattr(
             getattr(store, "config", None), "feature_server", None
