@@ -1,4 +1,4 @@
-"""End-to-end test for remote materialization.
+"""Integration tests for remote materialization.
 
 Runs a real feature server in a background thread, configures a client
 FeatureStore with materialize_mode=remote, and verifies the full flow:
@@ -6,6 +6,7 @@ FeatureStore with materialize_mode=remote, and verifies the full flow:
   FV state transitions → client polls registry → returns success
 """
 
+import socket
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,12 @@ from feast.feature_view import FeatureViewState
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.types import Float32, Int64
+
+
+def _find_free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 @pytest.fixture
@@ -77,12 +84,12 @@ def e2e_repo(tmp_path):
 
 @pytest.fixture
 def feature_server(e2e_repo):
-    """Start a real feature server in a background thread."""
+    """Start a real feature server in a background thread on a free port."""
     store, config, registry_path, online_store_path = e2e_repo
 
     app = get_app(store)
+    server_port = _find_free_port()
 
-    server_port = 18566
     server_config = uvicorn.Config(
         app, host="127.0.0.1", port=server_port, log_level="warning"
     )
@@ -91,7 +98,6 @@ def feature_server(e2e_repo):
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
 
-    # Wait for server to be ready
     import httpx
 
     for _ in range(50):
@@ -111,13 +117,8 @@ def feature_server(e2e_repo):
     thread.join(timeout=5)
 
 
-def test_remote_materialize_e2e(feature_server):
-    """Full end-to-end: client with remote mode materializes through server."""
-    server_store, server_config, server_port = feature_server
-
-    # Create a CLIENT FeatureStore that uses remote materialization.
-    # It shares the same registry (so it can poll FV state) but delegates
-    # the actual work to the server.
+def _make_client_store(server_config, server_port):
+    """Create a client FeatureStore configured for remote materialization."""
     from feast.infra.feature_servers.local_process.config import (
         LocalFeatureServerConfig,
     )
@@ -136,25 +137,27 @@ def test_remote_materialize_e2e(feature_server):
             materialize_poll_interval=0.5,
         ),
     )
+    return FeatureStore(config=client_config)
 
-    client_store = FeatureStore(config=client_config)
+
+def test_remote_materialize_e2e(feature_server):
+    """Full E2E: client with remote mode materializes through server."""
+    server_store, server_config, server_port = feature_server
+    client_store = _make_client_store(server_config, server_port)
 
     now = datetime.now(tz=timezone.utc)
     start_date = now - timedelta(days=7)
     end_date = now
 
-    # Run materialize through the remote path
     client_store.materialize(
         start_date=start_date,
         end_date=end_date,
         feature_views=["test_feature_view"],
     )
 
-    # Verify: FV should be in AVAILABLE_ONLINE state
     fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
     assert fv.state == FeatureViewState.AVAILABLE_ONLINE
 
-    # Verify: data actually landed in the online store
     online_features = client_store.get_online_features(
         features=["test_feature_view:feature_a", "test_feature_view:feature_b"],
         entity_rows=[{"entity_id": 1}],
@@ -167,27 +170,8 @@ def test_remote_materialize_e2e(feature_server):
 def test_remote_materialize_incremental_e2e(feature_server):
     """E2E for materialize_incremental through remote path."""
     server_store, server_config, server_port = feature_server
+    client_store = _make_client_store(server_config, server_port)
 
-    from feast.infra.feature_servers.local_process.config import (
-        LocalFeatureServerConfig,
-    )
-
-    client_config = RepoConfig(
-        project="test_remote_mat",
-        provider="local",
-        registry=server_config.registry,
-        online_store=server_config.online_store,
-        entity_key_serialization_version=3,
-        feature_server=LocalFeatureServerConfig(
-            enabled=True,
-            materialize_mode="remote",
-            url=f"http://127.0.0.1:{server_port}",
-            materialize_timeout=30.0,
-            materialize_poll_interval=0.5,
-        ),
-    )
-
-    client_store = FeatureStore(config=client_config)
     now = datetime.now(tz=timezone.utc)
 
     client_store.materialize_incremental(
@@ -195,14 +179,53 @@ def test_remote_materialize_incremental_e2e(feature_server):
         feature_views=["test_feature_view"],
     )
 
-    # Verify FV state
     fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
     assert fv.state == FeatureViewState.AVAILABLE_ONLINE
 
-    # Verify data in online store
     online_features = client_store.get_online_features(
         features=["test_feature_view:feature_a"],
         entity_rows=[{"entity_id": 2}],
     ).to_dict()
 
     assert online_features["feature_a"][0] == pytest.approx(20.0)
+
+
+def test_remote_materialize_force_local_bypasses_remote(feature_server):
+    """_force_local=True runs locally even with materialize_mode=remote."""
+    server_store, server_config, server_port = feature_server
+    client_store = _make_client_store(server_config, server_port)
+
+    now = datetime.now(tz=timezone.utc)
+
+    # With _force_local, it should run locally (same effect, no HTTP call)
+    client_store.materialize(
+        start_date=now - timedelta(days=7),
+        end_date=now,
+        feature_views=["test_feature_view"],
+        _force_local=True,
+    )
+
+    fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
+    assert fv.state == FeatureViewState.AVAILABLE_ONLINE
+
+
+def test_remote_materialize_server_error_propagates(feature_server):
+    """Client gets an error when the server rejects the request.
+
+    A non-existent feature view causes a server-side error during authz
+    validation, which returns HTTP 500. The client's raise_for_status()
+    propagates this as an exception.
+    """
+    import requests as req_lib
+
+    server_store, server_config, server_port = feature_server
+    client_store = _make_client_store(server_config, server_port)
+
+    now = datetime.now(tz=timezone.utc)
+
+    with pytest.raises(req_lib.exceptions.HTTPError):
+        client_store.materialize(
+            start_date=now - timedelta(days=1),
+            end_date=now,
+            feature_views=["nonexistent_fv"],
+        )
