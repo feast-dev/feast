@@ -14,11 +14,29 @@
         <a href="https://slack.feast.dev/" class="nav-item">COMMUNITY</a>
       </div>
       
-      <button class="mobile-menu-button" id="mobile-menu-button">
-        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-        </svg>
-      </button>
+      <div class="nav-right">
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <button class="mobile-menu-button" id="mobile-menu-button">
+          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
     </div>
     
     <div class="mobile-menu" id="mobile-menu">
@@ -38,7 +56,7 @@
     top: 0;
     left: 0;
     right: 0;
-    background-color: white;
+    background-color: var(--color-nav-bg);
     z-index: 1000;
   }
 
@@ -80,6 +98,35 @@
     margin-left: 32px;
   }
 
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: var(--content-padding);
+  }
+
+  .theme-toggle {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+  }
+
+  .theme-toggle:hover {
+    opacity: 1;
+  }
+
+  .icon-sun { display: none; }
+  .icon-moon { display: block; }
+  :global([data-theme="dark"]) .icon-sun { display: block; }
+  :global([data-theme="dark"]) .icon-moon { display: none; }
+
   .mobile-menu-button {
     display: block;
     background: none;
@@ -87,7 +134,6 @@
     padding: 8px;
     cursor: pointer;
     color: var(--color-text);
-    margin-right: var(--content-padding);
   }
 
   @media (min-width: 1024px) {
@@ -95,7 +141,7 @@
       display: flex;
       align-items: center;
     }
-    
+
     .mobile-menu-button {
       display: none;
     }
@@ -104,9 +150,9 @@
   .mobile-menu {
     display: none;
     width: 100%;
-    background: white;
+    background: var(--color-nav-bg);
     padding: 16px 0;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--color-border);
     position: absolute;
     top: 52px;
     left: 0;
@@ -122,17 +168,27 @@
   }
 
   .mobile-menu a:hover {
-    background-color: #f5f5f5;
+    background-color: var(--color-nav-hover);
   }
 </style>
 
 <script>
   const menuButton = document.getElementById('mobile-menu-button');
   const mobileMenu = document.getElementById('mobile-menu');
-  
+
   if (menuButton && mobileMenu) {
     menuButton.addEventListener('click', () => {
       mobileMenu.classList.toggle('active');
+    });
+  }
+
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
     });
   }
 </script> 
