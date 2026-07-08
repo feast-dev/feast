@@ -133,6 +133,7 @@ redis = [
     "redis>=4.2.2,<8",
     "hiredis>=2.0.0,<4",
 ]
+scylladb = ["scylla-driver>=3.28.0,<4"]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
@@ -161,7 +162,7 @@ test = [
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",
