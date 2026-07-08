@@ -38,37 +38,119 @@ backwards compatibility and the adopt industry standard naming conventions.
 | Endpoint | Use when |
 |----------|----------|
 | `POST /search` | You have an embedding vector (or use `api_version: 2` with `query_string`) and want Feast's native online-features response format. |
-| `POST /v1/vector_stores/{feature_view}/search` | You want plain-text queries with server-side embedding and an OpenAI-compatible response. |
+| `GET /v1/vector_stores` | You want to discover available vector stores and their `vs_{hash}` IDs (OpenAI-compatible). |
+| `GET /v1/vector_stores/{id}` | You want metadata for a specific vector store (OpenAI-compatible). |
+| `POST /v1/vector_stores/{id}/search` | You want plain-text queries with server-side embedding and an OpenAI-compatible response. |
 
 `POST /retrieve-online-documents` is deprecated; use `POST /search` instead.
 
-## OpenAI-Compatible Vector Store Search
+## [Alpha] OpenAI-Compatible Vector Store API
 
-Feast exposes an OpenAI-compatible vector store search endpoint at `POST /v1/vector_stores/{feature_view}/search`. This endpoint accepts plain text queries, handles embedding server-side, and returns results in the [OpenAI Vector Store Search API](https://platform.openai.com/docs/api-reference/vector-stores-search) format.
+{% hint style="warning" %}
+**Alpha feature.** This API surface is functional and tested, but may change in future releases. Feedback and contributions are welcome.
+{% endhint %}
 
-This is useful for AI agents and LLM tool-calling workflows where the client cannot produce raw embedding vectors.
+Feast exposes a set of [OpenAI-compatible vector store endpoints](https://platform.openai.com/docs/api-reference/vector-stores) that let clients discover, inspect, and search vector stores using plain text queries with server-side embedding. This enables integration with AI agents, LLM tool-calling frameworks, and any OpenAI-compatible client without requiring the caller to produce raw embedding vectors.
+
+### Vector store IDs
+
+Each feature view with at least one `vector_index=True` field is automatically assigned a deterministic identifier of the form `vs_{hash}`, where `{hash}` is the first 24 characters of `SHA-256(project + ":" + feature_view_name)`. These IDs are stable across server restarts and registry refreshes.
+
+For example, a feature view named `product_catalog` in project `my_project` always maps to the same `vs_...` identifier. The listing endpoints return these IDs so clients can discover stores at runtime.
+
+### Endpoints
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| `GET` | `/v1/vector_stores` | `DESCRIBE` | List all vector stores the caller has access to |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | `DESCRIBE` | Get metadata for a single vector store |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | `READ_ONLINE` | Search a vector store with a plain text query |
+
+All endpoints enforce RBAC when authentication is configured. The listing endpoint filters out stores the caller cannot `DESCRIBE`.
 
 ### Requirements
 
-- An `embedding_model` section in your `feature_store.yaml`. Feast uses [Sentence Transformers](https://www.sbert.net/) for local embedding — no external API key required (`pip install sentence-transformers`):
+1. **Embedding model** — an `embedding_model` section in `feature_store.yaml`. Feast uses [Sentence Transformers](https://www.sbert.net/) by default for local embedding — no external API key required (`pip install sentence-transformers`):
 
-  ```yaml
-  embedding_model:
-    provider: sentence_transformers   # default; can be omitted
-    model: all-MiniLM-L6-v2
-  ```
+   ```yaml
+   embedding_model:
+     provider: sentence_transformers   # default; can be omitted
+     model: all-MiniLM-L6-v2
+   ```
 
-  Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol and passing an instance to `FeatureStore`.
+2. **Vector-indexed feature view** — at least one feature view with `vector_index=True` on a vector field, materialized to an online store that supports vector search.
 
-- A feature view with `vector_index=True` on a vector field, materialized to an online store that supports vector search.
-- For metadata filtering with numeric or boolean comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply` to update the schema.
+3. **Numeric filtering (optional)** — for metadata filters that use numeric or boolean comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply` to add the required `value_num` column.
 
-### Usage
+### Custom embedding providers
+
+The built-in Sentence Transformers provider works for most use cases. To use a different embedding backend (OpenAI, Cohere, a custom model, etc.), implement the `EmbeddingProvider` protocol and pass an instance to `FeatureStore`:
+
+```python
+from feast.embedder import EmbeddingProvider
+
+class MyEmbeddingProvider:
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        # Call your embedding API here
+        return my_model.encode(texts)
+
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        return await my_model.aencode(texts)
+
+store = FeatureStore(
+    repo_path=".",
+    embedding_provider=MyEmbeddingProvider(),
+)
+```
+
+### Numeric storage (`enable_openai_compatible_store`)
+
+By default, feature values are stored as text in the online store. This means string-ordered comparisons apply (e.g., `'9' > '100'` is `true`). When `enable_openai_compatible_store: true` is set on the online store config, Feast adds a `value_num` column that stores `int`, `float`, `double`, and `bool` values natively so that numeric filters produce correct results.
+
+```yaml
+online_store:
+  type: postgres  # or sqlite
+  # ... connection settings ...
+  enable_openai_compatible_store: true
+```
+
+After changing this setting, run `feast apply` to update the database schema.
+
+### List vector stores
+
+```bash
+curl http://localhost:6566/v1/vector_stores
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
+      "object": "vector_store",
+      "name": "product_catalog",
+      "status": "completed",
+      "created_at": 1717200000
+    }
+  ]
+}
+```
+
+### Get a single vector store
+
+```bash
+curl http://localhost:6566/v1/vector_stores/vs_a1b2c3d4e5f6a1b2c3d4e5f6
+```
+
+Returns the same object shape as a single entry in the list response. Returns `404` if the ID does not match any vector-indexed feature view.
+
+### Search
 
 Start the feature server with `feast serve`, then send a search request:
 
 ```bash
-curl -X POST http://localhost:6566/v1/vector_stores/my_feature_view/search \
+curl -X POST http://localhost:6566/v1/vector_stores/vs_a1b2c3d4e5f6a1b2c3d4e5f6/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "wireless noise-cancelling headphones",
@@ -76,7 +158,7 @@ curl -X POST http://localhost:6566/v1/vector_stores/my_feature_view/search \
   }'
 ```
 
-### Request fields
+#### Request fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -111,6 +193,8 @@ The endpoint supports OpenAI-style filters for narrowing results beyond vector s
 
 For Postgres and SQLite backends, all filtering (including string equality) requires `enable_openai_compatible_store: true` in the online store config. After enabling, run `feast apply` to update the database schema.
 
+ScyllaDB supports vector retrieval via `retrieve_online_documents_v2`, but OpenAI-style metadata filtering is not implemented yet. Passing `filters` raises `NotImplementedError`.
+
 ### Response format
 
 Responses follow the OpenAI `vector_store.search_results.page` schema:
@@ -121,8 +205,8 @@ Responses follow the OpenAI `vector_store.search_results.page` schema:
   "search_query": ["wireless noise-cancelling headphones"],
   "data": [
     {
-      "file_id": "my_feature_view_42",
-      "filename": "my_feature_view",
+      "file_id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6_42",
+      "filename": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
       "score": 0.92,
       "attributes": {"name": "...", "category": "..."},
       "content": [
@@ -135,6 +219,8 @@ Responses follow the OpenAI `vector_store.search_results.page` schema:
 }
 ```
 
+The `file_id` and `filename` fields use the `vs_{hash}` identifier, not raw feature view names.
+
 The `score` field is a higher-is-better relevance score derived from the raw vector distance using a metric-dependent conversion:
 
 | Distance metric | Conversion | Range |
@@ -146,6 +232,40 @@ The `score` field is a higher-is-better relevance score derived from the raw vec
 The metric is determined by `vector_search_metric` on the feature view's vector field, not by an API parameter. When `features_to_retrieve` is omitted, all non-vector features are returned by default (vector embedding columns are excluded).
 
 Pagination is not yet implemented; `has_more` is always `false`.
+
+### SDK usage
+
+The OpenAI-compatible search is also available directly via the Python SDK:
+
+```python
+import asyncio
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+
+result = asyncio.run(store.openai_search(
+    vector_store_id="product_catalog",
+    query="wireless noise-cancelling headphones",
+    max_num_results=5,
+    filters={"type": "eq", "key": "category", "value": "Electronics"},
+))
+
+for item in result["data"]:
+    print(f"{item['score']:.3f}  {item['attributes']}")
+```
+
+### Supported online stores
+
+The OpenAI-compatible filtering has been implemented for the following online stores:
+
+| Online Store | Vector Search | Metadata Filtering | Notes |
+|-------------|--------------|-------------------|-------|
+| Milvus | Yes | Yes | Boolean expressions |
+| Elasticsearch | Yes | Yes | Query DSL clauses |
+| Postgres (pgvector) | Yes | Yes | Requires `enable_openai_compatible_store: true` |
+| SQLite (sqlite-vec) | Yes | Yes | Requires `enable_openai_compatible_store: true` |
+| MongoDB | Yes | Yes | Aggregation pipeline |
+| ScyllaDB | Yes | No | Vector search only; metadata filters are not supported yet |
 
 ## Examples
 

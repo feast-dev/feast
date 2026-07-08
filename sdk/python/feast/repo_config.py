@@ -340,7 +340,7 @@ class OpenLineageConfig(FeastBaseModel):
 class EmbeddingModelConfig(FeastConfigBaseModel):
     """Configuration for the query-time embedding model used by the feature server.
 
-    Required when using ``retrieve_online_documents_openai`` or the
+    Required when using ``openai_search`` or the
     ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
 
     **Sentence Transformers** (default) — runs locally, no API key required.
@@ -413,7 +413,7 @@ class RepoConfig(FeastBaseModel):
         None, alias="embedding_model"
     )
     """ EmbeddingModelConfig: Embedding model configuration.
-    Required when using retrieve_online_documents_openai or the
+    Required when using openai_search or the
     OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None

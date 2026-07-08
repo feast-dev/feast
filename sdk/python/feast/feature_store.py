@@ -4142,7 +4142,7 @@ class FeatureStore:
             include_feature_view_version_metadata,
         )
 
-    async def retrieve_online_documents_openai(
+    async def openai_search(
         self,
         vector_store_id: str,
         query: Union[str, List[str]],
@@ -4186,7 +4186,7 @@ class FeatureStore:
         Examples:
             Keyword search (no embedding model configured)::
 
-                result = await store.retrieve_online_documents_openai(
+                result = await store.openai_search(
                     vector_store_id="city_embeddings",
                     query="cities in California",
                     max_num_results=5,
@@ -4197,7 +4197,7 @@ class FeatureStore:
                 # feature_store.yaml has:
                 #   embedding_model:
                 #     model: text-embedding-3-small
-                result = await store.retrieve_online_documents_openai(
+                result = await store.openai_search(
                     vector_store_id="product_embeddings",
                     query="wireless audio device",
                     max_num_results=3,

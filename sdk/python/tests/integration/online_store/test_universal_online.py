@@ -1518,7 +1518,7 @@ def test_retrieve_online_documents_v2_with_filters(environment, fake_document_da
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
-def test_retrieve_online_documents_openai(environment, fake_document_data):
+def test_openai_search(environment, fake_document_data):
     """Test OpenAI-compatible vector store search returns the correct response shape."""
     fs = environment.feature_store
     fs.config.online_store.vector_enabled = True
@@ -1534,7 +1534,7 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
     fs.embedding_provider = mock_provider
 
     result = asyncio.run(
-        fs.retrieve_online_documents_openai(
+        fs.openai_search(
             vector_store_id="item_embeddings",
             query="test query",
             max_num_results=5,
@@ -1575,7 +1575,7 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
 
     # --- Test with features_to_retrieve ---
     result_subset = asyncio.run(
-        fs.retrieve_online_documents_openai(
+        fs.openai_search(
             vector_store_id="item_embeddings",
             query="test query",
             max_num_results=5,
@@ -1590,7 +1590,7 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
 
     # --- Test with list query ---
     result_list = asyncio.run(
-        fs.retrieve_online_documents_openai(
+        fs.openai_search(
             vector_store_id="item_embeddings",
             query=["term1", "term2"],
             max_num_results=5,
@@ -1602,10 +1602,8 @@ def test_retrieve_online_documents_openai(environment, fake_document_data):
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
-def test_retrieve_online_documents_openai_no_embedding_config(
-    environment, fake_document_data
-):
-    """Test that retrieve_online_documents_openai raises ValueError
+def test_openai_search_no_embedding_config(environment, fake_document_data):
+    """Test that openai_search raises ValueError
     when no embedding provider is set and embedding_model is not configured."""
     fs = environment.feature_store
     fs.config.online_store.vector_enabled = True
@@ -1615,7 +1613,7 @@ def test_retrieve_online_documents_openai_no_embedding_config(
 
     with pytest.raises(ValueError, match="No embedding provider set"):
         asyncio.run(
-            fs.retrieve_online_documents_openai(
+            fs.openai_search(
                 vector_store_id="item_embeddings",
                 query="test query",
             )
@@ -1624,8 +1622,8 @@ def test_retrieve_online_documents_openai_no_embedding_config(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
-def test_retrieve_online_documents_openai_not_found(environment, fake_document_data):
-    """Test that retrieve_online_documents_openai raises FeatureViewNotFoundException
+def test_openai_search_not_found(environment, fake_document_data):
+    """Test that openai_search raises FeatureViewNotFoundException
     for a non-existent feature view."""
     fs = environment.feature_store
     mock_provider = unittest.mock.MagicMock()
@@ -1634,7 +1632,7 @@ def test_retrieve_online_documents_openai_not_found(environment, fake_document_d
 
     with pytest.raises(FeatureViewNotFoundException):
         asyncio.run(
-            fs.retrieve_online_documents_openai(
+            fs.openai_search(
                 vector_store_id="nonexistent_feature_view",
                 query="test query",
             )

@@ -120,8 +120,16 @@ def _milvus_escape_string(s: str) -> str:
 
     Backslashes must be escaped first; otherwise a trailing backslash in the
     input would combine with the escaped quote to break out of the literal.
+    Also escapes quotes and common control characters that could disrupt
+    Milvus boolean expressions.
     """
-    return s.replace("\\", "\\\\").replace("'", "\\'")
+    return (
+        s.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
 
 
 def _milvus_fmt(value: Any) -> str:

@@ -24,7 +24,7 @@ class EmbeddingProvider(Protocol):
 
     Implement this to plug in any embedding backend (OpenAI, Cohere,
     SentenceTransformers, a local model, etc.) for use in
-    ``retrieve_online_documents_openai`` and the OpenAI-compatible
+    ``openai_search`` and the OpenAI-compatible
     feature server endpoints.
 
     Example::

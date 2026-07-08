@@ -533,19 +533,23 @@ The feature server exposes `POST /search` for vector similarity search against o
 
 `POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
 
-## OpenAI-Compatible Vector Store API
+## [Alpha] OpenAI-Compatible Vector Store API
+
+{% hint style="warning" %}
+**Alpha feature.** This API surface is functional and tested, but may change in future releases.
+{% endhint %}
 
 The feature server exposes OpenAI-compatible vector store endpoints. This allows clients (including LLM agents and tool-calling frameworks) to discover and search vector data with plain text queries, without computing embeddings client-side.
 
-Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from the project name and feature view name.
+Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from `SHA-256(project + ":" + feature_view_name)`. These IDs are stable across server restarts.
 
 ### Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/v1/vector_stores` | List all vector stores (RBAC: `DESCRIBE` per feature view) |
-| `GET` | `/v1/vector_stores/{vector_store_id}` | Get a single vector store (RBAC: `DESCRIBE`) |
-| `POST` | `/v1/vector_stores/{vector_store_id}/search` | Search a vector store (RBAC: `READ_ONLINE`) |
+| Method | Path | RBAC | Description |
+|---|---|---|---|
+| `GET` | `/v1/vector_stores` | `DESCRIBE` | List all vector stores (filtered by caller permissions) |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | `DESCRIBE` | Get metadata for a single vector store |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | `READ_ONLINE` | Search a vector store with server-side embedding |
 
 ### Configuration
 
@@ -557,66 +561,7 @@ embedding_model:
   model: all-MiniLM-L6-v2
 ```
 
-Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. See [Alpha Vector Database](../alpha-vector-database.md#openai-compatible-vector-store-search) for full configuration and filter details.
-
-### List vector stores
-
-```bash
-curl http://localhost:6566/v1/vector_stores
-```
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
-      "object": "vector_store",
-      "name": "product_catalog",
-      "status": "completed",
-      "created_at": 1717200000
-    }
-  ]
-}
-```
-
-### Search example
-
-```bash
-curl -X POST http://localhost:6566/v1/vector_stores/vs_a1b2c3d4e5f6a1b2c3d4e5f6/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "wireless noise-cancelling headphones",
-    "max_num_results": 5,
-    "filters": {
-      "type": "eq",
-      "key": "category",
-      "value": "Electronics"
-    }
-  }'
-```
-
-The response follows the OpenAI `vector_store.search_results.page` format:
-
-```json
-{
-  "object": "vector_store.search_results.page",
-  "search_query": ["wireless noise-cancelling headphones"],
-  "data": [
-    {
-      "file_id": "vs_a1b2c3d4e5f6a1b2c3d4e5f6_42",
-      "filename": "vs_a1b2c3d4e5f6a1b2c3d4e5f6",
-      "score": 0.92,
-      "attributes": {"name": "Sony WH-1000XM5", "category": "Electronics"},
-      "content": [{"type": "text", "text": "Sony WH-1000XM5"}]
-    }
-  ],
-  "has_more": false,
-  "next_page": null
-}
-```
-
-For metadata filtering with numeric comparisons, set `enable_openai_compatible_store: true` on your online store config and run `feast apply`.
+Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol. See [\[Alpha\] Vector Database](../alpha-vector-database.md#alpha-openai-compatible-vector-store-api) for full configuration, custom providers, filter details, and SDK usage.
 
 ## Starting the feature server in TLS(SSL) mode
 
@@ -691,7 +636,9 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
 | /search | FeatureView                     | Read Online                                           | Vector similarity search for RAG (embedding vector or text query) |
 | /retrieve-online-documents | FeatureView              | Read Online                                           | **Deprecated.** Use `/search` instead.                           |
-| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | OpenAI-compatible vector search with server-side embedding     |
+| /v1/vector_stores | FeatureView                  | Describe                                              | [Alpha] List all vector stores                                 |
+| /v1/vector_stores/{id} | FeatureView                  | Describe                                              | [Alpha] Get a single vector store                              |
+| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | [Alpha] OpenAI-compatible vector search with server-side embedding |
 | /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |

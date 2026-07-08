@@ -610,7 +610,7 @@ def get_app(
                     actions=[AuthzedAction.READ_ONLINE],
                 )
 
-                result = await store.retrieve_online_documents_openai(
+                result = await store.openai_search(
                     vector_store_id=feature_view.name,
                     query=request.query,
                     vs_id=vector_store_id,
