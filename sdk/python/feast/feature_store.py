@@ -2192,6 +2192,203 @@ class FeatureStore:
         )
         self.write_to_online_store(feature_view.name, df=transformed_df)
 
+    def _is_remote_materialize_mode(self) -> bool:
+        """Check if materialization should be delegated to a remote feature server."""
+        fs_cfg = self.config.feature_server
+        if fs_cfg is None:
+            return False
+        return getattr(fs_cfg, "materialize_mode", "local") == "remote"
+
+    def _get_feature_server_url(self) -> str:
+        """Get feature server URL, raising if not configured."""
+        fs_cfg = self.config.feature_server
+        url = getattr(fs_cfg, "url", None)
+        if not url:
+            raise ValueError(
+                "feature_server.url must be set when materialize_mode='remote'. "
+                "Example: feature_server:\n"
+                "  type: local\n"
+                "  materialize_mode: remote\n"
+                "  url: http://feast-online.feast-ns.svc.cluster.local:80"
+            )
+        return url.rstrip("/")
+
+    def _remote_materialize(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
+        disable_event_timestamp: bool = False,
+        full_feature_names: bool = False,
+    ) -> None:
+        """Delegate materialization to the feature server, poll via registry."""
+        import requests
+
+        from feast.materialization_status import (
+            FVMaterializationStatus,
+            FVResult,
+            poll_materialization_status,
+        )
+
+        server_url = self._get_feature_server_url()
+        fs_cfg = self.config.feature_server
+
+        fv_names = feature_views or [
+            fv.name
+            for fv in self._get_feature_views_to_materialize(None)
+            if not isinstance(fv, OnDemandFeatureView)
+        ]
+
+        _logger.info(
+            f"Remote materialize: triggering {len(fv_names)} feature views "
+            f"on {server_url}"
+        )
+
+        resp = requests.post(
+            f"{server_url}/materialize-async",
+            json={
+                "start_ts": start_date.isoformat(),
+                "end_ts": end_date.isoformat(),
+                "feature_views": fv_names,
+                "disable_event_timestamp": disable_event_timestamp,
+                "full_feature_names": full_feature_names,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+
+        def registry_status_fn(fv_name: str) -> FVMaterializationStatus:
+            fv = self.registry.get_feature_view(
+                fv_name, self.project, allow_cache=False
+            )
+            state = getattr(fv, "state", None)
+            if state == FeatureViewState.AVAILABLE_ONLINE:
+                return FVMaterializationStatus.SUCCEEDED
+            elif state == FeatureViewState.MATERIALIZING:
+                return FVMaterializationStatus.RUNNING
+            elif state == FeatureViewState.GENERATED:
+                return FVMaterializationStatus.FAILED
+            return FVMaterializationStatus.PENDING
+
+        def on_change(result: FVResult):
+            symbol = {
+                FVMaterializationStatus.SUCCEEDED: "+",
+                FVMaterializationStatus.FAILED: "x",
+                FVMaterializationStatus.RUNNING: "~",
+            }.get(result.status, "?")
+            print(
+                f"  [{symbol}] {result.name}: {result.status.value} "
+                f"({result.elapsed_seconds:.1f}s)"
+            )
+
+        timeout = getattr(fs_cfg, "materialize_timeout", 3600.0)
+        poll_interval = getattr(fs_cfg, "materialize_poll_interval", 5.0)
+
+        results = poll_materialization_status(
+            feature_view_names=fv_names,
+            status_fn=registry_status_fn,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            on_status_change=on_change,
+        )
+
+        failed = [r for r in results if r.status == FVMaterializationStatus.FAILED]
+        if failed:
+            names = ", ".join(r.name for r in failed)
+            errors = "; ".join(
+                f"{r.name}: {r.error}" for r in failed if r.error
+            )
+            msg = f"Remote materialization failed for: {names}"
+            if errors:
+                msg += f" ({errors})"
+            raise Exception(msg)
+
+    def _remote_materialize_incremental(
+        self,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
+        full_feature_names: bool = False,
+    ) -> None:
+        """Delegate incremental materialization to the feature server, poll via registry."""
+        import requests
+
+        from feast.materialization_status import (
+            FVMaterializationStatus,
+            FVResult,
+            poll_materialization_status,
+        )
+
+        server_url = self._get_feature_server_url()
+        fs_cfg = self.config.feature_server
+
+        fv_names = feature_views or [
+            fv.name
+            for fv in self._get_feature_views_to_materialize(None)
+            if not isinstance(fv, OnDemandFeatureView)
+        ]
+
+        _logger.info(
+            f"Remote materialize_incremental: triggering {len(fv_names)} "
+            f"feature views on {server_url}"
+        )
+
+        resp = requests.post(
+            f"{server_url}/materialize-incremental-async",
+            json={
+                "end_ts": end_date.isoformat(),
+                "feature_views": fv_names,
+                "full_feature_names": full_feature_names,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+
+        def registry_status_fn(fv_name: str) -> FVMaterializationStatus:
+            fv = self.registry.get_feature_view(
+                fv_name, self.project, allow_cache=False
+            )
+            state = getattr(fv, "state", None)
+            if state == FeatureViewState.AVAILABLE_ONLINE:
+                return FVMaterializationStatus.SUCCEEDED
+            elif state == FeatureViewState.MATERIALIZING:
+                return FVMaterializationStatus.RUNNING
+            elif state == FeatureViewState.GENERATED:
+                return FVMaterializationStatus.FAILED
+            return FVMaterializationStatus.PENDING
+
+        def on_change(result: FVResult):
+            symbol = {
+                FVMaterializationStatus.SUCCEEDED: "+",
+                FVMaterializationStatus.FAILED: "x",
+                FVMaterializationStatus.RUNNING: "~",
+            }.get(result.status, "?")
+            print(
+                f"  [{symbol}] {result.name}: {result.status.value} "
+                f"({result.elapsed_seconds:.1f}s)"
+            )
+
+        timeout = getattr(fs_cfg, "materialize_timeout", 3600.0)
+        poll_interval = getattr(fs_cfg, "materialize_poll_interval", 5.0)
+
+        results = poll_materialization_status(
+            feature_view_names=fv_names,
+            status_fn=registry_status_fn,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            on_status_change=on_change,
+        )
+
+        failed = [r for r in results if r.status == FVMaterializationStatus.FAILED]
+        if failed:
+            names = ", ".join(r.name for r in failed)
+            errors = "; ".join(
+                f"{r.name}: {r.error}" for r in failed if r.error
+            )
+            msg = f"Remote incremental materialization failed for: {names}"
+            if errors:
+                msg += f" ({errors})"
+            raise Exception(msg)
+
     def materialize_incremental(
         self,
         end_date: datetime,
@@ -2231,6 +2428,13 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_materialize_mode():
+            return self._remote_materialize_incremental(
+                end_date=end_date,
+                feature_views=feature_views,
+                full_feature_names=full_feature_names,
+            )
+
         parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views, version=parsed_version
@@ -2439,6 +2643,15 @@ class FeatureStore:
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
+            )
+
+        if self._is_remote_materialize_mode():
+            return self._remote_materialize(
+                start_date=start_date,
+                end_date=end_date,
+                feature_views=feature_views,
+                disable_event_timestamp=disable_event_timestamp,
+                full_feature_names=full_feature_names,
             )
 
         parsed_version = self._validate_materialize_version(version, feature_views)

@@ -708,6 +708,101 @@ def get_app(
                 full_feature_names=request.full_feature_names,
             )
 
+    @app.post("/materialize-async", dependencies=[Depends(inject_user_details)])
+    async def materialize_async(request: MaterializeRequest) -> JSONResponse:
+        with feast_metrics.track_request_latency("/materialize-async"):
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
+                )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+
+            if request.disable_event_timestamp:
+                now = datetime.now()
+                start_date = datetime(1970, 1, 1)
+                end_date = now
+            else:
+                if not request.start_ts or not request.end_ts:
+                    raise ValueError(
+                        "start_ts and end_ts are required when disable_event_timestamp is False"
+                    )
+                start_date = utils.make_tzaware(parser.parse(request.start_ts))
+                end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
+            fv_names = request.feature_views or [
+                fv.name for fv in store._get_feature_views_to_materialize(None)
+            ]
+
+            asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: store.materialize(
+                    start_date,
+                    end_date,
+                    request.feature_views,
+                    disable_event_timestamp=request.disable_event_timestamp,
+                    full_feature_names=request.full_feature_names,
+                ),
+            )
+
+            return JSONResponse(
+                status_code=202,
+                content={"status": "accepted", "feature_views": fv_names},
+            )
+
+    @app.post(
+        "/materialize-incremental-async",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def materialize_incremental_async(
+        request: MaterializeIncrementalRequest,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency("/materialize-incremental-async"):
+            if request.feature_views:
+                for feature_view in request.feature_views:
+                    resource = await _get_feast_object(feature_view, True)
+                    assert_permissions(
+                        resource=resource,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+            else:
+                feature_views_to_materialize = store._get_feature_views_to_materialize(
+                    None
+                )
+                for fv in feature_views_to_materialize:
+                    assert_permissions(
+                        resource=fv,
+                        actions=[AuthzedAction.WRITE_ONLINE],
+                    )
+
+            fv_names = request.feature_views or [
+                fv.name for fv in store._get_feature_views_to_materialize(None)
+            ]
+
+            asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: store.materialize_incremental(
+                    utils.make_tzaware(parser.parse(request.end_ts)),
+                    request.feature_views,
+                    full_feature_names=request.full_feature_names,
+                ),
+            )
+
+            return JSONResponse(
+                status_code=202,
+                content={"status": "accepted", "feature_views": fv_names},
+            )
+
     @app.exception_handler(Exception)
     async def rest_exception_handler(request: Request, exc: Exception):
         # Print the original exception on the server side
