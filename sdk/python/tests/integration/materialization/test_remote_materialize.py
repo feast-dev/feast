@@ -213,17 +213,15 @@ def test_remote_materialize_server_error_propagates(feature_server):
     """Client gets an error when the server rejects the request.
 
     A non-existent feature view causes a server-side error during authz
-    validation, which returns HTTP 500. The client's raise_for_status()
-    propagates this as an exception.
+    validation, which returns HTTP 500. The client wraps this as an
+    Exception with a descriptive message.
     """
-    import requests as req_lib
-
     server_store, server_config, server_port = feature_server
     client_store = _make_client_store(server_config, server_port)
 
     now = datetime.now(tz=timezone.utc)
 
-    with pytest.raises(req_lib.exceptions.HTTPError):
+    with pytest.raises(Exception, match="Failed to trigger remote materialization"):
         client_store.materialize(
             start_date=now - timedelta(days=1),
             end_date=now,

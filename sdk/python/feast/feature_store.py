@@ -2262,12 +2262,20 @@ class FeatureStore:
         )
 
         session = self._get_remote_http_session()
-        resp = session.post(
-            f"{server_url}{endpoint}",
-            json=payload,
-            timeout=getattr(fs_cfg, "http_timeout", 30),
-        )
-        resp.raise_for_status()
+        try:
+            resp = session.post(
+                f"{server_url}{endpoint}",
+                json=payload,
+                timeout=getattr(fs_cfg, "http_timeout", 30),
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            raise Exception(
+                f"Failed to trigger remote materialization at "
+                f"{server_url}{endpoint}: {e}"
+            ) from e
+        finally:
+            session.close()
 
         seen_materializing: set = set()
 

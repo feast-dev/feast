@@ -87,7 +87,7 @@ def poll_materialization_status(
             name=name,
             status=FVMaterializationStatus.FAILED,
             elapsed_seconds=time.monotonic() - start,
-            error=f"Timed out after {timeout}s",
+            error=f"Materialization timed out after {timeout}s. Check server logs for details.",
         )
 
     return list(results.values())

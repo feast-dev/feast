@@ -65,7 +65,7 @@ class TestPollMaterializationStatus:
 
         assert len(results) == 1
         assert results[0].status == FVMaterializationStatus.FAILED
-        assert "Timed out" in results[0].error
+        assert "timed out" in results[0].error.lower()
 
     def test_transition_from_pending_to_running_to_succeeded(self):
         call_count = {"n": 0}
@@ -495,3 +495,13 @@ class TestLocalFeatureServerConfig:
         assert cfg.url == "http://feast-server:80"
         assert cfg.materialize_timeout == 600.0
         assert cfg.materialize_poll_interval == 2.0
+
+    def test_remote_mode_requires_url(self):
+        from pydantic import ValidationError
+
+        from feast.infra.feature_servers.local_process.config import (
+            LocalFeatureServerConfig,
+        )
+
+        with pytest.raises(ValidationError, match="url must be set"):
+            LocalFeatureServerConfig(materialize_mode="remote")

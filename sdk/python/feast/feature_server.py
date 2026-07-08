@@ -710,7 +710,7 @@ def get_app(
                 full_feature_names=request.full_feature_names,
             )
 
-    async def _authorize_materialize_views(
+    def _authorize_materialize_views(
         request_feature_views: Optional[List[str]],
     ) -> List[str]:
         """Shared authz + FV name resolution for async materialize endpoints."""
@@ -738,7 +738,7 @@ def get_app(
             start_date = utils.make_tzaware(parser.parse(request.start_ts))
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
         except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid timestamp format: {e}")
+            raise ValueError(f"Invalid timestamp format: {e}") from e
 
         if start_date >= end_date:
             raise ValueError(
@@ -752,7 +752,9 @@ def get_app(
 
         for fv_name in fv_names:
             try:
-                fv = store.registry.get_feature_view(fv_name, store.project)
+                fv = store.registry.get_feature_view(
+                    fv_name, store.project, allow_cache=False
+                )
                 if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
                     return JSONResponse(
                         status_code=409,
@@ -767,7 +769,7 @@ def get_app(
     @app.post("/materialize-async", dependencies=[Depends(inject_user_details)])
     async def materialize_async(request: MaterializeRequest) -> JSONResponse:
         with feast_metrics.track_request_latency("/materialize-async"):
-            fv_names = await _authorize_materialize_views(request.feature_views)
+            fv_names = _authorize_materialize_views(request.feature_views)
             start_date, end_date = _parse_materialize_timestamps(request)
 
             conflict = _check_already_materializing(fv_names)
@@ -807,7 +809,7 @@ def get_app(
         request: MaterializeIncrementalRequest,
     ) -> JSONResponse:
         with feast_metrics.track_request_latency("/materialize-incremental-async"):
-            fv_names = await _authorize_materialize_views(request.feature_views)
+            fv_names = _authorize_materialize_views(request.feature_views)
 
             conflict = _check_already_materializing(fv_names)
             if conflict:

@@ -1,5 +1,7 @@
 from typing import Literal, Optional
 
+from pydantic import model_validator
+
 from feast.infra.feature_servers.base_config import BaseFeatureServerConfig
 
 
@@ -23,3 +25,11 @@ class LocalFeatureServerConfig(BaseFeatureServerConfig):
 
     materialize_poll_interval: float = 5.0
     """Seconds between polling the registry for FV state updates."""
+
+    @model_validator(mode="after")
+    def _validate_remote_requires_url(self) -> "LocalFeatureServerConfig":
+        if self.materialize_mode == "remote" and not self.url:
+            raise ValueError(
+                "feature_server.url must be set when materialize_mode is 'remote'"
+            )
+        return self
