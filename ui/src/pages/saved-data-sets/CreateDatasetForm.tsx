@@ -106,7 +106,7 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
   const [storageType, setStorageType] = useState("file");
   const [storagePath, setStoragePath] = useState("");
   const [tags, setTags] = useState<TagEntry[]>([]);
-  const [allowOverwrite, setAllowOverwrite] = useState(false);
+  const [allowOverwrite] = useState(false);
 
   // Job tracking
   const [jobId, setJobId] = useState<string | null>(null);

@@ -10,7 +10,6 @@ import {
   EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSelect,
   EuiFlyout,
   EuiFlyoutHeader,
   EuiFlyoutBody,

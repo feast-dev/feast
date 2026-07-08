@@ -103,6 +103,9 @@ jobs:
       - name: Build yarn rollup
         working-directory: ./ui
         run: yarn build:lib
+      - name: Build production UI
+        working-directory: ./ui
+        run: CI=true npm run build --omit=dev
       - name: Run yarn tests
         working-directory: ./ui
         run: yarn test --watchAll=false
