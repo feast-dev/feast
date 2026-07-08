@@ -33,7 +33,7 @@ class RestRegistryServer:
     def __init__(self, store: FeatureStore):
         self.store = store
         self.registry = store.registry
-        self.grpc_handler = RegistryServer(self.registry)
+        self.grpc_handler = RegistryServer(self.registry, store=self.store)
         recent_visit_logging_cfg = {}
         feature_server_cfg = getattr(
             getattr(store, "config", None), "feature_server", None
@@ -78,7 +78,7 @@ class RestRegistryServer:
 
         registry_cfg = getattr(store.config, "registry", None)
         mcp_cfg = getattr(registry_cfg, "mcp", None)
-        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False) is True:
             try:
                 from fastapi_mcp import FastApiMCP
 

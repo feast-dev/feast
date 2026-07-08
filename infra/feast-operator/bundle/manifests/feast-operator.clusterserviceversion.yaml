@@ -62,6 +62,16 @@ metadata:
                     "transport": "sse"
                   }
                 }
+              },
+              "registry": {
+                "local": {
+                  "server": {
+                    "mcp": {
+                      "enabled": true
+                    },
+                    "restAPI": true
+                  }
+                }
               }
             }
           }
@@ -101,8 +111,10 @@ metadata:
                 "serving": {
                   "metrics": {
                     "categories": {
+                      "audit_logging": false,
                       "freshness": false,
                       "materialization": true,
+                      "offline_features": true,
                       "online_features": true,
                       "push": true,
                       "request": true,
@@ -135,10 +147,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-05-12T07:35:41Z"
+    createdAt: "2026-06-13T11:22:06Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.63.0
+  name: feast-operator.v0.64.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -352,13 +364,13 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.63.0
+                  value: quay.io/feastdev/feature-server:0.64.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
                 - name: GOMEMLIMIT
                   value: 230MiB
                 - name: OIDC_ISSUER_URL
-                image: quay.io/feastdev/feast-operator:0.63.0
+                image: quay.io/feastdev/feast-operator:0.64.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -448,8 +460,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.63.0
+  - image: quay.io/feastdev/feature-server:0.64.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.63.0
+  version: 0.64.0

@@ -1,4 +1,10 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useParams } from "react-router-dom";
 import {
   EuiCallOut,
@@ -7,7 +13,6 @@ import {
   EuiFlexItem,
   EuiButton,
   EuiPanel,
-  EuiTitle,
   EuiText,
   EuiLoadingSpinner,
   EuiBasicTable,
@@ -45,14 +50,23 @@ const ClassificationMethod = () => {
   const [pageSize, setPageSize] = useState(25);
 
   const spec = data?.object?.spec || data?.spec || {};
-  const labelFields: { name: string; valueType?: string }[] =
-    spec.features || [];
-  const entities: string[] = spec.entities || [];
+  const labelFields: { name: string; valueType?: string }[] = useMemo(
+    () => spec.features || [],
+    [spec.features],
+  );
+  const entities: string[] = useMemo(
+    () =>
+      spec.entityColumns?.length
+        ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+        : spec.entities || [],
+    [spec.entityColumns, spec.entities],
+  );
 
   const configuredValues = annotationConfig?.label_values || {};
   const fieldRoles = annotationConfig?.field_roles || {};
+  const labelWidgets = annotationConfig?.label_widgets || {};
 
-  const fetchLabels = async () => {
+  const fetchLabels = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -81,13 +95,13 @@ const ClassificationMethod = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [labelViewName, registryUrl]);
 
   useEffect(() => {
     if (labelViewName) {
       fetchLabels();
     }
-  }, [labelViewName]);
+  }, [labelViewName, fetchLabels]);
 
   const handleFieldChange = (rowId: string, field: string, value: string) => {
     setRows((prev) =>
@@ -183,7 +197,7 @@ const ClassificationMethod = () => {
     URL.revokeObjectURL(url);
   };
 
-  const filteredRows = React.useMemo(() => {
+  const filteredRows = useMemo(() => {
     if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
     return rows.filter((row) =>
@@ -195,12 +209,12 @@ const ClassificationMethod = () => {
     );
   }, [rows, searchQuery]);
 
-  const paginatedRows = React.useMemo(() => {
+  const paginatedRows = useMemo(() => {
     const start = pageIndex * pageSize;
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, pageIndex, pageSize]);
 
-  const uniqueValuesForField = React.useMemo(() => {
+  const uniqueValuesForField = useMemo(() => {
     const result: Record<string, string[]> = {};
     labelFields.forEach((field) => {
       const values = new Set<string>();
@@ -230,11 +244,30 @@ const ClassificationMethod = () => {
     .map((field) => {
       const configVals = configuredValues[field.name];
       const role = fieldRoles[field.name];
+      const widget = labelWidgets[field.name];
 
       return {
         field: field.name,
         name: field.name,
         render: (value: any, row: LabelRow) => {
+          if (widget === "binary" && configVals && configVals.length === 2) {
+            return (
+              <EuiSelect
+                compressed
+                options={[
+                  { value: "", text: "— select —" },
+                  ...configVals.map((o: string) => ({
+                    value: o,
+                    text: o === "1" ? "Yes (1)" : o === "0" ? "No (0)" : o,
+                  })),
+                ]}
+                value={value != null ? String(value) : ""}
+                onChange={(e) =>
+                  handleFieldChange(row._id, field.name, e.target.value)
+                }
+              />
+            );
+          }
           const dropdownOptions =
             configVals || uniqueValuesForField[field.name] || [];
           if (

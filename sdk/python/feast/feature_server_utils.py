@@ -99,6 +99,11 @@ def _value_to_native(v: Value) -> Optional[Any]:
             "scalar_map_val is not yet supported by convert_response_to_dict; value will be None"
         )
         return None
+    # zoned_timestamp_val is a ZonedTimestamp message; serialize as an ISO 8601
+    # string in its stored zone so JSONResponse can encode it (the raw message
+    # is not JSON-serializable).
+    elif which == "zoned_timestamp_val":
+        return _zoned_timestamp_to_str(v.zoned_timestamp_val)
     # bytes_list_val / bytes_set_val — base64-encode each element
     elif which in ("bytes_list_val", "bytes_set_val"):
         return [base64.b64encode(b).decode("ascii") for b in getattr(v, which).val]
@@ -107,6 +112,20 @@ def _value_to_native(v: Value) -> Optional[Any]:
         return list(getattr(v, which).val)
     else:
         return getattr(v, which)
+
+
+def _zoned_timestamp_to_str(zoned) -> Optional[str]:
+    """Convert a ZonedTimestamp proto to an ISO 8601 string in its stored zone.
+
+    A null instant (NaT sentinel) returns None. The zone is resolved via the
+    same logic used on the read path so IANA names and fixed offsets round-trip.
+    """
+    from feast.type_map import NULL_TIMESTAMP_INT_VALUE, _zone_from_name
+
+    if zoned.unix_timestamp == NULL_TIMESTAMP_INT_VALUE:
+        return None
+    tz = _zone_from_name(zoned.zone)
+    return datetime.fromtimestamp(zoned.unix_timestamp, tz=tz).isoformat()
 
 
 def _timestamp_to_str(ts) -> str:

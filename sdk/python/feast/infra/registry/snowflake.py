@@ -62,7 +62,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now, has_all_tags
+from feast.utils import _utc_now, has_all_tags, to_naive_utc
 
 logger = logging.getLogger(__name__)
 
@@ -656,14 +656,24 @@ class SnowflakeRegistry(BaseRegistry):
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_all_feature_views(
+            feature_views = proto_registry_utils.list_all_feature_views(
                 registry_proto, project, tags, skip_udf=skip_udf
             )
+            if updated_since is not None:
+                cutoff = to_naive_utc(updated_since)
+                feature_views = [
+                    fv
+                    for fv in feature_views
+                    if fv.last_updated_timestamp is not None
+                    and fv.last_updated_timestamp >= cutoff
+                ]
+            return feature_views
 
-        return (
+        feature_views = (
             cast(
                 list[BaseFeatureView],
                 self.list_feature_views(project, allow_cache, tags, skip_udf=skip_udf),
@@ -685,6 +695,17 @@ class SnowflakeRegistry(BaseRegistry):
                 self.list_label_views(project, allow_cache, tags),
             )
         )
+
+        if updated_since is not None:
+            cutoff = to_naive_utc(updated_since)
+            feature_views = [
+                fv
+                for fv in feature_views
+                if fv.last_updated_timestamp is not None
+                and fv.last_updated_timestamp >= cutoff
+            ]
+
+        return feature_views
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         infra_object = self._get_object(

@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import {
   EuiPanel,
   EuiTitle,
-  EuiHorizontalRule,
   EuiForm,
   EuiFormRow,
   EuiButton,
@@ -18,7 +17,6 @@ import {
   EuiFilePicker,
   EuiBasicTable,
   EuiBasicTableColumn,
-  EuiIcon,
   EuiCodeBlock,
 } from "@elastic/eui";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
@@ -28,7 +26,7 @@ const BatchUploadTab = () => {
   const { labelViewName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
   const name = labelViewName || "";
-  const { isLoading, isSuccess, data } = useLoadLabelView(name);
+  const { isLoading, data } = useLoadLabelView(name);
 
   const [fileData, setFileData] = useState<any[] | null>(null);
   const [fileName, setFileName] = useState<string>("");
@@ -53,7 +51,9 @@ const BatchUploadTab = () => {
     `${name}_push_source`;
 
   const features = data?.features || spec.features || [];
-  const entities = spec.entities || [];
+  const entities = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
 
   const handleFileChange = (files: FileList | null) => {
     if (!files || files.length === 0) {

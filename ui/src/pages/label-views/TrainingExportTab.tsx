@@ -28,7 +28,7 @@ const TrainingExportTab = () => {
   const { labelViewName } = useParams();
   const registryUrl = useContext(RegistryPathContext);
   const name = labelViewName || "";
-  const { isLoading, isSuccess, data } = useLoadLabelView(name);
+  const { isLoading, data } = useLoadLabelView(name);
   const { data: registryData } = useLoadRegistry(registryUrl);
 
   const [featureService, setFeatureService] = useState("");
@@ -38,7 +38,6 @@ const TrainingExportTab = () => {
     moment().subtract(30, "days"),
   );
   const [endDate, setEndDate] = useState<moment.Moment | null>(moment());
-  const [exportFormat, setExportFormat] = useState("csv");
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +51,9 @@ const TrainingExportTab = () => {
   }
 
   const spec = data?.object?.spec || data?.spec || {};
-  const entities: string[] = spec.entities || [];
+  const entities: string[] = spec.entityColumns?.length
+    ? spec.entityColumns.map((ec: { name: string }) => ec.name)
+    : spec.entities || [];
 
   const allFeatureServices = registryData?.objects?.featureServices || [];
   const relevantFeatureServices = allFeatureServices.filter((fs: any) => {

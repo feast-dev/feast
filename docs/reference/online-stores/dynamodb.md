@@ -24,7 +24,7 @@ The full set of configuration options is available in [DynamoDBOnlineStoreConfig
 
 ## Configuration
 
-Below is a example with performance tuning options:
+Below is an example with performance tuning options:
 
 {% code title="feature_store.yaml" %}
 ```yaml

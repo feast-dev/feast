@@ -24,6 +24,7 @@ import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
 import { LabelViewIcon } from "../graphics/LabelViewIcon";
+import { ComputeEngineIcon } from "../graphics/ComputeEngineIcon";
 import type { genericFVType } from "../parsers/mergedFVTypes";
 
 const SideNav = () => {
@@ -99,6 +100,7 @@ const SideNav = () => {
   const labelViewsLabel = `Label Views ${lvSuccess && labelViews && labelViews.length > 0 ? `(${labelViews.length})` : ""}`;
 
   const baseUrl = `/p/${projectName}`;
+  const monitoringSelected = useMatchSubpath(`${baseUrl}/monitoring`);
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
@@ -184,6 +186,24 @@ const SideNav = () => {
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),
           isSelected: useMatchSubpath(`${baseUrl}/permissions`),
+        },
+        {
+          name: "Monitoring",
+          id: htmlIdGenerator("monitoring")(),
+          icon: <EuiIcon type="monitoringApp" />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/monitoring`} />
+          ),
+          isSelected: monitoringSelected,
+        },
+        {
+          name: "Compute & Jobs",
+          id: htmlIdGenerator("computeEngine")(),
+          icon: <EuiIcon type={ComputeEngineIcon} />,
+          renderItem: (props: any) => (
+            <Link {...props} to={`${baseUrl}/compute-engine`} />
+          ),
+          isSelected: useMatchSubpath(`${baseUrl}/compute-engine`),
         },
       ],
     },

@@ -19,6 +19,7 @@ overhead and avoids atexit-handler (Dask thread pool, PySpark JVM) hang risks
 that can push the cumulative test time past the pytest global timeout budget.
 """
 
+import os
 import random
 import string
 import subprocess
@@ -53,6 +54,15 @@ class CliRunner:
     modules from the feature repo, and it is hard to clean up that state otherwise.
     """
 
+    def _subprocess_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        parent_paths = [path for path in sys.path if path]
+        existing_pythonpath = env.get("PYTHONPATH")
+        if existing_pythonpath:
+            parent_paths.append(existing_pythonpath)
+        env["PYTHONPATH"] = os.pathsep.join(parent_paths)
+        return env
+
     def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
         # Apply a conservative timeout to prevent CI hangs from Dask atexit-handler
         # stalls or other subprocess blockages.
@@ -64,6 +74,7 @@ class CliRunner:
                 cwd=cwd,
                 capture_output=True,
                 timeout=timeout,
+                env=self._subprocess_env(),
             )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(
@@ -87,6 +98,7 @@ class CliRunner:
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=self._subprocess_env(),
         )
         try:
             stdout, _ = proc.communicate(timeout=timeout)

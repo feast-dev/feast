@@ -48,6 +48,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+aerospike = [
+    "aerospike>=19.0.0,<20.0.0",
+]
 aws = ["boto3>=1.38.27", "fsspec>=2024.1.0", "aiobotocore>=2"]
 azure = [
     "azure-storage-blob>=0.37.0",
@@ -56,8 +59,7 @@ azure = [
     "pyodbc>=4.0.30",
     "pymssql<2.3.3"
 ]
-cassandra = ["cassandra-driver>=3.24.0,<4"]
-scylladb = ["scylla-driver>=3.28.0,<4"]
+cassandra = ["cassandra-driver>=3.26.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
@@ -96,8 +98,8 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus>=2.5,<3",
-    "milvus-lite==2.4.12",
+    "pymilvus>=2.5",
+    "milvus-lite>=2.4.12",
     "feast[setuptools]"
 ]
 mongodb = [
@@ -131,6 +133,7 @@ redis = [
     "redis>=4.2.2,<8",
     "hiredis>=2.0.0,<4",
 ]
+scylladb = ["scylla-driver>=3.28.0,<4"]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
