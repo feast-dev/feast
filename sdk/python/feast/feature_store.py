@@ -2295,9 +2295,7 @@ class FeatureStore:
         failed = [r for r in results if r.status == FVMaterializationStatus.FAILED]
         if failed:
             names = ", ".join(r.name for r in failed)
-            errors = "; ".join(
-                f"{r.name}: {r.error}" for r in failed if r.error
-            )
+            errors = "; ".join(f"{r.name}: {r.error}" for r in failed if r.error)
             msg = f"Remote materialization failed for: {names}"
             if errors:
                 msg += f" ({errors})"
@@ -2381,9 +2379,7 @@ class FeatureStore:
         failed = [r for r in results if r.status == FVMaterializationStatus.FAILED]
         if failed:
             names = ", ".join(r.name for r in failed)
-            errors = "; ".join(
-                f"{r.name}: {r.error}" for r in failed if r.error
-            )
+            errors = "; ".join(f"{r.name}: {r.error}" for r in failed if r.error)
             msg = f"Remote incremental materialization failed for: {names}"
             if errors:
                 msg += f" ({errors})"

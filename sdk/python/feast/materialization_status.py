@@ -1,6 +1,6 @@
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Set
 
@@ -67,9 +67,7 @@ def poll_materialization_status(
             elapsed = time.monotonic() - start
 
             if current != previous_statuses.get(name):
-                result = FVResult(
-                    name=name, status=current, elapsed_seconds=elapsed
-                )
+                result = FVResult(name=name, status=current, elapsed_seconds=elapsed)
                 results[name] = result
                 previous_statuses[name] = current
                 if on_status_change:

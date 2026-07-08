@@ -6,12 +6,9 @@ FeatureStore with materialize_mode=remote, and verifies the full flow:
   FV state transitions → client polls registry → returns success
 """
 
-import os
-import tempfile
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pandas as pd
 import pytest

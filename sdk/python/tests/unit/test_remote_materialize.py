@@ -1,20 +1,16 @@
 """Tests for remote materialization: shared poller, client-side delegation, and async endpoints."""
 
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from feast.feature_server import get_app
-from feast.feature_view import FeatureViewState
 from feast.materialization_status import (
     FVMaterializationStatus,
-    FVResult,
     poll_materialization_status,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tests for poll_materialization_status
@@ -39,7 +35,10 @@ class TestPollMaterializationStatus:
 
     def test_mixed_results(self):
         """One FV succeeds, one fails."""
-        statuses = {"fv_a": FVMaterializationStatus.SUCCEEDED, "fv_b": FVMaterializationStatus.FAILED}
+        statuses = {
+            "fv_a": FVMaterializationStatus.SUCCEEDED,
+            "fv_b": FVMaterializationStatus.FAILED,
+        }
 
         def status_fn(name):
             return statuses[name]
@@ -234,8 +233,6 @@ class TestFeatureStoreRemoteGate:
         fs = MagicMock()
         fs.config.feature_server.materialize_mode = "remote"
         fs.config.feature_server.url = "http://feast-server:80"
-
-        from feast.feature_store import FeatureStore
 
         # Call the unbound method with our mock self
         fs._is_remote_materialize_mode = MagicMock(return_value=True)
