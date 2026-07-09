@@ -51,24 +51,39 @@ class SparkApplicationComputeEngine(ComputeEngine):
         )
         self.config = repo_config.batch_engine
 
+        _FILE_BASED_ONLINE = {"sqlite", "faiss"}
+        _FILE_BASED_OFFLINE = {"dask", "file", "duckdb"}
+        _FILE_BASED_REGISTRY = {"file"}
+
         online_type = getattr(repo_config.online_store, "type", "")
-        if online_type == "sqlite":
+        if online_type in _FILE_BASED_ONLINE:
             raise ValueError(
-                "spark_application engine cannot use SQLite online store. "
-                "SQLite is file-based — data written inside the "
-                "SparkApplication pod is lost when the pod terminates. "
-                "Use a network-accessible store: redis, postgres, etc."
+                f"spark_application engine cannot use '{online_type}' online store. "
+                f"File-based stores ({', '.join(sorted(_FILE_BASED_ONLINE))}) write "
+                "data inside the SparkApplication pod, which is lost when the pod "
+                "terminates. Use a network-accessible store: redis, postgres, etc."
             )
 
-        # EC-2: registry_address required — pod reports materialization results
-        # back to the Feast server via gRPC. Without it, the server cannot
-        # determine per-FV success/failure after a batched SparkApplication run.
-        if not self.config.registry_address:
+        offline_type = getattr(repo_config.offline_store, "type", "")
+        if offline_type in _FILE_BASED_OFFLINE:
             raise ValueError(
-                "registry_address is required for spark_application engine. "
-                "Set it to the Feast server's gRPC endpoint "
-                "(e.g., feast-server.namespace.svc.cluster.local:6566). "
-                "The Feast Operator sets this automatically."
+                f"spark_application engine cannot use '{offline_type}' offline store. "
+                f"File-based stores ({', '.join(sorted(_FILE_BASED_OFFLINE))}) read "
+                "from the local filesystem, which is inaccessible from the "
+                "SparkApplication pod. Use a network-accessible store: spark, "
+                "bigquery, snowflake, redshift, etc."
+            )
+
+        registry_type = getattr(
+            repo_config.registry, "registry_type", ""
+        )
+        if registry_type in _FILE_BASED_REGISTRY:
+            raise ValueError(
+                f"spark_application engine cannot use '{registry_type}' registry. "
+                f"File-based registries ({', '.join(sorted(_FILE_BASED_REGISTRY))}) "
+                "store data on the local filesystem, which is inaccessible from the "
+                "SparkApplication pod. Use a network-accessible registry: sql, "
+                "snowflake.registry, etc."
             )
 
         k8s_config.load_config()
@@ -126,13 +141,13 @@ class SparkApplicationComputeEngine(ComputeEngine):
         job_id = uuid.uuid4().hex[:8]
 
         try:
-            self._create_secret(job_id, tasks)
+            self._create_configmap(job_id, tasks)
         except ApiException as e:
             job = SparkApplicationMaterializationJob(
                 job_id,
                 self.config.namespace,
                 self.custom_api,
-                error=Exception(f"Secret creation failed: {e.reason}"),
+                error=Exception(f"ConfigMap creation failed: {e.reason}"),
             )
             return [job for _ in tasks]
 
@@ -164,27 +179,20 @@ class SparkApplicationComputeEngine(ComputeEngine):
     def _build_driver_repo_config(self) -> dict:
         """Build feature_store.yaml for the SparkApplication driver pod.
 
-        Two rewrites:
-        1. batch_engine → spark.engine: Pod uses SparkComputeEngine with the
-           active SparkSession (from spark-submit). Enables distributed reads
-           via SparkReadNode and distributed writes via mapInArrow across executors.
-           This is NOT recursive — SparkComputeEngine uses the local session,
-           it does not create CRDs.
-        2. registry → remote (if registry_address set): Pod can't access
-           server's local filesystem. Routes registry ops via gRPC.
+        One rewrite: batch_engine → spark.engine. Pod uses SparkComputeEngine
+        with the active SparkSession (from spark-submit). Enables distributed
+        reads via SparkReadNode and distributed writes via mapInArrow across
+        executors. This is NOT recursive — SparkComputeEngine uses the local
+        session, it does not create CRDs.
 
-        offline_store is NOT rewritten — respects user's configured data sources.
-        User should configure offline_store: spark for full distributed performance.
+        offline_store and registry are NOT rewritten — the pod inherits the
+        server's config. File-based registries are rejected at __init__(), so
+        the registry is always network-accessible (SQL, Snowflake, etc.) and
+        the pod can write apply_materialization() directly.
         """
         config_dict = self.repo_config.model_dump(by_alias=True, mode="json")
 
         config_dict["batch_engine"] = {"type": "spark.engine"}
-
-        if self.config.registry_address:
-            config_dict["registry"] = {
-                "registry_type": "remote",
-                "path": self.config.registry_address,
-            }
 
         return config_dict
 
@@ -222,7 +230,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 )
         return jobs
 
-    def _create_secret(self, job_id: str, tasks: List[MaterializationTask]):
+    def _create_configmap(self, job_id: str, tasks: List[MaterializationTask]):
         feast_config_yaml = yaml.dump(
             self._build_driver_repo_config(), default_flow_style=False
         )
@@ -242,25 +250,25 @@ class SparkApplicationComputeEngine(ComputeEngine):
         mat_config_yaml = yaml.dump(mat_config)
         manifest = {
             "apiVersion": "v1",
-            "kind": "Secret",
+            "kind": "ConfigMap",
             "metadata": {
                 "name": f"feast-sa-{job_id}",
                 "namespace": self.config.namespace,
-                "labels": {"feast-materializer": "secret", **self.config.labels},
+                "labels": {"feast-materializer": "configmap", **self.config.labels},
             },
-            "stringData": {
+            "data": {
                 "feature_store.yaml": feast_config_yaml,
                 "materialization_config.yaml": mat_config_yaml,
             },
         }
-        self.core_v1.create_namespaced_secret(
+        self.core_v1.create_namespaced_config_map(
             namespace=self.config.namespace, body=manifest
         )
 
     def _build_spark_application_cr(self, job_id: str) -> dict:
         driver_env_conf = {
-            "spark.kubernetes.driverEnv.FEAST_SECRET_NAME": f"feast-sa-{job_id}",
-            "spark.kubernetes.driverEnv.FEAST_SECRET_NAMESPACE": self.config.namespace,
+            "spark.kubernetes.driverEnv.FEAST_CONFIGMAP_NAME": f"feast-sa-{job_id}",
+            "spark.kubernetes.driverEnv.FEAST_CONFIGMAP_NAMESPACE": self.config.namespace,
         }
         for entry in self.config.env:
             name = entry.get("name", "")
@@ -290,7 +298,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
             "volumes": [
                 {
                     "name": "feast-config",
-                    "secret": {"secretName": f"feast-sa-{job_id}"},
+                    "configMap": {"name": f"feast-sa-{job_id}"},
                 },
                 *self.config.volumes,
             ],
@@ -402,7 +410,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 "sparkapplications",
                 f"feast-sa-{job_id}",
             ),
-            lambda: self.core_v1.delete_namespaced_secret(
+            lambda: self.core_v1.delete_namespaced_config_map(
                 f"feast-sa-{job_id}",
                 self.config.namespace,
             ),

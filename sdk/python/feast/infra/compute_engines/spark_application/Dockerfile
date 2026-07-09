@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install --no-install-suggests --no-install-recomme
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+ENV PYTHONPATH="/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.9-src.zip"
+ENV SPARK_HOME="/opt/spark"
+
 WORKDIR /app
 
 COPY sdk/python/feast/infra/compute_engines/spark_application/main.py /opt/feast/main.py
@@ -18,7 +21,7 @@ COPY README.md README.md
 
 # setuptools_scm needs .git to infer the version.
 # https://github.com/pypa/setuptools_scm#usage-from-docker
-RUN --mount=source=.git,target=.git,type=bind uv pip install --system --no-cache-dir '.[redis,grpcio,k8s]'
+RUN --mount=source=.git,target=.git,type=bind uv pip install --system --no-cache-dir '.[redis,grpcio,k8s]' pymysql
 
 # Hadoop AWS JARs for S3A filesystem support + AWS SDK v2 bundle
 RUN curl -sL https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.1/hadoop-aws-3.4.1.jar \

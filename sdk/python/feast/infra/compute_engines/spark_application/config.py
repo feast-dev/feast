@@ -48,7 +48,6 @@ class SparkApplicationComputeEngineConfig(FeastConfigBaseModel):
     py_files: List[str] = []
     node_selector: Optional[Dict[str, str]] = None
     tolerations: List[dict] = []
-    registry_address: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate_config(self) -> "SparkApplicationComputeEngineConfig":

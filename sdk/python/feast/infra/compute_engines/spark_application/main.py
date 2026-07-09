@@ -1,4 +1,3 @@
-import base64
 import logging
 import os
 import sys
@@ -11,23 +10,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("feast.spark_application.driver")
 
 
-def _load_config_from_secret():
-    """Load feast and materialization config from a Kubernetes Secret."""
-    from kubernetes import client
-    from kubernetes import config as k8s_config
+def _load_config_from_configmap():
+    """Load feast and materialization config from a Kubernetes ConfigMap."""
+    from kubernetes import client, config as k8s_config
 
     k8s_config.load_incluster_config()
     v1 = client.CoreV1Api()
-    secret = v1.read_namespaced_secret(
-        name=os.environ["FEAST_SECRET_NAME"],
-        namespace=os.environ["FEAST_SECRET_NAMESPACE"],
+    cm = v1.read_namespaced_config_map(
+        name=os.environ["FEAST_CONFIGMAP_NAME"],
+        namespace=os.environ["FEAST_CONFIGMAP_NAMESPACE"],
     )
-    feast_config = yaml.safe_load(
-        base64.b64decode(secret.data["feature_store.yaml"]).decode()
-    )
-    mat_config = yaml.safe_load(
-        base64.b64decode(secret.data["materialization_config.yaml"]).decode()
-    )
+    feast_config = yaml.safe_load(cm.data["feature_store.yaml"])
+    mat_config = yaml.safe_load(cm.data["materialization_config.yaml"])
     return feast_config, mat_config
 
 
@@ -48,10 +42,8 @@ def _materialize_one_fv(spark_session, config, task_info):
     SparkSession visibility is handled via the getActiveSession patch in main().
     """
     from datetime import datetime, timezone
-
-    from tqdm import tqdm
-
     from feast import FeatureStore, RepoConfig
+    from tqdm import tqdm
 
     fv_name = task_info["feature_view"]
     logger.info(f"Thread started: {fv_name}")
@@ -88,21 +80,20 @@ def _materialize_one_fv(spark_session, config, task_info):
 
 
 def main():
-    if os.environ.get("FEAST_SECRET_NAME"):
-        logger.info("Loading config from Secret via K8s API")
-        feast_config, mat_config = _load_config_from_secret()
+    if os.environ.get("FEAST_CONFIGMAP_NAME"):
+        logger.info("Loading config from ConfigMap via K8s API")
+        feast_config, mat_config = _load_config_from_configmap()
     elif os.path.exists("/var/feast/feature_store.yaml"):
         logger.info("Loading config from mounted files")
         feast_config, mat_config = _load_config_from_files()
     else:
         raise RuntimeError(
-            "No config source found. Set FEAST_SECRET_NAME env var "
+            "No config source found. Set FEAST_CONFIGMAP_NAME env var "
             "or mount config at /var/feast/"
         )
 
-    from pyspark.sql import SparkSession
-
     from feast import RepoConfig
+    from pyspark.sql import SparkSession
 
     RepoConfig(**feast_config)  # validate config eagerly before any Spark work
     operation = mat_config["operation"]
@@ -110,13 +101,11 @@ def main():
     if operation == "materialize":
         tasks = mat_config.get("tasks", [])
         if not tasks:
-            tasks = [
-                {
-                    "feature_view": mat_config["feature_view"],
-                    "start_time": mat_config["start_time"],
-                    "end_time": mat_config["end_time"],
-                }
-            ]
+            tasks = [{
+                "feature_view": mat_config["feature_view"],
+                "start_time": mat_config["start_time"],
+                "end_time": mat_config["end_time"],
+            }]
 
         concurrency = mat_config.get("concurrency", 1)
         total = len(tasks)
@@ -156,9 +145,7 @@ def main():
                 succeeded, failed = 0, 0
                 with ThreadPoolExecutor(max_workers=concurrency) as executor:
                     future_to_fv = {
-                        executor.submit(
-                            _materialize_one_fv, spark, feast_config, task
-                        ): task["feature_view"]
+                        executor.submit(_materialize_one_fv, spark, feast_config, task): task["feature_view"]
                         for task in tasks
                     }
                     for future in as_completed(future_to_fv):
