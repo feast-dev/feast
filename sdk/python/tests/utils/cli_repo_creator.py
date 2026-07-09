@@ -63,26 +63,43 @@ class CliRunner:
         env["PYTHONPATH"] = os.pathsep.join(parent_paths)
         return env
 
-    def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
+    def run(
+        self, args: List[str], cwd: Path, attempts: int = 2
+    ) -> subprocess.CompletedProcess:
         # Apply a conservative timeout to prevent CI hangs from Dask atexit-handler
         # stalls or other subprocess blockages.
         timeout = 120
 
-        try:
-            return subprocess.run(
-                [sys.executable, cli.__file__] + args,
-                cwd=cwd,
-                capture_output=True,
-                timeout=timeout,
-                env=self._subprocess_env(),
-            )
-        except subprocess.TimeoutExpired:
-            return subprocess.CompletedProcess(
-                args=[sys.executable, cli.__file__] + args,
-                returncode=-1,
-                stdout=b"",
-                stderr=f"Command timed out after {timeout}s: {args}".encode(),
-            )
+        # Commands routed through here (e.g. `apply`) do not materialize, so they
+        # cannot trigger the Dask atexit hang described in the module docstring. A
+        # timeout is therefore almost always transient slowness — a cold child
+        # interpreter importing Feast (pandas/pyarrow/...) on a loaded CI runner,
+        # which has been observed to exceed the timeout on the slower macOS
+        # runners. Retry once so a single slow cold start does not flake the test:
+        # the retry runs with warm OS/page caches and typically finishes quickly,
+        # while a genuine repeated stall still fails once attempts are exhausted.
+        full_args = [sys.executable, cli.__file__] + args
+        result = None
+        for attempt in range(1, attempts + 1):
+            try:
+                return subprocess.run(
+                    full_args,
+                    cwd=cwd,
+                    capture_output=True,
+                    timeout=timeout,
+                    env=self._subprocess_env(),
+                )
+            except subprocess.TimeoutExpired:
+                result = subprocess.CompletedProcess(
+                    args=full_args,
+                    returncode=-1,
+                    stdout=b"",
+                    stderr=(
+                        f"Command timed out after {timeout}s "
+                        f"(attempt {attempt}/{attempts}): {args}"
+                    ).encode(),
+                )
+        return result
 
     def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
         is_teardown = "teardown" in args
