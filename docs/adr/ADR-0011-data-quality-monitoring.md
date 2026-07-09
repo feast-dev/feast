@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded — The Great Expectations integration described below has been deprecated and replaced by Feast's native Data Quality Monitoring system (`feast monitor run`). See [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) for the current approach.
 
 ## Context
 

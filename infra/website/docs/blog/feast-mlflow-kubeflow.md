@@ -199,43 +199,30 @@ For cross-system lineage that extends beyond Feast into upstream data pipelines 
 
 ### Data quality monitoring
 
-Feast integrates with data quality frameworks like [Great Expectations](https://greatexpectations.io/) to detect feature drift, stale data, and schema violations before they silently degrade model performance. The workflow centers on Feast's `SavedDataset` and `ValidationReference` APIs: you save a profiled dataset during training, define a profiler using Great Expectations, and then validate new feature data against that reference in subsequent runs.
+Feast includes built-in data quality monitoring that computes, stores, and serves statistical metrics for every registered feature — detecting stale data, and distribution shifts before they silently degrade model performance. The workflow is configuration-driven: enable monitoring in `feature_store.yaml`, and Feast computes baseline metrics automatically on `feast apply`. Scheduled runs produce daily, weekly, and monthly profiles that you can query via the REST API or view in the Feast UI.
 
-```python
-from feast import FeatureStore
-from feast.dqm.profilers.ge_profiler import ge_profiler
-from great_expectations.core import ExpectationSuite
-from great_expectations.dataset import PandasDataset
-
-store = FeatureStore(repo_path=".")
-
-@ge_profiler
-def my_profiler(dataset: PandasDataset) -> ExpectationSuite:
-    dataset.expect_column_values_to_be_between("conv_rate", min_value=0, max_value=1)
-    dataset.expect_column_values_to_be_between("acc_rate", min_value=0, max_value=1)
-    return dataset.get_expectation_suite()
-
-reference_job = store.get_historical_features(
-    entity_df=entity_df,
-    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
-)
-
-dataset = store.create_saved_dataset(
-    from_=reference_job,
-    name="driver_stats_validation",
-    storage=storage,
-)
-
-reference = dataset.as_reference(name="driver_stats_ref", profiler=my_profiler)
-
-new_job = store.get_historical_features(
-    entity_df=new_entity_df,
-    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
-)
-new_job.to_df(validation_reference=reference)
+```yaml
+# feature_store.yaml
+data_quality_monitoring:
+  auto_baseline: true
 ```
 
-If validation fails, Feast raises a `ValidationFailed` exception with details on which expectations were violated. Monitoring feature distributions over time — and comparing them to the distributions seen during training — allows you to detect training–serving skew early, before it causes silent model degradation in production.
+```bash
+# Compute metrics for all feature views (auto-detect date range)
+feast monitor run
+
+# Target a specific feature view
+feast monitor run --feature-view driver_hourly_stats
+
+# Monitor from serving logs
+feast monitor run --source-type log
+```
+
+Metrics include null rates, mean/stddev, percentiles (p50–p99), and histograms for every feature. Comparing these to the baseline allows you to detect training–serving skew early, before it causes silent model degradation in production. Results are accessible via the monitoring REST API:
+
+```
+GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_hourly_stats&granularity=daily
+```
 
 ### Feast Feature Registry vs. MLflow Model Registry
 
