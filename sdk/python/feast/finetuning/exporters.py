@@ -46,19 +46,13 @@ class BaseExporter(ABC):
         """
         try:
             import mlflow
-            import pandas as pd
 
-            df = pd.read_json(output_path, lines=True)
-            dataset = mlflow.data.from_pandas(
-                df,
-                name=Path(output_path).stem,
-                source=output_path,
-            )
             with mlflow.start_run(
                 run_name=f"feast-export-{Path(output_path).stem}"
             ) as run:
-                mlflow.log_input(dataset, context=context)
                 mlflow.log_artifact(output_path)
+                mlflow.set_tag("feast.export_context", context)
+                mlflow.set_tag("feast.export_format", self.__class__.__name__)
                 if tags:
                     for k, v in tags.items():
                         mlflow.set_tag(k, v)

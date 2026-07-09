@@ -281,9 +281,9 @@ class TestRegisterInMlflow:
                 )
 
             assert run_id == "run-abc123"
-            mock_mlflow.log_input.assert_called_once()
             mock_mlflow.log_artifact.assert_called_once_with(path)
-            mock_mlflow.set_tag.assert_called_once_with("use_case", "red-teaming")
+            mock_mlflow.set_tag.assert_any_call("feast.export_context", "fine-tuning")
+            mock_mlflow.set_tag.assert_any_call("use_case", "red-teaming")
         finally:
             os.unlink(path)
 

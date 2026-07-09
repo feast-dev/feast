@@ -68,7 +68,7 @@ def install_feast_span_processor(redact_pii: bool = False) -> None:
         processors = [feast_span_processor]
         if redact_pii:
             processors.append(feast_pii_redactor)
-        mlflow.tracing.configure(span_processors=processors)
+        mlflow.tracing.configure(span_processors=processors)  # type: ignore[arg-type]
         _logger.debug(
             "Feast span processor(s) installed (pii_redaction=%s)", redact_pii
         )

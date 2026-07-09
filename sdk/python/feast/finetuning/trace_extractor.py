@@ -283,7 +283,7 @@ def _extract_entity_values(span: Optional[Any]) -> Dict[str, Any]:
 
 
 def _build_metadata(chat_span: Any, trace: Any) -> Dict[str, Any]:
-    """Build a metadata dict with model info, token counts, timestamps."""
+    """Build a metadata dict with model info, token counts, timestamps, and assessments."""
     attrs = _get_span_attributes(chat_span)
     meta: Dict[str, Any] = {}
 
@@ -298,8 +298,67 @@ def _build_metadata(chat_span: Any, trace: Any) -> Dict[str, Any]:
         info = trace.info
         if hasattr(info, "timestamp_ms"):
             meta["trace_timestamp_ms"] = info.timestamp_ms
+        if hasattr(info, "request_time"):
+            meta["trace_timestamp_ms"] = info.request_time
+
+    expectations = _extract_assessments(trace, kind="expectation")
+    if expectations:
+        meta["expectations"] = expectations
+
+    feedback = _extract_assessments(trace, kind="feedback")
+    if feedback:
+        meta["feedback"] = feedback
 
     return meta
+
+
+def _extract_assessments(trace: Any, kind: str = "expectation") -> Dict[str, Any]:
+    """Extract expectation or feedback assessments from a trace.
+
+    Args:
+        trace: An MLflow Trace object.
+        kind: Either ``"expectation"`` or ``"feedback"``.
+
+    Returns:
+        A dict mapping assessment names to their values.
+        For expectations: ``{"expected_response": "The correct answer..."}``
+        For feedback: ``{"response_quality": "poor"}``
+    """
+    result: Dict[str, Any] = {}
+
+    assessments = None
+    if hasattr(trace, "info") and hasattr(trace.info, "assessments"):
+        assessments = trace.info.assessments
+
+    if not assessments:
+        return result
+
+    for assessment in assessments:
+        if kind == "expectation":
+            expectation_val = getattr(assessment, "expectation", None)
+            if expectation_val is not None:
+                value = getattr(expectation_val, "value", None)
+                if value is not None:
+                    name = getattr(assessment, "name", "expected_response")
+                    result[name] = value
+        elif kind == "feedback":
+            feedback_val = getattr(assessment, "feedback", None)
+            if feedback_val is not None:
+                value = getattr(feedback_val, "value", None)
+                if value is not None:
+                    name = getattr(assessment, "name", "feedback")
+                    entry: Dict[str, Any] = {"value": value}
+                    source = getattr(assessment, "source", None)
+                    if source is not None:
+                        source_id = getattr(source, "source_id", None)
+                        if source_id:
+                            entry["source_id"] = source_id
+                    rationale = getattr(assessment, "rationale", None)
+                    if rationale:
+                        entry["rationale"] = rationale
+                    result[name] = entry
+
+    return result
 
 
 def _parse_csv_attr(value: str) -> List[str]:

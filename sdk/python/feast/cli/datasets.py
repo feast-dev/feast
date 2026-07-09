@@ -150,6 +150,100 @@ def preview_cmd(ctx, source, limit, field_mapping):
     click.echo(preview.to_string(index=False))
 
 
+@datasets_cmd.command("sync-assessments")
+@click.option(
+    "--experiment",
+    required=True,
+    help="MLflow experiment name to scan for traces with assessments.",
+)
+@click.option(
+    "--feature-view",
+    required=True,
+    help="Target Feast FeatureView/LabelView name to ingest into.",
+)
+@click.option(
+    "--filter",
+    "filter_str",
+    default=None,
+    help="MLflow search_traces filter string.",
+)
+@click.option(
+    "--max-results",
+    default=1000,
+    type=int,
+    help="Maximum number of traces to scan (default: 1000).",
+)
+@click.option(
+    "--assessment-names",
+    default=None,
+    help="Comma-separated assessment names to sync (default: all).",
+)
+@click.option(
+    "--batch-size",
+    default=10_000,
+    type=int,
+    help="Number of rows to write per batch (default: 10000).",
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=False,
+    help="Extract without writing to stores.",
+)
+@click.pass_context
+def sync_assessments_cmd(
+    ctx,
+    experiment,
+    feature_view,
+    filter_str,
+    max_results,
+    assessment_names,
+    batch_size,
+    dry_run,
+):
+    """Sync assessments (expectations + feedback) from MLflow traces into Feast."""
+    from feast.mlflow_integration.dataset_sync import sync_trace_assessments_to_feast
+    from feast.repo_operations import create_feature_store
+
+    store = create_feature_store(ctx)
+    tracking_uri = _resolve_tracking_uri(store)
+
+    if tracking_uri:
+        click.echo(f"  MLflow tracking URI: {tracking_uri}")
+
+    names_list = None
+    if assessment_names:
+        names_list = [n.strip() for n in assessment_names.split(",") if n.strip()]
+
+    click.echo(
+        f"Syncing assessments from experiment '{experiment}' → "
+        f"FeatureView '{feature_view}'"
+    )
+    if dry_run:
+        click.echo("  DRY RUN — no data will be written.")
+
+    result = sync_trace_assessments_to_feast(
+        store=store,
+        experiment_name=experiment,
+        feature_view_name=feature_view,
+        tracking_uri=tracking_uri,
+        filter_string=filter_str,
+        max_results=max_results,
+        assessment_names=names_list,
+        batch_size=batch_size,
+        dry_run=dry_run,
+    )
+
+    click.echo("\nSync results:")
+    click.echo(f"  Assessments found:  {result.records_fetched}")
+    click.echo(f"  Records ingested:   {result.records_ingested}")
+
+    if result.errors:
+        click.echo(f"\n  Errors ({len(result.errors)}):")
+        for err in result.errors:
+            click.echo(f"    - {err}", err=True)
+        raise SystemExit(1)
+
+
 def _resolve_tracking_uri(store) -> str | None:
     """Read the MLflow tracking URI from store config or environment."""
     mlflow_cfg = getattr(store.config, "mlflow", None)

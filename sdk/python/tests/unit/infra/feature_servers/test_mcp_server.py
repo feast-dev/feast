@@ -65,6 +65,8 @@ class TestMCPServerUnit(unittest.TestCase):
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     def test_add_mcp_support_success(self, mock_fast_api_mcp):
         """Test successful MCP support addition."""
+        import asyncio
+
         from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
         mock_app = Mock()
@@ -87,6 +89,14 @@ class TestMCPServerUnit(unittest.TestCase):
             headers=["authorization", "mcp-session-id"],
         )
 
+        # SSE mount is deferred to app startup via @app.on_event("startup").
+        # The decorator pattern: app.on_event("startup") returns a decorator,
+        # which is then called with the async function as its argument.
+        mock_app.on_event.assert_called_with("startup")
+        decorator = mock_app.on_event.return_value
+        self.assertTrue(decorator.called)
+        deferred_fn = decorator.call_args[0][0]
+        asyncio.run(deferred_fn())
         mock_mcp_instance.mount_sse.assert_called_once()
 
         # Verify the result

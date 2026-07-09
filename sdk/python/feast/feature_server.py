@@ -360,7 +360,13 @@ def _query_mlflow_datasets(
             experiment_ids=[experiment.experiment_id],
             filter_string="tags.`mlflow.runName` LIKE 'feast-export-%'",
             max_results=100,
+            output_format="pandas",
         )
+
+        import pandas as pd
+
+        if not isinstance(runs, pd.DataFrame) or runs.empty:
+            return []
 
         datasets: List[DatasetInfo] = []
         for _, run_row in runs.iterrows():

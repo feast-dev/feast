@@ -338,19 +338,182 @@ def _get_last_sync_time(dataset) -> Optional[datetime]:
         return None
 
 
+def sync_trace_assessments_to_feast(
+    store: "FeatureStore",
+    experiment_name: str,
+    feature_view_name: str,
+    tracking_uri: Optional[str] = None,
+    filter_string: Optional[str] = None,
+    max_results: int = 1000,
+    assessment_names: Optional[List[str]] = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    dry_run: bool = False,
+) -> SyncResult:
+    """Pull assessments (expectations + feedback) from MLflow traces into Feast.
+
+    Scans traces in a given experiment, extracts all assessments logged on them
+    (via MLflow UI or ``mlflow.log_expectation`` / ``mlflow.log_feedback``), and
+    writes them as rows into a Feast FeatureView or LabelView.
+
+    Each assessment becomes a row with columns:
+    - ``trace_id``: the trace it belongs to
+    - ``assessment_name``: e.g. "expected_response", "response_quality"
+    - ``assessment_type``: "expectation" or "feedback"
+    - ``value``: the assessment value (stringified)
+    - ``source_id``: who wrote it
+    - ``rationale``: optional rationale text
+    - ``event_timestamp``: when the assessment was created
+
+    Args:
+        store: Feast FeatureStore instance.
+        experiment_name: MLflow experiment name to scan for traces.
+        feature_view_name: Target Feast FeatureView/LabelView name.
+        tracking_uri: MLflow tracking URI override.
+        filter_string: MLflow search_traces filter expression.
+        max_results: Maximum number of traces to scan.
+        assessment_names: If provided, only sync assessments with these names.
+        batch_size: Number of rows to write per batch.
+        dry_run: If True, extract but don't write to stores.
+
+    Returns:
+        SyncResult with counts of fetched/ingested records.
+    """
+    import mlflow
+
+    result = SyncResult()
+
+    effective_uri = _resolve_tracking_uri(store, tracking_uri)
+    if effective_uri:
+        mlflow.set_tracking_uri(effective_uri)
+
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        result.errors.append(f"MLflow experiment '{experiment_name}' not found")
+        return result
+
+    traces = mlflow.search_traces(
+        experiment_ids=[experiment.experiment_id],
+        max_results=max_results,
+        **({"filter_string": filter_string} if filter_string else {}),
+    )
+
+    rows: List[Dict] = []
+    for trace in traces:
+        trace_id = _get_trace_id_from_trace(trace)
+        assessments = _get_trace_assessments(trace)
+        if not assessments:
+            continue
+
+        for assessment in assessments:
+            name = getattr(assessment, "name", None)
+            if not name:
+                continue
+            if assessment_names and name not in assessment_names:
+                continue
+
+            row: Dict = {
+                "trace_id": trace_id,
+                "assessment_name": name,
+            }
+
+            expectation_val = getattr(assessment, "expectation", None)
+            feedback_val = getattr(assessment, "feedback", None)
+
+            if expectation_val is not None:
+                row["assessment_type"] = "expectation"
+                row["value"] = str(getattr(expectation_val, "value", ""))
+            elif feedback_val is not None:
+                row["assessment_type"] = "feedback"
+                row["value"] = str(getattr(feedback_val, "value", ""))
+            else:
+                continue
+
+            source = getattr(assessment, "source", None)
+            if source:
+                row["source_id"] = getattr(source, "source_id", "")
+            else:
+                row["source_id"] = ""
+
+            row["rationale"] = getattr(assessment, "rationale", None) or ""
+
+            create_time = getattr(assessment, "create_time_ms", None)
+            if create_time:
+                row["event_timestamp"] = datetime.fromtimestamp(
+                    create_time / 1000, tz=timezone.utc
+                )
+            else:
+                row["event_timestamp"] = datetime.now(tz=timezone.utc)
+
+            rows.append(row)
+
+    result.records_fetched = len(rows)
+
+    if not rows:
+        logger.info("No assessments found in experiment '%s'.", experiment_name)
+        return result
+
+    df = pd.DataFrame(rows)
+    result.new_records = len(df)
+
+    if dry_run:
+        logger.info("Dry run: would ingest %d assessment records.", len(df))
+        return result
+
+    for start in range(0, len(df), batch_size):
+        batch = df.iloc[start : start + batch_size]
+        try:
+            store.write_to_online_store(feature_view_name, batch)
+        except Exception as e:
+            result.errors.append(f"Online write error at offset {start}: {e}")
+            logger.error("Failed to write batch to online store: %s", e)
+            continue
+
+        try:
+            store.push(feature_view_name, batch)
+        except Exception as e:
+            logger.warning(
+                "Push to offline store failed at offset %d: %s (continuing)", start, e
+            )
+
+        result.records_ingested += len(batch)
+
+    logger.info(
+        "Assessment sync complete: fetched=%d, ingested=%d",
+        result.records_fetched,
+        result.records_ingested,
+    )
+    return result
+
+
+def _get_trace_id_from_trace(trace) -> str:
+    """Extract trace_id from an MLflow Trace object."""
+    if hasattr(trace, "info"):
+        if hasattr(trace.info, "trace_id"):
+            return trace.info.trace_id
+        if hasattr(trace.info, "request_id"):
+            return trace.info.request_id
+    if hasattr(trace, "request_id"):
+        return trace.request_id
+    return str(getattr(trace, "trace_id", "unknown"))
+
+
+def _get_trace_assessments(trace) -> list:
+    """Get assessments list from an MLflow Trace object."""
+    if hasattr(trace, "info") and hasattr(trace.info, "assessments"):
+        return list(trace.info.assessments)
+    return []
+
+
 def _set_last_sync_time(dataset) -> None:
     """Set the sync watermark tag on the MLflow dataset."""
     try:
-        import mlflow
+        import mlflow.genai.datasets
 
         now = datetime.now(timezone.utc).isoformat()
-        if hasattr(dataset, "set_tag"):
-            dataset.set_tag(WATERMARK_TAG_KEY, now)
-        elif hasattr(dataset, "dataset_id"):
-            mlflow.genai.datasets.set_dataset_tag(
+        if hasattr(dataset, "dataset_id"):
+            mlflow.genai.datasets.set_dataset_tags(
                 dataset_id=dataset.dataset_id,
-                key=WATERMARK_TAG_KEY,
-                value=now,
+                tags={WATERMARK_TAG_KEY: now},
             )
     except Exception as e:
         logger.warning("Failed to set sync watermark: %s", e)
