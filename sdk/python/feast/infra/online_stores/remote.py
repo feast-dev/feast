@@ -251,8 +251,12 @@ class RemoteOnlineStore(OnlineStore):
 
         columnar_data: Dict[str, List[Any]] = defaultdict(list)
 
-        event_col = table.batch_source.timestamp_field or "event_timestamp"
-        created_col = table.batch_source.created_timestamp_column or "created"
+        if table.batch_source is not None:
+            event_col = table.batch_source.timestamp_field or "event_timestamp"
+            created_col = table.batch_source.created_timestamp_column or "created"
+        else:
+            event_col = "event_timestamp"
+            created_col = "created"
 
         # Iterate through each row to populate columnar data directly
         for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
