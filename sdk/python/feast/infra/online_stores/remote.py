@@ -251,6 +251,9 @@ class RemoteOnlineStore(OnlineStore):
 
         columnar_data: Dict[str, List[Any]] = defaultdict(list)
 
+        event_col = table.batch_source.timestamp_field or "event_timestamp"
+        created_col = table.batch_source.created_timestamp_column or "created"
+
         # Iterate through each row to populate columnar data directly
         for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
             # Populate entity key values
@@ -267,9 +270,8 @@ class RemoteOnlineStore(OnlineStore):
                     self._proto_value_to_transport_value(feature_value_proto)
                 )
 
-            # Populate timestamps
-            columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
-            columnar_data["created"].append(
+            columnar_data[event_col].append(_to_naive_utc(event_ts).isoformat())
+            columnar_data[created_col].append(
                 _to_naive_utc(created_ts).isoformat() if created_ts else None
             )
 
