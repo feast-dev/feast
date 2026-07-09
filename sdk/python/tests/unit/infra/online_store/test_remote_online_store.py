@@ -685,12 +685,14 @@ def _make_write_data(
     event_ts: datetime,
     created_ts: Optional[datetime],
 ):
-    return [(
-        _make_entity_key(join_key, 1001),
-        _make_feature_values(feature_name, 0.5),
-        event_ts,
-        created_ts,
-    )]
+    return [
+        (
+            _make_entity_key(join_key, 1001),
+            _make_feature_values(feature_name, 0.5),
+            event_ts,
+            created_ts,
+        )
+    ]
 
 
 class TestRemoteOnlineStoreWriteBatch:
@@ -778,8 +780,12 @@ class TestRemoteOnlineStoreWriteBatch:
         req_body = mock_post.call_args[1]["req_body"]
         df = req_body["df"]
         assert "ts" in df, "Expected custom timestamp_field 'ts' in request"
-        assert "created_at" in df, "Expected custom created_timestamp_column 'created_at' in request"
-        assert "event_timestamp" not in df, "Hardcoded 'event_timestamp' should not appear"
+        assert "created_at" in df, (
+            "Expected custom created_timestamp_column 'created_at' in request"
+        )
+        assert "event_timestamp" not in df, (
+            "Hardcoded 'event_timestamp' should not appear"
+        )
         assert "created" not in df, "Hardcoded 'created' should not appear"
 
     @patch("feast.infra.online_stores.remote.post_remote_online_write")
