@@ -396,6 +396,11 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 			(*out)[key] = val
 		}
 	}
+	if in.InitImage != nil {
+		in, out := &in.InitImage, &out.InitImage
+		*out = new(string)
+		**out = **in
+	}
 	if in.RunFeastApplyOnInit != nil {
 		in, out := &in.RunFeastApplyOnInit, &out.RunFeastApplyOnInit
 		*out = new(bool)
