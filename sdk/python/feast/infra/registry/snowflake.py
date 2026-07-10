@@ -1135,6 +1135,10 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureViewNotFoundException,
         )
         fv.materialization_intervals.append((start_date, end_date))
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            fv.state = FeatureViewState.AVAILABLE_ONLINE
         self._apply_object(
             fv_table_str,
             project,
