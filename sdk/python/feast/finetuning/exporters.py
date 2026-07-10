@@ -30,13 +30,20 @@ class BaseExporter(ABC):
     def register_in_mlflow(
         self,
         output_path: str,
+        experiment_name: Optional[str] = None,
+        run_id: Optional[str] = None,
         context: str = "fine-tuning",
         tags: Optional[Dict[str, str]] = None,
     ) -> Optional[str]:
-        """Register the exported dataset as an MLflow Dataset artifact.
+        """Save the exported JSONL as an MLflow artifact.
 
         Args:
             output_path: Path to the exported JSONL file.
+            experiment_name: MLflow experiment to log to. If *run_id* is
+                provided this is ignored. Otherwise, sets the active
+                experiment before creating a new run.
+            run_id: Attach the artifact to an existing run instead of
+                creating a new one. Takes precedence over *experiment_name*.
             context: MLflow dataset context (e.g. ``"fine-tuning"``,
                 ``"red-teaming"``, ``"evaluation"``).
             tags: Optional key-value tags to set on the MLflow run.
@@ -47,18 +54,30 @@ class BaseExporter(ABC):
         try:
             import mlflow
 
-            with mlflow.start_run(
-                run_name=f"feast-export-{Path(output_path).stem}"
-            ) as run:
-                mlflow.log_artifact(output_path)
-                mlflow.set_tag("feast.export_context", context)
-                mlflow.set_tag("feast.export_format", self.__class__.__name__)
-                if tags:
-                    for k, v in tags.items():
-                        mlflow.set_tag(k, v)
-                return run.info.run_id
+            if run_id:
+                with mlflow.start_run(run_id=run_id) as run:
+                    mlflow.log_artifact(output_path)
+                    mlflow.set_tag("feast.export_context", context)
+                    mlflow.set_tag("feast.export_format", self.__class__.__name__)
+                    if tags:
+                        for k, v in tags.items():
+                            mlflow.set_tag(k, v)
+                    return run.info.run_id
+            else:
+                if experiment_name:
+                    mlflow.set_experiment(experiment_name)
+                with mlflow.start_run(
+                    run_name=f"feast-export-{Path(output_path).stem}"
+                ) as run:
+                    mlflow.log_artifact(output_path)
+                    mlflow.set_tag("feast.export_context", context)
+                    mlflow.set_tag("feast.export_format", self.__class__.__name__)
+                    if tags:
+                        for k, v in tags.items():
+                            mlflow.set_tag(k, v)
+                    return run.info.run_id
         except Exception:
-            _logger.warning("Failed to register dataset in MLflow", exc_info=True)
+            _logger.warning("Failed to register artifact in MLflow", exc_info=True)
             return None
 
 

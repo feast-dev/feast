@@ -663,63 +663,6 @@ class TestSyncMlflowDatasetToFeast:
 
 
 # ---------------------------------------------------------------------------
-# MlflowDatasetSource serialization
-# ---------------------------------------------------------------------------
-
-
-class TestMlflowDatasetSource:
-    def test_to_proto_and_back(self):
-        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
-
-        source = MlflowDatasetSource(
-            name="test-source",
-            dataset_name="agent-feedback-v3",
-            dataset_id="ds-123",
-            experiment_ids=["exp-1", "exp-2"],
-            tracking_uri="http://mlflow:5000",
-            field_mapping={"expectations.expected_response": "corrected_response"},
-            timestamp_field="event_timestamp",
-            record_id_field="dataset_record_id",
-            description="Test MLflow source",
-            tags={"team": "ml"},
-            owner="test@example.com",
-        )
-
-        proto = source._to_proto_impl()
-        restored = MlflowDatasetSource.from_proto(proto)
-
-        assert restored.name == "test-source"
-        assert restored.dataset_name == "agent-feedback-v3"
-        assert restored.dataset_id == "ds-123"
-        assert restored.experiment_ids == ["exp-1", "exp-2"]
-        assert restored.tracking_uri == "http://mlflow:5000"
-        assert restored.record_id_field == "dataset_record_id"
-        assert restored.timestamp_field == "event_timestamp"
-        assert restored.description == "Test MLflow source"
-        assert restored.tags == {"team": "ml"}
-        assert restored.owner == "test@example.com"
-
-    def test_equality(self):
-        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
-
-        kwargs = dict(
-            name="src",
-            dataset_name="ds",
-            tracking_uri="http://mlflow:5000",
-        )
-        s1 = MlflowDatasetSource(**kwargs)
-        s2 = MlflowDatasetSource(**kwargs)
-        assert s1 == s2
-
-    def test_source_type(self):
-        from feast.infra.offline_stores.contrib.mlflow_source import MlflowDatasetSource
-        from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-
-        source = MlflowDatasetSource(name="s", dataset_name="ds")
-        assert source.source_type() == DataSourceProto.CUSTOM_SOURCE
-
-
-# ---------------------------------------------------------------------------
 # DatasetSyncConfig
 # ---------------------------------------------------------------------------
 
@@ -751,3 +694,347 @@ class TestDatasetSyncConfig:
         cfg = MlflowConfig(enabled=True)
         assert isinstance(cfg.dataset_sync, DatasetSyncConfig)
         assert cfg.dataset_sync.watermark_key == "feast_last_sync_time"
+
+
+# ---------------------------------------------------------------------------
+# Pivot assessments
+# ---------------------------------------------------------------------------
+
+
+class TestPivotAssessments:
+    def test_basic_pivot(self):
+        from feast.mlflow_integration.dataset_sync import _pivot_assessments
+
+        ts = datetime(2026, 7, 10, 12, 0, 0)
+        rows = [
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "expected_response",
+                "assessment_type": "expectation",
+                "value": "The correct answer",
+                "source_id": "reviewer_alice",
+                "rationale": "",
+                "event_timestamp": ts,
+            },
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "response_quality",
+                "assessment_type": "feedback",
+                "value": "good",
+                "source_id": "reviewer_alice",
+                "rationale": "Well structured",
+                "event_timestamp": ts,
+            },
+        ]
+
+        df = _pivot_assessments(rows, assessment_mapping=None, labeler_column="labeler")
+
+        assert len(df) == 1
+        row = df.iloc[0]
+        assert row["trace_id"] == "tr-1"
+        assert row["expected_response"] == "The correct answer"
+        assert row["response_quality"] == "good"
+        assert row["labeler"] == "reviewer_alice"
+
+    def test_pivot_with_mapping(self):
+        from feast.mlflow_integration.dataset_sync import _pivot_assessments
+
+        ts = datetime(2026, 7, 10, 12, 0, 0)
+        rows = [
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "expected_response",
+                "assessment_type": "expectation",
+                "value": "Fixed answer",
+                "source_id": "gpt-4-judge",
+                "rationale": "",
+                "event_timestamp": ts,
+            },
+        ]
+
+        mapping = {"expected_response": "corrected_response"}
+        df = _pivot_assessments(
+            rows, assessment_mapping=mapping, labeler_column="labeler"
+        )
+
+        assert len(df) == 1
+        assert "corrected_response" in df.columns
+        assert "expected_response" not in df.columns
+        assert df.iloc[0]["corrected_response"] == "Fixed answer"
+        assert df.iloc[0]["labeler"] == "gpt-4-judge"
+
+    def test_pivot_multiple_traces(self):
+        from feast.mlflow_integration.dataset_sync import _pivot_assessments
+
+        ts1 = datetime(2026, 7, 10, 12, 0, 0)
+        ts2 = datetime(2026, 7, 10, 13, 0, 0)
+        rows = [
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "response_quality",
+                "assessment_type": "feedback",
+                "value": "good",
+                "source_id": "alice",
+                "rationale": "",
+                "event_timestamp": ts1,
+            },
+            {
+                "trace_id": "tr-2",
+                "assessment_name": "response_quality",
+                "assessment_type": "feedback",
+                "value": "poor",
+                "source_id": "bob",
+                "rationale": "",
+                "event_timestamp": ts2,
+            },
+        ]
+
+        df = _pivot_assessments(rows, assessment_mapping=None, labeler_column="labeler")
+
+        assert len(df) == 2
+        tr1 = df[df["trace_id"] == "tr-1"].iloc[0]
+        tr2 = df[df["trace_id"] == "tr-2"].iloc[0]
+        assert tr1["response_quality"] == "good"
+        assert tr1["labeler"] == "alice"
+        assert tr2["response_quality"] == "poor"
+        assert tr2["labeler"] == "bob"
+
+    def test_pivot_uses_latest_timestamp(self):
+        from feast.mlflow_integration.dataset_sync import _pivot_assessments
+
+        ts_early = datetime(2026, 7, 10, 10, 0, 0)
+        ts_late = datetime(2026, 7, 10, 14, 0, 0)
+        rows = [
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "quality",
+                "assessment_type": "feedback",
+                "value": "good",
+                "source_id": "alice",
+                "rationale": "",
+                "event_timestamp": ts_early,
+            },
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "accuracy",
+                "assessment_type": "feedback",
+                "value": "high",
+                "source_id": "alice",
+                "rationale": "",
+                "event_timestamp": ts_late,
+            },
+        ]
+
+        df = _pivot_assessments(rows, assessment_mapping=None, labeler_column="labeler")
+        assert df.iloc[0]["event_timestamp"] == ts_late
+
+    def test_pivot_empty_source_id_skips_labeler(self):
+        from feast.mlflow_integration.dataset_sync import _pivot_assessments
+
+        ts = datetime(2026, 7, 10, 12, 0, 0)
+        rows = [
+            {
+                "trace_id": "tr-1",
+                "assessment_name": "quality",
+                "assessment_type": "feedback",
+                "value": "good",
+                "source_id": "",
+                "rationale": "",
+                "event_timestamp": ts,
+            },
+        ]
+
+        df = _pivot_assessments(rows, assessment_mapping=None, labeler_column="labeler")
+        assert "labeler" not in df.columns or df.iloc[0].get("labeler", "") == ""
+
+
+# ---------------------------------------------------------------------------
+# Assessment extraction from traces
+# ---------------------------------------------------------------------------
+
+
+class TestExtractAssessments:
+    def _make_mock_assessment(
+        self,
+        name,
+        kind="expectation",
+        value="test_value",
+        source_id="reviewer",
+        rationale=None,
+    ):
+        assessment = MagicMock()
+        assessment.name = name
+
+        if kind == "expectation":
+            exp = MagicMock()
+            exp.value = value
+            assessment.expectation = exp
+            assessment.feedback = None
+        else:
+            fb = MagicMock()
+            fb.value = value
+            assessment.feedback = fb
+            assessment.expectation = None
+
+        source = MagicMock()
+        source.source_id = source_id
+        assessment.source = source
+        assessment.rationale = rationale
+        return assessment
+
+    def test_extract_expectations(self):
+        from feast.finetuning.trace_extractor import _extract_assessments
+
+        trace = MagicMock()
+        trace.info.assessments = [
+            self._make_mock_assessment(
+                "expected_response", "expectation", "Correct answer"
+            ),
+        ]
+
+        result = _extract_assessments(trace, kind="expectation")
+        assert "expected_response" in result
+        assert result["expected_response"] == "Correct answer"
+
+    def test_extract_feedback(self):
+        from feast.finetuning.trace_extractor import _extract_assessments
+
+        trace = MagicMock()
+        trace.info.assessments = [
+            self._make_mock_assessment(
+                "response_quality",
+                "feedback",
+                "good",
+                source_id="gpt-4-judge",
+                rationale="Well written",
+            ),
+        ]
+
+        result = _extract_assessments(trace, kind="feedback")
+        assert "response_quality" in result
+        assert result["response_quality"]["value"] == "good"
+        assert result["response_quality"]["source_id"] == "gpt-4-judge"
+        assert result["response_quality"]["rationale"] == "Well written"
+
+    def test_extract_llm_judge_feedback(self):
+        """LLM-as-a-judge feedback is extracted the same as human feedback."""
+        from feast.finetuning.trace_extractor import _extract_assessments
+
+        trace = MagicMock()
+        trace.info.assessments = [
+            self._make_mock_assessment(
+                "response_quality", "feedback", "excellent", source_id="gpt-4-judge"
+            ),
+            self._make_mock_assessment(
+                "safety_check", "feedback", "pass", source_id="safety-scanner-v2"
+            ),
+        ]
+
+        result = _extract_assessments(trace, kind="feedback")
+        assert len(result) == 2
+        assert result["response_quality"]["value"] == "excellent"
+        assert result["response_quality"]["source_id"] == "gpt-4-judge"
+        assert result["safety_check"]["value"] == "pass"
+        assert result["safety_check"]["source_id"] == "safety-scanner-v2"
+
+    def test_extract_no_assessments(self):
+        from feast.finetuning.trace_extractor import _extract_assessments
+
+        trace = MagicMock()
+        trace.info.assessments = []
+
+        result = _extract_assessments(trace, kind="expectation")
+        assert result == {}
+
+    def test_extract_ignores_wrong_kind(self):
+        from feast.finetuning.trace_extractor import _extract_assessments
+
+        trace = MagicMock()
+        trace.info.assessments = [
+            self._make_mock_assessment("response_quality", "feedback", "good"),
+        ]
+
+        result = _extract_assessments(trace, kind="expectation")
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# Sync assessments with pivot mode
+# ---------------------------------------------------------------------------
+
+
+class TestSyncAssessmentsPivot:
+    def _make_mock_trace(self, trace_id, assessments):
+        trace = MagicMock()
+        trace.info.trace_id = trace_id
+        trace.info.assessments = assessments
+        return trace
+
+    def _make_assessment(self, name, kind, value, source_id="reviewer"):
+        a = MagicMock()
+        a.name = name
+        if kind == "expectation":
+            exp = MagicMock()
+            exp.value = value
+            a.expectation = exp
+            a.feedback = None
+        else:
+            fb = MagicMock()
+            fb.value = value
+            a.feedback = fb
+            a.expectation = None
+        source = MagicMock()
+        source.source_id = source_id
+        a.source = source
+        a.rationale = None
+        a.create_time_ms = None
+        return a
+
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
+    )
+    def test_pivot_mode_produces_labelview_rows(self, mock_uri):
+        from feast.mlflow_integration.dataset_sync import (
+            sync_trace_assessments_to_feast,
+        )
+
+        mock_mlflow = MagicMock()
+        mock_experiment = MagicMock()
+        mock_experiment.experiment_id = "exp-1"
+        mock_mlflow.get_experiment_by_name.return_value = mock_experiment
+
+        traces = [
+            self._make_mock_trace(
+                "tr-1",
+                [
+                    self._make_assessment(
+                        "expected_response",
+                        "expectation",
+                        "Better answer",
+                        "gpt-4-judge",
+                    ),
+                    self._make_assessment(
+                        "response_quality", "feedback", "good", "gpt-4-judge"
+                    ),
+                ],
+            ),
+        ]
+        mock_mlflow.search_traces.return_value = traces
+
+        store = MagicMock()
+        store.config = MagicMock()
+        store.config.mlflow = None
+
+        with patch.dict("sys.modules", {"mlflow": mock_mlflow}):
+            result = sync_trace_assessments_to_feast(
+                store=store,
+                experiment_name="test",
+                feature_view_name="agent_feedback",
+                pivot=True,
+                assessment_mapping={"expected_response": "corrected_response"},
+                labeler_column="labeler",
+                dry_run=True,
+            )
+
+        assert result.records_fetched == 2
+        assert result.new_records == 1

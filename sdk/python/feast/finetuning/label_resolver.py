@@ -10,7 +10,6 @@ Two resolution paths:
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, List
 
 import pandas as pd
@@ -31,11 +30,11 @@ def resolve_labels_from_feast(
     join_key: str = "trace_id",
     sync_feedback_to_mlflow: bool = False,
 ) -> List[FinetuningExample]:
-    """Join examples with conflict-resolved labels from a Feast LabelView.
+    """Join examples with the latest labels from a Feast LabelView.
 
-    Uses ``store.get_historical_features`` so the offline store applies the
-    LabelView's configured :class:`~feast.labeling.conflict_policy.ConflictPolicy`
-    (e.g. ``LABELER_PRIORITY``).
+    Uses ``store.get_online_features`` to fetch the most recent label per
+    entity key (LAST_WRITE_WINS). For conflict-resolved offline reads, use
+    the UI ``/list-labels`` endpoint or call ``resolve_conflicts()`` directly.
 
     Args:
         examples: Extracted fine-tuning examples (label fields may be ``None``).
@@ -63,21 +62,6 @@ def resolve_labels_from_feast(
             return ex.entity_values[join_key]
         return ex.trace_id
 
-    entity_df = pd.DataFrame(
-        {
-            join_key: [_get_join_value(ex) for ex in examples],
-            "event_timestamp": [
-                datetime.fromtimestamp(
-                    ex.metadata.get("trace_timestamp_ms", 0) / 1000,
-                    tz=timezone.utc,
-                )
-                if ex.metadata.get("trace_timestamp_ms")
-                else datetime.now(tz=timezone.utc)
-                for ex in examples
-            ],
-        }
-    )
-
     feature_refs = [f"{label_view_name}:{f}" for f in label_fields]
 
     label_view = store.get_label_view(label_view_name)
@@ -85,9 +69,11 @@ def resolve_labels_from_feast(
     if labeler_field not in label_fields:
         feature_refs.append(f"{label_view_name}:{labeler_field}")
 
-    result_df = store.get_historical_features(
-        entity_df=entity_df,
+    join_values = [_get_join_value(ex) for ex in examples]
+
+    result_df = store.get_online_features(
         features=feature_refs,
+        entity_rows=[{join_key: v} for v in join_values],
     ).to_df()
 
     trace_to_row = {row[join_key]: row for _, row in result_df.iterrows()}

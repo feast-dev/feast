@@ -189,6 +189,21 @@ def preview_cmd(ctx, source, limit, field_mapping):
     default=False,
     help="Extract without writing to stores.",
 )
+@click.option(
+    "--pivot/--no-pivot",
+    default=False,
+    help="Pivot assessments into LabelView-compatible rows (one row per trace_id).",
+)
+@click.option(
+    "--assessment-mapping",
+    default=None,
+    help="Path to a JSON file mapping assessment names to LabelView column names.",
+)
+@click.option(
+    "--labeler-column",
+    default="labeler",
+    help="Target column name for assessment source_id when --pivot is used.",
+)
 @click.pass_context
 def sync_assessments_cmd(
     ctx,
@@ -199,6 +214,9 @@ def sync_assessments_cmd(
     assessment_names,
     batch_size,
     dry_run,
+    pivot,
+    assessment_mapping,
+    labeler_column,
 ):
     """Sync assessments (expectations + feedback) from MLflow traces into Feast."""
     from feast.mlflow_integration.dataset_sync import sync_trace_assessments_to_feast
@@ -214,10 +232,17 @@ def sync_assessments_cmd(
     if assessment_names:
         names_list = [n.strip() for n in assessment_names.split(",") if n.strip()]
 
+    mapping = None
+    if assessment_mapping:
+        with open(assessment_mapping) as f:
+            mapping = json.load(f)
+
     click.echo(
         f"Syncing assessments from experiment '{experiment}' → "
-        f"FeatureView '{feature_view}'"
+        f"{'LabelView' if pivot else 'FeatureView'} '{feature_view}'"
     )
+    if pivot:
+        click.echo("  Pivot mode: one row per trace_id (LabelView-compatible)")
     if dry_run:
         click.echo("  DRY RUN — no data will be written.")
 
@@ -231,6 +256,9 @@ def sync_assessments_cmd(
         assessment_names=names_list,
         batch_size=batch_size,
         dry_run=dry_run,
+        pivot=pivot,
+        assessment_mapping=mapping,
+        labeler_column=labeler_column,
     )
 
     click.echo("\nSync results:")

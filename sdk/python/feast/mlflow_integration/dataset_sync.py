@@ -348,6 +348,9 @@ def sync_trace_assessments_to_feast(
     assessment_names: Optional[List[str]] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
     dry_run: bool = False,
+    pivot: bool = False,
+    assessment_mapping: Optional[Dict[str, str]] = None,
+    labeler_column: str = "labeler",
 ) -> SyncResult:
     """Pull assessments (expectations + feedback) from MLflow traces into Feast.
 
@@ -355,14 +358,15 @@ def sync_trace_assessments_to_feast(
     (via MLflow UI or ``mlflow.log_expectation`` / ``mlflow.log_feedback``), and
     writes them as rows into a Feast FeatureView or LabelView.
 
-    Each assessment becomes a row with columns:
-    - ``trace_id``: the trace it belongs to
-    - ``assessment_name``: e.g. "expected_response", "response_quality"
-    - ``assessment_type``: "expectation" or "feedback"
-    - ``value``: the assessment value (stringified)
-    - ``source_id``: who wrote it
-    - ``rationale``: optional rationale text
-    - ``event_timestamp``: when the assessment was created
+    **Flat mode** (default): each assessment becomes its own row with columns
+    ``trace_id``, ``assessment_name``, ``assessment_type``, ``value``,
+    ``source_id``, ``rationale``, ``event_timestamp``.
+
+    **Pivot mode** (``pivot=True``): assessments for the same ``trace_id`` are
+    pivoted into a single row whose columns match a LabelView schema. Use
+    ``assessment_mapping`` to control how assessment names map to column names
+    (e.g. ``{"expected_response": "corrected_response"}``). The ``source_id``
+    from the assessment is written to ``labeler_column`` (default ``"labeler"``).
 
     Args:
         store: Feast FeatureStore instance.
@@ -374,6 +378,13 @@ def sync_trace_assessments_to_feast(
         assessment_names: If provided, only sync assessments with these names.
         batch_size: Number of rows to write per batch.
         dry_run: If True, extract but don't write to stores.
+        pivot: When True, pivot assessments into LabelView-compatible rows
+            (one row per trace_id) instead of one row per assessment.
+        assessment_mapping: Maps assessment names to target column names.
+            Only used when ``pivot=True``. Unmapped assessment names are
+            used as column names directly.
+        labeler_column: Target column name for the assessment source_id
+            when ``pivot=True``. Defaults to ``"labeler"``.
 
     Returns:
         SyncResult with counts of fetched/ingested records.
@@ -452,7 +463,11 @@ def sync_trace_assessments_to_feast(
         logger.info("No assessments found in experiment '%s'.", experiment_name)
         return result
 
-    df = pd.DataFrame(rows)
+    if pivot:
+        df = _pivot_assessments(rows, assessment_mapping, labeler_column)
+    else:
+        df = pd.DataFrame(rows)
+
     result.new_records = len(df)
 
     if dry_run:
@@ -483,6 +498,43 @@ def sync_trace_assessments_to_feast(
         result.records_ingested,
     )
     return result
+
+
+def _pivot_assessments(
+    rows: List[Dict],
+    assessment_mapping: Optional[Dict[str, str]],
+    labeler_column: str,
+) -> pd.DataFrame:
+    """Pivot flat assessment rows into one row per trace_id.
+
+    Groups assessments by ``trace_id``, maps each ``assessment_name`` to a
+    target column (via ``assessment_mapping`` or identity), and collapses
+    ``source_id`` into the ``labeler_column``. Uses the latest
+    ``event_timestamp`` across the group.
+    """
+    mapping = assessment_mapping or {}
+    grouped: Dict[str, Dict] = {}
+
+    for row in rows:
+        trace_id = row["trace_id"]
+        if trace_id not in grouped:
+            grouped[trace_id] = {
+                "trace_id": trace_id,
+                "event_timestamp": row["event_timestamp"],
+            }
+
+        target = grouped[trace_id]
+
+        col_name = mapping.get(row["assessment_name"], row["assessment_name"])
+        target[col_name] = row["value"]
+
+        if row.get("source_id"):
+            target[labeler_column] = row["source_id"]
+
+        if row["event_timestamp"] > target["event_timestamp"]:
+            target["event_timestamp"] = row["event_timestamp"]
+
+    return pd.DataFrame(list(grouped.values()))
 
 
 def _get_trace_id_from_trace(trace) -> str:

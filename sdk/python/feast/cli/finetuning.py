@@ -31,27 +31,6 @@ def finetuning_cmd():
     help="Export format (default: openai).",
 )
 @click.option(
-    "--label-view",
-    default=None,
-    help="Feast LabelView name to fetch labels from (e.g. 'agent_feedback').",
-)
-@click.option(
-    "--label-fields",
-    default="corrected_response,response_quality",
-    help="Comma-separated label field names to fetch from the LabelView.",
-)
-@click.option(
-    "--label-source",
-    type=click.Choice(["feast", "mlflow", "auto"]),
-    default="auto",
-    help="Where to read labels from (default: auto — Feast if --label-view set, else MLflow).",
-)
-@click.option(
-    "--join-key",
-    default="trace_id",
-    help="Entity join key in the LabelView that maps to MLflow trace_id.",
-)
-@click.option(
     "--filter",
     "filter_str",
     default=None,
@@ -69,19 +48,29 @@ def finetuning_cmd():
     help="Only export traces that have labels (default: labeled-only).",
 )
 @click.option(
-    "--sync-feedback/--no-sync-feedback",
-    default=False,
-    help="Sync resolved labels as MLflow feedback assessments on the original traces.",
+    "--dataset",
+    default=None,
+    help="MLflow dataset name — only export traces that belong to this curated dataset.",
 )
 @click.option(
     "--register/--no-register",
     default=False,
-    help="Register the exported dataset in MLflow as an artifact.",
+    help="Save the JSONL as an MLflow artifact.",
+)
+@click.option(
+    "--register-experiment",
+    default=None,
+    help="MLflow experiment to save the artifact in (default: same as --experiment).",
+)
+@click.option(
+    "--register-run",
+    default=None,
+    help="Existing MLflow run ID to attach the artifact to. Creates a new run if omitted.",
 )
 @click.option(
     "--dataset-tags",
     default=None,
-    help="Comma-separated key=value tags for the registered dataset (e.g. 'use_case=red-teaming,team=safety').",
+    help="Comma-separated key=value tags for the MLflow run (e.g. 'use_case=red-teaming').",
 )
 @click.pass_context
 def export_cmd(
@@ -89,22 +78,19 @@ def export_cmd(
     experiment: str,
     output: str,
     fmt: str,
-    label_view: str,
-    label_fields: str,
-    label_source: str,
-    join_key: str,
     filter_str: str,
     max_results: int,
     labeled_only: bool,
-    sync_feedback: bool,
+    dataset: str,
     register: bool,
+    register_experiment: str,
+    register_run: str,
     dataset_tags: str,
 ):
-    """Export fine-tuning JSONL from MLflow traces + Feast labels."""
+    """Export fine-tuning JSONL from MLflow traces with labels."""
     from feast.finetuning.exporters import get_exporter
     from feast.finetuning.label_resolver import (
         filter_labeled_only,
-        resolve_labels_from_feast,
         resolve_labels_from_mlflow,
     )
     from feast.finetuning.trace_extractor import extract_from_traces
@@ -115,8 +101,7 @@ def export_cmd(
     tracking_uri = _resolve_tracking_uri(store)
 
     click.echo(
-        f"Extracting traces from experiment '{experiment}' "
-        f"at {tracking_uri} (max {max_results})..."
+        f"Extracting traces from experiment '{experiment}' (max {max_results})..."
     )
     examples = extract_from_traces(
         tracking_uri=tracking_uri,
@@ -130,30 +115,19 @@ def export_cmd(
         click.echo("No traces to export.")
         return
 
-    use_feast = label_source == "feast" or (
-        label_source == "auto" and label_view is not None
-    )
+    if dataset:
+        from feast.finetuning.dataset_filter import filter_by_mlflow_dataset
 
-    if use_feast:
-        if label_view is None:
-            raise click.UsageError(
-                "--label-view is required when --label-source is 'feast'."
-            )
-        fields = [f.strip() for f in label_fields.split(",") if f.strip()]
-        click.echo(
-            f"  Resolving labels from LabelView '{label_view}' (fields: {fields})..."
+        examples = filter_by_mlflow_dataset(
+            examples, dataset_name=dataset, tracking_uri=tracking_uri
         )
-        examples = resolve_labels_from_feast(
-            examples,
-            store=store,
-            label_view_name=label_view,
-            label_fields=fields,
-            join_key=join_key,
-            sync_feedback_to_mlflow=sync_feedback,
-        )
-    else:
-        click.echo("  Resolving labels from MLflow expectations...")
-        examples = resolve_labels_from_mlflow(examples)
+        click.echo(f"  Filtered to {len(examples)} trace(s) in dataset '{dataset}'.")
+        if not examples:
+            click.echo("No traces in dataset to export.")
+            return
+
+    click.echo("  Resolving labels from MLflow expectations & feedback...")
+    examples = resolve_labels_from_mlflow(examples)
 
     labeled_count = sum(1 for ex in examples if ex.corrected_response is not None)
     click.echo(f"  {labeled_count}/{len(examples)} trace(s) have labels.")
@@ -174,13 +148,15 @@ def export_cmd(
         tags_dict = _parse_tags(dataset_tags)
         run_id = exporter.register_in_mlflow(
             output_path=output,
+            experiment_name=register_experiment or experiment,
+            run_id=register_run,
             context="fine-tuning",
             tags=tags_dict,
         )
         if run_id:
-            click.echo(f"Registered dataset in MLflow (run_id={run_id})")
+            click.echo(f"Registered artifact in MLflow (run_id={run_id})")
         else:
-            click.echo("Warning: failed to register dataset in MLflow.", err=True)
+            click.echo("Warning: failed to register artifact in MLflow.", err=True)
 
 
 def _parse_tags(raw: str | None) -> dict[str, str] | None:

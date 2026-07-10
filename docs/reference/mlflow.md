@@ -612,3 +612,223 @@ training_df = store.get_historical_features(
     features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
 ).to_df()
 ```
+
+### When to use FeatureView vs LabelView
+
+The dataset sync command writes into a standard **FeatureView** (with a `PushSource`). For mutable human/LLM feedback labels, use a **LabelView** with the `sync-assessments` command instead. Here is the decision guide:
+
+| Data type | Feast primitive | Why |
+|---|---|---|
+| Curated golden eval set (immutable Q&A pairs) | **FeatureView** | Reference data keyed by `dataset_record_id`. No multi-labeler semantics needed. Serves at inference time via `get_online_features`. |
+| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements. |
+| LLM-as-a-judge feedback | **LabelView** | Same as human labels, but `labeler_field` identifies the source as an LLM (e.g. `"gpt-4-judge"`). |
+| Fine-tuning JSONL | **Neither** (output only) | JSONL is an export format consumed by fine-tuning APIs. Produced by `feast finetuning export`, not stored in Feast. |
+
+## Assessment sync: MLflow trace assessments → Feast
+
+The `feast datasets sync-assessments` command scans MLflow traces for expectations and feedback assessments, then writes them into a Feast FeatureView or LabelView.
+
+### Flat mode (default)
+
+Each assessment becomes its own row with a generic schema:
+
+```bash
+feast datasets sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view trace_assessments
+```
+
+Columns: `trace_id`, `assessment_name`, `assessment_type`, `value`, `source_id`, `rationale`, `event_timestamp`.
+
+### Pivot mode (LabelView-compatible)
+
+When targeting a LabelView, use `--pivot` to collapse assessments into one row per `trace_id` with columns matching the LabelView schema:
+
+```bash
+feast datasets sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view agent_feedback \
+  --pivot \
+  --assessment-mapping mapping.json \
+  --labeler-column labeler
+```
+
+Where `mapping.json` maps assessment names to LabelView column names:
+
+```json
+{
+  "expected_response": "corrected_response",
+  "response_quality": "response_quality"
+}
+```
+
+The `source_id` from each assessment (who wrote it) is written to the `--labeler-column` (default: `labeler`).
+
+### LabelView definition for assessments
+
+```python
+from feast import Entity, Field, LabelView, PushSource
+from feast.labeling.conflict_policy import ConflictPolicy
+from feast.types import String
+from feast.value_type import ValueType
+
+trace_entity = Entity(name="trace", join_keys=["trace_id"], value_type=ValueType.STRING)
+
+agent_feedback_source = PushSource(
+    name="agent_feedback_push",
+    batch_source=FileSource(
+        name="agent_feedback_batch",
+        path="data/agent_feedback.parquet",
+        timestamp_field="event_timestamp",
+    ),
+)
+
+agent_feedback = LabelView(
+    name="agent_feedback",
+    entities=[trace_entity],
+    schema=[
+        Field(name="corrected_response", dtype=String),
+        Field(name="response_quality", dtype=String),
+        Field(name="labeler", dtype=String),
+    ],
+    source=agent_feedback_source,
+    labeler_field="labeler",
+    conflict_policy=ConflictPolicy.LAST_WRITE_WINS,
+)
+```
+
+### CLI reference
+
+```
+feast datasets sync-assessments [OPTIONS]
+
+Required:
+  --experiment TEXT        MLflow experiment name to scan
+  --feature-view TEXT     Target Feast FeatureView or LabelView name
+
+Pivot mode (for LabelView targets):
+  --pivot / --no-pivot    Pivot assessments into one row per trace_id
+  --assessment-mapping    Path to JSON file mapping assessment names to columns
+  --labeler-column TEXT   Column name for assessment source_id (default: labeler)
+
+Filtering:
+  --filter TEXT           MLflow search_traces filter expression
+  --max-results INT       Max traces to scan (default: 1000)
+  --assessment-names TEXT Comma-separated assessment names to sync
+
+Options:
+  --batch-size INT        Rows per batch (default: 10000)
+  --dry-run / --no-dry-run  Extract without writing
+```
+
+### LLM-as-a-judge example
+
+An LLM judge evaluates agent responses and logs feedback on each trace. The feedback is then synced to a Feast LabelView for training data curation:
+
+```python
+import mlflow
+from mlflow.entities import AssessmentSource, AssessmentSourceType
+
+mlflow.set_tracking_uri("http://localhost:5000")
+
+for trace_id in trace_ids:
+    trace = mlflow.get_trace(trace_id)
+    judge_verdict = llm_judge.evaluate(trace)
+
+    mlflow.log_feedback(
+        trace_id=trace_id,
+        name="response_quality",
+        value=judge_verdict.rating,
+        source=AssessmentSource(
+            source_type=AssessmentSourceType.LLM,
+            source_id="gpt-4-judge",
+        ),
+        rationale=judge_verdict.explanation,
+    )
+```
+
+Then sync to Feast:
+
+```bash
+feast datasets sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view agent_feedback \
+  --pivot \
+  --assessment-names "response_quality" \
+  --labeler-column labeler
+```
+
+The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge rate the same trace.
+
+## Fine-tuning export: `feast finetuning export`
+
+Extract MLflow traces into training-ready JSONL. Labels come from expectations and feedback logged directly on traces.
+
+### Two label sources
+
+**From traces** — expectations and feedback (human or LLM judge) logged on individual traces:
+
+```bash
+feast finetuning export \
+  --experiment my_agent_traces \
+  -o training.jsonl \
+  --labeled-only \
+  --register
+```
+
+**From a curated dataset** — only traces added to an MLflow GenAI Dataset are exported:
+
+```bash
+feast finetuning export \
+  --experiment my_agent_traces \
+  --dataset finetuning_v2 \
+  -o training.jsonl \
+  --all-traces \
+  --register \
+  --register-experiment training_artifacts
+```
+
+### Saving the artifact
+
+`--register` saves the JSONL as an MLflow artifact. Control where it lands:
+
+| Flag | Behavior |
+|---|---|
+| `--register` | Creates a new run in the same experiment as `--experiment` |
+| `--register-experiment NAME` | Creates a new run in a different experiment |
+| `--register-run RUN_ID` | Attaches to an existing run (ignores `--register-experiment`) |
+
+### CLI reference
+
+```
+feast finetuning export [OPTIONS]
+
+Required:
+  --experiment TEXT              MLflow experiment to read traces from
+  --output / -o TEXT             Output JSONL path
+
+Filtering:
+  --dataset TEXT                 Only export traces in this MLflow dataset
+  --filter TEXT                  MLflow search_traces filter expression
+  --max-results INT              Max traces to scan (default: 1000)
+  --labeled-only / --all-traces  Only export labeled traces (default: labeled-only)
+
+Output:
+  --format [openai|enriched]     Export format (default: openai)
+  --register / --no-register     Save JSONL as an MLflow artifact
+  --register-experiment TEXT     Experiment for the artifact run
+  --register-run TEXT            Attach artifact to an existing run
+  --dataset-tags TEXT            key=value tags for the MLflow run
+```
+
+### Output formats
+
+**OpenAI** (`--format openai`):
+```json
+{"messages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+```
+
+**Enriched** (`--format enriched`):
+```json
+{"messages": [...], "feast_metadata": {"trace_id": "...", "feature_refs": [...], "label": "good"}}
+```
