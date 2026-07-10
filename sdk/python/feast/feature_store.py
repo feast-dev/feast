@@ -2263,11 +2263,15 @@ class FeatureStore:
 
         session = self._get_remote_http_session()
         try:
-            resp = session.post(
-                f"{server_url}{endpoint}",
-                json=payload,
-                timeout=getattr(fs_cfg, "http_timeout", 30),
-            )
+            post_kwargs: dict = {
+                "json": payload,
+                "timeout": getattr(fs_cfg, "http_timeout", 30),
+            }
+            online_cfg = getattr(self.config, "online_store", None)
+            cert = getattr(online_cfg, "cert", "") if online_cfg else ""
+            if cert:
+                post_kwargs["verify"] = cert
+            resp = session.post(f"{server_url}{endpoint}", **post_kwargs)
             resp.raise_for_status()
         except Exception as e:
             raise Exception(
