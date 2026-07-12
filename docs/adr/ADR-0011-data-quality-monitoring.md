@@ -97,7 +97,7 @@ The GE-based integration may be removed in a future release.
 
 ## References
 
-- Original RFC: Feast RFC-027: Data Quality Monitoring 
+- Original RFC: Feast RFC-027: Data Quality Monitoring
 - Implementation: `sdk/python/feast/dqm/`, `sdk/python/feast/saved_dataset.py`
 - Documentation: [Data Quality Monitoring (deprecated)](../reference/dqm.md)
 - **New system:** [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md)

@@ -2,15 +2,15 @@
 
 ## What is Feast?
 
-Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams 
-operate production ML systems at scale by allowing them to define, manage, validate, and serve features for production 
-AI/ML. 
+Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams
+operate production ML systems at scale by allowing them to define, manage, validate, and serve features for production
+AI/ML.
 
-Feast's feature store is composed of two foundational components: (1) an [offline store](getting-started/components/offline-store.md) 
-for historical feature extraction used in model training and (2) an [online store](getting-started/components/online-store.md) 
+Feast's feature store is composed of two foundational components: (1) an [offline store](getting-started/components/offline-store.md)
+for historical feature extraction used in model training and (2) an [online store](getting-started/components/online-store.md)
 for serving features at low-latency in production systems and applications.
 
-Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning 
+Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning
 features to real-time models. For more details, please review our [architecture](getting-started/architecture/overview.md).
 
 Concretely, Feast provides:
@@ -34,9 +34,9 @@ Feast allows ML platform teams to:
 ![](assets/feast_marchitecture.png)
 
 {% hint style="info" %}
-**Note:** Feast uses a push model for online serving. This means that the feature store pushes feature values to the 
-online store, which reduces the latency of feature retrieval. This is more efficient than a pull model, where the model 
-serving system must make a request to the feature store to retrieve feature values. See 
+**Note:** Feast uses a push model for online serving. This means that the feature store pushes feature values to the
+online store, which reduces the latency of feature retrieval. This is more efficient than a pull model, where the model
+serving system must make a request to the feature store to retrieve feature values. See
 [this document](getting-started/architecture/push-vs-pull-model.md) for a more detailed discussion.
 {% endhint %}
 
@@ -45,9 +45,9 @@ serving system must make a request to the feature store to retrieve feature valu
 Feast helps ML platform/MLOps teams with DevOps experience productionize real-time models. Feast also helps these teams build a feature platform that improves collaboration between data engineers, software engineers, machine learning engineers, and data scientists.
 
 * *For Data Scientists*: Feast is a tool where you can easily define, store, and retrieve your features for both model development and model deployment. By using Feast, you can focus on what you do best: build features that power your AI/ML models and maximize the value of your data.
-    
+   
 * *For MLOps Engineers*: Feast is a library that allows you to connect your existing infrastructure (e.g., online database, application server, microservice, analytical database, and orchestration tooling) that enables your Data Scientists to ship features for their models to production using a friendly SDK without having to be concerned with software engineering challenges that occur from serving real-time production systems. By using Feast, you can focus on maintaining a resilient system, instead of implementing features for Data Scientists.
-    
+   
 * *For Data Engineers*: Feast provides a centralized catalog for storing feature definitions, allowing one to maintain a single source of truth for feature data. It provides the abstraction for reading and writing to many different types of offline and online data stores. Using either the provided Python SDK or the feature server service, users can write data to the online and/or offline stores and then read that data out again in either low-latency online scenarios for model inference, or in batch scenarios for model training.
 
 * *For AI Engineers*: Feast provides a platform designed to scale your AI applications by enabling seamless integration of richer data and facilitating fine-tuning. With Feast, you can optimize the performance of your AI models while ensuring a scalable and efficient data pipeline.
@@ -68,9 +68,9 @@ Feast helps ML platform/MLOps teams with DevOps experience productionize real-ti
 
 ### Feast does not _fully_ solve
 * **reproducible model training / model backtesting / experiment management**: Feast captures feature and model metadata, but does not version-control datasets / labels or manage train / test splits. Other tools like [DVC](https://dvc.org/), [MLflow](https://www.mlflow.org/), and [Kubeflow](https://www.kubeflow.org/) are better suited for this.
-* **batch feature engineering**: Feast supports on-demand and streaming transformations. Feast is also investing in supporting batch transformations. 
+* **batch feature engineering**: Feast supports on-demand and streaming transformations. Feast is also investing in supporting batch transformations.
 * **native streaming feature integration:** Feast enables users to push streaming features, but does not pull from streaming sources or manage streaming pipelines.
-* **lineage:** Feast helps tie feature values to model versions, but is not a complete solution for capturing end-to-end lineage from raw data sources to model versions. Feast also has community contributed plugins with [DataHub](https://datahubproject.io/docs/generated/ingestion/sources/feast/) and [Amundsen](https://github.com/amundsen-io/amundsen/blob/4a9d60176767c4d68d1cad5b093320ea22e26a49/databuilder/databuilder/extractor/feast\_extractor.py). 
+* **lineage:** Feast helps tie feature values to model versions, but is not a complete solution for capturing end-to-end lineage from raw data sources to model versions. Feast also has community contributed plugins with [DataHub](https://datahubproject.io/docs/generated/ingestion/sources/feast/) and [Amundsen](https://github.com/amundsen-io/amundsen/blob/4a9d60176767c4d68d1cad5b093320ea22e26a49/databuilder/databuilder/extractor/feast\_extractor.py).
 * **data quality / drift detection**: Feast now includes built-in [Feature Quality Monitoring](how-to-guides/feature-monitoring.md) that computes statistical metrics (null rates, distributions, percentiles), detects drift across batch data and serving logs, and provides a monitoring UI dashboard. The older Great Expectations integration is deprecated.
 
 ## Example use cases

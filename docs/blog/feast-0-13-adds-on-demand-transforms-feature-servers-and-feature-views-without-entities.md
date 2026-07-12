@@ -23,7 +23,7 @@ Currently, these transformations are executed locally. Future milestones include
 First, we define the transformations:
 
 ```python
-# Define a request data source which encodes features / information only 
+# Define a request data source which encodes features / information only
 # available at request time (e.g. part of the user initiated HTTP request)
 input_request = RequestDataSource(
     name="vals_to_add",

@@ -31,7 +31,7 @@ Feast is an open-source feature store for machine learning that allows teams to 
 
 The Feast project aims for open and transparent governance and decision-making, thus encouraging community building and contribution.
 
-A formal governance structure helps us to 
+A formal governance structure helps us to
 
 *   Provide a structure for individuals to become involved in the project.
 *   Communicate all processes for members to operate within the project.
@@ -41,7 +41,7 @@ A formal governance structure helps us to
 # Feast community overview
 
 On a high level, the key moving parts of the community are:
-- **GitHub activity** (issues + pull requests) 
+- **GitHub activity** (issues + pull requests)
 - **RFCs** ([drive folder](https://drive.google.com/drive/u/0/folders/1msUsgmDbVBaysmhBlg9lklYLLTMk4bC3)) for detailed discussions
 - **Maintainer syncs** (monthly) for [maintainers](maintainers.md) to discuss project direction and health
 
@@ -51,11 +51,11 @@ We dive more deeply into the governance model below.
 
 # Feast governance model overview
 
-Feast is a meritocratic, consensus-based community project. 
+Feast is a meritocratic, consensus-based community project.
 
 Anyone interested in the project can join the community to:
 - contribute to the project design
-- participate in the decision-making process. 
+- participate in the decision-making process.
 
 > **Note**: There may not always a corresponding CODEOWNER for the affected code, in which case the responsibility falls on other maintainers or contributors with write access to review + merge the PR
 
@@ -88,7 +88,7 @@ In addition to their actions as users, contributors may also find themselves doi
 *   Writing, editing, translating or reviewing the documentation
 *   Organizing events or evangelizing the project
 
-Contributors engage with the project through the issue tracker or by writing or editing documentation. They submit changes to the project itself via Pull Requests (PRs), which will be considered for inclusion in the project by existing maintainers (see next section). 
+Contributors engage with the project through the issue tracker or by writing or editing documentation. They submit changes to the project itself via Pull Requests (PRs), which will be considered for inclusion in the project by existing maintainers (see next section).
 
 Contributors should follow the following guides when creating PRs:
 - [Contribution Process](https://docs.feast.dev/project/contributing)
@@ -98,7 +98,7 @@ As contributors gain experience and familiarity with the project, their profile 
 
 ## CODEOWNERS
 
-On top of maintainers who will be in the CODEOWNERS file, other contributors can also be added as a lower commitment way to contribute by reviewing / responding to PRs. 
+On top of maintainers who will be in the CODEOWNERS file, other contributors can also be added as a lower commitment way to contribute by reviewing / responding to PRs.
 
 CODEOWNERS will generally be the first point of contacts in reviewing pull requests and will have commit privileges.
 
@@ -106,7 +106,7 @@ CODEOWNERS will generally be the first point of contacts in reviewing pull reque
 
 Maintainers are community members who have shown that they are committed to Feast’s continued development through ongoing engagement with the community.  Because of this, maintainers have the right to merge PRs and have voting rights.
 
-> **Note**: maintainers, like other contributors, must make changes to Feast via pull requests (with code review). This applies to all changes to documentation, code, configuration, governance, etc. 
+> **Note**: maintainers, like other contributors, must make changes to Feast via pull requests (with code review). This applies to all changes to documentation, code, configuration, governance, etc.
 
 Maintainers control overall project organization and resolving disputes. They also
 - Attend a regular maintainers sync
@@ -117,7 +117,7 @@ Maintainers control overall project organization and resolving disputes. They al
 ### Optional maintainer responsibilities
 Other optional activites a maintainer (project or area maintainer) may participate in:
   *   Perform code reviews for other maintainers and the community. The areas of specialization listed in [OWNERS.md](OWNERS.md) can be used to help with routing an issue/question to the right person.
-  *   Triage GitHub issues, applying [labels]([https://github.com/feast-dev/feast/labels](https://github.com/feast-dev/feast/labels)) to each new item. Labels are extremely useful for future issue follow ups. Adding labels is somewhat subjective, so please use your best judgment. 
+  *   Triage GitHub issues, applying [labels]([https://github.com/feast-dev/feast/labels](https://github.com/feast-dev/feast/labels)) to each new item. Labels are extremely useful for future issue follow ups. Adding labels is somewhat subjective, so please use your best judgment.
   *   Triage build issues, filing issues for known flaky builds or bugs, fixing or finding someone to fix any master build breakages.
   *   Make sure that ongoing PRs are moving forward at the right pace or closing them.
 
@@ -133,20 +133,20 @@ The nominee is entitled to request an explanation of any ‘no’ votes against 
 
 Nominees may decline their appointment as a maintainer. Becoming a maintainer means that they will be spending a substantial time working on Feast for the foreseeable future. It is essential to recognize that being a maintainer is a privilege, not a right. That privilege must be earned, and once earned, the rest of the maintainers can remove it in extreme circumstances.
 
-Lazy consensus does not apply to becoming a maintainer. A vote must be held. Voting takes place through the [maintainer mailing list](https://groups.google.com/g/feast-maintainers). A vote must stay open for at least 7 days. 
+Lazy consensus does not apply to becoming a maintainer. A vote must be held. Voting takes place through the [maintainer mailing list](https://groups.google.com/g/feast-maintainers). A vote must stay open for at least 7 days.
 
 ### Earning a Nomination
 
 There is not a single path of earning a nomination for maintainer at Feast, however, we can give some guidance about some actions that would help:
 
-*   Start by expressing interest to the maintainers that you are interested in becoming a maintainer. 
+*   Start by expressing interest to the maintainers that you are interested in becoming a maintainer.
 *   You can start tackling issues labeled as ‘help wanted’, or if you are new to the project, some of the ‘good first issue’ tickets.
 *   As you gain experience with the codebase and our standards, we will ask you to do code reviews for incoming PRs (i.e., all maintainers are expected to shoulder a proportional share of community reviews).
 *   We will expect you to start contributing increasingly complicated PRs, under the guidance of the existing maintainers.
 
 ## Losing Maintainer Status
 
-If a maintainer is no longer interested and cannot perform the maintainer duties listed above, they can volunteer to be moved to emeritus status. The maintainer status is attributed for life otherwise. An emeritus maintainer may request reinstatement of commit access from the rest of maintainers. Such reinstatement is subject to lazy consensus approval of active maintainers. 
+If a maintainer is no longer interested and cannot perform the maintainer duties listed above, they can volunteer to be moved to emeritus status. The maintainer status is attributed for life otherwise. An emeritus maintainer may request reinstatement of commit access from the rest of maintainers. Such reinstatement is subject to lazy consensus approval of active maintainers.
 
 Emeritus status is a nominal title, and confers no special rights (like voting) or access. Emeritus members are functionally identical to normal contributors, with the exception that they can request for reinstatement of their commit access.
 
@@ -179,12 +179,12 @@ For lazy consensus to be effective, it is necessary to allow at least 48 hours b
 
 ## Voting
 
-Not all decisions can be made using lazy consensus. Issues such as those affecting the strategic direction or legal standing of the project must gain explicit approval in the form of a vote. Every member of the community is encouraged to express their opinions in all discussions and all votes. However, only project maintainers have binding votes for the purposes of decision making. 
+Not all decisions can be made using lazy consensus. Issues such as those affecting the strategic direction or legal standing of the project must gain explicit approval in the form of a vote. Every member of the community is encouraged to express their opinions in all discussions and all votes. However, only project maintainers have binding votes for the purposes of decision making.
 
 
 ## Changes to Governance
 
-We believe governance needs to adapt in order to be effective long term. This governance document itself can be extended or modified as our community and project grows and our needs change. 
+We believe governance needs to adapt in order to be effective long term. This governance document itself can be extended or modified as our community and project grows and our needs change.
 
 A change in our governance structure should be a rare occurrence and should face sufficient scrutiny and review. To this end, the rules that apply to modifications to the Feast Governance structure are more stringent:
 
@@ -239,7 +239,7 @@ Some changes do not require an RFC:
 
 If you submit a pull request to implement a new feature without going through the RFC process, it may be closed with a polite request to submit an RFC first. That said, if most of the work is done, we'd accelerate the process.
 
-We will keep our RFC documents in a separate repo on the feast-dev organization, where a detailed step by step process will be documented. 
+We will keep our RFC documents in a separate repo on the feast-dev organization, where a detailed step by step process will be documented.
 
 
 # Resources
