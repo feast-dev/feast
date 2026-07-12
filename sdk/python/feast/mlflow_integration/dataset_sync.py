@@ -6,9 +6,11 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
+
+from feast.feature_store import PushMode
 
 if TYPE_CHECKING:
     from feast import FeatureStore
@@ -118,6 +120,9 @@ def sync_mlflow_dataset_to_feast(
         result.records_ingested = 0
         return result
 
+    df = _align_df_to_feature_view(store, feature_view_name, df)
+    push_source_name = _resolve_push_source_name(store, feature_view_name)
+
     for start in range(0, len(df), batch_size):
         batch = df.iloc[start : start + batch_size]
         try:
@@ -127,12 +132,15 @@ def sync_mlflow_dataset_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
-        try:
-            store.push(feature_view_name, batch)
-        except Exception as e:
-            logger.warning(
-                "Push to offline store failed at offset %d: %s (continuing)", start, e
-            )
+        if push_source_name:
+            try:
+                store.push(push_source_name, batch, to=PushMode.ONLINE_AND_OFFLINE)
+            except Exception as e:
+                logger.warning(
+                    "Push to offline store failed at offset %d: %s (continuing)",
+                    start,
+                    e,
+                )
 
         result.records_ingested += len(batch)
 
@@ -184,6 +192,13 @@ def flatten_mlflow_dataset_df(
                 trace = val.get("trace", {})
                 trace_ids.append(
                     trace.get("trace_id") if isinstance(trace, dict) else None
+                )
+            elif hasattr(val, "source_data"):
+                source_data = val.source_data
+                trace_ids.append(
+                    source_data.get("trace_id")
+                    if isinstance(source_data, dict)
+                    else None
                 )
             else:
                 trace_ids.append(None)
@@ -409,14 +424,21 @@ def sync_trace_assessments_to_feast(
     )
 
     rows: List[Dict] = []
-    for trace in traces:
-        trace_id = _get_trace_id_from_trace(trace)
-        assessments = _get_trace_assessments(trace)
+    trace_iter = (
+        traces.iterrows()
+        if isinstance(traces, pd.DataFrame)
+        else ((None, t) for t in traces)
+    )
+    for _, trace_row in trace_iter:
+        trace_id = _get_trace_id_from_row(trace_row)
+        assessments = _get_assessments_from_row(trace_row)
         if not assessments:
             continue
 
         for assessment in assessments:
-            name = getattr(assessment, "name", None)
+            name = _assess_get(assessment, "assessment_name") or _assess_get(
+                assessment, "name"
+            )
             if not name:
                 continue
             if assessment_names and name not in assessment_names:
@@ -427,31 +449,52 @@ def sync_trace_assessments_to_feast(
                 "assessment_name": name,
             }
 
-            expectation_val = getattr(assessment, "expectation", None)
-            feedback_val = getattr(assessment, "feedback", None)
+            expectation_val = _assess_get(assessment, "expectation")
+            feedback_val = _assess_get(assessment, "feedback")
 
             if expectation_val is not None:
                 row["assessment_type"] = "expectation"
-                row["value"] = str(getattr(expectation_val, "value", ""))
+                row["value"] = (
+                    str(expectation_val.get("value", ""))
+                    if isinstance(expectation_val, dict)
+                    else str(getattr(expectation_val, "value", ""))
+                )
             elif feedback_val is not None:
                 row["assessment_type"] = "feedback"
-                row["value"] = str(getattr(feedback_val, "value", ""))
+                row["value"] = (
+                    str(feedback_val.get("value", ""))
+                    if isinstance(feedback_val, dict)
+                    else str(getattr(feedback_val, "value", ""))
+                )
             else:
                 continue
 
-            source = getattr(assessment, "source", None)
+            source = _assess_get(assessment, "source")
             if source:
-                row["source_id"] = getattr(source, "source_id", "")
+                row["source_id"] = (
+                    source.get("source_id", "")
+                    if isinstance(source, dict)
+                    else getattr(source, "source_id", "")
+                )
             else:
                 row["source_id"] = ""
 
-            row["rationale"] = getattr(assessment, "rationale", None) or ""
+            row["rationale"] = _assess_get(assessment, "rationale") or ""
 
-            create_time = getattr(assessment, "create_time_ms", None)
+            create_time = _assess_get(assessment, "create_time_ms") or _assess_get(
+                assessment, "create_time"
+            )
             if create_time:
-                row["event_timestamp"] = datetime.fromtimestamp(
-                    create_time / 1000, tz=timezone.utc
-                )
+                if isinstance(create_time, (int, float)):
+                    row["event_timestamp"] = datetime.fromtimestamp(
+                        create_time / 1000, tz=timezone.utc
+                    )
+                elif isinstance(create_time, str):
+                    row["event_timestamp"] = datetime.fromisoformat(
+                        create_time.replace("Z", "+00:00")
+                    )
+                else:
+                    row["event_timestamp"] = datetime.now(tz=timezone.utc)
             else:
                 row["event_timestamp"] = datetime.now(tz=timezone.utc)
 
@@ -474,6 +517,9 @@ def sync_trace_assessments_to_feast(
         logger.info("Dry run: would ingest %d assessment records.", len(df))
         return result
 
+    push_source_name = _resolve_push_source_name(store, feature_view_name)
+    df = _align_df_to_feature_view(store, feature_view_name, df)
+
     for start in range(0, len(df), batch_size):
         batch = df.iloc[start : start + batch_size]
         try:
@@ -483,12 +529,15 @@ def sync_trace_assessments_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
-        try:
-            store.push(feature_view_name, batch)
-        except Exception as e:
-            logger.warning(
-                "Push to offline store failed at offset %d: %s (continuing)", start, e
-            )
+        if push_source_name:
+            try:
+                store.push(push_source_name, batch, to=PushMode.ONLINE_AND_OFFLINE)
+            except Exception as e:
+                logger.warning(
+                    "Push to offline store failed at offset %d: %s (continuing)",
+                    start,
+                    e,
+                )
 
         result.records_ingested += len(batch)
 
@@ -537,23 +586,119 @@ def _pivot_assessments(
     return pd.DataFrame(list(grouped.values()))
 
 
-def _get_trace_id_from_trace(trace) -> str:
-    """Extract trace_id from an MLflow Trace object."""
-    if hasattr(trace, "info"):
-        if hasattr(trace.info, "trace_id"):
-            return trace.info.trace_id
-        if hasattr(trace.info, "request_id"):
-            return trace.info.request_id
-    if hasattr(trace, "request_id"):
-        return trace.request_id
-    return str(getattr(trace, "trace_id", "unknown"))
+def _get_trace_id_from_row(row) -> str:
+    """Extract trace_id from a DataFrame row or Trace object."""
+    if isinstance(row, pd.Series):
+        tid = row.get("trace_id")
+        if tid is not None:
+            return str(tid)
+
+    if hasattr(row, "info"):
+        if hasattr(row.info, "trace_id"):
+            return row.info.trace_id
+        if hasattr(row.info, "request_id"):
+            return row.info.request_id
+
+    return str(getattr(row, "trace_id", "unknown"))
 
 
-def _get_trace_assessments(trace) -> list:
-    """Get assessments list from an MLflow Trace object."""
-    if hasattr(trace, "info") and hasattr(trace.info, "assessments"):
-        return list(trace.info.assessments)
+def _get_assessments_from_row(row) -> list:
+    """Get assessments from a DataFrame row or Trace object."""
+    if isinstance(row, pd.Series):
+        assessments = row.get("assessments")
+        if assessments is not None and isinstance(assessments, list):
+            return assessments
+
+    if hasattr(row, "info") and hasattr(row.info, "assessments"):
+        return list(row.info.assessments)
+
     return []
+
+
+def _assess_get(assessment, key):
+    """Get a value from an assessment dict or object."""
+    if isinstance(assessment, dict):
+        return assessment.get(key)
+    return getattr(assessment, key, None)
+
+
+def _align_df_to_feature_view(
+    store: "FeatureStore", feature_view_name: str, df: pd.DataFrame
+) -> pd.DataFrame:
+    """Align DataFrame columns to match the target FeatureView or LabelView schema.
+
+    Adds missing schema columns as None and keeps entity/timestamp columns.
+    Extra columns not in the schema are dropped to avoid write errors.
+    """
+    fv: Any = None
+    try:
+        fv = store.get_feature_view(feature_view_name)
+    except Exception:
+        pass
+
+    if fv is None and hasattr(store, "get_label_view"):
+        try:
+            fv = store.get_label_view(feature_view_name)
+        except Exception:
+            pass
+
+    if fv is None:
+        return df
+
+    schema_cols = {f.name for f in fv.features}
+    entity_cols = {col.name for col in fv.entity_columns}
+    required_cols: set[str] = schema_cols | entity_cols | {"event_timestamp"}
+
+    for col in fv.schema:
+        if col.name in fv.entities:
+            required_cols.add(col.name)
+
+    for join_key in fv.join_keys:
+        required_cols.add(join_key)
+
+    feature_types = {f.name: f.dtype for f in fv.features}
+    for col_name in required_cols:
+        if col_name not in df.columns:
+            if col_name in feature_types:
+                df[col_name] = pd.Series([None] * len(df), dtype="object")
+            else:
+                df[col_name] = None
+
+    keep = [c for c in df.columns if c in required_cols]
+    return df[keep]
+
+
+def _resolve_push_source_name(
+    store: "FeatureStore", feature_view_name: str
+) -> Optional[str]:
+    """Resolve the PushSource name for a FeatureView or LabelView.
+
+    ``store.push()`` expects the push source name, not the feature view name.
+    This inspects the view's source/stream_source to find it.
+    """
+    view: Any = None
+    try:
+        view = store.get_feature_view(feature_view_name)
+    except Exception:
+        pass
+
+    if view is None and hasattr(store, "get_label_view"):
+        try:
+            view = store.get_label_view(feature_view_name)
+        except Exception:
+            pass
+
+    if view is None:
+        return None
+
+    for attr in ("stream_source", "source"):
+        src = getattr(view, attr, None)
+        if src is not None and hasattr(src, "name"):
+            from feast.data_source import PushSource as _PS
+
+            if isinstance(src, _PS):
+                return src.name
+    return None
 
 
 def _set_last_sync_time(dataset) -> None:

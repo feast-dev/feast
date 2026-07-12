@@ -145,10 +145,15 @@ def _process_trace(trace: Any) -> Optional[FinetuningExample]:
     if not chat_spans:
         return None
 
-    chat_span = chat_spans[0]
-
-    messages = _extract_messages(chat_span)
-    if not messages:
+    chat_span = None
+    messages: List[Dict[str, str]] = []
+    for candidate in chat_spans:
+        msgs = _extract_messages(candidate)
+        if msgs:
+            chat_span = candidate
+            messages = msgs
+            break
+    if not messages or chat_span is None:
         return None
 
     completion = _extract_completion_text(chat_span)
