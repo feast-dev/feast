@@ -59,7 +59,7 @@ class TestFeastTraceContext:
         from feast.tracing_context import FeastTraceContext
 
         ctx = FeastTraceContext()
-        ctx.push_retrieval(["fv1:f2", "fv1:f1", "fv2:f3"], "my_svc")
+        ctx.push_retrieval(["fv1:f2", "fv1:f1", "fv2:f3"], "my_svc", "span-abc")
 
         attrs = ctx.get_context_attributes()
         assert attrs["feast.context_features"] == "fv1:f1,fv1:f2,fv2:f3"
@@ -67,6 +67,7 @@ class TestFeastTraceContext:
         assert "fv1" in attrs["feast.context_feature_views"]
         assert "fv2" in attrs["feast.context_feature_views"]
         assert attrs["feast.context_feature_service"] == "my_svc"
+        assert attrs["feast.retrieval_span_ids"] == "span-abc"
 
     def test_get_context_attributes_deduplicates(self):
         from feast.tracing_context import FeastTraceContext
@@ -476,6 +477,38 @@ class TestMlflowConfigProductionFields:
 
         cfg = MlflowConfig()
         assert cfg.redact_entity_pii is False
+
+    def test_lazy_init_installs_pii_redactor_from_config(self):
+        import feast.tracing
+
+        feast.tracing._initialized = False
+        feast.tracing._enabled = False
+        feast.tracing._mlflow_mod = None
+
+        store = MagicMock()
+        store.config.project = "test_proj"
+        store.config.mlflow = MagicMock(
+            enabled=True,
+            enable_distributed_tracing=True,
+            redact_entity_pii=True,
+            trace_sampling_ratio=1.0,
+        )
+        store.config.mlflow.get_tracking_uri.return_value = None
+
+        mock_mlflow = MagicMock()
+        with (
+            patch.dict("sys.modules", {"mlflow": mock_mlflow}),
+            patch("feast.tracing_hooks.install_feast_span_processor") as mock_install,
+        ):
+            # ImportError path for distributed ctx is fine
+            enabled = feast.tracing._lazy_init(store)
+
+        assert enabled is True
+        mock_install.assert_called_once_with(redact_pii=True)
+
+        feast.tracing._initialized = False
+        feast.tracing._enabled = False
+        feast.tracing._mlflow_mod = None
 
 
 class TestPiiRedactor:

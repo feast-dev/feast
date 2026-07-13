@@ -14,6 +14,8 @@ MLFLOW_PARAM_TRUNCATION_LIMIT = MLFLOW_PARAM_MAX_LENGTH - 10
 MLFLOW_PARAM_TRUNCATION_SLICE = MLFLOW_PARAM_MAX_LENGTH - 13
 
 DEFAULT_ENTITY_DF_MAX_ROWS = 100_000
+WATERMARK_TAG_KEY = "feast_last_sync_time"
+DEFAULT_BATCH_SIZE = 10_000
 
 
 def resolve_tracking_uri(configured_uri: Optional[str] = None) -> Optional[str]:
@@ -37,11 +39,11 @@ class DatasetSyncConfig(FeastBaseModel):
         Keys are dot-delimited MLflow paths (e.g. 'expectations.expected_response'),
         values are target Feast column names. """
 
-    watermark_key: StrictStr = "feast_last_sync_time"
+    watermark_key: StrictStr = WATERMARK_TAG_KEY
     """ str: MLflow dataset tag key used to track the last sync timestamp
         for incremental syncing. Defaults to 'feast_last_sync_time'. """
 
-    default_batch_size: StrictInt = 10_000
+    default_batch_size: StrictInt = DEFAULT_BATCH_SIZE
     """ int: Default batch size for write_to_online_store during sync.
         Defaults to 10000. """
 

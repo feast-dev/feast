@@ -12,8 +12,67 @@ import pandas as pd
 import pytest
 
 # ---------------------------------------------------------------------------
-# FinetuningExample dataclass
+# Bulk trace search (avoid N+1 get_trace)
 # ---------------------------------------------------------------------------
+
+
+class TestSearchTracesBulk:
+    def test_prefers_return_type_list(self):
+        from feast.finetuning.trace_extractor import _search_traces_bulk
+
+        mock_mlflow = MagicMock()
+        traces = [MagicMock(name="t1"), MagicMock(name="t2")]
+        mock_mlflow.search_traces.return_value = traces
+
+        result = _search_traces_bulk(mock_mlflow, {"experiment_ids": ["1"]})
+
+        assert result == traces
+        mock_mlflow.search_traces.assert_called_once_with(
+            experiment_ids=["1"], return_type="list"
+        )
+        mock_mlflow.get_trace.assert_not_called()
+
+    def test_falls_back_to_embedded_trace_column(self):
+        from feast.finetuning.trace_extractor import _search_traces_bulk
+
+        mock_mlflow = MagicMock()
+        t1, t2 = MagicMock(name="t1"), MagicMock(name="t2")
+
+        def _search(**kwargs):
+            if kwargs.get("return_type") == "list":
+                raise TypeError("return_type not supported")
+            return pd.DataFrame(
+                {
+                    "trace_id": ["a", "b"],
+                    "trace": [t1, t2],
+                }
+            )
+
+        mock_mlflow.search_traces.side_effect = _search
+
+        result = _search_traces_bulk(mock_mlflow, {"experiment_ids": ["1"]})
+
+        assert result == [t1, t2]
+        mock_mlflow.get_trace.assert_not_called()
+
+    def test_legacy_get_trace_fallback(self):
+        from feast.finetuning.trace_extractor import _search_traces_bulk
+
+        mock_mlflow = MagicMock()
+        fetched = MagicMock(name="fetched")
+
+        def _search(**kwargs):
+            if kwargs.get("return_type") == "list":
+                raise TypeError("return_type not supported")
+            return pd.DataFrame({"trace_id": ["tr-1"]})
+
+        mock_mlflow.search_traces.side_effect = _search
+        mock_mlflow.get_trace.return_value = fetched
+
+        result = _search_traces_bulk(mock_mlflow, {"experiment_ids": ["1"]})
+
+        assert result == [fetched]
+        mock_mlflow.get_trace.assert_called_once_with("tr-1")
 
 
 class TestFinetuningExample:
@@ -503,6 +562,9 @@ class TestSyncMlflowDatasetToFeast:
         assert result.errors == []
         store.write_to_online_store.assert_called_once()
         store.push.assert_called_once()
+        from feast.data_source import PushMode
+
+        assert store.push.call_args[1]["to"] == PushMode.OFFLINE
 
     @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
     @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
@@ -632,6 +694,7 @@ class TestSyncMlflowDatasetToFeast:
         assert result.records_ingested == 0
         assert len(result.errors) == 1
         assert "Connection failed" in result.errors[0]
+        mock_set_sync.assert_not_called()
 
     @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
     @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")

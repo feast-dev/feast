@@ -95,11 +95,24 @@ def _lazy_init(store: "FeatureStore") -> bool:
     except Exception:
         pass
 
+    # Install span processors from config (LLM context tagging + optional PII
+    # redaction).  Safe no-op when mlflow.tracing.configure is unavailable.
+    try:
+        from feast.tracing_hooks import install_feast_span_processor
+
+        install_feast_span_processor(
+            redact_pii=bool(getattr(mlflow_cfg, "redact_entity_pii", False))
+        )
+    except Exception:
+        _logger.debug("Failed to install Feast span processor(s)", exc_info=True)
+
     _enabled = True
     _logger.info(
-        "Feast tracing initialized (mlflow, tracking_uri=%s, experiment=%s)",
+        "Feast tracing initialized (mlflow, tracking_uri=%s, experiment=%s, "
+        "redact_entity_pii=%s)",
         tracking_uri,
         experiment_name,
+        bool(getattr(mlflow_cfg, "redact_entity_pii", False)),
     )
     return True
 

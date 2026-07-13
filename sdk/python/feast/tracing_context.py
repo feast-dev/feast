@@ -1,16 +1,19 @@
 """
-Thread-local trace-scoped feature accumulator.
+Trace-scoped feature accumulator (async-safe via contextvars).
 
 During an agent→Feast round-trip the server-side retrieval pushes feature refs
 into this buffer.  After the response returns, the agent-side
 ``FeastSpanProcessor`` reads it to tag the LLM span with
 ``feast.context_features``.
+
+Uses :mod:`contextvars` (same pattern as Feast's security manager) so each
+concurrent async task / request gets an isolated context.
 """
 
 from __future__ import annotations
 
-import threading
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Set
 
@@ -54,6 +57,8 @@ class FeastTraceContext:
             attrs["feast.context_feature_views"] = ",".join(sorted(self.feature_views))
         if self.feature_service:
             attrs["feast.context_feature_service"] = self.feature_service
+        if self.retrieval_span_ids:
+            attrs["feast.retrieval_span_ids"] = ",".join(self.retrieval_span_ids)
         return attrs
 
     def clear(self) -> None:
@@ -63,22 +68,23 @@ class FeastTraceContext:
         self.retrieval_span_ids.clear()
 
 
-_thread_local = threading.local()
+_current_feast_ctx: ContextVar[Optional[FeastTraceContext]] = ContextVar(
+    "feast_trace_ctx", default=None
+)
 
 
 def get_current_context() -> Optional[FeastTraceContext]:
-    """Return the active ``FeastTraceContext`` for this thread, or ``None``."""
-    return getattr(_thread_local, "feast_ctx", None)
+    """Return the active ``FeastTraceContext`` for this context, or ``None``."""
+    return _current_feast_ctx.get()
 
 
 @contextmanager
 def feast_trace_scope() -> Iterator[FeastTraceContext]:
     """Context manager that creates and cleans up a ``FeastTraceContext``."""
-    prev = getattr(_thread_local, "feast_ctx", None)
     ctx = FeastTraceContext()
-    _thread_local.feast_ctx = ctx
+    token = _current_feast_ctx.set(ctx)
     try:
         yield ctx
     finally:
         ctx.clear()
-        _thread_local.feast_ctx = prev
+        _current_feast_ctx.reset(token)

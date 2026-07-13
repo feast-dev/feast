@@ -78,19 +78,24 @@ def extract_from_traces(
             f"MLflow experiment '{experiment_name}' not found at {tracking_uri}"
         )
 
-    traces_df = mlflow.search_traces(
-        experiment_ids=[experiment.experiment_id],
-        max_results=max_results,
-        **({"filter_string": filter_string} if filter_string else {}),
-    )
+    search_kwargs: Dict[str, Any] = {
+        "experiment_ids": [experiment.experiment_id],
+        "max_results": max_results,
+    }
+    if filter_string:
+        search_kwargs["filter_string"] = filter_string
+
+    # Prefer return_type="list" (MLflow 2.21.1+) so Trace objects — including
+    # spans — come back in one RPC.  Fall back to DataFrame / get_trace only
+    # when the installed MLflow version does not support it.
+    traces = _search_traces_bulk(mlflow, search_kwargs)
 
     examples: List[FinetuningExample] = []
     skipped = 0
 
-    for _, row in traces_df.iterrows():
-        trace_id = row.get("trace_id") or row.get("request_id") or "unknown"
+    for trace in traces:
+        trace_id = _get_trace_id(trace)
         try:
-            trace = mlflow.get_trace(str(trace_id))
             example = _process_trace(trace)
             if example is not None:
                 examples.append(example)
@@ -116,13 +121,58 @@ def extract_from_traces(
 # ---------------------------------------------------------------------------
 
 
+def _search_traces_bulk(mlflow: Any, search_kwargs: Dict[str, Any]) -> List[Any]:
+    """Fetch traces in bulk, avoiding per-trace ``get_trace`` round-trips.
+
+    Order of preference:
+    1. ``search_traces(..., return_type="list")`` — full Trace objects
+    2. DataFrame ``trace`` column (embedded Trace objects)
+    3. Per-row ``get_trace`` fallback (legacy MLflow only)
+    """
+    try:
+        result = mlflow.search_traces(**search_kwargs, return_type="list")
+        if isinstance(result, list):
+            return result
+    except TypeError:
+        logger.debug(
+            "mlflow.search_traces(return_type='list') not supported; "
+            "falling back to DataFrame path"
+        )
+
+    traces_df = mlflow.search_traces(**search_kwargs)
+    if traces_df is None or getattr(traces_df, "empty", True):
+        return []
+
+    if "trace" in traces_df.columns:
+        embedded = [t for t in traces_df["trace"].tolist() if t is not None]
+        if embedded:
+            return embedded
+
+    traces: List[Any] = []
+    for _, row in traces_df.iterrows():
+        trace_id = row.get("trace_id") or row.get("request_id")
+        if not trace_id:
+            continue
+        try:
+            traces.append(mlflow.get_trace(str(trace_id)))
+        except Exception:
+            logger.warning("Failed to fetch trace %s", trace_id, exc_info=True)
+    return traces
+
+
 def _get_trace_id(trace: Any) -> str:
     """Extract trace_id from an MLflow Trace object (DataFrame row or object)."""
     if hasattr(trace, "info"):
-        return trace.info.request_id
+        info = trace.info
+        if hasattr(info, "trace_id") and info.trace_id:
+            return str(info.trace_id)
+        if hasattr(info, "request_id") and info.request_id:
+            return str(info.request_id)
     if hasattr(trace, "request_id"):
-        return trace.request_id
-    return str(trace.get("request_id", "unknown"))
+        return str(trace.request_id)
+    if hasattr(trace, "get"):
+        return str(trace.get("trace_id") or trace.get("request_id") or "unknown")
+    return "unknown"
 
 
 def _get_spans(trace: Any) -> List[Any]:

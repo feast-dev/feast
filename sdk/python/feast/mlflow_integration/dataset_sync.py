@@ -11,14 +11,17 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import pandas as pd
 
 from feast.feature_store import PushMode
+from feast.mlflow_integration.config import (
+    DEFAULT_BATCH_SIZE,
+    WATERMARK_TAG_KEY,
+    resolve_tracking_uri,
+)
 
 if TYPE_CHECKING:
     from feast import FeatureStore
 
 logger = logging.getLogger(__name__)
 
-WATERMARK_TAG_KEY = "feast_last_sync_time"
-DEFAULT_BATCH_SIZE = 10_000
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2.0
 
@@ -34,6 +37,19 @@ class SyncResult:
     errors: List[str] = field(default_factory=list)
 
 
+def _dataset_sync_defaults(store: "FeatureStore") -> tuple[Dict[str, str], str, int]:
+    """Read field mapping, watermark key, and batch size from store config."""
+    mlflow_cfg = getattr(store.config, "mlflow", None)
+    sync_cfg = getattr(mlflow_cfg, "dataset_sync", None) if mlflow_cfg else None
+    if sync_cfg is None:
+        return {}, WATERMARK_TAG_KEY, DEFAULT_BATCH_SIZE
+    return (
+        dict(getattr(sync_cfg, "default_field_mapping", {}) or {}),
+        str(getattr(sync_cfg, "watermark_key", WATERMARK_TAG_KEY)),
+        int(getattr(sync_cfg, "default_batch_size", DEFAULT_BATCH_SIZE)),
+    )
+
+
 def sync_mlflow_dataset_to_feast(
     store: "FeatureStore",
     dataset_name: str,
@@ -41,9 +57,8 @@ def sync_mlflow_dataset_to_feast(
     field_mapping: Optional[Dict[str, str]] = None,
     tracking_uri: Optional[str] = None,
     dataset_id: Optional[str] = None,
-    experiment_ids: Optional[List[str]] = None,
     incremental: bool = True,
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: Optional[int] = None,
     dry_run: bool = False,
 ) -> SyncResult:
     """Pull records from an MLflow GenAI Dataset and ingest into Feast.
@@ -52,10 +67,10 @@ def sync_mlflow_dataset_to_feast(
     1. Connect to MLflow and fetch dataset via ``get_dataset(name=...)``
     2. Convert to pandas DataFrame via ``dataset.to_df()``
     3. Flatten nested columns (inputs, expectations, source, tags)
-    4. Apply field_mapping overrides
+    4. Apply field_mapping overrides (CLI overrides config defaults)
     5. Filter for incremental (last_update_time > last_sync_time) if enabled
     6. Write to online store via ``store.write_to_online_store()``
-    7. Push to offline store via ``store.push()``
+    7. Push to offline store via ``store.push(..., to=PushMode.OFFLINE)``
 
     Args:
         store: Feast FeatureStore instance.
@@ -64,9 +79,9 @@ def sync_mlflow_dataset_to_feast(
         field_mapping: Custom field mapping overrides.
         tracking_uri: MLflow tracking URI override.
         dataset_id: Direct dataset ID (alternative to name).
-        experiment_ids: Filter by MLflow experiment IDs.
         incremental: Only sync records updated since last sync.
-        batch_size: Number of rows to write per batch.
+        batch_size: Number of rows to write per batch. Defaults to
+            ``mlflow.dataset_sync.default_batch_size`` when unset.
         dry_run: If True, fetch and flatten but don't write to stores.
 
     Returns:
@@ -75,6 +90,9 @@ def sync_mlflow_dataset_to_feast(
     import mlflow
 
     result = SyncResult()
+    default_mapping, watermark_key, default_batch = _dataset_sync_defaults(store)
+    effective_mapping = {**default_mapping, **(field_mapping or {})}
+    effective_batch = default_batch if batch_size is None else batch_size
 
     effective_uri = _resolve_tracking_uri(store, tracking_uri)
     if effective_uri:
@@ -92,10 +110,10 @@ def sync_mlflow_dataset_to_feast(
         logger.info("MLflow dataset '%s' has no records.", dataset_name)
         return result
 
-    df = flatten_mlflow_dataset_df(df, field_mapping=field_mapping)
+    df = flatten_mlflow_dataset_df(df, field_mapping=effective_mapping or None)
 
     if incremental:
-        last_sync = _get_last_sync_time(dataset)
+        last_sync = _get_last_sync_time(dataset, watermark_key=watermark_key)
         if last_sync is not None:
             before_count = len(df)
             df = df[df["event_timestamp"] > last_sync]
@@ -123,8 +141,8 @@ def sync_mlflow_dataset_to_feast(
     df = _align_df_to_feature_view(store, feature_view_name, df)
     push_source_name = _resolve_push_source_name(store, feature_view_name)
 
-    for start in range(0, len(df), batch_size):
-        batch = df.iloc[start : start + batch_size]
+    for start in range(0, len(df), effective_batch):
+        batch = df.iloc[start : start + effective_batch]
         try:
             store.write_to_online_store(feature_view_name, batch)
         except Exception as e:
@@ -132,9 +150,11 @@ def sync_mlflow_dataset_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
+        # Online was already written above — only push offline to avoid
+        # duplicate online writes under PushMode.ONLINE_AND_OFFLINE.
         if push_source_name:
             try:
-                store.push(push_source_name, batch, to=PushMode.ONLINE_AND_OFFLINE)
+                store.push(push_source_name, batch, to=PushMode.OFFLINE)
             except Exception as e:
                 logger.warning(
                     "Push to offline store failed at offset %d: %s (continuing)",
@@ -144,7 +164,16 @@ def sync_mlflow_dataset_to_feast(
 
         result.records_ingested += len(batch)
 
-    _set_last_sync_time(dataset)
+    # Only advance the watermark when every batch succeeded.  Advancing on
+    # partial failure would skip failed records on the next incremental sync.
+    if not result.errors:
+        _set_last_sync_time(dataset, watermark_key=watermark_key)
+    else:
+        logger.warning(
+            "Skipping watermark update due to %d sync error(s); "
+            "failed records will be retried on the next incremental sync.",
+            len(result.errors),
+        )
     result.updated_records = result.records_ingested
 
     logger.info(
@@ -294,18 +323,14 @@ def _resolve_tracking_uri(
     store: "FeatureStore", override: Optional[str]
 ) -> Optional[str]:
     """Resolve MLflow tracking URI from override, config, or env."""
-    import os
-
     if override:
         return override
 
     mlflow_cfg = getattr(store.config, "mlflow", None)
-    if mlflow_cfg is not None:
-        uri = getattr(mlflow_cfg, "tracking_uri", None)
-        if uri:
-            return uri
+    if mlflow_cfg is not None and hasattr(mlflow_cfg, "get_tracking_uri"):
+        return mlflow_cfg.get_tracking_uri()
 
-    return os.environ.get("MLFLOW_TRACKING_URI")
+    return resolve_tracking_uri(None)
 
 
 def _fetch_dataset_with_retry(dataset_name: str, dataset_id: Optional[str] = None):
@@ -339,12 +364,14 @@ def _fetch_dataset_with_retry(dataset_name: str, dataset_id: Optional[str] = Non
     return None
 
 
-def _get_last_sync_time(dataset) -> Optional[datetime]:
+def _get_last_sync_time(
+    dataset, watermark_key: str = WATERMARK_TAG_KEY
+) -> Optional[datetime]:
     """Read the last sync watermark from MLflow dataset tags."""
     tags = getattr(dataset, "tags", None)
     if not tags:
         return None
-    watermark = tags.get(WATERMARK_TAG_KEY)
+    watermark = tags.get(watermark_key)
     if not watermark:
         return None
     try:
@@ -361,7 +388,7 @@ def sync_trace_assessments_to_feast(
     filter_string: Optional[str] = None,
     max_results: int = 1000,
     assessment_names: Optional[List[str]] = None,
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: Optional[int] = None,
     dry_run: bool = False,
     pivot: bool = False,
     assessment_mapping: Optional[Dict[str, str]] = None,
@@ -407,6 +434,8 @@ def sync_trace_assessments_to_feast(
     import mlflow
 
     result = SyncResult()
+    _, _, default_batch = _dataset_sync_defaults(store)
+    effective_batch = default_batch if batch_size is None else batch_size
 
     effective_uri = _resolve_tracking_uri(store, tracking_uri)
     if effective_uri:
@@ -520,8 +549,8 @@ def sync_trace_assessments_to_feast(
     push_source_name = _resolve_push_source_name(store, feature_view_name)
     df = _align_df_to_feature_view(store, feature_view_name, df)
 
-    for start in range(0, len(df), batch_size):
-        batch = df.iloc[start : start + batch_size]
+    for start in range(0, len(df), effective_batch):
+        batch = df.iloc[start : start + effective_batch]
         try:
             store.write_to_online_store(feature_view_name, batch)
         except Exception as e:
@@ -529,9 +558,11 @@ def sync_trace_assessments_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
+        # Online was already written above — only push offline to avoid
+        # duplicate online writes under PushMode.ONLINE_AND_OFFLINE.
         if push_source_name:
             try:
-                store.push(push_source_name, batch, to=PushMode.ONLINE_AND_OFFLINE)
+                store.push(push_source_name, batch, to=PushMode.OFFLINE)
             except Exception as e:
                 logger.warning(
                     "Push to offline store failed at offset %d: %s (continuing)",
@@ -705,7 +736,7 @@ def _resolve_push_source_name(
     return None
 
 
-def _set_last_sync_time(dataset) -> None:
+def _set_last_sync_time(dataset, watermark_key: str = WATERMARK_TAG_KEY) -> None:
     """Set the sync watermark tag on the MLflow dataset."""
     try:
         import mlflow.genai.datasets
@@ -714,7 +745,7 @@ def _set_last_sync_time(dataset) -> None:
         if hasattr(dataset, "dataset_id"):
             mlflow.genai.datasets.set_dataset_tags(
                 dataset_id=dataset.dataset_id,
-                tags={WATERMARK_TAG_KEY: now},
+                tags={watermark_key: now},
             )
     except Exception as e:
         logger.warning("Failed to set sync watermark: %s", e)

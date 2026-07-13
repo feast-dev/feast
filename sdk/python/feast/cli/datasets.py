@@ -1,7 +1,6 @@
 """CLI commands for MLflow GenAI Dataset sync utilities."""
 
 import json
-import os
 
 import click
 
@@ -274,9 +273,9 @@ def sync_assessments_cmd(
 
 def _resolve_tracking_uri(store) -> str | None:
     """Read the MLflow tracking URI from store config or environment."""
+    from feast.mlflow_integration.config import resolve_tracking_uri
+
     mlflow_cfg = getattr(store.config, "mlflow", None)
-    if mlflow_cfg is not None:
-        uri = getattr(mlflow_cfg, "tracking_uri", None)
-        if uri:
-            return uri
-    return os.environ.get("MLFLOW_TRACKING_URI")
+    if mlflow_cfg is not None and hasattr(mlflow_cfg, "get_tracking_uri"):
+        return mlflow_cfg.get_tracking_uri()
+    return resolve_tracking_uri(None)

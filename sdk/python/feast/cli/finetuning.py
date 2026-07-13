@@ -1,7 +1,5 @@
 """CLI commands for fine-tuning dataset export."""
 
-import os
-
 import click
 
 
@@ -72,6 +70,21 @@ def finetuning_cmd():
     default=None,
     help="Comma-separated key=value tags for the MLflow run (e.g. 'use_case=red-teaming').",
 )
+@click.option(
+    "--label-view",
+    default=None,
+    help="Feast LabelView name to join labels from (preferred over MLflow expectations).",
+)
+@click.option(
+    "--label-fields",
+    default="corrected_response",
+    help="Comma-separated LabelView fields to fetch (default: corrected_response).",
+)
+@click.option(
+    "--label-join-key",
+    default="trace_id",
+    help="Entity column used to join LabelView rows to traces (default: trace_id).",
+)
 @click.pass_context
 def export_cmd(
     ctx: click.Context,
@@ -86,11 +99,15 @@ def export_cmd(
     register_experiment: str,
     register_run: str,
     dataset_tags: str,
+    label_view: str,
+    label_fields: str,
+    label_join_key: str,
 ):
     """Export fine-tuning JSONL from MLflow traces with labels."""
     from feast.finetuning.exporters import get_exporter
     from feast.finetuning.label_resolver import (
         filter_labeled_only,
+        resolve_labels_from_feast,
         resolve_labels_from_mlflow,
     )
     from feast.finetuning.trace_extractor import extract_from_traces
@@ -126,8 +143,22 @@ def export_cmd(
             click.echo("No traces in dataset to export.")
             return
 
-    click.echo("  Resolving labels from MLflow expectations & feedback...")
-    examples = resolve_labels_from_mlflow(examples)
+    if label_view:
+        fields = [f.strip() for f in label_fields.split(",") if f.strip()]
+        click.echo(
+            f"  Resolving labels from Feast LabelView '{label_view}' "
+            f"(fields={fields}, join_key={label_join_key})..."
+        )
+        examples = resolve_labels_from_feast(
+            examples,
+            store=store,
+            label_view_name=label_view,
+            label_fields=fields,
+            join_key=label_join_key,
+        )
+    else:
+        click.echo("  Resolving labels from MLflow expectations & feedback...")
+        examples = resolve_labels_from_mlflow(examples)
 
     labeled_count = sum(1 for ex in examples if ex.corrected_response is not None)
     click.echo(f"  {labeled_count}/{len(examples)} trace(s) have labels.")
@@ -174,15 +205,16 @@ def _parse_tags(raw: str | None) -> dict[str, str] | None:
 
 def _resolve_tracking_uri(store) -> str:  # type: ignore[no-untyped-def]
     """Read the MLflow tracking URI from store config or environment."""
-    mlflow_cfg = getattr(store.config, "mlflow", None)
-    if mlflow_cfg is not None:
-        uri = getattr(mlflow_cfg, "tracking_uri", None)
-        if uri:
-            return uri
+    from feast.mlflow_integration.config import resolve_tracking_uri
 
-    env_uri = os.environ.get("MLFLOW_TRACKING_URI")
-    if env_uri:
-        return env_uri
+    mlflow_cfg = getattr(store.config, "mlflow", None)
+    if mlflow_cfg is not None and hasattr(mlflow_cfg, "get_tracking_uri"):
+        uri = mlflow_cfg.get_tracking_uri()
+    else:
+        uri = resolve_tracking_uri(None)
+
+    if uri:
+        return uri
 
     raise click.UsageError(
         "No MLflow tracking URI found. Set 'mlflow.tracking_uri' in "
