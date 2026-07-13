@@ -465,11 +465,17 @@ class TestSyncMlflowDatasetToFeast:
         return store
 
     @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_push_source_name",
+        return_value="test_push_source",
+    )
     @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
     @patch(
         "feast.mlflow_integration.dataset_sync._resolve_tracking_uri", return_value=None
     )
-    def test_sync_full_refresh(self, mock_uri, mock_fetch, mock_set_sync):
+    def test_sync_full_refresh(
+        self, mock_uri, mock_fetch, mock_push_src, mock_set_sync
+    ):
         from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
 
         records = [

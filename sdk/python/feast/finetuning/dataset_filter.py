@@ -50,7 +50,11 @@ def filter_by_mlflow_dataset(
             if not matches:
                 raise
             dataset = get_dataset(dataset_id=matches[0].dataset_id)
-            logger.info("Multiple datasets named '%s'; using most recent: %s", dataset_name, dataset.dataset_id)
+            logger.info(
+                "Multiple datasets named '%s'; using most recent: %s",
+                dataset_name,
+                dataset.dataset_id,
+            )
         else:
             raise
     df = dataset.to_df()

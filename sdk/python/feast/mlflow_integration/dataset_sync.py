@@ -647,6 +647,10 @@ def _align_df_to_feature_view(
 
     schema_cols = {f.name for f in fv.features}
     entity_cols = {col.name for col in fv.entity_columns}
+
+    if not schema_cols and not entity_cols:
+        return df
+
     required_cols: set[str] = schema_cols | entity_cols | {"event_timestamp"}
 
     for col in fv.schema:
