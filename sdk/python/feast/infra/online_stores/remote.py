@@ -598,17 +598,21 @@ class RemoteOnlineStore(OnlineStore):
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        entity_values = []
-        entity_key = ""
+        entity_columns: Dict[str, List[Any]] = {}
         for row in entity_keys:
-            entity_key = row.join_keys[0]
-            entity_values.append(
-                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))  # type: ignore[arg-type]
-            )
+            if len(row.join_keys) != len(row.entity_values):
+                raise ValueError(
+                    f"Entity key has {len(row.join_keys)} join keys but "
+                    f"{len(row.entity_values)} values; these must be the same length."
+                )
+            for join_key, value in zip(row.join_keys, row.entity_values):
+                entity_columns.setdefault(join_key, []).append(
+                    getattr(value, value.WhichOneof("val"))  # type: ignore[arg-type]
+                )
 
         return {
             "features": api_requested_features,
-            "entities": {entity_key: entity_values},
+            "entities": entity_columns,
         }
 
     def _construct_online_documents_api_json_request(
