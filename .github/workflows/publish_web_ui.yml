@@ -39,16 +39,17 @@ on:
       publish_ui:
         description: 'Publish to NPM?'
         required: true
-        default: true
         type: boolean
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   publish-web-ui-npm:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    env:
-      # This publish is working using an NPM automation token to bypass 2FA
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    environment: production
     steps:
       - uses: actions/checkout@v4
       - name: Determine current version
@@ -108,8 +109,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: './ui/.nvmrc'
+          node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@11.5.1
       - name: Bump file versions (temporarily for Web UI publish)
         if: github.event.inputs.custom_version != ''
         env:
@@ -137,6 +140,3 @@ jobs:
         working-directory: ./ui
         if: github.event.inputs.publish_ui != 'false'
         run: npm publish
-        env:
-          # This publish is working using an NPM automation token to bypass 2FA
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
