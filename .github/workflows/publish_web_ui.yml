@@ -1,26 +1,6 @@
 name: publish web ui
 
 on:
-  workflow_dispatch: # Allows manual trigger of the workflow
-    inputs:
-      current_version:
-        description: 'Current version to bump from (e.g., v1.2.3). If not provided, will auto-detect from git tags'
-        required: false
-        type: string
-      custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
-        required: false
-        type: string
-      token:
-        description: 'Personal Access Token'
-        required: false
-        default: ""
-        type: string
-      publish_ui:
-        description: 'Publish to NPM?'
-        required: true
-        default: true
-        type: boolean
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       current_version:
