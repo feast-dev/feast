@@ -2,9 +2,11 @@
 
 Two resolution paths:
 
-* **Feast LabelView** (recommended) — uses ``get_historical_features`` so
-  the offline store's :class:`~feast.labeling.conflict_policy.ConflictPolicy`
-  is applied automatically.
+* **Feast LabelView** (recommended) — uses ``get_online_features`` to fetch
+  the latest online label per entity key (effectively last-write-wins at
+  read time).  ``ConflictPolicy`` is applied when labels are written /
+  listed (e.g. ``sync-assessments``, UI ``/list-labels``), not during this
+  export join.
 * **MLflow expectations** — promotes the ``expected_response`` expectation
   already extracted from the trace into ``corrected_response``.
 """

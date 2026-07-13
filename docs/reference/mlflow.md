@@ -620,7 +620,7 @@ The dataset sync command writes into a standard **FeatureView** (with a `PushSou
 | Data type | Feast primitive | Why |
 |---|---|---|
 | Curated golden eval set (immutable Q&A pairs) | **FeatureView** | Reference data keyed by `dataset_record_id`. No multi-labeler semantics needed. Serves at inference time via `get_online_features`. |
-| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements. |
+| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements at write / list-labels time. |
 | LLM-as-a-judge feedback | **LabelView** | Same as human labels, but `labeler_field` identifies the source as an LLM (e.g. `"gpt-4-judge"`). |
 | Fine-tuning JSONL | **Neither** (output only) | JSONL is an export format consumed by fine-tuning APIs. Produced by `feast finetuning export`, not stored in Feast. |
 
@@ -758,11 +758,16 @@ feast datasets sync-assessments \
   --labeler-column labeler
 ```
 
-The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge rate the same trace.
+The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge write labels for the same trace (applied at write / list-labels time).
+
+> **Note:** `feast finetuning export --label-view` joins labels via
+> `get_online_features` (latest online value). Conflict-policy resolution
+> is not re-applied during export; ensure the online store already reflects
+> the winning label (e.g. after `sync-assessments` or a push).
 
 ## Fine-tuning export: `feast finetuning export`
 
-Extract MLflow traces into training-ready JSONL. Labels come from expectations and feedback logged directly on traces.
+Extract MLflow traces into training-ready JSONL. Labels come from expectations and feedback logged directly on traces, or optionally from a Feast LabelView.
 
 ### Two label sources
 
@@ -774,6 +779,17 @@ feast finetuning export \
   -o training.jsonl \
   --labeled-only \
   --register
+```
+
+**From a Feast LabelView** — join the latest online labels (by `trace_id` by default):
+
+```bash
+feast finetuning export \
+  --experiment my_agent_traces \
+  --label-view agent_feedback \
+  --label-fields corrected_response,response_quality \
+  -o training.jsonl \
+  --labeled-only
 ```
 
 **From a curated dataset** — only traces added to an MLflow GenAI Dataset are exported:
@@ -812,6 +828,11 @@ Filtering:
   --filter TEXT                  MLflow search_traces filter expression
   --max-results INT              Max traces to scan (default: 1000)
   --labeled-only / --all-traces  Only export labeled traces (default: labeled-only)
+
+LabelView join (optional):
+  --label-view TEXT              Join latest online labels from this LabelView
+  --label-fields TEXT            Comma-separated fields (default: corrected_response)
+  --label-join-key TEXT          Entity join key (default: trace_id)
 
 Output:
   --format [openai|enriched]     Export format (default: openai)
