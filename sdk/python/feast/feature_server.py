@@ -746,10 +746,10 @@ def get_app(
             )
         return start_date, end_date
 
+    from feast.feature_view import FeatureViewState
+
     def _check_already_materializing(fv_names: List[str]) -> Optional[JSONResponse]:
         """Return 409 if any requested FV is already materializing."""
-        from feast.feature_view import FeatureViewState
-
         for fv_name in fv_names:
             try:
                 fv = store.registry.get_feature_view(
@@ -766,6 +766,18 @@ def get_app(
                 pass
         return None
 
+    def _update_fv_state(fv_names: List[str], state) -> None:
+        """Update FV state in the registry."""
+        for fv_name in fv_names:
+            try:
+                fv = store.registry.get_feature_view(
+                    fv_name, store.project, allow_cache=False
+                )
+                fv.state = state
+                store.registry.apply_feature_view(fv, store.project)
+            except Exception:
+                logger.warning(f"Failed to set state={state} for {fv_name}")
+
     @app.post("/materialize-async", dependencies=[Depends(inject_user_details)])
     async def materialize_async(request: MaterializeRequest) -> JSONResponse:
         with feast_metrics.track_request_latency("/materialize-async"):
@@ -775,6 +787,8 @@ def get_app(
             conflict = _check_already_materializing(fv_names)
             if conflict:
                 return conflict
+
+            _update_fv_state(fv_names, FeatureViewState.MATERIALIZING)
 
             def _run_materialize():
                 try:
@@ -792,6 +806,7 @@ def get_app(
                         f"Async materialization failed for {fv_names}: {e}",
                         exc_info=True,
                     )
+                    _update_fv_state(fv_names, FeatureViewState.GENERATED)
 
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, _run_materialize)
@@ -815,6 +830,8 @@ def get_app(
             if conflict:
                 return conflict
 
+            _update_fv_state(fv_names, FeatureViewState.MATERIALIZING)
+
             def _run_materialize_incremental():
                 try:
                     store.materialize_incremental(
@@ -829,6 +846,7 @@ def get_app(
                         f"Async incremental materialization failed for {fv_names}: {e}",
                         exc_info=True,
                     )
+                    _update_fv_state(fv_names, FeatureViewState.GENERATED)
 
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, _run_materialize_incremental)

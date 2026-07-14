@@ -287,40 +287,37 @@ class TestFeatureServerAsyncEndpoints:
 
 
 class TestFeatureStoreRemoteGate:
-    def test_materialize_calls_remote_when_mode_is_remote(self):
-        """materialize() delegates to _remote_materialize when mode is remote."""
+    def test_materialize_calls_remote_when_remote_true(self):
+        """materialize(remote=True) delegates to _remote_materialize."""
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs._is_remote_materialize_mode = MagicMock(return_value=True)
         fs._remote_materialize = MagicMock()
 
-        # Call the actual materialize method (unbound) with our mock
         FeatureStore.materialize(
             fs,
             start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
             end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
             feature_views=["fv1"],
+            remote=True,
         )
 
         fs._remote_materialize.assert_called_once()
 
     def test_materialize_skips_remote_when_force_local(self):
-        """materialize() with _force_local=True skips remote even if configured."""
+        """materialize() with _force_local=True skips remote even if remote=True."""
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs._is_remote_materialize_mode = MagicMock(return_value=True)
         fs._remote_materialize = MagicMock()
 
-        # _force_local should bypass the remote gate and proceed to local logic.
-        # This will fail on the local path (mocked), but _remote_materialize shouldn't be called.
         try:
             FeatureStore.materialize(
                 fs,
                 start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
                 end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
                 feature_views=["fv1"],
+                remote=True,
                 _force_local=True,
             )
         except Exception:
@@ -328,53 +325,121 @@ class TestFeatureStoreRemoteGate:
 
         fs._remote_materialize.assert_not_called()
 
-    def test_is_remote_materialize_mode_false_by_default(self):
+    def test_materialize_local_by_default(self):
+        """materialize() without remote=True does NOT delegate remotely."""
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs.config.feature_server = None
-        result = FeatureStore._is_remote_materialize_mode(fs)
-        assert result is False
+        fs._remote_materialize = MagicMock()
 
-    def test_is_remote_materialize_mode_true(self):
+        try:
+            FeatureStore.materialize(
+                fs,
+                start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                feature_views=["fv1"],
+            )
+        except Exception:
+            pass
+
+        fs._remote_materialize.assert_not_called()
+
+    def test_get_remote_materialize_url_uses_online_store_path(self):
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs.config.feature_server.materialize_mode = "remote"
-        result = FeatureStore._is_remote_materialize_mode(fs)
-        assert result is True
-
-    def test_is_remote_materialize_mode_local(self):
-        from feast.feature_store import FeatureStore
-
-        fs = MagicMock()
-        fs.config.feature_server.materialize_mode = "local"
-        result = FeatureStore._is_remote_materialize_mode(fs)
-        assert result is False
-
-    def test_get_feature_server_url_raises_without_url(self):
-        from feast.feature_store import FeatureStore
-
-        fs = MagicMock()
-        fs.config.feature_server.url = None
-        with pytest.raises(ValueError, match="feature_server.url must be set"):
-            FeatureStore._get_feature_server_url(fs)
-
-    def test_get_feature_server_url_strips_trailing_slash(self):
-        from feast.feature_store import FeatureStore
-
-        fs = MagicMock()
-        fs.config.feature_server.url = "http://feast-server:80/"
-        result = FeatureStore._get_feature_server_url(fs)
+        fs.config.online_store.path = "http://feast-server:80/"
+        result = FeatureStore._get_remote_materialize_url(fs)
         assert result == "http://feast-server:80"
 
-    def test_get_feature_server_url_validates_scheme(self):
+    def test_get_remote_materialize_url_raises_without_path(self):
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs.config.feature_server.url = "ftp://feast-server:80"
-        with pytest.raises(ValueError, match="http or https"):
-            FeatureStore._get_feature_server_url(fs)
+        fs.config.online_store.path = None
+        with pytest.raises(ValueError, match="online_store.path must be set"):
+            FeatureStore._get_remote_materialize_url(fs)
+
+    def test_materialize_passes_wait_false(self):
+        """materialize(remote=True, wait=False) forwards wait to remote helper."""
+        from feast.feature_store import FeatureStore
+
+        fs = MagicMock()
+        fs._remote_materialize = MagicMock()
+
+        FeatureStore.materialize(
+            fs,
+            start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            feature_views=["fv1"],
+            remote=True,
+            wait=False,
+        )
+
+        assert fs._remote_materialize.call_args.kwargs["wait"] is False
+
+
+class TestPollMaterializationOneShot:
+    def test_poll_materialization_reports_current_states(self):
+        """One-shot poll returns status for each FV without waiting."""
+        from feast.feature_store import FeatureStore
+        from feast.materialization_status import FVMaterializationStatus
+
+        fs = MagicMock()
+        fs.project = "test"
+
+        def mock_get_fv(name, project, allow_cache=False):
+            fv = MagicMock()
+            if name == "fv_done":
+                fv.state = FeatureViewState.AVAILABLE_ONLINE
+            elif name == "fv_running":
+                fv.state = FeatureViewState.MATERIALIZING
+            else:
+                fv.state = FeatureViewState.GENERATED
+            return fv
+
+        fs.registry.get_feature_view = mock_get_fv
+        # Bind real helper methods used by poll_materialization
+        fs._fv_state_to_materialization_status = (
+            FeatureStore._fv_state_to_materialization_status.__get__(fs, FeatureStore)
+        )
+
+        results = FeatureStore.poll_materialization(
+            fs, feature_views=["fv_done", "fv_running", "fv_pending"]
+        )
+
+        by_name = {r.name: r.status for r in results}
+        assert by_name["fv_done"] == FVMaterializationStatus.SUCCEEDED
+        assert by_name["fv_running"] == FVMaterializationStatus.RUNNING
+        assert by_name["fv_pending"] == FVMaterializationStatus.PENDING
+
+    def test_remote_wait_false_skips_polling(self):
+        """wait=False returns after POST without calling the poller."""
+        from feast.feature_store import FeatureStore
+
+        fs = MagicMock()
+        fs.config.online_store.path = "http://server:80"
+        fs.config.online_store.cert = None
+        fs.config.auth_config = None
+        fs.project = "test"
+        fs._get_remote_materialize_url = MagicMock(return_value="http://server:80")
+
+        mock_session = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_session.post.return_value = mock_resp
+        fs._get_remote_http_session = MagicMock(return_value=mock_session)
+
+        FeatureStore._remote_materialize_common(
+            fs,
+            "/materialize-async",
+            {"feature_views": ["fv1"]},
+            ["fv1"],
+            wait=False,
+        )
+
+        mock_session.post.assert_called_once()
+        fs.registry.get_feature_view.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -383,16 +448,12 @@ class TestFeatureStoreRemoteGate:
 
 
 class TestRegistryStatusMapping:
-    def test_generated_before_materializing_is_pending(self):
-        """GENERATED state before we've ever seen MATERIALIZING = PENDING."""
+    def _setup_fs_mock(self):
         from feast.feature_store import FeatureStore
 
         fs = MagicMock()
-        fs.config.feature_server.materialize_mode = "remote"
-        fs.config.feature_server.url = "http://server:80"
-        fs.config.feature_server.materialize_timeout = 1.0
-        fs.config.feature_server.materialize_poll_interval = 0.01
-        fs.config.feature_server.http_timeout = 5
+        fs.config.online_store.path = "http://server:80"
+        fs.config.online_store.cert = None
         fs.config.auth_config = None
         fs.project = "test"
 
@@ -401,9 +462,18 @@ class TestRegistryStatusMapping:
         mock_resp.raise_for_status = MagicMock()
         mock_session.post.return_value = mock_resp
         fs._get_remote_http_session = MagicMock(return_value=mock_session)
-        fs._get_feature_server_url = MagicMock(return_value="http://server:80")
+        fs._get_remote_materialize_url = MagicMock(return_value="http://server:80")
+        fs._fv_state_to_materialization_status = (
+            FeatureStore._fv_state_to_materialization_status.__get__(fs, FeatureStore)
+        )
+        return fs
 
-        # Simulate: GENERATED → MATERIALIZING → AVAILABLE_ONLINE
+    def test_generated_before_materializing_is_pending(self):
+        """GENERATED state before we've ever seen MATERIALIZING = PENDING."""
+        from feast.feature_store import FeatureStore
+
+        fs = self._setup_fs_mock()
+
         call_count = {"n": 0}
 
         def mock_get_fv(name, project, allow_cache=False):
@@ -420,30 +490,20 @@ class TestRegistryStatusMapping:
         fs.registry.get_feature_view = mock_get_fv
 
         FeatureStore._remote_materialize_common(
-            fs, "/materialize-async", {"feature_views": ["fv1"]}, ["fv1"]
+            fs,
+            "/materialize-async",
+            {"feature_views": ["fv1"]},
+            ["fv1"],
+            timeout=1.0,
+            poll_interval=0.01,
         )
 
     def test_generated_after_materializing_is_failed(self):
         """GENERATED state after we've seen MATERIALIZING = FAILED (rollback)."""
         from feast.feature_store import FeatureStore
 
-        fs = MagicMock()
-        fs.config.feature_server.materialize_mode = "remote"
-        fs.config.feature_server.url = "http://server:80"
-        fs.config.feature_server.materialize_timeout = 1.0
-        fs.config.feature_server.materialize_poll_interval = 0.01
-        fs.config.feature_server.http_timeout = 5
-        fs.config.auth_config = None
-        fs.project = "test"
+        fs = self._setup_fs_mock()
 
-        mock_session = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.raise_for_status = MagicMock()
-        mock_session.post.return_value = mock_resp
-        fs._get_remote_http_session = MagicMock(return_value=mock_session)
-        fs._get_feature_server_url = MagicMock(return_value="http://server:80")
-
-        # Simulate: MATERIALIZING → GENERATED (rollback = failure)
         call_count = {"n": 0}
 
         def mock_get_fv(name, project, allow_cache=False):
@@ -459,12 +519,17 @@ class TestRegistryStatusMapping:
 
         with pytest.raises(Exception, match="Remote materialization failed"):
             FeatureStore._remote_materialize_common(
-                fs, "/materialize-async", {"feature_views": ["fv1"]}, ["fv1"]
+                fs,
+                "/materialize-async",
+                {"feature_views": ["fv1"]},
+                ["fv1"],
+                timeout=1.0,
+                poll_interval=0.01,
             )
 
 
 # ---------------------------------------------------------------------------
-# Tests for LocalFeatureServerConfig
+# Tests for LocalFeatureServerConfig (no remote-specific fields)
 # ---------------------------------------------------------------------------
 
 
@@ -475,33 +540,6 @@ class TestLocalFeatureServerConfig:
         )
 
         cfg = LocalFeatureServerConfig()
-        assert cfg.materialize_mode == "local"
-        assert cfg.url is None
-        assert cfg.materialize_timeout == 3600.0
-        assert cfg.materialize_poll_interval == 5.0
-
-    def test_remote_config(self):
-        from feast.infra.feature_servers.local_process.config import (
-            LocalFeatureServerConfig,
-        )
-
-        cfg = LocalFeatureServerConfig(
-            materialize_mode="remote",
-            url="http://feast-server:80",
-            materialize_timeout=600.0,
-            materialize_poll_interval=2.0,
-        )
-        assert cfg.materialize_mode == "remote"
-        assert cfg.url == "http://feast-server:80"
-        assert cfg.materialize_timeout == 600.0
-        assert cfg.materialize_poll_interval == 2.0
-
-    def test_remote_mode_requires_url(self):
-        from pydantic import ValidationError
-
-        from feast.infra.feature_servers.local_process.config import (
-            LocalFeatureServerConfig,
-        )
-
-        with pytest.raises(ValidationError, match="url must be set"):
-            LocalFeatureServerConfig(materialize_mode="remote")
+        assert cfg.type == "local"
+        assert not hasattr(cfg, "materialize_mode")
+        assert not hasattr(cfg, "url")

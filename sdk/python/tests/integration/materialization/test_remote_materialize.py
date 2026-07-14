@@ -1,9 +1,13 @@
 """Integration tests for remote materialization.
 
 Runs a real feature server in a background thread, configures a client
-FeatureStore with materialize_mode=remote, and verifies the full flow:
-  client.materialize() → POST /materialize-async → server runs locally →
+FeatureStore with online_store pointing at the server, and verifies the
+full flow using remote=True on the materialize() SDK call:
+  client.materialize(remote=True) → POST /materialize-async → server runs locally →
   FV state transitions → client polls registry → returns success
+
+Uses SQL registry (SQLite) to match the production path and exercise
+the state transitions that the file-based registry handles differently.
 """
 
 import socket
@@ -20,6 +24,7 @@ from feast.feature_server import get_app
 from feast.feature_view import FeatureViewState
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.infra.registry.sql import SqlRegistryConfig
 from feast.types import Float32, Int64
 
 
@@ -31,8 +36,8 @@ def _find_free_port() -> int:
 
 @pytest.fixture
 def e2e_repo(tmp_path):
-    """Set up a minimal feature repo with parquet data, registry, and online store."""
-    registry_path = str(tmp_path / "registry.db")
+    """Set up a minimal feature repo with SQL registry and SQLite online store."""
+    registry_db = str(tmp_path / "registry.db")
     online_store_path = str(tmp_path / "online_store.db")
     data_path = str(tmp_path / "data.parquet")
 
@@ -51,7 +56,11 @@ def e2e_repo(tmp_path):
     config = RepoConfig(
         project="test_remote_mat",
         provider="local",
-        registry=registry_path,
+        registry=SqlRegistryConfig(
+            registry_type="sql",
+            path=f"sqlite:///{registry_db}",
+            cache_ttl_seconds=1,
+        ),
         online_store=SqliteOnlineStoreConfig(path=online_store_path),
         entity_key_serialization_version=3,
     )
@@ -79,13 +88,13 @@ def e2e_repo(tmp_path):
 
     store.apply([entity, fv])
 
-    return store, config, registry_path, online_store_path
+    return store, config, registry_db, online_store_path
 
 
 @pytest.fixture
 def feature_server(e2e_repo):
     """Start a real feature server in a background thread on a free port."""
-    store, config, registry_path, online_store_path = e2e_repo
+    store, config, registry_db, online_store_path = e2e_repo
 
     app = get_app(store)
     server_port = _find_free_port()
@@ -118,44 +127,41 @@ def feature_server(e2e_repo):
 
 
 def _make_client_store(server_config, server_port):
-    """Create a client FeatureStore configured for remote materialization."""
-    from feast.infra.feature_servers.local_process.config import (
-        LocalFeatureServerConfig,
-    )
+    """Create a client FeatureStore with online_store.path pointing at the server."""
+    from feast.infra.online_stores.remote import RemoteOnlineStoreConfig
 
     client_config = RepoConfig(
         project="test_remote_mat",
         provider="local",
         registry=server_config.registry,
-        online_store=server_config.online_store,
-        entity_key_serialization_version=3,
-        feature_server=LocalFeatureServerConfig(
-            enabled=True,
-            materialize_mode="remote",
-            url=f"http://127.0.0.1:{server_port}",
-            materialize_timeout=30.0,
-            materialize_poll_interval=0.5,
+        online_store=RemoteOnlineStoreConfig(
+            type="remote",
+            path=f"http://127.0.0.1:{server_port}",
         ),
+        entity_key_serialization_version=3,
     )
     return FeatureStore(config=client_config)
 
 
 def test_remote_materialize_e2e(feature_server):
-    """Full E2E: client with remote mode materializes through server."""
+    """Full E2E: client with remote=True materializes through server."""
     server_store, server_config, server_port = feature_server
     client_store = _make_client_store(server_config, server_port)
 
     now = datetime.now(tz=timezone.utc)
-    start_date = now - timedelta(days=7)
-    end_date = now
 
     client_store.materialize(
-        start_date=start_date,
-        end_date=end_date,
+        start_date=now - timedelta(days=7),
+        end_date=now,
         feature_views=["test_feature_view"],
+        remote=True,
+        timeout=30.0,
+        poll_interval=0.5,
     )
 
-    fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
+    fv = client_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
     assert fv.state == FeatureViewState.AVAILABLE_ONLINE
 
     online_features = client_store.get_online_features(
@@ -177,9 +183,14 @@ def test_remote_materialize_incremental_e2e(feature_server):
     client_store.materialize_incremental(
         end_date=now,
         feature_views=["test_feature_view"],
+        remote=True,
+        timeout=30.0,
+        poll_interval=0.5,
     )
 
-    fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
+    fv = client_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
     assert fv.state == FeatureViewState.AVAILABLE_ONLINE
 
     online_features = client_store.get_online_features(
@@ -190,22 +201,76 @@ def test_remote_materialize_incremental_e2e(feature_server):
     assert online_features["feature_a"][0] == pytest.approx(20.0)
 
 
-def test_remote_materialize_force_local_bypasses_remote(feature_server):
-    """_force_local=True runs locally even with materialize_mode=remote."""
+def test_remote_materialize_re_materialize(feature_server):
+    """Re-materialization on already AVAILABLE_ONLINE FVs waits for completion.
+
+    Validates the polling race fix: server sets MATERIALIZING before 202,
+    so the client doesn't short-circuit on stale AVAILABLE_ONLINE.
+    """
     server_store, server_config, server_port = feature_server
     client_store = _make_client_store(server_config, server_port)
 
     now = datetime.now(tz=timezone.utc)
 
-    # With _force_local, it should run locally (same effect, no HTTP call)
+    # First materialization
     client_store.materialize(
         start_date=now - timedelta(days=7),
         end_date=now,
         feature_views=["test_feature_view"],
+        remote=True,
+        timeout=30.0,
+        poll_interval=0.5,
+    )
+
+    fv = client_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
+    assert fv.state == FeatureViewState.AVAILABLE_ONLINE
+
+    # Second materialization — must NOT return instantly
+    start_time = time.monotonic()
+    client_store.materialize(
+        start_date=now - timedelta(days=7),
+        end_date=now,
+        feature_views=["test_feature_view"],
+        remote=True,
+        timeout=30.0,
+        poll_interval=0.5,
+    )
+    elapsed = time.monotonic() - start_time
+
+    # Should have waited at least one poll cycle (0.5s), not returned in <0.1s
+    assert elapsed >= 0.3, (
+        f"Re-materialization returned in {elapsed:.2f}s — polling race not fixed"
+    )
+
+    fv = client_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
+    assert fv.state == FeatureViewState.AVAILABLE_ONLINE
+
+
+def test_remote_materialize_force_local_bypasses_remote(feature_server):
+    """_force_local=True runs locally even when remote=True.
+
+    Uses the server_store (local online store) since _force_local skips
+    the remote HTTP call entirely and writes to the local online store.
+    """
+    server_store, server_config, server_port = feature_server
+
+    now = datetime.now(tz=timezone.utc)
+
+    server_store.materialize(
+        start_date=now - timedelta(days=7),
+        end_date=now,
+        feature_views=["test_feature_view"],
+        remote=True,
         _force_local=True,
     )
 
-    fv = client_store.registry.get_feature_view("test_feature_view", "test_remote_mat")
+    fv = server_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
     assert fv.state == FeatureViewState.AVAILABLE_ONLINE
 
 
@@ -226,4 +291,46 @@ def test_remote_materialize_server_error_propagates(feature_server):
             start_date=now - timedelta(days=1),
             end_date=now,
             feature_views=["nonexistent_fv"],
+            remote=True,
+            timeout=10.0,
+            poll_interval=0.5,
         )
+
+
+def test_remote_materialize_failure_resets_state(feature_server):
+    """When server-side materialization fails, FV state resets to GENERATED.
+
+    The client's seen_materializing logic detects MATERIALIZING → GENERATED
+    as a failure and reports it promptly (within one poll cycle).
+    """
+    server_store, server_config, server_port = feature_server
+    client_store = _make_client_store(server_config, server_port)
+
+    now = datetime.now(tz=timezone.utc)
+
+    # Break the data source so materialization fails in the background thread
+    fv = server_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
+    fv.batch_source = FileSource(
+        path="/nonexistent/path/that/will/fail.parquet",
+        timestamp_field="event_timestamp",
+    )
+    server_store.apply([fv])
+
+    # Client triggers remote materialization — server will fail in background
+    with pytest.raises(Exception, match="Remote materialization failed"):
+        client_store.materialize(
+            start_date=now - timedelta(days=7),
+            end_date=now,
+            feature_views=["test_feature_view"],
+            remote=True,
+            timeout=30.0,
+            poll_interval=0.5,
+        )
+
+    # FV state should be back to GENERATED (not stuck at MATERIALIZING)
+    fv = client_store.registry.get_feature_view(
+        "test_feature_view", "test_remote_mat", allow_cache=False
+    )
+    assert fv.state == FeatureViewState.GENERATED
