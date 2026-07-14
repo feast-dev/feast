@@ -2421,8 +2421,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.64.1.dev48+g10a1fb32b.d20260630
-  sha256: 36b2ec53e444a094df5ce68594025cea29abcb5e164586f145d6dd7e5f92c1ff
+  version: 0.64.1.dev33+gdddcb00a4
+  sha256: b96f4ccddcdc82315a4ca26d2014829d4e2ed40c7c93f2f86005e680f3418855
   requires_dist:
   - click>=7.0.0,<9.0.0
   - colorama>=0.3.9,<1
@@ -2523,6 +2523,7 @@ packages:
   - datasets>=3.6.0 ; extra == 'ray'
   - redis>=4.2.2,<8 ; extra == 'redis'
   - hiredis>=2.0.0,<4 ; extra == 'redis'
+  - scylla-driver>=3.28.0,<4 ; extra == 'scylladb'
   - singlestoredb<1.8.0 ; extra == 'singlestore'
   - snowflake-connector-python[pandas]>=3.7,<5 ; extra == 'snowflake'
   - sqlite-vec==0.1.6 ; extra == 'sqlite-vec'
@@ -2543,7 +2544,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
