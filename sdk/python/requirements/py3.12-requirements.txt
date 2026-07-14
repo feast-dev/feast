@@ -1058,12 +1058,6 @@ pyyaml==6.0.3 \
     #   feast (pyproject.toml)
     #   dask
     #   uvicorn
-referencing==0.37.0 \
-    --hash=sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231 \
-    --hash=sha256:44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8
-    # via
-    #   jsonschema
-    #   jsonschema-specifications
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
@@ -1293,7 +1287,6 @@ typing-extensions==4.16.0 \
     #   mypy
     #   pydantic
     #   pydantic-core
-    #   referencing
     #   sqlalchemy
     #   starlette
     #   typeguard
