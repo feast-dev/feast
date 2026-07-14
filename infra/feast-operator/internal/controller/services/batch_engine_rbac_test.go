@@ -20,7 +20,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 )
 
 var _ = Describe("Batch Engine RBAC", func() {
@@ -146,6 +149,30 @@ server:
 			Expect(tmpl.Server).NotTo(BeNil())
 			Expect(tmpl.Driver).To(BeNil())
 		})
+	})
+})
+
+var _ = Describe("resolveBatchDriverSAName", func() {
+	It("defaults to feast-<name>-batch-driver when service_account is omitted", func() {
+		fs := &feastdevv1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: "spark-pg-e2e", Namespace: "feast-spark"}}
+		Expect(resolveBatchDriverSAName(fs, map[string]interface{}{
+			"type":  "spark_application",
+			"image": "quay.io/example/driver:v1",
+		})).To(Equal("feast-spark-pg-e2e-batch-driver"))
+	})
+
+	It("defaults when service_account is empty string", func() {
+		fs := &feastdevv1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: "spark-pg-e2e"}}
+		Expect(resolveBatchDriverSAName(fs, map[string]interface{}{
+			"service_account": "",
+		})).To(Equal("feast-spark-pg-e2e-batch-driver"))
+	})
+
+	It("keeps an explicit service_account override", func() {
+		fs := &feastdevv1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: "spark-pg-e2e"}}
+		Expect(resolveBatchDriverSAName(fs, map[string]interface{}{
+			"service_account": "my-custom-driver",
+		})).To(Equal("my-custom-driver"))
 	})
 })
 

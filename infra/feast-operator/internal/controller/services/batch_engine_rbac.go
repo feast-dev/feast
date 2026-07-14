@@ -20,6 +20,7 @@ import (
 	"embed"
 	"fmt"
 
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,6 +140,16 @@ func (feast *FeastServices) getBatchEngineType() string {
 	return engineType
 }
 
+// resolveBatchDriverSAName returns the ServiceAccount name for the Spark driver.
+// If batch engine config sets a non-empty service_account, that value wins.
+// Otherwise defaults to feast-<FeatureStoreName>-batch-driver (same name used for RBAC).
+func resolveBatchDriverSAName(featureStore *feastdevv1.FeatureStore, config map[string]interface{}) string {
+	if sa, ok := config["service_account"].(string); ok && sa != "" {
+		return sa
+	}
+	return GetFeastServiceName(featureStore, BatchDriverFeastType)
+}
+
 func (feast *FeastServices) getBatchDriverSAName() string {
 	appliedSpec := feast.Handler.FeatureStore.Status.Applied
 	if appliedSpec.BatchEngine == nil || appliedSpec.BatchEngine.ConfigMapRef == nil {
@@ -165,10 +176,7 @@ func (feast *FeastServices) getBatchDriverSAName() string {
 		return feast.GetFeastServiceName(BatchDriverFeastType)
 	}
 
-	if sa, ok := config["service_account"].(string); ok && sa != "" {
-		return sa
-	}
-	return feast.GetFeastServiceName(BatchDriverFeastType)
+	return resolveBatchDriverSAName(feast.Handler.FeatureStore, config)
 }
 
 func (feast *FeastServices) ensureBatchEngineRole(feastType FeastServiceType, rules []rbacv1.PolicyRule) error {
