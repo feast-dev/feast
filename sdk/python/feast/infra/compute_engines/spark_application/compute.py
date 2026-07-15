@@ -74,9 +74,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 "bigquery, snowflake, redshift, etc."
             )
 
-        registry_type = getattr(
-            repo_config.registry, "registry_type", ""
-        )
+        registry_type = getattr(repo_config.registry, "registry_type", "")
         if registry_type in _FILE_BASED_REGISTRY:
             raise ValueError(
                 f"spark_application engine cannot use '{registry_type}' registry. "

@@ -12,7 +12,8 @@ logger = logging.getLogger("feast.spark_application.driver")
 
 def _load_config_from_configmap():
     """Load feast and materialization config from a Kubernetes ConfigMap."""
-    from kubernetes import client, config as k8s_config
+    from kubernetes import client
+    from kubernetes import config as k8s_config
 
     k8s_config.load_incluster_config()
     v1 = client.CoreV1Api()
@@ -42,8 +43,10 @@ def _materialize_one_fv(spark_session, config, task_info):
     SparkSession visibility is handled via the getActiveSession patch in main().
     """
     from datetime import datetime, timezone
-    from feast import FeatureStore, RepoConfig
+
     from tqdm import tqdm
+
+    from feast import FeatureStore, RepoConfig
 
     fv_name = task_info["feature_view"]
     logger.info(f"Thread started: {fv_name}")
@@ -92,8 +95,9 @@ def main():
             "or mount config at /var/feast/"
         )
 
-    from feast import RepoConfig
     from pyspark.sql import SparkSession
+
+    from feast import RepoConfig
 
     RepoConfig(**feast_config)  # validate config eagerly before any Spark work
     operation = mat_config["operation"]
@@ -101,11 +105,13 @@ def main():
     if operation == "materialize":
         tasks = mat_config.get("tasks", [])
         if not tasks:
-            tasks = [{
-                "feature_view": mat_config["feature_view"],
-                "start_time": mat_config["start_time"],
-                "end_time": mat_config["end_time"],
-            }]
+            tasks = [
+                {
+                    "feature_view": mat_config["feature_view"],
+                    "start_time": mat_config["start_time"],
+                    "end_time": mat_config["end_time"],
+                }
+            ]
 
         concurrency = mat_config.get("concurrency", 1)
         total = len(tasks)
@@ -145,7 +151,9 @@ def main():
                 succeeded, failed = 0, 0
                 with ThreadPoolExecutor(max_workers=concurrency) as executor:
                     future_to_fv = {
-                        executor.submit(_materialize_one_fv, spark, feast_config, task): task["feature_view"]
+                        executor.submit(
+                            _materialize_one_fv, spark, feast_config, task
+                        ): task["feature_view"]
                         for task in tasks
                     }
                     for future in as_completed(future_to_fv):
