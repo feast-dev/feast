@@ -49,6 +49,24 @@ class SparkApplicationComputeEngineConfig(FeastConfigBaseModel):
     node_selector: Optional[Dict[str, str]] = None
     tolerations: List[dict] = []
 
+    @staticmethod
+    def _validate_env_entry(index: int, entry: object) -> None:
+        """Validate a single K8s EnvVar dict (must have name + value or valueFrom)."""
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"env[{index}] must be a dict, got {type(entry).__name__}: {entry}"
+            )
+        if "name" not in entry:
+            raise ValueError(
+                f"env[{index}] is missing required 'name'. "
+                f"Each env entry must be a K8s EnvVar dict. Got: {entry}"
+            )
+        if "value" not in entry and "valueFrom" not in entry:
+            raise ValueError(
+                f"env[{index}] must set 'value' or 'valueFrom' "
+                f"(K8s EnvVar spec). Got: {entry}"
+            )
+
     @model_validator(mode="after")
     def _validate_config(self) -> "SparkApplicationComputeEngineConfig":
         if self.staging_location:
@@ -59,9 +77,5 @@ class SparkApplicationComputeEngineConfig(FeastConfigBaseModel):
                 stacklevel=2,
             )
         for i, entry in enumerate(self.env):
-            if "name" not in entry:
-                raise ValueError(
-                    f"env[{i}] is missing required 'name' key. "
-                    f"Each env entry must have at least 'name' and 'value'. Got: {entry}"
-                )
+            self._validate_env_entry(i, entry)
         return self

@@ -11,6 +11,7 @@ from feast.infra.compute_engines.spark_application.config import (
 )
 from feast.infra.compute_engines.spark_application.job import (
     _STATE_MAP,
+    CompletedMaterializationJob,
     SparkApplicationMaterializationJob,
 )
 
@@ -18,7 +19,7 @@ from feast.infra.compute_engines.spark_application.job import (
 def _make_repo_config(
     online_store_type="redis",
     registry_type="sql",
-    registry_path="postgresql://user:pass@host:5432/feast",
+    registry_path="postgresql://user:pass@host:5432/feast",  # pragma: allowlist secret
     offline_store_type="spark",
     spark_conf=None,
 ):
@@ -287,10 +288,11 @@ def test_build_per_fv_jobs_all_succeeded():
     jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1", parent_job)
 
     assert len(jobs) == 2
-    assert all(j.status() != MaterializationJobStatus.ERROR for j in jobs)
+    assert all(isinstance(j, CompletedMaterializationJob) for j in jobs)
+    assert all(j.status() == MaterializationJobStatus.SUCCEEDED for j in jobs)
 
 
-# ── Test 14: _build_per_fv_jobs — partial failure ──
+# ── Test 14: _build_per_fv_jobs — partial failure (independent jobs) ──
 
 
 def test_build_per_fv_jobs_partial_failure():
@@ -318,7 +320,8 @@ def test_build_per_fv_jobs_partial_failure():
     )
 
     assert len(jobs) == 2
-    assert jobs[0].status() != MaterializationJobStatus.ERROR
+    assert isinstance(jobs[0], CompletedMaterializationJob)
+    assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
     assert jobs[1].status() == MaterializationJobStatus.ERROR
     assert "fv_fail" in str(jobs[1].error())
 
@@ -339,3 +342,70 @@ def test_build_per_fv_jobs_single_task():
     assert len(jobs) == 1
     assert jobs[0] is parent_job
     mock_registry.get_feature_view.assert_not_called()
+
+
+# ── Test 16: CompletedMaterializationJob is always SUCCEEDED ──
+
+
+def test_completed_job_status():
+    job = CompletedMaterializationJob("abc123")
+    assert job.status() == MaterializationJobStatus.SUCCEEDED
+    assert job.error() is None
+    assert job.job_id() == "feast-sa-abc123"
+    assert job.should_be_retried() is False
+
+
+# ── Test 17: Env validation — requires value or valueFrom ──
+
+
+def test_env_requires_value_or_valuefrom():
+    with pytest.raises(ValueError, match="'value' or 'valueFrom'"):
+        SparkApplicationComputeEngineConfig(
+            image="test:v1",
+            env=[{"name": "FOO"}],
+        )
+
+
+def test_env_accepts_value():
+    c = SparkApplicationComputeEngineConfig(
+        image="test:v1",
+        env=[{"name": "FOO", "value": "bar"}],
+    )
+    assert len(c.env) == 1
+
+
+def test_env_accepts_valuefrom():
+    c = SparkApplicationComputeEngineConfig(
+        image="test:v1",
+        env=[
+            {"name": "SECRET", "valueFrom": {"secretKeyRef": {"name": "s", "key": "k"}}}
+        ],
+    )
+    assert len(c.env) == 1
+
+
+def test_env_rejects_non_dict():
+    with pytest.raises(Exception, match="dict"):
+        SparkApplicationComputeEngineConfig(
+            image="test:v1",
+            env=["not_a_dict"],
+        )
+
+
+# ── Test 18: Retry — 403 fails fast with RBAC hint ──
+
+
+def test_poll_403_fails_fast_with_hint():
+    from kubernetes.client.exceptions import ApiException
+
+    mock_api = MagicMock()
+    mock_api.get_namespaced_custom_object.side_effect = ApiException(
+        status=403, reason="Forbidden"
+    )
+
+    job = SparkApplicationMaterializationJob("test1", "default", mock_api)
+    status = job.status()
+
+    assert status == MaterializationJobStatus.ERROR
+    assert "Role/RoleBinding" in str(job.error())
+    mock_api.get_namespaced_custom_object.assert_called_once()

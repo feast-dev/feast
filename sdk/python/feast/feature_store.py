@@ -424,10 +424,6 @@ class FeatureStore:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return self.provider
 
-    def get_provider(self) -> Provider:
-        """Public accessor for the provider instance."""
-        return self._get_provider()
-
     def _rollback_fv_states(
         self,
         feature_views: list,

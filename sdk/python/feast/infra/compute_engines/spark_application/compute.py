@@ -29,7 +29,14 @@ from feast.stream_feature_view import StreamFeatureView
 from .config import (
     SparkApplicationComputeEngineConfig,  # noqa: F401 — required for Feast config resolution
 )
-from .job import SparkApplicationMaterializationJob
+from .job import (
+    _MAX_RETRIES,
+    _RETRY_BACKOFF_BASE,
+    CompletedMaterializationJob,
+    SparkApplicationMaterializationJob,
+    _is_retryable,
+    _rbac_hint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,24 +146,35 @@ class SparkApplicationComputeEngine(ComputeEngine):
         job_id = uuid.uuid4().hex[:8]
 
         try:
-            self._create_configmap(job_id, tasks)
+            self._create_with_retry(
+                lambda: self._create_configmap(job_id, tasks),
+                "ConfigMap",
+                job_id,
+            )
         except ApiException as e:
             job = SparkApplicationMaterializationJob(
                 job_id,
                 self.config.namespace,
                 self.custom_api,
-                error=Exception(f"ConfigMap creation failed: {e.reason}"),
+                error=Exception(
+                    f"ConfigMap creation failed: HTTP {e.status} {e.reason}."
+                    f"{_rbac_hint(e.status)}"
+                ),
             )
             return [job for _ in tasks]
 
         try:
             cr = self._build_spark_application_cr(job_id)
-            self.custom_api.create_namespaced_custom_object(
-                group="sparkoperator.k8s.io",
-                version="v1beta2",
-                namespace=self.config.namespace,
-                plural="sparkapplications",
-                body=cr,
+            self._create_with_retry(
+                lambda: self.custom_api.create_namespaced_custom_object(
+                    group="sparkoperator.k8s.io",
+                    version="v1beta2",
+                    namespace=self.config.namespace,
+                    plural="sparkapplications",
+                    body=cr,
+                ),
+                "SparkApplication",
+                job_id,
             )
         except ApiException as e:
             self._cleanup(job_id)
@@ -164,7 +182,10 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 job_id,
                 self.config.namespace,
                 self.custom_api,
-                error=Exception(f"SparkApplication creation failed: {e.reason}"),
+                error=Exception(
+                    f"SparkApplication creation failed: HTTP {e.status} {e.reason}."
+                    f"{_rbac_hint(e.status)}"
+                ),
             )
             return [job for _ in tasks]
 
@@ -201,10 +222,14 @@ class SparkApplicationComputeEngine(ComputeEngine):
         job_id: str,
         job: SparkApplicationMaterializationJob,
     ) -> List[MaterializationJob]:
-        """Read each FV's state from registry to determine per-FV success/failure.
+        """Build one independent job object per FV from registry state.
 
-        The pod calls apply_materialization for each succeeded FV, which sets
-        state to AVAILABLE_ONLINE. FVs still in MATERIALIZING were not processed.
+        The driver pod calls ``apply_materialization`` for each FV it
+        successfully materializes, setting state to ``AVAILABLE_ONLINE``.
+        FVs still in ``MATERIALIZING`` were not processed.
+
+        Each returned job is an independent object so that a failed
+        SparkApplication does not pollute the status of succeeded FVs.
         """
         if len(tasks) <= 1:
             return [job for _ in tasks]
@@ -213,7 +238,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
         for task in tasks:
             fv = registry.get_feature_view(task.feature_view.name, task.project)
             if getattr(fv, "state", None) == FeatureViewState.AVAILABLE_ONLINE:
-                jobs.append(job)
+                jobs.append(CompletedMaterializationJob(job_id))
             else:
                 jobs.append(
                     SparkApplicationMaterializationJob(
@@ -222,7 +247,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
                         self.custom_api,
                         error=Exception(
                             f"Feature view '{task.feature_view.name}' was not "
-                            f"materialized by the SparkApplication pod"
+                            f"materialized by SparkApplication feast-sa-{job_id}"
                         ),
                     )
                 )
@@ -270,9 +295,10 @@ class SparkApplicationComputeEngine(ComputeEngine):
         }
         for entry in self.config.env:
             name = entry.get("name", "")
-            value = entry.get("value", "")
-            if name and value:
-                driver_env_conf[f"spark.kubernetes.driverEnv.{name}"] = value
+            if name and "value" in entry and entry["value"] is not None:
+                driver_env_conf[f"spark.kubernetes.driverEnv.{name}"] = str(
+                    entry["value"]
+                )
 
         spec = {
             "type": "Python",
@@ -399,22 +425,61 @@ class SparkApplicationComputeEngine(ComputeEngine):
             logger.warning(f"Could not retrieve driver logs for feast-sa-{job_id}")
         return None
 
+    @staticmethod
+    def _create_with_retry(fn, resource_kind: str, job_id: str):
+        """Call *fn* with exponential backoff on transient K8s API errors."""
+        last_exc = None
+        for attempt in range(_MAX_RETRIES):
+            try:
+                return fn()
+            except ApiException as e:
+                if not _is_retryable(e):
+                    raise
+                last_exc = e
+                wait = _RETRY_BACKOFF_BASE**attempt
+                logger.warning(
+                    f"{resource_kind} feast-sa-{job_id}: create attempt "
+                    f"{attempt + 1}/{_MAX_RETRIES} failed (HTTP {e.status}), "
+                    f"retrying in {wait}s"
+                )
+                time.sleep(wait)
+        raise last_exc  # type: ignore[misc]
+
     def _cleanup(self, job_id: str):
-        for fn in [
-            lambda: self.custom_api.delete_namespaced_custom_object(
-                "sparkoperator.k8s.io",
-                "v1beta2",
-                self.config.namespace,
-                "sparkapplications",
-                f"feast-sa-{job_id}",
+        """Best-effort delete of SparkApplication + ConfigMap.
+
+        The SparkApplication CR is also garbage-collected by the Spark Operator
+        after ``spec.timeToLiveSeconds`` (default 1h), so a failed delete here
+        is not a resource leak — just delayed cleanup.  The ConfigMap is ours
+        and not covered by operator TTL.
+        """
+        resources = [
+            (
+                "SparkApplication",
+                lambda: self.custom_api.delete_namespaced_custom_object(
+                    "sparkoperator.k8s.io",
+                    "v1beta2",
+                    self.config.namespace,
+                    "sparkapplications",
+                    f"feast-sa-{job_id}",
+                ),
             ),
-            lambda: self.core_v1.delete_namespaced_config_map(
-                f"feast-sa-{job_id}",
-                self.config.namespace,
+            (
+                "ConfigMap",
+                lambda: self.core_v1.delete_namespaced_config_map(
+                    f"feast-sa-{job_id}",
+                    self.config.namespace,
+                ),
             ),
-        ]:
+        ]
+        for kind, fn in resources:
             try:
                 fn()
             except ApiException as e:
                 if e.status != 404:
-                    logger.warning(f"Cleanup failed: {e.reason}")
+                    logger.warning(
+                        f"Cleanup of {kind} feast-sa-{job_id} failed "
+                        f"(HTTP {e.status}): {e.reason}. "
+                        f"Manual cleanup: kubectl delete {kind.lower()} "
+                        f"feast-sa-{job_id} -n {self.config.namespace}"
+                    )

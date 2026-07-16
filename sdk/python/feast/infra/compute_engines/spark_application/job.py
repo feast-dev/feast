@@ -12,8 +12,23 @@ from feast.infra.common.materialization_job import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_POLL_RETRIES = 3
+_MAX_RETRIES = 3
 _RETRY_BACKOFF_BASE = 2
+_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def _is_retryable(exc: ApiException) -> bool:
+    return exc.status in _RETRYABLE_STATUS_CODES
+
+
+def _rbac_hint(status: int) -> str:
+    if status in (401, 403):
+        return (
+            " Check that the Feast server ServiceAccount has the required"
+            " Role/RoleBinding for sparkapplications and configmaps in this namespace."
+        )
+    return ""
+
 
 _STATE_MAP = {
     "": MaterializationJobStatus.WAITING,
@@ -32,6 +47,34 @@ _STATE_MAP = {
     "UNKNOWN": MaterializationJobStatus.RUNNING,
 }
 assert len(_STATE_MAP) == 14
+
+
+class CompletedMaterializationJob(MaterializationJob):
+    """Lightweight stub for a FV whose materialization already succeeded.
+
+    Used by ``_build_per_fv_jobs`` so that each FV gets an independent job
+    object.  Unlike ``SparkApplicationMaterializationJob``, this never polls
+    the K8s API — the outcome is already known from the registry state.
+    """
+
+    def __init__(self, job_id: str):
+        super().__init__()
+        self._job_id = job_id
+
+    def status(self) -> MaterializationJobStatus:
+        return MaterializationJobStatus.SUCCEEDED
+
+    def error(self) -> Optional[BaseException]:
+        return None
+
+    def should_be_retried(self) -> bool:
+        return False
+
+    def job_id(self) -> str:
+        return f"feast-sa-{self._job_id}"
+
+    def url(self) -> Optional[str]:
+        return None
 
 
 class SparkApplicationMaterializationJob(MaterializationJob):
@@ -74,7 +117,7 @@ class SparkApplicationMaterializationJob(MaterializationJob):
     def _get_cr_with_retry(self) -> Optional[dict]:
         """Fetch SparkApplication CR with exponential backoff on transient errors."""
         last_exc = None
-        for attempt in range(_MAX_POLL_RETRIES):
+        for attempt in range(_MAX_RETRIES):
             try:
                 return self.custom_api.get_namespaced_custom_object(
                     group="sparkoperator.k8s.io",
@@ -89,15 +132,21 @@ class SparkApplicationMaterializationJob(MaterializationJob):
                         f"SparkApplication feast-sa-{self._job_id} not found"
                     )
                     return None
+                if not _is_retryable(e):
+                    self._error = Exception(
+                        f"Kubernetes API error polling feast-sa-{self._job_id}: "
+                        f"HTTP {e.status} {e.reason}.{_rbac_hint(e.status)}"
+                    )
+                    return None
                 last_exc = e
                 wait = _RETRY_BACKOFF_BASE**attempt
                 logger.warning(
-                    f"API poll attempt {attempt + 1}/{_MAX_POLL_RETRIES} failed "
+                    f"API poll attempt {attempt + 1}/{_MAX_RETRIES} failed "
                     f"(HTTP {e.status}), retrying in {wait}s"
                 )
                 time.sleep(wait)
         self._error = Exception(
-            f"Failed to poll SparkApplication after {_MAX_POLL_RETRIES} attempts: "
+            f"Failed to poll SparkApplication after {_MAX_RETRIES} attempts: "
             f"{last_exc.reason if last_exc else 'unknown'}"
         )
         return None

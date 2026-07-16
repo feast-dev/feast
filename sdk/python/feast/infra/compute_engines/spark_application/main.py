@@ -35,18 +35,33 @@ def _load_config_from_files():
     return feast_config, mat_config
 
 
+def _bind_spark_session_to_thread(spark):
+    """Register *spark* as the active session for this OS thread.
+
+    spark-submit creates the SparkSession on the main thread.  PySpark's
+    ``getActiveSession()`` is thread-local, so worker threads see ``None``.
+    Constructing a ``SparkSession`` from the same SparkContext + JVM session
+    calls Java ``setActiveSession`` for *this* thread — no classmethod
+    monkey-patching required.
+    """
+    from pyspark.sql import SparkSession
+
+    SparkSession(spark.sparkContext, spark._jsparkSession)
+
+
 def _materialize_one_fv(spark_session, config, task_info):
     """Materialize a single feature view in a worker thread.
 
     Each thread gets its own FeatureStore instance to avoid race conditions
     in Feast's usage.py call_stack (not thread-safe).
-    SparkSession visibility is handled via the getActiveSession patch in main().
     """
     from datetime import datetime, timezone
 
     from tqdm import tqdm
 
     from feast import FeatureStore, RepoConfig
+
+    _bind_spark_session_to_thread(spark_session)
 
     fv_name = task_info["feature_view"]
     logger.info(f"Thread started: {fv_name}")
@@ -55,7 +70,7 @@ def _materialize_one_fv(spark_session, config, task_info):
     thread_config = RepoConfig(**config)
     thread_store = FeatureStore(config=thread_config)
     fv = thread_store.get_feature_view(fv_name)
-    provider = thread_store.get_provider()
+    provider = thread_store.provider
 
     start = datetime.fromisoformat(task_info["start_time"])
     end = datetime.fromisoformat(task_info["end_time"])
@@ -128,55 +143,45 @@ def main():
             spark = SparkSession.builder.getOrCreate()
         logger.info(f"SparkSession: {spark.sparkContext.applicationId}")
 
-        if concurrency > 1:
-            _original_get_active = SparkSession.getActiveSession
-            SparkSession.getActiveSession = staticmethod(lambda: spark)
-            logger.info("Patched SparkSession.getActiveSession for thread safety")
-
-        try:
-            if concurrency <= 1:
-                # Sequential mode
-                succeeded, failed = 0, 0
-                for i, task in enumerate(tasks, 1):
-                    fv_name = task["feature_view"]
-                    logger.info(f"[{i}/{total}] Materializing: {fv_name}")
+        succeeded, failed = 0, 0
+        if concurrency <= 1:
+            for i, task in enumerate(tasks, 1):
+                fv_name = task["feature_view"]
+                logger.info(f"[{i}/{total}] Materializing: {fv_name}")
+                try:
+                    name, elapsed = _materialize_one_fv(spark, feast_config, task)
+                    succeeded += 1
+                    logger.info(f"[{i}/{total}] Completed: {name} ({elapsed:.1f}s)")
+                except Exception:
+                    failed += 1
+                    logger.exception(f"[{i}/{total}] Failed: {fv_name}")
+        else:
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                future_to_fv = {
+                    executor.submit(
+                        _materialize_one_fv, spark, feast_config, task
+                    ): task["feature_view"]
+                    for task in tasks
+                }
+                for future in as_completed(future_to_fv):
+                    fv_name = future_to_fv[future]
                     try:
-                        name, elapsed = _materialize_one_fv(spark, feast_config, task)
+                        name, elapsed = future.result()
                         succeeded += 1
-                        logger.info(f"[{i}/{total}] Completed: {name} ({elapsed:.1f}s)")
+                        logger.info(f"Completed: {name} ({elapsed:.1f}s)")
                     except Exception:
                         failed += 1
-                        logger.exception(f"[{i}/{total}] Failed: {fv_name}")
-            else:
-                succeeded, failed = 0, 0
-                with ThreadPoolExecutor(max_workers=concurrency) as executor:
-                    future_to_fv = {
-                        executor.submit(
-                            _materialize_one_fv, spark, feast_config, task
-                        ): task["feature_view"]
-                        for task in tasks
-                    }
-                    for future in as_completed(future_to_fv):
-                        fv_name = future_to_fv[future]
-                        try:
-                            name, elapsed = future.result()
-                            succeeded += 1
-                            logger.info(f"Completed: {name} ({elapsed:.1f}s)")
-                        except Exception:
-                            failed += 1
-                            logger.exception(f"Failed: {fv_name}")
-        finally:
-            if concurrency > 1:
-                SparkSession.getActiveSession = _original_get_active
-                logger.info("Restored SparkSession.getActiveSession")
+                        logger.exception(f"Failed: {fv_name}")
 
         total_elapsed = time.time() - total_start
-        logger.info(
+        level = logging.ERROR if failed > 0 else logging.INFO
+        logger.log(
+            level,
             f"Materialization batch complete: "
             f"{succeeded} succeeded, {failed} failed, {total} total, "
-            f"elapsed={total_elapsed:.1f}s"
+            f"elapsed={total_elapsed:.1f}s",
         )
-        if failed > 0 and succeeded == 0:
+        if failed > 0:
             sys.exit(1)
     else:
         raise ValueError(f"Unknown operation: {operation}")
