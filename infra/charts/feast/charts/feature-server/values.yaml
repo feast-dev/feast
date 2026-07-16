@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   # image.repository -- Docker image for Feature Server repository
-  repository: quay.io/feastdev/feature-server-java
+  repository: quay.io/feastdev/feature-server
   # image.tag -- Image tag
   tag: 0.65.0
   # image.pullPolicy -- Image pull policy
