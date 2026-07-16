@@ -1287,6 +1287,10 @@ class FeatureStore:
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply_diffs(registry_diff)
 
+        # Register feature views as Unity Catalog feature tables (if using
+        # the databricks_uc offline store)
+        self._register_uc_feature_tables_from_diffs(registry_diff)
+
         # Emit MLflow events for applied objects (Phase 7)
         self._mlflow_log_apply_diffs(registry_diff)
 
@@ -1637,6 +1641,10 @@ class FeatureStore:
         # Emit OpenLineage events for applied objects
         self._emit_openlineage_apply(objects)
 
+        # Register feature views as Unity Catalog feature tables (if using
+        # the databricks_uc offline store)
+        self._register_uc_feature_tables_legacy(objects)
+
         # Emit MLflow events for applied objects (Phase 7)
         self._mlflow_log_apply(objects)
 
@@ -1664,6 +1672,68 @@ class FeatureStore:
             self.openlineage_emitter.emit_apply(objects, self.project)
         except Exception as e:
             warnings.warn(f"Failed to emit OpenLineage apply events: {e}")
+
+    # ------------------------------------------------------------------ #
+    #  Unity Catalog feature table registration hooks
+    # ------------------------------------------------------------------ #
+
+    def _register_uc_feature_tables_from_diffs(
+        self, registry_diff: RegistryDiff
+    ) -> None:
+        """Register applied feature views as UC feature tables.
+
+        Only active when the offline store is ``databricks_uc`` and
+        ``uc_registration.enabled`` is True.
+        """
+        from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import (
+            DatabricksUCOfflineStoreConfig,
+        )
+        from feast.infra.offline_stores.iceberg.registration import (
+            register_uc_feature_tables,
+        )
+
+        if not isinstance(self.config.offline_store, DatabricksUCOfflineStoreConfig):
+            return
+
+        uc_config = self.config.offline_store.uc_registration
+        if uc_config is None or not uc_config.enabled:
+            return
+
+        fvs = [
+            d.new_feast_object
+            for d in registry_diff.feast_object_diffs
+            if d.new_feast_object and isinstance(d.new_feast_object, FeatureView)
+        ]
+        if not fvs:
+            return
+
+        register_uc_feature_tables(self.config.offline_store.catalog, fvs, self.project)
+
+    def _register_uc_feature_tables_legacy(self, objects: List[Any]) -> None:
+        """Register feature views as UC feature tables (legacy apply path).
+
+        Only active when the offline store is ``databricks_uc`` and
+        ``uc_registration.enabled`` is True.
+        """
+        from feast.infra.offline_stores.contrib.spark_offline_store.databricks_uc import (
+            DatabricksUCOfflineStoreConfig,
+        )
+        from feast.infra.offline_stores.iceberg.registration import (
+            register_uc_feature_tables,
+        )
+
+        if not isinstance(self.config.offline_store, DatabricksUCOfflineStoreConfig):
+            return
+
+        uc_config = self.config.offline_store.uc_registration
+        if uc_config is None or not uc_config.enabled:
+            return
+
+        fvs = [obj for obj in objects if isinstance(obj, FeatureView)]
+        if not fvs:
+            return
+
+        register_uc_feature_tables(self.config.offline_store.catalog, fvs, self.project)
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
