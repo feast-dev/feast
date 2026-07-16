@@ -1,6 +1,7 @@
 import inspect
 import json
 from datetime import datetime, timedelta
+from typing import Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -661,3 +662,151 @@ class TestRemoteOnlineStoreGetOnlineFeatures:
         assert expected_keys.issubset(req_body.keys()), (
             f"Missing keys in req_body: {expected_keys - req_body.keys()}"
         )
+
+
+def _make_entity_key(join_key: str, value: int) -> EntityKeyProto:
+    ek = EntityKeyProto()
+    ek.join_keys.append(join_key)
+    v = ValueProto()
+    v.int64_val = value
+    ek.entity_values.append(v)
+    return ek
+
+
+def _make_feature_values(feature_name: str, value: float) -> dict:
+    v = ValueProto()
+    v.double_val = value
+    return {feature_name: v}
+
+
+def _make_write_data(
+    join_key: str,
+    feature_name: str,
+    event_ts: datetime,
+    created_ts: Optional[datetime],
+):
+    return [
+        (
+            _make_entity_key(join_key, 1001),
+            _make_feature_values(feature_name, 0.5),
+            event_ts,
+            created_ts,
+        )
+    ]
+
+
+class TestRemoteOnlineStoreWriteBatch:
+    """Tests for RemoteOnlineStore.online_write_batch timestamp column naming."""
+
+    @pytest.fixture
+    def remote_store(self):
+        return RemoteOnlineStore()
+
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            online_store=RemoteOnlineStoreConfig(
+                type="remote", path="http://localhost:6566"
+            ),
+            registry="dummy_registry",
+        )
+
+    @staticmethod
+    def _make_feature_view(
+        timestamp_field: str = "event_timestamp",
+        created_timestamp_column: str = "created",
+    ) -> FeatureView:
+        entity = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
+        source = FileSource(
+            path="test.parquet",
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+        )
+        fv = FeatureView(
+            name="driver_stats",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_rate", dtype=Float32),
+            ],
+            source=source,
+        )
+        return fv
+
+    @patch("feast.infra.online_stores.remote.post_remote_online_write")
+    def test_write_batch_uses_default_timestamp_columns(
+        self, mock_post, remote_store, config
+    ):
+        """With default column names, the request body should use
+        'event_timestamp' and 'created'."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_post.return_value = mock_resp
+
+        fv = self._make_feature_view()
+        now = datetime(2024, 1, 1, 12, 0, 0)
+        data = _make_write_data("driver_id", "conv_rate", now, now)
+
+        remote_store.online_write_batch(config, fv, data, progress=None)
+
+        req_body = mock_post.call_args[1]["req_body"]
+        df = req_body["df"]
+        assert "event_timestamp" in df
+        assert "created" in df
+
+    @patch("feast.infra.online_stores.remote.post_remote_online_write")
+    def test_write_batch_uses_custom_timestamp_columns(
+        self, mock_post, remote_store, config
+    ):
+        """When the feature view's batch source uses custom column names,
+        the request body must use those names — not hardcoded defaults."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_post.return_value = mock_resp
+
+        fv = self._make_feature_view(
+            timestamp_field="ts",
+            created_timestamp_column="created_at",
+        )
+        now = datetime(2024, 1, 1, 12, 0, 0)
+        data = _make_write_data("driver_id", "conv_rate", now, now)
+
+        remote_store.online_write_batch(config, fv, data, progress=None)
+
+        req_body = mock_post.call_args[1]["req_body"]
+        df = req_body["df"]
+        assert "ts" in df, "Expected custom timestamp_field 'ts' in request"
+        assert "created_at" in df, (
+            "Expected custom created_timestamp_column 'created_at' in request"
+        )
+        assert "event_timestamp" not in df, (
+            "Hardcoded 'event_timestamp' should not appear"
+        )
+        assert "created" not in df, "Hardcoded 'created' should not appear"
+
+    @patch("feast.infra.online_stores.remote.post_remote_online_write")
+    def test_write_batch_with_no_created_timestamp_column(
+        self, mock_post, remote_store, config
+    ):
+        """When created_timestamp_column is empty, should fall back to 'created'."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_post.return_value = mock_resp
+
+        fv = self._make_feature_view(
+            timestamp_field="my_event_ts",
+            created_timestamp_column="",
+        )
+        now = datetime(2024, 1, 1, 12, 0, 0)
+        data = _make_write_data("driver_id", "conv_rate", now, None)
+
+        remote_store.online_write_batch(config, fv, data, progress=None)
+
+        req_body = mock_post.call_args[1]["req_body"]
+        df = req_body["df"]
+        assert "my_event_ts" in df
+        assert "created" in df
