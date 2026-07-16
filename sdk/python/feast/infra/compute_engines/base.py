@@ -85,6 +85,16 @@ class ComputeEngine(ABC):
         """
         pass
 
+    @property
+    def supports_batch(self) -> bool:
+        """Whether this engine can accept all tasks in a single materialize() call.
+
+        When True, feature_store.py collects all FV tasks upfront and submits
+        them in one batch.  When False (default), the standard per-FV loop
+        through ``provider.materialize_single_feature_view()`` is used.
+        """
+        return False
+
     def materialize(
         self,
         registry: BaseRegistry,

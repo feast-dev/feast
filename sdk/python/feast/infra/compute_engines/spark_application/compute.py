@@ -97,6 +97,10 @@ class SparkApplicationComputeEngine(ComputeEngine):
         self.custom_api = client.CustomObjectsApi(self.k8s_client)
         self._server_id = uuid.uuid4().hex[:8]
 
+    @property
+    def supports_batch(self) -> bool:
+        return True
+
     def update(
         self,
         project: str,
