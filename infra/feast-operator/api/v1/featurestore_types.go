@@ -407,6 +407,10 @@ type FeatureStoreServices struct {
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// InitImage overrides the image for init containers (feast-init, feast-apply).
+	// Resolution order: InitImage → RELATED_IMAGE_FEATURE_SERVER → DefaultImage.
+	// +optional
+	InitImage *string `json:"initImage,omitempty"`
 	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).

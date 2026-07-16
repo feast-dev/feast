@@ -212,6 +212,15 @@ func getFeatureServerImage() string {
 	return DefaultImage
 }
 
+// getInitContainerImage resolves the image for feast-init / feast-apply.
+// Order: spec.services.initImage → RELATED_IMAGE_FEATURE_SERVER → DefaultImage.
+func getInitContainerImage(services *feastdevv1.FeatureStoreServices) string {
+	if services != nil && services.InitImage != nil && len(*services.InitImage) > 0 {
+		return *services.InitImage
+	}
+	return getFeatureServerImage()
+}
+
 func checkOfflineStoreFilePersistenceType(value string) error {
 	if slices.Contains(feastdevv1.ValidOfflineStoreFilePersistenceTypes, value) {
 		return nil

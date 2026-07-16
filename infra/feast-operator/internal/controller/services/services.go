@@ -687,9 +687,10 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 		feastProjectDir := applied.FeastProjectDir
 		workingDir := getOfflineMountPath(feast.Handler.FeatureStore)
 		projectPath := workingDir + "/" + applied.FeastProject
+		initImage := getInitContainerImage(applied.Services)
 		container := corev1.Container{
 			Name:  feastInitContainerName,
-			Image: getFeatureServerImage(),
+			Image: initImage,
 			Env: []corev1.EnvVar{
 				{
 					Name:  TmpFeatureStoreYamlEnvVar,
@@ -742,7 +743,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
 			applyContainer := corev1.Container{
 				Name:       feastApplyContainerName,
-				Image:      getFeatureServerImage(),
+				Image:      initImage,
 				Command:    []string{feastCommand, "apply"},
 				WorkingDir: featureRepoDir,
 			}
