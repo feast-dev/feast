@@ -363,9 +363,12 @@ func setRepoConfigBatchEngine(
 		return fmt.Errorf("batch engine config must contain 'type' field")
 	}
 	delete(config, "type")
-	// Inject service_account when omitted so baked feature_store.yaml matches the
-	// SA/RoleBinding created by reconcileBatchEngineRBAC (R2-2).
-	config["service_account"] = resolveBatchDriverSAName(featureStore, config)
+	// Inject service_account only for spark_application so baked feature_store.yaml
+	// matches the SA/RoleBinding created by reconcileBatchEngineRBAC.
+	// Other batch engines are left unchanged.
+	if engineType == "spark_application" {
+		config["service_account"] = resolveBatchDriverSAName(featureStore, config)
+	}
 	repoConfig.BatchEngine = &ComputeEngineConfig{
 		Type:       engineType,
 		Parameters: config,
