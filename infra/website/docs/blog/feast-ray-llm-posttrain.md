@@ -17,7 +17,7 @@ This post walks through the [ray-llm-posttrain example](https://github.com/feast
 
 1. Put conversation features in Feast  
 2. Retrieve them with `get_historical_features` (entity-less date range)  
-3. Get rows into your trainer — stream with Ray **or** materialize with `.to_df()` / a SavedDataset  
+3. Get rows into your trainer — stream with Ray **or** materialize with `.to_df()`  
 
 You bring your own trainer. GPT-2 in the script is optional smoke only.
 
@@ -25,7 +25,7 @@ You bring your own trainer. GPT-2 in the script is optional smoke only.
 
 | Name | Type | What it holds |
 |---|---|---|
-| `web_documents` | [FeatureView](https://docs.feast.dev/getting-started/concepts/feature-view) | `human`, `bot`, `human_repeat_ratio`, `bot_repeat_ratio`, `part_of_speech` |
+| `web_documents` | [FeatureView](https://docs.feast.dev/getting-started/concepts/feature-view) | `human`, `bot`, `human_repeat_ratio`, `bot_repeat_ratio` |
 | `train_example` | [OnDemandFeatureView](https://docs.feast.dev/reference/beta-on-demand-feature-view) | `cleaned_human`, `cleaned_bot`, `char_count`, `is_trainable`, `sft_text` |
 | `llm_posttrain` | FeatureService | Bundles `web_documents` + `train_example` |
 
@@ -112,7 +112,6 @@ web_documents = FeatureView(
         Field(name="bot", dtype=String),
         Field(name="human_repeat_ratio", dtype=Float64),
         Field(name="bot_repeat_ratio", dtype=Float64),
-        Field(name="part_of_speech", dtype=String),
     ],
     source=tiny_web,
     online=False,
@@ -139,7 +138,10 @@ def train_example(inputs):
     cleaned_human = inputs["human"].fillna("").astype(str).str.strip()
     cleaned_bot = inputs["bot"].fillna("").astype(str).str.strip()
     # ... length + repeat-ratio gate ...
-    sft_text = "### Human\n" + cleaned_human + "\n### Assistant\n" + cleaned_bot
+    sft_text = (
+        "<|im_start|>user\n" + cleaned_human + "<|im_end|>\n"
+        "<|im_start|>assistant\n" + cleaned_bot + "<|im_end|>"
+    )
     return pd.DataFrame({...})
 ```
 
@@ -181,13 +183,14 @@ job = store.get_historical_features(
 
 Then choose how you turn that job into training rows.
 
-## Step 3: Three ways into the trainer
+## Step 3: Two ways into the trainer
 
 | Path | ODFV runs? | When to use |
 |---|---|---|
 | `job.to_ray_dataset()` then preprocess | **No** | Stream FeatureView columns; shape `sft_text` yourself |
 | `job.to_df()` / `to_arrow()` | **Yes** | Want `train_example` outputs from Feast |
-| `to_df()` / `to_arrow()` then `create_saved_dataset`, Ray on storage | **Yes** (at materialize time) | Freeze a named training slice |
+
+Pick **Option A** when you want full control over text formatting or need custom preprocessing (e.g., multi-turn chat templates, tokenization-aware truncation). Pick **Option B** when you want Feast to enforce quality gates consistently across training and serving.
 
 ### Option A — Stream with Ray, preprocess yourself
 
@@ -204,7 +207,10 @@ def preprocess_sft(batch):
     human = batch["human"].fillna("").astype(str).str.strip()
     bot = batch["bot"].fillna("").astype(str).str.strip()
     ok = bot.str.len() >= 64
-    sft_text = "### Human\n" + human + "\n### Assistant\n" + bot
+    sft_text = (
+        "<|im_start|>user\n" + human + "<|im_end|>\n"
+        "<|im_start|>assistant\n" + bot + "<|im_end|>"
+    )
     return pd.DataFrame({"sft_text": sft_text}).loc[ok].reset_index(drop=True)
 
 train_ds = ds.map_batches(preprocess_sft, batch_format="pandas")
@@ -237,45 +243,17 @@ trainable = df[df["is_trainable"] & df["sft_text"].astype(str).str.len().gt(0)]
 PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run --via-df
 ```
 
-### Option C — Save the slice, then stream with Ray
+### The same ODFV at serving time
 
-[Saved datasets](https://docs.feast.dev/getting-started/concepts/dataset) freeze a retrieval for later training. Pattern from the [validating historical features](https://docs.feast.dev/tutorials/validating-historical-features) tutorial—adapted for Ray file storage:
+The `train_example` ODFV runs identically during online serving — the quality gate and formatting logic stay in one place:
 
 ```python
-from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
-
-job = store.get_historical_features(
-    features=store.get_feature_service("llm_posttrain"),
-    start_date=...,
-    end_date=...,
-)
-# Materialize first so ODFVs run before persisting
-job.to_df()
-store.create_saved_dataset(
-    from_=job,
-    name="sft_support_q2",
-    storage=SavedDatasetFileStorage(path="data/sft_support_q2.parquet"),
-)
-
-saved = store.get_saved_dataset("sft_support_q2")
-df = saved.to_df()  # full table
-
-# Large freeze: stream with Ray instead of loading everything
-import ray
-path = saved.storage.to_data_source().path
-stream = ray.data.read_parquet(path)
-# ODFV outputs are in the parquet — filter for trainable rows
-stream = stream.filter(lambda row: row["is_trainable"])
-```
-
-```bash
-# Create + stream (writes data/sft_support_q2.parquet)
-PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run \
-  --create-saved-dataset sft_support_q2
-
-# Later: stream an existing freeze
-PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run \
-  --saved-dataset sft_support_q2
+# At inference time, the same ODFV runs on the fly
+features = store.get_online_features(
+    features=["train_example:sft_text", "train_example:is_trainable"],
+    entity_rows=[{"document_id": "doc_42"}],
+).to_dict()
+# features["sft_text"], features["is_trainable"] — same logic as training
 ```
 
 ## Try the full example
@@ -288,8 +266,6 @@ cd feature_repo && feast apply && cd ..
 
 PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run
 PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run --via-df
-PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run \
-  --create-saved-dataset sft_support_q2
 
 # optional GPT-2 smoke
 PYTHONPATH=../../sdk/python python scripts/train_sft.py --max-steps 20
@@ -301,7 +277,7 @@ Details: [ray-llm-posttrain README](https://github.com/feast-dev/feast/tree/mast
 
 1. **Keep conversation features in Feast** — this example’s `web_documents`.  
 2. **Stream with Ray** — `to_ray_dataset()`, then preprocess training text yourself.  
-3. **Want ODFVs** — `.to_df()` / `.to_arrow()` to materialize, then optionally SavedDataset + Ray on storage (filter for `is_trainable`).  
+3. **Want ODFVs** — `.to_df()` / `.to_arrow()` to materialize, then train.  
 4. **Bring your own trainer** — GPT-2 in the example is optional.  
 
 ## References
@@ -318,7 +294,6 @@ Details: [ray-llm-posttrain README](https://github.com/feast-dev/feast/tree/mast
 - [Ray data source](https://docs.feast.dev/reference/data-sources/ray)  
 - [Ray compute engine](https://docs.feast.dev/reference/compute-engine/ray)  
 - [On demand feature views](https://docs.feast.dev/reference/beta-on-demand-feature-view)  
-- [Saved dataset](https://docs.feast.dev/getting-started/concepts/dataset)  
 - [Feature retrieval](https://docs.feast.dev/getting-started/concepts/feature-retrieval)  
 - [FAQ: historical features without entity dataframe](https://docs.feast.dev/getting-started/faq#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe)  
 

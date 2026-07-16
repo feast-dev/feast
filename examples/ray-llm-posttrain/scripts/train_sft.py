@@ -5,14 +5,9 @@ Paths:
   A) Default: get_historical_features → to_ray_dataset() → preprocess sft_text
      (ODFVs do NOT run on to_ray_dataset)
   B) --via-df: get_historical_features → to_df() (ODFV train_example runs)
-  C) --create-saved-dataset NAME: materialize with to_df() (ODFVs run),
-     then create SavedDataset and stream with Ray
-     --saved-dataset NAME: stream an existing SavedDataset with Ray
 
     PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run
     PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run --via-df
-    PYTHONPATH=../../sdk/python python scripts/train_sft.py --dry-run \\
-        --create-saved-dataset sft_support_q2
 """
 
 from __future__ import annotations
@@ -50,20 +45,6 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use to_df() so OnDemandFeatureView train_example runs",
     )
-    parser.add_argument(
-        "--create-saved-dataset",
-        type=str,
-        default=None,
-        metavar="NAME",
-        help="Create a SavedDataset (ODFV via persist), then stream it with Ray",
-    )
-    parser.add_argument(
-        "--saved-dataset",
-        type=str,
-        default=None,
-        metavar="NAME",
-        help="Stream an existing SavedDataset from its storage path with Ray",
-    )
     return parser.parse_args()
 
 
@@ -84,7 +65,10 @@ def _preprocess_sft_batch(batch):
     human = batch["human"].fillna("").astype(str).str.strip()
     bot = batch["bot"].fillna("").astype(str).str.strip()
     ok = bot.str.len() >= _MIN_CHARS
-    sft_text = "### Human\n" + human + "\n### Assistant\n" + bot
+    sft_text = (
+        "<|im_start|>user\n" + human + "<|im_end|>\n"
+        "<|im_start|>assistant\n" + bot + "<|im_end|>"
+    )
     return pd.DataFrame({"sft_text": sft_text}).loc[ok].reset_index(drop=True)
 
 
@@ -132,50 +116,6 @@ def retrieve_via_df():
     mask &= df["sft_text"].fillna("").astype(str).str.len() > 0
     slim = df.loc[mask, ["sft_text"]].reset_index(drop=True)
     return ray.data.from_pandas(slim)
-
-
-def create_and_stream_saved_dataset(name: str):
-    """Option C: create SavedDataset (as in the blog), then Ray-read storage."""
-    from feast import FeatureStore
-    from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
-
-    store = FeatureStore(repo_path=str(FEATURE_REPO))
-    start_date, end_date = _date_window()
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    storage_path = DATA_DIR / f"{name}.parquet"
-
-    print(
-        "get_historical_features → to_df() (ODFVs run) → create_saved_dataset "
-        f"({name!r})"
-    )
-    job = store.get_historical_features(
-        features=store.get_feature_service("llm_posttrain"),
-        start_date=start_date,
-        end_date=end_date,
-    )
-    job.to_df()
-    store.create_saved_dataset(
-        from_=job,
-        name=name,
-        storage=SavedDatasetFileStorage(path=str(storage_path)),
-    )
-    print(f"  wrote {storage_path}")
-    return stream_saved_dataset(name)
-
-
-def stream_saved_dataset(name: str):
-    """Ray reads a SavedDataset that was already materialized."""
-    import ray
-    from feast import FeatureStore
-
-    store = FeatureStore(repo_path=str(FEATURE_REPO))
-    print(f"get_saved_dataset({name!r}) → Ray read of storage path")
-    saved = store.get_saved_dataset(name)
-    path = saved.storage.to_data_source().path
-    print(f"  storage path: {path}")
-    ds = ray.data.read_parquet(path)
-    ds = ds.filter(lambda row: row.get("is_trainable", True))
-    return ds
 
 
 def train_gpt2_optional(
@@ -248,21 +188,7 @@ def main() -> int:
         print(f"Missing feature repo at {FEATURE_REPO}", file=sys.stderr)
         return 1
 
-    if args.create_saved_dataset and args.saved_dataset:
-        print(
-            "Use only one of --create-saved-dataset or --saved-dataset",
-            file=sys.stderr,
-        )
-        return 1
-    if args.via_df and (args.create_saved_dataset or args.saved_dataset):
-        print("--via-df cannot be combined with SavedDataset flags", file=sys.stderr)
-        return 1
-
-    if args.create_saved_dataset:
-        ds = create_and_stream_saved_dataset(args.create_saved_dataset)
-    elif args.saved_dataset:
-        ds = stream_saved_dataset(args.saved_dataset)
-    elif args.via_df:
+    if args.via_df:
         ds = retrieve_via_df()
     else:
         ds = retrieve_via_ray_stream()

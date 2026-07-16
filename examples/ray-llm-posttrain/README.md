@@ -2,7 +2,7 @@
 
 | Name | Type | Fields |
 |---|---|---|
-| `web_documents` | FeatureView | `human`, `bot`, `human_repeat_ratio`, `bot_repeat_ratio`, `part_of_speech` |
+| `web_documents` | FeatureView | `human`, `bot`, `human_repeat_ratio`, `bot_repeat_ratio` |
 | `train_example` | OnDemandFeatureView | `cleaned_human`, `cleaned_bot`, `char_count`, `is_trainable`, `sft_text` |
 | `llm_posttrain` | FeatureService | `web_documents` + `train_example` |
 
@@ -14,8 +14,6 @@ Source data is **prepared parquet** (`document_id` + `event_timestamp` already p
 |---|---|
 | (default) | `to_ray_dataset()` + preprocess `sft_text` (ODFV does **not** run) |
 | `--via-df` | `to_df()` so ODFV `train_example` runs |
-| `--create-saved-dataset NAME` | `create_saved_dataset`, then Ray on storage |
-| `--saved-dataset NAME` | Ray reads an existing SavedDataset |
 
 ## Setup
 

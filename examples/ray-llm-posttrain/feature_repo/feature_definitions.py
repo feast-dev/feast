@@ -47,7 +47,6 @@ web_documents = FeatureView(
         Field(name="bot", dtype=String),
         Field(name="human_repeat_ratio", dtype=Float64),
         Field(name="bot_repeat_ratio", dtype=Float64),
-        Field(name="part_of_speech", dtype=String),
     ],
     source=tiny_web,
     online=False,
@@ -86,7 +85,10 @@ def train_example(inputs):
         & (bot_ratio <= max_repeat_ratio)
     )
 
-    sft_text = "### Human\n" + cleaned_human + "\n### Assistant\n" + cleaned_bot
+    sft_text = (
+        "<|im_start|>user\n" + cleaned_human + "<|im_end|>\n"
+        "<|im_start|>assistant\n" + cleaned_bot + "<|im_end|>"
+    )
 
     return pd.DataFrame(
         {
