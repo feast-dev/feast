@@ -404,7 +404,7 @@ The consumer automatically links datasets across different producers when they r
 2. **SymlinksDatasetFacet** — Producers can declare aliases. For example, Feast can declare that its internal `driver_hourly_stats` is a symlink to the Spark output at `s3://bucket/features/driver_hourly_stats/`.
 3. **dataSource URI matching** — Datasets with matching `dataSource.uri` facets are linked even if their namespace or name differ.
 
-Compatible producers include Airflow, Spark, dbt, Flink, Feast, Dagster, and Great Expectations.
+Compatible producers include Airflow, Spark, dbt, Flink, Feast, and Dagster.
 
 ### RBAC for Lineage
 

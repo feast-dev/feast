@@ -2408,6 +2408,7 @@ spec:
                                 - hybrid
                                 - mongodb
                                 - aerospike
+                                - scylladb
                                 type: string
                             required:
                             - secretRef
@@ -8714,6 +8715,7 @@ spec:
                                     - hybrid
                                     - mongodb
                                     - aerospike
+                                    - scylladb
                                     type: string
                                 required:
                                 - secretRef
@@ -14238,6 +14240,7 @@ spec:
                                 - hybrid
                                 - mongodb
                                 - aerospike
+                                - scylladb
                                 type: string
                             required:
                             - secretRef
@@ -18744,6 +18747,7 @@ spec:
                                     - hybrid
                                     - mongodb
                                     - aerospike
+                                    - scylladb
                                     type: string
                                 required:
                                 - secretRef

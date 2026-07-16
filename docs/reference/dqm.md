@@ -1,89 +1,81 @@
 # Data Quality Monitoring
 
-{% hint style="warning" %}
-**Deprecated:** The Great Expectations-based validation described on this page is deprecated and will be removed in a future release. It has been superseded by Feast's built-in [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system, which provides richer metrics (histograms, percentiles, drift detection), works across batch data and serving logs, requires no external dependencies, and includes a built-in UI dashboard.
+Feast's Data Quality Monitoring (DQM) system computes, stores, and serves statistical metrics for every registered feature. It gives you visibility into feature health — distributions, null rates, percentiles, histograms — across batch data and feature serving logs.
 
-Please migrate to the new monitoring system. See the [Feature Quality Monitoring guide](../how-to-guides/feature-monitoring.md) for setup instructions.
-{% endhint %}
+Its goal is to address several complex data problems:
 
-## Legacy: Great Expectations Integration
-
-The following documents the deprecated Great Expectations-based validation that was previously the only DQM option in Feast. This integration relied on `pip install 'feast[ge]'` and only supported validation during historical retrieval.
-
----
+* **Data consistency** — new training datasets can differ significantly from previous datasets, potentially requiring changes in model architecture.
+* **Upstream pipeline bugs** — bugs in upstream pipelines can cause invalid values to overwrite existing valid values in an online store.
+* **Training/serving skew** — distribution shift between training and serving data can decrease model performance.
 
 ### Overview
 
-The legacy validation process consists of the following steps:
-1. User prepares reference dataset (only [saved datasets](../getting-started/concepts/dataset.md) from historical retrieval are supported).
-2. User defines a profiler function that produces a profile using [Great Expectations](https://docs.greatexpectations.io).
-3. Validation of the tested dataset is performed with the reference dataset and profiler provided as parameters.
+Feast's DQM system works natively with your configured offline store — no additional infrastructure or external dependencies are required. The workflow is:
 
-### Installation
-```shell
-pip install 'feast[ge]'
+1. **Register features** — run `feast apply` to register feature views. If `auto_baseline: true` is configured, baseline metrics are computed automatically.
+2. **Schedule monitoring** — run `feast monitor run` on a schedule (daily recommended) to compute metrics across multiple time windows.
+3. **Read metrics** — query metrics via the REST API or view them in the Feast UI.
+
+### Configuration
+
+Enable DQM in your `feature_store.yaml`:
+
+```yaml
+data_quality_monitoring:
+  auto_baseline: true
 ```
 
-### Dataset profile
+### Computing Metrics
 
-This integration uses [Great Expectation's](https://greatexpectations.io/) [ExpectationSuite](https://legacy.docs.greatexpectations.io/en/latest/autoapi/great_expectations/core/expectation_suite/index.html#great_expectations.core.expectation_suite.ExpectationSuite)
-as the dataset profile format. The user defines a profiler function that receives a dataset and returns an ExpectationSuite.
+**Auto mode (recommended for production):**
 
-```python
-from great_expectations.dataset import Dataset
-from great_expectations.core.expectation_suite import ExpectationSuite
-
-from feast.dqm.profilers.ge_profiler import ge_profiler
-
-@ge_profiler
-def manual_profiler(dataset: Dataset) -> ExpectationSuite:
-    dataset.expect_column_max_to_be_between("column", 1, 2)
-    return dataset.get_expectation_suite()
+```bash
+feast monitor run
 ```
 
-### Validating Training Dataset
+This detects the latest event timestamp in the source data and computes metrics for 5 time windows: daily, weekly, biweekly, monthly, and quarterly.
 
-During retrieval of historical features, `validation_reference` can be passed as a parameter to methods `.to_df(validation_reference=...)` or `.to_arrow(validation_reference=...)` of RetrievalJob.
-If validation is successful, the materialized dataset is returned. Otherwise, `feast.dqm.errors.ValidationFailed` exception is raised with details for expectations that didn't pass.
+**Target a specific feature view:**
 
-```python
-from feast import FeatureStore
-
-fs = FeatureStore(".")
-
-job = fs.get_historical_features(...)
-job.to_df(
-    validation_reference=fs
-        .get_saved_dataset("my_reference_dataset")
-        .as_reference(profiler=manual_profiler)
-)
+```bash
+feast monitor run --feature-view driver_stats
 ```
 
----
+**Explicit date range:**
 
-## Migration Guide
+```bash
+feast monitor run \
+  --feature-view driver_stats \
+  --start-date 2025-01-01 \
+  --end-date 2025-01-07 \
+  --granularity weekly
+```
 
-The new [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system replaces this integration with:
+**Set a manual baseline:**
 
-| Capability | GE-based (deprecated) | New DQM |
-|---|---|---|
-| Scope | Historical retrieval only | Batch data + serving logs |
-| Dependencies | `feast[ge]` extra required | No extra dependencies |
-| Metrics | User-defined expectations | Automatic: null rates, percentiles, histograms, drift |
-| UI | None | Built-in monitoring dashboard |
-| Automation | Manual profiler code | `feast monitor run` CLI + REST API |
-| Backends | Limited | All offline store backends |
+```bash
+feast monitor run \
+  --feature-view driver_stats \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31 \
+  --granularity daily \
+  --set-baseline
+```
 
-To migrate:
+### Monitoring Feature Serving Logs
 
-1. Enable DQM in `feature_store.yaml`:
-   ```yaml
-   data_quality_monitoring:
-     auto_baseline: true
-   ```
+If your feature services have logging configured, you can compute metrics from the actual features served to models in production:
 
-2. Run `feast apply` to compute baseline metrics automatically.
+```bash
+feast monitor run --source-type log
+```
 
-3. Schedule `feast monitor run` for ongoing monitoring.
+### Reading Metrics
 
-4. Remove the `feast[ge]` dependency from your requirements.
+Metrics are accessible via the REST API:
+
+```
+GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_stats&granularity=daily
+```
+
+See the [Feature Quality Monitoring guide](../how-to-guides/feature-monitoring.md) for full API reference, UI integration, and orchestrator examples.
