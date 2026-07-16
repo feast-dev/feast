@@ -18,6 +18,7 @@ import logging
 import os
 import time
 import warnings
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
@@ -141,6 +142,14 @@ def _get_track_materialization():
 warnings.simplefilter("once", DeprecationWarning)
 
 _UNSET = object()
+
+
+@dataclass
+class _MaterializationDateRange:
+    """Per-batch start dates plus shared end date for materialization watermarks."""
+
+    end_date: datetime
+    fv_start_dates: dict = field(default_factory=dict)
 
 
 class FeatureStore:
@@ -472,7 +481,7 @@ class FeatureStore:
         tasks: list,
         regular_fvs: list,
         previous_states: dict,
-        fv_start_dates: dict,
+        date_range: "_MaterializationDateRange",
     ) -> None:
         """
         Submit all tasks to the engine in one call and process the results.
@@ -490,6 +499,12 @@ class FeatureStore:
         except Exception:
             self._rollback_fv_states(regular_fvs, previous_states)
             raise
+
+        if len(jobs) != len(regular_fvs):
+            self._rollback_fv_states(regular_fvs, previous_states)
+            raise RuntimeError(
+                f"Engine returned {len(jobs)} jobs for {len(regular_fvs)} tasks"
+            )
 
         first_error = None
         succeeded_fvs = []
@@ -512,8 +527,8 @@ class FeatureStore:
             self.registry.apply_materialization(
                 fv,
                 self.project,
-                fv_start_dates[fv.name],
-                fv_start_dates["__end_date__"],
+                date_range.fv_start_dates[fv.name],
+                date_range.end_date,
             )
 
         _tracker = _get_track_materialization()
@@ -544,14 +559,14 @@ class FeatureStore:
         tasks: list = []
         regular_fvs: list = []
         previous_states: dict = {}
-        fv_start_dates: dict = {"__end_date__": end_date}
+        date_range = _MaterializationDateRange(end_date=end_date)
 
         for feature_view, fv_start in fv_with_dates:
             self._transition_fv_to_materializing(
                 feature_view, regular_fvs, previous_states
             )
             regular_fvs.append(feature_view)
-            fv_start_dates[feature_view.name] = fv_start
+            date_range.fv_start_dates[feature_view.name] = fv_start
             tasks.append(
                 MaterializationTask(
                     project=self.project,
@@ -569,7 +584,7 @@ class FeatureStore:
                 tasks,
                 regular_fvs,
                 previous_states,
-                fv_start_dates,
+                date_range,
             )
 
     @property

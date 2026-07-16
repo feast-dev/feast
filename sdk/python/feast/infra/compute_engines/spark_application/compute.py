@@ -196,8 +196,11 @@ class SparkApplicationComputeEngine(ComputeEngine):
         job = SparkApplicationMaterializationJob(
             job_id, self.config.namespace, self.custom_api
         )
-        self._wait_for_completion(job)
-        return self._build_per_fv_jobs(registry, tasks, job_id, job)
+        try:
+            self._wait_for_completion(job)
+            return self._build_per_fv_jobs(registry, tasks, job_id, job)
+        finally:
+            self._cleanup(job_id)
 
     def _build_driver_repo_config(self) -> dict:
         """Build feature_store.yaml for the SparkApplication driver pod.
@@ -406,7 +409,6 @@ class SparkApplicationComputeEngine(ComputeEngine):
             if status == MaterializationJobStatus.SUCCEEDED:
                 return
             time.sleep(self.config.poll_interval_seconds)
-        self._cleanup(job._job_id)
         job._error = Exception(
             f"SparkApplication {job.job_id()} did not complete "
             f"within {self.config.job_timeout_seconds}s"

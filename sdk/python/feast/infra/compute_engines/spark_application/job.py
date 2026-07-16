@@ -44,7 +44,7 @@ _STATE_MAP = {
     "SUSPENDING": MaterializationJobStatus.WAITING,
     "SUSPENDED": MaterializationJobStatus.WAITING,
     "RESUMING": MaterializationJobStatus.WAITING,
-    "UNKNOWN": MaterializationJobStatus.RUNNING,
+    "UNKNOWN": MaterializationJobStatus.WAITING,
 }
 assert len(_STATE_MAP) == 14
 

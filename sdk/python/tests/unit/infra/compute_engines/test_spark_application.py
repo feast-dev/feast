@@ -189,6 +189,7 @@ def test_state_map_coverage():
     assert _STATE_MAP["SUBMISSION_FAILED"] == MaterializationJobStatus.ERROR
     assert _STATE_MAP["RUNNING"] == MaterializationJobStatus.RUNNING
     assert _STATE_MAP[""] == MaterializationJobStatus.WAITING
+    assert _STATE_MAP["UNKNOWN"] == MaterializationJobStatus.WAITING
 
 
 # ── Test 10: Cleanup swallows 404 ──
