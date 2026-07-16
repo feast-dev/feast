@@ -55,15 +55,22 @@ def _make_repo_config(
 @patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
 @patch("feast.infra.compute_engines.spark_application.compute.client")
 def _make_engine(mock_client, mock_k8s_config, **kwargs):
-    """Create engine with mocked K8s client."""
+    """Create engine with mocked K8s client.
+
+    Pre-seed API clients so later property access does not call real
+    load_config() after this helper's patches have exited.
+    """
     from feast.infra.compute_engines.spark_application.compute import (
         SparkApplicationComputeEngine,
     )
 
     repo_config = _make_repo_config(**kwargs)
-    return SparkApplicationComputeEngine(
+    engine = SparkApplicationComputeEngine(
         repo_config=repo_config, offline_store=None, online_store=None
     )
+    engine._core_v1 = MagicMock()
+    engine._custom_api = MagicMock()
+    return engine
 
 
 # ── Test 1: Config defaults + required field ──
@@ -122,6 +129,27 @@ def test_accepts_sql_registry():
 def test_accepts_snowflake_registry():
     engine = _make_engine(registry_type="snowflake.registry")
     assert engine is not None
+
+
+@patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
+@patch("feast.infra.compute_engines.spark_application.compute.client")
+def test_init_does_not_load_kubeconfig(mock_client, mock_k8s_config):
+    """feast apply constructs the engine but never materializes — no kubeconfig needed."""
+    from feast.infra.compute_engines.spark_application.compute import (
+        SparkApplicationComputeEngine,
+    )
+
+    engine = SparkApplicationComputeEngine(
+        repo_config=_make_repo_config(), offline_store=None, online_store=None
+    )
+    mock_k8s_config.load_config.assert_not_called()
+
+    _ = engine.core_v1
+    mock_k8s_config.load_config.assert_called_once()
+    assert engine.custom_api is not None
+    # Second access must not reload
+    _ = engine.custom_api
+    mock_k8s_config.load_config.assert_called_once()
 
 
 # ── Test 5: _build_driver_repo_config — one rewrite (batch_engine only) ──
