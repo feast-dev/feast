@@ -707,8 +707,8 @@ var _ = Describe("Repo Config", func() {
 
 			extractCM := func(configMapRef string, configMapKey string) (map[string]interface{}, error) {
 				return map[string]interface{}{
-					"type":             "spark_application",
-					"service_account":  "my-custom-driver",
+					"type":            "spark_application",
+					"service_account": "my-custom-driver",
 				}, nil
 			}
 
