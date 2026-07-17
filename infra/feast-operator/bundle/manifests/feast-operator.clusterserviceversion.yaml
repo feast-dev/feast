@@ -147,7 +147,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-06-13T11:22:06Z"
+    createdAt: "2026-07-16T11:41:33Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.64.0
@@ -247,6 +247,14 @@ spec:
           - update
           - watch
         - apiGroups:
+          - config.openshift.io
+          resources:
+          - apiservers
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - feast.dev
           resources:
           - featurestores
@@ -272,6 +280,14 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - mlflow.opendatahub.io
+          resources:
+          - mlflows
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:

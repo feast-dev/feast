@@ -41,6 +41,7 @@ import (
 // Apply defaults and set service hostnames in FeatureStore status
 func (feast *FeastServices) ApplyDefaults() error {
 	ApplyDefaultsToStatus(feast.Handler.FeatureStore)
+	feast.applyMlflowDefaults()
 	if err := feast.setTlsDefaults(); err != nil {
 		return err
 	}
@@ -48,6 +49,29 @@ func (feast *FeastServices) ApplyDefaults() error {
 		return err
 	}
 	return nil
+}
+
+// applyMlflowDefaults auto-enables MLflow integration when:
+//   - spec.mlflow is nil (not explicitly configured)
+//   - a cluster MLflow CR is detected and has a reachable tracking URI
+//
+// When spec.mlflow.enabled is explicitly false, the applied config is cleared (opt-out).
+// When spec.mlflow is explicitly set, it is used as-is (no discovery override).
+func (feast *FeastServices) applyMlflowDefaults() {
+	cr := feast.Handler.FeatureStore
+	if cr.Spec.Mlflow != nil {
+		if !cr.Spec.Mlflow.Enabled {
+			cr.Status.Applied.Mlflow = nil
+		}
+		return
+	}
+	// spec.mlflow is nil → attempt auto-discovery
+	if uri, ok := DiscoverMlflowTrackingUri(feast.Handler.Context, feast.Handler.Client); ok {
+		cr.Status.Applied.Mlflow = &feastdevv1.MlflowConfig{
+			Enabled:     true,
+			TrackingUri: &uri,
+		}
+	}
 }
 
 // Deploy the feast services
@@ -89,6 +113,9 @@ func (feast *FeastServices) Deploy() error {
 		return err
 	}
 	if err := feast.deployClient(); err != nil {
+		return err
+	}
+	if err := feast.deployMlflowRoleBinding(); err != nil {
 		return err
 	}
 	if err := feast.deployNamespaceRegistry(); err != nil {
@@ -530,8 +557,28 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		if len(volumeMounts) > 0 {
 			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 		}
+		feast.injectMlflowEnv(container)
 		*containers = append(*containers, *container)
 	}
+}
+
+// injectMlflowEnv adds MLFLOW_TRACKING_AUTH and MLFLOW_TRACKING_URI env vars
+// to the container when MLflow integration is enabled.
+func (feast *FeastServices) injectMlflowEnv(container *corev1.Container) {
+	applied := feast.Handler.FeatureStore.Status.Applied.Mlflow
+	if applied == nil || !applied.Enabled {
+		return
+	}
+	mlflowEnv := []corev1.EnvVar{
+		{Name: "MLFLOW_TRACKING_AUTH", Value: "kubernetes-namespaced"},
+	}
+	if applied.TrackingUri != nil {
+		mlflowEnv = append(mlflowEnv, corev1.EnvVar{
+			Name:  "MLFLOW_TRACKING_URI",
+			Value: *applied.TrackingUri,
+		})
+	}
+	container.Env = envOverride(container.Env, mlflowEnv)
 }
 
 func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1.ContainerConfigs, fsYamlB64 string) *corev1.Container {

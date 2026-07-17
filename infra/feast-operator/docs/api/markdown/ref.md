@@ -300,6 +300,10 @@ Mutually exclusive with services.scaling.autoscaling. |
 Written into feature_store.yaml for all service pods. |
 | `openlineage` _[OpenLineageConfig](#openlineageconfig)_ | OpenLineage enables OpenLineage data lineage tracking for Feast operations.
 Written into feature_store.yaml for all service pods. |
+| `mlflow` _[MlflowConfig](#mlflowconfig)_ | Mlflow enables MLflow experiment tracking integration for Feast.
+Written into feature_store.yaml for all service pods and the client ConfigMap.
+When omitted and a cluster MLflow instance is detected, defaults to enabled
+with the discovered tracking URI. |
 
 
 #### FeatureStoreStatus
@@ -524,6 +528,39 @@ _Appears in:_
 | `serverName` _string_ | MCP server name for identification. Defaults to "feast-mcp-server". |
 | `serverVersion` _string_ | MCP server version string. Defaults to "1.0.0". |
 | `transport` _string_ | MCP transport protocol. |
+
+
+#### MlflowConfig
+
+
+
+MlflowConfig enables MLflow experiment tracking integration for Feast.
+When enabled, feature retrieval metadata is automatically logged to MLflow runs
+and the Feast UI displays lineage from feature views to registered models.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable MLflow integration. |
+| `trackingUri` _string_ | MLflow tracking server URI. When omitted, the operator auto-discovers
+from the cluster MLflow CR (status.address.url). Falls back to
+MLFLOW_TRACKING_URI env var on pods. |
+| `autoLog` _boolean_ | Automatically log feature metadata on every retrieval inside an active MLflow run.
+Defaults to true when enabled. |
+| `autoLogEntityDf` _boolean_ | Save entity DataFrame as MLflow artifact on historical retrieval.
+Defaults to false. |
+| `entityDfMaxRows` _integer_ | Maximum number of entity DataFrame rows to save as an MLflow artifact.
+DataFrames exceeding this limit are skipped. Defaults to 100000. |
+| `logOperations` _boolean_ | Log feast apply and materialize operations to a separate MLflow experiment.
+Defaults to false. |
+| `opsExperimentSuffix` _string_ | Suffix appended to the project name for the operations experiment.
+Defaults to "-feast-ops". |
+| `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional MLflow key-value settings written inline into
+the mlflow block of feature_store.yaml. Boolean and integer string values
+are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+YAML field names. |
 
 
 #### OfflinePushBatchingConfig

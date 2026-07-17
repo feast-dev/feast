@@ -973,3 +973,105 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 		})
 	})
 })
+
+var _ = Describe("MLflow Configuration", func() {
+	Context("in getServiceRepoConfig", func() {
+		It("should set mlflow block with enabled + tracking URI", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://mlflow.redhat-ods-applications.svc:8443"
+			autoLog := true
+			autoLogEntityDf := false
+			logOps := true
+
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:         true,
+				TrackingUri:     &trackingUri,
+				AutoLog:         &autoLog,
+				AutoLogEntityDf: &autoLogEntityDf,
+				LogOperations:   &logOps,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Mlflow).NotTo(BeNil())
+			Expect(repoConfig.Mlflow.Enabled).To(BeTrue())
+			Expect(repoConfig.Mlflow.TrackingUri).To(Equal(&trackingUri))
+			Expect(repoConfig.Mlflow.AutoLog).To(Equal(&autoLog))
+			Expect(repoConfig.Mlflow.AutoLogEntityDf).To(Equal(&autoLogEntityDf))
+			Expect(repoConfig.Mlflow.LogOperations).To(Equal(&logOps))
+		})
+
+		It("should set mlflow block with ExtraConfig coercing booleans", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://mlflow.svc:8443"
+
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:     true,
+				TrackingUri: &trackingUri,
+				ExtraConfig: map[string]string{
+					"auto_log":           stringTrue,
+					"auto_log_entity_df": "false",
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Mlflow).NotTo(BeNil())
+			Expect(repoConfig.Mlflow.ExtraConfig).To(HaveKeyWithValue("auto_log", true))
+			Expect(repoConfig.Mlflow.ExtraConfig).To(HaveKeyWithValue("auto_log_entity_df", false))
+		})
+
+		It("should not set mlflow block when spec.mlflow is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = nil
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Mlflow).To(BeNil())
+		})
+
+		It("should not set mlflow block when spec.mlflow.enabled is false", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled: false,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Mlflow).To(BeNil())
+		})
+	})
+
+	Context("in getClientRepoConfig", func() {
+		It("should include mlflow block in client config when enabled", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://mlflow.svc:8443"
+
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:     true,
+				TrackingUri: &trackingUri,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig := getClientRepoConfig(featureStore, nil)
+			Expect(repoConfig.Mlflow).NotTo(BeNil())
+			Expect(repoConfig.Mlflow.Enabled).To(BeTrue())
+			Expect(repoConfig.Mlflow.TrackingUri).To(Equal(&trackingUri))
+		})
+
+		It("should not include mlflow block in client config when disabled", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled: false,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig := getClientRepoConfig(featureStore, nil)
+			Expect(repoConfig.Mlflow).To(BeNil())
+		})
+	})
+})

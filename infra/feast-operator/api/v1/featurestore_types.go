@@ -142,6 +142,46 @@ type OpenLineageConsumerConfig struct {
 	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
 }
 
+// MlflowConfig enables MLflow experiment tracking integration for Feast.
+// When enabled, feature retrieval metadata is automatically logged to MLflow runs
+// and the Feast UI displays lineage from feature views to registered models.
+type MlflowConfig struct {
+	// Enable MLflow integration.
+	Enabled bool `json:"enabled"`
+	// MLflow tracking server URI. When omitted, the operator auto-discovers
+	// from the cluster MLflow CR (status.address.url). Falls back to
+	// MLFLOW_TRACKING_URI env var on pods.
+	// +optional
+	TrackingUri *string `json:"trackingUri,omitempty"`
+	// Automatically log feature metadata on every retrieval inside an active MLflow run.
+	// Defaults to true when enabled.
+	// +optional
+	AutoLog *bool `json:"autoLog,omitempty"`
+	// Save entity DataFrame as MLflow artifact on historical retrieval.
+	// Defaults to false.
+	// +optional
+	AutoLogEntityDf *bool `json:"autoLogEntityDf,omitempty"`
+	// Maximum number of entity DataFrame rows to save as an MLflow artifact.
+	// DataFrames exceeding this limit are skipped. Defaults to 100000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	EntityDfMaxRows *int32 `json:"entityDfMaxRows,omitempty"`
+	// Log feast apply and materialize operations to a separate MLflow experiment.
+	// Defaults to false.
+	// +optional
+	LogOperations *bool `json:"logOperations,omitempty"`
+	// Suffix appended to the project name for the operations experiment.
+	// Defaults to "-feast-ops".
+	// +optional
+	OpsExperimentSuffix *string `json:"opsExperimentSuffix,omitempty"`
+	// ExtraConfig holds additional MLflow key-value settings written inline into
+	// the mlflow block of feature_store.yaml. Boolean and integer string values
+	// are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+	// YAML field names.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+}
+
 // FeatureStoreSpec defines the desired state of FeatureStore
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 || !has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)",message="replicas > 1 and services.scaling.autoscaling are mutually exclusive."
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)) || (has(self.services) && has(self.services.onlineStore) && has(self.services.onlineStore.persistence) && has(self.services.onlineStore.persistence.store))",message="Scaling requires DB-backed persistence for the online store. Configure services.onlineStore.persistence.store when using replicas > 1 or autoscaling."
@@ -172,6 +212,12 @@ type FeatureStoreSpec struct {
 	// Written into feature_store.yaml for all service pods.
 	// +optional
 	OpenLineage *OpenLineageConfig `json:"openlineage,omitempty"`
+	// Mlflow enables MLflow experiment tracking integration for Feast.
+	// Written into feature_store.yaml for all service pods and the client ConfigMap.
+	// When omitted and a cluster MLflow instance is detected, defaults to enabled
+	// with the discovered tracking URI.
+	// +optional
+	Mlflow *MlflowConfig `json:"mlflow,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
