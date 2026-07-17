@@ -95,6 +95,11 @@ class ComputeEngine(ABC):
         """
         return False
 
+    @property
+    def applies_materialization(self) -> bool:
+        """If True, the engine already wrote watermarks/state (e.g. driver pod)."""
+        return False
+
     def materialize(
         self,
         registry: BaseRegistry,

@@ -523,13 +523,16 @@ class FeatureStore:
         if failed_fvs:
             self._rollback_fv_states(failed_fvs, previous_states)
 
-        for fv in succeeded_fvs:
-            self.registry.apply_materialization(
-                fv,
-                self.project,
-                date_range.fv_start_dates[fv.name],
-                date_range.end_date,
-            )
+        # Engines that apply watermarks themselves (e.g. SparkApplication pod)
+        # must not get a second apply_materialization — that duplicates intervals.
+        if not getattr(provider.batch_engine, "applies_materialization", False):
+            for fv in succeeded_fvs:
+                self.registry.apply_materialization(
+                    fv,
+                    self.project,
+                    date_range.fv_start_dates[fv.name],
+                    date_range.end_date,
+                )
 
         _tracker = _get_track_materialization()
         if _tracker is not None:

@@ -122,6 +122,10 @@ class SparkApplicationComputeEngine(ComputeEngine):
     def supports_batch(self) -> bool:
         return True
 
+    @property
+    def applies_materialization(self) -> bool:
+        return True
+
     def update(
         self,
         project: str,
