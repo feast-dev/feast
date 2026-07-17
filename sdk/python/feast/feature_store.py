@@ -2481,7 +2481,8 @@ class FeatureStore:
 
             # batch_engine is on PassthroughProvider (concrete); same access as
             # _submit_and_process_materialization_jobs via untyped provider.
-            if getattr(provider, "batch_engine").supports_batch:
+            batch_engine = getattr(provider, "batch_engine", None)
+            if batch_engine and getattr(batch_engine, "supports_batch", False):
                 self._materialize_fvs_batch(
                     provider,
                     regular_fvs_with_dates,
@@ -2671,7 +2672,8 @@ class FeatureStore:
 
             # batch_engine is on PassthroughProvider (concrete); same access as
             # _submit_and_process_materialization_jobs via untyped provider.
-            if getattr(provider, "batch_engine").supports_batch:
+            batch_engine = getattr(provider, "batch_engine", None)
+            if batch_engine and getattr(batch_engine, "supports_batch", False):
                 self._materialize_fvs_batch(
                     provider,
                     regular_fvs_with_dates,
