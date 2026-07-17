@@ -22,11 +22,11 @@ spec:
 {{ toYaml .Values.service.loadBalancerSourceRanges | indent 2 }}
   {{- end }}
   ports:
-  - name: grpc
-    port: {{ .Values.service.grpc.port }}
-    targetPort: {{ .Values.service.grpc.targetPort }}
-    {{- if .Values.service.grpc.nodePort }}
-    nodePort: {{ .Values.service.grpc.nodePort }}
+  - name: http
+    port: {{ .Values.service.port }}
+    targetPort: http
+    {{- if .Values.service.nodePort }}
+    nodePort: {{ .Values.service.nodePort }}
     {{- end }}
   selector:
     app: {{ template "feature-server.name" . }}
