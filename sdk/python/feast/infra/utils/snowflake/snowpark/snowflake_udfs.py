@@ -14,6 +14,16 @@ from feast.type_map import (
 )
 from feast.value_type import ValueType
 
+# NOTE: The `CREATE OR REPLACE FUNCTION ...` blocks below are illustrative reference
+# documentation only; they are not executed as-is. The SQL Feast actually runs is
+# templated from `snowflake_python_udfs_creation.sql`, which fills in placeholders
+# (stage path, project name, and Python UDF RUNTIME_VERSION) at deploy time -- see
+# `SnowflakeComputeEngine.update()` in `snowflake_engine.py`. The RUNTIME_VERSION
+# shown here documents Feast's default (`SnowflakeComputeEngineConfig
+# .python_udf_runtime_version`, currently "3.10"); if you override that config
+# field, the runtime actually deployed to Snowflake will differ from what's shown
+# below.
+
 """
 CREATE OR REPLACE FUNCTION feast_snowflake_binary_to_bytes_proto(df BINARY)
   RETURNS BINARY
