@@ -67,6 +67,8 @@ class StreamFeatureView(FeatureView):
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
+        org: The organizational unit that owns this stream feature view (e.g. "ads", "search").
+            Defaults to empty string.
         udf: The user defined transformation function. This transformation function should have all of the corresponding imports imported within the function.
         udf_string: The string representation of the user defined transformation function.
         feature_transformation: The transformation to apply to the features.
@@ -88,6 +90,7 @@ class StreamFeatureView(FeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
+    org: str
     mode: Union[TransformationMode, str]
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
@@ -98,6 +101,8 @@ class StreamFeatureView(FeatureView):
     timestamp_field: str
     enable_tiling: bool
     tiling_hop_size: Optional[timedelta]
+    _raw_udf_proto: Optional[Any] = None
+    _raw_feature_transformation_proto: Optional[Any] = None
 
     def __init__(
         self,
@@ -112,6 +117,7 @@ class StreamFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         aggregations: Optional[List[Aggregation]] = None,
         mode: Union[str, TransformationMode] = TransformationMode.PYTHON,
@@ -183,6 +189,7 @@ class StreamFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
             mode=mode,
@@ -200,7 +207,8 @@ class StreamFeatureView(FeatureView):
             TransformationMode.PYTHON,
             TransformationMode.SPARK_SQL,
             TransformationMode.SPARK,
-        ) or self.mode in ("pandas", "python", "spark_sql", "spark"):
+            TransformationMode.FLINK,
+        ) or self.mode in ("pandas", "python", "spark_sql", "spark", "flink"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
@@ -272,7 +280,12 @@ class StreamFeatureView(FeatureView):
         stream_source_proto = serialize_data_source(self.stream_source)
 
         udf_proto, feature_transformation = None, None
-        if self.udf:
+        if getattr(self, "_raw_udf_proto", None) is not None:
+            udf_proto = self._raw_udf_proto
+            feature_transformation = getattr(
+                self, "_raw_feature_transformation_proto", None
+            )
+        elif self.udf:
             udf_proto = UserDefinedFunctionProto(
                 name=self.udf.__name__,
                 body=dill.dumps(self.udf, recurse=True),
@@ -304,6 +317,7 @@ class StreamFeatureView(FeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             ttl=ttl_duration,
             online=self.online,
             batch_source=batch_source_proto,
@@ -315,12 +329,13 @@ class StreamFeatureView(FeatureView):
             tiling_hop_size=tiling_hop_size_duration,
             enable_validation=self.enable_validation,
             version=self.version,
+            disabled=not self.enabled,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
-    def from_proto(cls, sfv_proto):
+    def from_proto(cls, sfv_proto, skip_udf: bool = False):
         batch_source = (
             DataSource.from_proto(sfv_proto.spec.batch_source)
             if sfv_proto.spec.HasField("batch_source")
@@ -333,7 +348,7 @@ class StreamFeatureView(FeatureView):
         )
         udf = (
             dill.loads(sfv_proto.spec.user_defined_function.body)
-            if sfv_proto.spec.HasField("user_defined_function")
+            if sfv_proto.spec.HasField("user_defined_function") and not skip_udf
             else None
         )
         udf_string = (
@@ -351,6 +366,7 @@ class StreamFeatureView(FeatureView):
             description=sfv_proto.spec.description,
             tags=dict(sfv_proto.spec.tags),
             owner=sfv_proto.spec.owner,
+            org=sfv_proto.spec.org,
             online=sfv_proto.spec.online,
             schema=[
                 Field.from_proto(field_proto) for field_proto in sfv_proto.spec.features
@@ -396,6 +412,20 @@ class StreamFeatureView(FeatureView):
         else:
             stream_feature_view.current_version_number = None
 
+        stream_feature_view.enabled = not sfv_proto.spec.disabled
+
+        # Restore lifecycle state from meta (SFV uses FeatureViewMeta which has state).
+        from feast.feature_view import FeatureViewState
+
+        stream_feature_view.state = FeatureViewState.from_proto(sfv_proto.meta.state)
+
+        if skip_udf and sfv_proto.spec.HasField("user_defined_function"):
+            stream_feature_view._raw_udf_proto = sfv_proto.spec.user_defined_function
+        if skip_udf and sfv_proto.spec.HasField("feature_transformation"):
+            stream_feature_view._raw_feature_transformation_proto = (
+                sfv_proto.spec.feature_transformation
+            )
+
         stream_feature_view.entities = list(sfv_proto.spec.entities)
 
         stream_feature_view.features = [
@@ -434,6 +464,7 @@ class StreamFeatureView(FeatureView):
             online=self.online,
             description=self.description,
             owner=self.owner,
+            org=self.org,
             aggregations=self.aggregations,
             mode=self.mode,
             timestamp_field=self.timestamp_field,
@@ -444,6 +475,8 @@ class StreamFeatureView(FeatureView):
             enable_validation=self.enable_validation,
             version=self.version,
         )
+        fv.enabled = self.enabled
+        fv.state = self.state
         fv.entities = self.entities
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
@@ -463,6 +496,7 @@ def stream_feature_view(
     online: Optional[bool] = True,
     description: Optional[str] = "",
     owner: Optional[str] = "",
+    org: Optional[str] = "",
     schema: Optional[List[Field]] = None,
     source: Optional[DataSource] = None,
     aggregations: Optional[List[Aggregation]] = None,
@@ -498,6 +532,7 @@ def stream_feature_view(
             tags=tags,
             online=online,
             owner=owner,
+            org=org,
             aggregations=aggregations,
             mode=mode,
             timestamp_field=timestamp_field,

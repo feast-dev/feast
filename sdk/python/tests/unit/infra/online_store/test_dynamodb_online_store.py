@@ -1050,3 +1050,240 @@ def test_dynamodb_online_store_thread_safety_uses_shared_client(
         f"Expected 1 shared client for thread-safety, "
         f"got {len(set(dynamodb_clients))} unique clients"
     )
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_with_requested_features(
+    repo_config, dynamodb_online_store
+):
+    """Test that requested_features filters returned features."""
+    n_samples = 5
+    db_table_name = f"{TABLE_NAME}_requested_features"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=["name", "age"],
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert "name" in feat_dict
+        assert "age" in feat_dict
+        assert "avg_orders_day" not in feat_dict
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_without_requested_features(
+    repo_config, dynamodb_online_store
+):
+    """Test that omitting requested_features returns all features."""
+    n_samples = 5
+    db_table_name = f"{TABLE_NAME}_all_features"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=repo_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=None,
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert set(feat_dict.keys()) == {"avg_orders_day", "name", "age"}
+
+
+def test_build_projection_expression():
+    """Test that _build_projection_expression generates correct DynamoDB expressions."""
+    result = DynamoDBOnlineStore._build_projection_expression(["feat_a", "feat_b"])
+    assert result is not None
+    assert "#entity_id" in result["ProjectionExpression"]
+    assert "#event_ts" in result["ProjectionExpression"]
+    assert "#vals.#feat0" in result["ProjectionExpression"]
+    assert "#vals.#feat1" in result["ProjectionExpression"]
+    attr_names = result["ExpressionAttributeNames"]
+    assert attr_names["#vals"] == "values"
+    assert attr_names["#feat0"] == "feat_a"
+    assert attr_names["#feat1"] == "feat_b"
+
+
+def test_build_projection_expression_none():
+    """Test that _build_projection_expression returns None for empty input."""
+    assert DynamoDBOnlineStore._build_projection_expression(None) is None
+    assert DynamoDBOnlineStore._build_projection_expression([]) is None
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_online_read_requested_features_parallel(
+    dynamodb_online_store,
+):
+    """Test that requested_features works across parallel batches."""
+    small_batch_config = RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=DynamoDBOnlineStoreConfig(region=REGION, batch_size=5),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=3,
+    )
+    n_samples = 15
+    db_table_name = f"{TABLE_NAME}_requested_parallel"
+    create_test_table(PROJECT, db_table_name, REGION)
+    data = create_n_customer_test_samples(n=n_samples)
+    insert_data_test_table(data, PROJECT, db_table_name, REGION)
+
+    entity_keys, features, *rest = zip(*data)
+    returned_items = dynamodb_online_store.online_read(
+        config=small_batch_config,
+        table=MockFeatureView(name=db_table_name),
+        entity_keys=entity_keys,
+        requested_features=["age"],
+    )
+    assert len(returned_items) == n_samples
+    for _, feat_dict in returned_items:
+        assert feat_dict is not None
+        assert "age" in feat_dict
+        assert "name" not in feat_dict
+        assert "avg_orders_day" not in feat_dict
+
+
+# ---------------------------------------------------------------------------
+# Tests for the diff-based _update_tags (fix for GitHub issue #6418)
+#
+# DynamoDB's TagResource / UntagResource are eventually consistent, so the
+# old approach of "remove all → re-add all" could leave tables tag-less due
+# to the async propagation gap.  The new approach only touches tags that
+# actually need to change.
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_dynamodb_client(
+    current_tags: list[dict[str, str]],
+    table_arn: str = "arn:aws:dynamodb:us-west-2:123456789012:table/test_table",
+):
+    """Helper: create a pure MagicMock DynamoDB client for tag tests.
+    This avoids Moto's authentication issues with DynamoDB tag APIs.
+    """
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    # Mock describe_table
+    client.describe_table.return_value = {"Table": {"TableArn": table_arn}}
+    # Mock list_tags_of_resource
+    client.list_tags_of_resource.return_value = {"Tags": current_tags}
+    return client
+
+
+def test_update_tags_no_change_makes_no_api_calls():
+    """Idempotency: calling _update_tags with identical tags must not call
+    untag_resource or tag_resource (avoids unnecessary eventual-consistency exposure).
+    """
+    table_name = f"{TABLE_NAME}_no_change"
+    initial_tags = [{"Key": "env", "Value": "prod"}, {"Key": "team", "Value": "ml"}]
+    client = _make_mock_dynamodb_client(current_tags=initial_tags)
+
+    DynamoDBOnlineStore._update_tags(client, table_name, initial_tags)
+
+    client.untag_resource.assert_not_called()
+    client.tag_resource.assert_not_called()
+
+
+def test_update_tags_adds_new_tags_without_untag():
+    """Adding a new tag key must call tag_resource but NOT untag_resource."""
+    table_name = f"{TABLE_NAME}_add_only"
+    existing = [{"Key": "env", "Value": "prod"}]
+    client = _make_mock_dynamodb_client(current_tags=existing)
+
+    new_tags = [{"Key": "env", "Value": "prod"}, {"Key": "team", "Value": "ml"}]
+    DynamoDBOnlineStore._update_tags(client, table_name, new_tags)
+
+    client.untag_resource.assert_not_called()
+    client.tag_resource.assert_called_once()
+    added = client.tag_resource.call_args[1]["Tags"]
+    assert added == [{"Key": "team", "Value": "ml"}]
+
+
+def test_update_tags_removes_obsolete_tags_only():
+    """Only truly obsolete tag keys (not in new_tags) must be passed to untag_resource."""
+    table_name = f"{TABLE_NAME}_remove_only"
+    existing = [{"Key": "env", "Value": "prod"}, {"Key": "old-key", "Value": "old"}]
+    client = _make_mock_dynamodb_client(current_tags=existing)
+
+    new_tags = [{"Key": "env", "Value": "prod"}]
+    DynamoDBOnlineStore._update_tags(client, table_name, new_tags)
+
+    client.untag_resource.assert_called_once()
+    removed_keys = client.untag_resource.call_args[1]["TagKeys"]
+    assert removed_keys == ["old-key"]
+
+    client.tag_resource.assert_not_called()
+
+
+def test_update_tags_updates_changed_value():
+    """A tag whose value changed must be passed to tag_resource (not untag_resource)."""
+    table_name = f"{TABLE_NAME}_change_value"
+    existing = [{"Key": "env", "Value": "staging"}]
+    client = _make_mock_dynamodb_client(current_tags=existing)
+
+    new_tags = [{"Key": "env", "Value": "prod"}]
+
+    DynamoDBOnlineStore._update_tags(client, table_name, new_tags)
+
+    client.untag_resource.assert_not_called()
+    client.tag_resource.assert_called_once()
+    updated = client.tag_resource.call_args[1]["Tags"]
+    assert updated == [{"Key": "env", "Value": "prod"}]
+
+
+def test_update_tags_full_replace():
+    """Replacing an entire tag set removes old keys and adds new ones correctly."""
+    table_name = f"{TABLE_NAME}_full_replace"
+    existing = [{"Key": "old1", "Value": "v1"}, {"Key": "old2", "Value": "v2"}]
+    client = _make_mock_dynamodb_client(current_tags=existing)
+
+    new_tags = [{"Key": "new1", "Value": "n1"}, {"Key": "new2", "Value": "n2"}]
+
+    DynamoDBOnlineStore._update_tags(client, table_name, new_tags)
+
+    client.untag_resource.assert_called_once()
+    removed = set(client.untag_resource.call_args[1]["TagKeys"])
+    assert removed == {"old1", "old2"}
+
+    client.tag_resource.assert_called_once()
+    added = {t["Key"] for t in client.tag_resource.call_args[1]["Tags"]}
+    assert added == {"new1", "new2"}
+
+
+def test_update_tags_clear_all_tags():
+    """Passing an empty new_tags list removes all existing tags without calling tag_resource."""
+    table_name = f"{TABLE_NAME}_clear_all"
+    existing = [{"Key": "env", "Value": "prod"}]
+    client = _make_mock_dynamodb_client(current_tags=existing)
+
+    DynamoDBOnlineStore._update_tags(client, table_name, [])
+
+    client.untag_resource.assert_called_once()
+    removed = client.untag_resource.call_args[1]["TagKeys"]
+    assert removed == ["env"]
+
+    client.tag_resource.assert_not_called()
+
+
+def test_update_tags_no_existing_tags_no_new_tags():
+    """Both old and new tag sets are empty: no API calls at all."""
+    table_name = f"{TABLE_NAME}_empty_both"
+    client = _make_mock_dynamodb_client(current_tags=[])
+
+    DynamoDBOnlineStore._update_tags(client, table_name, [])
+
+    client.untag_resource.assert_not_called()
+    client.tag_resource.assert_not_called()

@@ -1,9 +1,9 @@
 import React from "react";
 import {
+  EuiBadge,
   EuiBasicTable,
   EuiPanel,
   EuiSpacer,
-  EuiText,
   EuiTitle,
 } from "@elastic/eui";
 import { useParams } from "react-router-dom";
@@ -17,6 +17,8 @@ const FeatureViewProjectionDisplayPanel = (
   featureViewProjection: RequestDataDisplayPanelProps,
 ) => {
   const { projectName } = useParams();
+  const isLabelView = (featureViewProjection as any).viewType === "labelView";
+  const viewPath = isLabelView ? "label-view" : "feature-view";
 
   const columns = [
     {
@@ -27,20 +29,21 @@ const FeatureViewProjectionDisplayPanel = (
       name: "Type",
       field: "valueType",
       render: (valueType: any) => {
-        return feast.types.ValueType.Enum[valueType];
+        if (typeof valueType === "string") return valueType;
+        return feast.types.ValueType.Enum[valueType] || String(valueType || "");
       },
     },
   ];
 
   return (
     <EuiPanel hasBorder={true}>
-      <EuiText size="xs">
-        <span>Feature View</span>
-      </EuiText>
+      <EuiBadge color={isLabelView ? "#e6570e" : "hollow"}>
+        {isLabelView ? "label view" : "feature view"}
+      </EuiBadge>
       <EuiSpacer size="xs" />
       <EuiTitle size="s">
         <EuiCustomLink
-          to={`/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
+          to={`/p/${projectName}/${viewPath}/${featureViewProjection.featureViewName}`}
         >
           {featureViewProjection?.featureViewName}
         </EuiCustomLink>

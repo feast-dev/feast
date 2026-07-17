@@ -1,9 +1,11 @@
+import json
 import os
 import tempfile
 import uuid
 import warnings
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from datetime import time as dt_time
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -33,6 +35,7 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
@@ -49,6 +52,17 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -260,6 +274,10 @@ class SparkOfflineStore(OfflineStore):
             entity_df_event_timestamp_range,
         )
 
+        query_context = _apply_bfv_transformations(
+            spark_session, feature_views, query_context
+        )
+
         spark_query_context = [
             SparkFeatureViewQueryContext(
                 **asdict(context),
@@ -387,12 +405,18 @@ class SparkOfflineStore(OfflineStore):
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
-        (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=join_key_columns + feature_name_columns + timestamp_fields,
-            field_mappings=data_source.field_mapping,
-        )
 
-        fields_with_alias_string = ", ".join(fields_with_aliases)
+        if feature_name_columns:
+            (fields_with_aliases, _) = _get_fields_with_aliases(
+                fields=join_key_columns + feature_name_columns + timestamp_fields,
+                field_mappings=data_source.field_mapping,
+            )
+            fields_with_alias_string = ", ".join(fields_with_aliases)
+        else:
+            # Empty feature_name_columns signals "read all source columns".
+            # Used by BatchFeatureView with TransformationMode.PYTHON/ray/pandas where
+            # the UDF computes output features from raw input — don't project upfront.
+            fields_with_alias_string = "*"
 
         from_expression = data_source.get_table_query_string()
         timestamp_filter = get_timestamp_filter_sql(
@@ -411,6 +435,494 @@ class SparkOfflineStore(OfflineStore):
             full_feature_names=False,
             config=config,
         )
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        ts_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            quote_fields=False,
+        )
+        ts_clause = ts_filter if ts_filter else "1=1"
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        if numeric_features:
+            results.extend(
+                _spark_sql_numeric_stats(
+                    spark_session,
+                    from_expression,
+                    numeric_features,
+                    ts_clause,
+                    histogram_bins,
+                )
+            )
+
+        for col_name in categorical_features:
+            results.append(
+                _spark_sql_categorical_stats(
+                    spark_session,
+                    from_expression,
+                    col_name,
+                    ts_clause,
+                    top_n,
+                )
+            )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        q_ts = f"`{timestamp_field}`"
+        sql = f"SELECT MAX({q_ts}) AS max_ts FROM {from_expression} AS _src"
+        row = spark_session.sql(sql).collect()
+        if not row or row[0][0] is None:
+            return None
+        val = row[0][0]
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        if isinstance(val, date):
+            return datetime.combine(val, dt_time.min, tzinfo=timezone.utc)
+        return pandas.to_datetime(val, utc=True).to_pydatetime()
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
+            spark_session.sql(stmt)
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
+        pdf_new = pd.DataFrame([{c: m.get(c) for c in columns} for m in metrics])
+        pdf_new = _spark_normalize_histogram_column(pdf_new)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if spark_session.catalog.tableExists(table):
+            pdf_old = spark_session.table(table).toPandas()
+            pdf_merged = _spark_pandas_upsert(pdf_old, pdf_new, pk_columns)
+        else:
+            pdf_merged = pdf_new
+
+        spark_session.createDataFrame(pdf_merged).write.mode("overwrite").saveAsTable(
+            table
+        )
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, _ = monitoring_table_meta(metric_type)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(table):
+            return []
+
+        from pyspark.sql import functions as F
+
+        df = spark_session.table(table)
+        if project:
+            df = df.filter(F.col("project_id") == project)
+        if filters:
+            for key, value in filters.items():
+                if value is not None:
+                    df = df.filter(F.col(key) == value)
+        if start_date is not None and "metric_date" in df.columns:
+            df = df.filter(F.col("metric_date") >= F.lit(start_date))
+        if end_date is not None and "metric_date" in df.columns:
+            df = df.filter(F.col("metric_date") <= F.lit(end_date))
+
+        order_col = "metric_date" if "metric_date" in df.columns else "job_id"
+        rows = df.orderBy(order_col).collect()
+        return _spark_rows_to_metric_dicts(rows, columns)
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(MON_TABLE_FEATURE):
+            return
+
+        pdf = spark_session.table(MON_TABLE_FEATURE).toPandas()
+        if pdf is None:
+            return
+        mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
+        if feature_view_name is not None:
+            mask &= pdf["feature_view_name"] == feature_view_name
+        if feature_name is not None:
+            mask &= pdf["feature_name"] == feature_name
+        if data_source_type is not None:
+            mask &= pdf["data_source_type"] == data_source_type
+
+        pdf.loc[mask, "is_baseline"] = False
+        spark_session.createDataFrame(pdf).write.mode("overwrite").saveAsTable(
+            MON_TABLE_FEATURE
+        )
+
+
+_SPARK_MONITORING_DDL_STATEMENTS = [
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    feature_name      STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    is_baseline       BOOLEAN NOT NULL,
+    feature_type      STRING NOT NULL,
+    row_count         BIGINT,
+    null_count        BIGINT,
+    null_rate         DOUBLE,
+    mean              DOUBLE,
+    stddev            DOUBLE,
+    min_val           DOUBLE,
+    max_val           DOUBLE,
+    p50               DOUBLE,
+    p75               DOUBLE,
+    p90               DOUBLE,
+    p95               DOUBLE,
+    p99               DOUBLE,
+    histogram         STRING
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    is_baseline       BOOLEAN NOT NULL,
+    total_row_count   BIGINT,
+    total_features    INT,
+    features_with_nulls INT,
+    avg_null_rate     DOUBLE,
+    max_null_rate     DOUBLE
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
+    project_id           STRING NOT NULL,
+    feature_service_name STRING NOT NULL,
+    metric_date          DATE NOT NULL,
+    granularity          STRING NOT NULL,
+    data_source_type     STRING NOT NULL,
+    computed_at          TIMESTAMP NOT NULL,
+    is_baseline          BOOLEAN NOT NULL,
+    total_feature_views  INT,
+    total_features       INT,
+    avg_null_rate        DOUBLE,
+    max_null_rate        DOUBLE
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+    job_id            STRING NOT NULL,
+    project_id        STRING NOT NULL,
+    feature_view_name STRING,
+    job_type          STRING NOT NULL,
+    status            STRING NOT NULL,
+    parameters        STRING,
+    metric_date       DATE NOT NULL,
+    started_at        TIMESTAMP,
+    completed_at      TIMESTAMP,
+    error_message     STRING,
+    result_summary    STRING
+) USING PARQUET
+""",
+]
+
+
+def _spark_normalize_histogram_column(pdf: pd.DataFrame) -> pd.DataFrame:
+    if "histogram" not in pdf.columns:
+        return pdf
+    out = pdf.copy()
+
+    def _ser(x: Any) -> Any:
+        if x is None:
+            return None
+        if isinstance(x, str):
+            return x
+        return json.dumps(x)
+
+    out["histogram"] = out["histogram"].map(_ser)
+    return out
+
+
+def _spark_pandas_upsert(
+    pdf_old: pd.DataFrame,
+    pdf_new: pd.DataFrame,
+    pk_columns: List[str],
+) -> pd.DataFrame:
+    if pdf_old.empty:
+        return pdf_new
+    old_idx = pdf_old.set_index(pk_columns)
+    new_idx = pdf_new.set_index(pk_columns)
+    kept = old_idx.loc[~old_idx.index.isin(new_idx.index)]
+    kept_df = kept.reset_index()
+    return pd.concat([kept_df, pdf_new], ignore_index=True)
+
+
+def _spark_sql_numeric_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    feature_names: List[str],
+    ts_clause: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f"`{col}`"
+        c = f"CAST({q} AS DOUBLE)"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_APPROX({c}, 0.50)",
+                f"PERCENTILE_APPROX({c}, 0.75)",
+                f"PERCENTILE_APPROX({c}, 0.90)",
+                f"PERCENTILE_APPROX({c}, 0.95)",
+                f"PERCENTILE_APPROX({c}, 0.99)",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_clause}"
+    )
+    rows = spark_session.sql(query).collect()
+    if not rows or rows[0] is None:
+        return [empty_numeric_metric(n) for n in feature_names]
+
+    row = rows[0]
+    row_count = int(row[0] or 0)
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = int(row[base] or 0)
+        null_count = row_count - non_null
+
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _spark_sql_numeric_histogram(
+                spark_session,
+                from_expression,
+                col,
+                ts_clause,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _spark_sql_numeric_histogram(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    if min_val == max_val:
+        sql = (
+            f"SELECT COUNT(*) FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        )
+        cnt = int(spark_session.sql(sql).collect()[0][0] or 0)
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    bin_width = (max_val - min_val) / bins
+    cast_col = f"CAST({q_col} AS DOUBLE)"
+    inner = (
+        f"CASE WHEN {min_val} = {max_val} THEN 1 "
+        f"ELSE LEAST(GREATEST(FLOOR(({cast_col} - {min_val}) / {bin_width}) + 1, 1), {bins}) "
+        f"END AS bucket"
+    )
+
+    query = (
+        f"SELECT bucket, COUNT(*) AS cnt FROM ("
+        f"  SELECT {inner} "
+        f"  FROM {from_expression} AS _src "
+        f"  WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        f") AS _b WHERE bucket IS NOT NULL "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+    hrows = spark_session.sql(query).collect()
+    counts = [0] * bins
+    for hr in hrows:
+        bucket = int(hr[0] or 0)
+        cnt = int(hr[1] or 0)
+        if 1 <= bucket <= bins:
+            counts[bucket - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _spark_sql_categorical_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    query = (
+        f"WITH filtered AS ("
+        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
+        f") "
+        f"SELECT "
+        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
+        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
+        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
+        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
+        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+        f"FROM filtered WHERE {q_col} IS NOT NULL "
+        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+    )
+
+    rows = spark_session.sql(query).collect()
+    if not rows:
+        return empty_categorical_metric(col_name)
+
+    row_count = int(rows[0][0] or 0)
+    null_count = int(rows[0][1] or 0)
+    unique_count = int(rows[0][2] or 0)
+
+    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _spark_rows_to_metric_dicts(
+    rows: List[Any],
+    columns: List[str],
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        d = r.asDict()
+        rec = {c: d.get(c) for c in columns}
+        out.append(normalize_monitoring_row(rec))
+    return out
 
 
 class SparkRetrievalJob(RetrievalJob):
@@ -471,21 +983,50 @@ class SparkRetrievalJob(RetrievalJob):
         if not parquet_paths:
             return pyarrow.table({})
 
-        normalized_paths = self._normalize_staging_paths(parquet_paths)
-        dataset = ds.dataset(normalized_paths, format="parquet")
+        pa_fs, stripped_paths = self._resolve_staging_filesystem(parquet_paths)
+        dataset = ds.dataset(stripped_paths, format="parquet", filesystem=pa_fs)
         return dataset.to_table()
 
-    def _normalize_staging_paths(self, paths: List[str]) -> List[str]:
-        """Normalize staging paths for PyArrow datasets."""
+    def _resolve_staging_filesystem(
+        self, paths: List[str]
+    ) -> Tuple[Optional[pyarrow.fs.FileSystem], List[str]]:
+        """Return (pyarrow filesystem, prefix-stripped paths) for staging URIs."""
+        sample = paths[0]
+
+        import pyarrow.fs as pafs
+
+        if sample.startswith("s3://") or sample.startswith("s3a://"):
+            endpoint = os.environ.get("AWS_ENDPOINT_URL_S3") or os.environ.get(
+                "AWS_S3_ENDPOINT", ""
+            )
+            region = getattr(
+                self._config.offline_store, "region", None
+            ) or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            kwargs: Dict[str, Any] = {"region": region}
+            if endpoint:
+                kwargs["endpoint_override"] = (
+                    endpoint.rstrip("/")
+                    .removeprefix("https://")
+                    .removeprefix("http://")
+                )
+                kwargs["scheme"] = "https" if endpoint.startswith("https") else "http"
+            fs = pafs.S3FileSystem(**kwargs)
+            stripped = [p.removeprefix("s3a://").removeprefix("s3://") for p in paths]
+            return fs, stripped
+
+        if sample.startswith("gs://"):
+            fs = pafs.GcsFileSystem()
+            stripped = [p[len("gs://") :] for p in paths]
+            return fs, stripped
+
+        # Local paths
         normalized = []
-        for path in paths:
-            if path.startswith("file://"):
-                normalized.append(path[len("file://") :])
-            elif "://" in path:
-                normalized.append(path)
+        for p in paths:
+            if p.startswith("file://"):
+                normalized.append(p[len("file://") :])
             else:
-                normalized.append(path)
-        return normalized
+                normalized.append(p)
+        return None, normalized
 
     def to_feast_df(
         self,
@@ -512,20 +1053,33 @@ class SparkRetrievalJob(RetrievalJob):
     ):
         """
         Run the retrieval and persist the results in the same offline store used for read.
-        Please note the persisting is done only within the scope of the spark session for local warehouse directory.
+        Supports both table-based and path-based SparkSource configurations.
+        For table-based: persists via saveAsTable (remote warehouse) or createOrReplaceTempView (local).
+        For path-based: writes directly to the specified path in the given file format.
         """
         assert isinstance(storage, SavedDatasetSparkStorage)
+
         table_name = storage.spark_options.table
-        if not table_name:
-            raise ValueError("Cannot persist, table_name is not defined")
-        if self._has_remote_warehouse_in_config():
-            file_format = storage.spark_options.file_format
+        path = storage.spark_options.path
+        file_format = storage.spark_options.file_format
+
+        if path:
             if not file_format:
-                self.to_spark_df().write.saveAsTable(table_name)
+                file_format = "parquet"
+            write_mode = "overwrite" if allow_overwrite else "error"
+            self.to_spark_df().write.format(file_format).mode(write_mode).save(path)
+        elif table_name:
+            if self._has_remote_warehouse_in_config():
+                if not file_format:
+                    self.to_spark_df().write.saveAsTable(table_name)
+                else:
+                    self.to_spark_df().write.format(file_format).saveAsTable(table_name)
             else:
-                self.to_spark_df().write.format(file_format).saveAsTable(table_name)
+                self.to_spark_df().createOrReplaceTempView(table_name)
         else:
-            self.to_spark_df().createOrReplaceTempView(table_name)
+            raise ValueError(
+                "Cannot persist: either 'table' or 'path' must be specified in SavedDatasetSparkStorage"
+            )
 
     def _has_remote_warehouse_in_config(self) -> bool:
         """
@@ -705,6 +1259,62 @@ def _entity_schema_keys_from(
     return cast(
         KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
     )
+
+
+def _apply_bfv_transformations(
+    spark_session: SparkSession,
+    feature_views: List[FeatureView],
+    query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[offline_utils.FeatureViewQueryContext]:
+    """
+    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
+    invoke the transformation, register the result as a temp view, and replace the
+    table_subquery in the query context so the PIT join reads transformed data.
+    """
+    from dataclasses import replace
+
+    from feast.feature_view_utils import (
+        get_transformation_function,
+        has_transformation,
+        resolve_feature_view_source_with_fallback,
+    )
+
+    fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
+
+    updated_contexts = []
+    for ctx in query_contexts:
+        fv = fv_by_name.get(ctx.name)
+        if (
+            fv is not None
+            and isinstance(fv, BatchFeatureView)
+            and has_transformation(fv)
+        ):
+            udf = get_transformation_function(fv)
+            if udf is not None:
+                source_info = resolve_feature_view_source_with_fallback(fv)
+                source_query = source_info.data_source.get_table_query_string()
+
+                timestamp_filter = get_timestamp_filter_sql(
+                    start_date=ctx.min_event_timestamp,
+                    end_date=ctx.max_event_timestamp,
+                    timestamp_field=ctx.timestamp_field,
+                    tz=timezone.utc,
+                    quote_fields=False,
+                )
+                source_df = spark_session.sql(
+                    f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
+                )
+
+                transformed_df = udf(source_df)
+
+                tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
+                transformed_df.createOrReplaceTempView(tmp_view_name)
+
+                ctx = replace(ctx, table_subquery=tmp_view_name)
+
+        updated_contexts.append(ctx)
+
+    return updated_contexts
 
 
 def _get_entity_df_event_timestamp_range(

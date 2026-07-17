@@ -93,6 +93,7 @@ class BatchFeatureView(FeatureView):
         offline: bool = False,
         description: str = "",
         owner: str = "",
+        org: str = "",
         schema: Optional[List[Field]] = None,
         udf: Optional[Callable[[Any], Any]] = None,
         udf_string: Optional[str] = "",
@@ -151,6 +152,7 @@ class BatchFeatureView(FeatureView):
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             source=source,  # type: ignore[arg-type]
             sink_source=sink_source,
@@ -167,13 +169,14 @@ class BatchFeatureView(FeatureView):
             TransformationMode.PYTHON,
             TransformationMode.SQL,
             TransformationMode.RAY,
-        ) or self.mode in ("pandas", "python", "sql", "ray"):
+            TransformationMode.FLINK,
+        ) or self.mode in ("pandas", "python", "sql", "ray", "flink"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         else:
             raise ValueError(
-                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+                f"Unsupported transformation mode: {self.mode} for BatchFeatureView"
             )
 
 
@@ -189,6 +192,7 @@ def batch_feature_view(
     offline: bool = True,
     description: str = "",
     owner: str = "",
+    org: str = "",
     schema: Optional[List[Field]] = None,
     enable_validation: bool = False,
     version: str = "latest",
@@ -219,6 +223,7 @@ def batch_feature_view(
             offline=offline,
             description=description,
             owner=owner,
+            org=org,
             schema=schema,
             udf=user_function,
             udf_string=udf_string,

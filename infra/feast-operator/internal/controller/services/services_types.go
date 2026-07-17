@@ -48,13 +48,17 @@ const (
 	tlsPathCustomCABundle = "/etc/pki/tls/custom-certs/ca-bundle.crt"
 	tlsNameSuffix         = "-tls"
 
-	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
-	caBundleName       = "odh-trusted-ca-bundle"
-	odhCaBundleKey     = "odh-ca-bundle.crt"
-	tlsPathOdhCABundle = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
-	tlsPathOidcCA      = "/etc/pki/tls/oidc-ca/ca.crt"
-	oidcCaVolumeName   = "oidc-ca-cert"
-	defaultCACertKey   = "ca-bundle.crt"
+	caBundleAnnotation                   = "config.openshift.io/inject-trusted-cabundle"
+	caBundleName                         = "odh-trusted-ca-bundle"
+	odhCaBundleKey                       = "odh-ca-bundle.crt"
+	tlsPathOdhCABundle                   = "/etc/pki/tls/custom-certs/odh-ca-bundle.crt"
+	tlsPathOidcCA                        = "/etc/pki/tls/oidc-ca/ca.crt"
+	oidcCaVolumeName                     = "oidc-ca-cert"
+	defaultCACertKey                     = "ca-bundle.crt"
+	openshiftServingCertSecretAnnotation = "service.beta.openshift.io/serving-cert-secret-name" // pragma: allowlist secret
+	openshiftServingCertSansAnnotation   = "service.beta.openshift.io/serving-cert-sans"
+	openshiftInjectCaBundleAnnotation    = "service.beta.openshift.io/inject-cabundle"
+	ErrorMessagePrefix                   = "Error: "
 
 	DefaultOfflineStorageRequest        = "20Gi"
 	DefaultOnlineStorageRequest         = "5Gi"
@@ -101,6 +105,47 @@ const (
 	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
+
+	// Common string constants
+	stringTrue              = "true"
+	stringFalse             = "false"
+	hostAllIPv4             = "0.0.0.0"
+	tlsCertKey              = "tls.crt"
+	DefaultNs               = "default"
+	feastCommand            = "feast"
+	metricsPortName         = "metrics"
+	registryName            = "registry"
+	feastInitContainerName  = "feast-init"
+	feastApplyContainerName = "feast-apply"
+
+	// Test-specific constants
+	dataOnlineDbPath              = "/data/online.db"
+	dataRegistryDbPath            = "/data/registry.db"
+	oidcSecretName                = "oidc-secret" // pragma: allowlist secret
+	clientIDValue                 = "client-id"
+	lineageSecretName             = "lineage-secret" // pragma: allowlist secret
+	redisType                     = "redis"
+	redisSecretName               = "redis-secret"    // pragma: allowlist secret
+	registrySecretName            = "registry-secret" // pragma: allowlist secret
+	celTestProject                = "celtest"
+	kubernetesHostnameTopologyKey = "kubernetes.io/hostname"
+	dailyMidnightCron             = "0 0 * * *"
+	otelInjectPythonAnnotation    = "instrumentation.opentelemetry.io/inject-python"
+	kubernetesOsLabel             = "kubernetes.io/os"
+	computeNodeType               = "compute"
+	nodeTypeLabel                 = "node-type"
+	zoneLabel                     = "zone"
+	linuxOS                       = "linux"
+	TestValue                     = "test"
+	OfflineStoreSecretName        = "offline-store-secret"  // pragma: allowlist secret
+	OnlineStoreSecretName         = "online-store-secret"   // pragma: allowlist secret
+	RegistryStoreSecretName       = "registry-store-secret" // pragma: allowlist secret
+	FieldRefName                  = "fieldRefName"
+	ConfigOne                     = "config-1"
+	MetadataNameField             = "metadata.name"
+	GrpcFlag                      = "--grpc"
+	ExampleConfigMapName          = "example-configmap"
+	ExampleSecretName             = "example-secret" // pragma: allowlist secret
 )
 
 const (
@@ -117,12 +162,12 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Args:            []string{"serve_offline", "-h", "0.0.0.0"},
+			Args:            []string{"serve_offline", "-h", hostAllIPv4},
 			TargetHttpPort:  8815,
 			TargetHttpsPort: 8816,
 		},
 		OnlineFeastType: {
-			Args:            []string{"serve", "-h", "0.0.0.0"},
+			Args:            []string{"serve", "-h", hostAllIPv4},
 			TargetHttpPort:  6566,
 			TargetHttpsPort: 6567,
 		},
@@ -260,14 +305,79 @@ type FeastServices struct {
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
 // https://rtd.feast.dev/en/stable/#feast.repo_config.RepoConfig
 type RepoConfig struct {
-	Project                       string               `yaml:"project,omitempty"`
-	Provider                      FeastProviderType    `yaml:"provider,omitempty"`
-	OfflineStore                  OfflineStoreConfig   `yaml:"offline_store,omitempty"`
-	OnlineStore                   OnlineStoreConfig    `yaml:"online_store,omitempty"`
-	Registry                      RegistryConfig       `yaml:"registry,omitempty"`
-	AuthzConfig                   AuthzConfig          `yaml:"auth,omitempty"`
-	EntityKeySerializationVersion int                  `yaml:"entity_key_serialization_version,omitempty"`
-	BatchEngine                   *ComputeEngineConfig `yaml:"batch_engine,omitempty"`
+	Project                       string                           `yaml:"project,omitempty"`
+	Provider                      FeastProviderType                `yaml:"provider,omitempty"`
+	OfflineStore                  OfflineStoreConfig               `yaml:"offline_store,omitempty"`
+	OnlineStore                   OnlineStoreConfig                `yaml:"online_store,omitempty"`
+	Registry                      RegistryConfig                   `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig                      `yaml:"auth,omitempty"`
+	EntityKeySerializationVersion int                              `yaml:"entity_key_serialization_version,omitempty"`
+	BatchEngine                   *ComputeEngineConfig             `yaml:"batch_engine,omitempty"`
+	FeatureServer                 *FeatureServerYamlConfig         `yaml:"feature_server,omitempty"`
+	Materialization               *MaterializationYamlConfig       `yaml:"materialization,omitempty"`
+	OpenLineage                   *OpenLineageYamlConfig           `yaml:"openlineage,omitempty"`
+	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"data_quality_monitoring,omitempty"`
+}
+
+// FeatureServerYamlConfig maps to the feature_server section of feature_store.yaml.
+// Field names match Feast's Python SDK YAML keys exactly.
+type FeatureServerYamlConfig struct {
+	Type                                    string             `yaml:"type"`
+	Metrics                                 *MetricsYamlConfig `yaml:"metrics,omitempty"`
+	OfflinePushBatchingEnabled              *bool              `yaml:"offline_push_batching_enabled,omitempty"`
+	OfflinePushBatchingBatchSize            *int32             `yaml:"offline_push_batching_batch_size,omitempty"`
+	OfflinePushBatchingBatchIntervalSeconds *int32             `yaml:"offline_push_batching_batch_interval_seconds,omitempty"`
+	McpEnabled                              *bool              `yaml:"mcp_enabled,omitempty"`
+	McpServerName                           *string            `yaml:"mcp_server_name,omitempty"`
+	McpServerVersion                        *string            `yaml:"mcp_server_version,omitempty"`
+	McpTransport                            *string            `yaml:"mcp_transport,omitempty"`
+}
+
+// MetricsYamlConfig maps to the feature_server.metrics section of feature_store.yaml.
+// Category booleans are merged inline so they sit at the same YAML level as
+// "enabled". Keys must be valid Feast MetricsConfig field names for the SDK
+// version in use (e.g. resource, request, online_features, push,
+// materialization, freshness). Note: Feast's MetricsConfig uses
+// extra="forbid", so unknown keys will be rejected by SDK validation.
+type MetricsYamlConfig struct {
+	Enabled    bool                   `yaml:"enabled"`
+	Categories map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// DataQualityMonitoringYamlConfig mirrors the Python DqmConfig in feature_store.yaml.
+type DataQualityMonitoringYamlConfig struct {
+	AutoBaseline bool `yaml:"auto_baseline"`
+}
+
+// MaterializationYamlConfig maps to the materialization section of feature_store.yaml.
+// ExtraConfig is merged inline so future Feast MaterializationConfig fields appear
+// at the same YAML level as the typed fields above.
+type MaterializationYamlConfig struct {
+	OnlineWriteBatchSize *int32                 `yaml:"online_write_batch_size,omitempty"`
+	ExtraConfig          map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// OpenLineageYamlConfig maps to the openlineage section of feature_store.yaml.
+// ExtraConfig is merged inline so all extra key-value pairs (namespace, producer,
+// emit_on_apply, emit_on_materialize, transport-specific options, etc.) appear at
+// the same YAML level as the typed connection fields.
+type OpenLineageYamlConfig struct {
+	Enabled           bool                           `yaml:"enabled"`
+	TransportType     *string                        `yaml:"transport_type,omitempty"`
+	TransportUrl      *string                        `yaml:"transport_url,omitempty"`
+	TransportEndpoint *string                        `yaml:"transport_endpoint,omitempty"`
+	ApiKey            *string                        `yaml:"api_key,omitempty"`
+	ExtraConfig       map[string]interface{}         `yaml:",inline,omitempty"`
+	Consumer          *OpenLineageConsumerYamlConfig `yaml:"consumer,omitempty"`
+}
+
+// OpenLineageConsumerYamlConfig maps to the openlineage.consumer section of feature_store.yaml.
+type OpenLineageConsumerYamlConfig struct {
+	Enabled          bool              `yaml:"enabled"`
+	StoreType        *string           `yaml:"store_type,omitempty"`
+	ConnectionString *string           `yaml:"connection_string,omitempty"`
+	ApiKey           *string           `yaml:"api_key,omitempty"`
+	NamespaceMapping map[string]string `yaml:"namespace_mapping,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
@@ -296,7 +406,13 @@ type RegistryConfig struct {
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
 	CacheTTLSeconds    *int32                 `yaml:"cache_ttl_seconds,omitempty"`
 	CacheMode          *string                `yaml:"cache_mode,omitempty"`
+	Mcp                *RegistryMcpYamlConfig `yaml:"mcp,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// RegistryMcpYamlConfig maps to the registry.mcp section of feature_store.yaml.
+type RegistryMcpYamlConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // AuthzConfig is the RBAC authorization configuration.

@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
-from pydantic import StrictStr
+from pydantic import StrictStr, field_validator
 from pymilvus import (
     CollectionSchema,
     DataType,
@@ -19,6 +19,7 @@ from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -114,6 +115,14 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     nlist: Optional[int] = 128
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
+    varchar_max_length: Optional[int] = 65535
+
+    @field_validator("varchar_max_length")
+    @classmethod
+    def validate_varchar_max_length(cls, v):
+        if v is not None and not (1 <= v <= 65535):
+            raise ValueError(f"varchar_max_length must be between 1 and 65535, got {v}")
+        return v
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -124,8 +133,10 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
-    client: Optional[MilvusClient] = None
-    _collections: Dict[str, Any] = {}
+    def __init__(self):
+        super().__init__()
+        self.client: Optional[MilvusClient] = None
+        self._collections: Dict[str, Any] = {}
 
     def _get_db_path(self, config: RepoConfig) -> str:
         assert (
@@ -164,16 +175,18 @@ class MilvusOnlineStore(OnlineStore):
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
-
+            varchar_max_length = int(config.online_store.varchar_max_length or 65535)
             fields = [
                 FieldSchema(
                     name=composite_key_name,
                     dtype=DataType.VARCHAR,
-                    max_length=512,
+                    max_length=varchar_max_length,
                     is_primary=True,
                 ),
                 FieldSchema(name="event_ts", dtype=DataType.INT64),
@@ -200,14 +213,40 @@ class MilvusOnlineStore(OnlineStore):
                             )
                         )
                     else:
+                        if "max_length" in field.tags:
+                            try:
+                                field_max_length = int(field.tags["max_length"])
+                            except (ValueError, TypeError):
+                                raise ValueError(
+                                    f"Field '{field.name}' has invalid max_length tag"
+                                    f" '{field.tags['max_length']}': must be an integer."
+                                )
+                            if not (1 <= field_max_length <= 65535):
+                                raise ValueError(
+                                    f"Field '{field.name}' max_length tag must be"
+                                    f" between 1 and 65535, got {field_max_length}"
+                                )
+                        else:
+                            field_max_length = varchar_max_length
                         fields.append(
                             FieldSchema(
                                 name=field.name,
                                 dtype=DataType.VARCHAR,
-                                max_length=512,
+                                max_length=field_max_length,
                             )
                         )
-
+            has_vector_field = any(
+                f.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR)
+                for f in fields
+            )
+            if not has_vector_field:
+                fields.append(
+                    FieldSchema(
+                        name="_placeholder_vector",
+                        dtype=DataType.FLOAT_VECTOR,
+                        dim=1,
+                    )
+                )
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
@@ -318,10 +357,13 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            # Ensure all required fields exist, setting missing ones to empty strings
+            # Ensure all required fields exist, setting missing ones to defaults
             for field in required_fields:
                 if field not in single_entity_record:
-                    single_entity_record[field] = ""
+                    if field == "_placeholder_vector":
+                        single_entity_record[field] = [float("nan")]
+                    else:
+                        single_entity_record[field] = ""
             # Store only the latest event timestamp per entity
             if (
                 entity_key_str not in unique_entities
@@ -346,7 +388,9 @@ class MilvusOnlineStore(OnlineStore):
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -493,11 +537,12 @@ class MilvusOnlineStore(OnlineStore):
         for table in tables_to_keep:
             self._get_or_create_collection(config, table)
 
+        # Always drop the base collection plus any "_v{N}" siblings, regardless of
+        # the current versioning flag. This handles mixed-state repos where
+        # versioning was toggled on/off across applies and would otherwise leave
+        # orphan collections behind in Milvus.
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
@@ -511,11 +556,9 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
+        # See update(): drop base + all "_v{N}" siblings to handle mixed-state repos.
         for table in tables:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def retrieve_online_documents_v2(
         self,
@@ -551,7 +594,9 @@ class MilvusOnlineStore(OnlineStore):
             k.name: k.dtype for k in table.entity_columns
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -748,9 +793,28 @@ class MilvusOnlineStore(OnlineStore):
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
+    def _drop_all_version_collections(self, project: str, table: FeatureView) -> None:
+        """Drop the base collection and every ``_v{N}`` versioned sibling.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+        Mirrors the ``_drop_all_version_tables`` helpers in the MySQL/PostgreSQL
+        online stores. Always called from ``update`` and ``teardown`` so a
+        repo that toggles versioning on and off does not leave orphan
+        collections behind in Milvus.
+        """
+        base = f"{project}_{table.name}"
+        versioned_prefix = f"{base}_v"
+        assert self.client is not None, "Milvus client is not initialized"
+        for collection_name in self.client.list_collections():
+            if collection_name == base or (
+                collection_name.startswith(versioned_prefix)
+                and collection_name[len(versioned_prefix) :].isdigit()
+            ):
+                self.client.drop_collection(collection_name)
+                self._collections.pop(collection_name, None)
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _get_composite_key_name(table: FeatureView) -> str:

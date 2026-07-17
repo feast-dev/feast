@@ -16,6 +16,7 @@ import logging
 import os
 import sqlite3
 import sys
+import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import (
@@ -45,6 +46,7 @@ from feast.infra.key_encoding_utils import (
 from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
+from feast.labeling.label_view import LabelView
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
@@ -317,6 +319,7 @@ class SqliteOnlineStore(OnlineStore):
         self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         infra_objects: List[InfraObject] = [
             SqliteTable(
@@ -324,7 +327,7 @@ class SqliteOnlineStore(OnlineStore):
                 name=_table_id(
                     project,
                     FeatureView.from_proto(view),
-                    config.registry.enable_online_feature_view_versioning,
+                    versioning,
                 ),
             )
             for view in [
@@ -332,6 +335,17 @@ class SqliteOnlineStore(OnlineStore):
                 *desired_registry_proto.stream_feature_views,
             ]
         ]
+
+        for lv_proto in desired_registry_proto.label_views:
+            if lv_proto.spec.online:
+                lv = LabelView.from_proto(lv_proto)
+                infra_objects.append(
+                    SqliteTable(
+                        path=self._get_db_path(config),
+                        name=_table_id(project, lv, versioning),
+                    )
+                )
+
         return infra_objects
 
     def teardown(
@@ -340,10 +354,23 @@ class SqliteOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        try:
-            os.unlink(self._get_db_path(config))
-        except FileNotFoundError:
-            pass
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            finally:
+                self._conn = None
+
+        db_path = self._get_db_path(config)
+        for attempt in range(10):
+            try:
+                os.unlink(db_path)
+                return
+            except FileNotFoundError:
+                return
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.25)
 
     def retrieve_online_documents(
         self,
@@ -716,7 +743,7 @@ def _initialize_conn(
     return db
 
 
-def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+def _table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
 
 

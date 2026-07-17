@@ -34,7 +34,9 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.utils import map_in_arrow
 from feast.infra.compute_engines.utils import (
+    ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
+    infer_entity_timestamp_column,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
@@ -42,9 +44,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
-)
-from feast.infra.offline_stores.offline_utils import (
-    infer_event_timestamp_from_entity_df,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,9 +143,6 @@ def _spark_types_compatible(expected: SparkDataType, actual: SparkDataType) -> b
     return False
 
 
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
-
-
 # Rename entity_df event_timestamp_col to match feature_df
 def rename_entity_ts_column(
     spark_session: SparkSession, entity_df: DataFrame
@@ -159,9 +155,7 @@ def rename_entity_ts_column(
         spark_session=spark_session,
         entity_df=entity_df,
     )
-    event_timestamp_col = infer_event_timestamp_from_entity_df(
-        entity_schema=entity_schema,
-    )
+    event_timestamp_col = infer_entity_timestamp_column(entity_schema)
     if not isinstance(entity_df, DataFrame):
         entity_df = spark_session.createDataFrame(entity_df)
     entity_df = entity_df.withColumnRenamed(event_timestamp_col, ENTITY_TS_ALIAS)

@@ -1,6 +1,16 @@
 name: linter
 
-on: [push, pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

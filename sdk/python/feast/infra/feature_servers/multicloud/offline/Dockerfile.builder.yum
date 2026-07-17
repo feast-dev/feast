@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-312-minimal:1
+FROM registry.access.redhat.com/ubi9/python-312-minimal:latest
 ARG RELEASE
 
 ENV IBIS_VERSION="9.5.0"

@@ -11,6 +11,10 @@ on:
         required: true
         default: ""
         type: string
+      ref:
+        description: 'Git ref to checkout (branch, tag, or SHA). Defaults to the triggering ref. Use to rebuild images from a different branch (e.g., master) when the release tag has a broken Dockerfile.'
+        required: false
+        type: string
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       custom_version: # Optional input for a custom version
@@ -36,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
           submodules: 'true'
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
@@ -55,11 +60,11 @@ jobs:
           username: ${{ secrets.QUAYIO_USERNAME }}
           password: ${{ secrets.QUAYIO_TOKEN }}
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Use gcloud CLI

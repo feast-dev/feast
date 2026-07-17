@@ -31,7 +31,10 @@ const FeatureViewListingTable = ({
       sortable: true,
       render: (name: string, item: genericFVType) => {
         // For "All Projects" view, link to the specific project
-        const itemProject = item.object?.spec?.project || projectName;
+        const itemProject =
+          item.object?.spec?.project ||
+          (item.object as any)?.project ||
+          projectName;
         return (
           <EuiCustomLink to={`/p/${itemProject}/feature-view/${name}`}>
             {name}{" "}
@@ -63,7 +66,13 @@ const FeatureViewListingTable = ({
     columns.splice(1, 0, {
       name: "Project",
       render: (item: genericFVType) => {
-        return <span>{item.object?.spec?.project || "Unknown"}</span>;
+        return (
+          <span>
+            {item.object?.spec?.project ||
+              (item.object as any)?.project ||
+              "Unknown"}
+          </span>
+        );
       },
     });
   }

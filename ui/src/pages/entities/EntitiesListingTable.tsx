@@ -20,7 +20,8 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       sortable: true,
       render: (name: string, item: feast.core.IEntity) => {
         // For "All Projects" view, link to the specific project
-        const itemProject = item?.spec?.project || projectName;
+        const itemProject =
+          item?.spec?.project || (item as any)?.project || projectName;
         return (
           <EuiCustomLink to={`/p/${itemProject}/entity/${name}`}>
             {name}
@@ -29,11 +30,18 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       },
     },
     {
+      name: "Join Key",
+      field: "spec.joinKey",
+      sortable: true,
+    },
+    {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: feast.types.ValueType.Enum | string | undefined) => {
+        if (!valueType) return "—";
+        if (typeof valueType === "string") return valueType;
+        return feast.types.ValueType.Enum[valueType] || String(valueType);
       },
     },
     {
@@ -52,7 +60,7 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
   if (projectName === "all") {
     columns.splice(1, 0, {
       name: "Project",
-      field: "spec.project",
+      field: "project",
       sortable: true,
       render: (project: string) => {
         return <span>{project || "Unknown"}</span>;

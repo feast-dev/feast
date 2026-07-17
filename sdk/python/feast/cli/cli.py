@@ -35,6 +35,8 @@ from feast.cli.features import (
     get_historical_features,
     get_online_features,
 )
+from feast.cli.label_views import label_views_cmd
+from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
@@ -598,6 +600,39 @@ def validate(
     exit(1)
 
 
+@cli.command("demo-notebooks")
+@click.option(
+    "--output-dir",
+    "-o",
+    default="./feast-demo-notebooks",
+    show_default=True,
+    help="Directory where the demo notebooks are written.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing notebooks if the output directory already exists.",
+)
+@click.pass_context
+def demo_notebooks_command(ctx: click.Context, output_dir: str, overwrite: bool):
+    """
+    Generate demo Jupyter notebooks tailored to the feature store configuration.
+
+    Searches for feature_store.yaml in the current directory and every file
+    inside feast-config/. Each file is treated as a separate project config.
+    For each project found, a sub-directory is created under OUTPUT_DIR.
+    """
+    from feast.demos import copy_demo_notebooks
+
+    repo = ctx.obj["CHDIR"]
+    copy_demo_notebooks(
+        output_dir=output_dir,
+        repo_path=str(repo),
+        overwrite=overwrite,
+    )
+
+
 cli.add_command(data_sources_cmd)
 cli.add_command(entities_cmd)
 cli.add_command(feature_services_cmd)
@@ -610,6 +645,7 @@ cli.add_command(feast_permissions_cmd)
 cli.add_command(projects_cmd)
 cli.add_command(saved_datasets_cmd)
 cli.add_command(stream_feature_views_cmd)
+cli.add_command(label_views_cmd)
 cli.add_command(validation_references_cmd)
 cli.add_command(ui)
 cli.add_command(serve_command)
@@ -617,6 +653,7 @@ cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
 cli.add_command(serve_transformations_command)
 cli.add_command(dbt_cmd)
+cli.add_command(monitor_cmd)
 
 if __name__ == "__main__":
     cli()

@@ -75,26 +75,37 @@ Beyond the core topologies, this guide also covers:
 graph TD
     subgraph Kubernetes["Kubernetes (single namespace)"]
         Operator["Feast Operator"]
-        Registry["Feast Registry<br/>(REST, 1 replica)"]
-        FeatureServer["Online Feature Server<br/>(1 replica)"]
-        Redis["Online Store<br/>(SQLite for dev; Redis, Milvus, etc. for prod)"]
-        OfflineStore["Offline Store<br/>(DuckDB for dev; MinIO, S3, etc. for prod)"]
+        Registry["Registry Server<br/>(1 replica)"]
+        OnlineServer["Online Feature Server<br/>(1 replica)"]
+        MaterializationJob["Materialization Job<br/>(feast materialize / CronJob)"]
+        NotebookPod(["Notebook / Training Pod<br/>(Feast SDK — remote online + registry)"])
+    end
+
+    subgraph BackingStores["Backing Stores (inside or outside Kubernetes)"]
+        Redis["Online Store<br/>(e.g. Redis for prod; SQLite for dev)"]
+        OfflineStore["Offline Store<br/>(e.g. DuckDB/PVC for dev; S3/MinIO for prod)"]
     end
 
     Operator -->|manages| Registry
-    Operator -->|manages| FeatureServer
-    FeatureServer -->|reads/writes| Redis
-    FeatureServer -->|reads| OfflineStore
-    Registry -->|metadata| OfflineStore
+    Operator -->|manages| OnlineServer
+    OnlineServer -->|reads/writes| Redis
+    OnlineServer -->|reads metadata| Registry
+    MaterializationJob -->|reads source data| OfflineStore
+    MaterializationJob -->|writes features| Redis
+    NotebookPod -->|online features REST| OnlineServer
+    NotebookPod -->|metadata gRPC| Registry
 
-    Client(["Client / ML Service"]) -->|REST| FeatureServer
+    Client(["Client / ML Service"]) -->|REST port 6566| OnlineServer
 
     style Kubernetes fill:#f0f4ff,stroke:#3366cc,color:#000
+    style BackingStores fill:#fafafa,stroke:#999,color:#000
     style Operator fill:#e8f5e9,stroke:#388e3c,color:#000
     style Registry fill:#fff3e0,stroke:#f57c00,color:#000
-    style FeatureServer fill:#e3f2fd,stroke:#1976d2,color:#000
+    style OnlineServer fill:#e3f2fd,stroke:#1976d2,color:#000
     style Redis fill:#fce4ec,stroke:#c62828,color:#000
     style OfflineStore fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style MaterializationJob fill:#fff8e1,stroke:#f9a825,color:#000
+    style NotebookPod fill:#e8f5e9,stroke:#388e3c,color:#000
 ```
 
 ### Components
@@ -132,9 +143,21 @@ spec:
           limits:
             cpu: "1"
             memory: 1Gi
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb  # Use type: file for generic file-based; swap for S3/MinIO in production
+          pvc:
+            create:
+              storageClassName: standard
+              resources:
+                requests:
+                  storage: 10Gi
+            mountPath: /data/offline
     registry:
       local:
         server:
+          restAPI: true
           resources:
             requests:
               cpu: 250m
@@ -172,33 +195,49 @@ graph TD
     subgraph Kubernetes["Kubernetes"]
         Ingress["Ingress Controller<br/>(TLS termination)"]
         Operator["Feast Operator"]
+        MaterializationJob["Materialization Job<br/>(CronJob / batchEngine)"]
+        NotebookPod(["Notebook / Training Pod<br/>(Feast SDK — remote online, offline, registry)"])
 
-        subgraph FeastDeployment["Feast Deployment (HPA autoscaled)"]
-            Registry["Feast Registry<br/>(SQL-backed)"]
-            FeatureServer["Online Feature Server"]
+        subgraph FeastDeployment["Feast Deployment (HPA autoscaled — all containers scale together)"]
+            Registry["Registry Server"]
+            OnlineServer["Online Feature Server"]
+            OfflineServer["Offline Feature Server"]
         end
 
-        RedisCluster["Online Store<br/>(e.g. Redis Cluster, DynamoDB, etc.)"]
-
-        Ingress --> FeatureServer
+        Ingress -->|port 6566| OnlineServer
         Operator -->|manages| Registry
-        Operator -->|manages| FeatureServer
-        FeatureServer -->|reads/writes| RedisCluster
-        FeatureServer -->|reads metadata| Registry
+        Operator -->|manages| OnlineServer
+        Operator -->|manages| OfflineServer
+        OnlineServer -->|reads metadata| Registry
+        OfflineServer -->|reads metadata| Registry
+        MaterializationJob -->|reads metadata| Registry
+        NotebookPod -->|online features REST| OnlineServer
+        NotebookPod -->|historical features Arrow Flight| OfflineServer
+        NotebookPod -->|metadata gRPC| Registry
     end
 
-    ObjectStorage["Offline Store<br/>(e.g. S3 / Redshift / BigQuery, etc.)"]
-    FeatureServer -->|reads| ObjectStorage
-    Registry -->|metadata| ObjectStorage
+    subgraph BackingStores["Backing Stores (inside or outside Kubernetes)"]
+        RedisCluster["Online Store<br/>(e.g. Redis Cluster, DynamoDB, etc.)"]
+        OfflineStore["Offline Store<br/>(e.g. PostgreSQL, Redshift, BigQuery, etc.)"]
+    end
+
+    OnlineServer -->|reads/writes| RedisCluster
+    MaterializationJob -->|writes features| RedisCluster
+    OfflineServer -->|historical features| OfflineStore
+    MaterializationJob -->|reads source data| OfflineStore
 
     style Kubernetes fill:#f0f4ff,stroke:#3366cc,color:#000
     style FeastDeployment fill:#e8f5e9,stroke:#388e3c,color:#000
+    style BackingStores fill:#fafafa,stroke:#999,color:#000
     style Ingress fill:#fff9c4,stroke:#f9a825,color:#000
     style Operator fill:#e8f5e9,stroke:#388e3c,color:#000
     style Registry fill:#fff3e0,stroke:#f57c00,color:#000
-    style FeatureServer fill:#e3f2fd,stroke:#1976d2,color:#000
+    style OnlineServer fill:#e3f2fd,stroke:#1976d2,color:#000
+    style OfflineServer fill:#ede7f6,stroke:#512da8,color:#000
     style RedisCluster fill:#fce4ec,stroke:#c62828,color:#000
-    style ObjectStorage fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style OfflineStore fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style MaterializationJob fill:#fff8e1,stroke:#f9a825,color:#000
+    style NotebookPod fill:#e8f5e9,stroke:#388e3c,color:#000
 ```
 
 ### Components
@@ -209,14 +248,15 @@ graph TD
 |---|---|---|
 | **Feast Operator** | Default install | Manages all Feast CRDs |
 | **Registry** | SQL-backed (PostgreSQL) | Database-backed for consistency and concurrent access |
-| **Online Feature Server** | HPA (min 2 replicas, max based on peak load) | All services scale together in a single shared Deployment |
+| **Online Feature Server** | HPA (min 2 replicas, max based on peak load) | Separate container — serves online features from the online store |
+| **Offline Feature Server** | Scales with the same Deployment | Separate container — serves historical features and materialization source reads from the offline store |
 
 **Storage**
 
 | Component | Configuration | Notes |
 |---|---|---|
 | **Online Store** | Redis Cluster (example) | Multi-node for availability and low latency; other production stores are also supported — see [supported online stores](../reference/online-stores/README.md) |
-| **Offline Store** | S3 / MinIO | Persistent object storage; see [supported offline stores](../reference/offline-stores/README.md) for alternatives |
+| **Offline Store** | PostgreSQL (example) | Platform-agnostic DB-backed store; use Redshift/Athena for AWS, BigQuery for GCP, Spark for S3/MinIO pipelines — see [supported offline stores](../reference/offline-stores/README.md) for all options |
 | **Compute Engine** | Spark, Ray (KubeRay), or Snowflake Engine | Distributed compute for materialization and historical retrieval at scale |
 
 **Networking & Security**
@@ -236,6 +276,14 @@ metadata:
   name: standard-production
 spec:
   feastProject: my_project
+  authz:
+    kubernetes:
+      roles:
+        - feast-admin-role
+        - feast-user-role
+  batchEngine:
+    configMapRef:
+      name: feast-batch-engine
   services:
     scaling:
       autoscaling:
@@ -264,6 +312,20 @@ spec:
           limits:
             cpu: "2"
             memory: 2Gi
+    offlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: feast-offline-store
+      server:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
     registry:
       local:
         persistence:
@@ -272,6 +334,7 @@ spec:
             secretRef:
               name: feast-registry-store
         server:
+          restAPI: true
           resources:
             requests:
               cpu: 500m
@@ -279,6 +342,15 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-batch-engine
+data:
+  config: |
+    type: ray
+    address: auto  # KubeRay cluster address; replace with explicit URL if not using auto-discovery
 ```
 
 {% hint style="success" %}
@@ -287,7 +359,7 @@ spec:
 * **High availability** — multi-replica deployment with auto-injected pod anti-affinity and topology spread constraints
 * **Scalable serving** — HPA adjusts the shared deployment replicas (all services scale together) based on demand
 * **Secure external access** — TLS-terminated ingress with RBAC
-* **Persistent storage** — Online Store (Redis Cluster shown as example; see [supported online stores](../reference/online-stores/README.md) for all options) + Offline Store (S3) for durability
+* **Persistent storage** — Online Store (Redis Cluster shown as example; see [supported online stores](../reference/online-stores/README.md) for all options) + Offline Store (PostgreSQL shown as example; see [supported offline stores](../reference/offline-stores/README.md) for all options) for durability
 
 See [Horizontal Scaling with the Feast Operator](./scaling-feast.md#horizontal-scaling-with-the-feast-operator) for full scaling configuration details.
 {% endhint %}
@@ -312,40 +384,54 @@ graph TD
 
     subgraph Kubernetes["Kubernetes"]
         Gateway["API Gateway / Ingress<br/>(TLS + rate limiting)"]
+        Operator["Feast Operator<br/>(cluster-scoped)"]
 
         subgraph NamespaceA["Namespace A — Team A"]
             subgraph DeployA["Feast Deployment (HPA autoscaled)"]
-                RegistryA["Registry (SQL-backed)"]
-                FeatureServerA["Online Feature Server"]
+                RegistryA["Registry Server"]
+                OnlineServerA["Online Feature Server"]
+                OfflineServerA["Offline Feature Server"]
             end
+            NotebookPodA(["Notebook — Team A<br/>(Feast SDK)"])
+            MaterializationJobA["Materialization Job"]
         end
 
         subgraph NamespaceB["Namespace B — Team B"]
             subgraph DeployB["Feast Deployment (HPA autoscaled)"]
-                RegistryB["Registry (SQL-backed)"]
-                FeatureServerB["Online Feature Server"]
+                RegistryB["Registry Server"]
+                OnlineServerB["Online Feature Server"]
+                OfflineServerB["Offline Feature Server"]
             end
+            NotebookPodB(["Notebook — Team B<br/>(Feast SDK)"])
+            MaterializationJobB["Materialization Job"]
         end
 
-        Operator["Feast Operator<br/>(cluster-scoped)"]
-
-        Gateway --> FeatureServerA
-        Gateway --> FeatureServerB
+        Gateway -->|port 6566| OnlineServerA
+        Gateway -->|port 6566| OnlineServerB
         Operator -->|manages| RegistryA
-        Operator -->|manages| FeatureServerA
+        Operator -->|manages| OnlineServerA
+        Operator -->|manages| OfflineServerA
         Operator -->|manages| RegistryB
-        Operator -->|manages| FeatureServerB
+        Operator -->|manages| OnlineServerB
+        Operator -->|manages| OfflineServerB
+        OnlineServerA -->|metadata| RegistryA
+        OnlineServerB -->|metadata| RegistryB
+        OfflineServerA -->|metadata| RegistryA
+        OfflineServerB -->|metadata| RegistryB
+        NotebookPodA -.->|online REST| OnlineServerA
+        NotebookPodA -.->|Arrow Flight| OfflineServerA
+        NotebookPodA -.->|metadata| RegistryA
+        NotebookPodB -.->|online REST| OnlineServerB
+        NotebookPodB -.->|Arrow Flight| OfflineServerB
+        NotebookPodB -.->|metadata| RegistryB
+        MaterializationJobA -->|metadata| RegistryA
+        MaterializationJobB -->|metadata| RegistryB
     end
 
-    subgraph ManagedStores["Managed Online Stores"]
-        RedisA["Online Store<br/>(e.g. Redis, DynamoDB, etc. — Team A)"]
-        RedisB["Online Store<br/>(e.g. Redis, DynamoDB, etc. — Team B)"]
-    end
-
-    subgraph ExternalSystems["External Systems"]
-        ObjectStore["Offline Store<br/>(e.g. S3, Redshift, BigQuery, etc.)"]
-        DataWarehouse["Data Warehouse<br/>(e.g. Snowflake / BigQuery)"]
-        Pipelines["Feature Pipelines<br/>(Spark / Ray)"]
+    subgraph BackingStores["Backing Stores (inside or outside Kubernetes)"]
+        RedisA["Online Store — Team A<br/>(e.g. Redis, DynamoDB, etc.)"]
+        RedisB["Online Store — Team B<br/>(e.g. Redis, DynamoDB, etc.)"]
+        OfflineStore["Offline Store — shared instance<br/>(e.g. BigQuery, Redshift, etc.)<br/>isolated via per-team datasets / schemas"]
     end
 
     subgraph Observability["Observability Stack"]
@@ -355,22 +441,21 @@ graph TD
         Jaeger["Jaeger"]
     end
 
-    FeatureServerA -->|reads/writes| RedisA
-    FeatureServerB -->|reads/writes| RedisB
-    FeatureServerA -->|reads| ObjectStore
-    FeatureServerB -->|reads| ObjectStore
-    FeatureServerA -->|reads| DataWarehouse
-    FeatureServerB -->|reads| DataWarehouse
-    Pipelines -->|materializes| RedisA
-    Pipelines -->|materializes| RedisB
+    OnlineServerA -->|reads/writes| RedisA
+    OnlineServerB -->|reads/writes| RedisB
+    OfflineServerA -->|Team A dataset| OfflineStore
+    OfflineServerB -->|Team B dataset| OfflineStore
+    MaterializationJobA -->|Team A data| OfflineStore
+    MaterializationJobA -->|writes| RedisA
+    MaterializationJobB -->|Team B data| OfflineStore
+    MaterializationJobB -->|writes| RedisB
 
     style Kubernetes fill:#f0f4ff,stroke:#3366cc,color:#000
     style NamespaceA fill:#e8f5e9,stroke:#388e3c,color:#000
     style NamespaceB fill:#e3f2fd,stroke:#1976d2,color:#000
     style DeployA fill:#c8e6c9,stroke:#2e7d32,color:#000
     style DeployB fill:#bbdefb,stroke:#1565c0,color:#000
-    style ManagedStores fill:#fce4ec,stroke:#c62828,color:#000
-    style ExternalSystems fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style BackingStores fill:#fafafa,stroke:#999,color:#000
     style Observability fill:#fff3e0,stroke:#f57c00,color:#000
     style Gateway fill:#fff9c4,stroke:#f9a825,color:#000
     style Operator fill:#e8f5e9,stroke:#388e3c,color:#000
@@ -398,34 +483,59 @@ graph TD
 
         subgraph NamespaceA["Namespace A — Team A"]
             subgraph DeployA2["Feast Deployment (HPA autoscaled)"]
-                FeatureServerA["Online Feature Server"]
+                OnlineServerA["Online Feature Server"]
+                OfflineServerA["Offline Feature Server"]
             end
+            NotebookPodA(["Notebook — Team A<br/>(Feast SDK)"])
+            MaterializationJobA["Materialization Job"]
             ConfigA["registry_type: remote<br/>path: shared-registry:6570"]
         end
 
         subgraph NamespaceB["Namespace B — Team B"]
             subgraph DeployB2["Feast Deployment (HPA autoscaled)"]
-                FeatureServerB["Online Feature Server"]
+                OnlineServerB["Online Feature Server"]
+                OfflineServerB["Offline Feature Server"]
             end
+            NotebookPodB(["Notebook — Team B<br/>(Feast SDK)"])
+            MaterializationJobB["Materialization Job"]
             ConfigB["registry_type: remote<br/>path: shared-registry:6570"]
         end
 
-        Gateway --> FeatureServerA
-        Gateway --> FeatureServerB
-        FeatureServerA -->|gRPC| SharedRegistry
-        FeatureServerB -->|gRPC| SharedRegistry
+        Gateway -->|port 6566| OnlineServerA
+        Gateway -->|port 6566| OnlineServerB
+        OnlineServerA -->|gRPC port 6570| SharedRegistry
+        OnlineServerB -->|gRPC port 6570| SharedRegistry
+        OfflineServerA -->|gRPC port 6570| SharedRegistry
+        OfflineServerB -->|gRPC port 6570| SharedRegistry
         Operator -->|manages| SharedRegistry
-        Operator -->|manages| FeatureServerA
-        Operator -->|manages| FeatureServerB
+        Operator -->|manages| OnlineServerA
+        Operator -->|manages| OfflineServerA
+        Operator -->|manages| OnlineServerB
+        Operator -->|manages| OfflineServerB
+        NotebookPodA -.->|online REST| OnlineServerA
+        NotebookPodA -.->|Arrow Flight| OfflineServerA
+        NotebookPodA -.->|metadata| SharedRegistry
+        NotebookPodB -.->|online REST| OnlineServerB
+        NotebookPodB -.->|Arrow Flight| OfflineServerB
+        NotebookPodB -.->|metadata| SharedRegistry
+        MaterializationJobA -->|gRPC port 6570| SharedRegistry
+        MaterializationJobB -->|gRPC port 6570| SharedRegistry
     end
 
-    subgraph ManagedStores["Per-Tenant Online Stores"]
-        RedisA["Online Store<br/>(e.g. Redis, DynamoDB, etc. — Team A)"]
-        RedisB["Online Store<br/>(e.g. Redis, DynamoDB, etc. — Team B)"]
+    subgraph BackingStores["Backing Stores (inside or outside Kubernetes)"]
+        RedisA["Online Store — Team A<br/>(e.g. Redis, DynamoDB, etc.)"]
+        RedisB["Online Store — Team B<br/>(e.g. Redis, DynamoDB, etc.)"]
+        OfflineStore["Offline Store — shared instance<br/>(e.g. BigQuery, Redshift, etc.)<br/>isolated via per-team datasets / schemas"]
     end
 
-    FeatureServerA -->|reads/writes| RedisA
-    FeatureServerB -->|reads/writes| RedisB
+    OnlineServerA -->|reads/writes| RedisA
+    OnlineServerB -->|reads/writes| RedisB
+    OfflineServerA -->|Team A dataset| OfflineStore
+    OfflineServerB -->|Team B dataset| OfflineStore
+    MaterializationJobA -->|Team A data| OfflineStore
+    MaterializationJobA -->|writes| RedisA
+    MaterializationJobB -->|Team B data| OfflineStore
+    MaterializationJobB -->|writes| RedisB
 
     style Kubernetes fill:#f0f4ff,stroke:#3366cc,color:#000
     style SharedInfra fill:#fff3e0,stroke:#f57c00,color:#000
@@ -434,9 +544,10 @@ graph TD
     style NamespaceB fill:#e3f2fd,stroke:#1976d2,color:#000
     style DeployA2 fill:#c8e6c9,stroke:#2e7d32,color:#000
     style DeployB2 fill:#bbdefb,stroke:#1565c0,color:#000
-    style ManagedStores fill:#fce4ec,stroke:#c62828,color:#000
+    style BackingStores fill:#fafafa,stroke:#999,color:#000
     style Gateway fill:#fff9c4,stroke:#f9a825,color:#000
     style Operator fill:#e8f5e9,stroke:#388e3c,color:#000
+    style OfflineStore fill:#f3e5f5,stroke:#7b1fa2,color:#000
 ```
 
 **Shared registry client configuration** — each tenant's `feature_store.yaml` points to the centralized registry:
@@ -477,7 +588,6 @@ Use a shared registry when teams need to discover and reuse features across proj
 |---|---|---|
 | **Online Store** | Managed Redis / DynamoDB / Elasticsearch | Cloud-managed, per-tenant instances; see [supported online stores](../reference/online-stores/README.md) for all options |
 | **Offline Store** | External data warehouse (Snowflake, BigQuery) | Shared or per-tenant access controls; see [supported offline stores](../reference/offline-stores/README.md) for all options |
-| **Object Storage** | S3 with bucket policies | Tenant-scoped prefixes or buckets |
 
 **Scaling**
 
@@ -545,6 +655,13 @@ metadata:
   namespace: team-a
 spec:
   feastProject: team_a
+  authz:
+    oidc:
+      secretRef:
+        name: feast-oidc-secret  # Secret keys: client_id, client_secret, auth_discovery_url
+  batchEngine:
+    configMapRef:
+      name: feast-batch-engine
   services:
     scaling:
       autoscaling:
@@ -573,6 +690,20 @@ spec:
           limits:
             cpu: "4"
             memory: 4Gi
+    offlineStore:
+      persistence:
+        store:
+          type: bigquery  # Use snowflake.offline, redshift, etc. as alternatives — see supported offline stores
+          secretRef:
+            name: feast-offline-store
+      server:
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
     registry:
       local:
         persistence:
@@ -581,6 +712,7 @@ spec:
             secretRef:
               name: feast-registry-store
         server:
+          restAPI: true
           resources:
             requests:
               cpu: "1"
@@ -588,6 +720,17 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-batch-engine
+  namespace: team-a
+data:
+  config: |
+    type: spark
+    spark_master: k8s://https://kubernetes.default.svc:443
+    spark_app_name: feast-materialization
 ```
 
 ---
@@ -698,7 +841,9 @@ user_perm = Permission(
 
 ### Example: Namespace-based isolation for multi-tenant deployments
 
-Use `NamespaceBasedPolicy` to restrict access based on the Kubernetes namespace of the calling service account — ideal for the shared-registry enterprise topology:
+Use `NamespaceBasedPolicy` to restrict access based on the Kubernetes namespace of the calling service account — ideal for the shared-registry enterprise topology.
+
+Each team gets two permissions: full access to its own resources (matched by `team` tag), and read-only access to resources any team has explicitly published as shared (matched by `visibility: shared` tag). The two `required_tags` target **different** resources — a feature view tagged `team: team-b, visibility: shared` matches only the second permission for Team A, enabling cross-team discovery without granting write access:
 
 ```python
 from feast.feast_object import ALL_RESOURCE_TYPES
@@ -706,26 +851,47 @@ from feast.permissions.action import ALL_ACTIONS, READ, AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import NamespaceBasedPolicy
 
-team_a_write = Permission(
+# Team A: full access to its own resources
+team_a_own = Permission(
     name="team_a_full_access",
     types=ALL_RESOURCE_TYPES,
-    required_tags={"team": "team-a"},
+    required_tags={"team": "team-a"},          # matches only Team A's resources
     policy=NamespaceBasedPolicy(namespaces=["team-a"]),
     actions=ALL_ACTIONS,
 )
 
-team_a_read_from_others = Permission(
+# Team A: read-only access to shared resources published by ANY team
+# e.g. a Team B feature view tagged {team: team-b, visibility: shared}
+# satisfies required_tags here but NOT team_a_own above
+team_a_read_shared = Permission(
     name="team_a_read_shared",
     types=ALL_RESOURCE_TYPES,
-    required_tags={"visibility": "shared"},
+    required_tags={"visibility": "shared"},    # matches shared resources from any team
     policy=NamespaceBasedPolicy(namespaces=["team-a"]),
+    actions=[AuthzedAction.DESCRIBE] + READ,
+)
+
+# Team B: mirror of the above — full access to its own, read-only to shared
+team_b_own = Permission(
+    name="team_b_full_access",
+    types=ALL_RESOURCE_TYPES,
+    required_tags={"team": "team-b"},
+    policy=NamespaceBasedPolicy(namespaces=["team-b"]),
+    actions=ALL_ACTIONS,
+)
+
+team_b_read_shared = Permission(
+    name="team_b_read_shared",
+    types=ALL_RESOURCE_TYPES,
+    required_tags={"visibility": "shared"},
+    policy=NamespaceBasedPolicy(namespaces=["team-b"]),
     actions=[AuthzedAction.DESCRIBE] + READ,
 )
 ```
 
 ### Example: Combined group + namespace policy
 
-For organizations that use both OIDC groups and Kubernetes namespaces for identity:
+For organizations that use both OIDC groups and Kubernetes namespaces for identity — ideal when platform engineers lack a dedicated namespace but need cross-team visibility, or when OIDC group membership and namespace ownership should independently grant access:
 
 ```python
 from feast.feast_object import ALL_RESOURCE_TYPES
@@ -733,22 +899,29 @@ from feast.permissions.action import ALL_ACTIONS, READ, AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import CombinedGroupNamespacePolicy
 
-dev_test_perm = Permission(
-    name="dev_test_permission",
+# Platform engineers (OIDC group) OR any team namespace can read shared features.
+# This covers platform engineers who have no dedicated K8s namespace of their own
+# but need cross-team feature discovery.
+platform_read_shared = Permission(
+    name="platform_read_shared",
     types=ALL_RESOURCE_TYPES,
+    required_tags={"visibility": "shared"},
     policy=CombinedGroupNamespacePolicy(
-        groups=["dev-team", "developers"],
-        namespaces=["test", "staging"],
+        groups=["ml-platform"],           # OIDC group for platform/infra engineers
+        namespaces=["team-a", "team-b"],  # team namespaces from enterprise topology
     ),
     actions=[AuthzedAction.DESCRIBE] + READ,
 )
 
-data_staging_perm = Permission(
-    name="data_staging_permission",
+# ML engineers (OIDC) OR team namespace owners have full write access.
+# Either identity alone is sufficient — useful during namespace migration or
+# when the same person holds both the OIDC role and the team namespace.
+ml_engineer_write = Permission(
+    name="ml_engineer_full_access",
     types=ALL_RESOURCE_TYPES,
     policy=CombinedGroupNamespacePolicy(
-        groups=["data-team", "ml-engineers"],
-        namespaces=["staging"],
+        groups=["ml-engineers"],
+        namespaces=["team-a", "team-b"],
     ),
     actions=ALL_ACTIONS,
 )
@@ -858,7 +1031,6 @@ graph TD
 | **Offline Store** | **Redshift** | Snowflake, Athena (contrib), Spark | Redshift is the core AWS offline store. Use Snowflake if it's already your warehouse. Athena for S3-native query patterns. |
 | **Registry** | **SQL** (RDS PostgreSQL) | S3 | SQL registry required for concurrent materialization writers. S3 registry is simpler but limited to single-writer. |
 | **Compute Engine** | **Snowflake Engine** | Spark on EMR, [Ray (KubeRay)](../reference/compute-engine/ray.md) | Snowflake engine when your offline/online stores are Snowflake. Spark for S3-based pipelines. Ray with KubeRay for Kubernetes-native distributed processing. |
-| **Object Storage** | S3 | — | Feature repo, training data, registry artifacts |
 
 {% hint style="info" %}
 **ROSA (Red Hat OpenShift on AWS):** Same store recommendations as EKS. Use OpenShift Routes instead of Ingress for TLS termination. Leverage OpenShift's built-in OAuth for `auth.type: kubernetes` integration.
@@ -872,7 +1044,6 @@ graph TD
 | **Offline Store** | **BigQuery** | Snowflake, Spark (Dataproc) | BigQuery is the core GCP offline store with full feature support. |
 | **Registry** | **SQL** (Cloud SQL PostgreSQL) | GCS | SQL for multi-writer. GCS for simple single-writer setups. |
 | **Compute Engine** | **Snowflake Engine** | Spark on Dataproc, [Ray (KubeRay)](../reference/compute-engine/ray.md) | Use Snowflake engine if your offline store is Snowflake. Spark for BigQuery + GCS pipelines. Ray with KubeRay for Kubernetes-native distributed processing. |
-| **Object Storage** | GCS | — | Feature repo, training data |
 
 ### On-Premise / OpenShift / Self-Managed Kubernetes
 
@@ -882,7 +1053,6 @@ graph TD
 | **Offline Store** | **Spark** + MinIO (contrib) | PostgreSQL (contrib), Trino (contrib), Oracle (contrib), DuckDB | Spark for scale. PostgreSQL for simpler setups. Oracle for enterprise customers with existing Oracle infrastructure. DuckDB for development only. |
 | **Registry** | **SQL** (PostgreSQL) | — | Always use SQL registry in production on-prem. File-based registries do not support concurrent writers. |
 | **Compute Engine** | **Spark** | [Ray (KubeRay)](../reference/compute-engine/ray.md) | Run Spark on Kubernetes or standalone. Ray with KubeRay for Kubernetes-native distributed DAG execution. |
-| **Object Storage** | MinIO (S3-compatible) | Ceph, NFS | S3-compatible storage for feature data and artifacts. |
 
 {% hint style="warning" %}
 **Multi-replica constraint:** When scaling any Feast service to multiple replicas (via the Feast Operator), you **must** use database-backed persistence for all enabled services. File-based stores (SQLite, DuckDB, `registry.db`) are incompatible with multi-replica deployments. See [Scaling Feast](./scaling-feast.md#horizontal-scaling-with-the-feast-operator) for details.

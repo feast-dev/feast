@@ -17,6 +17,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.client.grpc_client_auth_interceptor import (
@@ -35,7 +36,10 @@ from feast.stream_feature_view import StreamFeatureView
 def extract_base_feature_view(
     any_feature_view: RegistryServer_pb2.AnyFeatureView,
 ) -> BaseFeatureView:
+    from feast.labeling.label_view import LabelView
+
     feature_view_type = any_feature_view.WhichOneof("any_feature_view")
+    feature_view: BaseFeatureView
     if feature_view_type == "feature_view":
         feature_view = FeatureView.from_proto(any_feature_view.feature_view)
     elif feature_view_type == "on_demand_feature_view":
@@ -45,6 +49,12 @@ def extract_base_feature_view(
     elif feature_view_type == "stream_feature_view":
         feature_view = StreamFeatureView.from_proto(
             any_feature_view.stream_feature_view
+        )
+    elif feature_view_type == "label_view":
+        feature_view = LabelView.from_proto(any_feature_view.label_view)
+    else:
+        raise ValueError(
+            f"Unexpected feature view type in AnyFeatureView: {feature_view_type}"
         )
 
     return feature_view
@@ -64,9 +74,24 @@ class RemoteRegistryConfig(RegistryConfig):
 
     is_tls: bool = False
     """     bool: Set to `True` if you plan to connect to a registry server running in TLS (SSL) mode.
-    If you intend to add the public certificate to the trust store instead of passing it via the `cert` parameter, this field must be set to `True`.
-    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `true` is mandatory.
+    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `True` is mandatory.
     """
+
+    client_cert: StrictStr = ""
+    """ str: Path to the client certificate for mTLS (mutual TLS) authentication.
+    Required when connecting to a server that enforces mutual TLS.
+    Must be provided together with `client_key`.
+    Typically this file ends with `*.crt` or `*.pem`. """
+
+    client_key: StrictStr = ""
+    """ str: Path to the client private key for mTLS (mutual TLS) authentication.
+    Must be provided together with `client_cert`.
+    Typically this file ends with `*.key` or `*.pem`. """
+
+    authority: StrictStr = ""
+    """ str: Override the gRPC :authority header for TLS connections.
+    Required when the connection address differs from the service hostname,
+    e.g. when connecting through a tunnel or proxy for local development. """
 
 
 class RemoteRegistry(BaseRegistry):
@@ -89,19 +114,45 @@ class RemoteRegistry(BaseRegistry):
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
         if registry_config.cert or registry_config.is_tls:
-            cafile = os.getenv("SSL_CERT_FILE") or os.getenv("REQUESTS_CA_BUNDLE")
-            if not cafile and not registry_config.cert:
+            cafile = (
+                registry_config.cert
+                or os.getenv("SSL_CERT_FILE")
+                or os.getenv("REQUESTS_CA_BUNDLE")
+            )
+            if not cafile:
                 raise EnvironmentError(
                     "SSL_CERT_FILE or REQUESTS_CA_BUNDLE environment variable must be set to use secure TLS or set the cert parameter in feature_Store.yaml file under remote registry configuration."
                 )
-            with open(
-                registry_config.cert if registry_config.cert else cafile, "rb"
-            ) as cert_file:
+            if (registry_config.client_cert and not registry_config.client_key) or (
+                not registry_config.client_cert and registry_config.client_key
+            ):
+                raise ValueError(
+                    "Both client_cert and client_key must be provided for mTLS. "
+                    "Only one was set in the remote registry configuration."
+                )
+
+            with open(cafile, "rb") as cert_file:
                 trusted_certs = cert_file.read()
+            private_key: Optional[bytes] = None
+            certificate_chain: Optional[bytes] = None
+            if registry_config.client_cert and registry_config.client_key:
+                with open(registry_config.client_key, "rb") as key_file:
+                    private_key = key_file.read()
+                with open(registry_config.client_cert, "rb") as cert_file:
+                    certificate_chain = cert_file.read()
             tls_credentials = grpc.ssl_channel_credentials(
-                root_certificates=trusted_certs
+                root_certificates=trusted_certs,
+                private_key=private_key,
+                certificate_chain=certificate_chain,
             )
-            return grpc.secure_channel(registry_config.path, tls_credentials)
+
+            options = []
+            if registry_config.authority:
+                options.append(("grpc.default_authority", registry_config.authority))
+
+            return grpc.secure_channel(
+                registry_config.path, tls_credentials, options=options
+            )
         else:
             # Create an insecure gRPC channel
             return grpc.insecure_channel(registry_config.path)
@@ -223,12 +274,16 @@ class RemoteRegistry(BaseRegistry):
         commit: bool = True,
         no_promote: bool = False,
     ):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            arg_name = "label_view"
+        elif isinstance(feature_view, StreamFeatureView):
             arg_name = "stream_feature_view"
         elif isinstance(feature_view, FeatureView):
             arg_name = "feature_view"
         elif isinstance(feature_view, OnDemandFeatureView):
             arg_name = "on_demand_feature_view"
+        else:
+            raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
         request = RegistryServer_pb2.ApplyFeatureViewRequest(
             feature_view=(
@@ -242,6 +297,7 @@ class RemoteRegistry(BaseRegistry):
                 if arg_name == "on_demand_feature_view"
                 else None
             ),
+            label_view=(feature_view.to_proto() if arg_name == "label_view" else None),
             project=project,
             commit=commit,
         )
@@ -268,6 +324,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         request = RegistryServer_pb2.ListStreamFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -292,6 +349,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         request = RegistryServer_pb2.ListOnDemandFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -301,6 +359,30 @@ class RemoteRegistry(BaseRegistry):
             OnDemandFeatureView.from_proto(on_demand_feature_view)
             for on_demand_feature_view in response.on_demand_feature_views
         ]
+
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        request = RegistryServer_pb2.GetLabelViewRequest(
+            name=name, project=project, allow_cache=allow_cache
+        )
+        response = self.stub.GetLabelView(request)
+        return LabelView.from_proto(response)
+
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        request = RegistryServer_pb2.ListLabelViewsRequest(
+            project=project, allow_cache=allow_cache, tags=tags
+        )
+        response = self.stub.ListLabelViews(request)
+        return [LabelView.from_proto(label_view) for label_view in response.label_views]
+
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        self.delete_feature_view(name, project, commit)
 
     def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
@@ -320,9 +402,19 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
+        updated_since_proto = None
+        if updated_since is not None:
+            ts = Timestamp()
+            ts.FromDatetime(updated_since)
+            updated_since_proto = ts
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            updated_since=updated_since_proto,
         )
 
         response: RegistryServer_pb2.ListAllFeatureViewsResponse = (
@@ -347,6 +439,7 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         request = RegistryServer_pb2.ListFeatureViewsRequest(
             project=project, allow_cache=allow_cache, tags=tags
@@ -360,12 +453,18 @@ class RemoteRegistry(BaseRegistry):
 
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, LabelView],
         project: str,
         start_date: datetime,
         end_date: datetime,
         commit: bool = True,
     ):
+        if isinstance(feature_view, LabelView):
+            raise ValueError(
+                f"Cannot apply materialization for LabelView {feature_view.name}. "
+                f"Use FeatureStore.push() to write labels."
+            )
+
         start_date_timestamp = Timestamp()
         end_date_timestamp = Timestamp()
         start_date_timestamp.FromDatetime(start_date)

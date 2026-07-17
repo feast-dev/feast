@@ -40,7 +40,7 @@ var _ = Describe("ServiceMonitor", func() {
 		ctx = context.Background()
 		typeNamespacedName = types.NamespacedName{
 			Name:      "sm-test-fs",
-			Namespace: "default",
+			Namespace: DefaultNs,
 		}
 
 		featureStore = &feastdevv1.FeatureStore{

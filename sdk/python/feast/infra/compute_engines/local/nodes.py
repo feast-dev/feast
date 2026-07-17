@@ -14,16 +14,13 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
+    ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
-)
-from feast.infra.offline_stores.offline_utils import (
-    infer_event_timestamp_from_entity_df,
+    infer_entity_timestamp_column,
 )
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
-
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 
 class LocalSourceReadNode(LocalNode):
@@ -79,6 +76,10 @@ class LocalJoinNode(LocalNode):
         for val in input_values:
             val.assert_format(DAGFormat.ARROW)
 
+        # The upstream source-read node has already renamed columns via
+        # field_mapping, so use the mapped join keys for joining (see #5942).
+        join_keys = self.column_info.join_keys_columns
+
         # Convert all upstream ArrowTables to backend DataFrames
         joined_df = self.backend.from_arrow(input_values[0].data)
         for val in input_values[1:]:
@@ -86,7 +87,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 joined_df,
                 next_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how=self.how,
             )
 
@@ -95,7 +96,7 @@ class LocalJoinNode(LocalNode):
             entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
 
             entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-            entity_ts_col = infer_event_timestamp_from_entity_df(entity_schema)
+            entity_ts_col = infer_entity_timestamp_column(entity_schema)
 
             if entity_ts_col != ENTITY_TS_ALIAS:
                 entity_df = self.backend.rename_columns(
@@ -105,7 +106,7 @@ class LocalJoinNode(LocalNode):
             joined_df = self.backend.join(
                 entity_df,
                 joined_df,
-                on=self.column_info.join_keys,
+                on=join_keys,
                 how="left",
             )
 
@@ -193,8 +194,10 @@ class LocalDedupNode(LocalNode):
 
         # Extract join_keys, timestamp, and created_ts from context
 
-        # Dedup strategy: sort and drop_duplicates
-        dedup_keys = self.column_info.join_keys
+        # Dedup strategy: sort and drop_duplicates. Use the mapped join key
+        # names so we look up the columns that the source-read node has
+        # already renamed (see issue #5942).
+        dedup_keys = self.column_info.join_keys_columns
         if dedup_keys:
             sort_keys = [self.column_info.timestamp_column]
             if (

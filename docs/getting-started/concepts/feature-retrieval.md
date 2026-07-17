@@ -52,6 +52,31 @@ Applying a feature service does not result in an actual service being deployed.
 
 Feature services enable referencing all or some features from a feature view.
 
+#### Pre-computed feature vectors (`precompute_online`)
+
+For latency-critical online serving, you can enable **pre-computed feature vectors** on a feature service. When `precompute_online=True`, Feast stores all of the service's features for each entity as a single serialized blob in the online store. At read time, this reduces the number of store reads from O(N feature views) to O(1), regardless of how many feature views the service spans.
+
+```python
+# A feature service with pre-computed vectors enabled
+low_latency_service = FeatureService(
+    name="low_latency_inference",
+    features=[driver_stats_fv, vehicle_stats_fv, route_features_fv],
+    precompute_online=True,
+)
+```
+
+After running `feast apply`, the pre-computed vectors are automatically built and refreshed whenever you run `feast materialize` or `feast materialize-incremental`. Feast detects which feature services have `precompute_online=True` and rebuilds their vectors for every affected entity after the per-feature-view writes complete. Vectors are also refreshed automatically on `feast push`.
+
+{% hint style="info" %}
+`precompute_online` is **opt-in** — it defaults to `False`. When enabled, the pre-computed path is used exclusively for that service; there is no silent fallback to per-feature-view reads. If vectors are missing or stale, the server raises an error, making problems visible immediately.
+{% endhint %}
+
+{% hint style="warning" %}
+`precompute_online` is not compatible with on-demand feature views (ODFVs) that have `write_to_online_store=False`. ODFVs with `write_to_online_store=True` are supported since their values are materialized.
+{% endhint %}
+
+See the [performance tuning guide](../../how-to-guides/online-server-performance-tuning.md#pre-computed-feature-vectors) for benchmarks and detailed configuration.
+
 Retrieving from the online store with a feature service
 
 ```python
@@ -296,6 +321,59 @@ training_df = store.get_historical_features(
     ],
 ).to_df()
 ```
+
+### Step 3: Choosing an output format
+
+`get_historical_features()` returns a `RetrievalJob` object. You can convert it
+to the format that suits your downstream pipeline:
+
+**Data conversion methods**
+
+| Method | Returns | When to use |
+|---|---|---|
+| `.to_df()` | `pandas.DataFrame` | General-purpose; scikit-learn, XGBoost, statsmodels |
+| `.to_feast_df()` | `FeastDataFrame` | Feast-native wrapper with engine metadata; preferred for Feast-internal tooling |
+| `.to_arrow()` | `pyarrow.Table` | Arrow-native pipelines, Polars, DuckDB, zero-copy interchange |
+| `.to_tensor(kind="torch")` | `Dict[str, torch.Tensor]` | Direct PyTorch training loops; numeric columns become tensors |
+| `.to_ray_dataset()` | `ray.data.Dataset` | Ray Train, Ray Serve, distributed ML workloads |
+
+**Persistence methods**
+
+| Method | Effect | When to use |
+|---|---|---|
+| `.persist(storage)` | Writes result to offline storage | Save a training dataset for later reuse or auditing |
+| `.to_remote_storage()` | Exports result to S3/GCS as Parquet files | Hand off to external systems or data pipelines |
+
+#### Retrieving as a Ray Dataset
+
+`to_ray_dataset()` is a **first-class method** on every `RetrievalJob`. When
+the underlying offline store is a `RayOfflineStore`, the dataset is returned
+directly without a copy through Arrow. For all other offline stores, a
+zero-copy Arrow → Ray Dataset conversion is used as a fallback.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(".")
+
+# to_ray_dataset() is a first-class method on the RetrievalJob — chain it
+# directly after get_historical_features().
+ray_ds = store.get_historical_features(
+    entity_df=entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+).to_ray_dataset()
+
+# Use with Ray Train
+import ray.train
+trainer = ray.train.torch.TorchTrainer(
+    train_loop_per_worker=...,
+    datasets={"train": ray_ds},
+)
+```
+
+> **Note:** `to_ray_dataset()` requires `feast[ray]` to be installed.
+
+---
 
 ## Retrieving online features (for model inference)
 Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.

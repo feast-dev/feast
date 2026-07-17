@@ -189,12 +189,13 @@ def test_parse_repo():
 
         repo_contents = parse_repo(repo_path)
 
-        assert len(repo_contents.data_sources) == 3
+        assert len(repo_contents.data_sources) == 5
         assert len(repo_contents.feature_views) == 2
         assert len(repo_contents.on_demand_feature_views) == 2
         assert len(repo_contents.stream_feature_views) == 0
         assert len(repo_contents.entities) == 2
         assert len(repo_contents.feature_services) == 3
+        assert len(repo_contents.label_views) == 1
 
 
 def test_parse_repo_with_future_annotations():
@@ -215,9 +216,10 @@ def test_parse_repo_with_future_annotations():
 
         repo_contents = parse_repo(repo_path)
 
-        assert len(repo_contents.data_sources) == 3
+        assert len(repo_contents.data_sources) == 5
         assert len(repo_contents.feature_views) == 2
         assert len(repo_contents.on_demand_feature_views) == 2
         assert len(repo_contents.stream_feature_views) == 0
         assert len(repo_contents.entities) == 2
         assert len(repo_contents.feature_services) == 3
+        assert len(repo_contents.label_views) == 1

@@ -16,7 +16,7 @@ import os
 import random
 import string
 import time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest import mock
 
@@ -43,6 +43,7 @@ from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
+from feast.infra.registry.snowflake import SnowflakeRegistry, SnowflakeRegistryConfig
 from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
@@ -272,16 +273,51 @@ def mysql_registry_async(mysql_server):
     yield SqlRegistry(registry_config, "project", None)
 
 
-@pytest.fixture(scope="session")
-def sqlite_registry():
+@pytest.fixture(scope="function")
+def sqlite_registry(tmp_path):
     registry_config = SqlRegistryConfig(
         registry_type="sql",
-        path="sqlite://",
+        path=f"sqlite:///{tmp_path / 'registry.db'}",
         cache_ttl_seconds=2,
         cache_mode="sync",
     )
 
-    yield SqlRegistry(registry_config, "project", None)
+    registry = SqlRegistry(registry_config, "project", None)
+    yield registry
+    registry.teardown()
+
+
+@pytest.fixture(scope="function")
+def snowflake_registry():
+    account = os.getenv("SNOWFLAKE_CI_DEPLOYMENT", "")
+    if not account:
+        pytest.skip("SNOWFLAKE_CI_DEPLOYMENT not set")
+
+    config_kwargs = dict(
+        registry_type="snowflake.registry",
+        account=account,
+        user=os.getenv("SNOWFLAKE_CI_USER", ""),
+        role=os.getenv("SNOWFLAKE_CI_ROLE", ""),
+        warehouse=os.getenv("SNOWFLAKE_CI_WAREHOUSE", ""),
+        database=os.getenv("SNOWFLAKE_CI_DATABASE", "FEAST"),
+        schema=os.getenv("SNOWFLAKE_CI_SCHEMA", "REGISTRY_TEST"),
+        cache_ttl_seconds=2,
+        purge_feast_metadata=False,
+    )
+
+    private_key = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PATH", "")
+    if private_key:
+        config_kwargs["private_key"] = private_key
+        passphrase = os.getenv("SNOWFLAKE_CI_PRIVATE_KEY_PASSPHRASE", "")
+        if passphrase:
+            config_kwargs["private_key_passphrase"] = passphrase
+    else:
+        config_kwargs["password"] = os.getenv("SNOWFLAKE_CI_PASSWORD", "")
+
+    registry_config = SnowflakeRegistryConfig(**config_kwargs)
+    registry = SnowflakeRegistry(registry_config, "project", None)
+    yield registry
+    registry.teardown()
 
 
 @pytest.fixture(scope="function")
@@ -411,6 +447,10 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
             pytest.param(
                 lazy_fixture("hdfs_registry"),
                 marks=pytest.mark.xdist_group(name="hdfs_registry"),
+            ),
+            pytest.param(
+                lazy_fixture("snowflake_registry"),
+                marks=pytest.mark.xdist_group(name="snowflake_registry"),
             ),
         ]
     )
@@ -622,6 +662,113 @@ def test_apply_feature_view_success(test_registry: BaseRegistry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
+    [
+        pytest.param(
+            lazy_fixture("mysql_registry"),
+            marks=pytest.mark.xdist_group(name="mysql_registry"),
+        ),
+        pytest.param(
+            lazy_fixture("mysql_registry_async"),
+            marks=pytest.mark.xdist_group(name="mysql_registry"),
+        ),
+    ],
+)
+def test_apply_feature_view_large_proto_roundtrip_mysql(test_registry: BaseRegistry):
+    """Regression for the MySQL BLOB 64 KB truncation bug.
+
+    The SQL registry stores each object as a serialized proto in a binary
+    column. With those columns typed BLOB (64 KB cap) on MySQL/MariaDB, a
+    FeatureView proto larger than 64 KB is silently truncated on write and
+    later fails to deserialize. The LONGBLOB fix must let a >64 KB proto
+    round-trip through a live MySQL connection intact.
+
+    Reads use allow_cache=False (the default) so the assertion exercises the
+    DB column, not the in-memory cache populated at apply time.
+    """
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+    entity = Entity(name="large_proto_entity", join_keys=["test"])
+    # A ~200 KB tag value pushes the serialized FeatureView proto well past the
+    # 64 KB BLOB cap, so a truncating column would corrupt it.
+    large_value = "x" * (200 * 1024)
+    fv = FeatureView(
+        name="large_proto_feature_view",
+        schema=[Field(name="test", dtype=Int64)],
+        entities=[entity],
+        tags={"big": large_value},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+    project = "project"
+
+    test_registry.apply_feature_view(fv, project)
+
+    # Pass allow_cache=False explicitly so this keeps reading the DB column even
+    # if the CachingRegistry default ever changes.
+    read_back = test_registry.get_feature_view(
+        "large_proto_feature_view", project, allow_cache=False
+    )
+    # Equality proves the >64 KB proto round-tripped without truncation.
+    assert read_back.tags["big"] == large_value
+
+    test_registry.delete_feature_view("large_proto_feature_view", project)
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [
+        pytest.param(
+            lazy_fixture("mysql_registry"),
+            marks=pytest.mark.xdist_group(name="mysql_registry"),
+        ),
+    ],
+)
+def test_warn_if_narrow_blob_columns_detects_real_blob(test_registry, caplog):
+    """Exercise the startup BLOB diagnostic against a real MySQL schema.
+
+    The unit tests only mock the engine, so the live information_schema query
+    (DATA_TYPE = 'blob' filter + table-name scoping) is otherwise unverified.
+    Narrow a real proto column back to BLOB and assert the diagnostic fires;
+    then widen it to LONGBLOB and assert it stays silent (confirming the filter
+    does not also match LONGBLOB, i.e. no false positive on a migrated registry).
+    """
+    from sqlalchemy import text
+
+    engine = test_registry.write_engine
+
+    try:
+        # Narrow a real proto column back to BLOB NOT NULL to mirror a pre-fix
+        # (legacy) registry schema.
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE entities MODIFY entity_proto BLOB NOT NULL"))
+        with caplog.at_level(logging.ERROR):
+            SqlRegistry._warn_if_narrow_blob_columns(engine)
+        assert "still typed BLOB" in caplog.text
+        assert "entities.entity_proto" in caplog.text
+
+        # Widen back to LONGBLOB and confirm the DATA_TYPE='blob' filter does not
+        # also match LONGBLOB (no false positive on a migrated registry).
+        caplog.clear()
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE entities MODIFY entity_proto LONGBLOB NOT NULL")
+            )
+        with caplog.at_level(logging.ERROR):
+            SqlRegistry._warn_if_narrow_blob_columns(engine)
+        assert "still typed BLOB" not in caplog.text
+    finally:
+        test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
     all_fixtures,
 )
 def test_apply_feature_view_without_source_success(test_registry: BaseRegistry):
@@ -788,6 +935,65 @@ def test_apply_on_demand_feature_view_success(test_registry: BaseRegistry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
+    [
+        lazy_fixture("local_registry"),
+        lazy_fixture("sqlite_registry"),
+        pytest.param(
+            lazy_fixture("mock_remote_registry"),
+            marks=pytest.mark.rbac_remote_integration_test,
+        ),
+    ],
+)
+def test_list_all_feature_views_updated_since(test_registry: BaseRegistry):
+    """Test that list_all_feature_views correctly filters by updated_since."""
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+    entity = Entity(name="fs1_driver_1", join_keys=["test"])
+    fv1 = FeatureView(
+        name="test_fv_updated_since_1",
+        schema=[Field(name="test", dtype=Int64)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+    fv2 = FeatureView(
+        name="test_fv_updated_since_2",
+        schema=[Field(name="test", dtype=Int64)],
+        entities=[entity],
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+    project = "project"
+    test_registry.apply_entity(entity, project)
+    test_registry.apply_feature_view(fv1, project)
+    test_registry.apply_feature_view(fv2, project)
+
+    # A cutoff in the past should return all feature views
+    past = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    result = test_registry.list_all_feature_views(project, updated_since=past)
+    assert len(result) == 2
+
+    # A cutoff in the future should return nothing
+    future = datetime(2999, 1, 1, tzinfo=timezone.utc)
+    result = test_registry.list_all_feature_views(project, updated_since=future)
+    assert len(result) == 0
+
+    # No filter returns all feature views
+    result = test_registry.list_all_feature_views(project)
+    assert len(result) == 2
+
+    test_registry.delete_feature_view("test_fv_updated_since_1", project)
+    test_registry.delete_feature_view("test_fv_updated_since_2", project)
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
     all_fixtures,
 )
 def test_apply_data_source(test_registry):
@@ -895,6 +1101,111 @@ def test_apply_data_source_with_timestamps(test_registry):
         f"updated_source.last_updated_timestamp: {updated_source.last_updated_timestamp}, original_updated: {original_updated}"
     )
     assert updated_source.description == "Updated description for timestamp test"
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_apply_data_source_cross_project_isolation(test_registry):
+    """Test that apply_data_source uses project-scoped filtering.
+
+    Regression test for https://github.com/feast-dev/feast/issues/6206:
+    applying a data source to one project must not overwrite the data source
+    with the same name in a different project.
+
+    See: feast-dev/feast#6298
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    source_a = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_a.parquet",
+        timestamp_field="ts_col",
+    )
+    source_b = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b.parquet",
+        timestamp_field="ts_col",
+    )
+
+    test_registry.apply_data_source(source_a, project_a, commit=True)
+    test_registry.apply_data_source(source_b, project_b, commit=True)
+
+    # Each project should have exactly its own source
+    sources_a = test_registry.list_data_sources(project_a)
+    sources_b = test_registry.list_data_sources(project_b)
+    assert len(sources_a) == 1
+    assert len(sources_b) == 1
+
+    # Paths must be project-specific Ã¢ÂÂ not overwritten cross-project
+    assert sources_a[0].path == "file://feast/project_a.parquet"
+    assert sources_b[0].path == "file://feast/project_b.parquet"
+
+    # Re-apply source_b with updated path: must not bleed into project_a
+    source_b_updated = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b_v2.parquet",
+        timestamp_field="ts_col",
+    )
+    test_registry.apply_data_source(source_b_updated, project_b, commit=True)
+
+    sources_a_after = test_registry.list_data_sources(project_a)
+    assert len(sources_a_after) == 1
+    assert sources_a_after[0].path == "file://feast/project_a.parquet", (
+        "apply_data_source for project_b must not overwrite project_a's source"
+    )
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    [lazy_fixture("local_registry")],
+)
+def test_delete_data_source_project_scoped(test_registry):
+    """Test that delete_data_source only removes the source from the given project.
+
+    Regression test for https://github.com/feast-dev/feast/issues/6206:
+    deleting a data source from one project must not delete the data source
+    with the same name from another project.
+    """
+    project_a = "project_a"
+    project_b = "project_b"
+
+    source_a = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_a.parquet",
+        timestamp_field="ts_col",
+    )
+    source_b = FileSource(
+        name="shared_source_name",
+        file_format=ParquetFormat(),
+        path="file://feast/project_b.parquet",
+        timestamp_field="ts_col",
+    )
+
+    test_registry.apply_data_source(source_a, project_a, commit=True)
+    test_registry.apply_data_source(source_b, project_b, commit=True)
+
+    # Delete the source from project_a only
+    test_registry.delete_data_source("shared_source_name", project_a, commit=True)
+
+    # project_a should have no sources; project_b should be unaffected
+    sources_a = test_registry.list_data_sources(project_a)
+    sources_b = test_registry.list_data_sources(project_b)
+    assert len(sources_a) == 0, "Source should be deleted from project_a"
+    assert len(sources_b) == 1, "Source in project_b must not be deleted"
+    assert sources_b[0].path == "file://feast/project_b.parquet"
 
     test_registry.teardown()
 

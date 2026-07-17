@@ -17,13 +17,16 @@ from sqlalchemy import (  # type: ignore
     String,
     Table,
     Text,
+    bindparam,
     create_engine,
     delete,
     func,
     insert,
     select,
+    text,
     update,
 )
+from sqlalchemy.dialects import mysql
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
@@ -49,6 +52,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -60,6 +64,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -85,6 +90,29 @@ from feast.version_utils import (
 
 metadata = MetaData()
 
+# Serialized protos (and their accompanying metadata blobs) can grow well past
+# 64 KB — a single FeatureView proto routinely does. On MySQL, SQLAlchemy's
+# LargeBinary maps to BLOB, which silently truncates anything over 64 KB and
+# later surfaces as a protobuf DecodeError when the registry is read back
+# (e.g. `feast serve` failing to load). Use LONGBLOB (up to 4 GB) on MySQL while
+# keeping LargeBinary's default mapping on every other dialect.
+#
+# "mysql" and "mariadb" are registered separately because SQLAlchemy 2.x reports
+# dialect.name == "mariadb" for MariaDB connections, which would otherwise miss
+# the variant and fall back to BLOB. The variants are chained (rather than passed
+# as variadic dialect names to a single with_variant call) so the expression also
+# works on SQLAlchemy 1.4.x, which Feast still supports and which only accepts a
+# single dialect name per with_variant call.
+#
+# NOTE for contributors: any new binary column that stores a serialized proto or
+# blob metadata must use ProtoBytes, not LargeBinary directly, or the 64 KB
+# MySQL/MariaDB truncation bug reappears silently.
+ProtoBytes = (
+    LargeBinary()
+    .with_variant(mysql.LONGBLOB(), "mysql")
+    .with_variant(mysql.LONGBLOB(), "mariadb")
+)
+
 
 projects = Table(
     "projects",
@@ -92,7 +120,7 @@ projects = Table(
     Column("project_id", String(255), primary_key=True),
     Column("project_name", String(255), nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("project_proto", LargeBinary, nullable=False),
+    Column("project_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_projects_project_id", projects.c.project_id)
@@ -103,7 +131,7 @@ entities = Table(
     Column("entity_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("entity_proto", LargeBinary, nullable=False),
+    Column("entity_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_entities_project_id", entities.c.project_id)
@@ -114,7 +142,7 @@ data_sources = Table(
     Column("data_source_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("data_source_proto", LargeBinary, nullable=False),
+    Column("data_source_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_data_sources_project_id", data_sources.c.project_id)
@@ -125,9 +153,9 @@ feature_views = Table(
     Column("feature_view_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("materialized_intervals", LargeBinary, nullable=True),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
+    Column("materialized_intervals", ProtoBytes, nullable=True),
+    Column("feature_view_proto", ProtoBytes, nullable=False),
+    Column("user_metadata", ProtoBytes, nullable=True),
 )
 
 Index("idx_feature_views_project_id", feature_views.c.project_id)
@@ -138,8 +166,8 @@ stream_feature_views = Table(
     Column("feature_view_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
+    Column("feature_view_proto", ProtoBytes, nullable=False),
+    Column("user_metadata", ProtoBytes, nullable=True),
 )
 
 Index("idx_stream_feature_views_project_id", stream_feature_views.c.project_id)
@@ -150,11 +178,23 @@ on_demand_feature_views = Table(
     Column("feature_view_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
-    Column("user_metadata", LargeBinary, nullable=True),
+    Column("feature_view_proto", ProtoBytes, nullable=False),
+    Column("user_metadata", ProtoBytes, nullable=True),
 )
 
 Index("idx_on_demand_feature_views_project_id", on_demand_feature_views.c.project_id)
+
+label_views = Table(
+    "label_views",
+    metadata,
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("feature_view_proto", ProtoBytes, nullable=False),
+    Column("user_metadata", ProtoBytes, nullable=True),
+)
+
+Index("idx_label_views_project_id", label_views.c.project_id)
 
 feature_services = Table(
     "feature_services",
@@ -162,7 +202,7 @@ feature_services = Table(
     Column("feature_service_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("feature_service_proto", LargeBinary, nullable=False),
+    Column("feature_service_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_feature_services_project_id", feature_services.c.project_id)
@@ -173,7 +213,7 @@ saved_datasets = Table(
     Column("saved_dataset_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("saved_dataset_proto", LargeBinary, nullable=False),
+    Column("saved_dataset_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_saved_datasets_project_id", saved_datasets.c.project_id)
@@ -184,7 +224,7 @@ validation_references = Table(
     Column("validation_reference_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("validation_reference_proto", LargeBinary, nullable=False),
+    Column("validation_reference_proto", ProtoBytes, nullable=False),
 )
 Index("idx_validation_references_project_id", validation_references.c.project_id)
 
@@ -194,7 +234,7 @@ managed_infra = Table(
     Column("infra_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("infra_proto", LargeBinary, nullable=False),
+    Column("infra_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_managed_infra_project_id", managed_infra.c.project_id)
@@ -205,7 +245,7 @@ permissions = Table(
     Column("permission_name", String(255), primary_key=True),
     Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
-    Column("permission_proto", LargeBinary, nullable=False),
+    Column("permission_proto", ProtoBytes, nullable=False),
 )
 
 Index("idx_permissions_project_id", permissions.c.project_id)
@@ -217,7 +257,7 @@ feature_view_version_history = Table(
     Column("project_id", String(255), primary_key=True),
     Column("version_number", Integer, primary_key=True),
     Column("feature_view_type", String(50), nullable=False),
-    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("feature_view_proto", ProtoBytes, nullable=False),
     Column("created_timestamp", BigInteger, nullable=False),
     Column("description", Text, nullable=True),
     Column("version_id", String(36), nullable=False),
@@ -291,6 +331,11 @@ class SqlRegistry(CachingRegistry):
         else:
             self.read_engine = self.write_engine
         metadata.create_all(self.write_engine)
+        self._warn_if_narrow_blob_columns(self.write_engine)
+        if self.read_engine is not self.write_engine:
+            # A read replica can be on a different schema version (e.g. mid
+            # blue-green switchover), so check it independently.
+            self._warn_if_narrow_blob_columns(self.read_engine)
         self.thread_pool_executor_worker_count = (
             registry_config.thread_pool_executor_worker_count
         )
@@ -309,6 +354,94 @@ class SqlRegistry(CachingRegistry):
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
+
+    @staticmethod
+    def _warn_if_narrow_blob_columns(
+        engine: Engine, registry_metadata: MetaData = metadata
+    ) -> None:
+        """Log an error when a MySQL/MariaDB registry still has narrow BLOB columns.
+
+        ``metadata.create_all`` only creates missing tables; it never widens
+        columns on tables that already exist. A registry created before the
+        LONGBLOB fix keeps its 64 KB ``BLOB`` proto columns, which silently
+        truncate large protos and later fail to deserialize. There is no
+        automatic migration, so surface the stale schema and point operators at
+        the documented ``ALTER TABLE`` migration. Logged at ERROR (not WARNING)
+        so monitoring pipelines that filter below ERROR still catch it.
+
+        This only *reports* the problem; it deliberately does not refuse to
+        start, since a registry whose protos all fit in 64 KB is unaffected and
+        an upgrade should not break it. Operators run the documented migration.
+
+        ``registry_metadata`` defaults to this module's ``metadata`` (the source
+        of truth for registry tables) and is a parameter only to keep the
+        dependency explicit and unit-testable.
+
+        Runs once per ``SqlRegistry`` construction on MySQL/MariaDB only, via a
+        single ``information_schema`` query scoped to the registry's own
+        serialized-proto (``ProtoBytes``) columns.
+        It is a no-op when the engine URL specifies no default database
+        (``DATABASE()`` returns NULL, so the scoped query matches nothing).
+        Best-effort: any failure here must never block registry startup.
+        """
+        if engine.dialect.name not in ("mysql", "mariadb"):
+            return
+        try:
+            registry_tables = {
+                table.name for table in registry_metadata.tables.values()
+            }
+            # Only serialized-proto columns (those typed ProtoBytes) are at risk.
+            # Scope the query to exactly those table+column names so an unrelated
+            # BLOB column in a shared schema — or a future non-proto BLOB column
+            # on a registry table — can't trigger a false-positive warning.
+            # Identity check works because every proto column reuses the single
+            # shared ProtoBytes instance (SQLAlchemy stores the type as-is). A
+            # column typed as plain LargeBinary would not match here; the
+            # name-suffix vs ProtoBytes drift check in test_sql_registry.py
+            # guards against that regression.
+            proto_columns = {
+                column.name
+                for table in registry_metadata.tables.values()
+                for column in table.columns
+                if column.type is ProtoBytes
+            }
+            if not proto_columns:
+                return
+            query = text(
+                "SELECT TABLE_NAME, COLUMN_NAME "
+                "FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND DATA_TYPE = 'blob' "
+                "AND TABLE_NAME IN :table_names "
+                "AND COLUMN_NAME IN :column_names"
+            ).bindparams(
+                bindparam("table_names", expanding=True),
+                bindparam("column_names", expanding=True),
+            )
+            with engine.connect() as conn:
+                rows = conn.execute(
+                    query,
+                    {
+                        "table_names": list(registry_tables),
+                        "column_names": list(proto_columns),
+                    },
+                ).fetchall()
+            stale = [f"{table_name}.{column_name}" for table_name, column_name in rows]
+            if stale:
+                # NOTE: keep this doc path in sync with the actual file location.
+                logger.error(
+                    "SQL registry has %d column(s) still typed BLOB (64 KB cap) "
+                    "on this %s database: %s. Large protos (e.g. a FeatureView) "
+                    "will be silently truncated and fail to deserialize. "
+                    "create_all() does not migrate existing columns; run the "
+                    "ALTER TABLE ... MODIFY ... LONGBLOB migration documented at "
+                    "docs/reference/registries/sql.md to fix this.",
+                    len(stale),
+                    engine.dialect.name,
+                    ", ".join(sorted(stale)),
+                )
+        except Exception as e:
+            # Diagnostics must never break registry startup.
+            logger.debug("Could not check registry BLOB column widths: %s", e)
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: dict = {}
@@ -369,6 +502,7 @@ class SqlRegistry(CachingRegistry):
             validation_references,
             permissions,
             feature_view_version_history,
+            label_views,
         }:
             with self.write_engine.begin() as conn:
                 stmt = delete(t)
@@ -387,7 +521,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_stream_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[StreamFeatureView]:
         return self._list_objects(
             stream_feature_views,
@@ -396,6 +530,7 @@ class SqlRegistry(CachingRegistry):
             StreamFeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -452,25 +587,53 @@ class SqlRegistry(CachingRegistry):
                 python_class=StreamFeatureView,
                 id_field_name="feature_view_name",
                 proto_field_name="feature_view_proto",
+                not_found_exception=None,
+            )
+
+        if not fv:
+            fv = self._get_object(
+                table=label_views,
+                name=name,
+                project=project,
+                proto_class=LabelViewProto,
+                python_class=LabelView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
                 not_found_exception=FeatureViewNotFoundException,
             )
         return fv
 
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
+        **kwargs,
     ) -> List[BaseFeatureView]:
         return (
             cast(
                 list[BaseFeatureView],
-                self._list_feature_views(project=project, tags=tags),
+                self._list_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_stream_feature_views(project=project, tags=tags),
+                self._list_stream_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
             )
             + cast(
                 list[BaseFeatureView],
-                self._list_on_demand_feature_views(project=project, tags=tags),
+                self._list_on_demand_feature_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_label_views(
+                    project=project, tags=tags, updated_since=updated_since, **kwargs
+                ),
             )
         )
 
@@ -537,7 +700,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_validation_references(
-        self, project: str, tags: Optional[dict[str, str]] = None
+        self, project: str, tags: Optional[dict[str, str]] = None, **kwargs
     ) -> List[ValidationReference]:
         return self._list_objects(
             table=validation_references,
@@ -546,13 +709,20 @@ class SqlRegistry(CachingRegistry):
             python_class=ValidationReference,
             proto_field_name="validation_reference_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_entities(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[Entity]:
         return self._list_objects(
-            entities, project, EntityProto, Entity, "entity_proto", tags=tags
+            entities,
+            project,
+            EntityProto,
+            Entity,
+            "entity_proto",
+            tags=tags,
+            **kwargs,
         )
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
@@ -567,6 +737,7 @@ class SqlRegistry(CachingRegistry):
                 feature_views,
                 on_demand_feature_views,
                 stream_feature_views,
+                label_views,
             }:
                 stmt = delete(table).where(
                     table.c.feature_view_name == name,
@@ -614,7 +785,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_data_sources(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[DataSource]:
         return self._list_objects(
             data_sources,
@@ -623,6 +794,7 @@ class SqlRegistry(CachingRegistry):
             DataSource,
             "data_source_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_data_source(
@@ -878,7 +1050,7 @@ class SqlRegistry(CachingRegistry):
                 raise DataSourceObjectNotFoundException(name, project)
 
     def _list_feature_services(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[FeatureService]:
         return self._list_objects(
             feature_services,
@@ -887,10 +1059,11 @@ class SqlRegistry(CachingRegistry):
             FeatureService,
             "feature_service_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[FeatureView]:
         return self._list_objects(
             feature_views,
@@ -899,10 +1072,11 @@ class SqlRegistry(CachingRegistry):
             FeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_saved_datasets(
-        self, project: str, tags: Optional[dict[str, str]] = None
+        self, project: str, tags: Optional[dict[str, str]] = None, **kwargs
     ) -> List[SavedDataset]:
         return self._list_objects(
             saved_datasets,
@@ -911,10 +1085,11 @@ class SqlRegistry(CachingRegistry):
             SavedDataset,
             "saved_dataset_proto",
             tags=tags,
+            **kwargs,
         )
 
     def _list_on_demand_feature_views(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[OnDemandFeatureView]:
         return self._list_objects(
             on_demand_feature_views,
@@ -923,6 +1098,41 @@ class SqlRegistry(CachingRegistry):
             OnDemandFeatureView,
             "feature_view_proto",
             tags=tags,
+            **kwargs,
+        )
+
+    def _get_label_view(self, name: str, project: str) -> LabelView:
+        return self._get_object(
+            table=label_views,
+            name=name,
+            project=project,
+            proto_class=LabelViewProto,
+            python_class=LabelView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
+        )
+
+    def _list_label_views(
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
+    ) -> List[LabelView]:
+        return self._list_objects(
+            label_views,
+            project,
+            LabelViewProto,
+            LabelView,
+            "feature_view_proto",
+            tags=tags,
+            **kwargs,
+        )
+
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        self._delete_object(
+            label_views,
+            name,
+            project,
+            "feature_view_name",
+            FeatureViewNotFoundException,
         )
 
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
@@ -958,6 +1168,15 @@ class SqlRegistry(CachingRegistry):
             "saved_dataset_proto",
         )
 
+    def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
+        return self._delete_object(
+            saved_datasets,
+            name,
+            project,
+            "saved_dataset_name",
+            SavedDatasetNotFound,
+        )
+
     def apply_validation_reference(
         self,
         validation_reference: ValidationReference,
@@ -974,7 +1193,7 @@ class SqlRegistry(CachingRegistry):
 
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, LabelView],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -983,7 +1202,7 @@ class SqlRegistry(CachingRegistry):
         table = self._infer_fv_table(feature_view)
         python_class, proto_class = self._infer_fv_classes(feature_view)
 
-        if python_class in {OnDemandFeatureView}:
+        if python_class in {OnDemandFeatureView, LabelView}:
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
@@ -1073,7 +1292,9 @@ class SqlRegistry(CachingRegistry):
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
     def _infer_fv_table(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            table = label_views
+        elif isinstance(feature_view, StreamFeatureView):
             table = stream_feature_views
         elif isinstance(feature_view, FeatureView):
             table = feature_views
@@ -1084,7 +1305,9 @@ class SqlRegistry(CachingRegistry):
         return table
 
     def _infer_fv_classes(self, feature_view):
-        if isinstance(feature_view, StreamFeatureView):
+        if isinstance(feature_view, LabelView):
+            python_class, proto_class = LabelView, LabelViewProto
+        elif isinstance(feature_view, StreamFeatureView):
             python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
         elif isinstance(feature_view, FeatureView):
             python_class, proto_class = FeatureView, FeatureViewProto
@@ -1095,7 +1318,11 @@ class SqlRegistry(CachingRegistry):
         return python_class, proto_class
 
     def _infer_fv_type_string(self, feature_view) -> str:
-        if isinstance(feature_view, StreamFeatureView):
+        from feast.labeling.label_view import LabelView
+
+        if isinstance(feature_view, LabelView):
+            return "label_view"
+        elif isinstance(feature_view, StreamFeatureView):
             return "stream_feature_view"
         elif isinstance(feature_view, FeatureView):
             return "feature_view"
@@ -1105,7 +1332,14 @@ class SqlRegistry(CachingRegistry):
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
 
     def _proto_class_for_type(self, fv_type: str):
-        if fv_type == "stream_feature_view":
+        from feast.labeling.label_view import LabelView
+        from feast.protos.feast.core.LabelView_pb2 import (
+            LabelView as LabelViewProto,
+        )
+
+        if fv_type == "label_view":
+            return LabelViewProto, LabelView
+        elif fv_type == "stream_feature_view":
             return StreamFeatureViewProto, StreamFeatureView
         elif fv_type == "feature_view":
             return FeatureViewProto, FeatureView
@@ -1232,26 +1466,30 @@ class SqlRegistry(CachingRegistry):
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
+            # proto_only=True: return raw protos without calling from_proto(),
+            # which would trigger dill.loads() on UDFs and fail for cross-project
+            # modules. The _list_* helpers hit the DB directly (no cache), avoiding
+            # infinite recursion since proto() itself builds the cache.
             for lister, registry_proto_field in [
-                (self.list_entities, r.entities),
-                (self.list_feature_views, r.feature_views),
-                (self.list_data_sources, r.data_sources),
-                (self.list_on_demand_feature_views, r.on_demand_feature_views),
-                (self.list_stream_feature_views, r.stream_feature_views),
-                (self.list_feature_services, r.feature_services),
-                (self.list_saved_datasets, r.saved_datasets),
-                (self.list_validation_references, r.validation_references),
-                (self.list_permissions, r.permissions),
+                (self._list_entities, r.entities),
+                (self._list_feature_views, r.feature_views),
+                (self._list_data_sources, r.data_sources),
+                (self._list_on_demand_feature_views, r.on_demand_feature_views),
+                (self._list_stream_feature_views, r.stream_feature_views),
+                (self._list_feature_services, r.feature_services),
+                (self._list_saved_datasets, r.saved_datasets),
+                (self._list_validation_references, r.validation_references),
+                (self._list_permissions, r.permissions),
+                (self._list_label_views, r.label_views),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
+                objs: List[Any] = lister(project_name, tags=None, proto_only=True)  # type: ignore
                 if objs:
-                    obj_protos = [obj.to_proto() for obj in objs]
-                    for obj_proto in obj_protos:
+                    for obj_proto in objs:
                         if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
                             obj_proto.spec.project = project_name
                         else:
                             obj_proto.project = project_name
-                    registry_proto_field.extend(obj_protos)
+                    registry_proto_field.extend(objs)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
@@ -1486,18 +1724,56 @@ class SqlRegistry(CachingRegistry):
         python_class: Any,
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
+        proto_only: bool = False,
+        skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ):
+        """
+        Args:
+            proto_only: If True, return raw protobuf objects without calling
+                from_proto(). Used by proto() to build the RegistryProto cache
+                efficiently — avoids the from_proto()/to_proto() round-trip and
+                works uniformly for all object types (entities, data sources, etc.).
+            skip_udf: If True, call from_proto() but skip deserializing UDFs
+                (dill.loads). Returns Python objects suitable for filtering and
+                display without requiring the UDF's source module to be installed.
+                Only relevant for feature view types that contain UDFs.
+        """
+        import inspect
+
+        supports_skip_udf = (
+            skip_udf
+            and "skip_udf" in inspect.signature(python_class.from_proto).parameters
+        )
+
         with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
+            if updated_since is not None:
+                # Ensure naive datetimes are treated as UTC, consistent with
+                # the Python-side filters that compare against offset-naive UTC
+                # last_updated_timestamp values from protobuf.
+                if updated_since.tzinfo is None:
+                    updated_since_utc = updated_since.replace(tzinfo=timezone.utc)
+                else:
+                    updated_since_utc = updated_since.astimezone(timezone.utc)
+                stmt = stmt.where(
+                    table.c.last_updated_timestamp >= int(updated_since_utc.timestamp())
+                )
             rows = conn.execute(stmt).all()
             if rows:
                 objects = []
                 for row in rows:
-                    obj = python_class.from_proto(
-                        proto_class.FromString(row._mapping[proto_field_name])
-                    )
-                    if utils.has_all_tags(obj.tags, tags):
-                        objects.append(obj)
+                    proto = proto_class.FromString(row._mapping[proto_field_name])
+                    if proto_only:
+                        objects.append(proto)
+                    else:
+                        obj = (
+                            python_class.from_proto(proto, skip_udf=True)
+                            if supports_skip_udf
+                            else python_class.from_proto(proto)
+                        )
+                        if utils.has_all_tags(obj.tags, tags):
+                            objects.append(obj)
                 return objects
         return []
 
@@ -1568,7 +1844,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_permissions(
-        self, project: str, tags: Optional[dict[str, str]]
+        self, project: str, tags: Optional[dict[str, str]], **kwargs
     ) -> List[Permission]:
         return self._list_objects(
             permissions,
@@ -1577,6 +1853,7 @@ class SqlRegistry(CachingRegistry):
             Permission,
             "permission_proto",
             tags=tags,
+            **kwargs,
         )
 
     def apply_permission(
@@ -1654,6 +1931,7 @@ class SqlRegistry(CachingRegistry):
                     feature_views,
                     on_demand_feature_views,
                     stream_feature_views,
+                    label_views,
                     data_sources,
                     entities,
                     permissions,

@@ -136,7 +136,7 @@ class Field:
             tags[NESTED_COLLECTION_INNER_TYPE_TAG] = _feast_type_to_str(self.dtype)
         return FieldProto(
             name=self.name,
-            value_type=value_type.value,
+            value_type=value_type.value,  # type: ignore[arg-type]
             description=self.description,
             tags=tags,
             vector_index=self.vector_index,

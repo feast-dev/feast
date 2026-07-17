@@ -142,8 +142,8 @@ class PassthroughProvider(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
+        tables_to_delete: Sequence[BaseFeatureView],
+        tables_to_keep: Sequence[BaseFeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -167,8 +167,8 @@ class PassthroughProvider(Provider):
         if self.batch_engine:
             self.batch_engine.update(
                 project,
-                tables_to_delete,
-                tables_to_keep,
+                tables_to_delete,  # type: ignore[arg-type]
+                tables_to_keep,  # type: ignore[arg-type]
                 entities_to_delete,
                 entities_to_keep,
             )
