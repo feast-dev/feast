@@ -147,6 +147,7 @@ dbt = ["dbt-artifacts-parser"]
 test = [
     "pytest>=6.0.0,<8",
     "pytest-xdist>=3.8.0",
+    "pytest-cov>=5.0.0",
     "pytest-timeout==1.4.2",
     "pytest-lazy-fixture==0.6.3",
     "pytest-ordering~=0.6.0",
@@ -339,3 +340,28 @@ test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/p
 duckdb-tests = ["py310", "duckdb-tests"]
 ray-tests = ["py310", "ray-tests"]
 registration-tests = ["py310", "registration-tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["feast"]
+omit = [
+    "*/tests/*",
+    "*/protos/*",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+    "feast/embedded_go/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass$",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
