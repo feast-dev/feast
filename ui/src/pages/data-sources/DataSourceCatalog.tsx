@@ -115,6 +115,16 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     color: "#8C4FFF",
   },
   {
+    id: "iceberg",
+    sourceType: String(feast.core.DataSource.SourceType.BATCH_ICEBERG),
+    name: "Iceberg / Unity Catalog",
+    description:
+      "Apache Iceberg REST Catalog source. Connect to Unity Catalog or any Iceberg REST-compatible catalog for governed feature data.",
+    icon: CustomSourceIcon,
+    category: "batch",
+    color: "#3B82F6",
+  },
+  {
     id: "kafka",
     sourceType: String(feast.core.DataSource.SourceType.STREAM_KAFKA),
     name: "Kafka",
