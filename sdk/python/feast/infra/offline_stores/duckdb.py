@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
 
 import duckdb
 import ibis
@@ -42,6 +49,13 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    if isinstance(data_source, IcebergSource):
+        return _read_iceberg_catalog_source(data_source, repo_path)
+
     assert isinstance(data_source, FileSource)
 
     if isinstance(data_source.file_format, ParquetFormat) or (
@@ -55,6 +69,99 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
             }
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
+
+
+def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -> Table:
+    """Read from an IcebergSource by resolving via the catalog."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Local file mode for dev/testing
+    if data_source.endpoint.startswith("file://"):
+        local_path = os.path.join(repo_path, "data", data_source.iceberg_table)
+        if os.path.exists(local_path):
+            return _read_parquet_location(local_path)
+
+    # Resolve via Iceberg REST Catalog
+    client = data_source.get_catalog_client()
+    metadata = client.load_table(data_source.namespace, data_source.iceberg_table)
+
+    if metadata is not None:
+        # Try PyIceberg first (full Iceberg protocol)
+        try:
+            from pyiceberg.catalog import load_catalog
+
+            catalog_config = {
+                "type": "rest",
+                "uri": data_source.endpoint,
+                "warehouse": data_source.warehouse,
+            }
+            if data_source.token_env_var:
+                token = os.environ.get(data_source.token_env_var)
+                if token:
+                    catalog_config["token"] = token
+
+            catalog = load_catalog("feast_iceberg", **catalog_config)
+            table = catalog.load_table(
+                f"{data_source.namespace}.{data_source.iceberg_table}"
+            )
+            arrow_table = table.scan().to_arrow()
+            return ibis.memtable(arrow_table)
+        except Exception as e:
+            logger.debug(f"PyIceberg read failed, falling back to Parquet: {e}")
+
+        # Fallback: read Parquet from resolved location
+        return _read_parquet_location(metadata.location)
+
+    # Fallback: try Unity Catalog REST API for storage_location
+    import requests as _requests
+
+    uc_url = (
+        f"{data_source.endpoint}/api/2.1/unity-catalog/tables/"
+        f"{data_source.warehouse}.{data_source.namespace}.{data_source.iceberg_table}"
+    )
+    try:
+        resp = _requests.get(uc_url, timeout=10)
+        if resp.status_code == 200:
+            storage_location = resp.json().get("storage_location")
+            if storage_location:
+                return _read_parquet_location(storage_location)
+    except _requests.exceptions.RequestException:
+        pass
+
+    raise ValueError(
+        f"Cannot load table '{data_source.fqn}' from catalog "
+        f"at '{data_source.endpoint}'"
+    )
+
+
+def _read_parquet_location(location: str) -> Table:
+    """Read Parquet files from a storage location (file:// or local path)."""
+    import glob
+
+    if location.startswith("file:"):
+        location = location.replace("file:", "").lstrip("/")
+        location = "/" + location
+
+    if os.path.isdir(location):
+        parquet_files = glob.glob(
+            os.path.join(location, "**/*.parquet"), recursive=True
+        )
+        if not parquet_files:
+            parquet_files = glob.glob(
+                os.path.join(location, "**/*.snappy.parquet"), recursive=True
+            )
+        if parquet_files:
+            import pyarrow as pa
+
+            tables = [pq.read_table(f) for f in parquet_files]
+            return ibis.memtable(pa.concat_tables(tables))
+        raise FileNotFoundError(f"No Parquet files found in {location}")
+    elif os.path.isfile(location):
+        return ibis.read_parquet(location)
+    else:
+        raise FileNotFoundError(f"Cannot access table location: {location}")
 
 
 def _write_data_source(

@@ -89,7 +89,7 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 @dataclass(frozen=True)
 class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
     min_date_partition: Optional[str]
-    max_date_partition: str
+    max_date_partition: Optional[str]
 
 
 class SparkOfflineStore(OfflineStore):
@@ -177,10 +177,22 @@ class SparkOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         date_partition_column_formats = []
         for fv in feature_views:
-            assert isinstance(fv.batch_source, SparkSource)
-            date_partition_column_formats.append(
-                fv.batch_source.date_partition_column_format
-            )
+            if isinstance(fv.batch_source, SparkSource):
+                date_partition_column_formats.append(
+                    fv.batch_source.date_partition_column_format
+                )
+            else:
+                from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+                    IcebergSource,
+                )
+
+                if isinstance(fv.batch_source, IcebergSource):
+                    date_partition_column_formats.append(None)
+                else:
+                    raise ValueError(
+                        f"SparkOfflineStore requires SparkSource or IcebergSource, "
+                        f"got {type(fv.batch_source)}"
+                    )
 
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -191,6 +203,18 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        # Pre-register IcebergSource feature views as temp views
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        for fv in feature_views:
+            if isinstance(fv.batch_source, IcebergSource):
+                _register_iceberg_source_as_temp_view(
+                    spark_session, fv.batch_source, config
+                )
+
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
@@ -284,11 +308,13 @@ class SparkOfflineStore(OfflineStore):
                 min_date_partition=datetime.fromisoformat(
                     context.min_event_timestamp
                 ).strftime(date_format)
-                if context.min_event_timestamp is not None
+                if context.min_event_timestamp is not None and date_format is not None
                 else None,
                 max_date_partition=datetime.fromisoformat(
                     context.max_event_timestamp
-                ).strftime(date_format),
+                ).strftime(date_format)
+                if date_format is not None
+                else None,
             )
             for date_format, context in zip(
                 date_partition_column_formats, query_context
@@ -391,7 +417,6 @@ class SparkOfflineStore(OfflineStore):
         source table and those column names are the values passed into this function.
         """
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(data_source, SparkSource)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
             "This API is unstable and it could and most probably will be changed in the future.",
@@ -401,6 +426,25 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        if isinstance(data_source, IcebergSource):
+            return _pull_from_iceberg_source(
+                spark_session=spark_session,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+                config=config,
+            )
+
+        assert isinstance(data_source, SparkSource)
 
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
@@ -1159,6 +1203,155 @@ class SparkRetrievalJob(RetrievalJob):
         return self._metadata
 
 
+def _register_iceberg_source_as_temp_view(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    config: "RepoConfig",
+) -> None:
+    """Register an IcebergSource as a Spark temp view for SQL queries."""
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    # Temp views require single-part names
+    view_name = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    if not data_source.endpoint.startswith("file://"):
+        # Try Iceberg REST catalog protocol first
+        try:
+            client = data_source.get_catalog_client()
+            metadata = client.load_table(
+                data_source.namespace, data_source.iceberg_table
+            )
+            if metadata and metadata.location:
+                location = metadata.location
+                if location.startswith("file://"):
+                    location = location[7:]
+                elif location.startswith("file:"):
+                    location = location[5:]
+                df = spark_session.read.parquet(location)
+                df.createOrReplaceTempView(view_name)
+                return
+        except Exception:
+            pass
+
+        # Fallback: query UC REST API for storage_location
+        storage_location = _resolve_uc_storage_location(data_source)
+        if storage_location:
+            if storage_location.startswith("file://"):
+                storage_location = storage_location[7:]
+            elif storage_location.startswith("file:"):
+                storage_location = storage_location[5:]
+            df = spark_session.read.parquet(storage_location)
+            df.createOrReplaceTempView(view_name)
+            return
+
+        # Last resort: configure Spark Iceberg catalog (uses multi-part names natively)
+        catalog_name = f"iceberg_{data_source.warehouse}"
+        spark_session.conf.set(
+            f"spark.sql.catalog.{catalog_name}", "org.apache.iceberg.spark.SparkCatalog"
+        )
+        spark_session.conf.set(f"spark.sql.catalog.{catalog_name}.type", "rest")
+        spark_session.conf.set(
+            f"spark.sql.catalog.{catalog_name}.uri", data_source.endpoint
+        )
+        spark_session.conf.set(
+            f"spark.sql.catalog.{catalog_name}.warehouse", data_source.warehouse
+        )
+        return
+
+    # Local file mode: resolve location and read as parquet
+    repo_path = getattr(config, "repo_path", ".") or "."
+    local_path = os.path.join(repo_path, "data", data_source.iceberg_table)
+    if os.path.exists(local_path):
+        df = spark_session.read.parquet(local_path)
+        df.createOrReplaceTempView(view_name)
+        return
+
+    # Try catalog client
+    try:
+        client = data_source.get_catalog_client()
+        metadata = client.load_table(data_source.namespace, data_source.iceberg_table)
+        if metadata and metadata.location:
+            location = metadata.location
+            if location.startswith("file://"):
+                location = location[7:]
+            elif location.startswith("file:"):
+                location = location[5:]
+            df = spark_session.read.parquet(location)
+            df.createOrReplaceTempView(view_name)
+    except Exception:
+        pass
+
+
+def _resolve_uc_storage_location(data_source: "DataSource") -> Optional[str]:
+    """Query Unity Catalog REST API for a table's storage_location."""
+    import requests as _requests
+
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    uc_url = (
+        f"{data_source.endpoint}/api/2.1/unity-catalog/tables/"
+        f"{data_source.warehouse}.{data_source.namespace}.{data_source.iceberg_table}"
+    )
+    try:
+        resp = _requests.get(uc_url, timeout=10)
+        if resp.status_code == 200:
+            return resp.json().get("storage_location")
+    except _requests.exceptions.RequestException:
+        pass
+    return None
+
+
+def _pull_from_iceberg_source(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    join_key_columns: List[str],
+    feature_name_columns: List[str],
+    timestamp_field: str,
+    created_timestamp_column: Optional[str],
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+    config: "RepoConfig",
+) -> "SparkRetrievalJob":
+    """Read from an IcebergSource using Spark.
+
+    Resolves table storage location via Iceberg REST or UC API,
+    reads as Parquet into a temp view, then queries with time filter.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+
+    tmp_view = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    # Register the source as a temp view (reuses the same resolution logic)
+    _register_iceberg_source_as_temp_view(spark_session, data_source, config)
+
+    all_columns = join_key_columns + feature_name_columns + [timestamp_field]
+    if created_timestamp_column:
+        all_columns.append(created_timestamp_column)
+    select_cols = ", ".join(all_columns) if feature_name_columns else "*"
+
+    timestamp_filter = get_timestamp_filter_sql(
+        start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+    )
+    query = f"SELECT {select_cols} FROM {tmp_view} WHERE {timestamp_filter}"
+
+    return SparkRetrievalJob(
+        spark_session=spark_session,
+        query=query,
+        full_feature_names=False,
+        config=config,
+    )
+
+
 def get_spark_session_or_start_new_with_repoconfig(
     store_config: SparkOfflineStoreConfig,
 ) -> SparkSession:
@@ -1208,10 +1401,10 @@ def _create_temp_entity_union_view(
     for fv, ctx, date_format in zip(
         feature_views, fv_query_contexts, date_partition_column_formats
     ):
-        assert isinstance(fv.batch_source, SparkSource)
+        assert fv.batch_source is not None
         from_expression = fv.batch_source.get_table_query_string()
         timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
-        date_partition_column = fv.batch_source.date_partition_column
+        date_partition_column = getattr(fv.batch_source, "date_partition_column", None)
         partition_clause = ""
         if date_partition_column and date_format:
             partition_clause = (
