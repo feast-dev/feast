@@ -144,25 +144,18 @@ class SnowflakeComputeEngine(ComputeEngine):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
-        stage_path = f'{stage_context}."feast_{project}"'
+        stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
-            query = f"SHOW USER FUNCTIONS LIKE 'FEAST_{project.upper()}%' IN SCHEMA {stage_context}"
-            cursor = execute_snowflake_statement(conn, query)
-            function_list = pd.DataFrame(
-                cursor.fetchall(),
-                columns=[column.name for column in cursor.description],
-            )
-
-            # if the SHOW FUNCTIONS query returns results,
-            # assumes that the materialization functions have been deployed
-            if len(function_list.index) > 0:
-                click.echo(
-                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already detected."
-                )
-                click.echo()
-                return None
-
+            # Always (re)deploy the materialization functions, using
+            # `CREATE OR REPLACE FUNCTION` below, instead of skipping deployment
+            # when functions already exist. Previously, an early return here
+            # (triggered by a `SHOW USER FUNCTIONS` check) combined with
+            # `CREATE FUNCTION IF NOT EXISTS` in the SQL template meant that
+            # once UDFs were deployed for a project, they were never
+            # redeployed -- so a config change to `python_udf_runtime_version`
+            # (e.g. after Snowflake decommissions a runtime) would silently
+            # keep using the stale, already-deployed runtime version. See
+            # https://github.com/feast-dev/feast/pull/6608#discussion_r3602461959.
             click.echo(
                 f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
             )
