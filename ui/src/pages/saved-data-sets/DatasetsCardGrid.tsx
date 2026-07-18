@@ -11,6 +11,7 @@ import {
   EuiToolTip,
   EuiIcon,
   EuiCopy,
+  EuiLink,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -239,6 +240,28 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
               </EuiText>
               <EuiText size="s">
                 <strong>{featureServiceName}</strong>
+              </EuiText>
+            </EuiFlexItem>
+          )}
+          {spec.dataSources && spec.dataSources.length > 0 && (
+            <EuiFlexItem grow={false}>
+              <EuiText size="xs" color="subdued">
+                Source
+              </EuiText>
+              <EuiText size="s">
+                {spec.dataSources.map((dsName: string, idx: number) => (
+                  <span key={dsName}>
+                    {idx > 0 && ", "}
+                    <EuiLink
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        navigate(`/p/${datasetProject}/data-source/${dsName}`);
+                      }}
+                    >
+                      <strong>{dsName}</strong>
+                    </EuiLink>
+                  </span>
+                ))}
               </EuiText>
             </EuiFlexItem>
           )}

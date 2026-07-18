@@ -34,6 +34,7 @@ export interface RegisterDatasetPayload {
   join_keys: string[];
   storage_path: string;
   storage_type: string;
+  storage_file_format?: string;
   tags: Record<string, string>;
   full_feature_names: boolean;
   feature_service_name?: string;
@@ -119,6 +120,33 @@ const ALL_STORAGE_TYPES: StorageTypeDefinition[] = [
     sourceTypeMatch: ["BATCH_ATHENA"],
   },
   {
+    value: "postgres",
+    label: "PostgreSQL",
+    description: "PostgreSQL table reference",
+    placeholder: "schema.table_name",
+    helpText:
+      "PostgreSQL table reference. Data is read via the PostgreSQL offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "clickhouse",
+    label: "ClickHouse",
+    description: "ClickHouse table reference",
+    placeholder: "database.table_name",
+    helpText:
+      "ClickHouse table reference. Data is read via the ClickHouse offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "couchbase",
+    label: "Couchbase Columnar",
+    description: "Couchbase Columnar collection reference",
+    placeholder: "database.scope.collection",
+    helpText:
+      "Couchbase Columnar reference in format: database.scope.collection",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
     value: "custom",
     label: "Custom",
     description: "Custom storage configuration",
@@ -147,6 +175,11 @@ function detectDataSourceTypes(dataSources: any[]): Set<string> {
     if (ds.spec?.trinoOptions || ds.trinoOptions) types.add("BATCH_TRINO");
     if (ds.spec?.athenaOptions || ds.athenaOptions) types.add("BATCH_ATHENA");
     if (ds.spec?.customOptions || ds.customOptions) types.add("CUSTOM_SOURCE");
+    const classType =
+      ds.spec?.dataSourceClassType || ds.dataSourceClassType || "";
+    if (classType.includes("postgres")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("clickhouse")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("couchbase")) types.add("CUSTOM_SOURCE");
   }
   return types;
 }
@@ -249,6 +282,7 @@ const RegisterDatasetModal = ({
   const [description, setDescription] = useState("");
   const [storagePath, setStoragePath] = useState("");
   const [storageType, setStorageType] = useState("file");
+  const [storageFileFormat, setStorageFileFormat] = useState("parquet");
   const [featuresInput, setFeaturesInput] = useState<EuiComboBoxOptionOption[]>(
     [],
   );
@@ -342,6 +376,8 @@ const RegisterDatasetModal = ({
       join_keys: joinKeysInput.map((o) => o.label),
       storage_path: storagePath.trim(),
       storage_type: storageType,
+      storage_file_format:
+        storageType === "spark" ? storageFileFormat : undefined,
       tags: tagsObj,
       full_feature_names: fullFeatureNames,
       feature_service_name: featureServiceName || undefined,
@@ -527,6 +563,41 @@ const RegisterDatasetModal = ({
           fullWidth
         />
       </EuiFormRow>
+
+      {storageType === "spark" && (
+        <EuiFormRow
+          label="File Format"
+          helpText="Required for Spark path-based storage. Specifies the data file format."
+        >
+          <EuiSuperSelect
+            options={[
+              {
+                value: "parquet",
+                inputDisplay: "Parquet",
+                dropdownDisplay: <strong>Parquet</strong>,
+              },
+              {
+                value: "avro",
+                inputDisplay: "Avro",
+                dropdownDisplay: <strong>Avro</strong>,
+              },
+              {
+                value: "csv",
+                inputDisplay: "CSV",
+                dropdownDisplay: <strong>CSV</strong>,
+              },
+              {
+                value: "json",
+                inputDisplay: "JSON",
+                dropdownDisplay: <strong>JSON</strong>,
+              },
+            ]}
+            valueOfSelected={storageFileFormat}
+            onChange={setStorageFileFormat}
+            fullWidth
+          />
+        </EuiFormRow>
+      )}
 
       <EuiSpacer size="m" />
       <EuiHorizontalRule margin="s" />
