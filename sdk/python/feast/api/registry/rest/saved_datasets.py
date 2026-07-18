@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict, List, Optional
 
@@ -32,6 +33,50 @@ from feast.protos.feast.registry import RegistryServer_pb2
 logger = logging.getLogger(__name__)
 
 
+def _build_feature_view_to_datasource_map(
+    grpc_handler, project: str, allow_cache: bool = True
+) -> Dict[str, str]:
+    """Build a map of feature_view_name → data_source_name for a project."""
+    try:
+        fv_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+            project=project, allow_cache=allow_cache
+        )
+        fv_response = grpc_call(grpc_handler.ListAllFeatureViews, fv_req)
+        feature_views = fv_response.get("featureViews", [])
+    except Exception:
+        return {}
+
+    fv_ds_map: Dict[str, str] = {}
+    for any_fv in feature_views:
+        # AnyFeatureView wraps under "featureView", "onDemandFeatureView", etc.
+        fv_data = any_fv.get("featureView") or any_fv.get("streamFeatureView") or {}
+        spec = fv_data.get("spec", {})
+        fv_name = spec.get("name", "")
+        if not fv_name:
+            continue
+        batch_source = spec.get("batchSource", {})
+        ds_name = batch_source.get("name", "") if batch_source else ""
+        if ds_name:
+            fv_ds_map[fv_name] = ds_name
+    return fv_ds_map
+
+
+def _get_dataset_data_sources(dataset: dict, fv_ds_map: Dict[str, str]) -> List[str]:
+    """Get data source names for a dataset via its features' feature view lineage."""
+    spec = dataset.get("spec", dataset)
+    features = spec.get("features", [])
+    data_sources: List[str] = []
+    seen: set = set()
+    for feature_ref in features:
+        if isinstance(feature_ref, str) and ":" in feature_ref:
+            fv_name = feature_ref.split(":")[0]
+            ds_name = fv_ds_map.get(fv_name)
+            if ds_name and ds_name not in seen:
+                seen.add(ds_name)
+                data_sources.append(ds_name)
+    return data_sources
+
+
 class RegisterDatasetRequest(BaseModel):
     name: str
     project: str
@@ -39,6 +84,7 @@ class RegisterDatasetRequest(BaseModel):
     join_keys: List[str] = []
     storage_path: Optional[str] = None
     storage_type: str = "file"
+    storage_file_format: Optional[str] = "parquet"
     tags: Dict[str, str] = {}
     full_feature_names: bool = False
     feature_service_name: Optional[str] = None
@@ -64,6 +110,7 @@ class CreateDatasetRequest(BaseModel):
     # Storage
     storage_type: str = "file"
     storage_path: str = ""
+    storage_file_format: Optional[str] = "parquet"
     tags: Dict[str, str] = {}
     allow_overwrite: bool = False
 
@@ -94,7 +141,7 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         if collection is not None:
             extra_params["collection"] = collection
 
-        return aggregate_across_projects(
+        result = aggregate_across_projects(
             grpc_handler=grpc_handler,
             list_method=grpc_handler.ListSavedDatasets,
             request_cls=RegistryServer_pb2.ListSavedDatasetsRequest,
@@ -108,6 +155,21 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             include_relationships=include_relationships,
             extra_request_params=extra_params or None,
         )
+
+        saved_datasets = result.get("savedDatasets", [])
+        projects_seen: Dict[str, Dict[str, str]] = {}
+        for sd in saved_datasets:
+            proj = sd.get("project", "")
+            if proj not in projects_seen:
+                projects_seen[proj] = _build_feature_view_to_datasource_map(
+                    grpc_handler, proj, allow_cache
+                )
+            ds_names = _get_dataset_data_sources(sd, projects_seen[proj])
+            if ds_names:
+                spec = sd.get("spec", sd)
+                spec["dataSources"] = ds_names
+
+        return result
 
     @router.get("/saved_datasets/data/{name}")
     def get_dataset_data(
@@ -209,6 +271,14 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
 
         result = saved_dataset
 
+        fv_ds_map = _build_feature_view_to_datasource_map(
+            grpc_handler, project, allow_cache
+        )
+        ds_names = _get_dataset_data_sources(result, fv_ds_map)
+        if ds_names:
+            spec = result.get("spec", result)
+            spec["dataSources"] = ds_names
+
         if include_relationships:
             relationships = get_object_relationships(
                 grpc_handler, "savedDataset", name, project, allow_cache
@@ -269,6 +339,15 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         )
         response = grpc_call(grpc_handler.ListSavedDatasets, req)
         saved_datasets = response.get("savedDatasets", [])
+
+        fv_ds_map = _build_feature_view_to_datasource_map(
+            grpc_handler, project, allow_cache
+        )
+        for sd in saved_datasets:
+            ds_names = _get_dataset_data_sources(sd, fv_ds_map)
+            if ds_names:
+                spec = sd.get("spec", sd)
+                spec["dataSources"] = ds_names
 
         result = {
             "savedDatasets": saved_datasets,
@@ -332,11 +411,47 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             )
         elif payload.storage_type == "spark":
             storage_proto.spark_storage.CopyFrom(
-                DataSourceProto.SparkOptions(path=path)
+                DataSourceProto.SparkOptions(
+                    path=path,
+                    file_format=payload.storage_file_format or "parquet",
+                )
             )
         elif payload.storage_type == "athena":
             storage_proto.athena_storage.CopyFrom(
                 DataSourceProto.AthenaOptions(table=path)
+            )
+        elif payload.storage_type == "postgres":
+            config = json.dumps({"name": None, "query": None, "table": path})
+            storage_proto.custom_storage.CopyFrom(
+                DataSourceProto.CustomSourceOptions(
+                    configuration=config.encode("utf-8")
+                )
+            )
+        elif payload.storage_type == "clickhouse":
+            config = json.dumps({"name": None, "query": None, "table": path})
+            storage_proto.custom_storage.CopyFrom(
+                DataSourceProto.CustomSourceOptions(
+                    configuration=config.encode("utf-8")
+                )
+            )
+        elif payload.storage_type == "couchbase":
+            parts = path.split(".", 2)
+            database = parts[0] if len(parts) > 0 else ""
+            scope = parts[1] if len(parts) > 1 else ""
+            collection = parts[2] if len(parts) > 2 else ""
+            config = json.dumps(
+                {
+                    "name": None,
+                    "query": None,
+                    "database": database,
+                    "scope": scope,
+                    "collection": collection,
+                }
+            )
+            storage_proto.custom_storage.CopyFrom(
+                DataSourceProto.CustomSourceOptions(
+                    configuration=config.encode("utf-8")
+                )
             )
         elif payload.storage_type == "custom":
             storage_proto.custom_storage.CopyFrom(
