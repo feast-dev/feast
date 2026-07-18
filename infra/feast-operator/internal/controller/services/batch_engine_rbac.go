@@ -70,7 +70,12 @@ func loadBatchEngineTemplate(engineType string) (*BatchEngineRBACTemplate, error
 }
 
 func (feast *FeastServices) reconcileBatchEngineRBAC() error {
-	engineType := feast.getBatchEngineType()
+	config, ok := feast.getBatchEngineConfig()
+	if !ok {
+		return feast.deleteBatchEngineRBAC()
+	}
+
+	engineType, _ := config["type"].(string)
 	if engineType == "" {
 		return feast.deleteBatchEngineRBAC()
 	}
@@ -93,7 +98,7 @@ func (feast *FeastServices) reconcileBatchEngineRBAC() error {
 	}
 
 	if tmpl.Driver != nil {
-		driverSAName := feast.getBatchDriverSAName()
+		driverSAName := resolveBatchDriverSAName(feast.Handler.FeatureStore, config)
 		if tmpl.Driver.CreateServiceAccount {
 			if err := feast.ensureBatchDriverServiceAccount(driverSAName); err != nil {
 				return err
@@ -110,10 +115,12 @@ func (feast *FeastServices) reconcileBatchEngineRBAC() error {
 	return nil
 }
 
-func (feast *FeastServices) getBatchEngineType() string {
+// getBatchEngineConfig returns the parsed batch-engine ConfigMap data.
+// ok=false means no batch engine is configured or the ConfigMap is unreadable.
+func (feast *FeastServices) getBatchEngineConfig() (map[string]interface{}, bool) {
 	appliedSpec := feast.Handler.FeatureStore.Status.Applied
 	if appliedSpec.BatchEngine == nil || appliedSpec.BatchEngine.ConfigMapRef == nil {
-		return ""
+		return nil, false
 	}
 
 	configMapKey := appliedSpec.BatchEngine.ConfigMapKey
@@ -123,21 +130,19 @@ func (feast *FeastServices) getBatchEngineType() string {
 
 	cm, err := feast.getConfigMap(appliedSpec.BatchEngine.ConfigMapRef.Name)
 	if err != nil {
-		return ""
+		return nil, false
 	}
 
-	data, ok := cm.Data[configMapKey]
-	if !ok {
-		return ""
+	data, found := cm.Data[configMapKey]
+	if !found {
+		return nil, false
 	}
 
 	var config map[string]interface{}
 	if err := yaml.Unmarshal([]byte(data), &config); err != nil {
-		return ""
+		return nil, false
 	}
-
-	engineType, _ := config["type"].(string)
-	return engineType
+	return config, true
 }
 
 // resolveBatchDriverSAName returns the ServiceAccount name for the Spark driver.
@@ -148,35 +153,6 @@ func resolveBatchDriverSAName(featureStore *feastdevv1.FeatureStore, config map[
 		return sa
 	}
 	return GetFeastServiceName(featureStore, BatchDriverFeastType)
-}
-
-func (feast *FeastServices) getBatchDriverSAName() string {
-	appliedSpec := feast.Handler.FeatureStore.Status.Applied
-	if appliedSpec.BatchEngine == nil || appliedSpec.BatchEngine.ConfigMapRef == nil {
-		return feast.GetFeastServiceName(BatchDriverFeastType)
-	}
-
-	configMapKey := appliedSpec.BatchEngine.ConfigMapKey
-	if configMapKey == "" {
-		configMapKey = "config"
-	}
-
-	cm, err := feast.getConfigMap(appliedSpec.BatchEngine.ConfigMapRef.Name)
-	if err != nil {
-		return feast.GetFeastServiceName(BatchDriverFeastType)
-	}
-
-	data, ok := cm.Data[configMapKey]
-	if !ok {
-		return feast.GetFeastServiceName(BatchDriverFeastType)
-	}
-
-	var config map[string]interface{}
-	if err := yaml.Unmarshal([]byte(data), &config); err != nil {
-		return feast.GetFeastServiceName(BatchDriverFeastType)
-	}
-
-	return resolveBatchDriverSAName(feast.Handler.FeatureStore, config)
 }
 
 func (feast *FeastServices) ensureBatchEngineRole(feastType FeastServiceType, rules []rbacv1.PolicyRule) error {
