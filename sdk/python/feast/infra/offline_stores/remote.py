@@ -218,10 +218,6 @@ class RemoteOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RemoteRetrievalJob:
-        if kwargs.get("filter_by_created_timestamp"):
-            raise NotImplementedError(
-                "filter_by_created_timestamp is not yet supported by the remote offline store."
-            )
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         client = build_arrow_flight_client(

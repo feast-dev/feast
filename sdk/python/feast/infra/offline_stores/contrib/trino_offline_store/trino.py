@@ -298,6 +298,8 @@ class TrinoRetrievalJob(RetrievalJob):
 
 
 class TrinoOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,

@@ -141,6 +141,8 @@ class DaskRetrievalJob(RetrievalJob):
 
 
 class DaskOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
@@ -150,6 +152,7 @@ class DaskOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
@@ -314,10 +317,7 @@ class DaskOfflineStore(OfflineStore):
                     timestamp_field,
                 )
 
-                if (
-                    kwargs.get("filter_by_created_timestamp", False)
-                    and created_timestamp_column
-                ):
+                if filter_by_created_timestamp and created_timestamp_column:
                     df_to_join = _filter_created_timestamp(
                         df_to_join,
                         timestamp_field,
@@ -1203,16 +1203,15 @@ def _filter_created_timestamp(
     # Only keep feature values that were already created as of the entity event
     # timestamp. Rows without a timestamp are unmatched entity rows from the
     # left join and are kept; feature rows with a null created timestamp are
-    # excluded, consistent with the SQL predicate.
-    df_to_join = df_to_join[
+    # excluded, consistent with the SQL predicate. Returned lazily so the mask
+    # fuses into the following _drop_duplicates persist.
+    return df_to_join[
         df_to_join[timestamp_field].isna()
         | (
             df_to_join[created_timestamp_column]
             <= df_to_join[entity_df_event_timestamp_col]
         )
     ]
-
-    return df_to_join.persist()
 
 
 def _drop_duplicates(

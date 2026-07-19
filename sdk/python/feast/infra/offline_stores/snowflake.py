@@ -298,13 +298,10 @@ class SnowflakeOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
-        if filter_by_created_timestamp:
-            raise NotImplementedError(
-                "filter_by_created_timestamp is not yet supported by the Snowflake offline store: the ASOF JOIN "
-                "used for point-in-time retrieval cannot express a created_timestamp cutoff."
-            )
+        # filter_by_created_timestamp is not supported: the ASOF JOIN used for
+        # point-in-time retrieval cannot express a created_timestamp cutoff
+        # (supports_filter_by_created_timestamp stays False).
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)

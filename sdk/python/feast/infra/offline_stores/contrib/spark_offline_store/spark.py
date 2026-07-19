@@ -93,6 +93,8 @@ class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
 
 
 class SparkOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -172,6 +174,7 @@ class SparkOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
@@ -330,7 +333,7 @@ class SparkOfflineStore(OfflineStore):
             entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
-            filter_by_created_timestamp=kwargs.get("filter_by_created_timestamp", False),
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
         return SparkRetrievalJob(

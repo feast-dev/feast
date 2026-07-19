@@ -2313,10 +2313,6 @@ class RayOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs: Any,
     ) -> RetrievalJob:
-        if kwargs.get("filter_by_created_timestamp"):
-            raise NotImplementedError(
-                "filter_by_created_timestamp is not yet supported by the Ray offline store."
-            )
         store = RayOfflineStore()
         store._init_ray(config)
 

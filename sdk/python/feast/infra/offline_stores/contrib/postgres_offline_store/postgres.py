@@ -75,6 +75,8 @@ class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
 
 
 class PostgreSQLOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -135,6 +137,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
@@ -222,7 +225,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     use_cte=use_cte,
                     start_date=start_date,
                     end_date=end_date,
-                    filter_by_created_timestamp=kwargs.get("filter_by_created_timestamp", False),
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
             finally:
                 # Only cleanup if we created a table

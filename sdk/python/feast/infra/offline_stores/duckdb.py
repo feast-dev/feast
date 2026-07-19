@@ -560,6 +560,8 @@ class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class DuckDBOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,

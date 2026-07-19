@@ -486,6 +486,8 @@ def _oracle_try_execute_ddl(con, ddl: str) -> None:
 
 
 class OracleOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -521,6 +523,7 @@ class OracleOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         if not feature_views:
@@ -554,7 +557,7 @@ class OracleOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
             data_source_reader=_build_data_source_reader(config, con=con),
             data_source_writer=_build_data_source_writer(config, con=con),
-            filter_by_created_timestamp=kwargs.get("filter_by_created_timestamp", False),
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
     @staticmethod

@@ -108,6 +108,19 @@ def test_all_sql_templates_gate_the_created_timestamp_cutoff(module_name):
     )
 
 
+def test_stores_declare_filter_by_created_timestamp_support():
+    from feast.infra.offline_stores.offline_store import OfflineStore
+
+    class _UnsupportedStore(OfflineStore):
+        pass
+
+    with pytest.raises(NotImplementedError, match="filter_by_created_timestamp"):
+        _UnsupportedStore().ensure_filter_by_created_timestamp_supported()
+
+    assert DaskOfflineStore.supports_filter_by_created_timestamp
+    DaskOfflineStore().ensure_filter_by_created_timestamp_supported()
+
+
 class TestDaskFilterByCreatedTimestamp:
     def _run(self, filter_by_created_timestamp, monkeypatch, src=None):
         if src is None:
