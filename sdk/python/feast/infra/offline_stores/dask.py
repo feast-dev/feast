@@ -314,6 +314,13 @@ class DaskOfflineStore(OfflineStore):
                     timestamp_field,
                 )
 
+                if kwargs.get("at_event_time", False) and created_timestamp_column:
+                    df_to_join = _filter_created_timestamp(
+                        df_to_join,
+                        created_timestamp_column,
+                        entity_df_event_timestamp_col,
+                    )
+
                 df_to_join = _drop_duplicates(
                     df_to_join,
                     all_join_keys,
@@ -1181,6 +1188,24 @@ def _filter_ttl(
         df_to_join = df_to_join.persist()
 
     return df_to_join
+
+
+def _filter_created_timestamp(
+    df_to_join: dd.DataFrame,
+    created_timestamp_column: str,
+    entity_df_event_timestamp_col: str,
+) -> dd.DataFrame:
+    # Only keep feature values that were already created as of the entity event timestamp
+    df_to_join = df_to_join[
+        # do not drop entity rows if one of the sources returns NaNs
+        df_to_join[created_timestamp_column].isna()
+        | (
+            df_to_join[created_timestamp_column]
+            <= df_to_join[entity_df_event_timestamp_col]
+        )
+    ]
+
+    return df_to_join.persist()
 
 
 def _drop_duplicates(

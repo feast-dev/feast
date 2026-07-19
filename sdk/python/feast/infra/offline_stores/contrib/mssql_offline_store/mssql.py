@@ -151,6 +151,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        at_event_time: bool = False,
     ) -> RetrievalJob:
         # TODO avoid this conversion
         if type(entity_df) == str:
@@ -168,6 +169,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             data_source_reader=_build_data_source_reader(config),
             data_source_writer=_build_data_source_writer(config),
             event_expire_timestamp_fn=mssql_event_expire_timestamp_fn,
+            at_event_time=at_event_time,
         )
 
     @staticmethod

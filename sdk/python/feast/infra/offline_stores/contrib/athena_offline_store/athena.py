@@ -195,6 +195,7 @@ class AthenaOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        at_event_time: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         for fv in feature_views:
@@ -252,6 +253,7 @@ class AthenaOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                at_event_time=at_event_time,
             )
 
             try:
@@ -649,6 +651,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if at_event_time and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}

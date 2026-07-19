@@ -218,6 +218,10 @@ class RemoteOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RemoteRetrievalJob:
+        if kwargs.get("at_event_time"):
+            raise NotImplementedError(
+                "at_event_time is not yet supported by the remote offline store."
+            )
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         client = build_arrow_flight_client(

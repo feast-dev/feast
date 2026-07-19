@@ -1871,6 +1871,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        at_event_time: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -1902,6 +1903,13 @@ class FeatureStore:
                 Required when entity_df is not provided.
             end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
                 Required when entity_df is not provided. By default, the current time is used.
+            at_event_time (bool): If True, only feature values that were already created as of each entity row's
+                event timestamp are considered: rows whose created timestamp (the ``created_timestamp_column`` of
+                the batch source) is later than the entity row's event timestamp are excluded. This makes retrieval
+                reflect what was known at the event time, so late-arriving or backfilled values cannot leak into
+                training data. Feature views without a ``created_timestamp_column`` are unaffected. Defaults to
+                False, which preserves the existing behavior of serving the latest known value for the event
+                timestamp window.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -2003,11 +2011,13 @@ class FeatureStore:
         provider = self._get_provider()
 
         # Optional kwargs
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if start_date is not None:
             kwargs["start_date"] = start_date
         if end_date is not None:
             kwargs["end_date"] = end_date
+        if at_event_time:
+            kwargs["at_event_time"] = at_event_time
 
         _retrieval_start = time.monotonic()
 

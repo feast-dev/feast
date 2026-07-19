@@ -123,6 +123,7 @@ class ClickhouseOfflineStore(OfflineStore):
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
+                    at_event_time=kwargs.get("at_event_time", False),
                 )
                 yield query
             finally:
@@ -538,6 +539,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - interval {{ featureview.ttl }} second
+        {% endif %}
+
+        {% if at_event_time and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 ),
 

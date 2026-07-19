@@ -153,6 +153,7 @@ def get_historical_features_ibis(
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
     event_expire_timestamp_fn=None,
+    at_event_time: bool = False,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -235,6 +236,7 @@ def get_historical_features_ibis(
         ],
         event_timestamp_col=event_timestamp_col,
         event_expire_timestamp_fn=event_expire_timestamp_fn,
+        at_event_time=at_event_time,
     )
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
@@ -379,6 +381,7 @@ def point_in_time_join(
     feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
     event_expire_timestamp_fn=None,
+    at_event_time: bool = False,
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
@@ -433,6 +436,14 @@ def point_in_time_join(
         predicates.append(
             feature_table[timestamp_field] <= entity_table[event_timestamp_col],
         )
+
+        if at_event_time and created_timestamp_field:
+            predicates.append(
+                feature_table[created_timestamp_field].cast(
+                    dt.Timestamp(timezone="UTC")
+                )
+                <= entity_table[event_timestamp_col]
+            )
 
         if ttl:
             predicates.append(

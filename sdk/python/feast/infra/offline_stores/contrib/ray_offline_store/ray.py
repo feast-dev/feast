@@ -2313,6 +2313,10 @@ class RayOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs: Any,
     ) -> RetrievalJob:
+        if kwargs.get("at_event_time"):
+            raise NotImplementedError(
+                "at_event_time is not yet supported by the Ray offline store."
+            )
         store = RayOfflineStore()
         store._init_ray(config)
 
