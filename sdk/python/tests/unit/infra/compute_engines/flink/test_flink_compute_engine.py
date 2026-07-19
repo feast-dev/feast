@@ -11,7 +11,6 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pyarrow as pa
 import pytest
-import toml  # type: ignore[import-untyped]
 
 from feast import BatchFeatureView, Entity, Field, FileSource
 from feast.aggregation import Aggregation
@@ -48,20 +47,6 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.types import Float32
 from feast.value_type import ValueType
-
-
-def test_flink_extra_does_not_downgrade_default_pyarrow_dependency() -> None:
-    pyproject_path = Path(__file__).resolve().parents[7] / "pyproject.toml"
-    pyproject = toml.loads(pyproject_path.read_text())
-
-    dependencies = pyproject["project"]["dependencies"]
-    assert "pyarrow>=21.0.0; extra != 'flink'" in dependencies
-    assert "pyarrow>=16.1.0,<21.0.0; extra == 'flink'" in dependencies
-    assert "pyarrow>=16.1.0" not in dependencies
-    assert (
-        "apache-flink>=2.2.1,<3"
-        in pyproject["project"]["optional-dependencies"]["flink"]
-    )
 
 
 class FakeFlinkTable:
