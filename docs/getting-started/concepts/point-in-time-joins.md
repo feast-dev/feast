@@ -62,3 +62,28 @@ Below is the resulting joined training dataframe. It contains both the original 
 
 Three feature rows were successfully joined to the entity dataframe rows. The first row in the entity dataframe was older than the earliest feature rows in the feature view and could not be joined. The last row in the entity dataframe was outside of the TTL window \(the event happened 11 hours after the feature row\) and also couldn't be joined.
 
+## Retrieving features as of the event time
+
+By default, point-in-time joins only constrain the feature's event timestamp. If a data source also has a `created_timestamp_column`, it is used to deduplicate rows that share an event timestamp \(the row with the highest created timestamp wins\), but it is not otherwise filtered. This means a value that was backfilled or corrected *after* an entity dataframe timestamp can still be returned for it.
+
+To restrict retrieval to feature values that were already available at each entity row's timestamp, pass `at_event_time=True`:
+
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features = [
+        'driver_hourly_stats:trips_today',
+        'driver_hourly_stats:earnings_today'
+    ],
+    at_event_time=True,
+)
+```
+
+This adds a `created_timestamp <= entity_timestamp` condition to the join, so each entity dataframe row only sees feature values whose created timestamp is at or before its own timestamp. This is useful to keep backfilled values from leaking into training data, and to reproduce what the online store would have served at each event time \(assuming the created timestamp reflects when the value became available online\).
+
+A few things to keep in mind:
+
+* The flag has no effect on feature views whose data source does not set a `created_timestamp_column`.
+* Rows with a NULL created timestamp are excluded when the flag is enabled, so the column should be non-null.
+* Not all offline stores support this flag yet; unsupported stores raise an error rather than silently ignoring it.
+
