@@ -78,7 +78,8 @@ function getDatasetSortValue(dataset: any, key: string): any {
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isLoading, isSuccess, isError, data } = useLoadSavedDataSets();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadSavedDataSets();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -413,7 +414,12 @@ const Index = () => {
           </EuiFlexGroup>
         )}
 
-        {isError && (
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view saved datasets.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
           <EuiCallOut
             title="Failed to load datasets"
             color="danger"
