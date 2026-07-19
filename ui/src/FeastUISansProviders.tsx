@@ -47,6 +47,7 @@ import {
 } from "./contexts/ProjectListContext";
 import DataModeContext from "./contexts/DataModeContext";
 import type { DataModeConfig, FetchOptions } from "./contexts/DataModeContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 interface FeastUIConfigs {
   tabsRegistry?: FeastTabsRegistryInterface;
@@ -86,11 +87,13 @@ const FeastUISansProviders = ({
 
   return (
     <ThemeProvider>
-      <FeastUISansProvidersInner
-        basename={basename}
-        projectListContext={projectListContext}
-        feastUIConfigs={feastUIConfigs}
-      />
+      <AuthProvider>
+        <FeastUISansProvidersInner
+          basename={basename}
+          projectListContext={projectListContext}
+          feastUIConfigs={feastUIConfigs}
+        />
+      </AuthProvider>
     </ThemeProvider>
   );
 };
@@ -105,6 +108,7 @@ const FeastUISansProvidersInner = ({
   feastUIConfigs?: FeastUIConfigs;
 }) => {
   const { colorMode } = useTheme();
+  const { isInitializing } = useAuth();
 
   const dataModeConfig: DataModeConfig = {
     fetchOptions: feastUIConfigs?.fetchOptions,
@@ -115,6 +119,26 @@ const FeastUISansProvidersInner = ({
       apiBaseUrl: "/api/v1",
       enabled: true,
     };
+
+  if (isInitializing) {
+    return (
+      <EuiProvider colorMode={colorMode}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div className="euiLoadingSpinner euiLoadingSpinner--large" />
+          <p style={{ color: "#69707D" }}>Connecting to identity provider...</p>
+        </div>
+      </EuiProvider>
+    );
+  }
 
   return (
     <EuiProvider colorMode={colorMode}>

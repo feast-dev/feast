@@ -28,6 +28,30 @@ def _safe_error_response(
     )
 
 
+def _build_auth_config_json(store: "feast.FeatureStore") -> str:
+    """Build a JSON string with auth config from feature_store.yaml for the UI."""
+    from feast.permissions.auth_model import AuthConfig, OidcAuthConfig
+
+    auth_cfg = getattr(store.config, "auth_config", None)
+    if not isinstance(auth_cfg, AuthConfig):
+        return json.dumps({"auth_type": "no_auth"})
+
+    auth_type = auth_cfg.type if auth_cfg else "no_auth"
+
+    config: Dict[str, str] = {"auth_type": auth_type}
+    if auth_type == "oidc" and isinstance(auth_cfg, OidcAuthConfig):
+        discovery_url = auth_cfg.auth_discovery_url
+        if "/realms/" in discovery_url:
+            base = discovery_url.split("/realms/")[0]
+            realm = discovery_url.split("/realms/")[1].split("/")[0]
+            config["url"] = base
+            config["realm"] = realm
+        config["auth_discovery_url"] = discovery_url
+        config["client_id"] = auth_cfg.ui_client_id or auth_cfg.client_id or ""
+
+    return json.dumps(config)
+
+
 def _build_projects_list(
     store: "feast.FeatureStore",
     project_id: str,
@@ -75,12 +99,63 @@ def _build_projects_list(
 
 def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     """Mount the REST registry API routes on the UI server under /api/v1."""
+    from fastapi import Depends, Request
+    from fastapi.responses import JSONResponse
+
     from feast.api.registry.rest import register_all_routes
+    from feast.errors import FeastObjectNotFoundException, FeastPermissionError
+    from feast.permissions.server.utils import (
+        ServerType,
+        init_auth_manager,
+        init_security_manager,
+        str_to_auth_manager_type,
+    )
     from feast.registry_server import RegistryServer
 
     grpc_handler = RegistryServer(store.registry, store=store)
 
-    rest_app = FastAPI(root_path="/api/v1")
+    auth_cfg = store.config.auth_config
+    dependencies = []
+    if auth_cfg and auth_cfg.type != "no_auth":
+        from feast.permissions.server.rest import inject_user_details
+
+        auth_type = str_to_auth_manager_type(auth_cfg.type)
+        init_security_manager(auth_type=auth_type, fs=store)
+        init_auth_manager(
+            auth_type=auth_type,
+            server_type=ServerType.REST,
+            auth_config=auth_cfg,
+        )
+        dependencies.append(Depends(inject_user_details))
+
+    rest_app = FastAPI(root_path="/api/v1", dependencies=dependencies)
+
+    @rest_app.exception_handler(FeastPermissionError)
+    async def feast_permission_error_handler(
+        request: Request, exc: FeastPermissionError
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "status_code": 403,
+                "detail": str(exc),
+                "error_type": "FeastPermissionError",
+            },
+        )
+
+    @rest_app.exception_handler(FeastObjectNotFoundException)
+    async def feast_object_not_found_handler(
+        request: Request, exc: FeastObjectNotFoundException
+    ):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status_code": 404,
+                "detail": str(exc),
+                "error_type": "FeastObjectNotFoundException",
+            },
+        )
+
     register_all_routes(rest_app, grpc_handler, store=store)
 
     class PushRequest(BaseModel):
@@ -1086,13 +1161,24 @@ def get_app(
                 "error": "Failed to fetch model data",
             }
 
-    # For all other paths (such as paths that would otherwise be handled by react router), pass to React
-    @app.api_route("/p/{path_name:path}", methods=["GET"])
-    def catch_all():
+    auth_config_json = _build_auth_config_json(store)
+
+    def _serve_index():
         filename = ui_dir.joinpath("index.html")
         with open(filename) as f:
             content = f.read()
+        if auth_config_json:
+            tag = f'<script id="feast-auth-config" type="application/json">{auth_config_json}</script>'
+            content = content.replace("</head>", f"{tag}\n</head>", 1)
         return Response(content, media_type="text/html")
+
+    @app.get("/")
+    def serve_root():
+        return _serve_index()
+
+    @app.api_route("/p/{path_name:path}", methods=["GET"])
+    def catch_all():
+        return _serve_index()
 
     app.mount(
         "/",

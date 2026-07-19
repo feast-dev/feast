@@ -100,6 +100,22 @@ const assembleFeatureStoreData = (
 // REST fetch strategy
 // ---------------------------------------------------------------------------
 
+const permissionSafeFetch = async <T>(
+  apiBaseUrl: string,
+  path: string,
+  fallback: T,
+  fetchOptions?: FetchOptions,
+): Promise<T> => {
+  try {
+    return await restFetch<T>(apiBaseUrl, path, fetchOptions);
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 401) {
+      return fallback;
+    }
+    throw err;
+  }
+};
+
 const fetchREST = async (
   apiBaseUrl: string,
   projectName?: string,
@@ -111,6 +127,8 @@ const fetchREST = async (
       : "";
   const useAllEndpoint = !projectParam;
 
+  const emptyList = (key: string) => ({ [key]: [] });
+
   const [
     entitiesResp,
     featureViewsResp,
@@ -120,49 +138,60 @@ const fetchREST = async (
     savedDatasetsResp,
     projectsResp,
   ] = await Promise.all([
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/entities/all?include_relationships=true"
         : `/entities${projectParam}&include_relationships=true`,
+      emptyList("entities"),
       fetchOptions,
     ),
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/feature_views/all?include_relationships=true"
         : `/feature_views${projectParam}&include_relationships=true`,
+      emptyList("featureViews"),
       fetchOptions,
     ),
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/label_views/all?include_relationships=true"
         : `/label_views${projectParam}&include_relationships=true`,
+      emptyList("featureViews"),
       fetchOptions,
     ),
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/feature_services/all?include_relationships=true"
         : `/feature_services${projectParam}&include_relationships=true`,
+      emptyList("featureServices"),
       fetchOptions,
     ),
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/data_sources/all?include_relationships=true"
         : `/data_sources${projectParam}&include_relationships=true`,
+      emptyList("dataSources"),
       fetchOptions,
     ),
-    restFetch<any>(
+    permissionSafeFetch<any>(
       apiBaseUrl,
       useAllEndpoint
         ? "/saved_datasets/all?include_relationships=true"
         : `/saved_datasets${projectParam}&include_relationships=true`,
+      emptyList("savedDatasets"),
       fetchOptions,
     ),
-    restFetch<any>(apiBaseUrl, "/projects", fetchOptions),
+    permissionSafeFetch<any>(
+      apiBaseUrl,
+      "/projects",
+      emptyList("projects"),
+      fetchOptions,
+    ),
   ]);
 
   const entities = entitiesResp.entities || [];

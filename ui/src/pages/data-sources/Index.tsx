@@ -124,7 +124,8 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadDatasources();
   const isAllProjects = projectName === "all";
 
   const [showCatalog, setShowCatalog] = useState(false);
@@ -306,7 +307,18 @@ const Index = () => {
                 <EuiLoadingSpinner size="m" /> Loading
               </p>
             )}
-            {isError && <p>We encountered an error while loading.</p>}
+            {isPermissionDenied && (
+              <EuiCallOut
+                title="Permission denied"
+                color="warning"
+                iconType="lock"
+              >
+                <p>You do not have permission to view data sources.</p>
+              </EuiCallOut>
+            )}
+            {isError && !isPermissionDenied && (
+              <p>We encountered an error while loading.</p>
+            )}
             {isEmpty && !isAllProjects && (
               <>
                 <EuiTitle size="s">

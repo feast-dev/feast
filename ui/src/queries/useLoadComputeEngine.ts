@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { useQuery } from "react-query";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import { useDataMode } from "../contexts/DataModeContext";
-import restFetch from "./restApiClient";
+import restFetch, { RestApiError } from "./restApiClient";
 
 export interface ComputeEngineConfig {
   type: string;
@@ -68,8 +68,17 @@ export function useLoadComputeEngine(projectName?: string) {
     {
       enabled: !!registryUrl,
       staleTime: 30_000,
+      retry: (failureCount, error) => {
+        if (error instanceof RestApiError && error.status === 403) return false;
+        return failureCount < 3;
+      },
     },
   );
+
+  const isPermissionDenied =
+    engineQuery.isError &&
+    engineQuery.error instanceof RestApiError &&
+    engineQuery.error.status === 403;
 
   let engineInfo: ComputeEngineInfo | null = null;
   let featureViewInfos: FeatureViewEngineInfo[] = [];
@@ -105,6 +114,7 @@ export function useLoadComputeEngine(projectName?: string) {
     isLoading: engineQuery.isLoading,
     isSuccess: engineQuery.isSuccess,
     isError: engineQuery.isError,
+    isPermissionDenied,
     engineInfo,
     featureViewInfos,
   };

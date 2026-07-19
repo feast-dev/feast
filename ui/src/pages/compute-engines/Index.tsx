@@ -20,6 +20,7 @@ import {
   EuiHealth,
   EuiFilterGroup,
   EuiFilterButton,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { ComputeEngineIcon } from "../../graphics/ComputeEngineIcon";
@@ -466,8 +467,14 @@ const Index = () => {
   const { projectName } = useParams();
   const navigate = useNavigate();
 
-  const { isLoading, isSuccess, isError, engineInfo, featureViewInfos } =
-    useLoadComputeEngine(projectName);
+  const {
+    isLoading,
+    isSuccess,
+    isError,
+    isPermissionDenied,
+    engineInfo,
+    featureViewInfos,
+  } = useLoadComputeEngine(projectName);
 
   useDocumentTitle(`Compute & Jobs | Feast`);
 
@@ -501,7 +508,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view compute engines.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && (
           <Routes>
             <Route
