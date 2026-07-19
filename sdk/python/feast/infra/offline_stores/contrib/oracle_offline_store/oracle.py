@@ -554,7 +554,7 @@ class OracleOfflineStore(OfflineStore):
             full_feature_names=full_feature_names,
             data_source_reader=_build_data_source_reader(config, con=con),
             data_source_writer=_build_data_source_writer(config, con=con),
-            at_event_time=kwargs.get("at_event_time", False),
+            filter_by_created_timestamp=kwargs.get("filter_by_created_timestamp", False),
         )
 
     @staticmethod

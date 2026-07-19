@@ -298,11 +298,11 @@ class SnowflakeOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        at_event_time: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
-        if at_event_time:
+        if filter_by_created_timestamp:
             raise NotImplementedError(
-                "at_event_time is not yet supported by the Snowflake offline store: the ASOF JOIN "
+                "filter_by_created_timestamp is not yet supported by the Snowflake offline store: the ASOF JOIN "
                 "used for point-in-time retrieval cannot express a created_timestamp cutoff."
             )
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)

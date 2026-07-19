@@ -218,9 +218,9 @@ class RemoteOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         **kwargs,
     ) -> RemoteRetrievalJob:
-        if kwargs.get("at_event_time"):
+        if kwargs.get("filter_by_created_timestamp"):
             raise NotImplementedError(
-                "at_event_time is not yet supported by the remote offline store."
+                "filter_by_created_timestamp is not yet supported by the remote offline store."
             )
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 

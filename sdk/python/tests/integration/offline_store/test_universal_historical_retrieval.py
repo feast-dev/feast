@@ -943,7 +943,7 @@ def test_odfv_projection(environment, universal_data_sources, full_feature_names
 
 @pytest.mark.integration
 @pytest.mark.universal_offline_stores
-def test_historical_features_at_event_time(environment):
+def test_historical_features_filter_by_created_timestamp(environment):
     store = environment.feature_store
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
@@ -1020,17 +1020,18 @@ def test_historical_features_at_event_time(environment):
     )
     validate_dataframes(expected_df, actual_df, sort_by=["driver_id"])
 
-    # With at_event_time=True only values created at or before the entity
+    # With filter_by_created_timestamp=True only values created at or before the entity
     # timestamp are served
     try:
-        actual_df = store.get_historical_features(
+        job = store.get_historical_features(
             entity_df=entity_df,
             features=["driver_stats:avg_daily_trips"],
             full_feature_names=False,
-            at_event_time=True,
-        ).to_df()
+            filter_by_created_timestamp=True,
+        )
     except NotImplementedError:
-        pytest.skip("The offline store does not support at_event_time")
+        pytest.skip("The offline store does not support filter_by_created_timestamp")
+    actual_df = job.to_df()
     expected_df = pd.DataFrame(
         data=[
             {"driver_id": 1001, "event_timestamp": tomorrow, "avg_daily_trips": 10},

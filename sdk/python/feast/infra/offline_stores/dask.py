@@ -314,9 +314,13 @@ class DaskOfflineStore(OfflineStore):
                     timestamp_field,
                 )
 
-                if kwargs.get("at_event_time", False) and created_timestamp_column:
+                if (
+                    kwargs.get("filter_by_created_timestamp", False)
+                    and created_timestamp_column
+                ):
                     df_to_join = _filter_created_timestamp(
                         df_to_join,
+                        timestamp_field,
                         created_timestamp_column,
                         entity_df_event_timestamp_col,
                     )
@@ -1192,13 +1196,16 @@ def _filter_ttl(
 
 def _filter_created_timestamp(
     df_to_join: dd.DataFrame,
+    timestamp_field: str,
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
-    # Only keep feature values that were already created as of the entity event timestamp
+    # Only keep feature values that were already created as of the entity event
+    # timestamp. Rows without a timestamp are unmatched entity rows from the
+    # left join and are kept; feature rows with a null created timestamp are
+    # excluded, consistent with the SQL predicate.
     df_to_join = df_to_join[
-        # do not drop entity rows if one of the sources returns NaNs
-        df_to_join[created_timestamp_column].isna()
+        df_to_join[timestamp_field].isna()
         | (
             df_to_join[created_timestamp_column]
             <= df_to_join[entity_df_event_timestamp_col]

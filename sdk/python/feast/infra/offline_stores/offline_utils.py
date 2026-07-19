@@ -200,7 +200,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
-    at_event_time: bool = False,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -229,7 +229,7 @@ def build_point_in_time_query(
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
         "full_feature_names": full_feature_names,
-        "at_event_time": at_event_time,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
         "final_output_feature_names": final_output_feature_names,
     }
 

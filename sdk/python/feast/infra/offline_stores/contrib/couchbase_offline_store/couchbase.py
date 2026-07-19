@@ -136,7 +136,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        at_event_time: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         """
         Retrieve historical features using point-in-time joins.
@@ -198,7 +198,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
-                    at_event_time=at_event_time,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
                 yield query
             finally:
@@ -483,7 +483,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
-    at_event_time: bool = False,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Couchbase Columnar"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -510,7 +510,7 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
-        "at_event_time": at_event_time,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
     }
 
     query = template.render(template_context)
@@ -624,7 +624,7 @@ WITH entity_dataframe AS (
         {% if featureview.ttl == 0 %}{% else %}
         AND date_diff_str(entity_dataframe.entity_timestamp, subquery.event_timestamp, "second") <= {{ featureview.ttl }}
         {% endif %}
-        {% if at_event_time and featureview.created_timestamp_column %}
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
         AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
         {% for entity in featureview.entities %}

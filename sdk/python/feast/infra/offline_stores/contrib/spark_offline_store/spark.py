@@ -330,7 +330,7 @@ class SparkOfflineStore(OfflineStore):
             entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
-            at_event_time=kwargs.get("at_event_time", False),
+            filter_by_created_timestamp=kwargs.get("filter_by_created_timestamp", False),
         )
 
         return SparkRetrievalJob(
@@ -1811,7 +1811,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
             AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
             {% endif %}
 
-            {% if at_event_time and featureview.created_timestamp_column %}
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
             AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 

@@ -66,7 +66,7 @@ Three feature rows were successfully joined to the entity dataframe rows. The fi
 
 By default, point-in-time joins only constrain the feature's event timestamp. If a data source also has a `created_timestamp_column`, it is used to deduplicate rows that share an event timestamp \(the row with the highest created timestamp wins\), but it is not otherwise filtered. This means a value that was backfilled or corrected *after* an entity dataframe timestamp can still be returned for it.
 
-To restrict retrieval to feature values that were already available at each entity row's timestamp, pass `at_event_time=True`:
+To restrict retrieval to feature values that were already available at each entity row's timestamp, pass `filter_by_created_timestamp=True`:
 
 ```python
 training_df = store.get_historical_features(
@@ -75,7 +75,7 @@ training_df = store.get_historical_features(
         'driver_hourly_stats:trips_today',
         'driver_hourly_stats:earnings_today'
     ],
-    at_event_time=True,
+    filter_by_created_timestamp=True,
 )
 ```
 

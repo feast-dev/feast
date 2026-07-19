@@ -101,6 +101,7 @@ class HybridOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         # TODO: Multiple data sources can be supported when feature store use compute engine
         # for getting historical features
@@ -128,6 +129,7 @@ class HybridOfflineStore(OfflineStore):
             registry,
             project,
             full_feature_names,
+            **kwargs,
         )
 
     @staticmethod
