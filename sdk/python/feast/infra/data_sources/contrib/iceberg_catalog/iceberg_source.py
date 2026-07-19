@@ -42,6 +42,7 @@ class IcebergSource(DataSource):
         namespace: str,
         table: str,
         catalog_type: str = "rest",
+        catalog_name: str = "feast_iceberg",
         endpoint: Optional[str] = None,
         catalog_properties: Optional[Dict[str, str]] = None,
         name: Optional[str] = None,
@@ -65,6 +66,7 @@ class IcebergSource(DataSource):
             owner=owner,
         )
         self.catalog_type = catalog_type
+        self.catalog_name = catalog_name
         self.endpoint = endpoint or ""
         self.warehouse = warehouse
         self.namespace = namespace
@@ -121,7 +123,7 @@ class IcebergSource(DataSource):
             token = os.environ.get(self.token_env_var, "")
             if token:
                 config.setdefault("token", token)
-        return load_catalog("feast_iceberg", **config)
+        return load_catalog(self.catalog_name, **config)
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.BATCH_ICEBERG
@@ -142,6 +144,7 @@ class IcebergSource(DataSource):
         return IcebergSource(
             name=data_source.name,
             catalog_type=custom_options.get("catalog_type", "rest"),
+            catalog_name=custom_options.get("catalog_name", "feast_iceberg"),
             endpoint=custom_options.get("endpoint", ""),
             warehouse=custom_options["warehouse"],
             namespace=custom_options["namespace"],
@@ -161,6 +164,7 @@ class IcebergSource(DataSource):
         config_json = json.dumps(
             {
                 "catalog_type": self.catalog_type,
+                "catalog_name": self.catalog_name,
                 "endpoint": self.endpoint,
                 "warehouse": self.warehouse,
                 "namespace": self.namespace,
@@ -258,6 +262,7 @@ class IcebergSource(DataSource):
             return False
         return (
             self.catalog_type == other.catalog_type
+            and self.catalog_name == other.catalog_name
             and self.endpoint == other.endpoint
             and self.warehouse == other.warehouse
             and self.namespace == other.namespace
