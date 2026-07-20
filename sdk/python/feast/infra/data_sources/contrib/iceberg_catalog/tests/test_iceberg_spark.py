@@ -1,13 +1,9 @@
 """Unit tests for Spark offline store reading from IcebergSource."""
 
-import os
-import tempfile
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 import pytest
 
 from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
@@ -19,7 +15,6 @@ pyspark = pytest.importorskip("pyspark")
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (  # noqa: E402
     _pull_from_iceberg_source,
     _register_iceberg_source_as_temp_view,
-    _resolve_uc_storage_location,
 )
 
 
@@ -39,107 +34,50 @@ def spark_session():
 
 
 class TestRegisterIcebergSourceAsTempView:
-    def test_local_file_mode(self, spark_session):
-        """file:// endpoint resolves to repo_path/data/{table}."""
-        with tempfile.TemporaryDirectory() as repo_path:
-            data_dir = os.path.join(repo_path, "data", "my_table")
-            os.makedirs(data_dir)
-            df = pd.DataFrame({"id": [1, 2, 3], "value": [10.0, 20.0, 30.0]})
-            pq.write_table(
-                pa.Table.from_pandas(df),
-                os.path.join(data_dir, "data.parquet"),
-            )
+    @patch(
+        "feast.infra.offline_stores.contrib.spark_offline_store"
+        ".spark._load_pyiceberg_table"
+    )
+    def test_pyiceberg_scan(self, mock_load, spark_session):
+        """Verify data is loaded via PyIceberg scan -> Arrow -> Spark DataFrame."""
+        arrow_tbl = pa.table({"id": [1, 2, 3], "value": [10.0, 20.0, 30.0]})
 
-            source = IcebergSource(
-                endpoint="file://local",
-                warehouse="w",
-                namespace="ns",
-                table="my_table",
-            )
-            config = MagicMock()
-            config.repo_path = repo_path
+        mock_iceberg_table = MagicMock()
+        mock_iceberg_table.scan.return_value.to_arrow.return_value = arrow_tbl
+        mock_load.return_value = mock_iceberg_table
 
-            _register_iceberg_source_as_temp_view(spark_session, source, config)
+        source = IcebergSource(
+            endpoint="http://host:8080/iceberg",
+            warehouse="w",
+            namespace="ns",
+            table="my_table",
+        )
+        config = MagicMock()
 
-            result = spark_session.sql("SELECT * FROM iceberg_tmp_my_table")
-            assert result.count() == 3
+        _register_iceberg_source_as_temp_view(spark_session, source, config)
+
+        result = spark_session.sql("SELECT * FROM iceberg_tmp_my_table")
+        assert result.count() == 3
+        mock_load.assert_called_once_with(source)
 
     @patch(
-        "feast.infra.data_sources.contrib.iceberg_catalog"
-        ".iceberg_source.IcebergSource.get_catalog_client"
+        "feast.infra.offline_stores.contrib.spark_offline_store"
+        ".spark._load_pyiceberg_table"
     )
-    def test_catalog_resolution(self, mock_get_client, spark_session):
-        """Non-file endpoint resolves location via catalog client."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            df = pd.DataFrame({"id": [1], "val": [42.0]})
-            pq.write_table(
-                pa.Table.from_pandas(df),
-                os.path.join(tmpdir, "data.parquet"),
-            )
+    def test_catalog_load_failure_propagates(self, mock_load, spark_session):
+        """Verify errors propagate instead of being silently swallowed."""
+        mock_load.side_effect = Exception("table not found")
 
-            mock_client = MagicMock()
-            mock_client.load_table.return_value = MagicMock(location=f"file://{tmpdir}")
-            mock_get_client.return_value = mock_client
+        source = IcebergSource(
+            endpoint="http://host:8080/iceberg",
+            warehouse="w",
+            namespace="ns",
+            table="bad_table",
+        )
+        config = MagicMock()
 
-            source = IcebergSource(
-                endpoint="http://host:8080/iceberg",
-                warehouse="w",
-                namespace="ns",
-                table="catalog_tbl",
-            )
-            config = MagicMock()
-            config.repo_path = "."
-
+        with pytest.raises(Exception, match="table not found"):
             _register_iceberg_source_as_temp_view(spark_session, source, config)
-
-            result = spark_session.sql("SELECT * FROM iceberg_tmp_catalog_tbl")
-            assert result.count() == 1
-            assert result.collect()[0]["val"] == 42.0
-
-
-class TestResolveUcStorageLocation:
-    @patch("requests.get")
-    def test_successful_resolution(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"storage_location": "file:///data/table1"}
-        mock_get.return_value = mock_resp
-
-        source = IcebergSource(
-            endpoint="http://localhost:8080",
-            warehouse="unity",
-            namespace="default",
-            table="table1",
-        )
-
-        with patch(
-            "feast.infra.offline_stores.contrib.spark_offline_store.spark.requests",
-            wraps=None,
-        ):
-            result = _resolve_uc_storage_location(source)
-
-        assert result == "file:///data/table1"
-
-    @patch("requests.get")
-    def test_failed_resolution(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-        mock_get.return_value = mock_resp
-
-        source = IcebergSource(
-            endpoint="http://localhost:8080",
-            warehouse="unity",
-            namespace="default",
-            table="missing_table",
-        )
-
-        with patch(
-            "feast.infra.offline_stores.contrib.spark_offline_store.spark.requests",
-            wraps=None,
-        ):
-            result = _resolve_uc_storage_location(source)
-
-        assert result is None
 
 
 class TestPullFromIcebergSource:

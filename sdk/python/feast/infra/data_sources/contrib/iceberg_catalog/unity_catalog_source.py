@@ -49,6 +49,9 @@ class UnityCatalogSource(IcebergSource):
         endpoint: Optional[str] = None,
         token_env_var: Optional[str] = None,
         credential_vending: bool = True,
+        catalog_type: str = "rest",
+        catalog_name: str = "feast_iceberg",
+        catalog_properties: Optional[Dict[str, str]] = None,
         register_as_feature_table: bool = True,
         sync_lineage: bool = True,
     ):
@@ -64,6 +67,9 @@ class UnityCatalogSource(IcebergSource):
             warehouse=warehouse,
             namespace=namespace,
             table=table,
+            catalog_type=catalog_type,
+            catalog_name=catalog_name,
+            catalog_properties=catalog_properties,
             name=name,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
@@ -110,6 +116,9 @@ class UnityCatalogSource(IcebergSource):
             table=custom_options["table"],
             token_env_var=custom_options.get("token_env_var"),
             credential_vending=custom_options.get("credential_vending", True),
+            catalog_type=custom_options.get("catalog_type", "rest"),
+            catalog_name=custom_options.get("catalog_name", "feast_iceberg"),
+            catalog_properties=custom_options.get("catalog_properties"),
             register_as_feature_table=custom_options.get(
                 "register_as_feature_table", True
             ),
@@ -131,6 +140,9 @@ class UnityCatalogSource(IcebergSource):
                 "table": self.iceberg_table,
                 "token_env_var": self.token_env_var,
                 "credential_vending": self.credential_vending,
+                "catalog_type": self.catalog_type,
+                "catalog_name": self.catalog_name,
+                "catalog_properties": self.catalog_properties,
                 "register_as_feature_table": self.register_as_feature_table,
                 "sync_lineage": self.sync_lineage,
             }

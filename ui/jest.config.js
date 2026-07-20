@@ -4,6 +4,7 @@ const transformNodeModules = [
   "msw",
   "until-async",
   "chroma-js",
+  "keycloak-js",
 ];
 
 module.exports = {
