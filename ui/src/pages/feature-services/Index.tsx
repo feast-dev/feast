@@ -9,6 +9,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFieldSearch,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
@@ -84,7 +85,8 @@ const filterFn = (
 };
 
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadFeatureServices();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadFeatureServices();
   const tagAggregationQuery = useFeatureServiceTagsAggregation();
 
   useDocumentTitle(`Feature Services | Feast`);
@@ -127,7 +129,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view feature services.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && !data && <FeatureServiceIndexEmptyState />}
         {isSuccess && filterResult && (
           <React.Fragment>
