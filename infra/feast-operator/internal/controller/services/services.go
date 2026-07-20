@@ -1274,7 +1274,7 @@ func (feast *FeastServices) isOnlineServer() bool {
 
 func (feast *FeastServices) isOnlineStore() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
-	return appliedServices != nil && appliedServices.OnlineStore != nil
+	return appliedServices != nil && appliedServices.OnlineStore != nil && !appliedServices.OnlineStore.Disabled
 }
 
 func (feast *FeastServices) noLocalCoreServerConfigured() bool {

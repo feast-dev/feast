@@ -654,6 +654,9 @@ _Appears in:_
 | `persistence` _[OnlineStorePersistence](#onlinestorepersistence)_ |  |
 | `serving` _[ServingConfig](#servingconfig)_ | Serving configures the Feast feature_server section written into feature_store.yaml for the online serve pod.
 Controls metrics granularity, offline push batching, and MCP. |
+| `disabled` _boolean_ | Disabled skips deploying the online store service entirely, including its
+serving pod and persistence. Omitting the online store block, or setting
+this to false, deploys the online store with defaults as before. |
 
 
 #### OnlineStoreDBStorePersistence
