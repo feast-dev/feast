@@ -99,14 +99,39 @@ class PostgreSQLOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(_append_alias(timestamps, "a")) + " DESC"
-        a_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
-        )
-        b_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
-        )
-
-        query = f"""
+        # Empty feature_name_columns means "all source columns". BatchFeatureView
+        # python/pandas/ray transforms signal this via get_column_info. Selecting
+        # only join keys + timestamps would starve the UDF of input features.
+        if not feature_name_columns:
+            distinct_on = ", ".join(f'a."{c}"' for c in join_key_columns) or (
+                f'a."{timestamp_field}"'
+            )
+            order_by_parts = [f'a."{c}"' for c in join_key_columns] + [
+                f'a."{timestamp_field}" DESC'
+            ]
+            if created_timestamp_column:
+                order_by_parts.append(f'a."{created_timestamp_column}" DESC')
+            order_by = ", ".join(order_by_parts)
+            query = f"""
+            SELECT DISTINCT ON ({distinct_on})
+                a.*
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
+            FROM {from_expression} a
+            WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            ORDER BY {order_by}
+            """
+        else:
+            a_field_string = ", ".join(
+                _append_alias(
+                    join_key_columns + feature_name_columns + timestamps, "a"
+                )
+            )
+            b_field_string = ", ".join(
+                _append_alias(
+                    join_key_columns + feature_name_columns + timestamps, "b"
+                )
+            )
+            query = f"""
             SELECT
                 {b_field_string}
                 {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
@@ -271,12 +296,17 @@ class PostgreSQLOfflineStore(OfflineStore):
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
-        field_string = ", ".join(
-            _append_alias(
-                join_key_columns + feature_name_columns + timestamp_fields,
-                "paftoq_alias",
+        # Empty feature_name_columns => SELECT * (BatchFeatureView python mode).
+        # Default materialization uses pull_all (pull_latest_features=False).
+        if not feature_name_columns:
+            field_string = "paftoq_alias.*"
+        else:
+            field_string = ", ".join(
+                _append_alias(
+                    join_key_columns + feature_name_columns + timestamp_fields,
+                    "paftoq_alias",
+                )
             )
-        )
 
         timestamp_filter = get_timestamp_filter_sql(
             start_date,

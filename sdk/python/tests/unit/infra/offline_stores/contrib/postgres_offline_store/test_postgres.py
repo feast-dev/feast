@@ -195,6 +195,69 @@ def test_pull_all_from_table_or_query(mock_get_conn):
 
 
 @patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
+def test_pull_all_empty_feature_cols_selects_star(mock_get_conn):
+    """Empty feature_name_columns means all source columns (BFV transform modes)."""
+    mock_conn = MagicMock()
+    mock_get_conn.return_value.__enter__.return_value = mock_conn
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=_mock_offline_store_config(),
+    )
+    test_data_source = PostgreSQLSource(
+        name="test_batch_source",
+        table="offline_store_database_name.offline_store_table_name",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = PostgreSQLOfflineStore.pull_all_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["entity_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    sql = retrieval_job.to_sql()
+    assert "paftoq_alias.*" in sql
+    assert 'paftoq_alias."entity_id"' not in sql
+
+
+@patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
+def test_pull_latest_empty_feature_cols_selects_star(mock_get_conn):
+    mock_conn = MagicMock()
+    mock_get_conn.return_value.__enter__.return_value = mock_conn
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=_mock_offline_store_config(),
+    )
+    test_data_source = PostgreSQLSource(
+        name="test_batch_source",
+        table="offline_store_database_name.offline_store_table_name",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = PostgreSQLOfflineStore.pull_latest_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["entity_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    sql = retrieval_job.to_sql()
+    assert "DISTINCT ON" in sql
+    assert "a.*" in sql
+    assert 'ORDER BY a."entity_id", a."event_timestamp" DESC' in sql
+
+
+@patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
 @patch(
     "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.df_to_postgres_table"
 )

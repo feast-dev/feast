@@ -1,7 +1,6 @@
 from types import FunctionType
 from typing import Any, Dict, Optional, cast
 
-import dill
 import pyarrow
 
 from feast.field import Field, from_value_type
@@ -164,7 +163,15 @@ class PythonTransformation(Transformation):
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
         return PythonTransformation(
-            udf=dill.loads(user_defined_function_proto.body),
-            udf_string=user_defined_function_proto.body_text,
+            udf=udf,
+            udf_string=udf_string,
         )

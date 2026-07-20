@@ -225,7 +225,7 @@ async def _get_features(
 ):
     if request.feature_service:
         feature_service = await run_in_threadpool(
-            store.get_feature_service, request.feature_service, allow_cache=True
+            store.get_feature_service, request.feature_service, allow_cache=False
         )
         assert_permissions(
             resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
@@ -237,7 +237,7 @@ async def _get_features(
             store.registry,
             store.project,
             request.features,
-            allow_cache=True,
+            allow_cache=False,
             hide_dummy_entity=False,
         )
         for feature_view in all_feature_views:

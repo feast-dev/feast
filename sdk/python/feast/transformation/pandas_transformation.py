@@ -1,7 +1,6 @@
 import inspect
 from typing import Any, Callable, Optional, cast, get_type_hints
 
-import dill
 import pandas as pd
 import pyarrow
 
@@ -146,7 +145,15 @@ class PandasTransformation(Transformation):
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
         return PandasTransformation(
-            udf=dill.loads(user_defined_function_proto.body),
-            udf_string=user_defined_function_proto.body_text,
+            udf=udf,
+            udf_string=udf_string,
         )
