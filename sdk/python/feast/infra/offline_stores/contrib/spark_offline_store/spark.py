@@ -299,7 +299,9 @@ class SparkOfflineStore(OfflineStore):
         )
 
         query_context = _apply_bfv_transformations(
-            spark_session, feature_views, query_context
+            spark_session=spark_session,
+            feature_views=feature_views,
+            query_contexts=query_context,
         )
 
         spark_query_context = [
@@ -1406,9 +1408,16 @@ def _apply_bfv_transformations(
     query_contexts: List[offline_utils.FeatureViewQueryContext],
 ) -> List[offline_utils.FeatureViewQueryContext]:
     """
-    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
-    invoke the transformation, register the result as a temp view, and replace the
-    table_subquery in the query context so the PIT join reads transformed data.
+    For BatchFeatureViews, update each query context in one of two ways:
+
+    1. Pre-computed path shortcut: if ``offline=True`` and
+       ``batch_source.path`` is set, read the pre-materialized parquet
+       directly — avoids re-running the UDF on every training call.
+    2. UDF execution: if the BFV has a transformation, run it against
+       the raw source and register the result as a temp view.
+
+    Plain FeatureViews and BFVs with neither a path nor a UDF pass
+    through unchanged.
     """
     from dataclasses import replace
 
@@ -1423,11 +1432,41 @@ def _apply_bfv_transformations(
     updated_contexts = []
     for ctx in query_contexts:
         fv = fv_by_name.get(ctx.name)
+        if fv is None or not isinstance(fv, BatchFeatureView):
+            updated_contexts.append(ctx)
+            continue
+
+        # 1. Pre-computed path shortcut
         if (
-            fv is not None
-            and isinstance(fv, BatchFeatureView)
-            and has_transformation(fv)
+            getattr(fv, "offline", False)
+            and isinstance(fv.batch_source, SparkSource)
+            and fv.batch_source.path
         ):
+            tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
+            file_format = fv.batch_source.file_format or "parquet"
+            try:
+                df = spark_session.read.format(file_format).load(fv.batch_source.path)
+                df.createOrReplaceTempView(tmp_view)
+                updated_contexts.append(replace(ctx, table_subquery=tmp_view))
+                continue
+            except (FileNotFoundError, PermissionError) as e:
+                warnings.warn(
+                    f"Offline path '{fv.batch_source.path}' not accessible for "
+                    f"'{ctx.name}': {e}; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error loading offline path "
+                    f"'{fv.batch_source.path}' for '{ctx.name}': {e}; "
+                    f"falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        # 2. UDF execution fallback
+        if has_transformation(fv):
             udf = get_transformation_function(fv)
             if udf is not None:
                 source_info = resolve_feature_view_source_with_fallback(fv)
@@ -1443,12 +1482,9 @@ def _apply_bfv_transformations(
                 source_df = spark_session.sql(
                     f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
                 )
-
                 transformed_df = udf(source_df)
-
                 tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
                 transformed_df.createOrReplaceTempView(tmp_view_name)
-
                 ctx = replace(ctx, table_subquery=tmp_view_name)
 
         updated_contexts.append(ctx)
