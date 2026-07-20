@@ -182,7 +182,7 @@ class SparkOfflineStore(OfflineStore):
     ) -> RetrievalJob:
         date_partition_column_formats = []
         for fv in feature_views:
-            if isinstance(fv.batch_source, SparkSource):
+            if isinstance(fv.batch_source, (SparkSource, IcebergRestCatalogSource)):
                 date_partition_column_formats.append(
                     fv.batch_source.date_partition_column_format
                 )
@@ -195,7 +195,7 @@ class SparkOfflineStore(OfflineStore):
                     date_partition_column_formats.append(None)
                 else:
                     raise ValueError(
-                        f"SparkOfflineStore requires SparkSource or IcebergSource, "
+                        f"SparkOfflineStore requires SparkSource, IcebergRestCatalogSource or IcebergSource, "
                         f"got {type(fv.batch_source)}"
                     )
 
@@ -209,6 +209,18 @@ class SparkOfflineStore(OfflineStore):
         if batch_source is None:
             raise ValueError("batch_source is required for the Spark offline store")
         spark_session = _resolve_spark_session_for_source(batch_source, config)
+
+        # Pre-register IcebergSource feature views as temp views
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        for fv in feature_views:
+            if isinstance(fv.batch_source, IcebergSource):
+                _register_iceberg_source_as_temp_view(
+                    spark_session, fv.batch_source, config
+                )
+
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
@@ -439,7 +451,7 @@ class SparkOfflineStore(OfflineStore):
                 config=config,
             )
 
-        assert isinstance(data_source, SparkSource)
+        assert isinstance(data_source, (SparkSource, IcebergRestCatalogSource))
 
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
