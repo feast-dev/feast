@@ -9,6 +9,7 @@ from feast.errors import (
     FeastPermissionError,
     PushSourceNotFoundException,
 )
+from feast.permissions.security_manager import get_security_manager
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,17 @@ MATCH_SCORE_TAGS = 60
 def grpc_call(handler_fn, request):
     """
     Wrapper to invoke gRPC method with context=None and handle common errors.
+
+    Sets SecurityManager's current project from ``request.project`` so REST
+    handlers (which call RegistryServer methods in-process, not through the
+    gRPC AuthInterceptor) authorize against the target project's permissions.
     """
+    sm = get_security_manager()
+    project_token = None
+    if sm is not None:
+        project_token = sm.set_current_project(
+            getattr(request, "project", None) or None
+        )
     try:
         response = handler_fn(request, context=None)
         return MessageToDict(response)
@@ -35,6 +46,9 @@ def grpc_call(handler_fn, request):
         raise
     except Exception as e:
         raise e
+    finally:
+        if sm is not None and project_token is not None:
+            sm.reset_current_project(project_token)
 
 
 def get_object_relationships(

@@ -18,6 +18,7 @@ import logging
 import os
 import time
 import warnings
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -214,6 +215,9 @@ class FeatureStore:
         self._registry = None
         self._provider = None
         self._openlineage_emitter = None
+        self._current_project: ContextVar[Optional[str]] = ContextVar(
+            "current_project", default=None
+        )
 
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
@@ -419,8 +423,14 @@ class FeatureStore:
 
     @property
     def project(self) -> str:
-        """Gets the project of this feature store."""
-        return self.config.project
+        """Gets the project for the current request context, falling back to the configured project."""
+        return self._current_project.get() or self.config.project
+
+    def set_current_project(self, project: Optional[str]):
+        return self._current_project.set(project)
+
+    def reset_current_project(self, token):
+        self._current_project.reset(token)
 
     @property
     def provider(self) -> Provider:
