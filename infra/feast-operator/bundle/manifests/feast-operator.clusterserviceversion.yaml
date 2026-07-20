@@ -180,11 +180,11 @@ spec:
           resources:
           - configmaps
           - persistentvolumeclaims
-          - serviceaccounts
           - services
           verbs:
           - create
           - delete
+          - deletecollection
           - get
           - list
           - update
@@ -193,9 +193,19 @@ spec:
           - ""
           resources:
           - namespaces
-          - pods
           - secrets
           verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - create
+          - delete
+          - deletecollection
           - get
           - list
           - watch
@@ -205,6 +215,23 @@ spec:
           - pods/exec
           verbs:
           - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods/log
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
@@ -337,6 +364,14 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - sparkoperator.k8s.io
+          resources:
+          - sparkapplications
+          verbs:
+          - create
+          - delete
+          - get
         - apiGroups:
           - authentication.k8s.io
           resources:

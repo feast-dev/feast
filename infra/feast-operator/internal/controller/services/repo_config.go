@@ -85,7 +85,7 @@ func getServiceRepoConfig(
 	}
 
 	if appliedSpec.BatchEngine != nil {
-		err := setRepoConfigBatchEngine(appliedSpec.BatchEngine, configMapExtractionFunc, &repoConfig)
+		err := setRepoConfigBatchEngine(featureStore, appliedSpec.BatchEngine, configMapExtractionFunc, &repoConfig)
 		if err != nil {
 			return repoConfig, err
 		}
@@ -346,6 +346,7 @@ func setRepoConfigOffline(services *feastdevv1.FeatureStoreServices, secretExtra
 }
 
 func setRepoConfigBatchEngine(
+	featureStore *feastdevv1.FeatureStore,
 	batchEngineConfig *feastdevv1.BatchEngineConfig,
 	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error),
 	repoConfig *RepoConfig) error {
@@ -366,6 +367,12 @@ func setRepoConfigBatchEngine(
 		return fmt.Errorf("batch engine config must contain 'type' field")
 	}
 	delete(config, "type")
+	// Inject service_account only for spark_application so baked feature_store.yaml
+	// matches the SA/RoleBinding created by reconcileBatchEngineRBAC.
+	// Other batch engines are left unchanged.
+	if engineType == "spark_application" {
+		config["service_account"] = resolveBatchDriverSAName(featureStore, config)
+	}
 	repoConfig.BatchEngine = &ComputeEngineConfig{
 		Type:       engineType,
 		Parameters: config,

@@ -2424,8 +2424,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.60.1.dev301+gcef6fa632
-  sha256: 8ab015050c832f342b967557f0d379aec897696b511d6bd6791e6f1b39c91d79
+  version: 0.64.1.dev43+g62f787425
+  sha256: c70a5aa8ddb601588c2aebe6ee791f55b2797d6e2d77a822de53ca3c71874f03
   requires_dist:
   - attrs
   - click>=7.0.0,<9.0.0
@@ -2436,8 +2436,7 @@ packages:
   - mmh3
   - numpy>=2.0.0,<3
   - pandas>=1.4.3,<3
-  - pyarrow>=21.0.0 ; extra != 'flink'
-  - pyarrow>=16.1.0,<21.0.0 ; extra == 'flink'
+  - pyarrow>=16.1.0
   - pydantic>=2.10.6
   - pygments>=2.12.0,<3
   - pyyaml>=5.4.0,<7
@@ -2477,6 +2476,7 @@ packages:
   - elasticsearch>=8.13.0 ; extra == 'elasticsearch'
   - faiss-cpu>=1.7.0,<=1.10.0 ; extra == 'faiss'
   - apache-flink>=2.2.1,<3 ; extra == 'flink'
+  - pyarrow<21.0.0 ; extra == 'flink'
   - google-api-core>=1.23.0,<3 ; extra == 'gcp'
   - googleapis-common-protos>=1.52.0,<2 ; extra == 'gcp'
   - google-cloud-bigquery[pandas]>=2,<4 ; extra == 'gcp'
@@ -2511,6 +2511,7 @@ packages:
   - prometheus-client ; extra == 'opentelemetry'
   - psutil ; extra == 'opentelemetry'
   - pyspark>=4.0.0 ; extra == 'spark'
+  - pyiceberg>=0.7.0 ; extra == 'iceberg'
   - trino>=0.305.0,<0.400.0 ; extra == 'trino'
   - regex ; extra == 'trino'
   - psycopg[binary,pool]>=3.2.5 ; extra == 'postgres'
@@ -2548,7 +2549,7 @@ packages:
   - minio==7.2.11 ; extra == 'test'
   - python-keycloak==4.2.2 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
   - virtualenv==20.23.0 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'

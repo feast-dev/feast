@@ -1,5 +1,6 @@
 """Tests for FeatureStore._teardown_openlineage()."""
 
+from contextvars import ContextVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +14,7 @@ class TestTeardownOpenlineage:
         from feast.feature_store import FeatureStore
 
         fs = object.__new__(FeatureStore)
+        fs._current_project = ContextVar("current_project", default=None)
 
         mock_ol_config = MagicMock()
         mock_ol_config.enabled = ol_enabled
@@ -53,6 +55,7 @@ class TestTeardownOpenlineage:
         from feast.feature_store import FeatureStore
 
         fs = object.__new__(FeatureStore)
+        fs._current_project = ContextVar("current_project", default=None)
         mock_config = MagicMock()
         mock_config.openlineage = None
         fs.config = mock_config
