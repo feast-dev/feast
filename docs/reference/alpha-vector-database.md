@@ -15,6 +15,7 @@ Below are supported vector databases and implemented features:
 | Faiss           | [ ]       | [ ]      | []          | []          |
 | SQLite          | [x]       | [ ]      | [x]         | [x]         |
 | Qdrant          | [x]       | [x]      | []          | []          |
+| ScyllaDB        | [x]       | [x]      | [x]         | [x]         |
 
 *Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
@@ -30,7 +31,7 @@ Beyond that, we will then have `retrieve_online_documents` and `retrieve_online_
 backwards compatibility and the adopt industry standard naming conventions.
 {% endhint %}
 
-**Note**: Milvus and SQLite implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
+**Note**: Milvus, SQLite, and ScyllaDB implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
 
 ## Examples
 

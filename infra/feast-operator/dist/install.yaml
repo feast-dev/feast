@@ -2408,6 +2408,7 @@ spec:
                                 - hybrid
                                 - mongodb
                                 - aerospike
+                                - scylladb
                                 type: string
                             required:
                             - secretRef
@@ -8714,6 +8715,7 @@ spec:
                                     - hybrid
                                     - mongodb
                                     - aerospike
+                                    - scylladb
                                     type: string
                                 required:
                                 - secretRef
@@ -14238,6 +14240,7 @@ spec:
                                 - hybrid
                                 - mongodb
                                 - aerospike
+                                - scylladb
                                 type: string
                             required:
                             - secretRef
@@ -18744,6 +18747,7 @@ spec:
                                     - hybrid
                                     - mongodb
                                     - aerospike
+                                    - scylladb
                                     type: string
                                 required:
                                 - secretRef
@@ -22033,11 +22037,11 @@ rules:
   resources:
   - configmaps
   - persistentvolumeclaims
-  - serviceaccounts
   - services
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - update
@@ -22046,9 +22050,19 @@ rules:
   - ""
   resources:
   - namespaces
-  - pods
   - secrets
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - deletecollection
   - get
   - list
   - watch
@@ -22058,6 +22072,23 @@ rules:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -22182,6 +22213,14 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  verbs:
+  - create
+  - delete
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

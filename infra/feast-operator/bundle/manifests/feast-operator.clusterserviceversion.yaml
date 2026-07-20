@@ -147,7 +147,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-06-13T11:22:06Z"
+    createdAt: "2026-07-09T20:32:45Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.64.0
@@ -180,11 +180,11 @@ spec:
           resources:
           - configmaps
           - persistentvolumeclaims
-          - serviceaccounts
           - services
           verbs:
           - create
           - delete
+          - deletecollection
           - get
           - list
           - update
@@ -193,9 +193,19 @@ spec:
           - ""
           resources:
           - namespaces
-          - pods
           - secrets
           verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - create
+          - delete
+          - deletecollection
           - get
           - list
           - watch
@@ -205,6 +215,23 @@ spec:
           - pods/exec
           verbs:
           - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods/log
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
@@ -245,6 +272,14 @@ spec:
           - list
           - patch
           - update
+          - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - apiservers
+          verbs:
+          - get
+          - list
           - watch
         - apiGroups:
           - feast.dev
@@ -321,6 +356,14 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - sparkoperator.k8s.io
+          resources:
+          - sparkapplications
+          verbs:
+          - create
+          - delete
+          - get
         - apiGroups:
           - authentication.k8s.io
           resources:

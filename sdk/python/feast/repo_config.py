@@ -51,6 +51,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
     "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
+    "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -76,6 +77,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "scylladb": "feast.infra.online_stores.scylladb_online_store.scylladb.ScyllaDBOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",

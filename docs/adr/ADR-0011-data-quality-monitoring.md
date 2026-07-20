@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded — The original external-library-based validation has been replaced by Feast's native [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system (`feast monitor run`).
 
 ## Context
 
@@ -12,92 +12,51 @@ Data quality issues can significantly impact ML model performance. Several compl
 - **Upstream pipeline bugs**: Bugs in upstream pipelines can cause invalid values to overwrite existing valid values in an online store.
 - **Training/serving skew**: Distribution shift between training and serving data can decrease model performance.
 
-Feast needed a mechanism to validate data at retrieval time to catch these issues before they affect model training or serving.
+Feast needed a mechanism to validate data to catch these issues before they affect model training or serving.
 
 ## Decision
 
-Introduce a Data Quality Monitoring (DQM) module that validates datasets against user-curated rules, initially targeting historical retrieval (training dataset generation).
+Introduce a Data Quality Monitoring (DQM) module that validates datasets against user-curated rules.
 
-### Design
+### Original Design (now replaced)
 
-The validation process uses a **reference dataset** and a **profiler** pattern:
+The original validation process used a **reference dataset** and a **profiler** pattern:
 
 1. User prepares a reference dataset (saved from a known-good historical retrieval).
 2. User defines a profiler function that produces a profile (set of expectations) from a dataset.
 3. Validation is performed by comparing the tested dataset against the reference profile.
 
-### Integration with Great Expectations
+This approach was limited to historical retrieval only, required additional dependencies, and offered no built-in UI or automation.
 
-The initial implementation uses [Great Expectations](https://greatexpectations.io/) as the validation engine:
+### Current Design
 
-```python
-from feast.dqm.profilers.ge_profiler import ge_profiler
-from great_expectations.dataset import Dataset
-from great_expectations.core.expectation_suite import ExpectationSuite
+The current system (`feast monitor run`) provides:
 
-@ge_profiler
-def my_profiler(dataset: Dataset) -> ExpectationSuite:
-    dataset.expect_column_max_to_be_between("column", 1, 2)
-    dataset.expect_column_values_to_not_be_null("important_feature")
-    return dataset.get_expectation_suite()
-```
+- Automatic metric computation (null rates, percentiles, histograms) with no external dependencies
+- Monitoring across batch data and serving logs
+- CLI and REST API for automation
+- Built-in UI monitoring dashboard
+- Support for all offline store backends via SQL push-down
 
-### Usage
-
-Validation is triggered during historical feature retrieval via a `validation_reference` parameter:
-
-```python
-from feast import FeatureStore
-
-store = FeatureStore(".")
-
-job = store.get_historical_features(...)
-df = job.to_df(
-    validation_reference=store
-        .get_saved_dataset("my_reference_dataset")
-        .as_reference(profiler=my_profiler)
-)
-```
-
-If validation fails, a `ValidationFailed` exception is raised with details for all expectations that didn't pass. If validation succeeds, the materialized dataset is returned normally.
-
-### Key Decisions
-
-- **Profiler-based approach**: Users define their own validation rules via profiler functions rather than Feast prescribing fixed validation rules.
-- **Great Expectations integration**: Leverages an established data validation framework rather than building custom validation logic.
-- **Validation at retrieval time**: Validation is performed when datasets are materialized (`.to_df()` or `.to_arrow()`), not during ingestion.
-- **ValidationReference as a registry object**: Saved datasets and their validation references are stored in the Feast registry for reuse.
+See [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) for full documentation.
 
 ## Consequences
 
 ### Positive
 
 - Users can detect data quality issues before they affect model training.
-- Flexible profiler pattern allows custom validation rules per use case.
-- Integration with Great Expectations provides a rich set of built-in expectations.
-- Reference datasets provide a baseline for detecting data drift.
+- Native integration requires no extra dependencies.
+- Covers both batch data and serving logs.
+- Built-in UI provides immediate visibility into feature health.
+- Baselines computed automatically on `feast apply`.
 
 ### Negative
 
-- Currently limited to historical retrieval; online store write/read validation is planned but not yet implemented.
-- Dependency on Great Expectations adds to the install footprint (optional via `feast[ge]`).
-- Automatic profiling capabilities are limited; manual expectation crafting is recommended.
-
-## Superseded
-
-This ADR documents the original GE-based approach which is now **deprecated**. It has been superseded by Feast's built-in [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system (introduced in 2025), which provides:
-
-- Automatic metric computation (null rates, percentiles, histograms) with no external dependencies
-- Monitoring across batch data and serving logs
-- CLI (`feast monitor run`) and REST API for automation
-- Built-in UI monitoring dashboard
-- Support for all offline store backends via SQL push-down
-
-The GE-based integration may be removed in a future release.
+- Migration required from the original profiler-based approach.
 
 ## References
 
-- Original RFC: Feast RFC-027: Data Quality Monitoring 
-- Implementation: `sdk/python/feast/dqm/`, `sdk/python/feast/saved_dataset.py`
-- Documentation: [Data Quality Monitoring (deprecated)](../reference/dqm.md)
-- **New system:** [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md)
+- Original RFC: Feast RFC-027: Data Quality Monitoring
+- Implementation: `sdk/python/feast/monitoring/`
+- Documentation: [Data Quality Monitoring](../reference/dqm.md)
+- [Feature Quality Monitoring guide](../how-to-guides/feature-monitoring.md)

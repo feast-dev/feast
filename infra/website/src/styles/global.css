@@ -4,7 +4,9 @@
     --font-mono: "IBM Plex Mono", monospace;
     --font-sans: "IBM Plex Sans", sans-serif;
     --color-text: rgb(0, 0, 0);
+    --color-text-secondary: #666;
     --color-background: #ffffff;
+    --color-surface: #f5f5f5;
     --color-primary: #0068c9;
     --color-border: #e5e5e5;
     --spacing-sm: 16px;
@@ -14,6 +16,12 @@
     --border-color: rgb(214, 214, 214);
     --content-max-width: 1200px;
     --content-padding: 20px;
+    --color-nav-bg: #ffffff;
+    --color-nav-hover: #f5f5f5;
+    --color-button-hover: #333;
+    --color-code-bg: #000;
+    --color-code-text: #e6edf3;
+    --color-logo-filter: none;
     --shiki-color-text: #e6edf3;
     --shiki-color-background: #000000;
     --shiki-token-constant: #79c0ff;
@@ -25,6 +33,22 @@
     --shiki-token-string-expression: #a5d6ff;
     --shiki-token-punctuation: #e6edf3;
     --shiki-token-link: #a5d6ff;
+}
+
+[data-theme="dark"] {
+    --color-text: rgb(230, 230, 230);
+    --color-text-secondary: #999;
+    --color-background: #0d0d0d;
+    --color-surface: #1a1a1a;
+    --color-primary: #4da3ff;
+    --color-border: #2a2a2a;
+    --border-color: #2a2a2a;
+    --color-nav-bg: #111111;
+    --color-nav-hover: #1a1a1a;
+    --color-button-hover: #ccc;
+    --color-code-bg: #111;
+    --color-code-text: #e6edf3;
+    --color-logo-filter: invert(1);
 }
 
 /* Common text rendering properties */
@@ -83,7 +107,7 @@ main::before {
     top: 0;
     left: 0;
     right: 0;
-    background-color: white;
+    background-color: var(--color-nav-bg);
     z-index: 1000;
 }
 
@@ -160,9 +184,9 @@ main::before {
 .mobile-menu {
     display: none;
     width: 100%;
-    background: white;
+    background: var(--color-nav-bg);
     padding: 16px 0;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--color-border);
     position: absolute;
     top: 52px;
     left: 0;
@@ -178,7 +202,7 @@ main::before {
 }
 
 .mobile-menu a:hover {
-    background-color: #f5f5f5;
+    background-color: var(--color-nav-hover);
 }
 
 /* Hero section */
@@ -234,11 +258,11 @@ main::before {
 
 .button-primary {
     background-color: var(--color-text);
-    color: white;
+    color: var(--color-background);
 }
 
 .button-primary:hover {
-    background-color: #333;
+    background-color: var(--color-button-hover);
 }
 
 .hero-button {
@@ -324,12 +348,12 @@ main::before {
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 24px;
-    color: #333;
+    color: var(--color-text-secondary);
 }
 
 /* Code Example */
 .code-example {
-    background-color: #f5f5f5;
+    background-color: var(--color-surface);
     border-radius: 4px;
     padding: var(--spacing-md);
     margin-top: var(--spacing-lg);
@@ -357,7 +381,7 @@ main::before {
 .features-section {
     padding-top: 80px;
     margin-top: 40px;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--color-border);
 }
 
 /* Add a visual indicator to encourage scrolling */
@@ -392,13 +416,13 @@ main::before {
 }
 
 .metric-area {
-    fill: #ccc;
-    opacity: 0.6;
+    fill: var(--color-text-secondary);
+    opacity: 0.4;
 }
 
 .metric-line {
     fill: none;
-    stroke: black;
+    stroke: var(--color-text);
     stroke-width: 1;
     opacity: 0.8;
 }
@@ -407,6 +431,7 @@ main::before {
     font-family: var(--font-mono);
     font-size: 12px;
     font-weight: 500;
+    fill: var(--color-text);
 }
 
 /* Metrics section */
@@ -452,7 +477,7 @@ main::before {
 .metric-label {
     font-family: var(--font-mono);
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
@@ -516,7 +541,7 @@ main::before {
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 20px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0;
 }
 
@@ -599,6 +624,22 @@ main::before {
     margin: 0 auto;
 }
 
+[data-theme="dark"] .integration-logo {
+    filter: grayscale(100%) contrast(1.2) invert(1);
+}
+
+[data-theme="dark"] .integration-logo:hover {
+    filter: grayscale(0%) contrast(1) brightness(1.2);
+}
+
+[data-theme="dark"] .company-logo {
+    filter: var(--color-logo-filter);
+}
+
+[data-theme="dark"] .logo img {
+    filter: var(--color-logo-filter);
+}
+
 /* Specific logo size adjustments */
 .integration-item img[alt="SingleStore"] {
     max-width: 130px;
@@ -619,7 +660,7 @@ main::before {
     font-size: 14px;
     font-weight: 600;
     text-align: center;
-    color: #666;
+    color: var(--color-text-secondary);
     opacity: 0.9;
     transition: opacity 0.2s ease;
     padding: 8px 0;
@@ -655,7 +696,7 @@ main::before {
 }
 
 .code-block {
-    background-color: #000;
+    background-color: var(--color-code-bg);
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     margin: 0 auto;
@@ -752,7 +793,7 @@ main::before {
     font-size: 12px;
     font-weight: 400;
     text-transform: uppercase;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 12px;
 }
 
@@ -769,7 +810,7 @@ main::before {
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 20px;
-    color: #666;
+    color: var(--color-text-secondary);
 }
 
 /* CTA section */
@@ -815,7 +856,7 @@ main::before {
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 20px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0 auto 24px;
     max-width: 280px;
 }
@@ -840,7 +881,7 @@ main::before {
 
 .cta-button:hover {
     background: var(--color-text);
-    color: white;
+    color: var(--color-background);
 }
 
 /* Bordered container */
