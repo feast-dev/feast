@@ -2266,6 +2266,11 @@ spec:
                   onlineStore:
                     description: OnlineStore configures the online store service
                     properties:
+                      disabled:
+                        description: |-
+                          Disabled skips deploying the online store service entirely, including its
+                          serving pod and persistence.
+                        type: boolean
                       persistence:
                         description: OnlineStorePersistence configures the persistence
                           settings for the online store service
@@ -8570,6 +8575,11 @@ spec:
                       onlineStore:
                         description: OnlineStore configures the online store service
                         properties:
+                          disabled:
+                            description: |-
+                              Disabled skips deploying the online store service entirely, including its
+                              serving pod and persistence.
+                            type: boolean
                           persistence:
                             description: OnlineStorePersistence configures the persistence
                               settings for the online store service
