@@ -1,5 +1,147 @@
 # Changelog
 
+# [0.65.0](https://github.com/feast-dev/feast/compare/v0.64.0...v0.65.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* add debug logging for FIPS mode detection fallback ([6c1b24e](https://github.com/feast-dev/feast/commit/6c1b24ee6f27c469107269828b623180882de321))
+* Build embedded UI from local source ([#6525](https://github.com/feast-dev/feast/issues/6525)) ([3500349](https://github.com/feast-dev/feast/commit/35003494862f8b4af7f2d7eea321356743df074f))
+* Bump decommissioned Snowflake Python UDF runtime from 3.9 to 3.10 ([#6606](https://github.com/feast-dev/feast/issues/6606)) ([#6608](https://github.com/feast-dev/feast/issues/6608)) ([10341e4](https://github.com/feast-dev/feast/commit/10341e4d9cc05478ef863b33c3eeee3cc8da0162))
+* configure FIPS-compliant gRPC cipher suites for offline server ([6bc80a2](https://github.com/feast-dev/feast/commit/6bc80a2474e013724b1579d6de824c76e5d77f3d))
+* Correct Flink PyArrow dependency constraints ([#6604](https://github.com/feast-dev/feast/issues/6604)) ([70a9751](https://github.com/feast-dev/feast/commit/70a97515b8dc93e992d214e11c2bf9cd9ec65aa7))
+* Fix ValueError in signal handling for Trino worker threads ([#6428](https://github.com/feast-dev/feast/issues/6428)) ([506d919](https://github.com/feast-dev/feast/commit/506d919f3aaaaccdc4ac14cd23d0870302c6b13c))
+* Fixed monitoring page issues ([7946018](https://github.com/feast-dev/feast/commit/7946018c40f482bd82efb9a1c555d47dba5d4e54))
+* Make pytest config compatible with newer pytest ([#5779](https://github.com/feast-dev/feast/issues/5779)) ([a57ea33](https://github.com/feast-dev/feast/commit/a57ea331c53bf48a08e96764ff88fe2104bdb5bc))
+* Replace comma with space in DynamoDB-incompatible label tag value ([51e3a16](https://github.com/feast-dev/feast/commit/51e3a164fabf6e1cb2a1e41ae55328a4778177c4))
+* Resolve UI build warnings ([#6529](https://github.com/feast-dev/feast/issues/6529)) ([abe92af](https://github.com/feast-dev/feast/commit/abe92af5ef31283472a5d220390ed80b35baf3aa))
+* Unblock nightly UI build ([#6570](https://github.com/feast-dev/feast/issues/6570)) ([f296d4b](https://github.com/feast-dev/feast/commit/f296d4ba14c5d512429219b2b7845673e0fe524d))
+* Use LONGBLOB for SQL registry proto columns on MySQL ([#6566](https://github.com/feast-dev/feast/issues/6566)) ([7e4beb2](https://github.com/feast-dev/feast/commit/7e4beb21fdba8ee00afd7d0176989e42c10e31a1))
+
+
+### Features
+
+* Add click-to-zoom lightbox for blog post images ([#6575](https://github.com/feast-dev/feast/issues/6575)) ([1cb23fd](https://github.com/feast-dev/feast/commit/1cb23fde61862c6d53b434cd5b3ccbffea58d2a6))
+* Add dark mode support to website and blog ([#6589](https://github.com/feast-dev/feast/issues/6589)) ([7358fb8](https://github.com/feast-dev/feast/commit/7358fb8c9a9f8543f6add0e13b8b4b06ef11916b))
+* Add OnlineStore for Aerospike ([#6532](https://github.com/feast-dev/feast/issues/6532)) ([9cd35e1](https://github.com/feast-dev/feast/commit/9cd35e140a949dc44a9915300f2724dd2e702f03))
+* Add OpenLineage Consumer to Feast - receive, store, and visualize cross-producer lineage ([#6549](https://github.com/feast-dev/feast/issues/6549)) ([a834126](https://github.com/feast-dev/feast/commit/a834126b674356ea1efeafd7006f579c9148c3a1))
+* Add registry list feature views by updated since ([#6092](https://github.com/feast-dev/feast/issues/6092)) ([#6093](https://github.com/feast-dev/feast/issues/6093)) ([006c606](https://github.com/feast-dev/feast/commit/006c606183457373d8c83b1986a9f35e1d764c9a))
+* Add ScyllaDB online store with vector search ([#6508](https://github.com/feast-dev/feast/issues/6508)) ([1669661](https://github.com/feast-dev/feast/commit/1669661e15d3ba3b5ab9a9fffd19248d9c0da211))
+* Added compute and jobs UI ([ba2c05c](https://github.com/feast-dev/feast/commit/ba2c05c731be64aff8e7af0fdeefcbe8aa397308))
+* Added Iceberg REST Catalog data source support ([e0a8573](https://github.com/feast-dev/feast/commit/e0a8573eb453dd7060343c4e474e7fca7e1378f7))
+* Bring Your Own Spark - SparkApplication ([#6550](https://github.com/feast-dev/feast/issues/6550)) ([dcd496f](https://github.com/feast-dev/feast/commit/dcd496f22e109f0f77338d41e057dd71113b67d0))
+* **cassandra:** Add multi-DC support via per-datacenter execution profiles ([#6434](https://github.com/feast-dev/feast/issues/6434)) ([0de9196](https://github.com/feast-dev/feast/commit/0de9196d75a63e1ba3860de051cab40c6eba8efc))
+* Enhanced data source creation as a visual catalog with type-specific forms ([#6557](https://github.com/feast-dev/feast/issues/6557)) ([d6acbba](https://github.com/feast-dev/feast/commit/d6acbba057cde6e1c088d068e39492448c73fea1))
+* Enhanced datasets UI functionality ([de11152](https://github.com/feast-dev/feast/commit/de111525985b542b8bfa61118e1ee949254d8703))
+* Implement RegistryServer.Proto RPC with RBAC-filtered response ([#6558](https://github.com/feast-dev/feast/issues/6558)) ([#6552](https://github.com/feast-dev/feast/issues/6552)) ([0d02614](https://github.com/feast-dev/feast/commit/0d02614edcc6fb71992cbb0b539c4b0e2a50f810))
+* New zoned timestamp feature type ([#6536](https://github.com/feast-dev/feast/issues/6536)) ([#6537](https://github.com/feast-dev/feast/issues/6537)) ([eb042f0](https://github.com/feast-dev/feast/commit/eb042f04f5d9bdd7dafbaf654d5b5ec2a2572d9f))
+* **operator:** Auto-create RBAC for spark_application batch engine ([#6597](https://github.com/feast-dev/feast/issues/6597)) ([f487b37](https://github.com/feast-dev/feast/commit/f487b37fd317c63d0d0060ccf8be5d8238d484dd))
+* **operator:** integrate cluster TLS profile for OCP 5.0 compliance ([43263a6](https://github.com/feast-dev/feast/commit/43263a658abe5e2080241b5819fdd8affb4e5fef))
+* Permissions CRUD UI and OIDC auth integration in UI ([6511da1](https://github.com/feast-dev/feast/commit/6511da1323f5634595b5b2ae4e8a5055599c7885))
+* Retrieve historical features from BigQuery without entity_df ([#6569](https://github.com/feast-dev/feast/issues/6569)) ([cd5f6bb](https://github.com/feast-dev/feast/commit/cd5f6bbbd36f11f1d2e2faf8e5e773076b7a3026)), closes [#6558](https://github.com/feast-dev/feast/issues/6558) [#6552](https://github.com/feast-dev/feast/issues/6552)
+* **spark:** SparkSource query+path and pre-computed offline read for BatchFeatureView ([#6440](https://github.com/feast-dev/feast/issues/6440)) ([4dc8757](https://github.com/feast-dev/feast/commit/4dc8757626c69c833a8d8174a6bd1513b1671ad7))
+
+
+### BREAKING CHANGES
+
+* total_timeout_ms is renamed to batch_total_timeout_ms. Config files using the old name must be updated. No default value change.
+
+Docs updated (reference + perf-tuning guide) with a short explainer on the per-attempt vs total deadline distinction. Two new unit tests pin the policy wiring: socket_timeout_ms propagates to all three scopes, and is omitted (not injected as None) when unset.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* refactor(aerospike): use MAP_KEY_ORDERED, KEY_DIGEST, and instance-scoped client
+
+Cheap-win cleanups flagged in review, all touching the same small patch of write-path and lifecycle code.
+
+* Map CDTs are now created with MAP_KEY_ORDERED. map_get_by_key / map_remove_by_key on an ordered map are O(log N) in the map size instead of O(N); matters on reads of wide feature views and on the update() background scan (which walks every record in the project's set).
+
+* Writes drop POLICY_KEY_SEND and rely on the client default (POLICY_KEY_DIGEST). The serialized entity key is no longer stored alongside each record, saving per-record storage the read path never consumes (batch_operate preserves request order; results are paired back by zip in online_read).
+
+* _client moves from a class attribute to an instance attribute (set in __init__). Previously two AerospikeOnlineStore instances could share the cached client through class state until one wrote self._client. With the instance attribute the state is always per-instance from construction.
+
+* Drop MongoDB references from class docstrings and comments (they referred to how the storage layout was derived rather than documenting current behavior). Also rewrite the _build_batch_writes docstring to describe the policies applied on the write path.
+
+Unit test assertions for the write-path record are updated: bw.policy is now None (client default applies) and map ops carry map_policy={'map_order': MAP_KEY_ORDERED}. All three docker-backed integration tests still pass end-to-end (cross-FV upsert, update() background scan, full feature-store round-trip), so the read/write shape survives the ordering and policy changes against a real server.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* feat(aerospike): add per-FV namespace/set overrides and prewriting hook
+
+Adds three configuration knobs to AerospikeOnlineStoreConfig:
+
+- namespace_overrides: pin individual feature views to a different
+  Aerospike namespace (e.g. RAM-only vs. SSD-backed) without splitting
+  the project across stores.
+- set_overrides: place a feature view in its own set so admin ops on
+  it (truncate, scan-based deletes during `feast apply`) do not touch
+  records of other views.
+- prewriting_hook: import-string-resolved callable invoked once per
+  online_write_batch with the rows about to be written, returning the
+  rows that actually go on the wire. Resolved and cached on first use;
+  returning [] short-circuits the wire call.
+
+Read, write, update and teardown paths all honour the per-FV ns/set
+resolution. update() groups dropped feature views by their resolved
+(ns, set) pair and issues one background scan per group. teardown()
+truncates every unique (ns, set) pair the project may have written to,
+including the store-level default.
+
+Adds 22 unit tests for the new behaviour and updates 3 existing call
+sites of _build_batch_writes for the new namespace= parameter. Adds a
+sample hook module under examples/online_store/aerospike_overrides_and_hooks/
+and corresponding sections in docs/reference/online-stores/aerospike.md.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* test: update aerospike image tag
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* chore: sync README template and secrets baseline after master merge
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* chore: fix secrets baseline line number for v1 operator types
+
+Adding aerospike to the feast-operator enum shifted the allowlisted
+SecretRef entry in api/v1/featurestore_types.go by one line.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* docs: update aerospike docs
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* fix(aerospike): wire batch max_retries and fix empty projection handling
+
+Copilot review feedback on PR #6532:
+
+- Add max_retries to the batch client policy (batch_operate/batch_write path)
+- Treat empty projected feature maps as present FV slots (is not None)
+- Return {} from _normalize_projected_features([]) instead of None
+- Fix projection unit test mock/assertions
+- Correct prewriting_hook config docstring
+
+Co-authored-by: Copilot Autofix powered by AI <175728472+Copilot@users.noreply.github.com>
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* style(aerospike): format online_read docs assignment for ruff
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* chore: update pixi.lock for aerospike optional extra
+
+Regenerate the v6 lockfile with Pixi v0.63.1 after adding the aerospike extra to pyproject.toml.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
+* fix(aerospike): add client init lock and batch chunking
+
+Guard lazy client creation with a lock to avoid connection leaks under concurrent first use, and chunk batch reads/writes by batch_max_records so large materializations stay under Aerospike server batch limits.
+
+Signed-off-by: Valentyn Kahamlyk <valentin.kagamlyk@gmail.com>
+
 # [0.64.0](https://github.com/feast-dev/feast/compare/v0.63.0...v0.64.0) (2026-06-13)
 
 

@@ -1040,6 +1040,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         store = self.store
         job_manager = get_dataset_job_manager()
         dataset_name = request.name.strip()
+        project = request.project.strip()
 
         entity_source_type = request.entity_source_type
         entity_keys = list(request.entity_keys)
@@ -1056,49 +1057,55 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         allow_overwrite = request.allow_overwrite
 
         def _execute_create(job: DatasetJob):
-            if entity_source_type == "inline":
-                entity_df = build_entity_df_from_inline(
-                    entity_keys=entity_keys,
-                    entity_values=entity_values,
-                    start_date=start_date,
-                    end_date=end_date,
-                    extra_columns=extra_columns,
+            token = store.set_current_project(project)
+            try:
+                if entity_source_type == "inline":
+                    entity_df = build_entity_df_from_inline(
+                        entity_keys=entity_keys,
+                        entity_values=entity_values,
+                        start_date=start_date,
+                        end_date=end_date,
+                        extra_columns=extra_columns,
+                    )
+                else:
+                    entity_df = pd.read_parquet(entity_source_path)
+                    for col in ["event_timestamp", "datetime", "timestamp"]:
+                        if col in entity_df.columns:
+                            entity_df[col] = pd.to_datetime(entity_df[col])
+                            break
+                    if extra_columns:
+                        for col_line in extra_columns.strip().split("\n"):
+                            col_line = col_line.strip()
+                            if "=" in col_line:
+                                col_name, col_value = col_line.split("=", 1)
+                                col_name = col_name.strip()
+                                col_value = col_value.strip()
+                                if col_name:
+                                    entity_df[col_name] = coerce_value(col_value)
+
+                features = (
+                    store.get_feature_service(feature_service_name)
+                    if feature_service_name
+                    else features_list
                 )
-            else:
-                entity_df = pd.read_parquet(entity_source_path)
-                for col in ["event_timestamp", "datetime", "timestamp"]:
-                    if col in entity_df.columns:
-                        entity_df[col] = pd.to_datetime(entity_df[col])
-                        break
-                if extra_columns:
-                    for col_line in extra_columns.strip().split("\n"):
-                        col_line = col_line.strip()
-                        if "=" in col_line:
-                            col_name, col_value = col_line.split("=", 1)
-                            col_name = col_name.strip()
-                            col_value = col_value.strip()
-                            if col_name:
-                                entity_df[col_name] = coerce_value(col_value)
+                storage = build_saved_dataset_storage(
+                    storage_type, storage_path.strip()
+                )
 
-            features = (
-                store.get_feature_service(feature_service_name)
-                if feature_service_name
-                else features_list
-            )
-            storage = build_saved_dataset_storage(storage_type, storage_path.strip())
-
-            store.create_dataset_from_retrieval(
-                name=dataset_name,
-                entity_df=entity_df,
-                features=features,
-                storage=storage,
-                tags=tags,
-                allow_overwrite=allow_overwrite,
-            )
+                store.create_dataset_from_retrieval(
+                    name=dataset_name,
+                    entity_df=entity_df,
+                    features=features,
+                    storage=storage,
+                    tags=tags,
+                    allow_overwrite=allow_overwrite,
+                )
+            finally:
+                store.reset_current_project(token)
 
         job = job_manager.submit_job(
             name=dataset_name,
-            project=request.project.strip(),
+            project=project,
             task_fn=_execute_create,
             metadata={
                 "storage_type": storage_type,
@@ -1122,13 +1129,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         self._require_store()
 
-        dataset = self.store.registry.get_saved_dataset(
-            request.name, self.store.project
-        )
-        assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
+        project = request.project or self.store.project
+        token = self.store.set_current_project(project)
+        try:
+            dataset = self.store.registry.get_saved_dataset(
+                request.name, self.store.project
+            )
+            assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
 
-        limit = request.limit if request.limit > 0 else 10
-        df = self.store.retrieve_dataset_data(request.name, limit=limit)
+            limit = request.limit if request.limit > 0 else 10
+            df = self.store.retrieve_dataset_data(request.name, limit=limit)
+        finally:
+            self.store.reset_current_project(token)
 
         if df.empty:
             return RegistryServer_pb2.GetDatasetDataResponse(
