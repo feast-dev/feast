@@ -51,6 +51,10 @@ func DiscoverMlflowTrackingUri(ctx context.Context, c client.Client) (string, bo
 		return "", false
 	}
 
+	if !isMlflowReady(status) {
+		return "", false
+	}
+
 	// Prefer in-cluster address (HTTPS service URL)
 	if addr, ok := status["address"].(map[string]interface{}); ok {
 		if url, ok := addr["url"].(string); ok && url != "" {
@@ -64,6 +68,28 @@ func DiscoverMlflowTrackingUri(ctx context.Context, c client.Client) (string, bo
 	}
 
 	return "", false
+}
+
+// isMlflowReady checks status.conditions for a Ready=True condition.
+// Returns true when conditions are absent (best-effort: older MLflow CRs may
+// not report conditions, so we fall through to URL-based discovery).
+func isMlflowReady(status map[string]interface{}) bool {
+	conditions, ok := status["conditions"].([]interface{})
+	if !ok || len(conditions) == 0 {
+		return true
+	}
+	for _, c := range conditions {
+		cond, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		condType, _ := cond["type"].(string)
+		condStatus, _ := cond["status"].(string)
+		if condType == "Ready" {
+			return condStatus == "True"
+		}
+	}
+	return true
 }
 
 const mlflowRoleBindingSuffix = "-mlflow-integration"
@@ -83,11 +109,7 @@ func (feast *FeastServices) deployMlflowRoleBinding() error {
 	rb.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"))
 
 	if applied == nil || !applied.Enabled {
-		// Clean up if it exists
-		if err := feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(rb), rb); err == nil {
-			return feast.Handler.Client.Delete(feast.Handler.Context, rb)
-		}
-		return nil
+		return feast.Handler.DeleteOwnedFeastObj(rb)
 	}
 
 	logger := log.FromContext(feast.Handler.Context)
