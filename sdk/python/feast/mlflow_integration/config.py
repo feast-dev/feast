@@ -32,7 +32,7 @@ def resolve_tracking_uri(configured_uri: Optional[str] = None) -> Optional[str]:
 
 
 class DatasetSyncConfig(FeastBaseModel):
-    """Configuration for the ``feast datasets sync`` command."""
+    """Configuration for the ``feast mlflow sync-dataset`` command."""
 
     default_field_mapping: Dict[str, str] = {}
     """ dict: Default field mapping overrides applied during dataset sync.
@@ -96,7 +96,7 @@ class MlflowConfig(FeastBaseModel):
         entity keys contain PII.  Defaults to False. """
 
     dataset_sync: DatasetSyncConfig = DatasetSyncConfig()
-    """ DatasetSyncConfig: Configuration for the ``feast datasets sync``
+    """ DatasetSyncConfig: Configuration for the ``feast mlflow sync-dataset``
         command (field mapping, watermark key, batch size). """
 
     def get_tracking_uri(self) -> Optional[str]:

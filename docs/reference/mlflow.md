@@ -506,7 +506,20 @@ The LLM span is automatically tagged with `feast.context_*` attributes — no ma
 
 ## Dataset sync: MLflow GenAI Datasets → Feast
 
-The `feast datasets sync` command pulls records from an [MLflow GenAI EvaluationDataset](https://mlflow.org/docs/latest/llms/genai/index.html), flattens their nested structure, and pushes them into Feast online and offline stores.
+`MlflowDatasetSource` is the first-class Feast `DataSource` for [MLflow GenAI EvaluationDatasets](https://mlflow.org/docs/latest/genai/datasets/). Declare it on a FeatureView (or LabelView), `feast apply`, then run `feast mlflow sync-dataset`.
+
+This uses existing Feast primitives (DataSource + FeatureView/LabelView + offline `batch_source`). It does **not** invent a separate “Feast DataSets” product, and it does **not** sync model metadata into the registry.
+
+### Unavailable / graceful degradation
+
+| State | Behavior |
+|---|---|
+| `pip install feast` without `[mlflow]` | Serving unaffected. CLI exits with an install hint. |
+| `mlflow.enabled: false` or no tracking URI | Tracing/auto-log stay off. Sync/export require a tracking URI. |
+| MLflow not installed in the cluster | Feature Store keeps serving; sync/export commands fail clearly. |
+| FileStore MLflow tracking | GenAI EvaluationDatasets require a SQL-backed MLflow tracking server. |
+
+Access uses the process credentials already configured for MLflow (`MLFLOW_TRACKING_URI`, tokens/secrets). Feast does not bypass MLflow or Feast RBAC.
 
 ### Feature repository definition
 
@@ -514,12 +527,26 @@ The `feast datasets sync` command pulls records from an [MLflow GenAI Evaluation
 # feature_repo/mlflow_labels.py
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, PushSource
+from feast import Entity, FeatureView, Field, FileSource, MlflowDatasetSource
 from feast.types import String
 
 dataset_record = Entity(name="dataset_record", join_keys=["dataset_record_id"])
 
-mlflow_dataset_push = PushSource(name="mlflow_dataset_push")
+mlflow_eval = MlflowDatasetSource(
+    name="mlflow_eval_source",
+    dataset_name="agent-feedback-v3",
+    # tracking_uri optional — falls back to feature_store.yaml / MLFLOW_TRACKING_URI
+    timestamp_field="event_timestamp",
+    field_mapping={
+        "expectations.expected_response": "expected_response",
+        "source.trace.trace_id": "trace_id",
+    },
+    batch_source=FileSource(
+        name="mlflow_eval_batch",
+        path="data/mlflow_eval.parquet",
+        timestamp_field="event_timestamp",
+    ),
+)
 
 mlflow_labels_view = FeatureView(
     name="mlflow_labels",
@@ -531,7 +558,7 @@ mlflow_labels_view = FeatureView(
         Field(name="expected_response", dtype=String),
         Field(name="guidelines", dtype=String),
     ],
-    source=mlflow_dataset_push,
+    source=mlflow_eval,
     online=True,
 )
 ```
@@ -560,20 +587,23 @@ mlflow:
 ### CLI commands
 
 ```bash
-# Full sync (all records)
-feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --full-refresh
+# Sync from MlflowDatasetSource declared on the FeatureView
+feast mlflow sync-dataset --feature-view mlflow_labels --full-refresh
 
 # Incremental sync (only new/updated since last sync)
-feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Sync every view whose source is MlflowDatasetSource
+feast mlflow sync-dataset
 
 # Preview flattened records without writing
-feast datasets preview --source agent-feedback-v3 --limit 10
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
 
 # Dry run (fetch & flatten, no writes)
-feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --dry-run
+feast mlflow sync-dataset --feature-view mlflow_labels --dry-run
 
-# Custom field mapping from a JSON file
-feast datasets sync --source agent-feedback-v3 --feature-view mlflow_labels --field-mapping mapping.json
+# Override dataset name / field mapping from the CLI
+feast mlflow sync-dataset --feature-view mlflow_labels --source agent-feedback-v3 --field-mapping mapping.json
 ```
 
 ### Default flattening rules
@@ -615,25 +645,25 @@ training_df = store.get_historical_features(
 
 ### When to use FeatureView vs LabelView
 
-The dataset sync command writes into a standard **FeatureView** (with a `PushSource`). For mutable human/LLM feedback labels, use a **LabelView** with the `sync-assessments` command instead. Here is the decision guide:
+Prefer `MlflowDatasetSource` on a **FeatureView** for curated golden eval sets. For mutable human/LLM feedback labels, use a **LabelView** with `feast mlflow sync-assessments`. Decision guide:
 
 | Data type | Feast primitive | Why |
 |---|---|---|
-| Curated golden eval set (immutable Q&A pairs) | **FeatureView** | Reference data keyed by `dataset_record_id`. No multi-labeler semantics needed. Serves at inference time via `get_online_features`. |
-| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements at write / list-labels time. |
+| Curated golden eval set (immutable Q&A pairs) | **FeatureView** + `MlflowDatasetSource` | Reference data keyed by `dataset_record_id`. No multi-labeler semantics needed. Serves at inference time via `get_online_features`. |
+| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements for offline/training reads. |
 | LLM-as-a-judge feedback | **LabelView** | Same as human labels, but `labeler_field` identifies the source as an LLM (e.g. `"gpt-4-judge"`). |
-| Fine-tuning JSONL | **Neither** (output only) | JSONL is an export format consumed by fine-tuning APIs. Produced by `feast finetuning export`, not stored in Feast. |
+| Fine-tuning JSONL | **Neither** (output only) | JSONL is an export format. Produced by `feast mlflow export-traces`, not stored in Feast. |
 
 ## Assessment sync: MLflow trace assessments → Feast
 
-The `feast datasets sync-assessments` command scans MLflow traces for expectations and feedback assessments, then writes them into a Feast FeatureView or LabelView.
+The `feast mlflow sync-assessments` command scans MLflow traces for expectations and feedback assessments, then writes them into a Feast FeatureView or LabelView.
 
 ### Flat mode (default)
 
 Each assessment becomes its own row with a generic schema:
 
 ```bash
-feast datasets sync-assessments \
+feast mlflow sync-assessments \
   --experiment my_agent_traces \
   --feature-view trace_assessments
 ```
@@ -645,7 +675,7 @@ Columns: `trace_id`, `assessment_name`, `assessment_type`, `value`, `source_id`,
 When targeting a LabelView, use `--pivot` to collapse assessments into one row per `trace_id` with columns matching the LabelView schema:
 
 ```bash
-feast datasets sync-assessments \
+feast mlflow sync-assessments \
   --experiment my_agent_traces \
   --feature-view agent_feedback \
   --pivot \
@@ -667,7 +697,7 @@ The `source_id` from each assessment (who wrote it) is written to the `--labeler
 ### LabelView definition for assessments
 
 ```python
-from feast import Entity, Field, LabelView, PushSource
+from feast import Entity, Field, FileSource, LabelView, PushSource
 from feast.labeling.conflict_policy import ConflictPolicy
 from feast.types import String
 from feast.value_type import ValueType
@@ -700,7 +730,7 @@ agent_feedback = LabelView(
 ### CLI reference
 
 ```
-feast datasets sync-assessments [OPTIONS]
+feast mlflow sync-assessments [OPTIONS]
 
 Required:
   --experiment TEXT        MLflow experiment name to scan
@@ -717,7 +747,7 @@ Filtering:
   --assessment-names TEXT Comma-separated assessment names to sync
 
 Options:
-  --batch-size INT        Rows per batch (default: 10000)
+  --batch-size INT        Rows per batch
   --dry-run / --no-dry-run  Extract without writing
 ```
 
@@ -750,7 +780,7 @@ for trace_id in trace_ids:
 Then sync to Feast:
 
 ```bash
-feast datasets sync-assessments \
+feast mlflow sync-assessments \
   --experiment my_agent_traces \
   --feature-view agent_feedback \
   --pivot \
@@ -758,14 +788,14 @@ feast datasets sync-assessments \
   --labeler-column labeler
 ```
 
-The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge write labels for the same trace (applied at write / list-labels time).
+The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge write labels for the same trace.
 
-> **Note:** `feast finetuning export --label-view` joins labels via
-> `get_online_features` (latest online value). Conflict-policy resolution
-> is not re-applied during export; ensure the online store already reflects
-> the winning label (e.g. after `sync-assessments` or a push).
+> **Note:** `feast mlflow export-traces --label-view` defaults to
+> `--label-source=historical`, which pulls offline label history and applies
+> `ConflictPolicy` via `resolve_conflicts`. Use `--label-source=online` only
+> when you explicitly want LAST_WRITE_WINS from the online store.
 
-## Fine-tuning export: `feast finetuning export`
+## Trace export: `feast mlflow export-traces`
 
 Extract MLflow traces into training-ready JSONL. Labels come from expectations and feedback logged directly on traces, or optionally from a Feast LabelView.
 
@@ -774,20 +804,21 @@ Extract MLflow traces into training-ready JSONL. Labels come from expectations a
 **From traces** — expectations and feedback (human or LLM judge) logged on individual traces:
 
 ```bash
-feast finetuning export \
+feast mlflow export-traces \
   --experiment my_agent_traces \
   -o training.jsonl \
   --labeled-only \
   --register
 ```
 
-**From a Feast LabelView** — join the latest online labels (by `trace_id` by default):
+**From a Feast LabelView** — join conflict-resolved offline labels (by `trace_id` by default):
 
 ```bash
-feast finetuning export \
+feast mlflow export-traces \
   --experiment my_agent_traces \
   --label-view agent_feedback \
   --label-fields corrected_response,response_quality \
+  --label-source historical \
   -o training.jsonl \
   --labeled-only
 ```
@@ -795,7 +826,7 @@ feast finetuning export \
 **From a curated dataset** — only traces added to an MLflow GenAI Dataset are exported:
 
 ```bash
-feast finetuning export \
+feast mlflow export-traces \
   --experiment my_agent_traces \
   --dataset finetuning_v2 \
   -o training.jsonl \
@@ -817,7 +848,7 @@ feast finetuning export \
 ### CLI reference
 
 ```
-feast finetuning export [OPTIONS]
+feast mlflow export-traces [OPTIONS]
 
 Required:
   --experiment TEXT              MLflow experiment to read traces from
@@ -830,9 +861,12 @@ Filtering:
   --labeled-only / --all-traces  Only export labeled traces (default: labeled-only)
 
 LabelView join (optional):
-  --label-view TEXT              Join latest online labels from this LabelView
+  --label-view TEXT              Join labels from this LabelView
   --label-fields TEXT            Comma-separated fields (default: corrected_response)
   --label-join-key TEXT          Entity join key (default: trace_id)
+  --label-source [historical|online]
+                                 historical (default) applies ConflictPolicy;
+                                 online uses get_online_features (LAST_WRITE_WINS)
 
 Output:
   --format [openai|enriched]     Export format (default: openai)

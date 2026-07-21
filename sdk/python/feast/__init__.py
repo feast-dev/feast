@@ -2,6 +2,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 
 from feast.demos import copy_demo_notebooks
+from feast.infra.data_sources.mlflow import MlflowDatasetSource
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
@@ -67,6 +68,7 @@ __all__ = [
     "SnowflakeSource",
     "PushSource",
     "RequestSource",
+    "MlflowDatasetSource",
     "AthenaSource",
     "OracleSource",
     "Project",

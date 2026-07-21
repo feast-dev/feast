@@ -52,8 +52,8 @@ def _dataset_sync_defaults(store: "FeatureStore") -> tuple[Dict[str, str], str, 
 
 def sync_mlflow_dataset_to_feast(
     store: "FeatureStore",
-    dataset_name: str,
     feature_view_name: str,
+    dataset_name: Optional[str] = None,
     field_mapping: Optional[Dict[str, str]] = None,
     tracking_uri: Optional[str] = None,
     dataset_id: Optional[str] = None,
@@ -63,51 +63,88 @@ def sync_mlflow_dataset_to_feast(
 ) -> SyncResult:
     """Pull records from an MLflow GenAI Dataset and ingest into Feast.
 
+    When the target FeatureView/LabelView uses an ``MlflowDatasetSource``,
+    ``dataset_name`` / ``dataset_id`` / ``field_mapping`` / ``tracking_uri``
+    are taken from that source unless explicitly overridden by arguments.
+
     Steps:
-    1. Connect to MLflow and fetch dataset via ``get_dataset(name=...)``
-    2. Convert to pandas DataFrame via ``dataset.to_df()``
-    3. Flatten nested columns (inputs, expectations, source, tags)
-    4. Apply field_mapping overrides (CLI overrides config defaults)
-    5. Filter for incremental (last_update_time > last_sync_time) if enabled
-    6. Write to online store via ``store.write_to_online_store()``
-    7. Push to offline store via ``store.push(..., to=PushMode.OFFLINE)``
+    1. Resolve MLflow dataset identity (source or CLI args)
+    2. Fetch dataset via ``get_dataset`` → ``to_df()``
+    3. Flatten nested columns and apply field mapping
+    4. Incremental filter via watermark tag when enabled
+    5. Write online via ``write_to_online_store``
+    6. Write offline via ``write_to_offline_store`` (batch_source) or
+       ``push(..., OFFLINE)`` for legacy PushSource targets
 
     Args:
         store: Feast FeatureStore instance.
-        dataset_name: MLflow GenAI dataset name.
-        feature_view_name: Target Feast FeatureView name.
+        feature_view_name: Target Feast FeatureView or LabelView name.
+        dataset_name: MLflow GenAI dataset name (optional when the view
+            declares ``MlflowDatasetSource``).
         field_mapping: Custom field mapping overrides.
         tracking_uri: MLflow tracking URI override.
         dataset_id: Direct dataset ID (alternative to name).
         incremental: Only sync records updated since last sync.
-        batch_size: Number of rows to write per batch. Defaults to
-            ``mlflow.dataset_sync.default_batch_size`` when unset.
+        batch_size: Number of rows to write per batch.
         dry_run: If True, fetch and flatten but don't write to stores.
 
     Returns:
         SyncResult with counts of fetched/ingested/new/updated records.
     """
-    import mlflow
+    try:
+        import mlflow
+    except ImportError as e:
+        raise ImportError(
+            "The 'mlflow' package is required for dataset sync. "
+            "Install it with: pip install 'feast[mlflow]'"
+        ) from e
 
     result = SyncResult()
     default_mapping, watermark_key, default_batch = _dataset_sync_defaults(store)
-    effective_mapping = {**default_mapping, **(field_mapping or {})}
-    effective_batch = default_batch if batch_size is None else batch_size
+    mlflow_source = _get_mlflow_dataset_source(store, feature_view_name)
 
-    effective_uri = _resolve_tracking_uri(store, tracking_uri)
+    effective_dataset_name = dataset_name or (
+        mlflow_source.dataset_name if mlflow_source else None
+    )
+    effective_dataset_id = dataset_id or (
+        mlflow_source.dataset_id if mlflow_source else None
+    )
+    source_mapping = (
+        dict(mlflow_source.field_mapping)
+        if mlflow_source and mlflow_source.field_mapping
+        else {}
+    )
+    effective_mapping = {**default_mapping, **source_mapping, **(field_mapping or {})}
+    effective_batch = default_batch if batch_size is None else batch_size
+    source_uri = mlflow_source.tracking_uri if mlflow_source else None
+
+    if not effective_dataset_name and not effective_dataset_id:
+        result.errors.append(
+            f"No MLflow dataset identity for '{feature_view_name}'. "
+            "Declare MlflowDatasetSource on the view or pass dataset_name/dataset_id."
+        )
+        return result
+
+    effective_uri = _resolve_tracking_uri(store, tracking_uri or source_uri)
     if effective_uri:
         mlflow.set_tracking_uri(effective_uri)
 
-    dataset = _fetch_dataset_with_retry(dataset_name, dataset_id)
+    dataset = _fetch_dataset_with_retry(
+        effective_dataset_name or "", effective_dataset_id
+    )
     if dataset is None:
-        result.errors.append(f"Failed to fetch MLflow dataset '{dataset_name}'")
+        label = effective_dataset_name or effective_dataset_id
+        result.errors.append(f"Failed to fetch MLflow dataset '{label}'")
         return result
 
     df = dataset.to_df()
     result.records_fetched = len(df)
 
     if df.empty:
-        logger.info("MLflow dataset '%s' has no records.", dataset_name)
+        logger.info(
+            "MLflow dataset '%s' has no records.",
+            effective_dataset_name or effective_dataset_id,
+        )
         return result
 
     df = flatten_mlflow_dataset_df(df, field_mapping=effective_mapping or None)
@@ -139,7 +176,6 @@ def sync_mlflow_dataset_to_feast(
         return result
 
     df = _align_df_to_feature_view(store, feature_view_name, df)
-    push_source_name = _resolve_push_source_name(store, feature_view_name)
 
     for start in range(0, len(df), effective_batch):
         batch = df.iloc[start : start + effective_batch]
@@ -150,18 +186,7 @@ def sync_mlflow_dataset_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
-        # Online was already written above — only push offline to avoid
-        # duplicate online writes under PushMode.ONLINE_AND_OFFLINE.
-        if push_source_name:
-            try:
-                store.push(push_source_name, batch, to=PushMode.OFFLINE)
-            except Exception as e:
-                logger.warning(
-                    "Push to offline store failed at offset %d: %s (continuing)",
-                    start,
-                    e,
-                )
-
+        _write_offline_batch(store, feature_view_name, batch, result, start)
         result.records_ingested += len(batch)
 
     # Only advance the watermark when every batch succeeded.  Advancing on
@@ -182,6 +207,26 @@ def sync_mlflow_dataset_to_feast(
         result.records_ingested,
     )
     return result
+
+
+def sync_all_mlflow_dataset_sources(
+    store: "FeatureStore",
+    *,
+    incremental: bool = True,
+    batch_size: Optional[int] = None,
+    dry_run: bool = False,
+) -> Dict[str, SyncResult]:
+    """Sync every FeatureView/LabelView whose source is ``MlflowDatasetSource``."""
+    results: Dict[str, SyncResult] = {}
+    for view_name in _list_mlflow_dataset_view_names(store):
+        results[view_name] = sync_mlflow_dataset_to_feast(
+            store=store,
+            feature_view_name=view_name,
+            incremental=incremental,
+            batch_size=batch_size,
+            dry_run=dry_run,
+        )
+    return results
 
 
 def flatten_mlflow_dataset_df(
@@ -431,7 +476,13 @@ def sync_trace_assessments_to_feast(
     Returns:
         SyncResult with counts of fetched/ingested records.
     """
-    import mlflow
+    try:
+        import mlflow
+    except ImportError as e:
+        raise ImportError(
+            "The 'mlflow' package is required for assessment sync. "
+            "Install it with: pip install 'feast[mlflow]'"
+        ) from e
 
     result = SyncResult()
     _, _, default_batch = _dataset_sync_defaults(store)
@@ -446,28 +497,26 @@ def sync_trace_assessments_to_feast(
         result.errors.append(f"MLflow experiment '{experiment_name}' not found")
         return result
 
-    traces = mlflow.search_traces(
-        experiment_ids=[experiment.experiment_id],
-        max_results=max_results,
-        **({"filter_string": filter_string} if filter_string else {}),
-    )
+    search_kwargs: Dict[str, Any] = {
+        "experiment_ids": [experiment.experiment_id],
+        "max_results": max_results,
+    }
+    if filter_string:
+        search_kwargs["filter_string"] = filter_string
+
+    # Prefer return_type="list" so Trace objects (with assessments) come back
+    # in one RPC. Fall back to DataFrame / get_trace like trace_extractor.
+    traces = _search_traces_for_assessments(mlflow, search_kwargs)
 
     rows: List[Dict] = []
-    trace_iter = (
-        traces.iterrows()
-        if isinstance(traces, pd.DataFrame)
-        else ((None, t) for t in traces)
-    )
-    for _, trace_row in trace_iter:
+    for trace_row in traces:
         trace_id = _get_trace_id_from_row(trace_row)
         assessments = _get_assessments_from_row(trace_row)
         if not assessments:
             continue
 
         for assessment in assessments:
-            name = _assess_get(assessment, "assessment_name") or _assess_get(
-                assessment, "name"
-            )
+            name = _assessment_name(assessment)
             if not name:
                 continue
             if assessment_names and name not in assessment_names:
@@ -546,7 +595,6 @@ def sync_trace_assessments_to_feast(
         logger.info("Dry run: would ingest %d assessment records.", len(df))
         return result
 
-    push_source_name = _resolve_push_source_name(store, feature_view_name)
     df = _align_df_to_feature_view(store, feature_view_name, df)
 
     for start in range(0, len(df), effective_batch):
@@ -558,18 +606,7 @@ def sync_trace_assessments_to_feast(
             logger.error("Failed to write batch to online store: %s", e)
             continue
 
-        # Online was already written above — only push offline to avoid
-        # duplicate online writes under PushMode.ONLINE_AND_OFFLINE.
-        if push_source_name:
-            try:
-                store.push(push_source_name, batch, to=PushMode.OFFLINE)
-            except Exception as e:
-                logger.warning(
-                    "Push to offline store failed at offset %d: %s (continuing)",
-                    start,
-                    e,
-                )
-
+        _write_offline_batch(store, feature_view_name, batch, result, start)
         result.records_ingested += len(batch)
 
     logger.info(
@@ -653,6 +690,19 @@ def _assess_get(assessment, key):
     return getattr(assessment, key, None)
 
 
+def _assessment_name(assessment) -> Optional[str]:
+    """Return a concrete assessment name string, or None.
+
+    Only accepts ``str`` values so auto-created mock attributes do not
+    shadow a real ``name`` field.
+    """
+    for key in ("assessment_name", "name"):
+        val = _assess_get(assessment, key)
+        if isinstance(val, str) and val:
+            return val
+    return None
+
+
 def _align_df_to_feature_view(
     store: "FeatureStore", feature_view_name: str, df: pd.DataFrame
 ) -> pd.DataFrame:
@@ -703,6 +753,55 @@ def _align_df_to_feature_view(
     return df[keep]
 
 
+def _get_view(store: "FeatureStore", feature_view_name: str) -> Any:
+    """Return a FeatureView or LabelView by name, or None."""
+    try:
+        return store.get_feature_view(feature_view_name)
+    except Exception:
+        pass
+    if hasattr(store, "get_label_view"):
+        try:
+            return store.get_label_view(feature_view_name)
+        except Exception:
+            pass
+    return None
+
+
+def _get_mlflow_dataset_source(store: "FeatureStore", feature_view_name: str) -> Any:
+    """Return MlflowDatasetSource from a view, if present."""
+    from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+        MlflowDatasetSource,
+    )
+
+    view = _get_view(store, feature_view_name)
+    if view is None:
+        return None
+
+    for attr in ("stream_source", "source", "data_source"):
+        src = getattr(view, attr, None)
+        if isinstance(src, MlflowDatasetSource):
+            return src
+    return None
+
+
+def _list_mlflow_dataset_view_names(store: "FeatureStore") -> List[str]:
+    """Names of FeatureViews/LabelViews backed by MlflowDatasetSource."""
+    from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+        MlflowDatasetSource,
+    )
+
+    names: List[str] = []
+    for view in list(store.list_feature_views()) + list(
+        store.list_label_views() if hasattr(store, "list_label_views") else []
+    ):
+        for attr in ("stream_source", "source", "data_source"):
+            src = getattr(view, attr, None)
+            if isinstance(src, MlflowDatasetSource):
+                names.append(view.name)
+                break
+    return names
+
+
 def _resolve_push_source_name(
     store: "FeatureStore", feature_view_name: str
 ) -> Optional[str]:
@@ -711,18 +810,7 @@ def _resolve_push_source_name(
     ``store.push()`` expects the push source name, not the feature view name.
     This inspects the view's source/stream_source to find it.
     """
-    view: Any = None
-    try:
-        view = store.get_feature_view(feature_view_name)
-    except Exception:
-        pass
-
-    if view is None and hasattr(store, "get_label_view"):
-        try:
-            view = store.get_label_view(feature_view_name)
-        except Exception:
-            pass
-
+    view = _get_view(store, feature_view_name)
     if view is None:
         return None
 
@@ -734,6 +822,81 @@ def _resolve_push_source_name(
             if isinstance(src, _PS):
                 return src.name
     return None
+
+
+def _write_offline_batch(
+    store: "FeatureStore",
+    feature_view_name: str,
+    batch: pd.DataFrame,
+    result: SyncResult,
+    start: int,
+) -> None:
+    """Write a batch to the offline store via batch_source or PushSource."""
+    mlflow_source = _get_mlflow_dataset_source(store, feature_view_name)
+    if mlflow_source is not None:
+        try:
+            store.write_to_offline_store(feature_view_name, batch)
+        except Exception as e:
+            logger.warning(
+                "Offline write failed at offset %d: %s (continuing)",
+                start,
+                e,
+            )
+        return
+
+    push_source_name = _resolve_push_source_name(store, feature_view_name)
+    if push_source_name:
+        try:
+            store.push(push_source_name, batch, to=PushMode.OFFLINE)
+        except Exception as e:
+            logger.warning(
+                "Push to offline store failed at offset %d: %s (continuing)",
+                start,
+                e,
+            )
+
+
+def _search_traces_for_assessments(mlflow: Any, search_kwargs: Dict[str, Any]) -> list:
+    """Fetch traces for assessment sync with bulk / list fallbacks.
+
+    Mirrors ``feast.finetuning.trace_extractor._search_traces_bulk`` so MLflow
+    3.x DataFrames without an ``assessments`` column still yield Trace objects.
+    """
+    try:
+        result = mlflow.search_traces(**search_kwargs, return_type="list")
+        if isinstance(result, list):
+            return result
+    except TypeError:
+        logger.debug(
+            "mlflow.search_traces(return_type='list') not supported; "
+            "falling back to DataFrame path"
+        )
+
+    traces_df = mlflow.search_traces(**search_kwargs)
+    if traces_df is None or getattr(traces_df, "empty", True):
+        return []
+
+    if isinstance(traces_df, list):
+        return traces_df
+
+    if "trace" in traces_df.columns:
+        embedded = [t for t in traces_df["trace"].tolist() if t is not None]
+        if embedded:
+            return embedded
+
+    if "assessments" in traces_df.columns:
+        return [row for _, row in traces_df.iterrows()]
+
+    traces: list = []
+    for _, row in traces_df.iterrows():
+        trace_id = row.get("trace_id") or row.get("request_id")
+        if not trace_id:
+            continue
+        try:
+            traces.append(mlflow.get_trace(str(trace_id)))
+        except Exception:
+            logger.warning("Failed to fetch trace %s", trace_id, exc_info=True)
+    return traces
 
 
 def _set_last_sync_time(dataset, watermark_key: str = WATERMARK_TAG_KEY) -> None:
