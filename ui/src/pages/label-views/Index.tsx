@@ -10,6 +10,7 @@ import {
   EuiEmptyPrompt,
   EuiTitle,
   EuiLink,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { LabelViewIcon } from "../../graphics/LabelViewIcon";
@@ -167,7 +168,8 @@ const LabelViewIndexEmptyState = () => (
 );
 
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadLabelViews();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadLabelViews();
 
   useDocumentTitle(`Label Views | Feast`);
 
@@ -184,7 +186,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view label views.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && (!data || data.length === 0) && (
           <LabelViewIndexEmptyState />
         )}
