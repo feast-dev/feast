@@ -1914,13 +1914,11 @@ class FeatureStore:
                 Required when entity_df is not provided.
             end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
                 Required when entity_df is not provided. By default, the current time is used.
-            filter_by_created_timestamp (bool): If True, only feature values that were already created as of each entity row's
-                event timestamp are considered: rows whose created timestamp (the ``created_timestamp_column`` of
-                the batch source) is later than the entity row's event timestamp are excluded. This makes retrieval
-                reflect what was known at the event time, so late-arriving or backfilled values cannot leak into
-                training data. Feature views without a ``created_timestamp_column`` are unaffected. Defaults to
-                False, which preserves the existing behavior of serving the latest known value for the event
-                timestamp window.
+            filter_by_created_timestamp (bool): If True, exclude feature values whose created timestamp
+                (the batch source's ``created_timestamp_column``) is later than the entity row's event
+                timestamp, so retrieval only reflects what was known at the event time and backfilled
+                values cannot leak into training data. Feature views without a
+                ``created_timestamp_column`` are unaffected. Defaults to False.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
