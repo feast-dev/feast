@@ -1,10 +1,9 @@
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Literal, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import pandas as pd
 import pyarrow
-import pyarrow as pa
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
@@ -136,58 +135,6 @@ def get_or_create_new_spark_session(
 
     spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     return spark_session
-
-
-def map_in_arrow(
-    iterator: Iterable[pa.RecordBatch],
-    serialized_artifacts: "SerializedArtifacts",
-    mode: Literal["online", "offline"] = "online",
-):
-    for batch in iterator:
-        table = pa.Table.from_batches([batch])
-
-        (
-            feature_view,
-            online_store,
-            offline_store,
-            repo_config,
-        ) = serialized_artifacts.unserialize()
-
-        if mode == "online":
-            join_key_to_value_type = {
-                entity.name: entity.dtype.to_value_type()
-                for entity in feature_view.entity_columns
-            }
-
-            batch_size = getattr(
-                repo_config.materialization_config, "online_write_batch_size", None
-            )
-            # Single batch if None (backward compatible), otherwise use configured batch_size
-            sub_batches = (
-                [table]
-                if batch_size is None
-                else table.to_batches(max_chunksize=batch_size)
-            )
-            for sub_batch in sub_batches:
-                rows_to_write = _convert_arrow_to_proto(
-                    sub_batch, feature_view, join_key_to_value_type
-                )
-
-                online_store.online_write_batch(
-                    config=repo_config,
-                    table=feature_view,
-                    data=rows_to_write,
-                    progress=lambda x: None,
-                )
-        if mode == "offline":
-            offline_store.offline_write_batch(
-                config=repo_config,
-                feature_view=feature_view,
-                table=table,
-                progress=lambda x: None,
-            )
-
-        yield batch
 
 
 def map_in_pandas(iterator, serialized_artifacts: SerializedArtifacts):
@@ -345,52 +292,3 @@ def write_to_offline_store(
             )
 
     spark_df.foreachPartition(_write_partition)
-
-
-_FEAST_EMBED_MODEL_CACHE: Dict[tuple, "Any"] = {}
-
-
-def spark_embed(
-    df: "DataFrame",
-    text_col: str,
-    model: str = "sentence-transformers/all-MiniLM-L6-v2",
-    output_col: str = "embedding",
-    batch_size: int = 64,
-) -> "DataFrame":
-    """Append an embedding column to *df* using a sentence-transformer.
-
-    Intended for ``@batch_feature_view`` with ``TransformationMode.PYTHON``.
-    Uses ``localCheckpoint(eager=True)`` to sever Python lineage and avoid
-    downstream Arrow serialiser mismatches. Model is cached per executor.
-    """
-    if text_col not in df.columns:
-        raise ValueError(
-            f"Column '{text_col}' not found in DataFrame. Available columns: {df.columns}"
-        )
-
-    import pyspark.sql.functions as F
-    import pyspark.sql.types as T
-    from pyspark.sql.functions import pandas_udf
-
-    model_id = model
-    bs = batch_size
-    _cache = _FEAST_EMBED_MODEL_CACHE
-
-    @pandas_udf(returnType=T.ArrayType(T.FloatType()))  # type: ignore[call-overload]
-    def _embed_udf(texts: pd.Series) -> pd.Series:
-        import torch
-        from sentence_transformers import SentenceTransformer
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        cache_key = (model_id, device)
-        if cache_key not in _cache:
-            _cache[cache_key] = SentenceTransformer(model_id, device=device)
-        sent_model = _cache[cache_key]
-
-        embeddings = sent_model.encode(
-            texts.tolist(), batch_size=bs, show_progress_bar=False
-        )
-        return pd.Series([e.astype("float32").tolist() for e in embeddings])
-
-    embedded = df.withColumn(output_col, _embed_udf(F.col(text_col)))
-    return embedded.localCheckpoint(eager=True)

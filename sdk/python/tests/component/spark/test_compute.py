@@ -19,6 +19,7 @@ from feast.infra.compute_engines.spark.utils import (
     _ensure_s3a_event_log_dir,
     get_or_create_new_spark_session,
     map_in_pandas,
+    write_to_offline_store,
     write_to_online_store,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
@@ -303,6 +304,73 @@ def test_write_to_online_store_skips_empty_partitions():
 
     write_to_online_store(df, mock_artifacts)
     mock_online_store.online_write_batch.assert_not_called()
+    spark.stop()
+
+
+@pytest.mark.integration
+def test_write_to_online_store_chunks_rows():
+    """Verify foreachPartition writes rows in chunks and calls online_write_batch."""
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import FloatType, StringType, StructField, StructType
+
+    spark = SparkSession.builder.master("local[1]").appName("test_chunk").getOrCreate()
+    schema = StructType(
+        [
+            StructField("id", StringType(), True),
+            StructField("val", FloatType(), True),
+        ]
+    )
+    rows = [("k1", 1.0), ("k2", 2.0), ("k3", 3.0)]
+    df = spark.createDataFrame(rows, schema=schema)
+
+    mock_artifacts = MagicMock()
+    mock_online_store = MagicMock()
+    mock_fv = MagicMock()
+    mock_fv.entity_columns = []
+    mock_config = MagicMock()
+    mock_config.materialization_config.online_write_batch_size = None
+    mock_artifacts.unserialize.return_value = (
+        mock_fv,
+        mock_online_store,
+        MagicMock(),
+        mock_config,
+    )
+
+    write_to_online_store(df, mock_artifacts)
+    assert mock_online_store.online_write_batch.call_count >= 1
+    spark.stop()
+
+
+@pytest.mark.integration
+def test_write_to_offline_store_chunks_rows():
+    """Verify foreachPartition writes rows via offline_write_batch."""
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import FloatType, StringType, StructField, StructType
+
+    spark = SparkSession.builder.master("local[1]").appName("test_off").getOrCreate()
+    schema = StructType(
+        [
+            StructField("id", StringType(), True),
+            StructField("val", FloatType(), True),
+        ]
+    )
+    rows = [("k1", 1.0), ("k2", 2.0)]
+    df = spark.createDataFrame(rows, schema=schema)
+
+    mock_artifacts = MagicMock()
+    mock_offline_store = MagicMock()
+    mock_fv = MagicMock()
+    mock_fv.entity_columns = []
+    mock_config = MagicMock()
+    mock_artifacts.unserialize.return_value = (
+        mock_fv,
+        MagicMock(),
+        mock_offline_store,
+        mock_config,
+    )
+
+    write_to_offline_store(df, mock_artifacts)
+    assert mock_offline_store.offline_write_batch.call_count >= 1
     spark.stop()
 
 
