@@ -342,6 +342,42 @@ def test_write_to_online_store_chunks_rows():
 
 
 @pytest.mark.integration
+def test_write_to_online_store_respects_chunk_boundary():
+    """With batch_size=2 and 5 rows, the write loop must iterate multiple times."""
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import FloatType, StringType, StructField, StructType
+
+    spark = (
+        SparkSession.builder.master("local[1]").appName("test_boundary").getOrCreate()
+    )
+    schema = StructType(
+        [
+            StructField("id", StringType(), True),
+            StructField("val", FloatType(), True),
+        ]
+    )
+    rows = [("k1", 1.0), ("k2", 2.0), ("k3", 3.0), ("k4", 4.0), ("k5", 5.0)]
+    df = spark.createDataFrame(rows, schema=schema).repartition(1)
+
+    mock_artifacts = MagicMock()
+    mock_online_store = MagicMock()
+    mock_fv = MagicMock()
+    mock_fv.entity_columns = []
+    mock_config = MagicMock()
+    mock_config.materialization_config.online_write_batch_size = 2
+    mock_artifacts.unserialize.return_value = (
+        mock_fv,
+        mock_online_store,
+        MagicMock(),
+        mock_config,
+    )
+
+    write_to_online_store(df, mock_artifacts)
+    assert mock_online_store.online_write_batch.call_count == 3  # 2+2+1
+    spark.stop()
+
+
+@pytest.mark.integration
 def test_write_to_offline_store_chunks_rows():
     """Verify foreachPartition writes rows via offline_write_batch."""
     from pyspark.sql import SparkSession
