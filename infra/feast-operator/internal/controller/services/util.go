@@ -22,6 +22,7 @@ import (
 
 var isOpenShift = false
 var hasServiceMonitorCRD = false
+var hasMlflowCRD = false
 
 func IsRegistryServer(featureStore *feastdevv1.FeatureStore) bool {
 	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
@@ -381,6 +382,12 @@ func HasServiceMonitorCRD() bool {
 	return hasServiceMonitorCRD
 }
 
+// HasMlflowCRD returns whether the mlflow.opendatahub.io API group
+// (MLflow Operator) is available in the cluster.
+func HasMlflowCRD() bool {
+	return hasMlflowCRD
+}
+
 // SetIsOpenShift sets the global flag isOpenShift by the controller manager.
 // We don't need to keep fetching the API every reconciliation cycle that we need to know about the platform.
 func SetIsOpenShift(cfg *rest.Config) {
@@ -403,6 +410,9 @@ func SetIsOpenShift(cfg *rest.Config) {
 		}
 		if v.Name == "monitoring.coreos.com" {
 			hasServiceMonitorCRD = true
+		}
+		if v.Name == "mlflow.opendatahub.io" {
+			hasMlflowCRD = true
 		}
 	}
 }

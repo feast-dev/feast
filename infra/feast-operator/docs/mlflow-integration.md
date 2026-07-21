@@ -11,12 +11,13 @@ When both the Feast operator and MLflow operator are enabled (`Managed`) on RHOA
 ## How it works
 
 1. The Feast operator looks for the singleton cluster-scoped `MLflow` CR (`mlflow.opendatahub.io/v1`, name `mlflow`).
-2. If found and Ready, the operator reads `status.address.url` (in-cluster HTTPS) as the tracking URI.
+2. If found and Ready (checked via `status.conditions`), the operator reads `status.address.url` (in-cluster HTTPS) as the tracking URI.
 3. The `mlflow:` block is written into:
    - **Server `feature_store.yaml`** (all Feast pods: online, offline, registry, UI, cron)
    - **Client ConfigMap** (workbench notebooks)
-4. `MLFLOW_TRACKING_AUTH=kubernetes-namespaced` and `MLFLOW_TRACKING_URI` env vars are injected into all Feast service pods.
+4. `MLFLOW_TRACKING_AUTH=kubernetes-namespaced` and `MLFLOW_TRACKING_URI` env vars are injected into Feast service containers.
 5. An `mlflow-integration` RoleBinding is created for the FeatureStore ServiceAccount.
+6. The controller watches the MLflow CR, so FeatureStores are automatically reconciled when MLflow becomes Ready or is removed.
 
 ## FeatureStore CR configuration
 

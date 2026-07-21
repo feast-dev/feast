@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 )
 
 var projectName = "test-project"
@@ -1068,6 +1069,27 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(repoConfig.Mlflow.LogOperations).To(Equal(&logOps))
 		})
 
+		It("should set mlflow block with entityDfMaxRows and opsExperimentSuffix", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://mlflow.svc:8443"
+			maxRows := int32(5000)
+			suffix := "-my-ops"
+
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:             true,
+				TrackingUri:         &trackingUri,
+				EntityDfMaxRows:     &maxRows,
+				OpsExperimentSuffix: &suffix,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Mlflow).NotTo(BeNil())
+			Expect(repoConfig.Mlflow.EntityDfMaxRows).To(Equal(&maxRows))
+			Expect(repoConfig.Mlflow.OpsExperimentSuffix).To(Equal(&suffix))
+		})
+
 		It("should set mlflow block with ExtraConfig coercing booleans", func() {
 			featureStore := minimalFeatureStore()
 			trackingUri := "https://mlflow.svc:8443"
@@ -1138,6 +1160,165 @@ var _ = Describe("MLflow Configuration", func() {
 
 			repoConfig := getClientRepoConfig(featureStore, nil)
 			Expect(repoConfig.Mlflow).To(BeNil())
+		})
+	})
+
+	Context("applyMlflowDefaults", func() {
+		It("should clear applied mlflow when spec.mlflow.enabled is false", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{Enabled: false}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			feast.applyMlflowDefaults()
+			Expect(featureStore.Status.Applied.Mlflow).To(BeNil())
+		})
+
+		It("should keep spec values when spec.mlflow is explicitly set with trackingUri", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://my-mlflow.svc:8443"
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:     true,
+				TrackingUri: &trackingUri,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			feast.applyMlflowDefaults()
+			Expect(featureStore.Status.Applied.Mlflow).NotTo(BeNil())
+			Expect(featureStore.Status.Applied.Mlflow.Enabled).To(BeTrue())
+			Expect(featureStore.Status.Applied.Mlflow.TrackingUri).To(Equal(&trackingUri))
+		})
+	})
+
+	Context("isMlflowReady", func() {
+		It("should return true when no conditions are present", func() {
+			status := map[string]interface{}{}
+			Expect(isMlflowReady(status)).To(BeTrue())
+		})
+
+		It("should return true when Ready condition is True", func() {
+			status := map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Ready",
+						"status": "True",
+					},
+				},
+			}
+			Expect(isMlflowReady(status)).To(BeTrue())
+		})
+
+		It("should return false when Ready condition is False", func() {
+			status := map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Ready",
+						"status": "False",
+					},
+				},
+			}
+			Expect(isMlflowReady(status)).To(BeFalse())
+		})
+
+		It("should return true when conditions exist but no Ready type", func() {
+			status := map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Progressing",
+						"status": "True",
+					},
+				},
+			}
+			Expect(isMlflowReady(status)).To(BeTrue())
+		})
+	})
+
+	Context("injectMlflowEnv", func() {
+		It("should inject MLFLOW_TRACKING_AUTH and MLFLOW_TRACKING_URI when enabled", func() {
+			featureStore := minimalFeatureStore()
+			trackingUri := "https://mlflow.svc:8443"
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
+				Enabled:     true,
+				TrackingUri: &trackingUri,
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			container := &corev1.Container{Name: "test"}
+			feast.injectMlflowEnv(container)
+
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{
+				Name: "MLFLOW_TRACKING_AUTH", Value: "kubernetes-namespaced",
+			}))
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{
+				Name: "MLFLOW_TRACKING_URI", Value: trackingUri,
+			}))
+		})
+
+		It("should inject only MLFLOW_TRACKING_AUTH when trackingUri is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{Enabled: true}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			container := &corev1.Container{Name: "test"}
+			feast.injectMlflowEnv(container)
+
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{
+				Name: "MLFLOW_TRACKING_AUTH", Value: "kubernetes-namespaced",
+			}))
+			for _, env := range container.Env {
+				Expect(env.Name).NotTo(Equal("MLFLOW_TRACKING_URI"))
+			}
+		})
+
+		It("should not inject env vars when mlflow is disabled", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{Enabled: false}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			container := &corev1.Container{Name: "test"}
+			feast.injectMlflowEnv(container)
+
+			Expect(container.Env).To(BeEmpty())
+		})
+
+		It("should not inject env vars when mlflow is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Mlflow = nil
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			container := &corev1.Container{Name: "test"}
+			feast.injectMlflowEnv(container)
+
+			Expect(container.Env).To(BeEmpty())
+		})
+	})
+
+	Context("HasMlflowCRD", func() {
+		It("should return false by default", func() {
+			Expect(HasMlflowCRD()).To(BeFalse())
+		})
+
+		It("should return true when set", func() {
+			testSetHasMlflowCRD(true)
+			defer testSetHasMlflowCRD(false)
+			Expect(HasMlflowCRD()).To(BeTrue())
 		})
 	})
 })

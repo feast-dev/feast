@@ -52,16 +52,22 @@ func (feast *FeastServices) ApplyDefaults() error {
 }
 
 // applyMlflowDefaults auto-enables MLflow integration when:
-//   - spec.mlflow is nil (not explicitly configured)
-//   - a cluster MLflow CR is detected and has a reachable tracking URI
+//   - spec.mlflow is nil (not explicitly configured) — auto-discover from cluster MLflow CR
+//   - spec.mlflow.enabled is true but trackingUri is omitted — auto-discover the URI
 //
 // When spec.mlflow.enabled is explicitly false, the applied config is cleared (opt-out).
-// When spec.mlflow is explicitly set, it is used as-is (no discovery override).
 func (feast *FeastServices) applyMlflowDefaults() {
 	cr := feast.Handler.FeatureStore
 	if cr.Spec.Mlflow != nil {
 		if !cr.Spec.Mlflow.Enabled {
 			cr.Status.Applied.Mlflow = nil
+			return
+		}
+		// enabled: true but no trackingUri → discover it
+		if cr.Spec.Mlflow.TrackingUri == nil {
+			if uri, ok := DiscoverMlflowTrackingUri(feast.Handler.Context, feast.Handler.Client); ok {
+				cr.Status.Applied.Mlflow.TrackingUri = &uri
+			}
 		}
 		return
 	}
