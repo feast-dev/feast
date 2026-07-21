@@ -81,9 +81,7 @@ training_df = store.get_historical_features(
 
 This adds a `created_timestamp <= entity_timestamp` condition to the join, so each entity dataframe row only sees feature values whose created timestamp is at or before its own timestamp. This is useful to keep backfilled values from leaking into training data, and to reproduce what the online store would have served at each event time \(assuming the created timestamp reflects when the value became available online\).
 
-A few things to keep in mind:
-
-* The flag has no effect on feature views whose data source does not set a `created_timestamp_column`.
-* Rows with a NULL created timestamp are excluded when the flag is enabled, so the column should be non-null.
-* Not all offline stores support this flag yet; unsupported stores raise an error rather than silently ignoring it.
+{% hint style="info" %}
+Rows with a NULL created timestamp are excluded when the flag is enabled, so the column should be non-null. Not all offline stores support this flag yet; unsupported stores raise an error rather than silently ignoring it.
+{% endhint %}
 
