@@ -255,7 +255,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Offline Feature Server (alpha)](https://docs.feast.dev/reference/feature-servers/offline-feature-server)
   * [x] [Registry server (alpha)](https://github.com/feast-dev/feast/blob/master/docs/reference/feature-servers/registry-server.md)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
-  * [x] ~~Data profiling and validation (Great Expectations)~~ (deprecated)
   * [x] [Feature Quality Monitoring](https://docs.feast.dev/how-to-guides/feature-monitoring) — built-in metrics, drift detection, serving log monitoring, and UI dashboard
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry

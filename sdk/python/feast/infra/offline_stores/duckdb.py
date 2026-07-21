@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
 
 import duckdb
 import ibis
@@ -42,6 +49,13 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    if isinstance(data_source, IcebergSource):
+        return _read_iceberg_catalog_source(data_source, repo_path)
+
     assert isinstance(data_source, FileSource)
 
     if isinstance(data_source.file_format, ParquetFormat) or (
@@ -55,6 +69,35 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
             }
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
+
+
+def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -> Table:
+    """Read from an IcebergSource via PyIceberg.
+
+    Loads the table through the configured catalog (REST, SQL, Hive, etc.)
+    and scans it to Arrow.
+    """
+    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
+
+    if data_source.catalog_type != "rest":
+        catalog_client = data_source.get_catalog_client()
+        table = catalog_client.load_table(fqn)
+    else:
+        from pyiceberg.catalog import load_catalog
+
+        catalog_config: dict = {
+            "type": "rest",
+            "uri": data_source.endpoint,
+            "warehouse": data_source.warehouse,
+        }
+        if data_source.token_env_var:
+            token = os.environ.get(data_source.token_env_var)
+            if token:
+                catalog_config["token"] = token
+        catalog = load_catalog(data_source.catalog_name, **catalog_config)
+        table = catalog.load_table(fqn)
+
+    return ibis.memtable(table.scan().to_arrow())
 
 
 def _write_data_source(

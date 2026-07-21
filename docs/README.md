@@ -71,7 +71,7 @@ Feast helps ML platform/MLOps teams with DevOps experience productionize real-ti
 * **batch feature engineering**: Feast supports on-demand and streaming transformations. Feast is also investing in supporting batch transformations. 
 * **native streaming feature integration:** Feast enables users to push streaming features, but does not pull from streaming sources or manage streaming pipelines.
 * **lineage:** Feast helps tie feature values to model versions, but is not a complete solution for capturing end-to-end lineage from raw data sources to model versions. Feast also has community contributed plugins with [DataHub](https://datahubproject.io/docs/generated/ingestion/sources/feast/) and [Amundsen](https://github.com/amundsen-io/amundsen/blob/4a9d60176767c4d68d1cad5b093320ea22e26a49/databuilder/databuilder/extractor/feast\_extractor.py). 
-* **data quality / drift detection**: Feast now includes built-in [Feature Quality Monitoring](how-to-guides/feature-monitoring.md) that computes statistical metrics (null rates, distributions, percentiles), detects drift across batch data and serving logs, and provides a monitoring UI dashboard. The older Great Expectations integration is deprecated.
+* **data quality / drift detection**: Feast includes built-in [Feature Quality Monitoring](how-to-guides/feature-monitoring.md) that computes statistical metrics (null rates, distributions, percentiles), detects drift across batch data and serving logs, and provides a monitoring UI dashboard.
 
 ## Example use cases
 

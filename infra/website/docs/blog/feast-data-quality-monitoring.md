@@ -31,7 +31,7 @@ The biggest change is that monitoring is now a first-class Feast workflow:
 
 ## From validation to monitoring
 
-Feast previously supported a Great Expectations-based DQM path for validating historical retrievals. That integration was useful, but it lived outside the normal feature store workflow: users had to install the `feast[ge]` extra, write profiler code, and run validation against saved datasets.
+Feast previously supported an external-library-based validation path for historical retrievals. That integration was useful, but it lived outside the normal feature store workflow: users had to install extra dependencies, write profiler code, and run validation against saved datasets.
 
 That original integration proved the need for data quality inside Feast. It helped answer an important question: after generating a training dataset, does this dataset satisfy the expectations we care about?
 
