@@ -1,8 +1,9 @@
 import { useContext } from "react";
-import { useQuery, UseQueryResult } from "react-query";
+import { useQuery } from "react-query";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import { useDataMode } from "../contexts/DataModeContext";
 import restFetch from "./restApiClient";
+import { RestApiError } from "./restApiClient";
 import { FEAST_FV_TYPES, genericFVType } from "../parsers/mergedFVTypes";
 
 interface ResourceQueryOptions<T> {
@@ -25,19 +26,30 @@ function useResourceQuery<T>({
   restPath,
   restSelect,
   enabled = true,
-}: ResourceQueryOptions<T>): UseQueryResult<T | undefined> {
+}: ResourceQueryOptions<T>) {
   const registryUrl = useContext(RegistryPathContext);
   const { fetchOptions } = useDataMode();
 
-  return useQuery<any, Error, T | undefined>(
+  const query = useQuery<any, Error, T | undefined>(
     ["rest", resourceType, registryUrl, project || "all"],
     () => restFetch<any>(registryUrl, restPath, fetchOptions),
     {
       enabled: !!registryUrl && enabled,
       staleTime: 30_000,
       select: restSelect,
+      retry: (failureCount, error) => {
+        if (error instanceof RestApiError && error.status === 403) return false;
+        return failureCount < 3;
+      },
     },
   );
+
+  const isPermissionDenied =
+    query.isError &&
+    query.error instanceof RestApiError &&
+    query.error.status === 403;
+
+  return { ...query, isPermissionDenied };
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +120,13 @@ function labelViewListPath(project?: string): string {
 
 function labelViewDetailPath(name: string, project: string): string {
   return `/label_views/${encodeURIComponent(name)}?project=${encodeURIComponent(project)}&include_relationships=true`;
+}
+
+function permissionListPath(project?: string): string {
+  if (project && project !== "all") {
+    return `/permissions?project=${encodeURIComponent(project)}`;
+  }
+  return `/permissions?project=default`;
 }
 
 function featuresListPath(project?: string): string {
@@ -214,6 +233,7 @@ export {
   savedDatasetDetailPath,
   labelViewListPath,
   labelViewDetailPath,
+  permissionListPath,
   featuresListPath,
   featureDetailPath,
   restFeatureViewsToMergedList,

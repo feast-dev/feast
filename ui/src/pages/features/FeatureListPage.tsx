@@ -16,6 +16,7 @@ import {
   EuiFlexItem,
   EuiFormRow,
   EuiBadge,
+  EuiCallOut,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import ExportButton from "../../components/ExportButton";
@@ -53,6 +54,7 @@ const FeatureListPage = () => {
     data: features,
     isLoading,
     isError,
+    isPermissionDenied,
   } = useResourceQuery<any[]>({
     resourceType: "features-list",
     project: projectName,
@@ -257,6 +259,10 @@ const FeatureListPage = () => {
       <EuiPageTemplate.Section>
         {isLoading ? (
           <p>Loading...</p>
+        ) : isPermissionDenied ? (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view features.</p>
+          </EuiCallOut>
         ) : isError ? (
           <p>We encountered an error while loading.</p>
         ) : (

@@ -31,12 +31,21 @@ class SecurityManager:
         self._current_user: ContextVar[Optional[User]] = ContextVar(
             "current_user", default=None
         )
+        self._current_project: ContextVar[Optional[str]] = ContextVar(
+            "current_project", default=None
+        )
 
     def set_current_user(self, current_user: User):
         """
         Init the user for the current context.
         """
         self._current_user.set(current_user)
+
+    def set_current_project(self, project: Optional[str]):
+        return self._current_project.set(project)
+
+    def reset_current_project(self, token):
+        self._current_project.reset(token)
 
     @property
     def current_user(self) -> Optional[User]:
@@ -51,9 +60,10 @@ class SecurityManager:
     def permissions(self) -> list[Permission]:
         """
         Returns:
-            list[Permission]: the list of `Permission` configured in the Feast registry.
+            list[Permission]: the `Permission`s configured for the current request's project.
         """
-        return self._registry.list_permissions(project=self._project)
+        project = self._current_project.get() or self._project
+        return self._registry.list_permissions(project=project)
 
     def assert_permissions(
         self,

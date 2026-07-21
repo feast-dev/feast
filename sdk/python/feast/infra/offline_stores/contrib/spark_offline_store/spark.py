@@ -302,7 +302,9 @@ class SparkOfflineStore(OfflineStore):
         )
 
         query_context = _apply_bfv_transformations(
-            spark_session, feature_views, query_context
+            spark_session=spark_session,
+            feature_views=feature_views,
+            query_contexts=query_context,
         )
 
         spark_query_context = [
@@ -1212,103 +1214,50 @@ def _register_iceberg_source_as_temp_view(
     data_source: "DataSource",
     config: "RepoConfig",
 ) -> None:
-    """Register an IcebergSource as a Spark temp view for SQL queries."""
+    """Register an IcebergSource as a Spark temp view for SQL queries.
+
+    Loads the table through PyIceberg (which handles all catalog types and
+    storage backends), scans it to Arrow, and creates a temp view.
+    """
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
     )
 
     assert isinstance(data_source, IcebergSource)
-    # Temp views require single-part names
     view_name = f"iceberg_tmp_{data_source.iceberg_table}"
 
-    if not data_source.endpoint.startswith("file://"):
-        # Try Iceberg REST catalog protocol first
-        try:
-            client = data_source.get_catalog_client()
-            metadata = client.load_table(
-                data_source.namespace, data_source.iceberg_table
-            )
-            if metadata and metadata.location:
-                location = metadata.location
-                if location.startswith("file://"):
-                    location = location[7:]
-                elif location.startswith("file:"):
-                    location = location[5:]
-                df = spark_session.read.parquet(location)
-                df.createOrReplaceTempView(view_name)
-                return
-        except Exception:
-            pass
-
-        # Fallback: query UC REST API for storage_location
-        storage_location = _resolve_uc_storage_location(data_source)
-        if storage_location:
-            if storage_location.startswith("file://"):
-                storage_location = storage_location[7:]
-            elif storage_location.startswith("file:"):
-                storage_location = storage_location[5:]
-            df = spark_session.read.parquet(storage_location)
-            df.createOrReplaceTempView(view_name)
-            return
-
-        # Last resort: configure Spark Iceberg catalog (uses multi-part names natively)
-        catalog_name = f"iceberg_{data_source.warehouse}"
-        spark_session.conf.set(
-            f"spark.sql.catalog.{catalog_name}", "org.apache.iceberg.spark.SparkCatalog"
-        )
-        spark_session.conf.set(f"spark.sql.catalog.{catalog_name}.type", "rest")
-        spark_session.conf.set(
-            f"spark.sql.catalog.{catalog_name}.uri", data_source.endpoint
-        )
-        spark_session.conf.set(
-            f"spark.sql.catalog.{catalog_name}.warehouse", data_source.warehouse
-        )
-        return
-
-    # Local file mode: resolve location and read as parquet
-    repo_path = getattr(config, "repo_path", ".") or "."
-    local_path = os.path.join(repo_path, "data", data_source.iceberg_table)
-    if os.path.exists(local_path):
-        df = spark_session.read.parquet(local_path)
-        df.createOrReplaceTempView(view_name)
-        return
-
-    # Try catalog client
-    try:
-        client = data_source.get_catalog_client()
-        metadata = client.load_table(data_source.namespace, data_source.iceberg_table)
-        if metadata and metadata.location:
-            location = metadata.location
-            if location.startswith("file://"):
-                location = location[7:]
-            elif location.startswith("file:"):
-                location = location[5:]
-            df = spark_session.read.parquet(location)
-            df.createOrReplaceTempView(view_name)
-    except Exception:
-        pass
+    iceberg_table = _load_pyiceberg_table(data_source)
+    arrow_table = iceberg_table.scan().to_arrow()
+    df = spark_session.createDataFrame(arrow_table.to_pandas())
+    df.createOrReplaceTempView(view_name)
 
 
-def _resolve_uc_storage_location(data_source: "DataSource") -> Optional[str]:
-    """Query Unity Catalog REST API for a table's storage_location."""
-    import requests as _requests
-
+def _load_pyiceberg_table(data_source: "DataSource"):
+    """Load an Iceberg table via PyIceberg, respecting the source's catalog_type."""
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
     )
 
     assert isinstance(data_source, IcebergSource)
-    uc_url = (
-        f"{data_source.endpoint}/api/2.1/unity-catalog/tables/"
-        f"{data_source.warehouse}.{data_source.namespace}.{data_source.iceberg_table}"
-    )
-    try:
-        resp = _requests.get(uc_url, timeout=10)
-        if resp.status_code == 200:
-            return resp.json().get("storage_location")
-    except _requests.exceptions.RequestException:
-        pass
-    return None
+    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
+
+    if data_source.catalog_type != "rest":
+        catalog_client = data_source.get_catalog_client()
+        return catalog_client.load_table(fqn)
+
+    from pyiceberg.catalog import load_catalog
+
+    catalog_config: Dict[str, str] = {
+        "type": "rest",
+        "uri": data_source.endpoint,
+        "warehouse": data_source.warehouse,
+    }
+    if data_source.token_env_var:
+        token = os.environ.get(data_source.token_env_var)
+        if token:
+            catalog_config["token"] = token
+    catalog = load_catalog(data_source.catalog_name, **catalog_config)
+    return catalog.load_table(fqn)
 
 
 def _pull_from_iceberg_source(
@@ -1324,8 +1273,7 @@ def _pull_from_iceberg_source(
 ) -> "SparkRetrievalJob":
     """Read from an IcebergSource using Spark.
 
-    Resolves table storage location via Iceberg REST or UC API,
-    reads as Parquet into a temp view, then queries with time filter.
+    Loads the table via PyIceberg into a temp view, then queries with time filter.
     """
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
@@ -1464,9 +1412,16 @@ def _apply_bfv_transformations(
     query_contexts: List[offline_utils.FeatureViewQueryContext],
 ) -> List[offline_utils.FeatureViewQueryContext]:
     """
-    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
-    invoke the transformation, register the result as a temp view, and replace the
-    table_subquery in the query context so the PIT join reads transformed data.
+    For BatchFeatureViews, update each query context in one of two ways:
+
+    1. Pre-computed path shortcut: if ``offline=True`` and
+       ``batch_source.path`` is set, read the pre-materialized parquet
+       directly — avoids re-running the UDF on every training call.
+    2. UDF execution: if the BFV has a transformation, run it against
+       the raw source and register the result as a temp view.
+
+    Plain FeatureViews and BFVs with neither a path nor a UDF pass
+    through unchanged.
     """
     from dataclasses import replace
 
@@ -1481,11 +1436,41 @@ def _apply_bfv_transformations(
     updated_contexts = []
     for ctx in query_contexts:
         fv = fv_by_name.get(ctx.name)
+        if fv is None or not isinstance(fv, BatchFeatureView):
+            updated_contexts.append(ctx)
+            continue
+
+        # 1. Pre-computed path shortcut
         if (
-            fv is not None
-            and isinstance(fv, BatchFeatureView)
-            and has_transformation(fv)
+            getattr(fv, "offline", False)
+            and isinstance(fv.batch_source, SparkSource)
+            and fv.batch_source.path
         ):
+            tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
+            file_format = fv.batch_source.file_format or "parquet"
+            try:
+                df = spark_session.read.format(file_format).load(fv.batch_source.path)
+                df.createOrReplaceTempView(tmp_view)
+                updated_contexts.append(replace(ctx, table_subquery=tmp_view))
+                continue
+            except (FileNotFoundError, PermissionError) as e:
+                warnings.warn(
+                    f"Offline path '{fv.batch_source.path}' not accessible for "
+                    f"'{ctx.name}': {e}; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error loading offline path "
+                    f"'{fv.batch_source.path}' for '{ctx.name}': {e}; "
+                    f"falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        # 2. UDF execution fallback
+        if has_transformation(fv):
             udf = get_transformation_function(fv)
             if udf is not None:
                 source_info = resolve_feature_view_source_with_fallback(fv)
@@ -1501,12 +1486,9 @@ def _apply_bfv_transformations(
                 source_df = spark_session.sql(
                     f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
                 )
-
                 transformed_df = udf(source_df)
-
                 tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
                 transformed_df.createOrReplaceTempView(tmp_view_name)
-
                 ctx = replace(ctx, table_subquery=tmp_view_name)
 
         updated_contexts.append(ctx)
