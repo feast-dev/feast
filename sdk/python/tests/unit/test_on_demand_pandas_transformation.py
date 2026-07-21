@@ -550,3 +550,50 @@ def test_odfv_does_not_see_other_requested_odfv_source_columns():
         # odfv_a shouldn't see fv2's column; odfv_b still uses it fine
         assert response["a_saw_fv2"] == [False]
         assert response["b_out"] is not None
+
+
+def test_odfv_udf_receives_aliased_declared_source_columns():
+    """A declared source referenced under an alias (``with_name``) must still reach
+    the UDF. The isolation filter keys columns by ``projection.name``, which is what
+    the retrieval path emits regardless of the alias, so the aliased source's feature
+    is retained (not dropped) while an unrelated feature view stays hidden (#6158)."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, driver, src, fv1, fv2, driver_df = _two_fv_store(data_dir)
+
+        # ODFV declares fv1 *under an alias*; fv2 is requested but undeclared.
+        aliased_source = fv1.with_name("aliased_fv1")
+        assert aliased_source.projection.name == "fv1"
+        assert aliased_source.projection.name_to_use() == "aliased_fv1"
+
+        @on_demand_feature_view(
+            sources=[aliased_source],
+            schema=[
+                Field(name="saw_declared", dtype=Bool),
+                Field(name="saw_undeclared", dtype=Bool),
+            ],
+            mode="pandas",
+        )
+        def aliased_guard(inputs: pd.DataFrame) -> pd.DataFrame:
+            out = pd.DataFrame()
+            n = range(len(inputs))
+            out["saw_declared"] = ["conv_rate" in inputs.columns for _ in n]
+            out["saw_undeclared"] = ["avg_daily_trips" in inputs.columns for _ in n]
+            return out
+
+        store.apply([driver, src, fv1, fv2, aliased_guard])
+        store.write_to_online_store(feature_view_name="fv1", df=driver_df)
+        store.write_to_online_store(feature_view_name="fv2", df=driver_df)
+
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=[
+                "fv1:conv_rate",
+                "fv2:avg_daily_trips",
+                "aliased_guard:saw_declared",
+                "aliased_guard:saw_undeclared",
+            ],
+        ).to_dict()
+
+        # the aliased-but-declared source must survive; the unrelated FV stays hidden
+        assert response["saw_declared"] == [True]
+        assert response["saw_undeclared"] == [False]
