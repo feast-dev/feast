@@ -1200,11 +1200,9 @@ def _filter_created_timestamp(
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
 ) -> dd.DataFrame:
-    # Only keep feature values that were already created as of the entity event
-    # timestamp. Rows without a timestamp are unmatched entity rows from the
-    # left join and are kept; feature rows with a null created timestamp are
-    # excluded, consistent with the SQL predicate. Returned lazily so the mask
-    # fuses into the following _drop_duplicates persist.
+    # timestamp_field is NaN only for unmatched entity rows from the left join,
+    # which must be kept; null created timestamps fail the comparison and are
+    # excluded, matching the SQL predicate. Kept lazy to fuse into the next persist.
     return df_to_join[
         df_to_join[timestamp_field].isna()
         | (

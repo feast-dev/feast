@@ -1005,8 +1005,7 @@ def test_historical_features_filter_by_created_timestamp(environment):
 
     store.apply([driver, driver_fv])
 
-    # By default the backfilled values win the dedup, even though they were
-    # created after the entity timestamp
+    # Default: the backfilled values win the dedup
     actual_df = store.get_historical_features(
         entity_df=entity_df,
         features=["driver_stats:avg_daily_trips"],
@@ -1020,8 +1019,6 @@ def test_historical_features_filter_by_created_timestamp(environment):
     )
     validate_dataframes(expected_df, actual_df, sort_by=["driver_id"])
 
-    # With filter_by_created_timestamp=True only values created at or before the entity
-    # timestamp are served
     try:
         job = store.get_historical_features(
             entity_df=entity_df,
