@@ -1025,6 +1025,10 @@ class FeatureStore:
             name: Name of feature view.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
+        if not isinstance(fv, (FeatureView, OnDemandFeatureView, StreamFeatureView)):
+            raise ValueError(
+                f"Feature view '{name}' does not support enabled/disabled."
+            )
         fv.enabled = True  # type: ignore[attr-defined]
         self.registry.apply_feature_view(fv, self.project)
 
@@ -1036,6 +1040,10 @@ class FeatureStore:
             name: Name of feature view.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
+        if not isinstance(fv, (FeatureView, OnDemandFeatureView, StreamFeatureView)):
+            raise ValueError(
+                f"Feature view '{name}' does not support enabled/disabled."
+            )
         fv.enabled = False  # type: ignore[attr-defined]
         self.registry.apply_feature_view(fv, self.project)
 
@@ -1048,6 +1056,10 @@ class FeatureStore:
             state: Target state.
         """
         fv = self.registry.get_any_feature_view(name, self.project)
+        if not isinstance(fv, (FeatureView, OnDemandFeatureView, StreamFeatureView)):
+            raise ValueError(
+                f"Feature view '{name}' does not support state management."
+            )
         if not fv.state.can_transition_to(state):  # type: ignore[attr-defined]
             raise ValueError(
                 f"Invalid state transition: {fv.state.name} -> {state.name}."  # type: ignore[attr-defined]

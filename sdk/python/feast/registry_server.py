@@ -698,6 +698,93 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         return Empty()
 
+    def EnableFeatureView(
+        self, request: RegistryServer_pb2.EnableFeatureViewRequest, context
+    ):
+        feature_view = self.proxied_registry.get_any_feature_view(
+            name=request.name, project=request.project, allow_cache=False
+        )
+
+        assert_permissions(
+            resource=cast(FeastObject, feature_view),
+            actions=[AuthzedAction.UPDATE],
+        )
+
+        if not isinstance(
+            feature_view, (FeatureView, OnDemandFeatureView, StreamFeatureView)
+        ):
+            raise ValueError(
+                f"Feature view '{request.name}' does not support enable/disable."
+            )
+
+        feature_view.enabled = True
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view, project=request.project, commit=True
+        )
+
+        return Empty()
+
+    def DisableFeatureView(
+        self, request: RegistryServer_pb2.DisableFeatureViewRequest, context
+    ):
+        feature_view = self.proxied_registry.get_any_feature_view(
+            name=request.name, project=request.project, allow_cache=False
+        )
+
+        assert_permissions(
+            resource=cast(FeastObject, feature_view),
+            actions=[AuthzedAction.UPDATE],
+        )
+
+        if not isinstance(
+            feature_view, (FeatureView, OnDemandFeatureView, StreamFeatureView)
+        ):
+            raise ValueError(
+                f"Feature view '{request.name}' does not support enable/disable."
+            )
+
+        feature_view.enabled = False
+
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view, project=request.project, commit=True
+        )
+
+        return Empty()
+
+    def SetFeatureViewState(
+        self, request: RegistryServer_pb2.SetFeatureViewStateRequest, context
+    ):
+        feature_view = self.proxied_registry.get_any_feature_view(
+            name=request.name, project=request.project, allow_cache=False
+        )
+
+        assert_permissions(
+            resource=cast(FeastObject, feature_view),
+            actions=[AuthzedAction.UPDATE],
+        )
+
+        if not isinstance(
+            feature_view, (FeatureView, OnDemandFeatureView, StreamFeatureView)
+        ):
+            raise ValueError(
+                f"Feature view '{request.name}' does not support state management."
+            )
+
+        from feast.feature_view import FeatureViewState
+
+        state = FeatureViewState.from_proto(request.state)
+
+        if not feature_view.state.can_transition_to(state):
+            raise ValueError(
+                f"Invalid state transition from {feature_view.state} -> {state.name}."
+            )
+
+        feature_view.state = state
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view, project=request.project, commit=True
+        )
+        return Empty()
+
     def GetStreamFeatureView(
         self, request: RegistryServer_pb2.GetStreamFeatureViewRequest, context
     ):

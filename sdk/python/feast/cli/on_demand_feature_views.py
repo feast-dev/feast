@@ -1,9 +1,13 @@
+import sys
+
 import click
 import yaml
 
 from feast import utils
 from feast.cli.cli_options import tagsOption
 from feast.errors import FeastObjectNotFoundException
+from feast.feature_view import _VALID_STATE_TRANSITIONS, FeatureViewState
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_operations import create_feature_store
 
 
@@ -55,3 +59,107 @@ def on_demand_feature_view_list(ctx: click.Context, tags: list[str]):
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@on_demand_feature_views_cmd.command("enable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def on_demand_feature_view_enable(ctx: click.Context, name: str):
+    """
+    [Experimental] Enable an on demand feature view for serving.
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        sys.exit(1)
+
+    if not isinstance(fv, OnDemandFeatureView):
+        print(f"Feature view '{name}' is not an on demand feature view.")
+        return
+
+    if fv.enabled:
+        print(f"On demand feature view '{name}' is already enabled.")
+        return
+
+    fv.enabled = True
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"On demand feature view {name} has been enabled.")
+
+
+@on_demand_feature_views_cmd.command("disable")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def on_demand_feature_view_disable(ctx: click.Context, name: str):
+    """
+    [Experimental] Disable an on demand feature view for serving.
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        sys.exit(1)
+
+    if not isinstance(fv, OnDemandFeatureView):
+        print(f"Feature view '{name}' is not an on demand feature view.")
+        return
+
+    if not fv.enabled:
+        print(f"On demand feature view '{name}' is already disabled.")
+        return
+
+    fv.enabled = False
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"On demand feature view {name} has been disabled.")
+
+
+@on_demand_feature_views_cmd.command("set-state")
+@click.argument("name", type=click.STRING)
+@click.argument(
+    "state",
+    type=click.Choice(
+        ["CREATED", "GENERATED", "MATERIALIZING", "AVAILABLE_ONLINE"],
+        case_sensitive=False,
+    ),
+)
+@click.pass_context
+def on_demand_feature_view_set_state(ctx: click.Context, name: str, state: str):
+    """
+    [Experimental] Set the lifecycle state of an on demand feature view.
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        fv = store.registry.get_any_feature_view(name, store.project)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        sys.exit(1)
+
+    if not isinstance(fv, OnDemandFeatureView):
+        print(f"Feature view '{name}' is not an on demand feature view.")
+        return
+
+    new_state = FeatureViewState[state.upper()]
+    if fv.state == new_state:
+        print(
+            f"On demand feature view '{name}' is already in state '{new_state.name}'."
+        )
+        return
+
+    if not fv.state.can_transition_to(new_state):
+        current = fv.state.name
+        allowed = _VALID_STATE_TRANSITIONS.get(fv.state, set())
+        allowed_states = ", ".join(sorted(s.name for s in allowed)) or "none"
+        print(
+            f"Invalid state transition from '{current}' to '{new_state.name}'. "
+            f"Allowed transitions from '{current}' are: {allowed_states}."
+        )
+        return
+
+    fv.state = new_state
+    store.registry.apply_feature_view(fv, store.project)
+    print(f"On demand feature view {name} state has been set to {new_state.name}.")

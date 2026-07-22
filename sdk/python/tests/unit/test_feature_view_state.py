@@ -60,6 +60,18 @@ def _simple_feature_view(name="test_fv", enabled=True):
     )
 
 
+def _simple_stream_feature_view(name="test_sfv", enabled=True):
+    sfv = StreamFeatureView(
+        name=name,
+        entities=[],
+        schema=[Field(name="f1", dtype=Float32)],
+        source=_kafka_source(),
+        ttl=timedelta(days=1),
+    )
+    sfv.enabled = enabled
+    return sfv
+
+
 @pytest.fixture
 def local_feature_store():
     _, registry_path = mkstemp()
@@ -430,4 +442,67 @@ class TestMaterializationDisabledBlocking:
                 start_date=datetime.utcnow() - timedelta(hours=1),
                 end_date=datetime.utcnow(),
             )
+        store.teardown()
+
+
+class TestStreamRegistryEnabledState:
+    def test_apply_and_retrieve_enabled(self, local_feature_store):
+        store = local_feature_store
+        sfv = _simple_stream_feature_view(enabled=True)
+        store.apply([sfv])
+        retrieved = store.get_stream_feature_view("test_sfv")
+        assert retrieved.enabled is True
+        store.teardown()
+
+    def test_toggle_enabled_via_registry(self, local_feature_store):
+        store = local_feature_store
+        sfv = _simple_stream_feature_view(enabled=True)
+        store.apply([sfv])
+
+        # test disable
+        store.disable_feature_view("test_sfv")
+        retrieved = store.get_stream_feature_view("test_sfv")
+        assert retrieved.enabled is False
+
+        # test enable
+        store.enable_feature_view("test_sfv")
+        retrieved = store.get_stream_feature_view("test_sfv")
+        assert retrieved.enabled is True
+        store.teardown()
+
+    def test_state_transitions_via_store(self, local_feature_store):
+        store = local_feature_store
+        sfv = _simple_stream_feature_view()
+        sfv.state = FeatureViewState.STATE_UNSPECIFIED
+        store.apply([sfv])
+
+        # Valid transition: STATE_UNSPECIFIED -> CREATED
+        store.set_feature_view_state("test_sfv", FeatureViewState.CREATED)
+        retrieved = store.get_stream_feature_view("test_sfv")
+        assert retrieved.state == FeatureViewState.CREATED
+
+        # Invalid transition: CREATED -> AVAILABLE_ONLINE directly is not allowed
+        with pytest.raises(ValueError, match="Invalid state transition"):
+            store.set_feature_view_state("test_sfv", FeatureViewState.AVAILABLE_ONLINE)
+
+        store.teardown()
+
+    def test_invalid_object_type_raises_error(self, local_feature_store, monkeypatch):
+        store = local_feature_store
+        mock_entity = Entity(name="test_entity", join_keys=["entity_id"])
+
+        # Mock get_any_feature_view to return our entity mock object
+        monkeypatch.setattr(
+            store.registry,
+            "get_any_feature_view",
+            lambda name, *args, **kwargs: mock_entity,
+        )
+
+        # An Entity does not support enable/disable or state management
+        with pytest.raises(ValueError, match="does not support"):
+            store.enable_feature_view("test_entity")
+
+        with pytest.raises(ValueError, match="does not support"):
+            store.set_feature_view_state("test_entity", FeatureViewState.CREATED)
+
         store.teardown()

@@ -2176,3 +2176,33 @@ def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     assert data["featureServices"] == []
     assert data["featureViews"] == []
     assert "registryLastUpdated" in data
+
+
+def test_feature_view_enable_disable_state_via_rest(fastapi_test_app):
+    # Test Enable Endpoint
+    response = fastapi_test_app.post(
+        "/feature_views/user_profile/enable?project=demo_project"
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "enabled"
+
+    # Test Disable Endpoint
+    response = fastapi_test_app.post(
+        "/feature_views/user_profile/disable?project=demo_project"
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "disabled"
+
+    # Test Set State Endpoint (Valid Transition: STATE_UNSPECIFIED -> CREATED)
+    response = fastapi_test_app.post(
+        "/feature_views/user_profile/state?project=demo_project&state=CREATED"
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "CREATED"
+
+    # Test Set State Endpoint (Edge Case: Invalid State parameter)
+    response = fastapi_test_app.post(
+        "/feature_views/user_profile/state?project=demo_project&state=INVALID_STATE"
+    )
+    assert response.status_code == 400
+    assert "Invalid state" in response.json()["detail"]
