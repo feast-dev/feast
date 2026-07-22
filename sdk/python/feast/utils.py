@@ -55,6 +55,7 @@ if typing.TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
+    from feast.feature_view_projection import FeatureViewProjection
     from feast.infra.registry.base_registry import BaseRegistry
     from feast.on_demand_feature_view import OnDemandFeatureView
 
@@ -1193,6 +1194,19 @@ def _list_feature_views(
     return feature_views
 
 
+def _merge_projection_features(
+    target: "FeatureViewProjection",
+    other: "FeatureViewProjection",
+) -> None:
+    existing_names = {feature.name for feature in target.features}
+    merged = list(target.features)
+    for feature in other.features:
+        if feature.name not in existing_names:
+            existing_names.add(feature.name)
+            merged.append(feature)
+    target.features = merged
+
+
 def _get_feature_views_to_use(
     registry: "BaseRegistry",
     project,
@@ -1223,6 +1237,7 @@ def _get_feature_views_to_use(
         feature_views = parsed  # type: ignore[assignment]
 
     fvs_to_use, od_fvs_to_use = [], []
+    fvs_by_projection_key: Dict[str, "FeatureView"] = {}
     for name, version_num, projection in feature_views:
         if version_num is not None:
             if not getattr(registry, "enable_online_versioning", False):
@@ -1286,9 +1301,17 @@ def _get_feature_views_to_use(
                     source_fv.entities = []  # type: ignore[attr-defined]
                     source_fv.entity_columns = []  # type: ignore[attr-defined]
 
-                if source_fv not in fvs_to_use:
-                    fvs_to_use.append(
-                        source_fv.with_projection(copy.copy(source_projection))
+                projection_key = source_projection.name_to_use()
+                existing_source_fv = fvs_by_projection_key.get(projection_key)
+                if existing_source_fv is None:
+                    new_source_fv = source_fv.with_projection(
+                        copy.copy(source_projection)
+                    )
+                    fvs_by_projection_key[projection_key] = new_source_fv
+                    fvs_to_use.append(new_source_fv)
+                else:
+                    _merge_projection_features(
+                        existing_source_fv.projection, source_projection
                     )
         else:
             if (

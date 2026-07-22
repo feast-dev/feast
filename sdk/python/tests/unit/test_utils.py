@@ -266,3 +266,128 @@ class TestPopulateResponseFromFeatureData:
                 assert ts.seconds == expected_ts
             for status in fv.statuses:
                 assert status == FieldStatus.PRESENT
+
+
+class TestGetFeatureViewsToUseSharedSource:
+    def _build_store(self, data_dir):
+        import os
+        from datetime import timedelta
+
+        import pandas as pd
+
+        from feast import Entity, FeatureStore, FeatureView, Field, FileSource
+        from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+        from feast.on_demand_feature_view import on_demand_feature_view
+        from feast.repo_config import RepoConfig
+        from feast.types import Float64
+
+        driver = Entity(name="driver", join_keys=["driver_id"])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "event_timestamp": [
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+                ],
+                "created": [
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+                ],
+                "a": [1.0, 2.0],
+                "b": [10.0, 20.0],
+            }
+        )
+        src_path = os.path.join(data_dir, "src.parquet")
+        df.to_parquet(path=src_path, allow_truncated_timestamps=True)
+
+        src = FileSource(
+            name="src_source",
+            path=src_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+
+        src_fv = FeatureView(
+            name="src_fv",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="a", dtype=Float64),
+                Field(name="b", dtype=Float64),
+            ],
+            online=True,
+            source=src,
+        )
+
+        @on_demand_feature_view(
+            sources=[src_fv[["a"]]],
+            schema=[Field(name="a_out", dtype=Float64)],
+            mode="pandas",
+        )
+        def odfv_a(inputs):
+            return pd.DataFrame({"a_out": inputs["a"] + 1})
+
+        @on_demand_feature_view(
+            sources=[src_fv[["b"]]],
+            schema=[Field(name="b_out", dtype=Float64)],
+            mode="pandas",
+        )
+        def odfv_b(inputs):
+            return pd.DataFrame({"b_out": inputs["b"] + 100})
+
+        store = FeatureStore(
+            config=RepoConfig(
+                project="test_shared_source",
+                registry=os.path.join(data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(data_dir, "online.db")
+                ),
+            )
+        )
+        store.apply([driver, src, src_fv, odfv_a, odfv_b])
+        return store
+
+    def test_shared_source_projections_are_merged(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, odfvs = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_a:a_out", "odfv_b:b_out"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+            assert {odfv.name for odfv in odfvs} == {"odfv_a", "odfv_b"}
+
+    def test_shared_source_ref_order_independent(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, _ = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_b:b_out", "odfv_a:a_out"],
+            )
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
