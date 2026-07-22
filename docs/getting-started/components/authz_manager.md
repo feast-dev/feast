@@ -47,7 +47,7 @@ Some assumptions are made in the OIDC server configuration:
 * The roles are exposed in the access token under `resource_access.<client_id>.roles` (Keycloak) or in the top-level `roles` claim (Entra ID app roles). Roles found in both are merged.
 * The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
 * The username is read from the first of `preferred_username`, `upn`, `azp`, `appid`, `sub` present in the token. Entra ID client-credentials (app-only) tokens carry no user claim, so they authenticate as the calling application.
-* For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak).
+* For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak). Entra ID emits group object IDs (GUIDs) in this claim rather than names, and omits it once a principal exceeds Entra's group overage limit, so on Entra a `GroupBasedPolicy` must reference those IDs and cannot rely on the claim for very large group memberships.
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
 must be exactly the same.
@@ -65,6 +65,16 @@ For example, the access token for a client `app` of a user with `reader` role an
   },
   "groups": [
     "data-team"
+  ]
+}
+```
+
+A Microsoft Entra ID (Azure AD) client-credentials (app-only) token has no user claim; the application authenticates as itself, and its app roles arrive in the top-level `roles` claim:
+```json
+{
+  "azp": "11111111-2222-3333-4444-555555555555",
+  "roles": [
+    "reader"
   ]
 }
 ```
