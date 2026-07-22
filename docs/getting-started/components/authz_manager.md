@@ -44,9 +44,9 @@ The server, in turn, uses the same OIDC server to validate the token and extract
 
 Some assumptions are made in the OIDC server configuration:
 * The OIDC token refers to a client with roles matching the RBAC roles of the configured `Permission`s (*)
-* The roles are exposed in the access token under `resource_access.<client_id>.roles`
+* The roles are exposed in the access token under `resource_access.<client_id>.roles` (Keycloak) or in the top-level `roles` claim (Entra ID app roles). Roles found in both are merged.
 * The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
-* The `preferred_username` should be part of the JWT token claim.
+* The username is read from the first of `preferred_username`, `upn`, `azp`, `appid`, `sub` present in the token. Entra ID client-credentials (app-only) tokens carry no user claim, so they authenticate as the calling application.
 * For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak).
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
