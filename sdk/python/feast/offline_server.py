@@ -27,18 +27,17 @@ def _is_fips_enabled() -> bool:
         return False
 
 
-def _configure_grpc_fips() -> None:
+def _configure_grpc_fips() -> bool:
     if _is_fips_enabled() and "GRPC_SSL_CIPHER_SUITES" not in os.environ:
         os.environ["GRPC_SSL_CIPHER_SUITES"] = _FIPS_CIPHER_SUITES
-        logging.getLogger(__name__).info(
-            "FIPS mode detected, configured FIPS-compliant gRPC cipher suites."
-        )
+        return True
+    return False
 
 
 # On FIPS-enabled systems (notably IBM Power ppc64le), gRPC reads
 # GRPC_SSL_CIPHER_SUITES during shared-library initialization.  The env var
 # must be set before any gRPC-linked module (pyarrow.flight) is imported.
-_configure_grpc_fips()
+_fips_configured = _configure_grpc_fips()
 
 import click  # noqa: E402
 import pyarrow as pa  # noqa: E402
@@ -76,6 +75,9 @@ from feast.saved_dataset import SavedDatasetStorage  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+if _fips_configured:
+    logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
 
 
 class OfflineServer(fl.FlightServerBase):

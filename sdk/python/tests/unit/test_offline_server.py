@@ -1,5 +1,7 @@
-import importlib
 import os
+import subprocess
+import sys
+import textwrap
 from unittest.mock import MagicMock, mock_open, patch
 
 import assertpy
@@ -142,17 +144,51 @@ def test_configure_grpc_fips_noop_without_fips():
 
 def test_module_level_fips_sets_env_before_pyarrow_import():
     """GRPC_SSL_CIPHER_SUITES must be set at module load time,
-    before pyarrow.flight (which bundles gRPC) is imported."""
-    env_backup = os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
-    try:
-        with patch("builtins.open", mock_open(read_data="1\n")):
-            import feast.offline_server as mod
+    before pyarrow.flight (which bundles gRPC) is imported.
 
-            importlib.reload(mod)
+    Uses a subprocess so pyarrow.flight is not already cached in
+    sys.modules, which lets us verify the true import ordering.
+    """
+    script = textwrap.dedent("""\
+        import io, os, sys
+
+        # Intercept only /proc/sys/crypto/fips_enabled to simulate FIPS
+        _real_open = open
+        def _fips_open(file, *args, **kwargs):
+            if str(file) == "/proc/sys/crypto/fips_enabled":
+                return io.StringIO("1\\n")
+            return _real_open(file, *args, **kwargs)
+
+        import builtins
+        builtins.open = _fips_open
+
+        # Track import order to verify env var is set before pyarrow.flight
+        original_import = builtins.__import__
+        def tracking_import(name, *args, **kwargs):
+            if name == "pyarrow.flight":
+                assert "GRPC_SSL_CIPHER_SUITES" in os.environ, (
+                    "GRPC_SSL_CIPHER_SUITES not set before pyarrow.flight import"
+                )
+            return original_import(name, *args, **kwargs)
+
+        builtins.__import__ = tracking_import
+        try:
+            import feast.offline_server
             assert "GRPC_SSL_CIPHER_SUITES" in os.environ
             assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
-    finally:
-        if env_backup is not None:
-            os.environ["GRPC_SSL_CIPHER_SUITES"] = env_backup
-        else:
-            os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+        finally:
+            builtins.__import__ = original_import
+            builtins.open = _real_open
+    """)
+    env = os.environ.copy()
+    env.pop("GRPC_SSL_CIPHER_SUITES", None)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        f"Subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
