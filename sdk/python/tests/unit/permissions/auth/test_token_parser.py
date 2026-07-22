@@ -23,17 +23,16 @@ _CLIENT_ID = "test"
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_token_validation_success(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     user_data = {
         "preferred_username": "my-name",
@@ -67,17 +66,16 @@ def test_oidc_token_validation_success(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_token_missing_roles_key_returns_empty(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     user_data = {
         "preferred_username": "my-name",
@@ -104,17 +102,16 @@ def test_oidc_token_missing_roles_key_returns_empty(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_token_extracts_groups(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     user_data = {
         "preferred_username": "my-name",
@@ -146,17 +143,16 @@ def test_oidc_token_extracts_groups(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_token_extracts_groups_and_roles(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     user_data = {
         "preferred_username": "my-name",
@@ -233,16 +229,11 @@ def test_oidc_token_username_claim_precedence(
     token_claims,
     expected_username,
     oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     mock_jwt.return_value = token_claims
 
@@ -281,16 +272,11 @@ def test_oidc_token_without_usable_username_claim_fails(
     mock_oauth2,
     token_claims,
     oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     mock_jwt.return_value = token_claims
 
@@ -335,16 +321,11 @@ def test_oidc_token_merges_top_level_and_resource_access_roles(
     token_claims,
     expected_roles,
     oidc_config,
+    discovery_data,
+    signing_key,
 ):
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     mock_jwt.return_value = {"preferred_username": "my-name", **token_claims}
 
@@ -366,19 +347,18 @@ def test_oidc_token_merges_top_level_and_resource_access_roles(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_identity_and_roles_come_from_verified_decode(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
     """Identity and roles must come from the signature-verified decode, not the
     unverified decode used only for routing."""
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
-        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
-        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     def decode(token, key=None, *args, **kwargs):
         if kwargs.get("options", {}).get("verify_signature") is False:
@@ -623,14 +603,10 @@ def test_k8s_inter_server_comm(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_parser_handles_sa_token_via_token_review(
-    mock_discovery_data, mock_jwt_decode, oidc_config
+    mock_discovery_data, mock_jwt_decode, oidc_config, discovery_data
 ):
     """When a token contains kubernetes.io claim, _handle_sa_token is called (not the OIDC JWKS path)."""
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/auth",
-        "token_endpoint": "https://localhost:8080/token",
-        "jwks_uri": "https://localhost:8080/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     mock_jwt_decode.return_value = {
         "kubernetes.io": {"namespace": "feast"},
@@ -669,18 +645,17 @@ def test_oidc_parser_handles_sa_token_via_token_review(
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_parser_routes_keycloak_token_normally(
-    mock_discovery_data, mock_jwt_decode, mock_signing_key, mock_oauth2, oidc_config
+    mock_discovery_data,
+    mock_jwt_decode,
+    mock_signing_key,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+    signing_key,
 ):
     """When a token does NOT contain kubernetes.io claim, it should follow the OIDC path."""
-    signing_key = MagicMock()
-    signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
-
-    mock_discovery_data.return_value = {
-        "authorization_endpoint": "https://localhost:8080/auth",
-        "token_endpoint": "https://localhost:8080/token",
-        "jwks_uri": "https://localhost:8080/certs",
-    }
+    mock_discovery_data.return_value = discovery_data
 
     keycloak_payload = {
         "preferred_username": "testuser",
