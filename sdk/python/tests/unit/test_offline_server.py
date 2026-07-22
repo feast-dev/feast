@@ -1,3 +1,4 @@
+import importlib
 import os
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -137,3 +138,21 @@ def test_configure_grpc_fips_noop_without_fips():
         os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
         _configure_grpc_fips()
         assert "GRPC_SSL_CIPHER_SUITES" not in os.environ
+
+
+def test_module_level_fips_sets_env_before_pyarrow_import():
+    """GRPC_SSL_CIPHER_SUITES must be set at module load time,
+    before pyarrow.flight (which bundles gRPC) is imported."""
+    env_backup = os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+    try:
+        with patch("builtins.open", mock_open(read_data="1\n")):
+            import feast.offline_server as mod
+
+            importlib.reload(mod)
+            assert "GRPC_SSL_CIPHER_SUITES" in os.environ
+            assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
+    finally:
+        if env_backup is not None:
+            os.environ["GRPC_SSL_CIPHER_SUITES"] = env_backup
+        else:
+            os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
