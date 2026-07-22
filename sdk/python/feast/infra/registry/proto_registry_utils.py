@@ -418,14 +418,23 @@ def list_data_sources(
 
 @registry_proto_cache_with_tags
 def list_saved_datasets(
-    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    namespace: Optional[str] = None,
+    collection: Optional[str] = None,
 ) -> List[SavedDataset]:
     saved_datasets = []
     for saved_dataset in registry_proto.saved_datasets:
-        if saved_dataset.spec.project == project and utils.has_all_tags(
-            saved_dataset.spec.tags, tags
-        ):
-            saved_datasets.append(SavedDataset.from_proto(saved_dataset))
+        if saved_dataset.spec.project != project:
+            continue
+        if not utils.has_all_tags(saved_dataset.spec.tags, tags):
+            continue
+        if namespace is not None and saved_dataset.spec.namespace != namespace:
+            continue
+        if collection is not None and saved_dataset.spec.collection != collection:
+            continue
+        saved_datasets.append(SavedDataset.from_proto(saved_dataset))
     return saved_datasets
 
 

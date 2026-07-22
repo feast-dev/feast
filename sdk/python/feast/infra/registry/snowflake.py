@@ -945,13 +945,19 @@ class SnowflakeRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             registry_proto = self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                registry_proto, project, tags
+                registry_proto,
+                project,
+                tags,
+                namespace=namespace,
+                collection=collection,
             )
-        return self._list_objects(
+        results = self._list_objects(
             "SAVED_DATASETS",
             project,
             SavedDatasetProto,
@@ -959,6 +965,11 @@ class SnowflakeRegistry(BaseRegistry):
             "SAVED_DATASET_PROTO",
             tags=tags,
         )
+        if namespace is not None:
+            results = [sd for sd in results if sd.namespace == namespace]
+        if collection is not None:
+            results = [sd for sd in results if sd.collection == collection]
+        return results
 
     def list_stream_feature_views(
         self,
