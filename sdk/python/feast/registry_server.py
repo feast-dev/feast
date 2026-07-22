@@ -940,6 +940,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListSavedDatasets(
         self, request: RegistryServer_pb2.ListSavedDatasetsRequest, context
     ):
+        namespace_filter = request.namespace if request.namespace else None
+        collection_filter = request.collection if request.collection else None
         paginated_saved_datasets, pagination_metadata = apply_pagination_and_sorting(
             permitted_resources(
                 resources=cast(
@@ -948,6 +950,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         project=request.project,
                         allow_cache=request.allow_cache,
                         tags=dict(request.tags),
+                        namespace=namespace_filter,
+                        collection=collection_filter,
                     ),
                 ),
                 actions=AuthzedAction.DESCRIBE,

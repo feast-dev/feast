@@ -4770,7 +4770,11 @@ class FeatureStore:
         return self.registry.delete_project(name, commit=commit)
 
     def list_saved_datasets(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves the list of saved datasets from the registry.
@@ -4778,12 +4782,18 @@ class FeatureStore:
         Args:
             allow_cache: Whether to allow returning saved datasets from a cached registry.
             tags: Filter by tags.
+            namespace: Filter by logical namespace grouping.
+            collection: Filter by collection sub-grouping within namespace.
 
         Returns:
             A list of saved datasets.
         """
         return self.registry.list_saved_datasets(
-            self.project, allow_cache=allow_cache, tags=tags
+            self.project,
+            allow_cache=allow_cache,
+            tags=tags,
+            namespace=namespace,
+            collection=collection,
         )
 
     async def initialize(self) -> None:

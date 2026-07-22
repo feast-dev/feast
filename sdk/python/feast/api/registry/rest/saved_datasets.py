@@ -43,6 +43,9 @@ class RegisterDatasetRequest(BaseModel):
     full_feature_names: bool = False
     feature_service_name: Optional[str] = None
     allow_override: bool = False
+    namespace: str = ""
+    collection: str = ""
+    description: str = ""
 
 
 class CreateDatasetRequest(BaseModel):
@@ -75,10 +78,22 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         limit: int = Query(50, ge=1, le=100),
         sort_by: str = Query(None),
         sort_order: str = Query("asc"),
+        namespace: Optional[str] = Query(
+            None, description="Filter by namespace (logical grouping)"
+        ),
+        collection: Optional[str] = Query(
+            None, description="Filter by collection (sub-grouping within namespace)"
+        ),
         include_relationships: bool = Query(
             False, description="Include relationships for each saved dataset"
         ),
     ):
+        extra_params = {}
+        if namespace is not None:
+            extra_params["namespace"] = namespace
+        if collection is not None:
+            extra_params["collection"] = collection
+
         return aggregate_across_projects(
             grpc_handler=grpc_handler,
             list_method=grpc_handler.ListSavedDatasets,
@@ -91,6 +106,7 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             sort_by=sort_by,
             sort_order=sort_order,
             include_relationships=include_relationships,
+            extra_request_params=extra_params or None,
         )
 
     @router.get("/saved_datasets/data/{name}")
@@ -230,6 +246,12 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         project: str = Query(...),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
+        namespace: Optional[str] = Query(
+            None, description="Filter by namespace (logical grouping)"
+        ),
+        collection: Optional[str] = Query(
+            None, description="Filter by collection (sub-grouping within namespace)"
+        ),
         include_relationships: bool = Query(
             False, description="Include relationships for each saved dataset"
         ),
@@ -240,6 +262,8 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
             tags=tags,
+            namespace=namespace or "",
+            collection=collection or "",
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
@@ -347,6 +371,9 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             full_feature_names=payload.full_feature_names,
             storage=storage_proto,
             tags=payload.tags,
+            namespace=payload.namespace,
+            collection=payload.collection,
+            description=payload.description,
         )
         if payload.feature_service_name:
             spec.feature_service_name = payload.feature_service_name
