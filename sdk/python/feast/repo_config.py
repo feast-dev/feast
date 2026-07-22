@@ -337,6 +337,39 @@ class OpenLineageConfig(FeastBaseModel):
         )
 
 
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the query-time embedding model used by the feature server.
+
+    Required when using ``openai_search`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    **Sentence Transformers** (default) — runs locally, no API key required.
+    Ideal for air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers   # default; can be omitted
+          model: all-MiniLM-L6-v2
+
+    Custom providers can be plugged in by implementing the
+    :class:`~feast.embedder.EmbeddingProvider` protocol and passing an
+    instance to :class:`~feast.feature_store.FeatureStore`.
+    """
+
+    provider: str = "sentence_transformers"
+    """Embedding backend to use.  Supported values:
+    ``'sentence_transformers'`` (default)."""
+
+    model: str
+    """Model identifier.
+
+    Any HuggingFace model name compatible with ``SentenceTransformer``,
+    e.g. ``'all-MiniLM-L6-v2'``, ``'BAAI/bge-small-en-v1.5'``.
+    """
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
@@ -375,6 +408,13 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: Embedding model configuration.
+    Required when using openai_search or the
+    OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """
