@@ -276,7 +276,7 @@ def bootstrap():
     # feature_definitions.py
     example_py_file = repo_path / "feature_definitions.py"
     replace_str_in_file(
-        example_py_file, "%PARQUET_PATH%", str(driver_stats_path.relative_to(repo_path))
+        example_py_file, "%PARQUET_PATH%", driver_stats_path.relative_to(repo_path).as_posix()
     )
 
     # store config yaml, interact with user and then customize file:

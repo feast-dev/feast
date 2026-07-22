@@ -26,10 +26,10 @@ def bootstrap():
     example_py_file = repo_path / "feature_definitions.py"
     replace_str_in_file(example_py_file, "%PROJECT_NAME%", str(project_name))
     replace_str_in_file(
-        example_py_file, "%PARQUET_PATH%", str(driver_stats_path.relative_to(repo_path))
+        example_py_file, "%PARQUET_PATH%", driver_stats_path.relative_to(repo_path).as_posix()
     )
     replace_str_in_file(
-        example_py_file, "%LOGGING_PATH%", str(data_path.relative_to(repo_path))
+        example_py_file, "%LOGGING_PATH%", data_path.relative_to(repo_path).as_posix()
     )
 
 
