@@ -9,6 +9,10 @@ uses this repo. A quick view of what's in this repository's `feature_repo/` dire
 
 You can run the overall workflow with `python test_workflow.py`.
 
+### Windows notes
+- Activate the virtualenv with `venv\Scripts\activate` (cmd) or `.\venv\Scripts\Activate.ps1` (PowerShell) or `source venv/Scripts/activate` (Git Bash).
+- Generated `FileSource` paths use forward slashes so they are valid in Python string literals on Windows.
+
 ## To move from this into a more production ready workflow:
 > See more details in [Running Feast in production](https://docs.feast.dev/how-to-guides/running-feast-in-production)
 
