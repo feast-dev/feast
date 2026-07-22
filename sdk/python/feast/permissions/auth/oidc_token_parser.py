@@ -61,17 +61,23 @@ class OidcTokenParser(TokenParser):
 
     @staticmethod
     def _extract_username_or_raise_error(data: dict) -> str:
-        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory.
+        """Extract the username from the decoded JWT, or raise if the token
+        carries none of the recognised identity claims.
 
         Human identity claims take precedence: ``preferred_username`` (Keycloak
         default), then ``upn`` (Azure AD / Entra ID). Client-credentials
         (app-only) tokens carry neither, so the calling application's own
         identity is used instead: ``azp`` (Entra ID v2 tokens), ``appid``
         (Entra ID v1 tokens), and finally ``sub``, which every issuer sets.
+        A claim present with a null or non-string value is skipped rather than
+        returned, so it never shadows a usable later claim. Because ``sub`` is a
+        mandatory string JWT claim, the raise below fires only for a malformed
+        token that provides none of the five as a string.
         """
         for claim in ("preferred_username", "upn", "azp", "appid", "sub"):
-            if claim in data:
-                return data[claim]
+            value = data.get(claim)
+            if isinstance(value, str):
+                return value
         raise AuthenticationError(
             "Missing username claim in access token: expected one of "
             "preferred_username, upn, azp, appid or sub."
@@ -199,10 +205,8 @@ class OidcTokenParser(TokenParser):
             )
             # Entra ID emits app roles in the top-level `roles` claim instead of
             # Keycloak's nested `resource_access.<client_id>.roles`. Merge both
-            # shapes, preserving order and dropping duplicates.
-            roles = roles + [
-                r for r in self._extract_claim(data, "roles") if r not in roles
-            ]
+            # shapes for every issuer, preserving order and dropping duplicates.
+            roles = list(dict.fromkeys(roles + self._extract_claim(data, "roles")))
             groups = self._extract_claim(data, "groups")
 
             logger.info(

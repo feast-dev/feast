@@ -200,6 +200,16 @@ def test_oidc_token_extracts_groups_and_roles(
             {"upn": "my-name@example.com", "azp": "my-client-app"},
             "my-name@example.com",
         ),
+        # A human claim still wins when accompanied only by application claims.
+        (
+            {
+                "preferred_username": "my-name",
+                "appid": "my-v1-client-app",
+                "sub": "my-subject",
+            },
+            "my-name",
+        ),
+        ({"upn": "my-name@example.com", "sub": "my-subject"}, "my-name@example.com"),
         # Entra ID client-credentials (app-only) tokens carry no human claim.
         (
             {"azp": "my-client-app", "appid": "my-v1-client-app", "sub": "my-subject"},
@@ -247,14 +257,30 @@ def test_oidc_token_username_claim_precedence(
         assertpy.assert_that(user.username).is_equal_to(expected_username)
 
 
+@pytest.mark.parametrize(
+    "token_claims",
+    [
+        # No identity claim at all.
+        {"resource_access": {_CLIENT_ID: {"roles": ["reader"]}}},
+        # Identity claims present but null are skipped, not accepted.
+        {"preferred_username": None, "upn": None, "azp": None, "sub": None},
+        # A non-string identity claim is skipped, not accepted.
+        {"sub": 12345},
+    ],
+)
 @patch(
     "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
 )
 @patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
-def test_oidc_token_without_any_username_claim_fails(
-    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+def test_oidc_token_without_usable_username_claim_fails(
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    token_claims,
+    oidc_config,
 ):
     signing_key = MagicMock()
     signing_key.key = "a-key"
@@ -266,7 +292,7 @@ def test_oidc_token_without_any_username_claim_fails(
         "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
     }
 
-    mock_jwt.return_value = {"resource_access": {_CLIENT_ID: {"roles": ["reader"]}}}
+    mock_jwt.return_value = token_claims
 
     access_token = "aaa-bbb-ccc"
     token_parser = OidcTokenParser(auth_config=oidc_config)
@@ -281,6 +307,8 @@ def test_oidc_token_without_any_username_claim_fails(
     [
         # Entra ID app roles arrive in the top-level `roles` claim.
         ({"roles": ["reader", "writer"]}, ["reader", "writer"]),
+        # Duplicates within the top-level claim are collapsed.
+        ({"roles": ["reader", "reader", "writer"]}, ["reader", "writer"]),
         # Keycloak's nested claim keeps working on its own.
         ({"resource_access": {_CLIENT_ID: {"roles": ["reader"]}}}, ["reader"]),
         # Both shapes present: merged, in order, without duplicates.
