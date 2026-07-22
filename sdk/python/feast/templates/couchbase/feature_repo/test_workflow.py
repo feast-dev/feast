@@ -36,7 +36,7 @@ def run_demo():
     fetch_online_features(store, source="push")
 
     print("\n--- Run feast teardown ---")
-    subprocess.run(["feast", "--chdir", os.path.dirname(__file__), "teardown"])
+    store.teardown()
 
 
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):

@@ -49,7 +49,7 @@ def run_demo():
     fetch_online_features(store, use_feature_service=True)
 
     print("\n--- Run feast teardown ---")
-    subprocess.run(["feast", "teardown"])
+    store.teardown()
 
 
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):
