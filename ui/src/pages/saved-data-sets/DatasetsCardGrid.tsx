@@ -103,6 +103,9 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
   const tags = spec.tags || {};
   const featureServiceName =
     spec.featureServiceName || spec.feature_service_name;
+  const namespace = spec.namespace || "";
+  const collection = spec.collection || "";
+  const description = spec.description || "";
   const createdTimestamp = meta.createdTimestamp || meta.created_timestamp;
   const storagePath = extractStoragePath(dataset);
   const storageType = detectStorageType(dataset);
@@ -168,6 +171,32 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
             </EuiBadge>
           </EuiFlexItem>
         </EuiFlexGroup>
+
+        {/* Description */}
+        {description && (
+          <EuiText size="xs" color="subdued" style={{ marginTop: 4 }}>
+            <p style={{ margin: 0, lineHeight: 1.4 }}>{description}</p>
+          </EuiText>
+        )}
+
+        {/* Namespace / Collection badges */}
+        {(namespace || collection) && (
+          <>
+            <EuiSpacer size="s" />
+            <EuiFlexGroup gutterSize="xs" responsive={false} wrap>
+              {namespace && (
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="primary">{namespace}</EuiBadge>
+                </EuiFlexItem>
+              )}
+              {collection && (
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="accent">{collection}</EuiBadge>
+                </EuiFlexItem>
+              )}
+            </EuiFlexGroup>
+          </>
+        )}
 
         <EuiSpacer size="m" />
 

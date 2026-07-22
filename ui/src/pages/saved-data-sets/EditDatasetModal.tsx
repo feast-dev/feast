@@ -307,6 +307,9 @@ const EditDatasetModal = ({
   // Form state
   const [storagePath, setStoragePath] = useState(extractStoragePath(dataset));
   const [storageType, setStorageType] = useState(detectStorageType(dataset));
+  const [namespace, setNamespace] = useState(spec.namespace || "");
+  const [collection, setCollection] = useState(spec.collection || "");
+  const [description, setDescription] = useState(spec.description || "");
   const [featuresInput, setFeaturesInput] = useState<EuiComboBoxOptionOption[]>(
     (spec.features || []).map((f: string) => ({ label: f })),
   );
@@ -368,6 +371,9 @@ const EditDatasetModal = ({
       tags: tagsObj,
       full_feature_names: fullFeatureNames,
       feature_service_name: featureServiceName || undefined,
+      namespace: namespace.trim() || undefined,
+      collection: collection.trim() || undefined,
+      description: description.trim() || undefined,
       allow_override: true,
     };
     await onSubmit(payload);
@@ -423,6 +429,20 @@ const EditDatasetModal = ({
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiFormRow
+            label="Description"
+            helpText="Brief description of this dataset."
+          >
+            <EuiFieldText
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Training data for driver fraud model"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiFlexGroup gutterSize="m">
+        <EuiFlexItem>
+          <EuiFormRow
             label="Feature Service (optional)"
             helpText="Associate with a feature service for lineage."
           >
@@ -440,6 +460,41 @@ const EditDatasetModal = ({
               onCreateOption={(val) => setFeatureServiceName(val)}
               placeholder="Select or type..."
               isClearable
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiSpacer size="m" />
+
+      {/* Organization */}
+      <EuiTitle size="xxs">
+        <h4>Organization (optional)</h4>
+      </EuiTitle>
+      <EuiSpacer size="s" />
+
+      <EuiFlexGroup gutterSize="m">
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Namespace"
+            helpText="Top-level grouping (e.g. fraud, underwriting, analytics)."
+          >
+            <EuiFieldText
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
+              placeholder="e.g. fraud"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Collection"
+            helpText="Sub-grouping within the namespace (e.g. raw, curated, training)."
+          >
+            <EuiFieldText
+              value={collection}
+              onChange={(e) => setCollection(e.target.value)}
+              placeholder="e.g. training"
             />
           </EuiFormRow>
         </EuiFlexItem>

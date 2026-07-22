@@ -96,6 +96,9 @@ const DatasetOverviewTab = () => {
   const tags = data.spec?.tags || {};
   const featureServiceName =
     data.spec?.featureServiceName || data.spec?.feature_service_name;
+  const namespace = data.spec?.namespace || "";
+  const collection = data.spec?.collection || "";
+  const description = data.spec?.description || "";
   const createdTs = data.meta?.createdTimestamp || data.meta?.created_timestamp;
   const minEventTs =
     data.meta?.minEventTimestamp || data.meta?.min_event_timestamp;
@@ -167,6 +170,33 @@ const DatasetOverviewTab = () => {
                 {provenance}
               </EuiBadge>
             </EuiDescriptionListDescription>
+
+            {description && (
+              <>
+                <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  {description}
+                </EuiDescriptionListDescription>
+              </>
+            )}
+
+            {namespace && (
+              <>
+                <EuiDescriptionListTitle>Namespace</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  <EuiBadge color="primary">{namespace}</EuiBadge>
+                </EuiDescriptionListDescription>
+              </>
+            )}
+
+            {collection && (
+              <>
+                <EuiDescriptionListTitle>Collection</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  <EuiBadge color="accent">{collection}</EuiBadge>
+                </EuiDescriptionListDescription>
+              </>
+            )}
 
             <EuiDescriptionListTitle>Storage Type</EuiDescriptionListTitle>
             <EuiDescriptionListDescription>
