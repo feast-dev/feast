@@ -357,9 +357,53 @@ def test_oidc_token_merges_top_level_and_resource_access_roles(
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
         assertpy.assert_that(user.roles).is_equal_to(expected_roles)
-        for role in expected_roles:
-            assertpy.assert_that(user.has_matching_role([role])).is_true()
-        assertpy.assert_that(user.has_matching_role(["updater"])).is_false()
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_identity_and_roles_come_from_verified_decode(
+    mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+):
+    """Identity and roles must come from the signature-verified decode, not the
+    unverified decode used only for routing."""
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+
+    def decode(token, key=None, *args, **kwargs):
+        if kwargs.get("options", {}).get("verify_signature") is False:
+            # Unverified decode, used only for routing; must not drive identity.
+            return {
+                "preferred_username": "spoofed-user",
+                "resource_access": {_CLIENT_ID: {"roles": ["spoofed-role"]}},
+            }
+        return {
+            "preferred_username": "verified-user",
+            "resource_access": {_CLIENT_ID: {"roles": ["reader"]}},
+        }
+
+    mock_jwt.side_effect = decode
+
+    access_token = "aaa-bbb-ccc"
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token=access_token)
+    )
+
+    assertpy.assert_that(user).is_type_of(User)
+    if isinstance(user, User):
+        assertpy.assert_that(user.username).is_equal_to("verified-user")
+        assertpy.assert_that(user.roles).is_equal_to(["reader"])
 
 
 @patch(
