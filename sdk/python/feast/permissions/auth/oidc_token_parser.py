@@ -78,6 +78,9 @@ class OidcTokenParser(TokenParser):
             value = data.get(claim)
             if isinstance(value, str):
                 return value
+        logger.debug(
+            f"No usable username claim; token claims present: {list(data.keys())}"
+        )
         raise AuthenticationError(
             "Missing username claim in access token: expected one of "
             "preferred_username, upn, azp, appid or sub."

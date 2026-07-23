@@ -47,7 +47,8 @@ Some assumptions are made in the OIDC server configuration:
 * The roles are exposed in the access token under `resource_access.<client_id>.roles` (Keycloak) or in the top-level `roles` claim (Entra ID app roles). Roles found in both are merged.
 * The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
 * The username is read from the first of `preferred_username`, `upn`, `azp`, `appid`, `sub` present in the token. Entra ID client-credentials (app-only) tokens carry no user claim, so they authenticate as the calling application.
-* For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak). Entra ID emits group object IDs (GUIDs) in this claim rather than names, and omits it once a principal exceeds Entra's group overage limit, so on Entra a `GroupBasedPolicy` must reference those IDs and cannot rely on the claim for very large group memberships.
+* For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak).
+* **Entra ID limitation**: Group claims use object IDs (GUIDs) instead of names, and are omitted entirely when a user exceeds the group overage threshold. GroupBasedPolicy must reference GUIDs and cannot be used for principals with large group memberships.
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
 must be exactly the same.

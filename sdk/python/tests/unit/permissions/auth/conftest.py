@@ -1,3 +1,4 @@
+from typing import Dict
 from unittest.mock import MagicMock
 
 import pytest
@@ -65,7 +66,7 @@ def oidc_config() -> OidcAuthConfig:
 
 
 @pytest.fixture
-def discovery_data() -> dict:
+def discovery_data() -> Dict[str, str]:
     return {
         "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
         "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
