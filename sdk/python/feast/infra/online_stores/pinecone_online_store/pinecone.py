@@ -3,12 +3,18 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictStr
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import (
+    ComparisonFilter,
+    CompoundFilter,
+    FilterTranslator,
+    FilterType,
+)
 from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
@@ -50,6 +56,48 @@ _UPSERT_BATCH_SIZE = 100
 
 # Max wait time for index readiness (seconds)
 _INDEX_READY_TIMEOUT = 300
+
+_PINECONE_COMPARISON_OPS = {
+    "eq": "$eq",
+    "ne": "$ne",
+    "gt": "$gt",
+    "gte": "$gte",
+    "lt": "$lt",
+    "lte": "$lte",
+    "in": "$in",
+    "nin": "$nin",
+}
+
+
+class PineconeFilterTranslator(FilterTranslator):
+    """Translates Feast filters into Pinecone metadata filter dicts."""
+
+    def translate(self, filters: FilterType) -> Optional[Dict[str, Any]]:
+        if filters is None:
+            return None
+        return self._dispatch(filters)
+
+    def translate_comparison(self, f: ComparisonFilter) -> Dict[str, Any]:
+        op = _PINECONE_COMPARISON_OPS.get(f.type)
+        if op is None:
+            raise ValueError(f"Unsupported comparison operator: {f.type}")
+        if f.type in ("in", "nin") and not isinstance(f.value, list):
+            raise ValueError(
+                f"'{f.type}' filter requires a list value, got {type(f.value)}"
+            )
+        return {f.key: {op: f.value}}
+
+    def translate_compound(self, f: CompoundFilter) -> Dict[str, Any]:
+        if not f.filters:
+            return {}
+        clauses = [self._dispatch(sub) for sub in f.filters if sub is not None]
+        clauses = [c for c in clauses if c]
+        if not clauses:
+            return {}
+        if len(clauses) == 1:
+            return clauses[0]
+        operator = "$and" if f.type == "and" else "$or"
+        return {operator: clauses}
 
 
 class PineconeOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -365,6 +413,7 @@ class PineconeOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -394,7 +443,11 @@ class PineconeOnlineStore(OnlineStore):
         entity_name_type_map = {k.name: k.dtype for k in table.entity_columns}
         vector_fields = {f.name for f in table.schema if f.vector_index}
 
-        pinecone_filter = None
+        filter_parts: List[Dict[str, Any]] = []
+        metadata_filter = PineconeFilterTranslator().translate(filters)
+        if metadata_filter:
+            filter_parts.append(metadata_filter)
+
         if query_string is not None:
             from feast.types import PrimitiveFeastType
             from feast.types import ValueType as FeastValueType
@@ -407,9 +460,16 @@ class PineconeOnlineStore(OnlineStore):
                 and f.name in requested_features
             ]
             if string_fields:
-                pinecone_filter = {
-                    "$or": [{field: {"$eq": query_string}} for field in string_fields]
-                }
+                filter_parts.append(
+                    {"$or": [{field: {"$eq": query_string}} for field in string_fields]}
+                )
+
+        if not filter_parts:
+            pinecone_filter = None
+        elif len(filter_parts) == 1:
+            pinecone_filter = filter_parts[0]
+        else:
+            pinecone_filter = {"$and": filter_parts}
 
         query_response = index.query(
             vector=embedding,

@@ -2409,6 +2409,7 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -8716,6 +8717,7 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
@@ -14241,6 +14243,7 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -18748,6 +18751,7 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
