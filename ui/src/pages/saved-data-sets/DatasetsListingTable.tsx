@@ -36,6 +36,44 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
       },
     },
     {
+      name: "Namespace",
+      render: (item: any) => {
+        const ns = item.spec?.namespace;
+        return ns ? (
+          <EuiBadge color="primary">{ns}</EuiBadge>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "140px",
+    },
+    {
+      name: "Collection",
+      render: (item: any) => {
+        const col = item.spec?.collection;
+        return col ? (
+          <EuiBadge color="accent">{col}</EuiBadge>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "140px",
+    },
+    {
+      name: "Description",
+      render: (item: any) => {
+        const desc = item.spec?.description;
+        return desc ? (
+          <span style={{ fontSize: 13 }}>
+            {desc.length > 50 ? desc.slice(0, 50) + "…" : desc}
+          </span>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "200px",
+    },
+    {
       name: "Features",
       render: (item: any) => (item.spec?.features || []).length,
       width: "90px",

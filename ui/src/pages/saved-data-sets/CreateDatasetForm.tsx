@@ -103,6 +103,9 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
 
   // Step 3: Storage & metadata
   const [datasetName, setDatasetName] = useState("");
+  const [namespace, setNamespace] = useState("");
+  const [collection, setCollection] = useState("");
+  const [description, setDescription] = useState("");
   const [storageType, setStorageType] = useState("file");
   const [storagePath, setStoragePath] = useState("");
   const [tags, setTags] = useState<TagEntry[]>([]);
@@ -267,6 +270,10 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
           {} as Record<string, string>,
         ),
       };
+
+      if (namespace.trim()) payload.namespace = namespace.trim();
+      if (collection.trim()) payload.collection = collection.trim();
+      if (description.trim()) payload.description = description.trim();
 
       if (featureMode === "service" && selectedService.length > 0) {
         payload.feature_service_name = selectedService[0].label;
@@ -561,6 +568,47 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
           fullWidth
         />
       </EuiFormRow>
+
+      <EuiFormRow
+        label="Description (optional)"
+        helpText="Brief description of this dataset."
+      >
+        <EuiFieldText
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g. Training data for driver fraud model"
+          fullWidth
+        />
+      </EuiFormRow>
+
+      <EuiFlexGroup gutterSize="m">
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Namespace (optional)"
+            helpText="Top-level grouping (e.g. fraud, underwriting)."
+          >
+            <EuiFieldText
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
+              placeholder="e.g. fraud"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Collection (optional)"
+            helpText="Sub-grouping within namespace (e.g. raw, curated)."
+          >
+            <EuiFieldText
+              value={collection}
+              onChange={(e) => setCollection(e.target.value)}
+              placeholder="e.g. training"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiSpacer size="m" />
 
       <EuiFlexGroup gutterSize="m">
         <EuiFlexItem grow={1}>
