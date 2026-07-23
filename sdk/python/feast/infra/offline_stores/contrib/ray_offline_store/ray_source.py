@@ -228,7 +228,7 @@ class RaySource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, RaySource):
-            raise TypeError("Comparisons should only involve RaySource class objects.")
+            return False
         base_eq = super().__eq__(other)
         if not base_eq:
             return False

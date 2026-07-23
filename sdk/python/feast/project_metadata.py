@@ -60,9 +60,7 @@ class ProjectMetadata:
 
     def __eq__(self, other):
         if not isinstance(other, ProjectMetadata):
-            raise TypeError(
-                "Comparisons should only involve ProjectMetadata class objects."
-            )
+            return False
 
         if (
             self.project_name != other.project_name

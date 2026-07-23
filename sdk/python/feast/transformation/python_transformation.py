@@ -143,9 +143,7 @@ class PythonTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
-            raise TypeError(
-                "Comparisons should only involve PythonTransformation class objects."
-            )
+            return False
 
         if (
             self.udf_string != other.udf_string

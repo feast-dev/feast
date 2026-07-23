@@ -77,9 +77,7 @@ class PostgreSQLSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, PostgreSQLSource):
-            raise TypeError(
-                "Comparisons should only involve PostgreSQLSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)

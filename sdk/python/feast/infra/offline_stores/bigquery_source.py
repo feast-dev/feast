@@ -97,9 +97,7 @@ class BigQuerySource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
-            raise TypeError(
-                "Comparisons should only involve BigQuerySource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)

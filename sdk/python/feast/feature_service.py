@@ -173,9 +173,7 @@ class FeatureService:
 
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
-            raise TypeError(
-                "Comparisons should only involve FeatureService class objects."
-            )
+            return False
 
         if (
             self.name != other.name
