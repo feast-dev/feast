@@ -48,6 +48,19 @@ message SavedDatasetSpec {
 
   // User defined metadata
   map<string, string> tags = 7;
+
+  // Optional logical namespace for hierarchical grouping.
+  // Maps to the top-level prefix in Iceberg REST Catalog API.
+  // Empty string means not set (no namespace scoping).
+  string namespace = 9;
+
+  // Optional sub-grouping within a namespace.
+  // Maps to the namespace level in Iceberg REST Catalog API.
+  // Empty string means not set (dataset sits directly under namespace).
+  string collection = 10;
+
+  // Description of the saved dataset.
+  string description = 11;
 }
 
 message SavedDatasetStorage {

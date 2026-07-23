@@ -1305,11 +1305,19 @@ class Registry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
+        return proto_registry_utils.list_saved_datasets(
+            registry_proto,
+            project,
+            tags,
+            namespace=namespace,
+            collection=collection,
+        )
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)

@@ -417,6 +417,10 @@ message ListSavedDatasetsRequest {
     map<string,string> tags = 3;
     PaginationParams pagination = 4;
     SortingParams sorting = 5;
+    // Optional logical namespace filter. Empty string means no filter.
+    string namespace = 6;
+    // Optional collection filter. Empty string means no filter.
+    string collection = 7;
 }
 
 message ListSavedDatasetsResponse {
