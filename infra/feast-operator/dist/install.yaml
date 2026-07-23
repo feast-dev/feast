@@ -3386,7 +3386,11 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+<<<<<<< HEAD
                                 - chronon
+=======
+                                - pinecone
+>>>>>>> 293398522 (fix: Align Pinecone store with filters API and operator types)
                                 type: string
                             required:
                             - secretRef
@@ -10734,7 +10738,11 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+<<<<<<< HEAD
                                     - chronon
+=======
+                                    - pinecone
+>>>>>>> 293398522 (fix: Align Pinecone store with filters API and operator types)
                                     type: string
                                 required:
                                 - secretRef
@@ -16352,7 +16360,11 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+<<<<<<< HEAD
                                 - chronon
+=======
+                                - pinecone
+>>>>>>> 293398522 (fix: Align Pinecone store with filters API and operator types)
                                 type: string
                             required:
                             - secretRef
@@ -20930,7 +20942,11 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+<<<<<<< HEAD
                                     - chronon
+=======
+                                    - pinecone
+>>>>>>> 293398522 (fix: Align Pinecone store with filters API and operator types)
                                     type: string
                                 required:
                                 - secretRef
