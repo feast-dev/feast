@@ -774,6 +774,11 @@ func (in *MlflowConfig) DeepCopyInto(out *MlflowConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.UiUrl != nil {
+		in, out := &in.UiUrl, &out.UiUrl
+		*out = new(string)
+		**out = **in
+	}
 	if in.AutoLog != nil {
 		in, out := &in.AutoLog, &out.AutoLog
 		*out = new(bool)

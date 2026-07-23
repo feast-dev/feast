@@ -63,20 +63,33 @@ func (feast *FeastServices) applyMlflowDefaults() {
 			cr.Status.Applied.Mlflow = nil
 			return
 		}
-		// enabled: true but no trackingUri → discover it
-		if cr.Spec.Mlflow.TrackingUri == nil {
-			if uri, ok := DiscoverMlflowTrackingUri(feast.Handler.Context, feast.Handler.Client); ok {
-				cr.Status.Applied.Mlflow.TrackingUri = &uri
+		// enabled: true but missing trackingUri or uiUrl → discover them
+		needsDiscovery := cr.Spec.Mlflow.TrackingUri == nil || cr.Spec.Mlflow.UiUrl == nil
+		if needsDiscovery && feast.Handler.Client != nil {
+			if discovered, ok := DiscoverMlflow(feast.Handler.Context, feast.Handler.Client); ok {
+				if cr.Status.Applied.Mlflow.TrackingUri == nil {
+					cr.Status.Applied.Mlflow.TrackingUri = &discovered.TrackingUri
+				}
+				if cr.Status.Applied.Mlflow.UiUrl == nil && discovered.UiUrl != "" {
+					cr.Status.Applied.Mlflow.UiUrl = &discovered.UiUrl
+				}
 			}
 		}
 		return
 	}
 	// spec.mlflow is nil → attempt auto-discovery
-	if uri, ok := DiscoverMlflowTrackingUri(feast.Handler.Context, feast.Handler.Client); ok {
-		cr.Status.Applied.Mlflow = &feastdevv1.MlflowConfig{
+	if feast.Handler.Client == nil {
+		return
+	}
+	if discovered, ok := DiscoverMlflow(feast.Handler.Context, feast.Handler.Client); ok {
+		applied := &feastdevv1.MlflowConfig{
 			Enabled:     true,
-			TrackingUri: &uri,
+			TrackingUri: &discovered.TrackingUri,
 		}
+		if discovered.UiUrl != "" {
+			applied.UiUrl = &discovered.UiUrl
+		}
+		cr.Status.Applied.Mlflow = applied
 	}
 }
 

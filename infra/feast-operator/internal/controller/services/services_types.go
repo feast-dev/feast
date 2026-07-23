@@ -387,6 +387,7 @@ type OpenLineageConsumerYamlConfig struct {
 type MlflowYamlConfig struct {
 	Enabled             bool                   `yaml:"enabled"`
 	TrackingUri         *string                `yaml:"tracking_uri,omitempty"`
+	UiUrl               *string                `yaml:"ui_url,omitempty"`
 	AutoLog             *bool                  `yaml:"auto_log,omitempty"`
 	AutoLogEntityDf     *bool                  `yaml:"auto_log_entity_df,omitempty"`
 	EntityDfMaxRows     *int32                 `yaml:"entity_df_max_rows,omitempty"`

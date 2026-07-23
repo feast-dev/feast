@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"context"
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,6 +25,8 @@ import (
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
@@ -1046,6 +1049,7 @@ var _ = Describe("MLflow Configuration", func() {
 		It("should set mlflow block with enabled + tracking URI", func() {
 			featureStore := minimalFeatureStore()
 			trackingUri := "https://mlflow.redhat-ods-applications.svc:8443"
+			uiUrl := "https://mlflow.apps.example.com"
 			autoLog := true
 			autoLogEntityDf := false
 			logOps := true
@@ -1053,6 +1057,7 @@ var _ = Describe("MLflow Configuration", func() {
 			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
 				Enabled:         true,
 				TrackingUri:     &trackingUri,
+				UiUrl:           &uiUrl,
 				AutoLog:         &autoLog,
 				AutoLogEntityDf: &autoLogEntityDf,
 				LogOperations:   &logOps,
@@ -1064,6 +1069,7 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(repoConfig.Mlflow).NotTo(BeNil())
 			Expect(repoConfig.Mlflow.Enabled).To(BeTrue())
 			Expect(repoConfig.Mlflow.TrackingUri).To(Equal(&trackingUri))
+			Expect(repoConfig.Mlflow.UiUrl).To(Equal(&uiUrl))
 			Expect(repoConfig.Mlflow.AutoLog).To(Equal(&autoLog))
 			Expect(repoConfig.Mlflow.AutoLogEntityDf).To(Equal(&autoLogEntityDf))
 			Expect(repoConfig.Mlflow.LogOperations).To(Equal(&logOps))
@@ -1179,9 +1185,11 @@ var _ = Describe("MLflow Configuration", func() {
 		It("should keep spec values when spec.mlflow is explicitly set with trackingUri", func() {
 			featureStore := minimalFeatureStore()
 			trackingUri := "https://my-mlflow.svc:8443"
+			uiUrl := "https://mlflow.apps.example.com"
 			featureStore.Spec.Mlflow = &feastdevv1.MlflowConfig{
 				Enabled:     true,
 				TrackingUri: &trackingUri,
+				UiUrl:       &uiUrl,
 			}
 			ApplyDefaultsToStatus(featureStore)
 
@@ -1192,6 +1200,51 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(featureStore.Status.Applied.Mlflow).NotTo(BeNil())
 			Expect(featureStore.Status.Applied.Mlflow.Enabled).To(BeTrue())
 			Expect(featureStore.Status.Applied.Mlflow.TrackingUri).To(Equal(&trackingUri))
+			Expect(featureStore.Status.Applied.Mlflow.UiUrl).To(Equal(&uiUrl))
+		})
+	})
+
+	Context("DiscoverMlflow", func() {
+		It("should return tracking and UI URLs from a Ready MLflow CR", func() {
+			mlflow := &unstructured.Unstructured{}
+			mlflow.SetGroupVersionKind(mlflowGVK)
+			mlflow.SetName("mlflow")
+			mlflow.Object["status"] = map[string]interface{}{
+				"address": map[string]interface{}{
+					"url": "https://mlflow.svc:8443",
+				},
+				"url": "https://mlflow.apps.example.com",
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Ready", "status": "True"},
+				},
+			}
+			fakeClient := fake.NewClientBuilder().WithObjects(mlflow).Build()
+
+			result, ok := DiscoverMlflow(context.Background(), fakeClient)
+			Expect(ok).To(BeTrue())
+			Expect(result.TrackingUri).To(Equal("https://mlflow.svc:8443"))
+			Expect(result.UiUrl).To(Equal("https://mlflow.apps.example.com"))
+		})
+
+		It("should fall back to external URL as tracking URI when address is missing", func() {
+			mlflow := &unstructured.Unstructured{}
+			mlflow.SetGroupVersionKind(mlflowGVK)
+			mlflow.SetName("mlflow")
+			mlflow.Object["status"] = map[string]interface{}{
+				"url": "https://mlflow.apps.example.com",
+			}
+			fakeClient := fake.NewClientBuilder().WithObjects(mlflow).Build()
+
+			result, ok := DiscoverMlflow(context.Background(), fakeClient)
+			Expect(ok).To(BeTrue())
+			Expect(result.TrackingUri).To(Equal("https://mlflow.apps.example.com"))
+			Expect(result.UiUrl).To(Equal("https://mlflow.apps.example.com"))
+		})
+
+		It("should return false when MLflow CR is absent", func() {
+			fakeClient := fake.NewClientBuilder().Build()
+			_, ok := DiscoverMlflow(context.Background(), fakeClient)
+			Expect(ok).To(BeFalse())
 		})
 	})
 

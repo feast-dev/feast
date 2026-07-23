@@ -33,41 +33,61 @@ var mlflowGVK = schema.GroupVersionKind{
 	Kind:    "MLflow",
 }
 
-// DiscoverMlflowTrackingUri attempts to find the cluster-scoped MLflow CR
-// (singleton named "mlflow") and returns its in-cluster tracking URI.
-// Returns ("", false) when MLflow is not installed, not ready, or not available.
+// MlflowDiscoveryResult holds the discovered MLflow URIs from the cluster CR.
+type MlflowDiscoveryResult struct {
+	// TrackingUri is the in-cluster URI for API calls (status.address.url).
+	TrackingUri string
+	// UiUrl is the external/browser-reachable URL for hyperlinks (status.url).
+	// Empty when no external route is configured.
+	UiUrl string
+}
+
+// DiscoverMlflow attempts to find the cluster-scoped MLflow CR and returns
+// both the in-cluster tracking URI and the external browser-reachable UI URL.
+// Returns (zero-value, false) when MLflow is not installed, not ready, or not available.
 // This function never returns an error — it is designed for best-effort discovery
 // so that the FeatureStore reconcile is not blocked by MLflow absence.
-func DiscoverMlflowTrackingUri(ctx context.Context, c client.Client) (string, bool) {
+func DiscoverMlflow(ctx context.Context, c client.Client) (MlflowDiscoveryResult, bool) {
 	mlflow := &unstructured.Unstructured{}
 	mlflow.SetGroupVersionKind(mlflowGVK)
 
 	if err := c.Get(ctx, client.ObjectKey{Name: "mlflow"}, mlflow); err != nil {
-		return "", false
+		return MlflowDiscoveryResult{}, false
 	}
 
 	status, found, _ := unstructured.NestedMap(mlflow.Object, "status")
 	if !found {
-		return "", false
+		return MlflowDiscoveryResult{}, false
 	}
 
 	if !isMlflowReady(status) {
-		return "", false
+		return MlflowDiscoveryResult{}, false
 	}
 
-	// Prefer in-cluster address (HTTPS service URL)
+	result := MlflowDiscoveryResult{}
+
+	// In-cluster address (HTTPS service URL) — used for API calls
 	if addr, ok := status["address"].(map[string]interface{}); ok {
 		if url, ok := addr["url"].(string); ok && url != "" {
-			return url, true
+			result.TrackingUri = url
 		}
 	}
 
-	// Fallback to gateway URL (external, browser-reachable)
+	// External gateway URL — used for browser-reachable hyperlinks
 	if url, ok := status["url"].(string); ok && url != "" {
-		return url, true
+		result.UiUrl = url
 	}
 
-	return "", false
+	// If no in-cluster address, use external URL as tracking URI too
+	if result.TrackingUri == "" {
+		result.TrackingUri = result.UiUrl
+	}
+
+	if result.TrackingUri == "" {
+		return MlflowDiscoveryResult{}, false
+	}
+
+	return result, true
 }
 
 // isMlflowReady checks status.conditions for a Ready=True condition.

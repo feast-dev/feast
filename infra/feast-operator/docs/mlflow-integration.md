@@ -57,6 +57,7 @@ spec:
   mlflow:
     enabled: true
     trackingUri: "https://custom-mlflow.example.com:8443"
+    uiUrl: "https://dashboard.example.com/mlflow"
     autoLog: true
     autoLogEntityDf: true
     entityDfMaxRows: 50000
@@ -79,7 +80,8 @@ spec:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | auto-detected | Master switch for MLflow integration |
-| `trackingUri` | string | auto-discovered | MLflow tracking server URI |
+| `trackingUri` | string | auto-discovered | MLflow tracking server URI (in-cluster, from `status.address.url`) |
+| `uiUrl` | string | auto-discovered | Browser-reachable MLflow URL for Feast UI lineage hyperlinks (from `status.url`) |
 | `autoLog` | *bool | `true` | Auto-log feature metadata on every retrieval |
 | `autoLogEntityDf` | *bool | `false` | Save entity DataFrame as artifact |
 | `entityDfMaxRows` | *int32 | `100000` | Skip artifact for large DataFrames |
@@ -124,6 +126,13 @@ with store.mlflow.start_run(run_name="training"):
 2. Auto-discovered from MLflow CR `status.address.url`
 3. `MLFLOW_TRACKING_URI` environment variable (on workbench pods, injected by MLflow operator)
 4. MLflow default (`./mlruns`)
+
+## UI URL resolution order (for browser hyperlinks in Feast UI lineage)
+
+1. Explicit `uiUrl` in FeatureStore CR
+2. `MLFLOW_UI_URL` environment variable
+3. Auto-discovered from MLflow CR `status.url` (external gateway route)
+4. Falls back to `trackingUri` (works for local dev where tracking URI is browser-reachable)
 
 ## Graceful degradation
 

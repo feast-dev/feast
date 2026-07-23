@@ -881,6 +881,10 @@ spec:
                       MLflow tracking server URI. When omitted, the operator auto-discovers
                       from the cluster MLflow CR (status.address.url).
                     type: string
+                  uiUrl:
+                    description: Browser-reachable MLflow UI URL used for hyperlinks
+                      in Feast UI lineage.
+                    type: string
                 required:
                 - enabled
                 type: object
@@ -7219,6 +7223,10 @@ spec:
                         description: |-
                           MLflow tracking server URI. When omitted, the operator auto-discovers
                           from the cluster MLflow CR (status.address.url).
+                        type: string
+                      uiUrl:
+                        description: Browser-reachable MLflow UI URL used for hyperlinks
+                          in Feast UI lineage.
                         type: string
                     required:
                     - enabled

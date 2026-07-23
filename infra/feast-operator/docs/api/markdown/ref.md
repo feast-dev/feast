@@ -547,6 +547,10 @@ _Appears in:_
 | `trackingUri` _string_ | MLflow tracking server URI. When omitted, the operator auto-discovers
 from the cluster MLflow CR (status.address.url). Falls back to
 MLFLOW_TRACKING_URI env var on pods. |
+| `uiUrl` _string_ | Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+When omitted, the operator auto-discovers from the MLflow CR status.url
+(the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+to trackingUri. Only needed when the tracking URI is cluster-internal. |
 | `autoLog` _boolean_ | Automatically log feature metadata on every retrieval inside an active MLflow run.
 Defaults to true when enabled. |
 | `autoLogEntityDf` _boolean_ | Save entity DataFrame as MLflow artifact on historical retrieval.
