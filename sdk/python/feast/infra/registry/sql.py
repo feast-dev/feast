@@ -1227,6 +1227,10 @@ class SqlRegistry(CachingRegistry):
             FeatureViewNotFoundException,
         )
         fv.materialization_intervals.append((start_date, end_date))
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            fv.state = FeatureViewState.AVAILABLE_ONLINE
         self._apply_object(
             table, project, "feature_view_name", fv, "feature_view_proto"
         )

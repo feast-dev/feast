@@ -487,8 +487,14 @@ class FeatureStore:
         self,
         feature_views: list,
         previous_states: dict,
+        _force_local: bool = False,
     ) -> None:
-        """Restore feature views to their pre-materialization states."""
+        """Restore feature views to their pre-materialization states.
+
+        Skip when _force_local: the async handler owns failure reset (GENERATED).
+        """
+        if _force_local:
+            return
         for fv in feature_views:
             prev = previous_states.get(fv.name)
             if (
@@ -504,13 +510,18 @@ class FeatureStore:
         feature_view,
         already_transitioned: list,
         previous_states: dict,
+        _force_local: bool = False,
     ) -> None:
         """
         Transition a feature view to MATERIALIZING state.
 
         Rolls back all already-transitioned FVs if this one can't transition.
+        Skip when _force_local: the async handler already set MATERIALIZING.
         """
         previous_state = getattr(feature_view, "state", None)
+        previous_states[feature_view.name] = previous_state
+        if _force_local:
+            return
         if (
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
@@ -523,7 +534,6 @@ class FeatureStore:
                 )
             feature_view.state = FeatureViewState.MATERIALIZING
             self.registry.apply_feature_view(feature_view, self.project, commit=True)
-        previous_states[feature_view.name] = previous_state
 
     def _submit_and_process_materialization_jobs(
         self,
@@ -532,12 +542,14 @@ class FeatureStore:
         regular_fvs: list,
         previous_states: dict,
         date_range: "_MaterializationDateRange",
+        _force_local: bool = False,
     ) -> None:
         """
         Submit all tasks to the engine in one call and process the results.
 
         For each returned job: record watermark on success, roll back state on
         error. If the engine itself raises, all states are rolled back.
+        When _force_local, skip state rollback (async handler owns GENERATED reset).
         """
         from feast.infra.common.materialization_job import (
             MaterializationJobStatus,
@@ -547,11 +559,15 @@ class FeatureStore:
         try:
             jobs = provider.batch_engine.materialize(self.registry, tasks)
         except Exception:
-            self._rollback_fv_states(regular_fvs, previous_states)
+            self._rollback_fv_states(
+                regular_fvs, previous_states, _force_local=_force_local
+            )
             raise
 
         if len(jobs) != len(regular_fvs):
-            self._rollback_fv_states(regular_fvs, previous_states)
+            self._rollback_fv_states(
+                regular_fvs, previous_states, _force_local=_force_local
+            )
             raise RuntimeError(
                 f"Engine returned {len(jobs)} jobs for {len(regular_fvs)} tasks"
             )
@@ -571,7 +587,9 @@ class FeatureStore:
                 succeeded_fvs.append(fv)
 
         if failed_fvs:
-            self._rollback_fv_states(failed_fvs, previous_states)
+            self._rollback_fv_states(
+                failed_fvs, previous_states, _force_local=_force_local
+            )
 
         # Engines that apply watermarks themselves (e.g. SparkApplication pod)
         # must not get a second apply_materialization — that duplicates intervals.
@@ -602,6 +620,7 @@ class FeatureStore:
         end_date: datetime,
         tqdm_builder,
         disable_event_timestamp: bool = False,
+        _force_local: bool = False,
     ) -> None:
         """Batch path: collect all FVs, submit to engine in one call.
 
@@ -616,7 +635,10 @@ class FeatureStore:
 
         for feature_view, fv_start in fv_with_dates:
             self._transition_fv_to_materializing(
-                feature_view, regular_fvs, previous_states
+                feature_view,
+                regular_fvs,
+                previous_states,
+                _force_local=_force_local,
             )
             regular_fvs.append(feature_view)
             date_range.fv_start_dates[feature_view.name] = fv_start
@@ -638,6 +660,7 @@ class FeatureStore:
                 regular_fvs,
                 previous_states,
                 date_range,
+                _force_local=_force_local,
             )
 
     @property
@@ -2409,12 +2432,265 @@ class FeatureStore:
         )
         self.write_to_online_store(feature_view.name, df=transformed_df)
 
+    def _get_remote_materialize_url(self) -> str:
+        """Get the feature server URL from online_store.path for remote materialization."""
+        online_cfg = self.config.online_store
+        url = getattr(online_cfg, "path", None)
+        if not url:
+            raise ValueError(
+                "online_store.path must be set to use remote materialization. "
+                "Configure online_store with type: remote and a valid path."
+            )
+        return url.rstrip("/")
+
+    def _get_remote_http_session(self):
+        """Get an HTTP session with auth configured for the feature server."""
+        import requests
+
+        auth_config = getattr(self.config, "auth_config", None)
+        if auth_config and getattr(auth_config, "type", "no_auth") != "no_auth":
+            from feast.permissions.client.http_auth_requests_wrapper import (
+                get_http_auth_requests_session,
+            )
+
+            return get_http_auth_requests_session(auth_config)
+
+        return requests.Session()
+
+    def _fv_state_to_materialization_status(
+        self, state, *, seen_materializing: Optional[set] = None, fv_name: str = ""
+    ):
+        """Map FeatureViewState to FVMaterializationStatus."""
+        from feast.materialization_status import FVMaterializationStatus
+
+        if state == FeatureViewState.AVAILABLE_ONLINE:
+            return FVMaterializationStatus.SUCCEEDED
+        if state == FeatureViewState.MATERIALIZING:
+            if seen_materializing is not None:
+                seen_materializing.add(fv_name)
+            return FVMaterializationStatus.RUNNING
+        if state == FeatureViewState.GENERATED:
+            if seen_materializing is not None and fv_name in seen_materializing:
+                return FVMaterializationStatus.FAILED
+            return FVMaterializationStatus.PENDING
+        return FVMaterializationStatus.PENDING
+
+    def poll_materialization(
+        self,
+        feature_views: Optional[List[str]] = None,
+    ):
+        """One-shot check of materialization status for feature views.
+
+        Reads current FV state from the registry (no waiting/looping).
+        Call repeatedly yourself if you want to track progress over time.
+
+        Args:
+            feature_views: FV names to check. If None, checks all materializable FVs.
+
+        Returns:
+            List of FVResult with name and current status (pending/running/succeeded).
+        """
+        from feast.materialization_status import FVResult
+
+        fv_names = feature_views or [
+            fv.name
+            for fv in self._get_feature_views_to_materialize(None)
+            if not isinstance(fv, OnDemandFeatureView)
+        ]
+
+        results = []
+        for name in fv_names:
+            fv = self.registry.get_feature_view(name, self.project, allow_cache=False)
+            status = self._fv_state_to_materialization_status(
+                getattr(fv, "state", None)
+            )
+            results.append(FVResult(name=name, status=status))
+        return results
+
+    def _remote_materialize_common(
+        self,
+        endpoint: str,
+        payload: dict,
+        fv_names: List[str],
+        timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+        wait: bool = True,
+    ) -> None:
+        """Shared logic for remote materialization: trigger server, optionally wait.
+
+        Args:
+            endpoint: Server endpoint path (e.g., "/materialize-async").
+            payload: JSON payload for the POST request.
+            fv_names: Feature view names to track.
+            timeout: Max seconds to wait for materialization to complete.
+            poll_interval: Seconds between registry polls when wait=True.
+            wait: If True, poll until complete. If False, return after 202 Accepted.
+        """
+        from feast.materialization_status import (
+            FVMaterializationStatus,
+            FVResult,
+            poll_materialization_status,
+        )
+
+        server_url = self._get_remote_materialize_url()
+
+        _logger.info(
+            f"Remote materialize: triggering {len(fv_names)} feature views "
+            f"via {endpoint} on {server_url}"
+        )
+
+        session = self._get_remote_http_session()
+        try:
+            post_kwargs: dict = {
+                "json": payload,
+                "timeout": 30,
+            }
+            cert = getattr(self.config.online_store, "cert", None)
+            if cert:
+                post_kwargs["verify"] = cert
+            resp = session.post(f"{server_url}{endpoint}", **post_kwargs)
+            resp.raise_for_status()
+        except Exception as e:
+            raise Exception(
+                f"Failed to trigger remote materialization at "
+                f"{server_url}{endpoint}: {e}"
+            ) from e
+        finally:
+            session.close()
+
+        if not wait:
+            _logger.info(
+                f"Remote materialize accepted for {fv_names} "
+                f"(wait=False; use poll_materialization() to check status)"
+            )
+            return
+
+        seen_materializing: set = set()
+
+        def registry_status_fn(fv_name: str) -> FVMaterializationStatus:
+            fv = self.registry.get_feature_view(
+                fv_name, self.project, allow_cache=False
+            )
+            return self._fv_state_to_materialization_status(
+                getattr(fv, "state", None),
+                seen_materializing=seen_materializing,
+                fv_name=fv_name,
+            )
+
+        def on_change(result: FVResult):
+            symbol = {
+                FVMaterializationStatus.SUCCEEDED: "+",
+                FVMaterializationStatus.FAILED: "x",
+                FVMaterializationStatus.RUNNING: "~",
+            }.get(result.status, "?")
+            _logger.info(
+                f"  [{symbol}] {result.name}: {result.status.value} "
+                f"({result.elapsed_seconds:.1f}s)"
+            )
+
+        results = poll_materialization_status(
+            feature_view_names=fv_names,
+            status_fn=registry_status_fn,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            on_status_change=on_change,
+        )
+
+        if hasattr(self.registry, "refresh"):
+            self.registry.refresh(project=self.project)
+
+        failed = [r for r in results if r.status == FVMaterializationStatus.FAILED]
+        if failed:
+            names = ", ".join(r.name for r in failed)
+            errors = "; ".join(f"{r.name}: {r.error}" for r in failed if r.error)
+            msg = f"Remote materialization failed for: {names}"
+            if errors:
+                msg += f" ({errors})"
+            raise Exception(msg)
+
+    def _remote_materialize(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
+        disable_event_timestamp: bool = False,
+        full_feature_names: bool = False,
+        version: Optional[str] = None,
+        timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+        wait: bool = True,
+    ) -> None:
+        """Delegate materialization to the feature server, poll via registry."""
+        fv_names = feature_views or [
+            fv.name
+            for fv in self._get_feature_views_to_materialize(None)
+            if not isinstance(fv, OnDemandFeatureView)
+        ]
+
+        payload: dict = {
+            "start_ts": start_date.isoformat(),
+            "end_ts": end_date.isoformat(),
+            "feature_views": fv_names,
+            "disable_event_timestamp": disable_event_timestamp,
+            "full_feature_names": full_feature_names,
+        }
+        if version is not None:
+            payload["version"] = version
+
+        self._remote_materialize_common(
+            "/materialize-async",
+            payload,
+            fv_names,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            wait=wait,
+        )
+
+    def _remote_materialize_incremental(
+        self,
+        end_date: datetime,
+        feature_views: Optional[List[str]] = None,
+        full_feature_names: bool = False,
+        version: Optional[str] = None,
+        timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+        wait: bool = True,
+    ) -> None:
+        """Delegate incremental materialization to the feature server, poll via registry."""
+        fv_names = feature_views or [
+            fv.name
+            for fv in self._get_feature_views_to_materialize(None)
+            if not isinstance(fv, OnDemandFeatureView)
+        ]
+
+        payload: dict = {
+            "end_ts": end_date.isoformat(),
+            "feature_views": fv_names,
+            "full_feature_names": full_feature_names,
+        }
+        if version is not None:
+            payload["version"] = version
+
+        self._remote_materialize_common(
+            "/materialize-incremental-async",
+            payload,
+            fv_names,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            wait=wait,
+        )
+
     def materialize_incremental(
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        remote: bool = False,
+        timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+        wait: bool = True,
+        _force_local: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2433,6 +2709,13 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            remote (bool): If True, delegate materialization to the feature server instead of
+                running the batch engine locally. The server URL is taken from online_store.path.
+            timeout (float): Max seconds to wait when remote=True and wait=True.
+            poll_interval (float): Seconds between registry polls when remote=True and wait=True.
+            wait (bool): If True (default), block until remote materialization finishes.
+                If False, return after the server accepts the job; use poll_materialization()
+                to check status later.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2448,6 +2731,17 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if remote and not _force_local:
+            return self._remote_materialize_incremental(
+                end_date=end_date,
+                feature_views=feature_views,
+                full_feature_names=full_feature_names,
+                version=version,
+                timeout=timeout,
+                poll_interval=poll_interval,
+                wait=wait,
+            )
+
         parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views, version=parsed_version
@@ -2539,14 +2833,16 @@ class FeatureStore:
                     regular_fvs_with_dates,
                     end_date_tz,
                     tqdm_builder,
+                    _force_local=_force_local,
                 )
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
                     # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                    # Skip when _force_local: the async handler already set MATERIALIZING.
                     previous_state = getattr(feature_view, "state", None)
                     if (
-                        hasattr(feature_view, "state")
+                        not _force_local
+                        and hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
                         if not feature_view.state.can_transition_to(
@@ -2575,9 +2871,11 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
+                        # Roll back state on failure (only when not _force_local,
+                        # since the async handler manages state via _update_fv_state).
                         if (
-                            hasattr(feature_view, "state")
+                            not _force_local
+                            and hasattr(feature_view, "state")
                             and previous_state is not None
                             and previous_state != FeatureViewState.STATE_UNSPECIFIED
                         ):
@@ -2637,6 +2935,11 @@ class FeatureStore:
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        remote: bool = False,
+        timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+        wait: bool = True,
+        _force_local: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2655,6 +2958,13 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            remote (bool): If True, delegate materialization to the feature server instead of
+                running the batch engine locally. The server URL is taken from online_store.path.
+            timeout (float): Max seconds to wait when remote=True and wait=True.
+            poll_interval (float): Seconds between registry polls when remote=True and wait=True.
+            wait (bool): If True (default), block until remote materialization finishes.
+                If False, return after the server accepts the job; use poll_materialization()
+                to check status later.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -2672,6 +2982,19 @@ class FeatureStore:
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
+            )
+
+        if remote and not _force_local:
+            return self._remote_materialize(
+                start_date=start_date,
+                end_date=end_date,
+                feature_views=feature_views,
+                disable_event_timestamp=disable_event_timestamp,
+                full_feature_names=full_feature_names,
+                version=version,
+                timeout=timeout,
+                poll_interval=poll_interval,
+                wait=wait,
             )
 
         parsed_version = self._validate_materialize_version(version, feature_views)
@@ -2731,14 +3054,16 @@ class FeatureStore:
                     end_date,
                     tqdm_builder,
                     disable_event_timestamp=disable_event_timestamp,
+                    _force_local=_force_local,
                 )
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
                     # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                    # Skip when _force_local: the async handler already set MATERIALIZING.
                     previous_state = getattr(feature_view, "state", None)
                     if (
-                        hasattr(feature_view, "state")
+                        not _force_local
+                        and hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
                         if not feature_view.state.can_transition_to(
@@ -2768,9 +3093,11 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
+                        # Roll back state on failure (only when not _force_local,
+                        # since the async handler manages state via _update_fv_state).
                         if (
-                            hasattr(feature_view, "state")
+                            not _force_local
+                            and hasattr(feature_view, "state")
                             and previous_state is not None
                             and previous_state != FeatureViewState.STATE_UNSPECIFIED
                         ):

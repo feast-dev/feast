@@ -93,12 +93,14 @@ class MaterializeRequest(BaseModel):
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
     full_feature_names: bool = False
+    version: Optional[str] = None
 
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
     feature_views: Optional[List[str]] = None
     full_feature_names: bool = False
+    version: Optional[str] = None
 
 
 class GetOnlineFeaturesRequest(BaseModel):
@@ -861,6 +863,152 @@ def get_app(
                 utils.make_tzaware(parser.parse(request.end_ts)),
                 request.feature_views,
                 full_feature_names=request.full_feature_names,
+            )
+
+    def _authorize_materialize_views(
+        request_feature_views: Optional[List[str]],
+    ) -> List[str]:
+        """Shared authz + FV name resolution for async materialize endpoints."""
+        feature_views_to_materialize = store._get_feature_views_to_materialize(
+            request_feature_views
+        )
+        for fv in feature_views_to_materialize:
+            assert_permissions(
+                resource=fv,
+                actions=[AuthzedAction.WRITE_ONLINE],
+            )
+        return [fv.name for fv in feature_views_to_materialize]
+
+    def _parse_materialize_timestamps(request: MaterializeRequest):
+        """Parse and validate timestamps from a materialize request."""
+        if request.disable_event_timestamp:
+            now = datetime.now()
+            return datetime(1970, 1, 1), now
+
+        if not request.start_ts or not request.end_ts:
+            raise ValueError(
+                "start_ts and end_ts are required when disable_event_timestamp is False"
+            )
+        try:
+            start_date = utils.make_tzaware(parser.parse(request.start_ts))
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid timestamp format: {e}") from e
+
+        if start_date >= end_date:
+            raise ValueError(
+                f"start_ts ({start_date}) must be before end_ts ({end_date})"
+            )
+        return start_date, end_date
+
+    from feast.feature_view import FeatureViewState
+
+    def _check_already_materializing(fv_names: List[str]) -> Optional[JSONResponse]:
+        """Return 409 if any requested FV is already materializing."""
+        for fv_name in fv_names:
+            try:
+                fv = store.registry.get_feature_view(
+                    fv_name, store.project, allow_cache=False
+                )
+                if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
+                    return JSONResponse(
+                        status_code=409,
+                        content={
+                            "error": f"Feature view '{fv_name}' is already materializing"
+                        },
+                    )
+            except Exception:
+                pass
+        return None
+
+    def _update_fv_state(fv_names: List[str], state) -> None:
+        """Update FV state in the registry."""
+        for fv_name in fv_names:
+            try:
+                fv = store.registry.get_feature_view(
+                    fv_name, store.project, allow_cache=False
+                )
+                fv.state = state
+                store.registry.apply_feature_view(fv, store.project)
+            except Exception:
+                logger.warning(f"Failed to set state={state} for {fv_name}")
+
+    @app.post("/materialize-async", dependencies=[Depends(inject_user_details)])
+    async def materialize_async(request: MaterializeRequest) -> JSONResponse:
+        with feast_metrics.track_request_latency("/materialize-async"):
+            fv_names = _authorize_materialize_views(request.feature_views)
+            start_date, end_date = _parse_materialize_timestamps(request)
+
+            conflict = _check_already_materializing(fv_names)
+            if conflict:
+                return conflict
+
+            _update_fv_state(fv_names, FeatureViewState.MATERIALIZING)
+
+            def _run_materialize():
+                try:
+                    store.materialize(
+                        start_date,
+                        end_date,
+                        request.feature_views,
+                        disable_event_timestamp=request.disable_event_timestamp,
+                        full_feature_names=request.full_feature_names,
+                        version=request.version,
+                        _force_local=True,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Async materialization failed for {fv_names}: {e}",
+                        exc_info=True,
+                    )
+                    _update_fv_state(fv_names, FeatureViewState.GENERATED)
+
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, _run_materialize)
+
+            return JSONResponse(
+                status_code=202,
+                content={"status": "accepted", "feature_views": fv_names},
+            )
+
+    @app.post(
+        "/materialize-incremental-async",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def materialize_incremental_async(
+        request: MaterializeIncrementalRequest,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency("/materialize-incremental-async"):
+            fv_names = _authorize_materialize_views(request.feature_views)
+
+            conflict = _check_already_materializing(fv_names)
+            if conflict:
+                return conflict
+
+            _update_fv_state(fv_names, FeatureViewState.MATERIALIZING)
+
+            def _run_materialize_incremental():
+                try:
+                    store.materialize_incremental(
+                        utils.make_tzaware(parser.parse(request.end_ts)),
+                        request.feature_views,
+                        full_feature_names=request.full_feature_names,
+                        version=request.version,
+                        _force_local=True,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Async incremental materialization failed for {fv_names}: {e}",
+                        exc_info=True,
+                    )
+                    _update_fv_state(fv_names, FeatureViewState.GENERATED)
+
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, _run_materialize_incremental)
+
+            return JSONResponse(
+                status_code=202,
+                content={"status": "accepted", "feature_views": fv_names},
             )
 
     @app.exception_handler(Exception)
