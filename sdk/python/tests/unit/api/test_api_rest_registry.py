@@ -2162,6 +2162,116 @@ def test_apply_and_delete_feature_view_via_rest(fastapi_test_app):
     assert response.status_code == 404
 
 
+def test_apply_and_delete_feature_service_via_rest(fastapi_test_app):
+    """Test POST /feature_services and DELETE /feature_services/{name} endpoints."""
+    response = fastapi_test_app.post(
+        "/feature_views",
+        json={
+            "name": "driver_stats_for_service",
+            "project": "demo_project",
+            "entities": ["user_id"],
+            "features": [
+                {
+                    "name": "trip_count",
+                    "value_type": 2,
+                    "description": "Number of completed trips",
+                },
+            ],
+            "ttl_seconds": 86400,
+            "online": True,
+            "description": "Driver statistics feature view",
+        },
+    )
+    assert response.status_code == 201
+
+    response = fastapi_test_app.post(
+        "/feature_services",
+        json={
+            "name": "driver_activity_v1",
+            "project": "demo_project",
+            "features": [
+                {
+                    "feature_view_name": "driver_stats_for_service",
+                    "feature_names": ["trip_count"],
+                }
+            ],
+            "description": "Driver activity feature service",
+            "owner": "ml-team",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "driver_activity_v1"
+    assert data["status"] == "applied"
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["spec"]["name"] == "driver_activity_v1"
+    projections = data["spec"]["features"]
+    assert len(projections) == 1
+    assert projections[0]["featureViewName"] == "driver_stats_for_service"
+    assert len(projections[0]["featureColumns"]) == 1
+    assert projections[0]["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.get("/feature_services?project=demo_project")
+    assert response.status_code == 200
+    listed = next(
+        fs
+        for fs in response.json()["featureServices"]
+        if fs["spec"]["name"] == "driver_activity_v1"
+    )
+    listed_projection = listed["spec"]["features"][0]
+    assert listed_projection["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.post(
+        "/feature_services",
+        json={
+            "name": "driver_activity_all",
+            "project": "demo_project",
+            "features": [
+                {"feature_view_name": "driver_stats_for_service"},
+            ],
+            "description": "All features from the feature view",
+        },
+    )
+    assert response.status_code == 201
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_all?project=demo_project"
+    )
+    assert response.status_code == 200
+    all_features_projection = response.json()["spec"]["features"][0]
+    assert all_features_projection["featureViewName"] == "driver_stats_for_service"
+    assert len(all_features_projection["featureColumns"]) == 1
+    assert all_features_projection["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.delete(
+        "/feature_services/driver_activity_all?project=demo_project"
+    )
+    assert response.status_code == 200
+
+    response = fastapi_test_app.delete(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "driver_activity_v1"
+    assert data["status"] == "deleted"
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 404
+
+    response = fastapi_test_app.delete(
+        "/feature_views/driver_stats_for_service?project=demo_project"
+    )
+    assert response.status_code == 200
+
+
 def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     """Test /metrics/resource_counts with a non-existent project returns empty data."""
     response = fastapi_test_app.get(

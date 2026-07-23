@@ -100,6 +100,33 @@ const ALL_STORAGE_TYPES: StorageTypeDef[] = [
     sourceTypeMatch: ["BATCH_ATHENA"],
   },
   {
+    value: "postgres",
+    label: "PostgreSQL",
+    description: "PostgreSQL table reference",
+    placeholder: "schema.table_name",
+    helpText:
+      "PostgreSQL table reference. Data is read via the PostgreSQL offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "clickhouse",
+    label: "ClickHouse",
+    description: "ClickHouse table reference",
+    placeholder: "database.table_name",
+    helpText:
+      "ClickHouse table reference. Data is read via the ClickHouse offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "couchbase",
+    label: "Couchbase Columnar",
+    description: "Couchbase Columnar collection reference",
+    placeholder: "database.scope.collection",
+    helpText:
+      "Couchbase Columnar reference in format: database.scope.collection",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
     value: "custom",
     label: "Custom",
     description: "Custom storage configuration",
@@ -128,6 +155,11 @@ function detectDataSourceTypes(dataSources: any[]): Set<string> {
     if (ds.spec?.trinoOptions || ds.trinoOptions) types.add("BATCH_TRINO");
     if (ds.spec?.athenaOptions || ds.athenaOptions) types.add("BATCH_ATHENA");
     if (ds.spec?.customOptions || ds.customOptions) types.add("CUSTOM_SOURCE");
+    const classType =
+      ds.spec?.dataSourceClassType || ds.dataSourceClassType || "";
+    if (classType.includes("postgres")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("clickhouse")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("couchbase")) types.add("CUSTOM_SOURCE");
   }
   return types;
 }
@@ -160,7 +192,25 @@ function detectStorageType(dataset: any): string {
   if (storage.sparkStorage) return "spark";
   if (storage.trinoStorage) return "trino";
   if (storage.athenaStorage) return "athena";
-  if (storage.customStorage) return "custom";
+  if (storage.customStorage) {
+    try {
+      const config = storage.customStorage.configuration || "";
+      const parsed = typeof config === "string" ? JSON.parse(config) : config;
+      if (parsed.database && parsed.scope && parsed.collection)
+        return "couchbase";
+      if (parsed.table) {
+        const classType =
+          dataset?.spec?.dataSourceClassType ||
+          dataset?.dataSourceClassType ||
+          "";
+        if (classType.includes("postgres")) return "postgres";
+        if (classType.includes("clickhouse")) return "clickhouse";
+      }
+    } catch {
+      // fall through
+    }
+    return "custom";
+  }
   return "file";
 }
 
@@ -178,6 +228,14 @@ function extractStoragePath(dataset: any): string {
   if (storage.customStorage?.configuration)
     return storage.customStorage.configuration;
   return "";
+}
+
+function extractStorageFileFormat(dataset: any): string {
+  const storage = dataset?.spec?.storage;
+  if (storage?.sparkStorage?.fileFormat) return storage.sparkStorage.fileFormat;
+  if (storage?.sparkStorage?.file_format)
+    return storage.sparkStorage.file_format;
+  return "parquet";
 }
 
 const EditDatasetModal = ({
@@ -310,6 +368,9 @@ const EditDatasetModal = ({
   const [namespace, setNamespace] = useState(spec.namespace || "");
   const [collection, setCollection] = useState(spec.collection || "");
   const [description, setDescription] = useState(spec.description || "");
+  const [storageFileFormat, setStorageFileFormat] = useState(
+    extractStorageFileFormat(dataset),
+  );
   const [featuresInput, setFeaturesInput] = useState<EuiComboBoxOptionOption[]>(
     (spec.features || []).map((f: string) => ({ label: f })),
   );
@@ -368,6 +429,8 @@ const EditDatasetModal = ({
       join_keys: joinKeysInput.map((o) => o.label),
       storage_path: storagePath.trim(),
       storage_type: storageType,
+      storage_file_format:
+        storageType === "spark" ? storageFileFormat : undefined,
       tags: tagsObj,
       full_feature_names: fullFeatureNames,
       feature_service_name: featureServiceName || undefined,
@@ -544,6 +607,41 @@ const EditDatasetModal = ({
           fullWidth
         />
       </EuiFormRow>
+
+      {storageType === "spark" && (
+        <EuiFormRow
+          label="File Format"
+          helpText="Required for Spark path-based storage. Specifies the data file format."
+        >
+          <EuiSuperSelect
+            options={[
+              {
+                value: "parquet",
+                inputDisplay: "Parquet",
+                dropdownDisplay: <strong>Parquet</strong>,
+              },
+              {
+                value: "avro",
+                inputDisplay: "Avro",
+                dropdownDisplay: <strong>Avro</strong>,
+              },
+              {
+                value: "csv",
+                inputDisplay: "CSV",
+                dropdownDisplay: <strong>CSV</strong>,
+              },
+              {
+                value: "json",
+                inputDisplay: "JSON",
+                dropdownDisplay: <strong>JSON</strong>,
+              },
+            ]}
+            valueOfSelected={storageFileFormat}
+            onChange={setStorageFileFormat}
+            fullWidth
+          />
+        </EuiFormRow>
+      )}
 
       <EuiSpacer size="m" />
       <EuiHorizontalRule margin="s" />

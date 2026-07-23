@@ -1,6 +1,8 @@
-from typing import Dict
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from feast.api.registry.rest.codegen_utils import render_feature_service_code
 from feast.api.registry.rest.rest_utils import (
@@ -14,7 +16,37 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
     parse_tags,
 )
+from feast.feature_service import FeatureService
 from feast.protos.feast.registry import RegistryServer_pb2
+
+
+class FeatureViewRefModel(BaseModel):
+    feature_view_name: str
+    feature_names: Optional[List[str]] = []
+
+
+class ApplyFeatureServiceRequestBody(BaseModel):
+    name: str
+    project: str
+    features: List[FeatureViewRefModel]
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = {}
+    owner: Optional[str] = ""
+
+
+def _projection_view_name(projection: dict) -> Optional[str]:
+    return (
+        projection.get("featureViewName")
+        or projection.get("feature_view_name")
+        or projection.get("name")
+    )
+
+
+def _projection_feature_columns(projection: dict) -> list:
+    columns = projection.get("featureColumns")
+    if columns is None:
+        columns = projection.get("feature_columns")
+    return columns if isinstance(columns, list) else []
 
 
 def get_feature_service_router(grpc_handler) -> APIRouter:
@@ -97,9 +129,7 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
         )
-        feature_service = grpc_call(grpc_handler.GetFeatureService, req)
-
-        result = feature_service
+        result = grpc_call(grpc_handler.GetFeatureService, req)
 
         if include_relationships:
             relationships = get_object_relationships(
@@ -109,25 +139,33 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
 
         if result:
             spec = result.get("spec", result)
-            name = spec.get("name") or result.get("name") or "default_feature_service"
+            service_name = (
+                spec.get("name") or result.get("name") or "default_feature_service"
+            )
             projections = spec.get("features", [])
             if not isinstance(projections, list):
                 projections = []
 
             features_exprs = []
             for proj in projections:
-                if isinstance(proj, dict):
-                    view_name = proj.get("name")
-                    feature_names = proj.get("features", [])
-                else:
-                    view_name = str(proj)
-                    feature_names = []
+                if not isinstance(proj, dict):
+                    continue
 
+                view_name = _projection_view_name(proj)
                 if not view_name:
                     continue
 
+                feature_columns = _projection_feature_columns(proj)
+                feature_names = [
+                    column.get("name")
+                    for column in feature_columns
+                    if isinstance(column, dict) and column.get("name")
+                ]
+
                 if feature_names:
-                    feature_list = ", ".join([repr(f) for f in feature_names])
+                    feature_list = ", ".join(
+                        [repr(feature_name) for feature_name in feature_names]
+                    )
                     features_exprs.append(f"{view_name}[[{feature_list}]]")
                 else:
                     features_exprs.append(view_name)
@@ -135,7 +173,7 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             features_str = ", ".join(features_exprs)
 
             context = {
-                "name": name,
+                "name": service_name,
                 "features": features_str,
                 "tags": spec.get("tags", {}),
                 "description": spec.get("description", ""),
@@ -144,5 +182,40 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
 
             result["featureDefinition"] = render_feature_service_code(context)
         return result
+
+    @router.post("/feature_services", status_code=201)
+    def apply_feature_service(body: ApplyFeatureServiceRequestBody):
+        req = FeatureService.build_apply_request(
+            name=body.name,
+            project=body.project,
+            feature_view_refs=[
+                (feature.feature_view_name, feature.feature_names or None)
+                for feature in body.features
+            ],
+            description=body.description or "",
+            tags=body.tags or {},
+            owner=body.owner or "",
+            commit=True,
+        )
+        grpc_call(grpc_handler.ApplyFeatureService, req)
+
+        return JSONResponse(
+            status_code=201,
+            content={"name": body.name, "project": body.project, "status": "applied"},
+        )
+
+    @router.delete("/feature_services/{name}")
+    def delete_feature_service(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.DeleteFeatureServiceRequest(
+            name=name,
+            project=project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.DeleteFeatureService, req)
+
+        return {"name": name, "project": project, "status": "deleted"}
 
     return router
