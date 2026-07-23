@@ -11,8 +11,7 @@ from tests.universal.feature_repos.universal.entities import driver
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores
-@pytest.mark.ray_offline_stores_only
+@pytest.mark.universal_offline_stores(only=["file", "duckdb"])
 def test_non_entity_mode_basic(environment, universal_data_sources):
     """Test historical features retrieval without entity_df (non-entity mode).
 

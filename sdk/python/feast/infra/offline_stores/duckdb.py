@@ -46,6 +46,7 @@ from feast.monitoring.monitoring_utils import (
     opt_float,
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import compute_non_entity_date_range, to_naive_utc
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -527,11 +528,30 @@ class DuckDBOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
+        non_entity_mode = entity_df is None
+
+        if non_entity_mode:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+            entity_df = _build_entity_df_from_sources(
+                config=config,
+                feature_views=feature_views,
+                start_date=start_date,
+                end_date=end_date,
+                data_source_reader=_read_data_source,
+            )
+
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
