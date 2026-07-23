@@ -205,7 +205,10 @@
 * [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
 * [\[Alpha\] Static Artifacts Loading](reference/alpha-static-artifacts.md)
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)
+* [\[Alpha\] OpenAI-Compatible Vector Store API](reference/alpha-vector-database.md#alpha-openai-compatible-vector-store-api)
+
 * [Data Quality Monitoring](reference/dqm.md)
+* [\[Deprecated\] Data quality monitoring (Great Expectations)](reference/dqm.md)
 * [\[Alpha\] Streaming feature computation with Denormalized](reference/denormalized.md)
 * [\[Alpha\] Feature View Versioning](reference/alpha-feature-view-versioning.md)
 * [OpenLineage Integration](reference/openlineage.md)

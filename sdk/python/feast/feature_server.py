@@ -49,10 +49,12 @@ from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
+    FeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
 from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view_utils import get_feature_view_from_feature_store
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -66,6 +68,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.vector_store_utils import VectorStoreRegistry, build_vector_store_object
 
 
 # TODO: deprecate this in favor of push features
@@ -114,7 +117,36 @@ class GetOnlineDocumentsRequest(BaseModel):
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
+    distance_metric: Optional[str] = None
     api_version: Optional[int] = 1
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+
+
+class OpenAISearchMetadata(BaseModel):
+    features_to_retrieve: Optional[List[str]] = None
+    content_field: Optional[str] = None
+
+
+class OpenAIRankingOptions(BaseModel):
+    ranker: Optional[str] = None
+    score_threshold: Optional[float] = None
+
+
+class OpenAISearchRequest(BaseModel):
+    query: Union[str, List[str]]
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+    max_num_results: Optional[int] = 10
+    ranking_options: Optional[OpenAIRankingOptions] = None
+    rewrite_query: Optional[bool] = None
+    metadata: Optional[OpenAISearchMetadata] = None
+
+
+class OpenAIVectorStoreObject(BaseModel):
+    id: str
+    object: str = "vector_store"
+    name: str
+    status: str = "completed"
+    created_at: int = 0
 
 
 class FeatureVectorResponse(BaseModel):
@@ -324,7 +356,11 @@ def get_app(
 
     The app provides the following endpoints:
     - `/get-online-features`: Get online features
-    - `/retrieve-online-documents`: Retrieve online documents
+    - `/search`: Vector similarity search (RAG)
+    - `/retrieve-online-documents`: Deprecated alias for `/search`
+    - `/v1/vector_stores`: List vector stores (GET)
+    - `/v1/vector_stores/{vector_store_id}`: Get a vector store (GET)
+    - `/v1/vector_stores/{vector_store_id}/search`: OpenAI-compatible vector search
     - `/push`: Push features to the feature store
     - `/write-to-online-store`: Write to the online store
     - `/health`: Health check
@@ -381,11 +417,14 @@ def get_app(
         if active_timer:
             active_timer.cancel()
 
+    vs_registry = VectorStoreRegistry(store)
+
     def async_refresh():
         if shutting_down:
             return
 
         store.refresh_registry()
+        vs_registry.refresh()
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -456,18 +495,12 @@ def get_app(
             )
             return JSONResponse(content=response_dict)
 
-    @app.post(
-        "/retrieve-online-documents",
-        dependencies=[Depends(inject_user_details)],
-        response_model=OnlineFeaturesResponse,
-    )
-    async def retrieve_online_documents(
+    async def _search_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> Any:
-        with feast_metrics.track_request_latency("/retrieve-online-documents"):
-            logger.warning(
-                "This endpoint is in alpha and will be moved to /get-online-features when stable."
-            )
+        *,
+        metrics_path: str,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency(metrics_path):
             features = await _get_features(request, store)
 
             read_params = dict(
@@ -477,6 +510,10 @@ def get_app(
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
+            if request.api_version == 2 and request.distance_metric is not None:
+                read_params["distance_metric"] = request.distance_metric
+            if request.api_version == 2 and request.filters is not None:
+                read_params["filters"] = request.filters
 
             if request.api_version == 2:
                 read_params["include_feature_view_version_metadata"] = (
@@ -494,6 +531,124 @@ def get_app(
                 convert_response_to_dict, response.proto
             )
             return JSONResponse(content=response_dict)
+
+    @app.post(
+        "/search",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+    )
+    async def search(request: GetOnlineDocumentsRequest) -> JSONResponse:
+        """Vector similarity search against online document embeddings."""
+        return await _search_online_documents(request, metrics_path="/search")
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+        include_in_schema=False,
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineDocumentsRequest,
+    ) -> JSONResponse:
+        logger.warning(
+            "POST /retrieve-online-documents is deprecated; use POST /search instead."
+        )
+        return await _search_online_documents(
+            request, metrics_path="/retrieve-online-documents"
+        )
+
+    @app.get(
+        "/v1/vector_stores",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def list_vector_stores() -> JSONResponse:
+        permitted: list = []
+        for obj in vs_registry.list_vector_stores():
+            fv = vs_registry.resolve(obj["id"])
+            try:
+                assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+                permitted.append(obj)
+            except Exception:
+                pass
+        return JSONResponse(content={"object": "list", "data": permitted})
+
+    @app.get(
+        "/v1/vector_stores/{vector_store_id}",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def get_vector_store(vector_store_id: str) -> JSONResponse:
+        try:
+            fv = vs_registry.resolve(vector_store_id)
+            assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+        except FeatureViewNotFoundException:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "message": f"No vector store found with id '{vector_store_id}'",
+                        "type": "not_found_error",
+                    }
+                },
+            )
+        return JSONResponse(content=build_vector_store_object(store.project, fv))
+
+    @app.post(
+        "/v1/vector_stores/{vector_store_id}/search",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def vector_store_search(
+        vector_store_id: str,
+        request: OpenAISearchRequest,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency(
+            "/v1/vector_stores/{vector_store_id}/search"
+        ):
+            try:
+                feature_view = vs_registry.resolve(vector_store_id)
+                assert_permissions(
+                    resource=feature_view,
+                    actions=[AuthzedAction.READ_ONLINE],
+                )
+
+                result = await store.openai_search(
+                    vector_store_id=feature_view.name,
+                    query=request.query,
+                    vs_id=vector_store_id,
+                    max_num_results=request.max_num_results or 10,
+                    filters=request.filters,
+                    ranking_options=(
+                        request.ranking_options.model_dump()
+                        if request.ranking_options
+                        else None
+                    ),
+                    rewrite_query=request.rewrite_query,
+                    features_to_retrieve=(
+                        request.metadata.features_to_retrieve
+                        if request.metadata
+                        else None
+                    ),
+                )
+            except FeatureViewNotFoundException:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "error": {
+                            "message": f"No vector store found with id '{vector_store_id}'",
+                            "type": "not_found_error",
+                        }
+                    },
+                )
+            except ValueError as e:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "error": {
+                            "message": str(e),
+                            "type": "invalid_request_error",
+                        }
+                    },
+                )
+            return JSONResponse(content=result)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:

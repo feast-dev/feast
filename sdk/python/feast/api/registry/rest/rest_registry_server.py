@@ -78,12 +78,21 @@ class RestRegistryServer:
 
         registry_cfg = getattr(store.config, "registry", None)
         mcp_cfg = getattr(registry_cfg, "mcp", None)
-        if mcp_cfg and getattr(mcp_cfg, "enabled", False) is True:
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
             try:
                 from fastapi_mcp import FastApiMCP
 
+                from feast.infra.mcp_servers.mcp_server import (
+                    _patch_fastapi_mcp_schema_resolver,
+                )
+
+                _patch_fastapi_mcp_schema_resolver()
                 mcp = FastApiMCP(self.app, name="feast-registry-mcp")
-                mcp.mount()
+                mount_sse = getattr(mcp, "mount_sse", None)
+                if mount_sse is not None:
+                    mount_sse()
+                else:
+                    mcp.mount()
                 logger.info("MCP support enabled on REST registry server")
             except ImportError:
                 logger.warning(
