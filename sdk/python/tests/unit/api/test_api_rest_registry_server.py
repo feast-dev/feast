@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -11,23 +11,36 @@ def mock_store_and_registry():
     mock_registry = MagicMock()
     mock_store = MagicMock(spec=FeatureStore)
     mock_store.registry = mock_registry
-    mock_store.config = MagicMock()
+    mock_store.project = "test_project"
+    mock_config = MagicMock()
+    mock_store.config = mock_config
+    mock_config.auth_config.type = "no_auth"
+    # MagicMock makes nested attrs truthy; keep MCP off unless a test opts in.
+    mock_config.registry.mcp = None
     return mock_store, mock_registry
 
 
-@patch("feast.api.registry.rest.rest_registry_server.RegistryServer")
-@patch("feast.api.registry.rest.rest_registry_server.register_all_routes")
-@patch("feast.api.registry.rest.rest_registry_server.init_security_manager")
-@patch("feast.api.registry.rest.rest_registry_server.init_auth_manager")
-@patch("feast.api.registry.rest.rest_registry_server.get_auth_manager")
+@pytest.mark.xdist_group(name="rest_registry_server")
 def test_rest_registry_server_initializes_correctly(
-    mock_get_auth_manager,
-    mock_init_auth_manager,
-    mock_init_security_manager,
-    mock_register_all_routes,
-    mock_registry_server_cls,
     mock_store_and_registry,
+    mocker,
 ):
+    mock_get_auth_manager = mocker.patch(
+        "feast.api.registry.rest.rest_registry_server.get_auth_manager"
+    )
+    mock_init_auth_manager = mocker.patch(
+        "feast.api.registry.rest.rest_registry_server.init_auth_manager"
+    )
+    mock_init_security_manager = mocker.patch(
+        "feast.api.registry.rest.rest_registry_server.init_security_manager"
+    )
+    mock_register_all_routes = mocker.patch(
+        "feast.api.registry.rest.rest_registry_server.register_all_routes"
+    )
+    mock_registry_server_cls = mocker.patch(
+        "feast.api.registry.rest.rest_registry_server.RegistryServer"
+    )
+
     store, registry = mock_store_and_registry
     mock_grpc_handler = MagicMock()
     mock_registry_server_cls.return_value = mock_grpc_handler

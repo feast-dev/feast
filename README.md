@@ -19,7 +19,7 @@
 
 
 ## Join us on Slack!
-👋👋👋 [Come say hi on Slack!](https://communityinviter.com/apps/feastopensource/feast-the-open-source-feature-store)
+👋👋👋 [Come say hi on Slack!](https://slack.feast.dev/)
 
 [Check out our DeepWiki!](https://deepwiki.com/feast-dev/feast)
 

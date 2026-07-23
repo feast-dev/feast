@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 
 from cassandra.auth import PlainTextAuthProvider
@@ -26,6 +27,7 @@ from cassandra.query import ConsistencyLevel, PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -651,6 +653,7 @@ class ScyllaDBOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -678,12 +681,17 @@ class ScyllaDBOnlineStore(OnlineStore):
                 store-level ``vector_similarity_function`` config value or the
                 per-feature tag.
             query_string: Unused (reserved for future hybrid text+vector search).
+            filters: Unused (metadata filtering not yet supported for ScyllaDB).
             include_feature_view_version_metadata: Unused.
 
         Returns:
             List of ``(event_timestamp, entity_key_proto, feature_values)``
             tuples ordered from most to least similar.
         """
+        if filters is not None:
+            raise NotImplementedError(
+                "Metadata filtering is not supported by the ScyllaDB online store."
+            )
         if embedding is None:
             raise ValueError(
                 "retrieve_online_documents_v2 requires a non-None 'embedding' "

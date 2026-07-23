@@ -1,6 +1,6 @@
 import struct
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any, List, Optional, Tuple
 
 import mmh3
 
@@ -70,6 +70,27 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts
     else:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
+
+
+def extract_text_and_num(
+    val: Any, compute_num: bool
+) -> Tuple[Optional[str], Optional[float]]:
+    """Extract (value_text, value_num) from a ValueProto.
+
+    Used by SQL-based online stores to populate the value_text and optional
+    value_num columns without duplicating type-dispatch logic.
+    """
+    val_type = val.WhichOneof("val")
+    if val_type == "string_val":
+        return val.string_val, None
+    if val_type in ("int64_val", "int32_val", "double_val", "float_val"):
+        raw = getattr(val, val_type)
+        return str(raw), float(raw) if compute_num else None
+    if val_type == "bool_val":
+        return str(val.bool_val), (
+            1.0 if val.bool_val else 0.0
+        ) if compute_num else None
+    return None, None
 
 
 def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
