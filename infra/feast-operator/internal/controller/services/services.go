@@ -472,6 +472,20 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	if feast.isUiServer() {
 		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
 	}
+
+	// When the CR is annotated as a protected project, set FEAST_PROTECTED_PROJECT=true
+	// so the registry server tags its own project in the shared registry.
+	// Other FeatureStore instances then exclude this project automatically.
+	if feast.isProtectedProject() {
+		protectedEnv := corev1.EnvVar{
+			Name:  "FEAST_PROTECTED_PROJECT",
+			Value: "true",
+		}
+		for i := range podSpec.Containers {
+			podSpec.Containers[i].Env = append(podSpec.Containers[i].Env, protectedEnv)
+		}
+	}
+
 	return nil
 }
 

@@ -46,3 +46,12 @@ DEFAULT_OFFLINE_SERVER_PORT = 8815
 
 # Default feature server registry ttl (seconds)
 DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5
+
+# Tag key set on Feast projects that are protected.
+# Protected projects are excluded from project listings,
+# shielded from teardown, and hidden from delete operations.
+PROTECTED_PROJECT_TAG = "feast.dev/protected-project"
+
+# Environment variable set by the operator on protected project pods.
+# When "true", the Feast server tags its own project as protected.
+FEAST_PROTECTED_PROJECT_ENV = "FEAST_PROTECTED_PROJECT"
