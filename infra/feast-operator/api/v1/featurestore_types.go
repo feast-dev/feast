@@ -153,6 +153,12 @@ type MlflowConfig struct {
 	// MLFLOW_TRACKING_URI env var on pods.
 	// +optional
 	TrackingUri *string `json:"trackingUri,omitempty"`
+	// Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+	// When omitted, the operator auto-discovers from the MLflow CR status.url
+	// (the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+	// to trackingUri. Only needed when the tracking URI is cluster-internal.
+	// +optional
+	UiUrl *string `json:"uiUrl,omitempty"`
 	// Automatically log feature metadata on every retrieval inside an active MLflow run.
 	// Defaults to true when enabled.
 	// +optional

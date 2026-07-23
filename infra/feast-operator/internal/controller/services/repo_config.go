@@ -571,6 +571,7 @@ func setRepoConfigMlflow(mlflow *feastdevv1.MlflowConfig, repoConfig *RepoConfig
 	yamlCfg := &MlflowYamlConfig{
 		Enabled:             mlflow.Enabled,
 		TrackingUri:         mlflow.TrackingUri,
+		UiUrl:               mlflow.UiUrl,
 		AutoLog:             mlflow.AutoLog,
 		AutoLogEntityDf:     mlflow.AutoLogEntityDf,
 		EntityDfMaxRows:     mlflow.EntityDfMaxRows,
