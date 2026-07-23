@@ -15,6 +15,9 @@ function detectStorageType(dataset: any): string {
   if (storage.snowflakeStorage) return "Snowflake";
   if (storage.redshiftStorage) return "Redshift";
   if (storage.sparkStorage) return "Spark";
+  if (storage.trinoStorage) return "Trino";
+  if (storage.athenaStorage) return "Athena";
+  if (storage.customStorage) return "Custom";
   return "—";
 }
 
@@ -90,6 +93,26 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
         <EuiBadge color="hollow">{detectStorageType(item)}</EuiBadge>
       ),
       width: "120px",
+    },
+    {
+      name: "Data Source",
+      render: (item: any) => {
+        const dsList: string[] = item.spec?.dataSources || [];
+        if (dsList.length === 0) return "—";
+        const itemProject = item.project || item.spec?.project || projectName;
+        return (
+          <>
+            {dsList.map((dsName, idx) => (
+              <span key={dsName}>
+                {idx > 0 && ", "}
+                <EuiCustomLink to={`/p/${itemProject}/data-source/${dsName}`}>
+                  {dsName}
+                </EuiCustomLink>
+              </span>
+            ))}
+          </>
+        );
+      },
     },
     {
       name: "Feature Service",

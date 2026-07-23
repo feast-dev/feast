@@ -27,6 +27,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
@@ -58,6 +59,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v2'
         with:

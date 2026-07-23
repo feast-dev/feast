@@ -69,6 +69,21 @@ const STORAGE_TYPES = [
   { value: "spark", label: "Spark", placeholder: "s3://bucket/path/" },
   { value: "trino", label: "Trino", placeholder: "catalog.schema.table" },
   { value: "athena", label: "Athena", placeholder: "database.table" },
+  {
+    value: "postgres",
+    label: "PostgreSQL",
+    placeholder: "schema.table_name",
+  },
+  {
+    value: "clickhouse",
+    label: "ClickHouse",
+    placeholder: "database.table_name",
+  },
+  {
+    value: "couchbase",
+    label: "Couchbase Columnar",
+    placeholder: "database.scope.collection",
+  },
 ];
 
 const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
@@ -108,6 +123,7 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
   const [description, setDescription] = useState("");
   const [storageType, setStorageType] = useState("file");
   const [storagePath, setStoragePath] = useState("");
+  const [storageFileFormat, setStorageFileFormat] = useState("parquet");
   const [tags, setTags] = useState<TagEntry[]>([]);
   const [allowOverwrite] = useState(false);
 
@@ -202,6 +218,11 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
       if (dsType === 7) detectedTypes.add("spark");
       if (dsType === 8) detectedTypes.add("trino");
       if (dsType === 9) detectedTypes.add("athena");
+      const classType =
+        spec.dataSourceClassType || ds.dataSourceClassType || "";
+      if (classType.includes("postgres")) detectedTypes.add("postgres");
+      if (classType.includes("clickhouse")) detectedTypes.add("clickhouse");
+      if (classType.includes("couchbase")) detectedTypes.add("couchbase");
     }
 
     // Always include file as a fallback
@@ -259,6 +280,8 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
         project: projectName || "",
         storage_type: storageType,
         storage_path: storagePath.trim(),
+        storage_file_format:
+          storageType === "spark" ? storageFileFormat : undefined,
         entity_source_type: entitySourceType,
         allow_overwrite: allowOverwrite,
         tags: tags.reduce(
@@ -635,6 +658,44 @@ const CreateDatasetForm = ({ onClose }: CreateDatasetFormProps) => {
           </EuiFormRow>
         </EuiFlexItem>
       </EuiFlexGroup>
+
+      {storageType === "spark" && (
+        <>
+          <EuiSpacer size="s" />
+          <EuiFormRow
+            label="File Format"
+            helpText="Required for Spark path-based storage. Specifies the output file format."
+          >
+            <EuiSuperSelect
+              options={[
+                {
+                  value: "parquet",
+                  inputDisplay: "Parquet",
+                  dropdownDisplay: <strong>Parquet</strong>,
+                },
+                {
+                  value: "avro",
+                  inputDisplay: "Avro",
+                  dropdownDisplay: <strong>Avro</strong>,
+                },
+                {
+                  value: "csv",
+                  inputDisplay: "CSV",
+                  dropdownDisplay: <strong>CSV</strong>,
+                },
+                {
+                  value: "json",
+                  inputDisplay: "JSON",
+                  dropdownDisplay: <strong>JSON</strong>,
+                },
+              ]}
+              valueOfSelected={storageFileFormat}
+              onChange={setStorageFileFormat}
+              fullWidth
+            />
+          </EuiFormRow>
+        </>
+      )}
 
       <EuiSpacer size="m" />
       <TagsEditor tags={tags} onChange={setTags} />

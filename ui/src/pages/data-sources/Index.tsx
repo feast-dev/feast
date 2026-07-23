@@ -67,33 +67,53 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 
   const st = formData.sourceType;
   if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
-    payload.file_options = { uri: formData.fileUri };
+    payload.file_options = {
+      uri: formData.fileUri,
+      file_format: formData.fileFormat || "parquet",
+      s3_endpoint_override: formData.fileS3EndpointOverride || "",
+    };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
     payload.bigquery_options = {
       table: formData.bigqueryTable,
       query: formData.bigqueryQuery,
     };
+    if (formData.bigqueryDatePartitionColumn) {
+      payload.date_partition_column = formData.bigqueryDatePartitionColumn;
+    }
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
     payload.snowflake_options = {
       table: formData.snowflakeTable,
       database: formData.snowflakeDatabase,
       schema_: formData.snowflakeSchema,
+      query: formData.snowflakeQuery || "",
+      warehouse: formData.snowflakeWarehouse || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
     payload.redshift_options = {
       table: formData.redshiftTable,
       database: formData.redshiftDatabase,
       schema_: formData.redshiftSchema,
+      query: formData.redshiftQuery || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
     payload.kafka_options = {
       kafka_bootstrap_servers: formData.kafkaBootstrapServers,
       topic: formData.kafkaTopic,
+      message_format: formData.kafkaMessageFormat || "json",
+      watermark_delay_threshold: formData.kafkaWatermarkDelay || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
     payload.spark_options = {
       table: formData.sparkTable,
       path: formData.sparkPath,
+      query: formData.sparkQuery || "",
+      file_format: formData.sparkFileFormat || "",
+      table_format: formData.sparkTableFormat || "",
+      table_format_catalog: formData.sparkTableFormatCatalog || "",
+      table_format_namespace: formData.sparkTableFormatNamespace || "",
+      table_format_properties: formData.sparkTableFormatProperties || "",
+      date_partition_column: formData.sparkDatePartitionColumn || "",
+      date_partition_column_format: formData.sparkDatePartitionFormat || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
     payload.trino_options = {
@@ -107,10 +127,32 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
       database: formData.athenaDatabase,
       data_source: formData.athenaDataSource,
     };
+    if (formData.athenaDatePartitionColumn) {
+      payload.date_partition_column = formData.athenaDatePartitionColumn;
+    }
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ICEBERG)) {
+    const catalogProps = formData.icebergCatalogProperties.trim()
+      ? JSON.parse(formData.icebergCatalogProperties)
+      : {};
+    payload.custom_options = {
+      configuration: JSON.stringify({
+        catalog_type: formData.icebergCatalogType || "rest",
+        endpoint: formData.icebergEndpoint,
+        warehouse: formData.icebergWarehouse,
+        namespace: formData.icebergNamespace,
+        table: formData.icebergTable,
+        token_env_var: formData.icebergTokenEnvVar || null,
+        credential_vending: formData.icebergCredentialVending !== "false",
+        catalog_properties: catalogProps,
+      }),
+    };
+    payload.data_source_class_type =
+      "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource";
   } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
     payload.kinesis_options = {
       region: formData.kinesisRegion,
       stream_name: formData.kinesisStreamName,
+      record_format: formData.kinesisRecordFormat || "json",
     };
   } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
     payload.custom_options = {
@@ -157,28 +199,54 @@ const Index = () => {
       createdTimestampColumn: "",
       tags: [] as { key: string; value: string }[],
       fileUri: "",
+      fileFormat: "parquet",
+      fileS3EndpointOverride: "",
       bigqueryTable: "",
       bigqueryQuery: "",
+      bigqueryDatePartitionColumn: "",
       snowflakeTable: "",
       snowflakeDatabase: "",
       snowflakeSchema: "",
+      snowflakeQuery: "",
+      snowflakeWarehouse: "",
       redshiftTable: "",
       redshiftDatabase: "",
       redshiftSchema: "",
+      redshiftQuery: "",
       kafkaBootstrapServers: "",
       kafkaTopic: "",
+      kafkaMessageFormat: "json",
+      kafkaWatermarkDelay: "",
       sparkTable: "",
       sparkPath: "",
+      sparkQuery: "",
+      sparkFileFormat: "parquet",
+      sparkTableFormat: "",
+      sparkTableFormatCatalog: "",
+      sparkTableFormatNamespace: "",
+      sparkTableFormatProperties: "",
+      sparkDatePartitionColumn: "",
+      sparkDatePartitionFormat: "%Y-%m-%d",
       kinesisRegion: "",
       kinesisStreamName: "",
+      kinesisRecordFormat: "json",
       trinoTable: "",
       trinoQuery: "",
       athenaTable: "",
       athenaQuery: "",
       athenaDatabase: "",
       athenaDataSource: "",
+      athenaDatePartitionColumn: "",
       customSourceClassName: "",
       customSourceConfig: "",
+      icebergCatalogType: "rest",
+      icebergEndpoint: "",
+      icebergWarehouse: "",
+      icebergNamespace: "",
+      icebergTable: "",
+      icebergTokenEnvVar: "",
+      icebergCredentialVending: "true",
+      icebergCatalogProperties: "",
       rayReaderType: "parquet",
       rayPath: "",
       rayReaderOptions: "",
@@ -189,8 +257,10 @@ const Index = () => {
       clickhouseQuery: "",
       mssqlTable: "",
       mssqlConnectionStr: "",
+      mssqlDatePartitionColumn: "",
       oracleTable: "",
       oracleConnectionStr: "",
+      oracleDatePartitionColumn: "",
       couchbaseDatabase: "",
       couchbaseScope: "",
       couchbaseCollection: "",
