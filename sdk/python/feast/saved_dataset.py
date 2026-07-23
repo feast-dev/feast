@@ -83,6 +83,9 @@ class SavedDataset:
     storage: SavedDatasetStorage
     tags: Dict[str, str]
     feature_service_name: Optional[str] = None
+    namespace: str = ""
+    collection: str = ""
+    description: str = ""
 
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
@@ -101,6 +104,9 @@ class SavedDataset:
         full_feature_names: bool = False,
         tags: Optional[Dict[str, str]] = None,
         feature_service_name: Optional[str] = None,
+        namespace: str = "",
+        collection: str = "",
+        description: str = "",
     ):
         self.name = name
         self.features = features
@@ -109,6 +115,9 @@ class SavedDataset:
         self.full_feature_names = full_feature_names
         self.tags = tags or {}
         self.feature_service_name = feature_service_name
+        self.namespace = namespace
+        self.collection = collection
+        self.description = description
 
         self._retrieval_job = None
 
@@ -136,6 +145,9 @@ class SavedDataset:
             or self.full_feature_names != other.full_feature_names
             or self.tags != other.tags
             or self.feature_service_name != other.feature_service_name
+            or self.namespace != other.namespace
+            or self.collection != other.collection
+            or self.description != other.description
         ):
             return False
 
@@ -156,6 +168,9 @@ class SavedDataset:
             full_feature_names=saved_dataset_proto.spec.full_feature_names,
             storage=SavedDatasetStorage.from_proto(saved_dataset_proto.spec.storage),
             tags=dict(saved_dataset_proto.spec.tags.items()),
+            namespace=saved_dataset_proto.spec.namespace,
+            collection=saved_dataset_proto.spec.collection,
+            description=saved_dataset_proto.spec.description,
         )
 
         if saved_dataset_proto.spec.feature_service_name:
@@ -202,6 +217,9 @@ class SavedDataset:
             full_feature_names=self.full_feature_names,
             storage=self.storage.to_proto(),
             tags=self.tags,
+            namespace=self.namespace,
+            collection=self.collection,
+            description=self.description,
         )
         if self.feature_service_name:
             spec.feature_service_name = self.feature_service_name

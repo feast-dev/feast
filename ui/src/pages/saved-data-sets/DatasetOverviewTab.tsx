@@ -15,6 +15,7 @@ import {
   EuiCallOut,
 } from "@elastic/eui";
 import { useParams } from "react-router-dom";
+import EuiCustomLink from "../../components/EuiCustomLink";
 import DatasetFeaturesTable from "./DatasetFeaturesTable";
 import DatasetJoinKeysTable from "./DatasetJoinKeysTable";
 import useLoadDataset from "./useLoadDataset";
@@ -56,7 +57,7 @@ function formatTimestamp(ts: any): string {
 }
 
 const DatasetOverviewTab = () => {
-  let { datasetName } = useParams();
+  const { datasetName, projectName } = useParams();
 
   if (!datasetName) {
     throw new Error(
@@ -96,6 +97,10 @@ const DatasetOverviewTab = () => {
   const tags = data.spec?.tags || {};
   const featureServiceName =
     data.spec?.featureServiceName || data.spec?.feature_service_name;
+  const namespace = data.spec?.namespace || "";
+  const collection = data.spec?.collection || "";
+  const description = data.spec?.description || "";
+  const dataSources: string[] = data.spec?.dataSources || [];
   const createdTs = data.meta?.createdTimestamp || data.meta?.created_timestamp;
   const minEventTs =
     data.meta?.minEventTimestamp || data.meta?.min_event_timestamp;
@@ -168,6 +173,33 @@ const DatasetOverviewTab = () => {
               </EuiBadge>
             </EuiDescriptionListDescription>
 
+            {description && (
+              <>
+                <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  {description}
+                </EuiDescriptionListDescription>
+              </>
+            )}
+
+            {namespace && (
+              <>
+                <EuiDescriptionListTitle>Namespace</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  <EuiBadge color="primary">{namespace}</EuiBadge>
+                </EuiDescriptionListDescription>
+              </>
+            )}
+
+            {collection && (
+              <>
+                <EuiDescriptionListTitle>Collection</EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  <EuiBadge color="accent">{collection}</EuiBadge>
+                </EuiDescriptionListDescription>
+              </>
+            )}
+
             <EuiDescriptionListTitle>Storage Type</EuiDescriptionListTitle>
             <EuiDescriptionListDescription>
               <EuiBadge color="hollow">{storageInfo.type}</EuiBadge>
@@ -179,6 +211,26 @@ const DatasetOverviewTab = () => {
                 <code>{storageInfo.path}</code>
               </EuiText>
             </EuiDescriptionListDescription>
+
+            {dataSources.length > 0 && (
+              <>
+                <EuiDescriptionListTitle>
+                  Data Source{dataSources.length > 1 ? "s" : ""}
+                </EuiDescriptionListTitle>
+                <EuiDescriptionListDescription>
+                  {dataSources.map((dsName, idx) => (
+                    <span key={dsName}>
+                      {idx > 0 && ", "}
+                      <EuiCustomLink
+                        to={`/p/${projectName}/data-source/${dsName}`}
+                      >
+                        {dsName}
+                      </EuiCustomLink>
+                    </span>
+                  ))}
+                </EuiDescriptionListDescription>
+              </>
+            )}
 
             {featureServiceName && (
               <>
