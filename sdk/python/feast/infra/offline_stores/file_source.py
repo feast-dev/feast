@@ -97,7 +97,7 @@ class FileSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, FileSource):
-            raise TypeError("Comparisons should only involve FileSource class objects.")
+            return False
 
         return (
             super().__eq__(other)

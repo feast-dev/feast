@@ -175,8 +175,9 @@ class TestLabelViewCopyAndEquality:
 
     def test_equality_type_check(self):
         lv = _sample_label_view()
-        with pytest.raises(TypeError):
-            lv == "not a label view"
+        # Cross-type comparison returns False, not TypeError.
+        assert (lv == "not a label view") is False
+        assert (lv == 42) is False
 
     def test_hash_by_name(self):
         lv1 = _sample_label_view()

@@ -279,7 +279,7 @@ class DataSource(ABC):
             return False
 
         if not isinstance(other, DataSource):
-            raise TypeError("Comparisons should only involve DataSource class objects.")
+            return False
 
         if (
             self.name != other.name
@@ -499,9 +499,7 @@ class KafkaSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, KafkaSource):
-            raise TypeError(
-                "Comparisons should only involve KafkaSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False
@@ -639,9 +637,7 @@ class RequestSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, RequestSource):
-            raise TypeError(
-                "Comparisons should only involve RequestSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False
@@ -801,9 +797,7 @@ class KinesisSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, KinesisSource):
-            raise TypeError(
-                "Comparisons should only involve KinesisSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False

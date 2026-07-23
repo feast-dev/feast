@@ -270,9 +270,7 @@ class RayTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, RayTransformation):
-            raise TypeError(
-                "Comparisons should only involve RayTransformation class objects."
-            )
+            return False
 
         if (
             self.udf_string != other.udf_string

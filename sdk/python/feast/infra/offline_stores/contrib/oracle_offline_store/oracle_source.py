@@ -105,9 +105,7 @@ class OracleSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, OracleSource):
-            raise TypeError(
-                "Comparisons should only involve OracleSource class objects."
-            )
+            return False
 
         return (
             self.name == other.name
