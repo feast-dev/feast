@@ -939,3 +939,100 @@ def test_odfv_projection(environment, universal_data_sources, full_feature_names
     assert unrequested_feature_2 not in actual_df2.columns, (
         f"Unrequested ODFV feature '{unrequested_feature_2}' should NOT be in the result"
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+def test_historical_features_filter_by_created_timestamp(environment):
+    store = environment.feature_store
+
+    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    tomorrow = now + timedelta(days=1)
+    day_after_tomorrow = now + timedelta(days=2)
+
+    entity_df = pd.DataFrame(
+        data=[
+            {"driver_id": 1001, "event_timestamp": tomorrow},
+            {"driver_id": 1002, "event_timestamp": tomorrow},
+        ]
+    )
+
+    driver_stats_df = pd.DataFrame(
+        data=[
+            # Values that were already created at the entity timestamp
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 10,
+                "event_timestamp": now,
+                "created": now,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 30,
+                "event_timestamp": now,
+                "created": now,
+            },
+            # Backfilled values for the same event timestamps, created after the entity timestamp
+            {
+                "driver_id": 1001,
+                "avg_daily_trips": 20,
+                "event_timestamp": now,
+                "created": day_after_tomorrow,
+            },
+            {
+                "driver_id": 1002,
+                "avg_daily_trips": 40,
+                "event_timestamp": now,
+                "created": day_after_tomorrow,
+            },
+        ]
+    )
+
+    driver_stats_data_source = environment.data_source_creator.create_data_source(
+        df=driver_stats_df,
+        destination_name=f"test_driver_stats_{int(time.time_ns())}_{random.randint(1000, 9999)}",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    driver_fv = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[Field(name="avg_daily_trips", dtype=Int32)],
+        source=driver_stats_data_source,
+    )
+
+    store.apply([driver, driver_fv])
+
+    # Default: the backfilled values win the dedup
+    actual_df = store.get_historical_features(
+        entity_df=entity_df,
+        features=["driver_stats:avg_daily_trips"],
+        full_feature_names=False,
+    ).to_df()
+    expected_df = pd.DataFrame(
+        data=[
+            {"driver_id": 1001, "event_timestamp": tomorrow, "avg_daily_trips": 20},
+            {"driver_id": 1002, "event_timestamp": tomorrow, "avg_daily_trips": 40},
+        ]
+    )
+    validate_dataframes(expected_df, actual_df, sort_by=["driver_id"])
+
+    try:
+        job = store.get_historical_features(
+            entity_df=entity_df,
+            features=["driver_stats:avg_daily_trips"],
+            full_feature_names=False,
+            filter_by_created_timestamp=True,
+        )
+    except NotImplementedError:
+        pytest.skip("The offline store does not support filter_by_created_timestamp")
+    actual_df = job.to_df()
+    expected_df = pd.DataFrame(
+        data=[
+            {"driver_id": 1001, "event_timestamp": tomorrow, "avg_daily_trips": 10},
+            {"driver_id": 1002, "event_timestamp": tomorrow, "avg_daily_trips": 30},
+        ]
+    )
+    validate_dataframes(expected_df, actual_df, sort_by=["driver_id"])

@@ -137,6 +137,8 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class BigQueryOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -273,6 +275,7 @@ class BigQueryOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs: Any,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
@@ -388,6 +391,7 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema_keys,
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
             )
 
             try:
@@ -1732,6 +1736,10 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= Timestamp_sub(entity_dataframe.entity_timestamp, interval {{ featureview.ttl }} second)
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}

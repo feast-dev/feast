@@ -66,6 +66,8 @@ class AthenaOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class AthenaOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -195,6 +197,7 @@ class AthenaOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         for fv in feature_views:
@@ -252,6 +255,7 @@ class AthenaOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
             )
 
             try:
@@ -649,6 +653,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}

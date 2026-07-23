@@ -93,6 +93,8 @@ class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
 
 
 class SparkOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -172,6 +174,7 @@ class SparkOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
@@ -332,6 +335,7 @@ class SparkOfflineStore(OfflineStore):
             entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
         return SparkRetrievalJob(
@@ -1790,6 +1794,10 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}
