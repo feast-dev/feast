@@ -6,9 +6,10 @@ to expose Feast functionality through the Model Context Protocol.
 """
 
 import logging
-from typing import Any, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set
 
-from feast.feature_store import FeatureStore
+if TYPE_CHECKING:
+    from feast.feature_store import FeatureStore
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,9 @@ def _patch_fastapi_mcp_schema_resolver() -> None:
         pass
 
 
-def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional["FastApiMCP"]:
+def add_mcp_support_to_app(
+    app, store: "FeatureStore", config
+) -> Optional["FastApiMCP"]:
     """Add MCP support to the FastAPI app if enabled in configuration."""
     if not MCP_AVAILABLE:
         logger.warning("MCP support requested but fastapi_mcp is not available")
