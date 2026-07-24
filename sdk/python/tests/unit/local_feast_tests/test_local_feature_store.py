@@ -565,9 +565,7 @@ def test_materialize_incremental_odfv_entity_name_differs_from_join_key(
         # FeastJoinKeysDuringMaterialization because _materialize_odfv
         # queried the offline store for a column named "id" (the entity
         # name) instead of "id_join_key" (the actual join key column).
-        test_feature_store.materialize_incremental(
-            end_date=datetime.now(timezone.utc)
-        )
+        test_feature_store.materialize_incremental(end_date=datetime.now(timezone.utc))
 
         response = test_feature_store.get_online_features(
             features=["my_odfv:label"],
