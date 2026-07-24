@@ -38,6 +38,32 @@ from feast.saved_dataset import SavedDatasetStorage
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+_FIPS_CIPHER_SUITES = ":".join(
+    [
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "AES128-GCM-SHA256",
+        "AES256-GCM-SHA384",
+    ]
+)
+
+
+def _is_fips_enabled() -> bool:
+    try:
+        with open("/proc/sys/crypto/fips_enabled") as f:
+            return f.read().strip() == "1"
+    except (FileNotFoundError, PermissionError, OSError):
+        logger.debug("Could not detect FIPS mode (Linux-only feature)")
+        return False
+
+
+def _configure_grpc_fips() -> None:
+    if _is_fips_enabled() and "GRPC_SSL_CIPHER_SUITES" not in os.environ:
+        os.environ["GRPC_SSL_CIPHER_SUITES"] = _FIPS_CIPHER_SUITES
+        logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
+
 
 class OfflineServer(fl.FlightServerBase):
     def __init__(
@@ -596,6 +622,7 @@ def start_server(
     tls_cert_path: str = "",
 ):
     _init_auth_manager(store)
+    _configure_grpc_fips()
 
     tls_certificates = []
     scheme = "grpc+tcp"

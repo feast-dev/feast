@@ -352,11 +352,14 @@ feature_server:
     push: true              # push request counters
     materialization: true   # materialization counters & duration
     freshness: true         # feature freshness gauges
+    offline_features: true  # offline store retrieval counters & latency
+    audit_logging: false    # structured JSON audit logs (see below)
 ```
 
 Any category set to `false` will emit no metrics and start no background
 threads (e.g., setting `freshness: false` prevents the registry polling
-thread from starting). All categories default to `true`.
+thread from starting). All categories default to `true` except
+`audit_logging`, which defaults to `false`.
 
 ### Available metrics
 
@@ -375,6 +378,9 @@ thread from starting). All categories default to `true`.
 | `feast_materialization_result_total` | Counter | `feature_view`, `status` | `materialization` | Materialization runs (success/failure) |
 | `feast_materialization_duration_seconds` | Histogram | `feature_view` | `materialization` | Materialization duration per feature view |
 | `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | `freshness` | Seconds since last materialization |
+| `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
+| `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
+| `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
 
 ### Per-ODFV transformation metrics
 
@@ -404,6 +410,70 @@ def my_transform(inputs: pd.DataFrame) -> pd.DataFrame:
 The `odfv_name` label lets you filter or group by individual ODFV,
 and the `mode` label (`python`, `pandas`, `substrait`) lets you compare
 transformation engines.
+
+### Audit logging
+
+Feast can emit structured JSON audit log entries for every online and offline
+feature retrieval. These are written via the standard `feast.audit` Python
+logger, so you can route them to a dedicated file, SIEM, or log aggregator
+independently of application logs.
+
+Audit logging is **disabled by default**. Enable it in `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    audit_logging: true
+```
+
+**Online audit log** (emitted per `/get-online-features` call):
+
+```json
+{
+  "event": "online_feature_request",
+  "timestamp": "2026-05-11T08:30:00.123456+00:00",
+  "requestor_id": "user@example.com",
+  "entity_keys": ["driver_id"],
+  "entity_count": 3,
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "status": "success",
+  "latency_ms": 12.34
+}
+```
+
+**Offline audit log** (emitted per `RetrievalJob.to_arrow()` call):
+
+```json
+{
+  "event": "offline_feature_retrieval",
+  "timestamp": "2026-05-11T08:31:00.456789+00:00",
+  "method": "to_arrow",
+  "start_time": "2026-05-11T08:30:59.226789+00:00",
+  "end_time": "2026-05-11T08:31:00.456789+00:00",
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "row_count": 500,
+  "status": "success",
+  "duration_ms": 1230.0
+}
+```
+
+The `requestor_id` field in online audit logs is populated from the
+security manager's current user when authentication is configured, and
+falls back to `"anonymous"` otherwise.
+
+To route audit logs to a separate file:
+
+```python
+import logging
+
+handler = logging.FileHandler("/var/log/feast/audit.log")
+handler.setFormatter(logging.Formatter("%(message)s"))
+logging.getLogger("feast.audit").addHandler(handler)
+```
 
 ### Scraping with Prometheus
 
@@ -456,6 +526,42 @@ regardless of the number of Gunicorn workers or Kubernetes replicas.
 Prometheus adds an `instance` label per pod, so there is no
 duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
 instances as usual.
+
+## Vector Search (`POST /search`)
+
+The feature server exposes `POST /search` for vector similarity search against online document embeddings. Pass a pre-computed embedding in `query`, or use `api_version: 2` with `query_string` for text-based search when the online store supports it.
+
+`POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
+
+## [Alpha] OpenAI-Compatible Vector Store API
+
+{% hint style="warning" %}
+**Alpha feature.** This API surface is functional and tested, but may change in future releases.
+{% endhint %}
+
+The feature server exposes OpenAI-compatible vector store endpoints. This allows clients (including LLM agents and tool-calling frameworks) to discover and search vector data with plain text queries, without computing embeddings client-side.
+
+Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from `SHA-256(project + ":" + feature_view_name)`. These IDs are stable across server restarts.
+
+### Endpoints
+
+| Method | Path | RBAC | Description |
+|---|---|---|---|
+| `GET` | `/v1/vector_stores` | `DESCRIBE` | List all vector stores (filtered by caller permissions) |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | `DESCRIBE` | Get metadata for a single vector store |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | `READ_ONLINE` | Search a vector store with server-side embedding |
+
+### Configuration
+
+Add an `embedding_model` section to your `feature_store.yaml`:
+
+```yaml
+embedding_model:
+  provider: sentence_transformers   # default; can be omitted
+  model: all-MiniLM-L6-v2
+```
+
+Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol. See [\[Alpha\] Vector Database](../alpha-vector-database.md#alpha-openai-compatible-vector-store-api) for full configuration, custom providers, filter details, and SDK usage.
 
 ## Starting the feature server in TLS(SSL) mode
 
@@ -528,7 +634,11 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | Endpoint                   | Resource Type                   | Permission                                            | Description                                                    |
 |----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
 | /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
-| /retrieve-online-documents | FeatureView                     | Read Online                                           | Retrieve online documents from the feature store for RAG       |
+| /search | FeatureView                     | Read Online                                           | Vector similarity search for RAG (embedding vector or text query) |
+| /retrieve-online-documents | FeatureView              | Read Online                                           | **Deprecated.** Use `/search` instead.                           |
+| /v1/vector_stores | FeatureView                  | Describe                                              | [Alpha] List all vector stores                                 |
+| /v1/vector_stores/{id} | FeatureView                  | Describe                                              | [Alpha] Get a single vector store                              |
+| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | [Alpha] OpenAI-compatible vector search with server-side embedding |
 | /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |

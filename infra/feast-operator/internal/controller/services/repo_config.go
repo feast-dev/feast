@@ -85,10 +85,29 @@ func getServiceRepoConfig(
 	}
 
 	if appliedSpec.BatchEngine != nil {
-		err := setRepoConfigBatchEngine(appliedSpec.BatchEngine, configMapExtractionFunc, &repoConfig)
+		err := setRepoConfigBatchEngine(featureStore, appliedSpec.BatchEngine, configMapExtractionFunc, &repoConfig)
 		if err != nil {
 			return repoConfig, err
 		}
+	}
+
+	if appliedSpec.Services != nil && appliedSpec.Services.OnlineStore != nil &&
+		appliedSpec.Services.OnlineStore.Serving != nil {
+		setRepoConfigFeatureServer(appliedSpec.Services.OnlineStore.Serving, &repoConfig)
+	}
+
+	if appliedSpec.Materialization != nil {
+		setRepoConfigMaterialization(appliedSpec.Materialization, &repoConfig)
+	}
+
+	if appliedSpec.OpenLineage != nil {
+		if err := setRepoConfigOpenLineage(appliedSpec.OpenLineage, secretExtractionFunc, &repoConfig); err != nil {
+			return repoConfig, err
+		}
+	}
+
+	if appliedSpec.DataQualityMonitoring != nil {
+		setRepoConfigDataQualityMonitoring(appliedSpec.DataQualityMonitoring, &repoConfig)
 	}
 
 	return repoConfig, nil
@@ -244,6 +263,15 @@ func setRepoConfigRegistry(services *feastdevv1.FeatureStoreServices, secretExtr
 			repoConfig.Registry.DBParameters = parametersMap
 		}
 	}
+
+	if services.Registry.Local.Server != nil &&
+		services.Registry.Local.Server.Mcp != nil &&
+		services.Registry.Local.Server.Mcp.Enabled {
+		repoConfig.Registry.Mcp = &RegistryMcpYamlConfig{
+			Enabled: true,
+		}
+	}
+
 	return nil
 }
 
@@ -314,6 +342,7 @@ func setRepoConfigOffline(services *feastdevv1.FeatureStoreServices, secretExtra
 }
 
 func setRepoConfigBatchEngine(
+	featureStore *feastdevv1.FeatureStore,
 	batchEngineConfig *feastdevv1.BatchEngineConfig,
 	configMapExtractionFunc func(configMapRef string, configMapKey string) (map[string]interface{}, error),
 	repoConfig *RepoConfig) error {
@@ -334,11 +363,195 @@ func setRepoConfigBatchEngine(
 		return fmt.Errorf("batch engine config must contain 'type' field")
 	}
 	delete(config, "type")
+	// Inject service_account only for spark_application so baked feature_store.yaml
+	// matches the SA/RoleBinding created by reconcileBatchEngineRBAC.
+	// Other batch engines are left unchanged.
+	if engineType == "spark_application" {
+		config["service_account"] = resolveBatchDriverSAName(featureStore, config)
+	}
 	repoConfig.BatchEngine = &ComputeEngineConfig{
 		Type:       engineType,
 		Parameters: config,
 	}
 	return nil
+}
+
+// setRepoConfigFeatureServer maps the CRD ServingConfig into the feature_server YAML block.
+// Type is set to "mcp" only when fs.Mcp is non-nil and fs.Mcp.Enabled is true; otherwise "local".
+func setRepoConfigFeatureServer(fs *feastdevv1.ServingConfig, repoConfig *RepoConfig) {
+	serverType := "local"
+	if fs.Mcp != nil && fs.Mcp.Enabled {
+		serverType = "mcp"
+	}
+
+	yamlCfg := &FeatureServerYamlConfig{
+		Type: serverType,
+	}
+
+	if fs.Metrics != nil {
+		m := &MetricsYamlConfig{
+			Enabled: fs.Metrics.Enabled,
+		}
+		if len(fs.Metrics.Categories) > 0 {
+			m.Categories = make(map[string]interface{}, len(fs.Metrics.Categories))
+			for k, v := range fs.Metrics.Categories {
+				m.Categories[k] = v
+			}
+		}
+		yamlCfg.Metrics = m
+	}
+
+	if fs.OfflinePushBatching != nil {
+		enabled := fs.OfflinePushBatching.Enabled
+		yamlCfg.OfflinePushBatchingEnabled = &enabled
+		yamlCfg.OfflinePushBatchingBatchSize = fs.OfflinePushBatching.BatchSize
+		yamlCfg.OfflinePushBatchingBatchIntervalSeconds = fs.OfflinePushBatching.BatchIntervalSeconds
+	}
+
+	if fs.Mcp != nil && fs.Mcp.Enabled {
+		enabled := fs.Mcp.Enabled
+		yamlCfg.McpEnabled = &enabled
+		yamlCfg.McpServerName = fs.Mcp.ServerName
+		yamlCfg.McpServerVersion = fs.Mcp.ServerVersion
+		yamlCfg.McpTransport = fs.Mcp.Transport
+	}
+
+	repoConfig.FeatureServer = yamlCfg
+}
+
+// setRepoConfigMaterialization maps the CRD MaterializationConfig into the materialization YAML block.
+func setRepoConfigMaterialization(mat *feastdevv1.MaterializationConfig, repoConfig *RepoConfig) {
+	yamlCfg := &MaterializationYamlConfig{
+		OnlineWriteBatchSize: mat.OnlineWriteBatchSize,
+	}
+	if len(mat.ExtraConfig) > 0 {
+		ec := make(map[string]interface{}, len(mat.ExtraConfig))
+		for k, v := range mat.ExtraConfig {
+			ec[k] = coerceStringToYamlType(v)
+		}
+		yamlCfg.ExtraConfig = ec
+	}
+	repoConfig.Materialization = yamlCfg
+}
+
+// setRepoConfigOpenLineage maps the CRD OpenLineageConfig into the openlineage YAML block.
+// When ApiKeySecretRef is set, the api_key value is resolved from the referenced Secret.
+// ExtraConfig string values are coerced to native YAML types (bool/int) so that Feast's
+// StrictBool/StrictInt Pydantic validators accept them correctly.
+func setRepoConfigOpenLineage(
+	ol *feastdevv1.OpenLineageConfig,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	repoConfig *RepoConfig) error {
+
+	yamlCfg := &OpenLineageYamlConfig{
+		Enabled:           ol.Enabled,
+		TransportType:     ol.TransportType,
+		TransportUrl:      ol.TransportUrl,
+		TransportEndpoint: ol.TransportEndpoint,
+	}
+	if len(ol.ExtraConfig) > 0 {
+		ec := make(map[string]interface{}, len(ol.ExtraConfig))
+		for k, v := range ol.ExtraConfig {
+			ec[k] = coerceStringToYamlType(v)
+		}
+		yamlCfg.ExtraConfig = ec
+	}
+
+	if ol.ApiKeySecretRef != nil {
+		params, err := secretExtractionFunc("", ol.ApiKeySecretRef.Name, "")
+		if err != nil {
+			return fmt.Errorf("failed to read OpenLineage API key from secret %s: %w", ol.ApiKeySecretRef.Name, err)
+		}
+		apiKey, exists := params["api_key"]
+		if !exists {
+			return fmt.Errorf("secret %q does not contain the required key \"api_key\"", ol.ApiKeySecretRef.Name)
+		}
+		apiKeyStr, ok := apiKey.(string)
+		if !ok {
+			return fmt.Errorf("key \"api_key\" in secret %q must be a string, got %T", ol.ApiKeySecretRef.Name, apiKey)
+		}
+		yamlCfg.ApiKey = &apiKeyStr
+	}
+
+	if ol.Consumer != nil {
+		consumerCfg := &OpenLineageConsumerYamlConfig{
+			Enabled:          ol.Consumer.Enabled,
+			StoreType:        ol.Consumer.StoreType,
+			NamespaceMapping: ol.Consumer.NamespaceMapping,
+		}
+
+		if ol.Consumer.ConnectionStringSecretRef != nil {
+			params, err := secretExtractionFunc("", ol.Consumer.ConnectionStringSecretRef.Name, "")
+			if err != nil {
+				return fmt.Errorf("failed to read consumer connection string from secret %s: %w",
+					ol.Consumer.ConnectionStringSecretRef.Name, err)
+			}
+			connStr, exists := params["connection_string"]
+			if !exists {
+				return fmt.Errorf("secret %q does not contain the required key \"connection_string\"",
+					ol.Consumer.ConnectionStringSecretRef.Name)
+			}
+			connStrStr, ok := connStr.(string)
+			if !ok {
+				return fmt.Errorf("key \"connection_string\" in secret %q must be a string, got %T",
+					ol.Consumer.ConnectionStringSecretRef.Name, connStr)
+			}
+			consumerCfg.ConnectionString = &connStrStr
+		}
+
+		if ol.Consumer.ApiKeySecretRef != nil {
+			params, err := secretExtractionFunc("", ol.Consumer.ApiKeySecretRef.Name, "")
+			if err != nil {
+				return fmt.Errorf("failed to read consumer API key from secret %s: %w",
+					ol.Consumer.ApiKeySecretRef.Name, err)
+			}
+			apiKey, exists := params["api_key"]
+			if !exists {
+				return fmt.Errorf("secret %q does not contain the required key \"api_key\"",
+					ol.Consumer.ApiKeySecretRef.Name)
+			}
+			apiKeyStr, ok := apiKey.(string)
+			if !ok {
+				return fmt.Errorf("key \"api_key\" in secret %q must be a string, got %T",
+					ol.Consumer.ApiKeySecretRef.Name, apiKey)
+			}
+			consumerCfg.ApiKey = &apiKeyStr
+		}
+
+		yamlCfg.Consumer = consumerCfg
+	}
+
+	repoConfig.OpenLineage = yamlCfg
+	return nil
+}
+
+// coerceStringToYamlType converts "true"/"false" strings to native Go booleans
+// so the YAML marshaler emits an unquoted boolean rather than a quoted string.
+// This is required because CRD map[string]string fields can only hold strings,
+// but Feast Pydantic StrictBool fields reject string inputs.
+//
+// Integer coercion is intentionally omitted: some ExtraConfig target fields are
+// typed as StrictStr (e.g. OpenLineageConfig.namespace, .producer), and coercing
+// a numeric string like "123" to int64 would cause a Pydantic validation failure
+// at runtime. Fields that genuinely require integers should be exposed as typed
+// CRD fields rather than going through ExtraConfig.
+func coerceStringToYamlType(v string) interface{} {
+	switch v {
+	case stringTrue:
+		return true
+	case stringFalse:
+		return false
+	}
+	return v
+}
+
+func setRepoConfigDataQualityMonitoring(dqmConfig *feastdevv1.DataQualityMonitoringConfig, repoConfig *RepoConfig) {
+	if dqmConfig.AutoBaseline == nil {
+		return
+	}
+	repoConfig.DataQualityMonitoring = &DataQualityMonitoringYamlConfig{
+		AutoBaseline: *dqmConfig.AutoBaseline,
+	}
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {

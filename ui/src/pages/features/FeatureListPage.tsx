@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import {
   EuiBasicTable,
   EuiTableFieldDataColumnType,
@@ -15,13 +15,19 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
+  EuiBadge,
+  EuiCallOut,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import ExportButton from "../../components/ExportButton";
 import { useParams } from "react-router-dom";
-import useLoadRegistry from "../../queries/useLoadRegistry";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
+import useLoadFeatureModels, {
+  FeatureModelInfo,
+} from "../../queries/useLoadFeatureModels";
 import { FeatureIcon } from "../../graphics/FeatureIcon";
+import useResourceQuery, {
+  featuresListPath,
+} from "../../queries/useResourceQuery";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import {
   getEntityPermissions,
@@ -35,6 +41,7 @@ interface Feature {
   type: string;
   project?: string;
   permissions?: any[];
+  models?: FeatureModelInfo[];
 }
 
 type FeatureColumn =
@@ -43,11 +50,24 @@ type FeatureColumn =
 
 const FeatureListPage = () => {
   const { projectName } = useParams();
-  const registryUrl = useContext(RegistryPathContext);
-  const { data, isLoading, isError } = useLoadRegistry(
-    registryUrl,
-    projectName,
-  );
+  const {
+    data: features,
+    isLoading,
+    isError,
+    isPermissionDenied,
+  } = useResourceQuery<any[]>({
+    resourceType: "features-list",
+    project: projectName,
+    restPath: featuresListPath(projectName),
+    restSelect: (d) => d.features,
+  });
+  const { data: permissions } = useResourceQuery<any[]>({
+    resourceType: "permissions",
+    project: projectName,
+    restPath: `/permissions?project=${encodeURIComponent(projectName || "")}`,
+    restSelect: (d) => d.permissions,
+  });
+  const { data: featureModelsData } = useLoadFeatureModels();
   const [searchText, setSearchText] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
@@ -57,27 +77,24 @@ const FeatureListPage = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(100);
 
-  const featuresWithPermissions: Feature[] = (data?.allFeatures || []).map(
-    (feature) => {
-      return {
-        ...feature,
-        permissions: getEntityPermissions(
-          selectedPermissionAction
-            ? filterPermissionsByAction(
-                data?.permissions,
-                selectedPermissionAction,
-              )
-            : data?.permissions,
-          FEAST_FCO_TYPES.featureView,
-          feature.featureView,
-        ),
-      };
-    },
-  );
+  const featuresWithPermissions: Feature[] = (features || []).map((feature) => {
+    const featureRef = `${feature.featureView}:${feature.name}`;
+    return {
+      ...feature,
+      models: featureModelsData?.feature_models?.[featureRef] || [],
+      permissions: getEntityPermissions(
+        selectedPermissionAction
+          ? filterPermissionsByAction(permissions, selectedPermissionAction)
+          : permissions,
+        FEAST_FCO_TYPES.featureView,
+        feature.featureView,
+      ),
+    };
+  });
 
-  const features: Feature[] = featuresWithPermissions;
+  const enrichedFeatures: Feature[] = featuresWithPermissions;
 
-  const filteredFeatures = features.filter((feature) =>
+  const filteredFeatures = enrichedFeatures.filter((feature) =>
     feature.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
@@ -100,7 +117,6 @@ const FeatureListPage = () => {
       field: "name",
       sortable: true,
       render: (name: string, feature: Feature) => {
-        // For "All Projects" view, link to the specific project
         const itemProject = feature.project || projectName;
         return (
           <EuiCustomLink
@@ -116,7 +132,6 @@ const FeatureListPage = () => {
       field: "featureView",
       sortable: true,
       render: (featureView: string, feature: Feature) => {
-        // For "All Projects" view, link to the specific project
         const itemProject = feature.project || projectName;
         return (
           <EuiCustomLink to={`/p/${itemProject}/feature-view/${featureView}`}>
@@ -126,6 +141,47 @@ const FeatureListPage = () => {
       },
     },
     { name: "Type", field: "type", sortable: true },
+    {
+      name: "Models",
+      field: "models",
+      sortable: false,
+      render: (models: FeatureModelInfo[]) => {
+        if (!models || models.length === 0) {
+          return (
+            <EuiText size="xs" color="subdued">
+              --
+            </EuiText>
+          );
+        }
+        if (models.length === 1) {
+          return (
+            <EuiBadge
+              color="hollow"
+              href={models[0].mlflow_url}
+              target="_blank"
+            >
+              {models[0].model_name} v{models[0].version}
+            </EuiBadge>
+          );
+        }
+        return (
+          <EuiToolTip
+            position="top"
+            content={
+              <div>
+                {models.map((m) => (
+                  <div key={`${m.model_name}_v${m.version}`}>
+                    {m.model_name} v{m.version}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <EuiBadge color="hollow">{models.length} models</EuiBadge>
+          </EuiToolTip>
+        );
+      },
+    },
     {
       name: "Permissions",
       field: "permissions",
@@ -203,6 +259,10 @@ const FeatureListPage = () => {
       <EuiPageTemplate.Section>
         {isLoading ? (
           <p>Loading...</p>
+        ) : isPermissionDenied ? (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view features.</p>
+          </EuiCallOut>
         ) : isError ? (
           <p>We encountered an error while loading.</p>
         ) : (

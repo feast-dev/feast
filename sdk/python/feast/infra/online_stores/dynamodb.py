@@ -206,12 +206,10 @@ class DynamoDBOnlineStore(OnlineStore):
         return self._aioboto_client
 
     async def _aiodynamodb_close(self):
-        if self._aioboto_client:
-            await self._aioboto_client.close()
-            self._aioboto_client = None
         if self._aioboto_context_stack:
             await self._aioboto_context_stack.aclose()
             self._aioboto_context_stack = None
+        self._aioboto_client = None
         if self._aioboto_session:
             self._aioboto_session = None
 
@@ -238,18 +236,45 @@ class DynamoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):
+        """Update DynamoDB table tags using a diff-based approach.
+
+        Instead of removing all tags and re-adding them (which is vulnerable to
+        the eventual-consistency window between UntagResource and TagResource),
+        this method computes the minimal set of changes needed:
+
+        - Only removes tags that are no longer present in new_tags.
+        - Only adds/updates tags whose value has changed or that are new.
+
+        This avoids the race condition described in
+        https://github.com/feast-dev/feast/issues/6418 where calling
+        TagResource immediately after UntagResource can leave a table with no
+        tags due to DynamoDB's asynchronous tag operations.
+        """
         table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
             "TableArn"
         ]
         current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn)[
             "Tags"
         ]
-        if current_tags:
-            remove_keys = [tag["Key"] for tag in current_tags]
-            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=remove_keys)
 
-        if new_tags:
-            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+        current_tag_map = {tag["Key"]: tag["Value"] for tag in current_tags}
+        new_tag_map = {tag["Key"]: tag["Value"] for tag in new_tags}
+
+        # Remove only tags that are no longer in new_tags
+        keys_to_remove = [k for k in current_tag_map if k not in new_tag_map]
+        # Add / update only tags whose value is new or has changed
+        tags_to_add = [
+            {"Key": k, "Value": v}
+            for k, v in new_tag_map.items()
+            if current_tag_map.get(k) != v
+        ]
+
+        if keys_to_remove:
+            dynamodb_client.untag_resource(
+                ResourceArn=table_arn, TagKeys=keys_to_remove
+            )
+        if tags_to_add:
+            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=tags_to_add)
 
     def update(
         self,
@@ -504,7 +529,7 @@ class DynamoDBOnlineStore(OnlineStore):
         # For single batch, no parallelization overhead needed
         if len(batches) == 1:
             batch_entity_ids = self._to_resource_batch_get_payload(
-                online_config, table_name, batches[0]
+                online_config, table_name, batches[0], requested_features
             )
             response = dynamodb_resource.batch_get_item(RequestItems=batch_entity_ids)
             return self._process_batch_get_response(table_name, response, batches[0])
@@ -520,7 +545,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
         def fetch_batch(batch: List[str]) -> Dict[str, Any]:
             batch_entity_ids = self._to_client_batch_get_payload(
-                online_config, table_name, batch
+                online_config, table_name, batch, requested_features
             )
             return dynamodb_client.batch_get_item(RequestItems=batch_entity_ids)
 
@@ -599,7 +624,7 @@ class DynamoDBOnlineStore(OnlineStore):
             if not batch:
                 break
             entity_id_batch = self._to_client_batch_get_payload(
-                online_config, table_name, batch
+                online_config, table_name, batch, requested_features
             )
             batches.append(batch)
             entity_id_batches.append(entity_id_batch)
@@ -760,21 +785,56 @@ class DynamoDBOnlineStore(OnlineStore):
         ]
 
     @staticmethod
-    def _to_resource_batch_get_payload(online_config, table_name, batch):
-        return {
-            table_name: {
-                "Keys": [{"entity_id": entity_id} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+    def _to_resource_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": entity_id} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
         }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
 
     @staticmethod
-    def _to_client_batch_get_payload(online_config, table_name, batch):
+    def _to_client_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
+        }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
+
+    @staticmethod
+    def _build_projection_expression(
+        requested_features: Optional[List[str]],
+    ) -> Optional[Dict[str, Any]]:
+        if not requested_features:
+            return None
+        attr_names: Dict[str, str] = {
+            "#entity_id": "entity_id",
+            "#event_ts": "event_ts",
+            "#vals": "values",
+        }
+        projections = ["#entity_id", "#event_ts"]
+        for i, feat in enumerate(requested_features):
+            alias = f"#feat{i}"
+            attr_names[alias] = feat
+            projections.append(f"#vals.{alias}")
         return {
-            table_name: {
-                "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+            "ProjectionExpression": ", ".join(projections),
+            "ExpressionAttributeNames": attr_names,
         }
 
     def update_online_store(

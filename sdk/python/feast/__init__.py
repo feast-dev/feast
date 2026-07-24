@@ -1,6 +1,7 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 
+from feast.demos import copy_demo_notebooks
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
@@ -18,13 +19,22 @@ from .chunker import BaseChunker, ChunkingConfig, TextChunker
 from .data_source import KafkaSource, KinesisSource, PushSource, RequestSource
 from .dataframe import DataFrameEngine, FeastDataFrame
 from .doc_embedder import DocEmbedder, SchemaTransformFn
-from .embedder import BaseEmbedder, EmbeddingConfig, MultiModalEmbedder
+from .embedder import (
+    BaseEmbedder,
+    EmbeddingConfig,
+    EmbeddingProvider,
+    MultiModalEmbedder,
+    SentenceTransformersEmbeddingProvider,
+    get_embedding_provider,
+)
 from .entity import Entity
 from .feature import Feature
 from .feature_service import FeatureService
 from .feature_store import FeatureStore
-from .feature_view import FeatureView
+from .feature_view import FeatureView, FeatureViewState
 from .field import Field
+from .filter_models import FilterTranslator
+from .labeling import ConflictPolicy, LabelView
 from .on_demand_feature_view import OnDemandFeatureView
 from .project import Project
 from .repo_config import RepoConfig
@@ -41,6 +51,7 @@ except PackageNotFoundError:
 __all__ = [
     "Aggregation",
     "BatchFeatureView",
+    "copy_demo_notebooks",
     "DataFrameEngine",
     "Entity",
     "KafkaSource",
@@ -51,6 +62,9 @@ __all__ = [
     "FeatureService",
     "FeatureStore",
     "FeatureView",
+    "FeatureViewState",
+    "LabelView",
+    "ConflictPolicy",
     "OnDemandFeatureView",
     "RepoConfig",
     "StreamFeatureView",
@@ -73,4 +87,8 @@ __all__ = [
     "BaseEmbedder",
     "MultiModalEmbedder",
     "EmbeddingConfig",
+    "EmbeddingProvider",
+    "SentenceTransformersEmbeddingProvider",
+    "get_embedding_provider",
+    "FilterTranslator",
 ]

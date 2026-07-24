@@ -34,11 +34,19 @@ const FeatureServiceOverviewTab = () => {
   const isEmpty = data === undefined;
 
   let numFeatures = 0;
-  let numFeatureViews = 0;
+  let numLabels = 0;
+  const featureProjections: any[] = [];
+  const labelProjections: any[] = [];
   if (data) {
-    data?.spec?.features?.forEach((featureView) => {
-      numFeatureViews += 1;
-      numFeatures += featureView?.featureColumns!.length;
+    data?.spec?.features?.forEach((featureView: any) => {
+      const columnCount = (featureView?.featureColumns || []).length;
+      if (featureView.viewType === "labelView") {
+        numLabels += columnCount;
+        labelProjections.push(featureView);
+      } else {
+        numFeatures += columnCount;
+        featureProjections.push(featureView);
+      }
     });
   }
 
@@ -57,7 +65,7 @@ const FeatureServiceOverviewTab = () => {
         <EuiFlexGroup direction="column">
           <EuiFlexGroup alignItems="center">
             <EuiFlexItem grow={false}>
-              <EuiStat title={`${numFeatures}`} description="Total Features" />
+              <EuiStat title={`${numFeatures}`} description="Features" />
             </EuiFlexItem>
             <EuiFlexItem>
               <EuiTextAlign textAlign="center">
@@ -66,7 +74,7 @@ const FeatureServiceOverviewTab = () => {
             </EuiFlexItem>
             <EuiFlexItem>
               <EuiStat
-                title={`${numFeatureViews}`}
+                title={`${featureProjections.length}`}
                 description="Feature Views"
               />
             </EuiFlexItem>
@@ -90,14 +98,43 @@ const FeatureServiceOverviewTab = () => {
                   <h2>Features</h2>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
-                {data?.spec?.features ? (
-                  <FeaturesInServiceList featureViews={data?.spec?.features} />
+                {featureProjections.length > 0 ? (
+                  <FeaturesInServiceList featureViews={featureProjections} />
                 ) : (
                   <EuiText>
                     No features specified for this feature service.
                   </EuiText>
                 )}
               </EuiPanel>
+              {labelProjections.length > 0 && (
+                <React.Fragment>
+                  <EuiSpacer size="l" />
+                  <EuiFlexGroup alignItems="center">
+                    <EuiFlexItem grow={false}>
+                      <EuiStat title={`${numLabels}`} description="Labels" />
+                    </EuiFlexItem>
+                    <EuiFlexItem>
+                      <EuiTextAlign textAlign="center">
+                        <p>from</p>
+                      </EuiTextAlign>
+                    </EuiFlexItem>
+                    <EuiFlexItem>
+                      <EuiStat
+                        title={`${labelProjections.length}`}
+                        description="Label Views"
+                      />
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
+                  <EuiSpacer size="m" />
+                  <EuiPanel hasBorder={true}>
+                    <EuiTitle size="xs">
+                      <h2>Labels</h2>
+                    </EuiTitle>
+                    <EuiHorizontalRule margin="xs" />
+                    <FeaturesInServiceList featureViews={labelProjections} />
+                  </EuiPanel>
+                </React.Fragment>
+              )}
             </EuiFlexItem>
             <EuiFlexItem grow={1}>
               <EuiPanel hasBorder={true} grow={false}>
@@ -153,15 +190,27 @@ const FeatureServiceOverviewTab = () => {
               <EuiSpacer size="m" />
               <EuiPanel hasBorder={true}>
                 <EuiTitle size="xs">
-                  <h3>All Feature Views</h3>
+                  <h3>All Views</h3>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
                     fvNames={
-                      data?.spec?.features?.map((f) => {
+                      data?.spec?.features?.map((f: any) => {
                         return f.featureViewName!;
                       })!
+                    }
+                    viewTypes={
+                      data?.spec?.features?.reduce(
+                        (acc: Record<string, string>, f: any) => {
+                          if (f.featureViewName) {
+                            acc[f.featureViewName] =
+                              f.viewType || "featureView";
+                          }
+                          return acc;
+                        },
+                        {},
+                      ) || {}
                     }
                   />
                 ) : (

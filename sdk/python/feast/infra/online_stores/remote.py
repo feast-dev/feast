@@ -16,16 +16,37 @@ import logging
 import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import requests
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.feature_service import FeatureService
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FieldStatus,
+    GetOnlineFeaturesResponse,
+    GetOnlineFeaturesResponseMetadata,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.rest_error_handler import rest_error_handling_decorator
@@ -131,6 +152,88 @@ class RemoteOnlineStore(OnlineStore):
             return list(getattr(proto_value, val_attr).val)
 
         return feast_value_type_to_python_type(proto_value)
+
+    _STATUS_MAP = {
+        "PRESENT": FieldStatus.PRESENT,
+        "NOT_FOUND": FieldStatus.NOT_FOUND,
+        "NULL_VALUE": FieldStatus.NULL_VALUE,
+        "OUTSIDE_MAX_AGE": FieldStatus.OUTSIDE_MAX_AGE,
+    }
+
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
+    ) -> OnlineResponse:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    columnar[key].append(value)
+            entity_rows = columnar
+
+        entities: Dict[str, List[Any]] = {}
+        for k, vals in entity_rows.items():
+            iterable = vals.val if isinstance(vals, RepeatedValue) else vals
+            entities[k] = [_json_safe(v) for v in iterable]
+
+        req_body: Dict[str, Any] = {
+            "entities": entities,
+            "full_feature_names": full_feature_names,
+            "include_feature_view_version_metadata": include_feature_view_version_metadata,
+        }
+
+        if isinstance(features, FeatureService):
+            req_body["feature_service"] = features.name
+        else:
+            req_body["features"] = features
+
+        response = get_remote_online_features(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to get online features: {response.status_code} {response.text}"
+            )
+
+        resp_json = response.json()
+        return self._build_online_response_from_json(resp_json)
+
+    def _build_online_response_from_json(
+        self, resp_json: Dict[str, Any]
+    ) -> OnlineResponse:
+        proto = GetOnlineFeaturesResponse()
+
+        metadata = GetOnlineFeaturesResponseMetadata()
+        feature_names = resp_json.get("metadata", {}).get("feature_names", [])
+        metadata.feature_names.val.extend(feature_names)
+        proto.metadata.CopyFrom(metadata)
+
+        for result in resp_json.get("results", []):
+            fv = GetOnlineFeaturesResponse.FeatureVector()
+            for val in result.get("values", []):
+                if val is None:
+                    fv.values.append(ValueProto())
+                else:
+                    protos = python_values_to_proto_values([val])
+                    fv.values.append(protos[0])
+            for status_str in result.get("statuses", []):
+                fv.statuses.append(
+                    self._STATUS_MAP.get(status_str, FieldStatus.INVALID)
+                )
+            proto.results.append(fv)
+
+        proto.status = True
+        return OnlineResponse(proto)
 
     def online_write_batch(
         self,
@@ -336,6 +439,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -354,6 +458,7 @@ class RemoteOnlineStore(OnlineStore):
             top_k,
             distance_metric,
             query_string,
+            filters=filters,
             api_version=2,
         )
         response = get_remote_online_documents(config=config, req_body=req_body)
@@ -362,20 +467,31 @@ class RemoteOnlineStore(OnlineStore):
             response_json = json.loads(response.text)
             event_ts: Optional[datetime] = self._get_event_ts(response_json)
 
+            metadata = response_json.get("metadata") or {}
+            feature_names = metadata.get("feature_names") or []
+            results = response_json.get("results") or []
+
+            if not feature_names or not results:
+                logger.debug(
+                    "Empty metadata or results in retrieve_online_documents_v2 response."
+                )
+                return []
+
             # Create feature name to index mapping for efficient lookup
             feature_name_to_index = {
-                name: idx
-                for idx, name in enumerate(response_json["metadata"]["feature_names"])
+                name: idx for idx, name in enumerate(feature_names)
             }
 
             # Process each result row
-            num_results = (
-                len(response_json["results"][0]["values"])
-                if response_json["results"]
-                else 0
-            )
+            first_result_values = results[0].get("values") or []
+            num_results = len(first_result_values)
             result_tuples = []
-
+            if requested_features is None:
+                requested_features = []
+            else:
+                requested_features = list(requested_features)
+            if "distance" not in requested_features:
+                requested_features.append("distance")
             for row_idx in range(num_results):
                 # Build feature values dictionary for requested features
                 feature_values_dict = {}
@@ -501,7 +617,7 @@ class RemoteOnlineStore(OnlineStore):
         for row in entity_keys:
             entity_key = row.join_keys[0]
             entity_values.append(
-                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))
+                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))  # type: ignore[arg-type]
             )
 
         return {
@@ -537,6 +653,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         api_version: Optional[int] = 2,
     ) -> dict:
         api_requested_features = []
@@ -544,7 +661,7 @@ class RemoteOnlineStore(OnlineStore):
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        return {
+        body: Dict[str, Any] = {
             "features": api_requested_features,
             "query": embedding,
             "top_k": top_k,
@@ -552,12 +669,19 @@ class RemoteOnlineStore(OnlineStore):
             "query_string": query_string,
             "api_version": api_version,
         }
+        if filters is not None:
+            body["filters"] = filters.model_dump()
+        return body
 
-    def _get_event_ts(self, response_json) -> datetime:
-        event_ts = ""
-        if len(response_json["results"]) > 1:
-            event_ts = response_json["results"][1]["event_timestamps"][0]
-        return datetime.fromisoformat(event_ts.replace("Z", "+00:00"))
+    def _get_event_ts(self, response_json) -> Optional[datetime]:
+        results = response_json.get("results") or []
+        if len(results) > 1:
+            event_timestamps = results[1].get("event_timestamps") or []
+            if event_timestamps:
+                return datetime.fromisoformat(
+                    event_timestamps[0].replace("Z", "+00:00")
+                )
+        return None
 
     def _construct_entity_key_from_response(
         self,
@@ -655,16 +779,20 @@ def get_remote_online_features(
 def get_remote_online_documents(
     session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
-    if config.online_store.cert:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents",
-            json=req_body,
-            verify=config.online_store.cert,
-        )
-    else:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents", json=req_body
-        )
+    search_paths = ("/search", "/retrieve-online-documents")
+    last_response: Optional[requests.Response] = None
+    for path in search_paths:
+        url = f"{config.online_store.path}{path}"
+        if config.online_store.cert:
+            last_response = session.post(
+                url, json=req_body, verify=config.online_store.cert
+            )
+        else:
+            last_response = session.post(url, json=req_body)
+        if last_response.status_code != 404:
+            return last_response
+    assert last_response is not None
+    return last_response
 
 
 @rest_error_handling_decorator

@@ -10,32 +10,16 @@ import {
 import userEvent from "@testing-library/user-event";
 
 import FeastUISansProviders from "./FeastUISansProviders";
-import {
-  projectsListWithDefaultProject,
-  creditHistoryRegistry,
-  creditHistoryRegistryDB,
-} from "./mocks/handlers";
+import { allRestHandlers } from "./mocks/handlers";
 
 import { readFileSync } from "fs";
 import { feast } from "./protos";
 import path from "path";
 
 // declare which API requests to mock
-const server = setupServer(
-  projectsListWithDefaultProject,
-  creditHistoryRegistry,
-  creditHistoryRegistryDB,
-);
+const server = setupServer(...allRestHandlers);
 const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
 const parsedRegistry = feast.core.Registry.decode(registry);
-
-console.log("Registry Feature Views:", parsedRegistry.featureViews?.length);
-if (parsedRegistry.featureViews && parsedRegistry.featureViews.length > 0) {
-  console.log(
-    "First Feature View Name:",
-    parsedRegistry.featureViews[0].spec?.name,
-  );
-}
 
 // establish API mocking before all tests
 beforeAll(() => server.listen());
@@ -64,14 +48,12 @@ test("full app rendering", async () => {
   // Explore Panel Should Appear
   expect(screen.getByText(/Explore this Project/i)).toBeInTheDocument();
 
-  const projectNameRegExp = new RegExp(
-    parsedRegistry.projects[0].spec?.name!,
-    "i",
-  );
-
   // It should load the default project, which is credit_scoring_aws
+  // The heading shows the display name from projects-list.json
   await waitFor(() => {
-    expect(screen.getByText(projectNameRegExp)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Credit Score Project/i }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -83,27 +65,27 @@ test("routes are reachable", async () => {
   // Wait for content to load
   await screen.findByText(/Explore this Project/i);
 
-  const mainRoutesNames = [
-    "Data Sources",
-    "Entities",
-    "Feature Views",
-    "Feature Services",
-    "Datasets",
+  const mainRoutes = [
+    { link: "Data Sources", heading: "Data Sources" },
+    { link: "Entities", heading: "Entities" },
+    { link: "Feature Views", heading: "Feature Views" },
+    { link: "Feature Services", heading: "Feature Services" },
+    { link: "Datasets", heading: "Data Catalog" },
   ];
 
-  for (const routeName of mainRoutesNames) {
+  for (const { link, heading } of mainRoutes) {
     // Main heading shouldn't start with the route name
     expect(
-      screen.queryByRole("heading", { name: routeName, level: 1 }),
+      screen.queryByRole("heading", { name: heading, level: 1 }),
     ).toBeNull();
 
-    const routeRegExp = new RegExp(routeName, "i");
+    const routeRegExp = new RegExp(link, "i");
 
     await user.click(screen.getByRole("link", { name: routeRegExp }));
 
     // Should land on a page with the heading
     screen.getByRole("heading", {
-      name: routeName,
+      name: heading,
       level: 1,
     });
   }

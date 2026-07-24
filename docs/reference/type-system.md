@@ -24,6 +24,7 @@ Feast supports the following data types:
 | `Bytes` | `bytes` | Binary data |
 | `Bool` | `bool` | Boolean value |
 | `UnixTimestamp` | `datetime` | Unix timestamp (nullable) |
+| `ZonedTimestamp` | `datetime` | Timezone-aware datetime preserving its source zone (nullable) |
 | `Uuid` | `uuid.UUID` | UUID (any version) |
 | `TimeUuid` | `uuid.UUID` | Time-based UUID (version 1) |
 | `Decimal` | `decimal.Decimal` | Arbitrary-precision decimal number |
@@ -116,8 +117,13 @@ Map types allow storing dictionary-like data structures:
 |------------|-------------|-------------|
 | `Map` | `Dict[str, Any]` | Dictionary with string keys and values of any supported Feast type (including nested maps) |
 | `Array(Map)` | `List[Dict[str, Any]]` | List of dictionaries |
+| `ScalarMap` | `Dict[Any, Any]` | Dictionary with non-string scalar keys (int, float, bool, UUID, Decimal, bytes, datetime) and values of any supported Feast type |
 
-**Note:** Map keys must always be strings. Map values can be any supported Feast type, including primitives, arrays, or nested maps at the proto level. However, the PyArrow representation is `map<string, string>`, which means backends that rely on PyArrow schemas (e.g., during materialization) treat Map as string-to-string.
+**Note:** `Map` keys must always be strings. `ScalarMap` supports non-string scalar keys — Feast infers `ScalarMap` automatically when the first key of a dict is not a string. Map values can be any supported Feast type, including primitives, arrays, or nested maps at the proto level. However, the PyArrow representation is `map<string, string>`, which means backends that rely on PyArrow schemas (e.g., during materialization) treat Map as string-to-string.
+
+{% hint style="warning" %}
+`ScalarMap` is **not** inferred from any backend schema. You must declare it explicitly in your feature view schema. It is best suited for online serving use cases where the online store serializes proto bytes directly (e.g., Redis, DynamoDB, SQLite).
+{% endhint %}
 
 **Backend support for Map:**
 
@@ -129,7 +135,7 @@ Map types allow storing dictionary-like data structures:
 | Spark | `map<string,string>` | `map<>` → `Map`, `array<map<>>` → `Array(Map)` |
 | Athena | `map` | Inferred as `Map` |
 | MSSQL | `nvarchar(max)` | Serialized as string |
-| DynamoDB / Redis | Proto bytes | Full proto Map support |
+| DynamoDB / Redis | Proto bytes | Full proto Map and ScalarMap support |
 
 ### JSON Type
 
@@ -197,7 +203,8 @@ from datetime import timedelta
 from feast import Entity, FeatureView, Field, FileSource
 from feast.types import (
     Int32, Int64, Float32, Float64, String, Bytes, Bool, UnixTimestamp,
-    Uuid, TimeUuid, Decimal, Array, Set, Map, Json, Struct
+    Uuid, TimeUuid, Decimal, Array, Set, Map, ScalarMap, Json, Struct,
+    ZonedTimestamp
 )
 
 # Define a data source
@@ -227,6 +234,7 @@ user_features = FeatureView(
         Field(name="profile_picture", dtype=Bytes),
         Field(name="is_active", dtype=Bool),
         Field(name="last_login", dtype=UnixTimestamp),
+        Field(name="event_time", dtype=ZonedTimestamp),
         Field(name="session_id", dtype=Uuid),
         Field(name="event_id", dtype=TimeUuid),
         Field(name="price", dtype=Decimal),
@@ -257,6 +265,7 @@ user_features = FeatureView(
         Field(name="user_preferences", dtype=Map),
         Field(name="metadata", dtype=Map),
         Field(name="activity_log", dtype=Array(Map)),
+        Field(name="event_counts", dtype=ScalarMap),  # non-string keys, e.g. {1001: 5, 1002: 12}
 
         # Nested collection types
         Field(name="weekly_scores", dtype=Array(Array(Float64))),
@@ -356,6 +365,43 @@ unique_prices = {decimal.Decimal("9.99"), decimal.Decimal("19.99"), decimal.Deci
 `Decimal` is **not** inferred from any backend schema. You must declare it explicitly in your feature view schema. The pandas dtype for `Decimal` columns is `object` (holding `decimal.Decimal` instances), not a numeric dtype.
 {% endhint %}
 
+### ZonedTimestamp Type Usage Examples
+
+The `ZonedTimestamp` type stores a timezone-aware `datetime` as both the UTC instant
+and its originating zone, so the original wall-clock zone round-trips losslessly.
+By contrast, `UnixTimestamp` always decodes to UTC and discards the source zone.
+
+```python
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+# A datetime in a specific zone — both the instant and "America/Los_Angeles" are kept
+event_time = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+
+# ZonedTimestamp values are returned as tz-aware datetime objects, in their own zone
+response = store.get_online_features(
+    features=["event_features:event_time"],
+    entity_rows=[{"user_id": 1001}],
+)
+result = response.to_dict()
+# result["event_time"][0] == event_time  (same instant AND same zone, e.g. 09:00-07:00)
+
+# Two values at the same instant but different zones stay distinct
+la = datetime(2026, 6, 17, 9, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+utc = datetime(2026, 6, 17, 16, 0, 0, tzinfo=timezone.utc)  # same instant as `la`
+
+# A naive (tz-less) datetime is interpreted as UTC
+naive = datetime(2026, 6, 17, 12, 0, 0)  # stored zone is empty, decoded as UTC
+```
+
+{% hint style="warning" %}
+`ZonedTimestamp` is **not** inferred from any backend schema — you must declare it
+explicitly in your feature view schema. It is not supported as an entity key. The
+zone is stored as an IANA name (e.g. `America/Los_Angeles`) when available, falling
+back to a fixed-offset string; offline stores that cannot natively carry a zone may
+normalize to UTC on that backend.
+{% endhint %}
+
 ### Nested Collection Type Usage Examples
 
 ```python
@@ -383,7 +429,7 @@ Field(name="grouped_tags", dtype=Array(Set(Array(String))))
 Maps can store complex nested data structures:
 
 ```python
-# Simple map
+# Simple map (string keys)
 user_preferences = {
     "theme": "dark",
     "language": "en",
@@ -410,6 +456,44 @@ activity_log = [
     {"action": "logout", "timestamp": "2024-01-01T12:00:00"}
 ]
 ```
+
+### ScalarMap Type Usage Examples
+
+`ScalarMap` supports non-string keys. Feast infers it automatically when the first dict key is not a string:
+
+```python
+import uuid
+import decimal
+
+# Integer keys — e.g., category ID → item count
+event_counts = {1001: 5, 1002: 12, 1003: 0}
+
+# UUID keys — e.g., session ID → score
+import uuid
+session_scores = {
+    uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8"): 0.95,
+    uuid.UUID("a8098c1a-f86e-11da-bd1a-00112444be1e"): 0.87,
+}
+
+# Decimal keys — e.g., price bucket → product name
+price_tier = {
+    decimal.Decimal("9.99"): "budget",
+    decimal.Decimal("49.99"): "standard",
+    decimal.Decimal("99.99"): "premium",
+}
+
+# Type inference: Feast automatically picks SCALAR_MAP when the key is non-string
+from feast.type_map import python_type_to_feast_value_type
+from feast.value_type import ValueType
+
+python_type_to_feast_value_type({1: "a"})         # → ValueType.SCALAR_MAP
+python_type_to_feast_value_type({"a": 1})          # → ValueType.MAP
+python_type_to_feast_value_type({})                # → ValueType.MAP (empty dict defaults to MAP)
+```
+
+{% hint style="warning" %}
+`ScalarMap` must be **explicitly declared** in your feature view schema — it is never inferred from backend type schemas. It is best suited for online serving via stores that use proto byte serialization (e.g., Redis, DynamoDB, SQLite). Materialization paths that use PyArrow (e.g., BigQuery, Snowflake, Redshift, Spark) do not have native `ScalarMap` support.
+{% endhint %}
 
 ### JSON Type Usage Examples
 
@@ -461,7 +545,7 @@ Each of these columns must be associated with a Feast type, which requires conve
 * `source_datatype_to_feast_value_type` calls the appropriate method in `type_map.py`. For example, if a `SnowflakeSource` is being examined, `snowflake_python_type_to_feast_value_type` from `type_map.py` will be called.
 
 {% hint style="info" %}
-**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `Decimal`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
+**Types that cannot be inferred:** `Set`, `Json`, `Struct`, `Decimal`, `ScalarMap`, `PdfBytes`, and `ImageBytes` types are never inferred from backend schemas. If you use these types, you must declare them explicitly in your feature view schema.
 {% endhint %}
 
 ### Materialization

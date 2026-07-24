@@ -78,7 +78,7 @@ const sortedPosts = posts.sort((a, b) => {
     max-width: 1024px;
     padding: 0 20px;
     word-break: break-word;
-    color: rgb(0, 0, 0);
+    color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizelegibility;
     font-feature-settings: "ss03";
@@ -88,7 +88,7 @@ const sortedPosts = posts.sort((a, b) => {
     font-family: var(--font-sans);
     font-size: 20px;
     line-height: 1.5;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0 auto 24px;
     max-width: 768px;
   }
@@ -115,7 +115,7 @@ const sortedPosts = posts.sort((a, b) => {
   .post-date {
     font-family: var(--font-mono);
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     white-space: nowrap;
   }
 
@@ -147,7 +147,7 @@ const sortedPosts = posts.sort((a, b) => {
   .post-authors {
     font-family: var(--font-sans);
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   @media (max-width: 768px) {

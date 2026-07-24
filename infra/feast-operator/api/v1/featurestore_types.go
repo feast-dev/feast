@@ -52,6 +52,7 @@ const (
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
+	OidcAuthzFailedReason        = "OidcAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
 	ReadyMessage                  = "FeatureStore installation complete"
@@ -62,11 +63,84 @@ const (
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	OidcAuthzReadyMessage         = "OIDC authorization installation complete"
 	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
 )
+
+// MaterializationConfig controls feature materialization behavior written into feature_store.yaml.
+type MaterializationConfig struct {
+	// Number of rows per batch when writing to the online store during materialization.
+	// Prevents OOM for large feature views. Supported engines: local, spark, ray.
+	// If unset, all rows are written in a single batch.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	OnlineWriteBatchSize *int32 `json:"onlineWriteBatchSize,omitempty"`
+	// ExtraConfig passes additional materialization key-value settings inline into
+	// feature_store.yaml.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+}
+
+// OpenLineageConfig enables OpenLineage data lineage tracking for Feast operations.
+// Lineage events are emitted during feast apply and materialization when enabled.
+type OpenLineageConfig struct {
+	// Enable OpenLineage integration.
+	Enabled bool `json:"enabled"`
+	// Transport type for lineage events.
+	// +kubebuilder:validation:Enum=http;console;file;kafka
+	// +optional
+	TransportType *string `json:"transportType,omitempty"`
+	// URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http".
+	// +optional
+	TransportUrl *string `json:"transportUrl,omitempty"`
+	// API endpoint path appended to transportUrl. Defaults to "api/v1/lineage".
+	// +optional
+	TransportEndpoint *string `json:"transportEndpoint,omitempty"`
+	// Reference to a Secret containing the key "api_key" for lineage server authentication.
+	// +optional
+	ApiKeySecretRef *corev1.LocalObjectReference `json:"apiKeySecretRef,omitempty"`
+	// ExtraConfig holds additional OpenLineage key-value settings written inline into
+	// the openlineage block of feature_store.yaml alongside the typed fields above.
+	// Use this for non-core settings (e.g. namespace, producer, emit_on_apply,
+	// emit_on_materialize) and transport-specific options (e.g. kafka
+	// bootstrap_servers, topic; file path). Boolean values ("true"/"false") and
+	// integer values are automatically coerced to their native YAML types.
+	// Keys must be valid Feast OpenLineageConfig YAML field names.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+	// Consumer configures the OpenLineage consumer (event receiver) that enables
+	// Feast to receive and display lineage from external producers (Airflow, Spark, dbt, etc.).
+	// +optional
+	Consumer *OpenLineageConsumerConfig `json:"consumer,omitempty"`
+}
+
+// OpenLineageConsumerConfig configures the OpenLineage consumer (event receiver).
+// When enabled, the Feast REST server exposes POST /api/v1/lineage to receive
+// OpenLineage events from any producer, storing them for visualization in the Feast UI.
+type OpenLineageConsumerConfig struct {
+	// Enable the OpenLineage consumer.
+	Enabled bool `json:"enabled"`
+	// StoreType is the storage backend for lineage events. Currently only "sql" is supported.
+	// +kubebuilder:default="sql"
+	// +kubebuilder:validation:Enum=sql
+	// +optional
+	StoreType *string `json:"storeType,omitempty"`
+	// Reference to a Secret containing the key "connection_string" for a separate
+	// lineage database. If omitted, the SQL registry database is reused.
+	// +optional
+	ConnectionStringSecretRef *corev1.LocalObjectReference `json:"connectionStringSecretRef,omitempty"`
+	// Reference to a Secret containing the key "api_key" that producers must
+	// provide in the X-API-Key header when sending events.
+	// +optional
+	ApiKeySecretRef *corev1.LocalObjectReference `json:"apiKeySecretRef,omitempty"`
+	// NamespaceMapping maps OpenLineage namespaces to Feast projects for
+	// RBAC-based filtering of lineage data in the UI.
+	// +optional
+	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
+}
 
 // FeatureStoreSpec defines the desired state of FeatureStore
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 || !has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)",message="replicas > 1 and services.scaling.autoscaling are mutually exclusive."
@@ -82,11 +156,22 @@ type FeatureStoreSpec struct {
 	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 	CronJob         *FeastCronJob         `json:"cronJob,omitempty"`
 	BatchEngine     *BatchEngineConfig    `json:"batchEngine,omitempty"`
+	// DataQualityMonitoring configures Data Quality Monitoring behaviour.
+	// +optional
+	DataQualityMonitoring *DataQualityMonitoringConfig `json:"dataQualityMonitoring,omitempty"`
 	// Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 	// Mutually exclusive with services.scaling.autoscaling.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Materialization controls feature materialization behavior (batch size, pull strategy).
+	// Written into feature_store.yaml for all service pods.
+	// +optional
+	Materialization *MaterializationConfig `json:"materialization,omitempty"`
+	// OpenLineage enables OpenLineage data lineage tracking for Feast operations.
+	// Written into feature_store.yaml for all service pods.
+	// +optional
+	OpenLineage *OpenLineageConfig `json:"openlineage,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -117,7 +202,7 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;couchbase;clickhouse;milvus;ray;ray_rag;pytorch_nlp
 	Template string `json:"template,omitempty"`
 }
 
@@ -174,6 +259,13 @@ type BatchEngineConfig struct {
 	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
 	// Key name in the ConfigMap. Defaults to "config" if not specified.
 	ConfigMapKey string `json:"configMapKey,omitempty"`
+}
+
+// DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+type DataQualityMonitoringConfig struct {
+	// AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true.
+	// +kubebuilder:default=true
+	AutoBaseline *bool `json:"autoBaseline,omitempty"`
 }
 
 // JobSpec describes how the job execution will look like.
@@ -337,6 +429,17 @@ type FeatureStoreServices struct {
 	// pod anti-affinity rule to prefer spreading pods across nodes.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// ResourceClaims defines which ResourceClaims must be allocated
+	// and reserved before the Pod is allowed to start. The resources
+	// will be made available to those containers which consume them
+	// by name.
+	//
+	// +patchMergeKey=name
+	// +patchStrategy=merge,retainKeys
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	ResourceClaims []corev1.PodResourceClaim `json:"resourceClaims,omitempty" patchStrategy:"merge,retainKeys" patchMergeKey:"name"`
 }
 
 // ScalingConfig configures horizontal scaling for the FeatureStore deployment.
@@ -437,6 +540,71 @@ type OnlineStore struct {
 	// Creates a feature server container
 	Server      *ServerConfigs          `json:"server,omitempty"`
 	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
+	// Serving configures the Feast feature_server section written into feature_store.yaml for the online serve pod.
+	// Controls metrics granularity, offline push batching, and MCP.
+	// +optional
+	Serving *ServingConfig `json:"serving,omitempty"`
+}
+
+// ServingConfig configures the feature_server section of the generated feature_store.yaml.
+// When Mcp is set, the feature server type is switched to "mcp"; otherwise "local" is used.
+type ServingConfig struct {
+	// Metrics configures per-category Prometheus metrics for the feature server.
+	// Coexists with the server.metrics bool flag — both can be set simultaneously.
+	// +optional
+	Metrics *ServingMetricsConfig `json:"metrics,omitempty"`
+	// OfflinePushBatching batches writes to the offline store via the /push endpoint.
+	// +optional
+	OfflinePushBatching *OfflinePushBatchingConfig `json:"offlinePushBatching,omitempty"`
+	// Mcp enables MCP (Model Context Protocol) server support. When set, feature server type is "mcp".
+	// +optional
+	Mcp *McpConfig `json:"mcp,omitempty"`
+}
+
+// ServingMetricsConfig controls per-category Prometheus metrics for the feature server.
+// Setting Enabled to true activates the metrics HTTP server on port 8000.
+// All metric categories default to true when enabled; use Categories to selectively disable them.
+type ServingMetricsConfig struct {
+	// Enable the Prometheus metrics endpoint on port 8000.
+	Enabled bool `json:"enabled"`
+	// Categories selectively enables or disables individual Feast metric categories.
+	// Keys are Feast MetricsConfig field names (e.g. "resource", "request",
+	// "online_features", "push", "materialization", "freshness"). Omitted keys
+	// default to true when metrics is enabled.
+	// +optional
+	Categories map[string]bool `json:"categories,omitempty"`
+}
+
+// OfflinePushBatchingConfig controls batching of writes to the offline store via the /push endpoint.
+// Recommended for high-throughput push workloads (streaming pipelines, IoT) to prevent OOM.
+type OfflinePushBatchingConfig struct {
+	// Enable offline push batching.
+	Enabled bool `json:"enabled"`
+	// Maximum number of rows per offline write batch.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BatchSize *int32 `json:"batchSize,omitempty"`
+	// Seconds between batch flushes to the offline store.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BatchIntervalSeconds *int32 `json:"batchIntervalSeconds,omitempty"`
+}
+
+// McpConfig enables MCP (Model Context Protocol) server support in the feature server.
+// When this field is set on ServingConfig, the feature server type is switched to "mcp".
+type McpConfig struct {
+	// Enable the MCP server.
+	Enabled bool `json:"enabled"`
+	// MCP server name for identification. Defaults to "feast-mcp-server".
+	// +optional
+	ServerName *string `json:"serverName,omitempty"`
+	// MCP server version string. Defaults to "1.0.0".
+	// +optional
+	ServerVersion *string `json:"serverVersion,omitempty"`
+	// MCP transport protocol.
+	// +kubebuilder:validation:Enum=sse;http
+	// +optional
+	Transport *string `json:"transport,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -458,7 +626,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb;aerospike;scylladb
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -484,6 +652,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"milvus",
 	"hybrid",
 	"mongodb",
+	"aerospike",
+	"scylladb",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -652,6 +822,7 @@ type WorkerConfigs struct {
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
 // +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+// +kubebuilder:validation:XValidation:rule="!has(self.mcp) || !self.mcp.enabled || (has(self.restAPI) && self.restAPI == true)", message="MCP requires restAPI to be true"
 type RegistryServerConfigs struct {
 	ServerConfigs `json:",inline"`
 
@@ -660,6 +831,11 @@ type RegistryServerConfigs struct {
 
 	// Enable gRPC registry server. Defaults to true if unset.
 	GRPC *bool `json:"grpc,omitempty"`
+
+	// Mcp enables MCP (Model Context Protocol) on the REST registry server.
+	// Requires restAPI to be true. Reuses the same McpConfig struct as the online store.
+	// +optional
+	Mcp *McpConfig `json:"mcp,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

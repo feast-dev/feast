@@ -29,13 +29,15 @@ on:
       token:
         description: 'Personal Access Token'
         required: true
-        default: ""
         type: string
       publish_ui:
         description: 'Publish to NPM?'
         required: true
-        default: true
         type: boolean
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   publish-python-sdk:

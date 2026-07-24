@@ -17,6 +17,7 @@ class FeastObjectType(Enum):
     DATA_SOURCE = "dataSource"
     ENTITY = "entity"
     FEATURE_VIEW = "featureView"
+    LABEL_VIEW = "labelView"
     FEATURE_SERVICE = "featureService"
     FEATURE = "feature"
 
@@ -82,7 +83,12 @@ class RegistryLineageGenerator:
         """Parse direct relationships between objects."""
         relationships = []
 
-        # FeatureService -> FeatureView relationships
+        # FeatureService -> FeatureView/LabelView relationships
+        label_view_names = {
+            lv.spec.name
+            for lv in registry.label_views
+            if hasattr(lv, "spec") and lv.spec
+        }
         for feature_service in registry.feature_services:
             if (
                 hasattr(feature_service, "spec")
@@ -90,10 +96,18 @@ class RegistryLineageGenerator:
                 and feature_service.spec.features
             ):
                 for feature in feature_service.spec.features:
+                    view_type_str = getattr(feature, "view_type", "")
+                    is_label_view = (
+                        view_type_str == "labelView"
+                        or feature.feature_view_name in label_view_names
+                    )
+                    source_type = (
+                        FeastObjectType.LABEL_VIEW
+                        if is_label_view
+                        else FeastObjectType.FEATURE_VIEW
+                    )
                     rel = EntityRelation(
-                        source=EntityReference(
-                            FeastObjectType.FEATURE_VIEW, feature.feature_view_name
-                        ),
+                        source=EntityReference(source_type, feature.feature_view_name),
                         target=EntityReference(
                             FeastObjectType.FEATURE_SERVICE,
                             feature_service.spec.name,
@@ -307,6 +321,75 @@ class RegistryLineageGenerator:
                         )
                     )
 
+        # LabelView relationships
+        for label_view in registry.label_views:
+            if hasattr(label_view, "spec") and label_view.spec:
+                # Entity relationships
+                if hasattr(label_view.spec, "entities"):
+                    for entity_name in label_view.spec.entities:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.ENTITY, entity_name
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.LABEL_VIEW, label_view.spec.name
+                                ),
+                            )
+                        )
+
+                # Data source relationships: LabelView uses spec.source (PushSource)
+                # which contains a nested batch_source
+                if hasattr(label_view.spec, "source") and label_view.spec.source:
+                    source = label_view.spec.source
+                    # Link to the push source itself
+                    if hasattr(source, "name") and source.name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.DATA_SOURCE, source.name
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.LABEL_VIEW, label_view.spec.name
+                                ),
+                            )
+                        )
+                    # Link to the nested batch source
+                    if (
+                        hasattr(source, "batch_source")
+                        and source.batch_source
+                        and hasattr(source.batch_source, "name")
+                        and source.batch_source.name
+                    ):
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.DATA_SOURCE,
+                                    source.batch_source.name,
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.LABEL_VIEW, label_view.spec.name
+                                ),
+                            )
+                        )
+                elif (
+                    hasattr(label_view.spec, "batch_source")
+                    and label_view.spec.batch_source
+                    and hasattr(label_view.spec.batch_source, "name")
+                    and label_view.spec.batch_source.name
+                ):
+                    relationships.append(
+                        EntityRelation(
+                            source=EntityReference(
+                                FeastObjectType.DATA_SOURCE,
+                                label_view.spec.batch_source.name,
+                            ),
+                            target=EntityReference(
+                                FeastObjectType.LABEL_VIEW, label_view.spec.name
+                            ),
+                        )
+                    )
+
         return relationships
 
     def _parse_indirect_relationships(
@@ -325,12 +408,16 @@ class RegistryLineageGenerator:
             ):
                 for feature in feature_service.spec.features:
                     if hasattr(feature, "feature_view_name"):
-                        # Find all relationships that target this feature view
+                        # Find all relationships that target this feature view or label view
                         related_sources = [
                             rel.source
                             for rel in direct_relationships
                             if rel.target.name == feature.feature_view_name
-                            and rel.target.type == FeastObjectType.FEATURE_VIEW
+                            and rel.target.type
+                            in (
+                                FeastObjectType.FEATURE_VIEW,
+                                FeastObjectType.LABEL_VIEW,
+                            )
                         ]
 
                         # Create indirect relationships to the feature service
@@ -345,25 +432,24 @@ class RegistryLineageGenerator:
                                 )
                             )
 
-        # Create Entity -> DataSource relationships (through feature views)
-        # Build a map of feature view -> data sources
+        # Create Entity -> DataSource relationships (through feature views and label views)
+        # Build a map of view -> data sources
         feature_view_to_data_sources: Dict[str, List[str]] = {}
         for rel in direct_relationships:
-            if (
-                rel.source.type == FeastObjectType.DATA_SOURCE
-                and rel.target.type == FeastObjectType.FEATURE_VIEW
+            if rel.source.type == FeastObjectType.DATA_SOURCE and rel.target.type in (
+                FeastObjectType.FEATURE_VIEW,
+                FeastObjectType.LABEL_VIEW,
             ):
                 if rel.target.name not in feature_view_to_data_sources:
                     feature_view_to_data_sources[rel.target.name] = []
                 feature_view_to_data_sources[rel.target.name].append(rel.source.name)
 
-        # For each Entity -> FeatureView relationship, create Entity -> DataSource relationships
+        # For each Entity -> FeatureView/LabelView relationship, create Entity -> DataSource relationships
         for rel in direct_relationships:
-            if (
-                rel.source.type == FeastObjectType.ENTITY
-                and rel.target.type == FeastObjectType.FEATURE_VIEW
+            if rel.source.type == FeastObjectType.ENTITY and rel.target.type in (
+                FeastObjectType.FEATURE_VIEW,
+                FeastObjectType.LABEL_VIEW,
             ):
-                # Find data sources that this feature view uses
                 if rel.target.name in feature_view_to_data_sources:
                     for data_source_name in feature_view_to_data_sources[
                         rel.target.name

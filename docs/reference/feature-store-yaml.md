@@ -49,6 +49,29 @@ feature_server:
   offline_push_batching_batch_interval_seconds: 5 # Maximum time rows may remain buffered before a forced flush.
 ```
 
+### registry
+
+The `registry` field can be a simple path string or an object with additional
+configuration. When using the REST registry server, MCP support can be enabled:
+
+```yaml
+registry:
+  registry_type: sql
+  path: postgresql+psycopg://feast:feast@localhost:5432/feast #pragma: allowlist secret
+  mcp:
+    enabled: true
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `registry_type` | string | `file` | Registry backend (`file`, `sql`, etc.) |
+| `path` | string | — | Connection string or file path |
+| `mcp.enabled` | bool | `false` | Enable MCP (Model Context Protocol) on the REST registry server |
+
+When `registry.mcp.enabled` is `true`, the REST registry server exposes registry
+metadata (entities, feature views, feature services) as MCP tool endpoints for
+LLM agents. Requires `feast[mcp]` to be installed.
+
 ## Providers
 
 The `provider` field defines the environment in which Feast will execute data flows. As a result, it also determines the default values for other fields.

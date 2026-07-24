@@ -15,9 +15,10 @@
 import decimal
 import json
 import logging
+import re
 import uuid as uuid_module
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -52,10 +53,14 @@ from feast.protos.feast.types.Value_pb2 import (
     Int64List,
     Int64Set,
     Map,
+    MapKey,
     MapList,
     RepeatedValue,
+    ScalarMap,
+    ScalarMapEntry,
     StringList,
     StringSet,
+    ZonedTimestamp,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.value_type import ListType, SetType, ValueType
@@ -67,6 +72,66 @@ if TYPE_CHECKING:
 NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 
 logger = logging.getLogger(__name__)
+
+
+def _zone_name(tzinfo: Optional[Any]) -> str:
+    """Return a storable zone string for a datetime's tzinfo.
+
+    Prefers the IANA name (e.g. ``zoneinfo.ZoneInfo`` key) so DST is preserved;
+    falls back to a fixed-offset string (e.g. ``-07:00``). A naive datetime
+    (``tzinfo is None``) yields ``""``, which decodes back as UTC.
+    """
+    if tzinfo is None:
+        return ""
+    key = getattr(tzinfo, "key", None)  # zoneinfo.ZoneInfo
+    if key:
+        return key
+    name = str(tzinfo)
+    # zoneinfo prints as the key; pytz prints the name; offsets print as "UTC-07:00"
+    return name
+
+
+def _zone_from_name(zone: str):
+    """Resolve a stored zone string back to a tzinfo. Empty → UTC."""
+    if not zone:
+        return timezone.utc
+    try:
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(zone)
+    except Exception:
+        # Not an IANA name. It may be a fixed-offset string produced by
+        # ``_zone_name`` (e.g. "UTC", "UTC-07:00", "+05:30"); parse it so the
+        # original offset is preserved on round trips rather than silently
+        # shifting the wall-clock time to UTC.
+        offset = _fixed_offset_from_name(zone)
+        if offset is not None:
+            return offset
+        logger.warning("Could not resolve zone %r; decoding as UTC", zone)
+        return timezone.utc
+
+
+def _fixed_offset_from_name(zone: str) -> Optional[timezone]:
+    """Parse a fixed-offset zone string into a ``timezone``.
+
+    Accepts the forms ``_zone_name`` emits for offset-only tzinfos: a bare
+    ``UTC``/``GMT``, or an offset like ``UTC-07:00``, ``-07:00``, ``+05:30`` or
+    ``+0530``. Returns ``None`` if the string is not a recognizable offset.
+    """
+    text = zone.strip()
+    if text in ("UTC", "GMT"):
+        return timezone.utc
+    match = re.fullmatch(
+        r"(?:UTC|GMT)?([+-])(\d{2}):?(\d{2})",
+        text,
+    )
+    if not match:
+        return None
+    sign, hours, minutes = match.groups()
+    delta = timedelta(hours=int(hours), minutes=int(minutes))
+    if sign == "-":
+        delta = -delta
+    return timezone(delta)
 
 
 def feast_value_type_to_python_type(
@@ -121,6 +186,15 @@ def feast_value_type_to_python_type(
         return _handle_map_value(val)
     elif val_attr == "map_list_val":
         return _handle_map_list_value(val)
+    elif val_attr == "scalar_map_val":
+        return _handle_scalar_map_value(val)
+
+    # Zoned timestamp: a (instant, zone) message → tz-aware datetime in its own zone.
+    if val_attr == "zoned_timestamp_val":
+        if val.unix_timestamp == NULL_TIMESTAMP_INT_VALUE:
+            return None
+        tz = _zone_from_name(val.zone)
+        return datetime.fromtimestamp(val.unix_timestamp, tz=tz)
 
     # If it's a _LIST or _SET type extract the values.
     if hasattr(val, "val"):
@@ -220,6 +294,43 @@ def _handle_nested_collection_value(repeated_value) -> List[Any]:
     result = []
     for inner_value in repeated_value.val:
         result.append(feast_value_type_to_python_type(inner_value))
+    return result
+
+
+def _map_key_to_python_value(map_key: MapKey) -> Any:
+    """Convert a MapKey proto to its Python equivalent."""
+    key_attr = map_key.WhichOneof("key")
+    if key_attr is None:
+        return None
+    val = getattr(map_key, key_attr)
+    if key_attr in ("int32_key", "int64_key"):
+        return int(val)
+    if key_attr in ("float_key", "double_key"):
+        return float(val)
+    if key_attr == "bool_key":
+        return bool(val)
+    if key_attr == "unix_timestamp_key":
+        return (
+            datetime.fromtimestamp(val, tz=timezone.utc)
+            if val != NULL_TIMESTAMP_INT_VALUE
+            else None
+        )
+    if key_attr == "bytes_key":
+        return bytes(val)
+    if key_attr in ("uuid_key", "time_uuid_key"):
+        return uuid_module.UUID(val)
+    if key_attr == "decimal_key":
+        return decimal.Decimal(val)
+    return val
+
+
+def _handle_scalar_map_value(value_map_message: ScalarMap) -> Dict[Any, Any]:
+    """Handle ScalarMap proto message (repeated ScalarMapEntry) → Python dict."""
+    result: Dict[Any, Any] = {}
+    for entry in value_map_message.val:
+        key = _map_key_to_python_value(entry.key)
+        value = feast_value_type_to_python_type(entry.value)
+        result[key] = value
     return result
 
 
@@ -399,6 +510,9 @@ def python_type_to_feast_value_type(
 
     # Check if it's a dictionary (Map type)
     if isinstance(value, dict):
+        # Non-string keys require ScalarMap; string keys (or empty dict) use Map
+        if value and not isinstance(next(iter(value)), str):
+            return ValueType.SCALAR_MAP
         return ValueType.MAP
 
     raise ValueError(
@@ -479,6 +593,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL": ValueType.DECIMAL,
         "DECIMAL_LIST": ValueType.DECIMAL_LIST,
         "DECIMAL_SET": ValueType.DECIMAL_SET,
+        "SCALAR_MAP": ValueType.SCALAR_MAP,
+        "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -694,7 +810,7 @@ def _validate_collection_item_types(
     """
     if sample is None:
         return
-    if all(type(item) in valid_types for item in sample):
+    if all(type(item) in valid_types for item in sample if item is not None):
         return
 
     # to_numpy() upcasts INT32/INT64 with NULL to Float64 automatically
@@ -705,6 +821,8 @@ def _validate_collection_item_types(
         ValueType.INT64_SET,
     ]
     for item in sample:
+        if item is None:
+            continue  # None elements in STRING_LIST are replaced with ""; for other types they are dropped
         if type(item) not in valid_types:
             if feast_value_type in int_collection_types:
                 # Check if the float values are due to NULL upcast
@@ -823,6 +941,39 @@ def _python_set_to_proto_values(
     ]
 
 
+# Per-type default values substituted for None elements inside list columns.
+# Protobuf repeated fields do not accept None, so we replace with a
+# type-appropriate zero/empty value.
+_LIST_NONE_DEFAULTS: Dict[ValueType, Any] = {
+    ValueType.STRING_LIST: "",
+    ValueType.BYTES_LIST: b"",
+    ValueType.INT32_LIST: 0,
+    ValueType.INT64_LIST: 0,
+    ValueType.FLOAT_LIST: 0.0,
+    ValueType.DOUBLE_LIST: 0.0,
+    ValueType.BOOL_LIST: False,
+    ValueType.UNIX_TIMESTAMP_LIST: NULL_TIMESTAMP_INT_VALUE,
+    ValueType.UUID_LIST: "",
+    ValueType.TIME_UUID_LIST: "",
+    ValueType.DECIMAL_LIST: "",
+}
+
+
+def _sanitize_list_value(value: Any, feast_value_type: ValueType) -> Any:
+    """Convert ndarray to list and replace None elements with a type-appropriate default.
+
+    Arrow/Athena may deserialize array columns as numpy.ndarray with object dtype
+    instead of plain Python lists.  Protobuf repeated fields do not accept ndarrays
+    or None elements, so we normalise here before building proto messages.
+    """
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    none_default = _LIST_NONE_DEFAULTS.get(feast_value_type)
+    if none_default is not None and isinstance(value, list):
+        value = [none_default if v is None else v for v in value]
+    return value
+
+
 def _convert_list_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -844,6 +995,13 @@ def _convert_list_values_to_proto(
     proto_type, field_name, valid_types = PYTHON_LIST_VALUE_TYPE_TO_PROTO_VALUE[
         feast_value_type
     ]
+
+    values = [
+        _sanitize_list_value(v, feast_value_type) if v is not None else v
+        for v in values
+    ]
+    if sample is not None:
+        sample = _sanitize_list_value(sample, feast_value_type)
 
     # Bytes to array type conversion
     if isinstance(sample, (bytes, bytearray)):
@@ -952,6 +1110,35 @@ def _convert_scalar_values_to_proto(
             timestamps = _python_datetime_to_int_timestamp(clean_values)
             for i, ts in zip(clean_indices, timestamps):
                 out[i] = ProtoValue(unix_timestamp_val=ts)  # type: ignore
+        return out
+
+    if feast_value_type == ValueType.ZONED_TIMESTAMP:
+        # Lossless zoned datetime: store the UTC instant plus the originating zone.
+        # Only datetime values are accepted; a naive datetime keeps zone="" (UTC).
+        out = []
+        for value in values:
+            if _is_array_like(value) or value is None or pd.isnull(value):
+                out.append(ProtoValue())
+            elif isinstance(value, datetime):
+                # A naive datetime is interpreted as UTC for the instant, but keeps
+                # zone="" (the "unzoned" sentinel, which decode maps back to UTC).
+                dt = (
+                    value
+                    if value.tzinfo is not None
+                    else value.replace(tzinfo=timezone.utc)
+                )
+                out.append(
+                    ProtoValue(
+                        zoned_timestamp_val=ZonedTimestamp(
+                            unix_timestamp=int(dt.timestamp()),
+                            zone=_zone_name(value.tzinfo),
+                        )
+                    )  # type: ignore
+                )
+            else:
+                raise TypeError(
+                    f"ZONED_TIMESTAMP expects datetime values, got {type(value)}"
+                )
         return out
 
     field_name, func, valid_scalar_types = PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE[
@@ -1066,6 +1253,21 @@ def _python_value_to_proto_value(
                 )
         return result
 
+    if feast_value_type == ValueType.SCALAR_MAP:
+        result = []
+        for value in values:
+            if value is None:
+                result.append(ProtoValue())
+            else:
+                if not isinstance(value, dict):
+                    raise TypeError(
+                        f"Expected dict for SCALAR_MAP type, got {type(value).__name__}: {value!r}"
+                    )
+                result.append(
+                    ProtoValue(scalar_map_val=_python_dict_to_scalar_map_proto(value))
+                )
+        return result
+
     # Handle JSON type — serialize Python objects as JSON strings
     if feast_value_type == ValueType.JSON:
         result = []
@@ -1156,6 +1358,7 @@ def _python_value_to_proto_value(
     if (
         feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE
         or feast_value_type == ValueType.UNIX_TIMESTAMP
+        or feast_value_type == ValueType.ZONED_TIMESTAMP
     ):
         scalar_sample = next(
             (v for v in values if _non_empty_value(v) and not _is_array_like(v)),
@@ -1249,6 +1452,48 @@ def _python_list_to_map_list_proto(python_list: List[Dict[str, Any]]) -> MapList
     return map_list_proto
 
 
+def _python_value_to_map_key_proto(key: Any) -> MapKey:
+    """Convert a Python value to a MapKey proto for use in ScalarMap entries."""
+    # bool must be checked before int since bool is a subclass of int
+    if isinstance(key, (bool, np.bool_)):
+        return MapKey(bool_key=bool(key))
+    if isinstance(key, np.int32):
+        return MapKey(int32_key=int(key))
+    if isinstance(key, (int, np.integer)):
+        return MapKey(int64_key=int(key))
+    if isinstance(key, np.float32):
+        return MapKey(float_key=float(key))
+    if isinstance(key, (float, np.floating)):
+        return MapKey(double_key=float(key))
+    if isinstance(key, uuid_module.UUID):
+        return MapKey(uuid_key=str(key))
+    if isinstance(key, decimal.Decimal):
+        return MapKey(decimal_key=str(key))
+    if isinstance(key, bytes):
+        return MapKey(bytes_key=key)
+    if isinstance(key, (datetime, pd.Timestamp)):
+        ts = int(pd.Timestamp(key).timestamp())
+        return MapKey(unix_timestamp_key=ts)
+    raise TypeError(
+        f"Unsupported key type for SCALAR_MAP: {type(key).__name__}. "
+        "Supported non-string key types: int, float, bool, uuid.UUID, "
+        "decimal.Decimal, bytes, datetime."
+    )
+
+
+def _python_dict_to_scalar_map_proto(python_dict: Dict[Any, Any]) -> ScalarMap:
+    """Convert a Python dictionary with non-string keys to a ScalarMap proto."""
+    value_map_proto = ScalarMap()
+    for key, value in python_dict.items():
+        map_key = _python_value_to_map_key_proto(key)
+        if value is None:
+            value_proto = ProtoValue()
+        else:
+            value_proto = python_values_to_proto_values([value], ValueType.UNKNOWN)[0]
+        value_map_proto.val.append(ScalarMapEntry(key=map_key, value=value_proto))
+    return value_map_proto
+
+
 def python_values_to_proto_values(
     values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
 ) -> List[ProtoValue]:
@@ -1321,6 +1566,7 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "decimal_val": ValueType.DECIMAL,
     "decimal_list_val": ValueType.DECIMAL_LIST,
     "decimal_set_val": ValueType.DECIMAL_SET,
+    "scalar_map_val": ValueType.SCALAR_MAP,
 }
 
 VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
@@ -2049,6 +2295,35 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
     if value == ValueType.UNKNOWN:
         print("unknown type:", type_str)
     return value
+
+
+def mongodb_to_feast_value_type(type_str: str) -> ValueType:
+    """Map a Python type string (as inferred from pymongo documents) to a Feast ValueType.
+
+    The type strings are produced by
+    ``feast.infra.offline_stores.contrib.mongodb_offline_store.mongodb_source._infer_python_type_str``.
+    Unrecognised strings are mapped to ``ValueType.UNKNOWN``.
+    """
+    type_map: Dict[str, ValueType] = {
+        "str": ValueType.STRING,
+        "string": ValueType.STRING,
+        "int": ValueType.INT64,
+        "int64": ValueType.INT64,
+        "float": ValueType.DOUBLE,
+        "float64": ValueType.DOUBLE,
+        "bool": ValueType.BOOL,
+        "bytes": ValueType.BYTES,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "list": ValueType.UNKNOWN,
+        "dict": ValueType.UNKNOWN,
+        "list[str]": ValueType.STRING_LIST,
+        "list[int]": ValueType.INT64_LIST,
+        "list[float]": ValueType.DOUBLE_LIST,
+        "list[bool]": ValueType.BOOL_LIST,
+        "list[bytes]": ValueType.BYTES_LIST,
+        "list[datetime]": ValueType.UNIX_TIMESTAMP_LIST,
+    }
+    return type_map.get(type_str, ValueType.UNKNOWN)
 
 
 def convert_scalar_column(

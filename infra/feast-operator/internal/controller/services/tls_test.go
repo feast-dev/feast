@@ -37,7 +37,7 @@ var _ = Describe("TLS Config", func() {
 		utilruntime.Must(feastdevv1.AddToScheme(scheme))
 
 		secretKeyNames := feastdevv1.SecretKeyNames{
-			TlsCrt: "tls.crt",
+			TlsCrt: tlsCertKey,
 			TlsKey: "tls.key",
 		}
 

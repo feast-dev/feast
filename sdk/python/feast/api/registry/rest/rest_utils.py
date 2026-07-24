@@ -9,6 +9,7 @@ from feast.errors import (
     FeastPermissionError,
     PushSourceNotFoundException,
 )
+from feast.permissions.security_manager import get_security_manager
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,17 @@ MATCH_SCORE_TAGS = 60
 def grpc_call(handler_fn, request):
     """
     Wrapper to invoke gRPC method with context=None and handle common errors.
+
+    Sets SecurityManager's current project from ``request.project`` so REST
+    handlers (which call RegistryServer methods in-process, not through the
+    gRPC AuthInterceptor) authorize against the target project's permissions.
     """
+    sm = get_security_manager()
+    project_token = None
+    if sm is not None:
+        project_token = sm.set_current_project(
+            getattr(request, "project", None) or None
+        )
     try:
         response = handler_fn(request, context=None)
         return MessageToDict(response)
@@ -35,6 +46,9 @@ def grpc_call(handler_fn, request):
         raise
     except Exception as e:
         raise e
+    finally:
+        if sm is not None and project_token is not None:
+            sm.reset_current_project(project_token)
 
 
 def get_object_relationships(
@@ -130,6 +144,7 @@ def aggregate_across_projects(
     sort_by: Optional[str] = None,
     sort_order: str = "asc",
     include_relationships: bool = False,
+    extra_request_params: Optional[Dict] = None,
 ) -> Dict:
     """
     Fetches and aggregates objects across all projects, adds project field, handles relationships, and paginates/sorts.
@@ -147,6 +162,7 @@ def aggregate_across_projects(
         req = request_cls(
             project=project_name,
             allow_cache=allow_cache,
+            **(extra_request_params or {}),
         )
         response = grpc_call(list_method, req)
         objects = response.get(response_key, [])
@@ -434,9 +450,11 @@ def get_all_project_resources(
         "entities": [],
         "dataSources": [],
         "featureViews": [],
+        "labelViews": [],
         "featureServices": [],
         "savedDatasets": [],
         "features": [],
+        "labels": [],
         "pagination": {},
         "errors": [],
     }
@@ -484,6 +502,18 @@ def get_all_project_resources(
         if err_msg:
             errors.append(err_msg)
 
+        # Get label views
+        resources["labelViews"], pagination["labelViews"], err_msg = list_label_views(
+            grpc_handler=grpc_handler,
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
+        )
+        if err_msg:
+            errors.append(err_msg)
+
         # Get feature services
         resources["featureServices"], pagination["featureServices"], err_msg = (
             list_feature_services(
@@ -514,6 +544,17 @@ def get_all_project_resources(
 
         # Get features
         resources["features"], pagination["features"], err_msg = list_features(
+            grpc_handler=grpc_handler,
+            project=project,
+            allow_cache=allow_cache,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
+        )
+        if err_msg:
+            errors.append(err_msg)
+
+        # Get labels
+        resources["labels"], pagination["labels"], err_msg = list_labels(
             grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
@@ -882,6 +923,87 @@ def list_features(
         logger.error(f"{err_msg}: {e}")
     finally:
         return features, pagination, err_msg
+
+
+def list_label_views(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any], str]:
+    """List label views in a project with optional sorting and pagination"""
+    label_views: List[Dict[str, Any]] = []
+    pagination: Dict[str, Any] = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        req = RegistryServer_pb2.ListLabelViewsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        response = grpc_call(grpc_handler.ListLabelViews, req)
+        label_views, pagination = (
+            response.get("labelViews", []),
+            response.get("pagination", {}),
+        )
+    except Exception as e:
+        err_msg = f"Error searching label views in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return label_views, pagination, err_msg
+
+
+def list_labels(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any], str]:
+    """List labels in a project with optional sorting and pagination"""
+    labels: List[Dict[str, Any]] = []
+    pagination: Dict[str, Any] = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            kind="label",
+        )
+        response = grpc_call(grpc_handler.ListFeatures, req)
+        labels, pagination = (
+            response.get("features", []),
+            response.get("pagination", {}),
+        )
+    except Exception as e:
+        err_msg = f"Error searching labels in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return labels, pagination, err_msg
 
 
 def list_all_projects(

@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 import {
   EuiPageTemplate,
   EuiText,
@@ -7,8 +7,6 @@ import {
   EuiTitle,
   EuiSpacer,
   EuiSkeletonText,
-  EuiEmptyPrompt,
-  EuiFieldSearch,
   EuiPanel,
   EuiStat,
   EuiCard,
@@ -17,54 +15,107 @@ import {
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import ObjectsCountStats from "../components/ObjectsCountStats";
 import ExplorePanel from "../components/ExplorePanel";
-import useLoadRegistry from "../queries/useLoadRegistry";
-import RegistryPathContext from "../contexts/RegistryPathContext";
-import RegistryVisualizationTab from "../components/RegistryVisualizationTab";
-import RegistrySearch from "../components/RegistrySearch";
+import useResourceQuery, {
+  restFeatureViewsToMergedList,
+  restLabelViewsFromResponse,
+} from "../queries/useResourceQuery";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
+import type { genericFVType } from "../parsers/mergedFVTypes";
+
+const getItemProject = (item: any): string =>
+  item?.project || item?.spec?.project || "";
 
 // Component for "All Projects" view
 const AllProjectsDashboard = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const navigate = useNavigate();
   const { data: projectsData } = useLoadProjectsList();
-  const { data: registryData } = useLoadRegistry(registryUrl);
 
-  if (!registryData) {
+  const fvQuery = useResourceQuery<genericFVType[]>({
+    resourceType: "all-proj-fvs",
+    restPath: "/feature_views/all?limit=100&include_relationships=true",
+    restSelect: restFeatureViewsToMergedList,
+  });
+
+  const entQuery = useResourceQuery<any[]>({
+    resourceType: "all-proj-entities",
+    restPath: "/entities/all?limit=100",
+    restSelect: (d) => d.entities,
+  });
+
+  const dsQuery = useResourceQuery<any[]>({
+    resourceType: "all-proj-ds",
+    restPath: "/data_sources/all?limit=100",
+    restSelect: (d) => d.dataSources,
+  });
+
+  const fsQuery = useResourceQuery<any[]>({
+    resourceType: "all-proj-fs",
+    restPath: "/feature_services/all?limit=100",
+    restSelect: (d) => d.featureServices,
+  });
+
+  const featQuery = useResourceQuery<any[]>({
+    resourceType: "all-proj-features",
+    restPath: "/features/all?limit=100",
+    restSelect: (d) => d.features,
+  });
+
+  const lvQuery = useResourceQuery<any[]>({
+    resourceType: "all-proj-lvs",
+    restPath: "/label_views/all?limit=100&include_relationships=true",
+    restSelect: restLabelViewsFromResponse,
+  });
+
+  const settled = (q: { isSuccess: boolean; isError: boolean }) =>
+    q.isSuccess || q.isError;
+  const allSettled =
+    settled(fvQuery) &&
+    settled(entQuery) &&
+    settled(dsQuery) &&
+    settled(fsQuery) &&
+    settled(featQuery) &&
+    settled(lvQuery);
+
+  if (!allSettled) {
     return <EuiSkeletonText lines={10} />;
   }
 
-  // Calculate total counts across all projects
+  const allFVs = fvQuery.data || [];
+  const allEntities = entQuery.data || [];
+  const allDS = dsQuery.data || [];
+  const allFS = fsQuery.data || [];
+  const allFeatures = featQuery.data || [];
+  const allLabelViews = lvQuery.data || [];
+
   const totalCounts = {
-    featureViews: registryData.objects.featureViews?.length || 0,
-    entities: registryData.objects.entities?.length || 0,
-    dataSources: registryData.objects.dataSources?.length || 0,
-    featureServices: registryData.objects.featureServices?.length || 0,
-    features: registryData.allFeatures?.length || 0,
+    featureViews: fvQuery.isPermissionDenied ? null : allFVs.length,
+    entities: entQuery.isPermissionDenied ? null : allEntities.length,
+    dataSources: dsQuery.isPermissionDenied ? null : allDS.length,
+    featureServices: fsQuery.isPermissionDenied ? null : allFS.length,
+    features: featQuery.isPermissionDenied ? null : allFeatures.length,
+    labelViews: lvQuery.isPermissionDenied ? null : allLabelViews.length,
   };
 
-  // Get projects from registry and count their objects
   const projects = projectsData?.projects.filter((p) => p.id !== "all") || [];
   const projectStats = projects.map((project) => {
-    const projectFVs =
-      registryData.objects.featureViews?.filter(
-        (fv: any) => fv?.spec?.project === project.id,
-      ) || [];
-    const projectEntities =
-      registryData.objects.entities?.filter(
-        (e: any) => e?.spec?.project === project.id,
-      ) || [];
-    const projectFeatures =
-      registryData.allFeatures?.filter((f: any) => f?.project === project.id) ||
-      [];
+    const matchesProject = (item: any) => getItemProject(item) === project.id;
 
     return {
       ...project,
       counts: {
-        featureViews: projectFVs.length,
-        entities: projectEntities.length,
-        features: projectFeatures.length,
+        featureViews: fvQuery.isPermissionDenied
+          ? null
+          : allFVs.filter((fv: any) => matchesProject(fv.object || fv)).length,
+        entities: entQuery.isPermissionDenied
+          ? null
+          : allEntities.filter(matchesProject).length,
+        features: featQuery.isPermissionDenied
+          ? null
+          : allFeatures.filter(matchesProject).length,
+        labelViews: lvQuery.isPermissionDenied
+          ? null
+          : allLabelViews.filter(matchesProject).length,
       },
     };
   });
@@ -92,47 +143,76 @@ const AllProjectsDashboard = () => {
           </EuiTitle>
           <EuiSpacer size="m" />
           <EuiFlexGroup>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.featureViews.toString()}
-                description="Feature Views"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.entities.toString()}
-                description="Entities"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.features.toString()}
-                description="Features"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.featureServices.toString()}
-                description="Feature Services"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.dataSources.toString()}
-                description="Data Sources"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
+            {totalCounts.featureViews != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.featureViews.toString()}
+                  description="Feature Views"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.entities != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.entities.toString()}
+                  description="Entities"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.features != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.features.toString()}
+                  description="Features"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.featureServices != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.featureServices.toString()}
+                  description="Feature Services"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.dataSources != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.dataSources.toString()}
+                  description="Data Sources"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
           </EuiFlexGroup>
+          {totalCounts.labelViews != null && totalCounts.labelViews > 0 && (
+            <React.Fragment>
+              <EuiSpacer size="m" />
+              <EuiFlexGroup>
+                <EuiFlexItem>
+                  <EuiStat
+                    title={totalCounts.labelViews.toString()}
+                    description="Label Views"
+                    titleSize="m"
+                    textAlign="center"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem />
+                <EuiFlexItem />
+                <EuiFlexItem />
+                <EuiFlexItem />
+              </EuiFlexGroup>
+            </React.Fragment>
+          )}
         </EuiPanel>
 
         <EuiSpacer size="l" />
@@ -156,33 +236,53 @@ const AllProjectsDashboard = () => {
               >
                 <EuiSpacer size="s" />
                 <EuiFlexGroup justifyContent="spaceAround" gutterSize="s">
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.featureViews}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Feature Views
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.entities}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Entities
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.features}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Features
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
+                  {project.counts.featureViews != null && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.featureViews}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Feature Views
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
+                  {project.counts.entities != null && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.entities}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Entities
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
+                  {project.counts.features != null && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.features}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Features
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
+                  {project.counts.labelViews != null &&
+                    project.counts.labelViews > 0 && (
+                      <EuiFlexItem grow={false}>
+                        <EuiText size="s" textAlign="center">
+                          <strong>{project.counts.labelViews}</strong>
+                          <br />
+                          <span
+                            style={{ fontSize: "0.85em", color: "#69707D" }}
+                          >
+                            Label Views
+                          </span>
+                        </EuiText>
+                      </EuiFlexItem>
+                    )}
                 </EuiFlexGroup>
               </EuiCard>
             </EuiFlexItem>
@@ -195,112 +295,59 @@ const AllProjectsDashboard = () => {
 
 const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams<{ projectName: string }>();
-  const { isLoading, isSuccess, isError, data } = useLoadRegistry(
-    registryUrl,
-    projectName,
-  );
+  const { data: projectsData } = useLoadProjectsList();
 
   // Show aggregated dashboard for "All Projects" view
   if (projectName === "all") {
     return <AllProjectsDashboard />;
   }
 
-  const categories = [
-    {
-      name: "Data Sources",
-      data: data?.objects.dataSources || [],
-      getLink: (item: any) => `/p/${projectName}/data-source/${item.name}`,
-    },
-    {
-      name: "Entities",
-      data: data?.objects.entities || [],
-      getLink: (item: any) => `/p/${projectName}/entity/${item.name}`,
-    },
-    {
-      name: "Features",
-      data: data?.allFeatures || [],
-      getLink: (item: any) => {
-        const featureView = item?.featureView;
-        return featureView
-          ? `/p/${projectName}/feature-view/${featureView}/feature/${item.name}`
-          : "#";
-      },
-    },
-    {
-      name: "Feature Views",
-      data: data?.mergedFVList || [],
-      getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
-    },
-    {
-      name: "Feature Services",
-      data: data?.objects.featureServices || [],
-      getLink: (item: any) => {
-        const serviceName = item?.name || item?.spec?.name;
-        return serviceName
-          ? `/p/${projectName}/feature-service/${serviceName}`
-          : "#";
-      },
-    },
-  ];
+  const currentProject = projectsData?.projects.find(
+    (p) => p.id === projectName,
+  );
 
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Section>
         <EuiTitle size="l">
           <h1>
-            {isLoading && <EuiSkeletonText lines={1} />}
-            {isSuccess && data?.project && `Project: ${data.project}`}
+            {currentProject
+              ? `Project: ${currentProject.name}`
+              : projectName
+                ? `Project: ${projectName}`
+                : ""}
           </h1>
         </EuiTitle>
         <EuiSpacer />
 
         <EuiFlexGroup>
           <EuiFlexItem grow={2}>
-            {isLoading && <EuiSkeletonText lines={4} />}
-            {isError && (
-              <EuiEmptyPrompt
-                iconType="alert"
-                color="danger"
-                title={<h2>Error Loading Project Configs</h2>}
-                body={
-                  <p>
-                    There was an error loading the Project Configurations.
-                    Please check that <code>feature_store.yaml</code> file is
-                    available and well-formed.
-                  </p>
-                }
-              />
+            {currentProject?.description ? (
+              <EuiText>
+                <pre>{currentProject.description}</pre>
+              </EuiText>
+            ) : (
+              <EuiText>
+                <p>
+                  Welcome to your new Feast project. In this UI, you can see
+                  Data Sources, Entities, Features, Feature Views, and Feature
+                  Services registered in Feast.
+                </p>
+                <p>
+                  It looks like this project already has some objects
+                  registered. If you are new to this project, we suggest
+                  starting by exploring the Feature Services, as they represent
+                  the collection of Feature Views serving a particular model.
+                </p>
+                <p>
+                  <strong>Note</strong>: We encourage you to replace this
+                  welcome message with more suitable content for your team. You
+                  can do so by specifying a <code>project_description</code> in
+                  your <code>feature_store.yaml</code> file.
+                </p>
+              </EuiText>
             )}
-            {isSuccess &&
-              (data?.description ? (
-                <EuiText>
-                  <pre>{data.description}</pre>
-                </EuiText>
-              ) : (
-                <EuiText>
-                  <p>
-                    Welcome to your new Feast project. In this UI, you can see
-                    Data Sources, Entities, Features, Feature Views, and Feature
-                    Services registered in Feast.
-                  </p>
-                  <p>
-                    It looks like this project already has some objects
-                    registered. If you are new to this project, we suggest
-                    starting by exploring the Feature Services, as they
-                    represent the collection of Feature Views serving a
-                    particular model.
-                  </p>
-                  <p>
-                    <strong>Note</strong>: We encourage you to replace this
-                    welcome message with more suitable content for your team.
-                    You can do so by specifying a{" "}
-                    <code>project_description</code> in your{" "}
-                    <code>feature_store.yaml</code> file.
-                  </p>
-                </EuiText>
-              ))}
             <ObjectsCountStats />
           </EuiFlexItem>
           <EuiFlexItem grow={1}>

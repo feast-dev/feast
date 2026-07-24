@@ -11,6 +11,16 @@ type FeastAuthorization struct {
 	Handler handler.FeastHandler
 }
 
+const (
+	// RBAC verbs
+	verbGet   = "get"
+	verbList  = "list"
+	verbWatch = "watch"
+
+	// RBAC resources
+	resourceTokenReviews = "tokenreviews"
+)
+
 var (
 	feastKubernetesAuthConditions = map[metav1.ConditionStatus]metav1.Condition{
 		metav1.ConditionTrue: {
@@ -23,6 +33,19 @@ var (
 			Type:   feastdevv1.AuthorizationReadyType,
 			Status: metav1.ConditionFalse,
 			Reason: feastdevv1.KubernetesAuthzFailedReason,
+		},
+	}
+	feastOidcAuthConditions = map[metav1.ConditionStatus]metav1.Condition{
+		metav1.ConditionTrue: {
+			Type:    feastdevv1.AuthorizationReadyType,
+			Status:  metav1.ConditionTrue,
+			Reason:  feastdevv1.ReadyReason,
+			Message: feastdevv1.OidcAuthzReadyMessage,
+		},
+		metav1.ConditionFalse: {
+			Type:   feastdevv1.AuthorizationReadyType,
+			Status: metav1.ConditionFalse,
+			Reason: feastdevv1.OidcAuthzFailedReason,
 		},
 	}
 )

@@ -14,16 +14,16 @@ dynamic = [
     "version",
 ]
 dependencies = [
+    "attrs",
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
     "protobuf>=4.24.0",
     "Jinja2>=2,<4",
-    "jsonschema",
     "mmh3",
     "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
-    "pyarrow>=21.0.0",
+    "pyarrow>=16.1.0",
     "pydantic>=2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -35,18 +35,22 @@ dependencies = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
+    "starlette>=1.0.1",
     "uvicorn[standard]>=0.30.6,<=0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
-    "prometheus_client",
+    "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
 ]
 
 [project.optional-dependencies]
-aws = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+aerospike = [
+    "aerospike>=19.0.0,<20.0.0",
+]
+aws = ["boto3>=1.38.27", "fsspec>=2024.1.0", "aiobotocore>=2"]
 azure = [
     "azure-storage-blob>=0.37.0",
     "azure-identity>=1.6.1",
@@ -54,7 +58,7 @@ azure = [
     "pyodbc>=4.0.30",
     "pymssql<2.3.3"
 ]
-cassandra = ["cassandra-driver>=3.24.0,<4"]
+cassandra = ["cassandra-driver>=3.26.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
@@ -62,6 +66,7 @@ docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=10.0.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
+flink = ["apache-flink>=2.2.1,<3", "pyarrow<21.0.0"]
 gcp = [
     "google-api-core>=1.23.0,<3",
     "googleapis-common-protos>=1.52.0,<2",
@@ -70,14 +75,14 @@ gcp = [
     "google-cloud-datastore>=2.16.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
-    "fsspec<=2024.9.0",
+    "fsspec>=2024.1.0",
 ]
 ge = ["great_expectations>=0.15.41,<1"]
 go = ["cffi>=1.15.0"]
 grpcio = [
-    "grpcio>=1.56.2,<=1.62.3",
-    "grpcio-reflection>=1.56.2,<=1.62.3",
-    "grpcio-health-checking>=1.56.2,<=1.62.3",
+    "grpcio>=1.56.2",
+    "grpcio-reflection>=1.56.2",
+    "grpcio-health-checking>=1.56.2",
 ]
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
@@ -92,8 +97,8 @@ image = [
     "scikit-learn>=1.0.0",
 ]
 milvus = [
-    "pymilvus>2.5",
-    "milvus-lite==2.4.12",
+    "pymilvus>=2.5",
+    "milvus-lite>=2.4.12",
     "feast[setuptools]"
 ]
 mongodb = [
@@ -106,11 +111,12 @@ mysql = ["pymysql", "types-PyMySQL"]
 openlineage = ["openlineage-python>=1.40.0"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
+iceberg = ["pyiceberg>=0.7.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
-postgres = ["psycopg[binary,pool]==3.2.5"]
+postgres = ["psycopg[binary,pool]>=3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
 # https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
-postgres-c = ["psycopg[c,pool]==3.2.5"]
+postgres-c = ["psycopg[c,pool]>=3.2.5"]
 pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
 qdrant = ["qdrant-client>=1.12.0"]
 rag = [
@@ -120,24 +126,28 @@ rag = [
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.10"',
-'codeflare-sdk>=0.31.1; python_version > "3.10"'
+'codeflare-sdk>=0.31.1; python_version > "3.10"',
+"datasets>=3.6.0",
 ]
 redis = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
 ]
+scylladb = ["scylla-driver>=3.28.0,<4"]
 singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
+mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
 
 test = [
     "pytest>=6.0.0,<8",
     "pytest-xdist>=3.8.0",
+    "pytest-cov>=5.0.0",
     "pytest-timeout==1.4.2",
     "pytest-lazy-fixture==0.6.3",
     "pytest-ordering~=0.6.0",
@@ -146,21 +156,21 @@ test = [
     "pytest-benchmark>=3.4.1,<4",
     "pytest-asyncio<=0.24.0",
     "py>=1.11.0",
-    "testcontainers==4.9.0",
+    "testcontainers>=4.15.0rc2",
     "minio==7.2.11",
     "python-keycloak==4.2.2",
     "cryptography>=43.0",
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, image, k8s, mcp, milvus, mssql, mysql, openlineage, opentelemetry, oracle, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
-    "grpcio-tools>=1.56.2,<=1.62.3",
-    "grpcio-testing>=1.56.2,<=1.62.3",
+    "grpcio-tools>=1.56.2",
+    "grpcio-testing>=1.56.2",
     # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
     "httpx==0.27.2",
     "mock==2.0.0",
@@ -275,6 +285,26 @@ dev = [
     "pytest-xdist>=3.8.0",
 ]
 
+[tool.uv]
+conflicts = [
+    [
+        { extra = "flink" },
+        { extra = "ge" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "ci" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "dev" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "docs" },
+    ],
+]
+
 # Pixi configuration
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -295,11 +325,12 @@ feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
 [tool.pixi.feature.ray-tests.tasks]
 test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
-test = { depends-on = ["test-offline", "test-compute"] }
+test-unit-compute-ray = { cmd = "python -m pytest -v sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test = { depends-on = ["test-offline", "test-unit-compute-ray", "test-compute"] }
 
 [tool.pixi.feature.registration-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }
-grpcio-testing = ">=1.56.2,<=1.62.3"
+grpcio-testing = ">=1.56.2"
 
 [tool.pixi.feature.registration-tests.tasks]
 test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
@@ -309,3 +340,28 @@ test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/p
 duckdb-tests = ["py310", "duckdb-tests"]
 ray-tests = ["py310", "ray-tests"]
 registration-tests = ["py310", "registration-tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["feast"]
+omit = [
+    "*/tests/*",
+    "*/protos/*",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+    "feast/embedded_go/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass$",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"

@@ -266,4 +266,7 @@ Desktop.ini
 .agentready/
 
 # Claude Code project settings
-.claude/
+# Claude Code local state (conversation history, credentials, cache)
+.claude/settings.local.json
+.claude/todos/
+.claude/cache/

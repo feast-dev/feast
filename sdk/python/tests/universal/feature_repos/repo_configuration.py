@@ -120,28 +120,35 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     from tests.universal.feature_repos.universal.data_sources.redshift import (
         RedshiftDataSourceCreator,
     )
-    from tests.universal.feature_repos.universal.data_sources.snowflake import (
-        SnowflakeDataSourceCreator,
-    )
 
     AVAILABLE_OFFLINE_STORES.extend(
         [
             ("gcp", BigQueryDataSourceCreator),
             ("aws", RedshiftDataSourceCreator),
-            ("aws", SnowflakeDataSourceCreator),
         ]
     )
 
     OFFLINE_STORE_TO_PROVIDER_CONFIG["bigquery"] = ("gcp", BigQueryDataSourceCreator)
     OFFLINE_STORE_TO_PROVIDER_CONFIG["redshift"] = ("aws", RedshiftDataSourceCreator)
-    OFFLINE_STORE_TO_PROVIDER_CONFIG["snowflake"] = ("aws", SnowflakeDataSourceCreator)
 
     AVAILABLE_ONLINE_STORES["redis"] = (REDIS_CONFIG, None)
     AVAILABLE_ONLINE_STORES["dynamodb"] = (DYNAMO_CONFIG, None)
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
-    AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
+
+    # Snowflake is disabled temporarily
+    if os.getenv("SNOWFLAKE_CI_DEPLOYMENT"):
+        from tests.universal.feature_repos.universal.data_sources.snowflake import (
+            SnowflakeDataSourceCreator,
+        )
+
+        AVAILABLE_OFFLINE_STORES.extend([("aws", SnowflakeDataSourceCreator)])
+        OFFLINE_STORE_TO_PROVIDER_CONFIG["snowflake"] = (
+            "aws",
+            SnowflakeDataSourceCreator,
+        )
+        AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
 
 
 full_repo_configs_module = os.environ.get(FULL_REPO_CONFIGS_MODULE_ENV_NAME)

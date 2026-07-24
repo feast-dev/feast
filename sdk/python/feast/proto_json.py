@@ -66,9 +66,15 @@ def _patch_feast_value_json_encoding():
         elif which in ("list_val", "set_val"):
             # Nested collection: RepeatedValue containing Values
             repeated = getattr(message, which)
-            value = [
+            value: JsonObject = [
                 printer._MessageToJsonObject(inner_val) for inner_val in repeated.val
             ]
+        elif which == "zoned_timestamp_val":
+            # ZonedTimestamp is a message; render it as an ISO 8601 string in its
+            # stored zone so the result is JSON-serializable (the raw message is not).
+            from feast.feature_server_utils import _zoned_timestamp_to_str
+
+            value = _zoned_timestamp_to_str(message.zoned_timestamp_val)
         elif "_list_" in which:
             value = list(getattr(message, which).val)
         else:

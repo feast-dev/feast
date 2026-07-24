@@ -299,6 +299,146 @@ def test_ray_dedup_node(
     assert "driver_id" in result_df.columns
 
 
+def test_ray_dedup_node_materialization_within_block(
+    ray_session, ray_config, mock_context, column_info
+):
+    """Materialization path: within-block duplicates are removed and the row
+    with the latest event_timestamp is kept.
+
+    is_materialization=True uses per-block map_batches (streaming-safe).
+    No ds.schema() call should be triggered.
+    """
+    now = datetime.now()
+    older_ts = now - timedelta(hours=3)
+    newer_ts = now - timedelta(hours=1)
+
+    block = pd.DataFrame(
+        [
+            {
+                "driver_id": 1001,
+                "event_timestamp": older_ts,
+                "conv_rate": 0.5,
+            },
+            {
+                "driver_id": 1001,
+                "event_timestamp": newer_ts,
+                "conv_rate": 0.8,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": now - timedelta(hours=2),
+                "conv_rate": 0.7,
+            },
+        ]
+    )
+
+    ray_dataset = ray.data.from_pandas(block)
+    input_value = DAGValue(data=ray_dataset, format=DAGFormat.RAY)
+    dummy_node = DummyInputNode("input_node", input_value)
+    node = RayDedupNode(
+        name="dedup",
+        column_info=column_info,
+        config=ray_config,
+        is_materialization=True,
+    )
+    node.add_input(dummy_node)
+    mock_context.node_outputs = {"input_node": input_value}
+
+    result = node.execute(mock_context)
+    result_df = result.data.to_pandas().sort_values("driver_id").reset_index(drop=True)
+
+    assert len(result_df) == 2, "One row per entity should survive within the block"
+    driver_1001 = result_df[result_df["driver_id"] == 1001].iloc[0]
+    assert driver_1001["event_timestamp"] == newer_ts, (
+        "Latest timestamp should be kept for driver 1001"
+    )
+
+
+def test_ray_dedup_node_materialization_cross_block_duplicates_survive(
+    ray_session, ray_config, mock_context, column_info
+):
+    """Materialization path: the same entity in two *different* blocks both
+    survive — cross-block dedup is delegated to the online-store UPSERT.
+
+    This validates the per-block (streaming-safe) semantics: a global shuffle
+    is intentionally avoided so that slow upstream actors (EasyOCR, CLIP, etc.)
+    do not need to finish all blocks before writes begin.
+    """
+    now = datetime.now()
+    block_a = pd.DataFrame(
+        [
+            {
+                "driver_id": 1001,
+                "event_timestamp": now - timedelta(hours=3),
+                "conv_rate": 0.5,
+            }
+        ]
+    )
+    block_b = pd.DataFrame(
+        [
+            {
+                "driver_id": 1001,
+                "event_timestamp": now - timedelta(hours=1),
+                "conv_rate": 0.8,
+            }
+        ]
+    )
+
+    # Force two separate Ray blocks by passing a list of DataFrames.
+    ray_dataset = ray.data.from_pandas([block_a, block_b])
+    input_value = DAGValue(data=ray_dataset, format=DAGFormat.RAY)
+    dummy_node = DummyInputNode("input_node", input_value)
+    node = RayDedupNode(
+        name="dedup",
+        column_info=column_info,
+        config=ray_config,
+        is_materialization=True,
+    )
+    node.add_input(dummy_node)
+    mock_context.node_outputs = {"input_node": input_value}
+
+    result = node.execute(mock_context)
+    result_df = result.data.to_pandas()
+
+    assert len(result_df) == 2, (
+        "Both blocks should each contribute one row; "
+        "cross-block dedup is the online store's responsibility"
+    )
+
+
+def test_ray_dedup_node_materialization_no_join_keys(
+    ray_session, ray_config, mock_context, sample_data
+):
+    """Materialization path: when no join keys are present all rows pass through
+    unchanged (there is nothing to deduplicate on).
+    """
+    empty_column_info = ColumnInfo(
+        join_keys=[],
+        feature_cols=["conv_rate", "acc_rate", "avg_daily_trips"],
+        ts_col="event_timestamp",
+        created_ts_col="created",
+        field_mapping=None,
+    )
+    ray_dataset = ray.data.from_pandas(sample_data)
+    input_value = DAGValue(data=ray_dataset, format=DAGFormat.RAY)
+    dummy_node = DummyInputNode("input_node", input_value)
+    node = RayDedupNode(
+        name="dedup",
+        column_info=empty_column_info,
+        config=ray_config,
+        is_materialization=True,
+    )
+    node.add_input(dummy_node)
+    mock_context.node_outputs = {"input_node": input_value}
+
+    result = node.execute(mock_context)
+    result_df = result.data.to_pandas()
+
+    assert len(result_df) == len(sample_data), (
+        "All rows should survive when there are no join keys to deduplicate on"
+    )
+
+
 def test_ray_config_validation():
     """Test Ray configuration validation."""
     # Test valid configuration

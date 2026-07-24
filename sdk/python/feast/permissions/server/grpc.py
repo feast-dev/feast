@@ -30,4 +30,20 @@ class AuthInterceptor(grpc.ServerInterceptor):
             logger.debug(f"User is: {current_user}")
             sm.set_current_user(current_user)
 
-        return continuation(handler_call_details)
+        handler = continuation(handler_call_details)
+        if sm is None or handler is None or handler.unary_unary is None:
+            return handler
+        behavior = handler.unary_unary
+
+        def project_aware_behavior(request, context):
+            token = sm.set_current_project(getattr(request, "project", None))
+            try:
+                return behavior(request, context)
+            finally:
+                sm.reset_current_project(token)
+
+        return grpc.unary_unary_rpc_method_handler(
+            project_aware_behavior,
+            request_deserializer=handler.request_deserializer,
+            response_serializer=handler.response_serializer,
+        )

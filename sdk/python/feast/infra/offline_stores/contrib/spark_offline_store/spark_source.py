@@ -287,11 +287,17 @@ class SparkOptions:
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
         table_format: Optional[TableFormat] = None,
     ):
-        # Check that only one of the ways to load a spark dataframe can be used. We have
-        # to treat empty string and null the same due to proto (de)serialization.
-        if sum([(not (not arg)) for arg in [table, query, path]]) != 1:
+        # query + path is allowed: query for reads during materialization,
+        # path for offline write-back (offline=True) and get_historical_features.
+        # table must be standalone (cannot combine with query or path).
+        has_table = bool(table)
+        has_query = bool(query)
+        has_path = bool(path)
+        if has_table and (has_query or has_path):
+            raise ValueError("'table' cannot be combined with 'query' or 'path'.")
+        if not (has_table or has_query or has_path):
             raise ValueError(
-                "Exactly one of params(table, query, path) must be specified."
+                "At least one of params(table, query, path) must be specified."
             )
         if path:
             # If table_format is specified, file_format is optional (table format determines the reader)
@@ -452,4 +458,15 @@ class SavedDatasetSparkStorage(SavedDatasetStorage):
             path=self.spark_options.path,
             file_format=self.spark_options.file_format,
             table_format=self.spark_options.table_format,
+        )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> "SavedDatasetSparkStorage":
+        assert isinstance(data_source, SparkSource)
+        return SavedDatasetSparkStorage(
+            table=data_source.table,
+            query=data_source.query,
+            path=data_source.path,
+            file_format=data_source.file_format,
+            table_format=data_source.table_format,
         )

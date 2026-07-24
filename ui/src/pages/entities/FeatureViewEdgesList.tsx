@@ -1,5 +1,5 @@
 import React from "react";
-import { EuiBasicTable, EuiLoadingSpinner } from "@elastic/eui";
+import { EuiBasicTable, EuiBadge, EuiLoadingSpinner } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import { useParams } from "react-router-dom";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
@@ -8,6 +8,7 @@ import { FEAST_FCO_TYPES } from "../../parsers/types";
 
 interface FeatureViewEdgesListInterace {
   fvNames: string[];
+  viewTypes?: Record<string, string>;
 }
 
 const whereFSconsumesThisFv = (fvName: string) => {
@@ -42,7 +43,10 @@ const useGetFSConsumersOfFV = (fvList: string[]) => {
   };
 };
 
-const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
+const FeatureViewEdgesList = ({
+  fvNames,
+  viewTypes,
+}: FeatureViewEdgesListInterace) => {
   const { projectName } = useParams();
 
   const { isLoading, data } = useGetFSConsumersOfFV(fvNames);
@@ -52,10 +56,20 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
       name: "Name",
       field: "",
       render: ({ name }: { name: string }) => {
+        const isLabelView = viewTypes?.[name] === "labelView";
+        const path = isLabelView
+          ? `/p/${projectName}/label-view/${name}`
+          : `/p/${projectName}/feature-view/${name}`;
         return (
-          <EuiCustomLink to={`/p/${projectName}/feature-view/${name}`}>
-            {name}
-          </EuiCustomLink>
+          <React.Fragment>
+            <EuiCustomLink to={path}>{name}</EuiCustomLink>
+            {isLabelView && (
+              <>
+                {" "}
+                <EuiBadge color="#e6570e">label view</EuiBadge>
+              </>
+            )}
+          </React.Fragment>
         );
       },
     },

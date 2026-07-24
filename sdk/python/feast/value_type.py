@@ -82,6 +82,8 @@ class ValueType(enum.Enum):
     DECIMAL = 44
     DECIMAL_LIST = 45
     DECIMAL_SET = 46
+    SCALAR_MAP = 47
+    ZONED_TIMESTAMP = 48
 
 
 ListType = Union[

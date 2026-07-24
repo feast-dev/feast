@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import enum
 import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
@@ -47,6 +48,49 @@ from feast.value_type import ValueType
 from feast.version_utils import normalize_version_string
 
 warnings.simplefilter("once", DeprecationWarning)
+
+
+class FeatureViewState(enum.IntEnum):
+    """Lifecycle state of a feature view.
+
+    Maps to the ``FeatureViewState`` proto enum defined in
+    ``protos/feast/core/FeatureView.proto``.
+    """
+
+    STATE_UNSPECIFIED = 0
+    CREATED = 1
+    GENERATED = 2
+    MATERIALIZING = 3
+    AVAILABLE_ONLINE = 4
+
+    def can_transition_to(self, target: "FeatureViewState") -> bool:
+        """Return True if transitioning from this state to *target* is allowed."""
+        allowed = _VALID_STATE_TRANSITIONS.get(self, set())
+        return target in allowed
+
+    @classmethod
+    def from_proto(cls, proto_val: int) -> "FeatureViewState":
+        try:
+            return cls(proto_val)
+        except ValueError:
+            return cls.STATE_UNSPECIFIED
+
+    def to_proto(self) -> int:
+        return self.value
+
+
+# Valid state transitions: maps each state to the set of states it can move to.
+_VALID_STATE_TRANSITIONS: dict[FeatureViewState, set[FeatureViewState]] = {
+    FeatureViewState.STATE_UNSPECIFIED: {FeatureViewState.CREATED},
+    FeatureViewState.CREATED: {FeatureViewState.GENERATED},
+    FeatureViewState.GENERATED: {FeatureViewState.MATERIALIZING},
+    FeatureViewState.MATERIALIZING: {
+        FeatureViewState.AVAILABLE_ONLINE,
+        FeatureViewState.GENERATED,
+    },
+    FeatureViewState.AVAILABLE_ONLINE: {FeatureViewState.MATERIALIZING},
+}
+
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
 DUMMY_ENTITY_ID = "__dummy_id"
@@ -89,6 +133,8 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        org: The organizational unit that owns this feature view (e.g. "ads", "search").
+            Defaults to empty string.
         mode: The transformation mode for feature transformations. Only meaningful when
             transformations are applied. Choose from TransformationMode enum values
             (e.g., PYTHON, PANDAS, RAY, SQL, SPARK, SUBSTRAIT).
@@ -107,9 +153,13 @@ class FeatureView(BaseFeatureView):
     description: str
     tags: Dict[str, str]
     owner: str
+    org: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     mode: Optional[Union["TransformationMode", str]]
     enable_validation: bool
+    enabled: bool
+    state: FeatureViewState
+    _raw_feature_transformation_proto: Optional[Message] = None
 
     def __init__(
         self,
@@ -125,9 +175,11 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        org: str = "",
         mode: Optional[Union["TransformationMode", str]] = None,
         enable_validation: bool = False,
         version: str = "latest",
+        enabled: bool = True,
     ):
         """
         Creates a FeatureView object.
@@ -152,6 +204,8 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            org (optional): The organizational unit that owns this feature view
+                (e.g. "ads", "search").
             mode (optional): The transformation mode for feature transformations. Only meaningful
                 when transformations are applied. Choose from TransformationMode enum values.
             enable_validation (optional): If True, enables schema validation during materialization
@@ -278,10 +332,13 @@ class FeatureView(BaseFeatureView):
             owner=owner,
             source=self.batch_source,
         )
+        self.org = org
         self.online = online
         self.offline = offline
         self.mode = mode
         self.materialization_intervals = []
+        self.enabled = enabled
+        self.state = FeatureViewState.STATE_UNSPECIFIED
 
     def __hash__(self):
         return super().__hash__()
@@ -302,6 +359,8 @@ class FeatureView(BaseFeatureView):
             version=self.version,
             description=self.description,
             owner=self.owner,
+            org=self.org,
+            enabled=self.enabled,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -309,6 +368,7 @@ class FeatureView(BaseFeatureView):
         fv.features = copy.copy(self.features)
         fv.entity_columns = copy.copy(self.entity_columns)
         fv.projection = copy.copy(self.projection)
+        fv.state = self.state
         return fv
 
     def _schema_or_udf_changed(self, other: "BaseFeatureView") -> bool:
@@ -355,6 +415,7 @@ class FeatureView(BaseFeatureView):
             or self.enable_validation != other.enable_validation
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
+            or self.org != other.org
         ):
             return False
 
@@ -472,7 +533,9 @@ class FeatureView(BaseFeatureView):
             ]
 
         feature_transformation_proto = None
-        if hasattr(self, "feature_transformation") and self.feature_transformation:
+        if getattr(self, "_raw_feature_transformation_proto", None) is not None:
+            feature_transformation_proto = self._raw_feature_transformation_proto
+        elif hasattr(self, "feature_transformation") and self.feature_transformation:
             feature_transformation_proto = transformation_to_proto(
                 self.feature_transformation
             )
@@ -485,6 +548,7 @@ class FeatureView(BaseFeatureView):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+            org=self.org,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
             offline=self.offline,
@@ -495,6 +559,7 @@ class FeatureView(BaseFeatureView):
             mode=mode_to_string(self.mode),
             enable_validation=self.enable_validation,
             version=self.version,
+            disabled=not self.enabled,
         )
 
     def to_proto_meta(self):
@@ -510,6 +575,8 @@ class FeatureView(BaseFeatureView):
             meta.materialization_intervals.append(interval_proto)
         if self.current_version_number is not None:
             meta.current_version_number = self.current_version_number
+        if self.state != FeatureViewState.STATE_UNSPECIFIED:
+            meta.state = self.state.to_proto()
         return meta
 
     def get_ttl_duration(self):
@@ -520,14 +587,17 @@ class FeatureView(BaseFeatureView):
         return ttl_duration
 
     @classmethod
-    def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
-        return cls._from_proto_internal(feature_view_proto, seen={})
+    def from_proto(
+        cls, feature_view_proto: FeatureViewProto, skip_udf: bool = False
+    ) -> "FeatureView":
+        return cls._from_proto_internal(feature_view_proto, seen={}, skip_udf=skip_udf)
 
     @classmethod
     def _from_proto_internal(
         cls,
         feature_view_proto: FeatureViewProto,
         seen: Dict[str, Union[None, "FeatureView"]],
+        skip_udf: bool = False,
     ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
@@ -561,7 +631,7 @@ class FeatureView(BaseFeatureView):
         )
         source_views = [
             FeatureView._from_proto_internal(
-                FeatureViewProto(spec=view_spec, meta=None), seen
+                FeatureViewProto(spec=view_spec, meta=None), seen, skip_udf=skip_udf
             )
             for view_spec in feature_view_proto.spec.source_views
         ]
@@ -581,22 +651,23 @@ class FeatureView(BaseFeatureView):
             )
             transformation = None
 
-            if feature_transformation_proto.HasField("user_defined_function"):
-                udf_proto = feature_transformation_proto.user_defined_function
-                if udf_proto.mode:
-                    try:
-                        transformation_class = get_transformation_class_from_type(
-                            udf_proto.mode
-                        )
-                        transformation = transformation_class.from_proto(udf_proto)
-                    except (ValueError, KeyError):
+            if not skip_udf:
+                if feature_transformation_proto.HasField("user_defined_function"):
+                    udf_proto = feature_transformation_proto.user_defined_function
+                    if udf_proto.mode:
+                        try:
+                            transformation_class = get_transformation_class_from_type(
+                                udf_proto.mode
+                            )
+                            transformation = transformation_class.from_proto(udf_proto)
+                        except (ValueError, KeyError):
+                            transformation = PythonTransformation.from_proto(udf_proto)
+                    else:
                         transformation = PythonTransformation.from_proto(udf_proto)
-                else:
-                    transformation = PythonTransformation.from_proto(udf_proto)
-            elif feature_transformation_proto.HasField("substrait_transformation"):
-                transformation = SubstraitTransformation.from_proto(
-                    feature_transformation_proto.substrait_transformation
-                )
+                elif feature_transformation_proto.HasField("substrait_transformation"):
+                    transformation = SubstraitTransformation.from_proto(
+                        feature_transformation_proto.substrait_transformation
+                    )
 
             mode: Union[TransformationMode, str]
             if feature_view_proto.spec.mode:
@@ -611,6 +682,7 @@ class FeatureView(BaseFeatureView):
                 description=feature_view_proto.spec.description,
                 tags=dict(feature_view_proto.spec.tags),
                 owner=feature_view_proto.spec.owner,
+                org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
                 offline=feature_view_proto.spec.offline,
                 ttl=(
@@ -621,8 +693,14 @@ class FeatureView(BaseFeatureView):
                 source=source_views if source_views else batch_source,  # type: ignore[arg-type]
                 sink_source=batch_source if source_views else None,
                 mode=mode,
-                feature_transformation=transformation,
+                feature_transformation=transformation
+                if not skip_udf
+                else feature_transformation_proto,  # type: ignore[arg-type]
             )
+            if skip_udf:
+                feature_view._raw_feature_transformation_proto = (
+                    feature_transformation_proto
+                )
         else:
             mode_from_spec = (
                 feature_view_proto.spec.mode if feature_view_proto.spec.mode else None
@@ -633,6 +711,7 @@ class FeatureView(BaseFeatureView):
                 description=feature_view_proto.spec.description,
                 tags=dict(feature_view_proto.spec.tags),
                 owner=feature_view_proto.spec.owner,
+                org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
                 offline=feature_view_proto.spec.offline,
                 ttl=(
@@ -668,6 +747,14 @@ class FeatureView(BaseFeatureView):
 
         # Restore enable_validation from proto field.
         feature_view.enable_validation = feature_view_proto.spec.enable_validation
+
+        # Restore enabled from proto's inverted 'disabled' field.
+        # Proto bool defaults to False, so old protos without this field
+        # will correctly default to enabled=True.
+        feature_view.enabled = not feature_view_proto.spec.disabled
+
+        # Restore lifecycle state from meta.
+        feature_view.state = FeatureViewState.from_proto(feature_view_proto.meta.state)
 
         # Restore version fields.
         spec_version = feature_view_proto.spec.version

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCloudRegistryStores(t *testing.T) {
@@ -95,6 +96,24 @@ func TestCloudRegistryStores(t *testing.T) {
 					t.Errorf("Error initializing registry. msg: %s. registry path=%q", err.Error(), registryPath)
 				}
 			}
+		})
+	}
+}
+
+func TestRefreshRegistryOnIntervalNonPositiveTTL(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  time.Duration
+	}{
+		{name: "zero ttl", ttl: 0},
+		{name: "negative ttl", ttl: -1 * time.Second},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := &Registry{cachedRegistryProtoTtl: test.ttl}
+			assert.NotPanics(t, func() {
+				r.RefreshRegistryOnInterval()
+			})
 		})
 	}
 }

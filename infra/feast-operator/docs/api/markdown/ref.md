@@ -104,6 +104,20 @@ _Appears in:_
 Defaults to "feast apply" & "feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')" |
 
 
+#### DataQualityMonitoringConfig
+
+
+
+DataQualityMonitoringConfig defines the Data Quality Monitoring configuration.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `autoBaseline` _boolean_ | AutoBaseline controls whether baseline distribution is computed automatically on feast apply. Defaults to true. |
+
+
 #### DefaultCtrConfigs
 
 
@@ -255,6 +269,10 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
+and reserved before the Pod is allowed to start. The resources
+will be made available to those containers which consume them
+by name. |
 
 
 #### FeatureStoreSpec
@@ -275,8 +293,13 @@ _Appears in:_
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 | `cronJob` _[FeastCronJob](#feastcronjob)_ |  |
 | `batchEngine` _[BatchEngineConfig](#batchengineconfig)_ |  |
+| `dataQualityMonitoring` _[DataQualityMonitoringConfig](#dataqualitymonitoringconfig)_ | DataQualityMonitoring configures Data Quality Monitoring behaviour. |
 | `replicas` _integer_ | Replicas is the desired number of pod replicas. Used by the scale sub-resource.
 Mutually exclusive with services.scaling.autoscaling. |
+| `materialization` _[MaterializationConfig](#materializationconfig)_ | Materialization controls feature materialization behavior (batch size, pull strategy).
+Written into feature_store.yaml for all service pods. |
+| `openlineage` _[OpenLineageConfig](#openlineageconfig)_ | OpenLineage enables OpenLineage data lineage tracking for Feast operations.
+Written into feature_store.yaml for all service pods. |
 
 
 #### FeatureStoreStatus
@@ -466,6 +489,60 @@ _Appears in:_
 | `persistence` _[RegistryPersistence](#registrypersistence)_ |  |
 
 
+#### MaterializationConfig
+
+
+
+MaterializationConfig controls feature materialization behavior written into feature_store.yaml.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `onlineWriteBatchSize` _integer_ | Number of rows per batch when writing to the online store during materialization.
+Prevents OOM for large feature views. Supported engines: local, spark, ray.
+If unset, all rows are written in a single batch. |
+| `extraConfig` _object (keys:string, values:string)_ | ExtraConfig passes additional materialization key-value settings inline into
+feature_store.yaml. |
+
+
+#### McpConfig
+
+
+
+McpConfig enables MCP (Model Context Protocol) server support in the feature server.
+When this field is set on ServingConfig, the feature server type is switched to "mcp".
+
+_Appears in:_
+- [RegistryServerConfigs](#registryserverconfigs)
+- [ServingConfig](#servingconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable the MCP server. |
+| `serverName` _string_ | MCP server name for identification. Defaults to "feast-mcp-server". |
+| `serverVersion` _string_ | MCP server version string. Defaults to "1.0.0". |
+| `transport` _string_ | MCP transport protocol. |
+
+
+#### OfflinePushBatchingConfig
+
+
+
+OfflinePushBatchingConfig controls batching of writes to the offline store via the /push endpoint.
+Recommended for high-throughput push workloads (streaming pipelines, IoT) to prevent OOM.
+
+_Appears in:_
+- [ServingConfig](#servingconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable offline push batching. |
+| `batchSize` _integer_ | Maximum number of rows per offline write batch. |
+| `batchIntervalSeconds` _integer_ | Seconds between batch flushes to the offline store. |
+
+
 #### OfflineStore
 
 
@@ -575,6 +652,8 @@ _Appears in:_
 | --- | --- |
 | `server` _[ServerConfigs](#serverconfigs)_ | Creates a feature server container |
 | `persistence` _[OnlineStorePersistence](#onlinestorepersistence)_ |  |
+| `serving` _[ServingConfig](#servingconfig)_ | Serving configures the Feast feature_server section written into feature_store.yaml for the online serve pod.
+Controls metrics granularity, offline push batching, and MCP. |
 
 
 #### OnlineStoreDBStorePersistence
@@ -621,6 +700,57 @@ _Appears in:_
 | --- | --- |
 | `file` _[OnlineStoreFilePersistence](#onlinestorefilepersistence)_ |  |
 | `store` _[OnlineStoreDBStorePersistence](#onlinestoredbstorepersistence)_ |  |
+
+
+#### OpenLineageConfig
+
+
+
+OpenLineageConfig enables OpenLineage data lineage tracking for Feast operations.
+Lineage events are emitted during feast apply and materialization when enabled.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable OpenLineage integration. |
+| `transportType` _string_ | Transport type for lineage events. |
+| `transportUrl` _string_ | URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http". |
+| `transportEndpoint` _string_ | API endpoint path appended to transportUrl. Defaults to "api/v1/lineage". |
+| `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" for lineage server authentication. |
+| `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional OpenLineage key-value settings written inline into
+the openlineage block of feature_store.yaml alongside the typed fields above.
+Use this for non-core settings (e.g. namespace, producer, emit_on_apply,
+emit_on_materialize) and transport-specific options (e.g. kafka
+bootstrap_servers, topic; file path). Boolean values ("true"/"false") and
+integer values are automatically coerced to their native YAML types.
+Keys must be valid Feast OpenLineageConfig YAML field names. |
+| `consumer` _[OpenLineageConsumerConfig](#openlineageconsumerconfig)_ | Consumer configures the OpenLineage consumer (event receiver) that enables
+Feast to receive and display lineage from external producers (Airflow, Spark, dbt, etc.). |
+
+
+#### OpenLineageConsumerConfig
+
+
+
+OpenLineageConsumerConfig configures the OpenLineage consumer (event receiver).
+When enabled, the Feast REST server exposes POST /api/v1/lineage to receive
+OpenLineage events from any producer, storing them for visualization in the Feast UI.
+
+_Appears in:_
+- [OpenLineageConfig](#openlineageconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable the OpenLineage consumer. |
+| `storeType` _string_ | StoreType is the storage backend for lineage events. Currently only "sql" is supported. |
+| `connectionStringSecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "connection_string" for a separate
+lineage database. If omitted, the SQL registry database is reused. |
+| `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" that producers must
+provide in the X-API-Key header when sending events. |
+| `namespaceMapping` _object (keys:string, values:string)_ | NamespaceMapping maps OpenLineage namespaces to Feast projects for
+RBAC-based filtering of lineage data in the UI. |
 
 
 #### OptionalCtrConfigs
@@ -798,6 +928,8 @@ volume definition in the Volumes field. |
 These options are primarily used for production deployments to optimize performance. |
 | `restAPI` _boolean_ | Enable REST API registry server. |
 | `grpc` _boolean_ | Enable gRPC registry server. Defaults to true if unset. |
+| `mcp` _[McpConfig](#mcpconfig)_ | Mcp enables MCP (Model Context Protocol) on the REST registry server.
+Requires restAPI to be true. Reuses the same McpConfig struct as the online store. |
 
 
 #### RemoteRegistryConfig
@@ -910,6 +1042,44 @@ _Appears in:_
 | `registry` _string_ |  |
 | `registryRest` _string_ |  |
 | `ui` _string_ |  |
+
+
+#### ServingConfig
+
+
+
+ServingConfig configures the feature_server section of the generated feature_store.yaml.
+When Mcp is set, the feature server type is switched to "mcp"; otherwise "local" is used.
+
+_Appears in:_
+- [OnlineStore](#onlinestore)
+
+| Field | Description |
+| --- | --- |
+| `metrics` _[ServingMetricsConfig](#servingmetricsconfig)_ | Metrics configures per-category Prometheus metrics for the feature server.
+Coexists with the server.metrics bool flag — both can be set simultaneously. |
+| `offlinePushBatching` _[OfflinePushBatchingConfig](#offlinepushbatchingconfig)_ | OfflinePushBatching batches writes to the offline store via the /push endpoint. |
+| `mcp` _[McpConfig](#mcpconfig)_ | Mcp enables MCP (Model Context Protocol) server support. When set, feature server type is "mcp". |
+
+
+#### ServingMetricsConfig
+
+
+
+ServingMetricsConfig controls per-category Prometheus metrics for the feature server.
+Setting Enabled to true activates the metrics HTTP server on port 8000.
+All metric categories default to true when enabled; use Categories to selectively disable them.
+
+_Appears in:_
+- [ServingConfig](#servingconfig)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable the Prometheus metrics endpoint on port 8000. |
+| `categories` _object (keys:string, values:boolean)_ | Categories selectively enables or disables individual Feast metric categories.
+Keys are Feast MetricsConfig field names (e.g. "resource", "request",
+"online_features", "push", "materialization", "freshness"). Omitted keys
+default to true when metrics is enabled. |
 
 
 #### TlsConfigs

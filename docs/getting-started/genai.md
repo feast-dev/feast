@@ -15,6 +15,7 @@ Feast integrates with popular vector databases to store and retrieve embedding v
 * **Elasticsearch**: Scalable vector search capabilities
 * **Postgres with PGVector**: SQL-based vector operations
 * **Qdrant**: Purpose-built vector database integration
+* **ScyllaDB**: Native `vector<float, N>` type with HNSW ANN index, full `retrieve_online_documents_v2` support
 
 These integrations allow you to:
 - Store embeddings as features
@@ -225,7 +226,8 @@ The MCP integration uses the `fastapi_mcp` library to automatically transform yo
 The fastapi_mcp integration automatically exposes your Feast feature server's FastAPI endpoints as MCP tools. This means AI assistants can:
 
 * **Call `/get-online-features`** to retrieve features from the feature store
-* **Call `/retrieve-online-documents`** to perform vector similarity search
+* **Call `/search`** to perform vector similarity search (`/retrieve-online-documents` is a deprecated alias)
+* **Call `/v1/vector_stores/{feature_view}/search`** for OpenAI-compatible text search with server-side embedding
 * **Call `/write-to-online-store`** to persist agent state (memory, notes, interaction history)
 * **Use `/health`** to check server status  
 

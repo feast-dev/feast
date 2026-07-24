@@ -9,10 +9,14 @@ class _FakeRegistry:
     def proto(self):
         return object()
 
+    def list_projects(self, allow_cache=True, tags=None):
+        return []
+
 
 class _FakeStore:
     def __init__(self):
         self.config = SimpleNamespace()
+        self.project = "smoke_test"
         self.registry = _FakeRegistry()
         self._provider = SimpleNamespace(
             async_supported=SimpleNamespace(
@@ -28,6 +32,9 @@ class _FakeStore:
 
     def refresh_registry(self):
         return None
+
+    def list_feature_views(self):
+        return []
 
     async def close(self):
         return None

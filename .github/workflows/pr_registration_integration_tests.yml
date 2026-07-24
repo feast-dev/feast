@@ -4,7 +4,6 @@ on:
   pull_request_target:
     types:
       - opened
-      - synchronize
       - labeled
 
 concurrency:
@@ -28,6 +27,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
@@ -59,16 +59,17 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Set up AWS SDK
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

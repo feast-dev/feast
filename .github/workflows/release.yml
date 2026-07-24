@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
       - name: Release (Dry Run)
@@ -80,7 +80,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
       - name: Bump file versions
@@ -96,8 +96,10 @@ jobs:
       - name: Remove previous Helm
         run: sudo rm -rf $(which helm)
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
           brew install norwoodj/tap/helm-docs
       - name: Generate helm chart READMEs
@@ -109,9 +111,9 @@ jobs:
       - name: Validate all version consistency
         run: ./infra/scripts/helm/validate-helm-chart-versions.sh $NEXT_VERSION
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.24.12
+          go-version: 1.25.0
       - name: Build & version operator-specific release files
         run: make -C infra/feast-operator build-installer bundle
 
@@ -132,19 +134,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: './ui/.nvmrc'
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
         run: |
           brew install norwoodj/tap/helm-docs
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.24.12
+          go-version: 1.25.0
       - name: Compile Go Test Binaries
         run: |
           cd infra/feast-operator

@@ -15,6 +15,97 @@ from cryptography.x509.oid import NameOID
 logger = logging.getLogger(__name__)
 
 
+def generate_mtls_certs(
+    output_dir: str,
+    server_san: str = "feature-registry.example.com",
+) -> dict[str, str]:
+    """
+    Generate a CA, server, and client certificate chain for mTLS testing.
+
+    The server cert's SAN is set to ``server_san`` (no ``localhost``), so a
+    gRPC client connecting to ``localhost`` must set the ``authority`` channel
+    option to ``server_san`` — exactly the IAP-tunnel pattern.
+
+    Returns a dict with keys: ca_cert, server_key, server_cert,
+    client_key, client_cert.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    paths = {
+        "ca_cert": os.path.join(output_dir, "ca.crt"),
+        "server_key": os.path.join(output_dir, "server.key"),
+        "server_cert": os.path.join(output_dir, "server.crt"),
+        "client_key": os.path.join(output_dir, "client.key"),
+        "client_cert": os.path.join(output_dir, "client.crt"),
+    }
+
+    # --- CA (self-signed) ---
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "TestCA")])
+    ca_cert = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.utcnow())
+        .not_valid_after(datetime.utcnow() + timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(ca_key, hashes.SHA256())
+    )
+    with open(paths["ca_cert"], "wb") as f:
+        f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
+
+    def _issue_cert(
+        cn: str,
+        key_path: str,
+        cert_path: str,
+        san: x509.SubjectAlternativeName | None = None,
+    ):
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(ca_cert.subject)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.utcnow())
+            .not_valid_after(datetime.utcnow() + timedelta(days=1))
+        )
+        if san is not None:
+            builder = builder.add_extension(san, critical=False)
+        cert = builder.sign(ca_key, hashes.SHA256())
+
+        with open(key_path, "wb") as f:
+            f.write(
+                key.private_bytes(
+                    serialization.Encoding.PEM,
+                    serialization.PrivateFormat.TraditionalOpenSSL,
+                    serialization.NoEncryption(),
+                )
+            )
+        with open(cert_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    # --- Server cert ---
+    _issue_cert(
+        cn=server_san,
+        key_path=paths["server_key"],
+        cert_path=paths["server_cert"],
+        san=x509.SubjectAlternativeName([x509.DNSName(server_san)]),
+    )
+
+    # --- Client cert (no SAN needed) ---
+    _issue_cert(
+        cn="TestClient",
+        key_path=paths["client_key"],
+        cert_path=paths["client_cert"],
+    )
+
+    logger.info(f"mTLS certificates generated in {output_dir}")
+    return paths
+
+
 def generate_self_signed_cert(
     cert_path="cert.pem", key_path="key.pem", common_name="localhost"
 ):

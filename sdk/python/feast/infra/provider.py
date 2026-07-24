@@ -23,6 +23,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
@@ -43,6 +44,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
 }
 
 
@@ -69,8 +71,8 @@ class Provider(ABC):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
+        tables_to_delete: Sequence[BaseFeatureView],
+        tables_to_keep: Sequence[BaseFeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -466,10 +468,11 @@ class Provider(ABC):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -489,6 +492,8 @@ class Provider(ABC):
             query: The query embedding to search for (optional).
             top_k: The number of documents to return.
             query_string: The query string to search for using keyword search (bm25) (optional)
+            filters: Optional metadata filters (ComparisonFilter or CompoundFilter)
+                to narrow results before ranking.
 
         Returns:
             A list of dictionaries, where each dictionary contains the datetime, entitykey, and a dictionary

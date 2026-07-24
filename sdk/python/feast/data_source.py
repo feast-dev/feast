@@ -157,6 +157,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource",
     DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
     DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena_source.AthenaSource",
+    DataSourceProto.SourceType.BATCH_ICEBERG: "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
@@ -205,6 +206,7 @@ class DataSource(ABC):
     tags: Dict[str, str]
     owner: str
     date_partition_column: str
+    timestamp_field_type: str
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
@@ -219,6 +221,7 @@ class DataSource(ABC):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         date_partition_column: Optional[str] = None,
+        timestamp_field_type: Optional[str] = None,
     ):
         """
         Creates a DataSource object.
@@ -237,6 +240,9 @@ class DataSource(ABC):
             owner (optional): The owner of the data source, typically the email of the primary
                 maintainer.
             date_partition_column (optional): Timestamp column used for partitioning. Not supported by all stores
+            timestamp_field_type (optional): Type of the timestamp_field column.
+                Defaults to "TIMESTAMP". Set to "DATE" when the event timestamp column
+                is a DATE type, so SQL generation uses date-only comparisons.
         """
         self.name = name
         self.timestamp_field = timestamp_field or ""
@@ -257,6 +263,7 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        self.timestamp_field_type = timestamp_field_type if timestamp_field_type else ""
         now = _utc_now()
         self.created_timestamp = now
         self.last_updated_timestamp = now
@@ -280,6 +287,7 @@ class DataSource(ABC):
             or self.created_timestamp_column != other.created_timestamp_column
             or self.field_mapping != other.field_mapping
             or self.date_partition_column != other.date_partition_column
+            or self.timestamp_field_type != other.timestamp_field_type
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
