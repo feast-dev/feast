@@ -184,6 +184,30 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
+class ListDatasetsRequest(BaseModel):
+    context: str = "fine-tuning"
+    tags: Optional[Dict[str, str]] = None
+
+
+class DatasetInfo(BaseModel):
+    name: str
+    run_id: str
+    schema_summary: Optional[str] = None
+    source: Optional[str] = None
+    context: str = "fine-tuning"
+    tags: Dict[str, str] = {}
+    created_at: Optional[str] = None
+    artifact_uri: Optional[str] = None
+
+
+class ListDatasetsResponse(BaseModel):
+    datasets: List[DatasetInfo] = []
+
+
+class GetDatasetInfoRequest(BaseModel):
+    run_id: str
+
+
 def _parse_feature_info(
     features: Union[List[str], "feast.FeatureService"],
 ) -> tuple:
@@ -332,6 +356,162 @@ async def load_static_artifacts(app: FastAPI, store):
         logger.warning(f"Failed to load static artifacts: {e}")
 
 
+def _extract_username() -> Optional[str]:
+    """Best-effort extraction of the current user from the security manager."""
+    try:
+        sm = get_security_manager()
+        if sm and sm.current_user:
+            return sm.current_user.username or None
+    except Exception:
+        pass
+    return None
+
+
+def _query_mlflow_datasets(
+    store: "feast.FeatureStore",
+    context: str,
+    tags: Optional[Dict[str, str]],
+) -> List[DatasetInfo]:
+    """Query MLflow for registered datasets under the project experiment."""
+    try:
+        import mlflow
+
+        mlflow_cfg = getattr(store.config, "mlflow", None)
+        if mlflow_cfg is None or not mlflow_cfg.enabled:
+            return []
+
+        tracking_uri = mlflow_cfg.get_tracking_uri()
+        if tracking_uri:
+            mlflow.set_tracking_uri(tracking_uri)
+
+        experiment = mlflow.get_experiment_by_name(store.config.project)
+        if experiment is None:
+            return []
+
+        runs = mlflow.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string="tags.`mlflow.runName` LIKE 'feast-export-%'",
+            max_results=100,
+            output_format="pandas",
+        )
+
+        import pandas as pd
+
+        if not isinstance(runs, pd.DataFrame) or runs.empty:
+            return []
+
+        datasets: List[DatasetInfo] = []
+        for _, run_row in runs.iterrows():
+            run_id = run_row.get("run_id", "")
+            run_tags = {
+                k.replace("tags.", ""): v
+                for k, v in run_row.items()
+                if isinstance(k, str) and k.startswith("tags.") and v is not None
+            }
+
+            if tags:
+                if not all(run_tags.get(k) == v for k, v in tags.items()):
+                    continue
+
+            datasets.append(
+                DatasetInfo(
+                    name=run_tags.get("mlflow.runName", run_id),
+                    run_id=str(run_id),
+                    context=context,
+                    tags={k: str(v) for k, v in run_tags.items()},
+                    created_at=str(run_row.get("start_time", "")),
+                    artifact_uri=str(run_row.get("artifact_uri", "")),
+                )
+            )
+        return datasets
+    except Exception:
+        logger.debug("Failed to query MLflow datasets", exc_info=True)
+        return []
+
+
+def _get_mlflow_dataset_info(run_id: str) -> Optional[DatasetInfo]:
+    """Fetch detailed info for a specific dataset run."""
+    try:
+        import mlflow
+
+        run = mlflow.get_run(run_id)
+        if run is None:
+            return None
+
+        run_tags = dict(run.data.tags) if run.data.tags else {}
+        return DatasetInfo(
+            name=run_tags.get("mlflow.runName", run_id),
+            run_id=run_id,
+            context=run_tags.get("mlflow.dataset.context", "fine-tuning"),
+            tags=run_tags,
+            created_at=str(run.info.start_time) if run.info.start_time else None,
+            artifact_uri=run.info.artifact_uri,
+        )
+    except Exception:
+        logger.debug("Failed to get MLflow dataset info for %s", run_id, exc_info=True)
+        return None
+
+
+def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> None:
+    """Add OTEL instrumentation to FastAPI if tracing is enabled.
+
+    This enables automatic extraction of ``traceparent`` HTTP headers from
+    incoming requests, creating server spans that link to the caller's trace.
+    When an agent sends traceparent, server spans become children of the
+    agent's trace tree.
+
+    Sets ``MLFLOW_USE_DEFAULT_TRACER_PROVIDER=false`` and calls
+    ``mlflow.tracing.set_destination()`` so that spans from both
+    OTEL (FastAPIInstrumentor) and MLflow (``start_span``) land in
+    the same trace.
+    """
+    mlflow_cfg = getattr(store.config, "mlflow", None)
+    if (
+        mlflow_cfg is None
+        or not mlflow_cfg.enabled
+        or not mlflow_cfg.enable_distributed_tracing
+    ):
+        return
+
+    try:
+        import mlflow
+        from mlflow.entities.trace_location import MlflowExperimentLocation
+
+        os.environ.setdefault("MLFLOW_USE_DEFAULT_TRACER_PROVIDER", "false")
+
+        experiment = mlflow.get_experiment_by_name(store.config.project)
+        if experiment:
+            mlflow.tracing.set_destination(
+                MlflowExperimentLocation(experiment.experiment_id)
+            )
+            logger.info(
+                "MLflow trace destination set to experiment %s",
+                experiment.experiment_id,
+            )
+    except Exception:
+        logger.debug(
+            "Failed to configure MLflow trace destination; falling back to default",
+            exc_info=True,
+        )
+
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(app)
+        logger.info("FastAPI OTEL instrumentation enabled for trace propagation")
+    except ImportError:
+        logger.debug(
+            "opentelemetry-instrumentation-fastapi not installed; "
+            "cross-process trace linking disabled"
+        )
+    except Exception:
+        logger.warning(
+            "Failed to instrument FastAPI for tracing; "
+            "cross-process trace linking disabled",
+            exc_info=True,
+        )
+
+
 def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
@@ -438,6 +618,9 @@ def get_app(
 
         await store.initialize()
         async_refresh()
+        # Instrument inside lifespan so it runs post-fork in each
+        # gunicorn worker, avoiding OTEL/gRPC state corruption.
+        _instrument_app_for_tracing(app, store)
         try:
             yield
         finally:
@@ -453,93 +636,159 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
         response_model=OnlineFeaturesResponse,
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest) -> Any:
-        with feast_metrics.track_request_latency(
-            "/get-online-features",
-        ) as metrics_ctx:
-            features = await _get_features(request, store)
-            feat_count, fv_count = _resolve_feature_counts(features)
-            metrics_ctx.feature_count = feat_count
-            metrics_ctx.feature_view_count = fv_count
+    async def get_online_features(
+        request: GetOnlineFeaturesRequest, raw_request: Request
+    ) -> Any:
+        from feast.tracing import traced_tool_span
 
-            entity_count = len(next(iter(request.entities.values()), []))
-            feast_metrics.track_online_features_entities(entity_count)
+        session_id = raw_request.headers.get("mcp-session-id", "")
+        feature_refs = ",".join(request.features) if request.features else ""
+        entity_count = len(next(iter(request.entities.values()), []))
+        _user = _extract_username()
 
-            read_params = dict(
-                features=features,
-                entity_rows=request.entities,
-                full_feature_names=request.full_feature_names,
-                include_feature_view_version_metadata=request.include_feature_view_version_metadata,
-            )
+        with traced_tool_span(
+            store,
+            "feast.get_online_features",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_refs": feature_refs,
+                "feast.entity_count": str(entity_count),
+                "feast.project": store.config.project,
+                "feast.retrieval_type": "online",
+            },
+            request_headers=dict(raw_request.headers),
+            span_type="RETRIEVER",
+            inputs={"features": request.features or [], "entity_count": entity_count},
+            session_id=session_id or None,
+            user=_user,
+        ) as _span:
+            with feast_metrics.track_request_latency(
+                "/get-online-features",
+            ) as metrics_ctx:
+                features = await _get_features(request, store)
+                feat_count, fv_count = _resolve_feature_counts(features)
+                metrics_ctx.feature_count = feat_count
+                metrics_ctx.feature_view_count = fv_count
 
-            audit_start_ms = time.monotonic() * 1000
-            audit_status = "success"
-            try:
-                if store._get_provider().async_supported.online.read:
-                    response = await store.get_online_features_async(**read_params)  # type: ignore
-                else:
-                    response = await run_in_threadpool(
-                        lambda: store.get_online_features(**read_params)  # type: ignore
-                    )
-            except Exception:
-                audit_status = "error"
-                raise
-            finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
+                feast_metrics.track_online_features_entities(entity_count)
+
+                read_params = dict(
+                    features=features,
+                    entity_rows=request.entities,
+                    full_feature_names=request.full_feature_names,
+                    include_feature_view_version_metadata=request.include_feature_view_version_metadata,
                 )
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                audit_start_ms = time.monotonic() * 1000
+                audit_status = "success"
+                try:
+                    if store._get_provider().async_supported.online.read:
+                        response = await store.get_online_features_async(**read_params)  # type: ignore
+                    else:
+                        response = await run_in_threadpool(
+                            lambda: store.get_online_features(**read_params)  # type: ignore
+                        )
+                except Exception:
+                    audit_status = "error"
+                    raise
+                finally:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                if _span is not None:
+                    try:
+                        _span.set_outputs({"status": "ok", "feature_count": feat_count})
+                    except Exception:
+                        pass
+                return JSONResponse(content=response_dict)
 
     async def _search_online_documents(
         request: GetOnlineDocumentsRequest,
         *,
         metrics_path: str,
+        raw_request: Optional[Request] = None,
     ) -> JSONResponse:
-        with feast_metrics.track_request_latency(metrics_path):
-            features = await _get_features(request, store)
+        from feast.tracing import traced_tool_span
 
-            read_params = dict(
-                features=features,
-                query=request.query,
-                top_k=request.top_k,
-            )
-            if request.api_version == 2 and request.query_string is not None:
-                read_params["query_string"] = request.query_string
-            if request.api_version == 2 and request.distance_metric is not None:
-                read_params["distance_metric"] = request.distance_metric
-            if request.api_version == 2 and request.filters is not None:
-                read_params["filters"] = request.filters
+        session_id = ""
+        request_headers: dict = {}
+        if raw_request is not None:
+            session_id = raw_request.headers.get("mcp-session-id", "")
+            request_headers = dict(raw_request.headers)
+        feature_refs = ",".join(request.features) if request.features else ""
+        top_k = str(request.top_k) if request.top_k else ""
+        _user = _extract_username()
 
-            if request.api_version == 2:
-                read_params["include_feature_view_version_metadata"] = (
-                    request.include_feature_view_version_metadata
-                )
-                response = await run_in_threadpool(
-                    lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
-                )
-            else:
-                response = await run_in_threadpool(
-                    lambda: store.retrieve_online_documents(**read_params)  # type: ignore
-                )
+        with traced_tool_span(
+            store,
+            "feast.retrieve_online_documents",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_refs": feature_refs,
+                "feast.top_k": top_k,
+                "feast.project": store.config.project,
+                "feast.retrieval_type": "document",
+            },
+            request_headers=request_headers,
+            span_type="RETRIEVER",
+            inputs={"features": request.features or [], "top_k": request.top_k},
+            session_id=session_id or None,
+            user=_user,
+        ) as _span:
+            with feast_metrics.track_request_latency(metrics_path):
+                features = await _get_features(request, store)
 
-            response_dict = await run_in_threadpool(
-                convert_response_to_dict, response.proto
-            )
-            return JSONResponse(content=response_dict)
+                read_params = dict(
+                    features=features,
+                    query=request.query,
+                    top_k=request.top_k,
+                )
+                if request.api_version == 2 and request.query_string is not None:
+                    read_params["query_string"] = request.query_string
+                if request.api_version == 2 and request.distance_metric is not None:
+                    read_params["distance_metric"] = request.distance_metric
+                if request.api_version == 2 and request.filters is not None:
+                    read_params["filters"] = request.filters
+
+                if request.api_version == 2:
+                    read_params["include_feature_view_version_metadata"] = (
+                        request.include_feature_view_version_metadata
+                    )
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+                    )
+                else:
+                    response = await run_in_threadpool(
+                        lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+                    )
+
+                response_dict = await run_in_threadpool(
+                    convert_response_to_dict, response.proto
+                )
+                if _span is not None:
+                    try:
+                        _span.set_outputs({"status": "ok", "top_k": request.top_k})
+                    except Exception:
+                        pass
+                return JSONResponse(content=response_dict)
 
     @app.post(
         "/search",
         dependencies=[Depends(inject_user_details)],
         response_model=OnlineFeaturesResponse,
     )
-    async def search(request: GetOnlineDocumentsRequest) -> JSONResponse:
+    async def search(
+        request: GetOnlineDocumentsRequest, raw_request: Request
+    ) -> JSONResponse:
         """Vector similarity search against online document embeddings."""
-        return await _search_online_documents(request, metrics_path="/search")
+        return await _search_online_documents(
+            request, metrics_path="/search", raw_request=raw_request
+        )
 
     @app.post(
         "/retrieve-online-documents",
@@ -548,13 +797,15 @@ def get_app(
         include_in_schema=False,
     )
     async def retrieve_online_documents(
-        request: GetOnlineDocumentsRequest,
+        request: GetOnlineDocumentsRequest, raw_request: Request
     ) -> JSONResponse:
         logger.warning(
             "POST /retrieve-online-documents is deprecated; use POST /search instead."
         )
         return await _search_online_documents(
-            request, metrics_path="/retrieve-online-documents"
+            request,
+            metrics_path="/retrieve-online-documents",
+            raw_request=raw_request,
         )
 
     @app.get(
@@ -759,19 +1010,76 @@ def get_app(
         )
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
-    async def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
+    async def write_to_online_store(
+        request: WriteToFeatureStoreRequest, raw_request: Request
+    ) -> None:
+        from feast.tracing import traced_tool_span
+
+        session_id = raw_request.headers.get("mcp-session-id", "")
+        _user = _extract_username()
         df = pd.DataFrame(request.df)
-        feature_view_name = request.feature_view_name
-        allow_registry_cache = request.allow_registry_cache
-        resource = await _get_feast_object(feature_view_name, allow_registry_cache)
-        assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
-        await run_in_threadpool(
-            store.write_to_online_store,
-            feature_view_name=feature_view_name,
-            df=df,
-            allow_registry_cache=allow_registry_cache,
-            transform_on_write=request.transform_on_write,
+        row_count = len(df)
+
+        with traced_tool_span(
+            store,
+            "feast.write_to_online_store",
+            attributes={
+                "feast.mcp_session_id": session_id,
+                "feast.feature_view": request.feature_view_name,
+                "feast.project": store.config.project,
+            },
+            request_headers=dict(raw_request.headers),
+            span_type="TOOL",
+            inputs={"feature_view": request.feature_view_name, "row_count": row_count},
+            session_id=session_id or None,
+            user=_user,
+        ) as _span:
+            feature_view_name = request.feature_view_name
+            allow_registry_cache = request.allow_registry_cache
+            resource = await _get_feast_object(feature_view_name, allow_registry_cache)
+            assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
+            await run_in_threadpool(
+                store.write_to_online_store,
+                feature_view_name=feature_view_name,
+                df=df,
+                allow_registry_cache=allow_registry_cache,
+                transform_on_write=request.transform_on_write,
+            )
+            if _span is not None:
+                try:
+                    _span.set_outputs({"status": "ok", "rows_written": row_count})
+                except Exception:
+                    pass
+
+    @app.post(
+        "/list-datasets",
+        dependencies=[Depends(inject_user_details)],
+        response_model=ListDatasetsResponse,
+    )
+    async def list_datasets(request: ListDatasetsRequest) -> Any:
+        """List registered fine-tuning/evaluation datasets (MCP-discoverable).
+
+        Queries MLflow for dataset inputs logged under the project experiment
+        with the specified context. Agents discover these via MCP.
+        """
+        datasets = await run_in_threadpool(
+            _query_mlflow_datasets, store, request.context, request.tags
         )
+        return ListDatasetsResponse(datasets=datasets)
+
+    @app.post(
+        "/get-dataset-info",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def get_dataset_info(request: GetDatasetInfoRequest) -> Any:
+        """Get schema, metadata, and artifact URI for a specific dataset."""
+        info = await run_in_threadpool(_get_mlflow_dataset_info, request.run_id)
+        if info is None:
+            return JSONResponse(
+                status_code=404,
+                content={"detail": f"Dataset run {request.run_id!r} not found"},
+            )
+        return info
 
     @app.get("/health")
     async def health():

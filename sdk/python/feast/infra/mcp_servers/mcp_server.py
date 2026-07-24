@@ -109,12 +109,19 @@ def add_mcp_support_to_app(
     try:
         _patch_fastapi_mcp_schema_resolver()
 
-        # Create MCP server from the FastAPI app
+        # Create MCP server from the FastAPI app.
+        # Forward mcp-session-id so endpoint handlers can tag spans with it.
         mcp = FastApiMCP(
             app,
             name=getattr(config, "mcp_server_name", "feast-feature-store"),
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+            headers=["authorization", "mcp-session-id"],
         )
+
+        # Instrument the internal httpx client with OTEL so that trace
+        # context propagates from the /mcp server span into the internal
+        # ASGI calls to the actual FastAPI endpoints (Tier 3 enabler).
+        _instrument_mcp_http_client(mcp)
 
         transport = getattr(config, "mcp_transport", "sse")
         if transport == "http":
@@ -128,7 +135,14 @@ def add_mcp_support_to_app(
         elif transport == "sse":
             mount_sse = getattr(mcp, "mount_sse", None)
             if mount_sse is not None:
-                mount_sse()
+                # Defer SSE mount to app startup so fastapi_mcp finishes
+                # internal init before clients can connect. Without this,
+                # eager MCP clients (e.g. Cursor) hit a race where the
+                # initialize handshake arrives before the server is ready.
+                @app.on_event("startup")
+                async def _deferred_mcp_sse_mount():
+                    mount_sse()
+                    logger.info("MCP SSE endpoint mounted (deferred to startup)")
             else:
                 logger.warning(
                     "transport sse not supported, fallback to the deprecated mount()."
@@ -155,3 +169,28 @@ def add_mcp_support_to_app(
     except Exception as e:
         logger.error(f"Failed to initialize MCP integration: {e}", exc_info=True)
         return None
+
+
+def _instrument_mcp_http_client(mcp: "FastApiMCP") -> None:
+    """Instrument fastapi_mcp's internal httpx client with OTEL.
+
+    This ensures that when fastapi_mcp makes internal ASGI calls to
+    the actual FastAPI endpoints, the current OTEL trace context
+    (from the /mcp server span) is propagated via traceparent headers.
+    Without this, the endpoint spans would be orphaned from the
+    incoming trace.
+    """
+    try:
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
+        http_client = getattr(mcp, "_http_client", None)
+        if http_client is not None:
+            HTTPXClientInstrumentor.instrument_client(http_client)
+            logger.info("MCP internal httpx client instrumented for trace propagation")
+        else:
+            logger.debug("Could not access fastapi_mcp internal httpx client")
+    except ImportError:
+        logger.debug(
+            "opentelemetry-instrumentation-httpx not installed; "
+            "internal trace propagation disabled"
+        )

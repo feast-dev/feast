@@ -109,6 +109,13 @@ mssql = ["ibis-framework[mssql]>=10.0.0"]
 oracle = ["ibis-framework[oracle]>=10.0.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 openlineage = ["openlineage-python>=1.40.0"]
+mlflow = [
+    "mlflow>=2.14.0",
+    "opentelemetry-api>=1.28.0",
+    "opentelemetry-sdk>=1.28.0",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+    "opentelemetry-instrumentation-httpx>=0.49b0",
+]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
 iceberg = ["pyiceberg>=0.7.0"]
@@ -140,7 +147,6 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
-mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
 
