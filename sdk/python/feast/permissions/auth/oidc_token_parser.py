@@ -61,17 +61,29 @@ class OidcTokenParser(TokenParser):
 
     @staticmethod
     def _extract_username_or_raise_error(data: dict) -> str:
-        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory.
+        """Extract the username from the decoded JWT, or raise if the token
+        carries none of the recognised identity claims.
 
-        Checks ``preferred_username`` first (Keycloak default), then falls back
-        to ``upn`` (Azure AD / Entra ID).
+        Human identity claims take precedence: ``preferred_username`` (Keycloak
+        default), then ``upn`` (Azure AD / Entra ID). Client-credentials
+        (app-only) tokens carry neither, so the calling application's own
+        identity is used instead: ``azp`` (Entra ID v2 tokens), ``appid``
+        (Entra ID v1 tokens), and finally ``sub``, which every issuer sets.
+        A claim present with a null or non-string value is skipped rather than
+        returned, so it never shadows a usable later claim. Because ``sub`` is a
+        mandatory string JWT claim, the raise below fires only for a malformed
+        token that provides none of the five as a string.
         """
-        if "preferred_username" in data:
-            return data["preferred_username"]
-        if "upn" in data:
-            return data["upn"]
+        for claim in ("preferred_username", "upn", "azp", "appid", "sub"):
+            value = data.get(claim)
+            if isinstance(value, str):
+                return value
+        logger.debug(
+            f"No usable username claim; token claims present: {list(data.keys())}"
+        )
         raise AuthenticationError(
-            "Missing preferred_username or upn field in access token."
+            "Missing username claim in access token: expected one of "
+            "preferred_username, upn, azp, appid or sub."
         )
 
     @staticmethod
@@ -194,6 +206,10 @@ class OidcTokenParser(TokenParser):
                 if self._auth_config.client_id
                 else []
             )
+            # Entra ID emits app roles in the top-level `roles` claim instead of
+            # Keycloak's nested `resource_access.<client_id>.roles`. Merge both
+            # shapes for every issuer, preserving order and dropping duplicates.
+            roles = list(dict.fromkeys(roles + self._extract_claim(data, "roles")))
             groups = self._extract_claim(data, "groups")
 
             logger.info(

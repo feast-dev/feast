@@ -453,6 +453,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.prepare_for_apply(self, project, allow_cache=True)
         now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
@@ -1305,11 +1306,19 @@ class Registry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
+        return proto_registry_utils.list_saved_datasets(
+            registry_proto,
+            project,
+            tags,
+            namespace=namespace,
+            collection=collection,
+        )
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)
