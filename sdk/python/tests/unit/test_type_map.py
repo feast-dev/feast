@@ -541,6 +541,11 @@ class TestMapArrowTypeSupport:
         assert pg_type_to_feast_value_type("json[]") == ValueType.MAP_LIST
         assert pg_type_to_feast_value_type("jsonb[]") == ValueType.MAP_LIST
 
+    def test_pg_type_to_feast_value_type_real(self):
+        """Postgres real is single-precision (float4), so it maps to FLOAT, not DOUBLE."""
+        assert pg_type_to_feast_value_type("real") == ValueType.FLOAT
+        assert pg_type_to_feast_value_type("real[]") == ValueType.FLOAT_LIST
+
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""
         assert snowflake_type_to_feast_value_type("VARIANT") == ValueType.MAP
