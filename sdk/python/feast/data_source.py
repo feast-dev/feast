@@ -22,6 +22,7 @@ from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import CredentialRef
 from feast.data_format import StreamFormat
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -194,6 +195,10 @@ class DataSource(ABC):
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
+        credential_ref (optional): Reference to external credentials for this data source.
+            When set, OfflineStores resolve credentials at runtime via the registered
+            CredentialProvider instead of using ambient env vars or the global
+            offline_store config.
         created_timestamp: The time when the data source was created.
         last_updated_timestamp: The time when the data source was last updated.
     """
@@ -207,6 +212,7 @@ class DataSource(ABC):
     owner: str
     date_partition_column: str
     timestamp_field_type: str
+    credential_ref: Optional[CredentialRef]
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
@@ -222,6 +228,7 @@ class DataSource(ABC):
         owner: Optional[str] = "",
         date_partition_column: Optional[str] = None,
         timestamp_field_type: Optional[str] = None,
+        credential_ref: Optional[CredentialRef] = None,
     ):
         """
         Creates a DataSource object.
@@ -243,6 +250,8 @@ class DataSource(ABC):
             timestamp_field_type (optional): Type of the timestamp_field column.
                 Defaults to "TIMESTAMP". Set to "DATE" when the event timestamp column
                 is a DATE type, so SQL generation uses date-only comparisons.
+            credential_ref (optional): Reference to external credentials.
+                See :class:`~feast.credentials.CredentialRef`.
         """
         self.name = name
         self.timestamp_field = timestamp_field or ""
@@ -264,6 +273,7 @@ class DataSource(ABC):
             date_partition_column if date_partition_column else ""
         )
         self.timestamp_field_type = timestamp_field_type if timestamp_field_type else ""
+        self.credential_ref = credential_ref
         now = _utc_now()
         self.created_timestamp = now
         self.last_updated_timestamp = now
@@ -291,6 +301,7 @@ class DataSource(ABC):
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
+            or self.credential_ref != other.credential_ref
         ):
             return False
 
@@ -329,6 +340,9 @@ class DataSource(ABC):
             data_source_instance = cls.from_proto(data_source)
 
         data_source_instance._extract_timestamps_from_proto(data_source)
+        data_source_instance.credential_ref = CredentialRef.from_tags(
+            dict(data_source.tags)
+        )
 
         return data_source_instance
 
@@ -338,6 +352,10 @@ class DataSource(ABC):
         """
         proto = self._to_proto_impl()
         self._set_timestamps_in_proto(proto)
+
+        if self.credential_ref is not None:
+            for key, value in self.credential_ref.to_tags().items():
+                proto.tags[key] = value
 
         return proto
 

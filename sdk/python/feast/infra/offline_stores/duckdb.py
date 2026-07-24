@@ -58,15 +58,40 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
 
     assert isinstance(data_source, FileSource)
 
+    resolved_creds = data_source.resolve_credentials()
+
     if isinstance(data_source.file_format, ParquetFormat) or (
         data_source.file_format is None and data_source.path.endswith(".parquet")
     ):
+        if resolved_creds and data_source.path.startswith("s3://"):
+            storage_options = {
+                "AWS_ACCESS_KEY_ID": resolved_creds.get("AWS_ACCESS_KEY_ID", ""),
+                "AWS_SECRET_ACCESS_KEY": resolved_creds.get(
+                    "AWS_SECRET_ACCESS_KEY", ""
+                ),
+            }
+            if data_source.s3_endpoint_override:
+                storage_options["AWS_ENDPOINT_URL"] = data_source.s3_endpoint_override
+            session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+            if session_token:
+                storage_options["AWS_SESSION_TOKEN"] = session_token
+            return ibis.read_parquet(data_source.path, storage_options=storage_options)
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
+        storage_options: dict = {}
+        if resolved_creds:
+            storage_options["AWS_ACCESS_KEY_ID"] = resolved_creds.get(
+                "AWS_ACCESS_KEY_ID", ""
+            )
+            storage_options["AWS_SECRET_ACCESS_KEY"] = resolved_creds.get(
+                "AWS_SECRET_ACCESS_KEY", ""
+            )
+            session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+            if session_token:
+                storage_options["AWS_SESSION_TOKEN"] = session_token
         if data_source.s3_endpoint_override:
-            storage_options = {
-                "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
-            }
+            storage_options["AWS_ENDPOINT_URL"] = data_source.s3_endpoint_override
+        if storage_options:
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
 
