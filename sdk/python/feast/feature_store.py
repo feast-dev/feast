@@ -2323,7 +2323,7 @@ class FeatureStore:
         }
 
         for source_fv in source_fvs:
-            all_join_keys.update(source_fv.entities)
+            all_join_keys.update(source_fv.join_keys)
             if source_fv.batch_source:
                 entity_timestamp_col_names.add(source_fv.batch_source.timestamp_field)
 
@@ -2363,7 +2363,7 @@ class FeatureStore:
             job = provider.offline_store.pull_latest_from_table_or_query(
                 config=self.config,
                 data_source=source_fv.batch_source,
-                join_key_columns=source_fv.entities,
+                join_key_columns=source_fv.join_keys,
                 feature_name_columns=[f.name for f in source_fv.features],
                 timestamp_field=source_fv.batch_source.timestamp_field,
                 created_timestamp_column=getattr(
