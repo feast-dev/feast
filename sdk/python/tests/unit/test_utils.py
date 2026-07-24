@@ -372,6 +372,55 @@ class TestGetFeatureViewsToUseSharedSource:
             assert projected == ["a", "b"]
             assert {odfv.name for odfv in odfvs} == {"odfv_a", "odfv_b"}
 
+    def test_regular_fv_and_odfv_source_are_merged(self):
+        # Regression: a regular FeatureView requested alongside an ODFV that
+        # sources it must resolve to a single, merged src_fv entry. Previously
+        # the regular FV was appended but not indexed in fvs_by_projection_key,
+        # so the ODFV source appended a second partial src_fv projection and a
+        # later lookup raised "KeyError: Feature a not found in projection
+        # src_fv".
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, odfvs = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["src_fv:a", "odfv_b:b_out"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+            assert {odfv.name for odfv in odfvs} == {"odfv_b"}
+
+    def test_regular_fv_and_odfv_source_merge_order_independent(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, _ = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_b:b_out", "src_fv:a"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+
     def test_shared_source_ref_order_independent(self):
         import tempfile
 
