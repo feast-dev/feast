@@ -16,6 +16,7 @@ import json
 import os
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -54,6 +55,7 @@ class IcebergSource(DataSource):
         owner: Optional[str] = "",
         token_env_var: Optional[str] = None,
         credential_vending: bool = True,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         _name = name or f"{warehouse}.{namespace}.{table}"
         super().__init__(
@@ -64,6 +66,7 @@ class IcebergSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
         self.catalog_type = catalog_type
         self.catalog_name = catalog_name
@@ -158,6 +161,7 @@ class IcebergSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(dict(data_source.tags)),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:

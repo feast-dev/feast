@@ -27,6 +27,7 @@ from pydantic import StrictStr, field_validator
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import flags_helper
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -1586,8 +1587,28 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _get_bigquery_client(
-    project: Optional[str] = None, location: Optional[str] = None
+    project: Optional[str] = None,
+    location: Optional[str] = None,
+    data_source=None,
 ) -> bigquery.Client:
+    override = get_connection_config_override(data_source) if data_source else None
+    if override and "service_account_json" in override:
+        from google.oauth2 import service_account
+
+        try:
+            sa_info = json.loads(override["service_account_json"])
+        except json.JSONDecodeError as exc:
+            raise FeastProviderLoginError(
+                "The 'service_account_json' credential resolved from "
+                f"ConnectionRef is not valid JSON: {exc}"
+            )
+        credentials = service_account.Credentials.from_service_account_info(sa_info)
+        return bigquery.Client(
+            project=override.get("project", project),
+            location=location,
+            credentials=credentials,
+            client_info=get_http_client_info(),
+        )
     try:
         client = bigquery.Client(
             project=project, location=location, client_info=get_http_client_info()

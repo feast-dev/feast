@@ -56,6 +56,7 @@ except ImportError:
 
 from pydantic import StrictStr
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import (
     DataSourceNoNameException,
@@ -133,6 +134,7 @@ class MongoDBSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         if name is None:
             raise DataSourceNoNameException()
@@ -144,6 +146,7 @@ class MongoDBSource(DataSource):
             description=description,
             tags=tags or {},
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     @property
@@ -159,14 +162,16 @@ class MongoDBSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> "MongoDBSource":
         assert data_source.HasField("custom_options")
+        tags = dict(data_source.tags)
         return MongoDBSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             field_mapping=dict(data_source.field_mapping),
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
