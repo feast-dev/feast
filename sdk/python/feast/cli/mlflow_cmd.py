@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 
 import click
 
@@ -170,7 +171,7 @@ def export_traces_cmd(
     label_view: str,
     label_fields: str,
     label_join_key: str,
-    label_source: str,
+    label_source: Literal["historical", "online"],
 ):
     """Export fine-tuning JSONL from MLflow traces with labels."""
     _require_mlflow()
