@@ -79,6 +79,7 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=mlflow.opendatahub.io,resources=mlflows,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -272,6 +273,15 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		})
 		bldr = bldr.Owns(sm)
 	}
+	if services.HasMlflowCRD() {
+		mlflow := &unstructured.Unstructured{}
+		mlflow.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "mlflow.opendatahub.io",
+			Version: "v1",
+			Kind:    "MLflow",
+		})
+		bldr = bldr.Watches(mlflow, handler.EnqueueRequestsFromMapFunc(r.mapMlflowToFeastRequests))
+	}
 
 	return bldr.Complete(r)
 
@@ -289,6 +299,24 @@ func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, c
 	}
 
 	return feast.RemoveFromNamespaceRegistry()
+}
+
+// mapMlflowToFeastRequests re-queues every FeatureStore when the cluster MLflow
+// CR changes so auto-discovery can pick up a newly Ready (or removed) instance.
+func (r *FeatureStoreReconciler) mapMlflowToFeastRequests(ctx context.Context, _ client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+	var feastList feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &feastList, client.InNamespace("")); err != nil {
+		logger.Error(err, "could not list FeatureStores for MLflow watch")
+		return nil
+	}
+	requests := make([]reconcile.Request, 0, len(feastList.Items))
+	for _, obj := range feastList.Items {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&obj),
+		})
+	}
+	return requests
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

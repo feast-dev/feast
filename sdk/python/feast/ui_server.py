@@ -904,7 +904,7 @@ def get_app(
             import mlflow
 
             tracking_uri = mlflow_cfg.get_tracking_uri()
-            mlflow_ui_base = tracking_uri or mlflow.get_tracking_uri() or ""
+            mlflow_ui_base = mlflow_cfg.get_ui_url() or mlflow.get_tracking_uri() or ""
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
 
             project_name = store.config.project
@@ -1111,7 +1111,7 @@ def get_app(
             import mlflow
 
             tracking_uri = mlflow_cfg.get_tracking_uri()
-            mlflow_ui_base = tracking_uri or mlflow.get_tracking_uri() or ""
+            mlflow_ui_base = mlflow_cfg.get_ui_url() or mlflow.get_tracking_uri() or ""
             client = mlflow.MlflowClient(tracking_uri=tracking_uri)
             project_name = store.config.project
 

@@ -316,6 +316,7 @@ type RepoConfig struct {
 	FeatureServer                 *FeatureServerYamlConfig         `yaml:"feature_server,omitempty"`
 	Materialization               *MaterializationYamlConfig       `yaml:"materialization,omitempty"`
 	OpenLineage                   *OpenLineageYamlConfig           `yaml:"openlineage,omitempty"`
+	Mlflow                        *MlflowYamlConfig                `yaml:"mlflow,omitempty"`
 	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"data_quality_monitoring,omitempty"`
 }
 
@@ -378,6 +379,21 @@ type OpenLineageConsumerYamlConfig struct {
 	ConnectionString *string           `yaml:"connection_string,omitempty"`
 	ApiKey           *string           `yaml:"api_key,omitempty"`
 	NamespaceMapping map[string]string `yaml:"namespace_mapping,omitempty"`
+}
+
+// MlflowYamlConfig maps to the mlflow section of feature_store.yaml.
+// ExtraConfig is merged inline so additional key-value pairs appear at the same
+// YAML level as the typed fields.
+type MlflowYamlConfig struct {
+	Enabled             bool                   `yaml:"enabled"`
+	TrackingUri         *string                `yaml:"tracking_uri,omitempty"`
+	UiUrl               *string                `yaml:"ui_url,omitempty"`
+	AutoLog             *bool                  `yaml:"auto_log,omitempty"`
+	AutoLogEntityDf     *bool                  `yaml:"auto_log_entity_df,omitempty"`
+	EntityDfMaxRows     *int32                 `yaml:"entity_df_max_rows,omitempty"`
+	LogOperations       *bool                  `yaml:"log_operations,omitempty"`
+	OpsExperimentSuffix *string                `yaml:"ops_experiment_suffix,omitempty"`
+	ExtraConfig         map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.

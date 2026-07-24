@@ -834,6 +834,60 @@ spec:
                     minimum: 1
                     type: integer
                 type: object
+              mlflow:
+                description: |-
+                  Mlflow enables MLflow experiment tracking integration for Feast.
+                  Written into feature_store.
+                properties:
+                  autoLog:
+                    description: |-
+                      Automatically log feature metadata on every retrieval inside an active MLflow run.
+                      Defaults to true when enabled.
+                    type: boolean
+                  autoLogEntityDf:
+                    description: |-
+                      Save entity DataFrame as MLflow artifact on historical retrieval.
+                      Defaults to false.
+                    type: boolean
+                  enabled:
+                    description: Enable MLflow integration.
+                    type: boolean
+                  entityDfMaxRows:
+                    description: |-
+                      Maximum number of entity DataFrame rows to save as an MLflow artifact.
+                      DataFrames exceeding this limit are skipped.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  extraConfig:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      ExtraConfig holds additional MLflow key-value settings written inline into
+                      the mlflow block of feature_store.yaml.
+                    type: object
+                  logOperations:
+                    description: |-
+                      Log feast apply and materialize operations to a separate MLflow experiment.
+                      Defaults to false.
+                    type: boolean
+                  opsExperimentSuffix:
+                    description: |-
+                      Suffix appended to the project name for the operations experiment.
+                      Defaults to "-feast-ops".
+                    type: string
+                  trackingUri:
+                    description: |-
+                      MLflow tracking server URI. When omitted, the operator auto-discovers
+                      from the cluster MLflow CR (status.address.url).
+                    type: string
+                  uiUrl:
+                    description: Browser-reachable MLflow UI URL used for hyperlinks
+                      in Feast UI lineage.
+                    type: string
+                required:
+                - enabled
+                type: object
               openlineage:
                 description: |-
                   OpenLineage enables OpenLineage data lineage tracking for Feast operations.
@@ -7122,6 +7176,60 @@ spec:
                         format: int32
                         minimum: 1
                         type: integer
+                    type: object
+                  mlflow:
+                    description: |-
+                      Mlflow enables MLflow experiment tracking integration for Feast.
+                      Written into feature_store.
+                    properties:
+                      autoLog:
+                        description: |-
+                          Automatically log feature metadata on every retrieval inside an active MLflow run.
+                          Defaults to true when enabled.
+                        type: boolean
+                      autoLogEntityDf:
+                        description: |-
+                          Save entity DataFrame as MLflow artifact on historical retrieval.
+                          Defaults to false.
+                        type: boolean
+                      enabled:
+                        description: Enable MLflow integration.
+                        type: boolean
+                      entityDfMaxRows:
+                        description: |-
+                          Maximum number of entity DataFrame rows to save as an MLflow artifact.
+                          DataFrames exceeding this limit are skipped.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      extraConfig:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          ExtraConfig holds additional MLflow key-value settings written inline into
+                          the mlflow block of feature_store.yaml.
+                        type: object
+                      logOperations:
+                        description: |-
+                          Log feast apply and materialize operations to a separate MLflow experiment.
+                          Defaults to false.
+                        type: boolean
+                      opsExperimentSuffix:
+                        description: |-
+                          Suffix appended to the project name for the operations experiment.
+                          Defaults to "-feast-ops".
+                        type: string
+                      trackingUri:
+                        description: |-
+                          MLflow tracking server URI. When omitted, the operator auto-discovers
+                          from the cluster MLflow CR (status.address.url).
+                        type: string
+                      uiUrl:
+                        description: Browser-reachable MLflow UI URL used for hyperlinks
+                          in Feast UI lineage.
+                        type: string
+                    required:
+                    - enabled
                     type: object
                   openlineage:
                     description: |-
