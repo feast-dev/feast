@@ -1434,6 +1434,16 @@ class FeatureStore:
         # the desired repo state.
         registry_diff = diff_between(self.registry, self.project, desired_repo_contents)
 
+        # Surface version pin conflicts at plan time so users see the error before
+        # running feast apply.  Applies to all feature view types that support versioning.
+        all_fvs = (
+            list(desired_repo_contents.feature_views)
+            + list(desired_repo_contents.stream_feature_views)
+            + list(desired_repo_contents.on_demand_feature_views)
+        )
+        for fv in all_fvs:
+            self.registry.check_version_pin_conflict(fv, self.project)
+
         if progress_ctx:
             progress_ctx.update_phase_progress("Computing infrastructure diff")
 
