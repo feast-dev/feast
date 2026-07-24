@@ -19,8 +19,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -34,17 +38,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -102,7 +111,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var featureStoreMetrics bool
-	var tlsOpts []func(*tls.Config)
+	tlsOpts := make([]func(*tls.Config), 0, 2)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -131,38 +140,42 @@ func main() {
 	}
 
 	tlsProfileFetched := false
-	tlsProfile, err := tlspkg.FetchAPIServerTLSProfile(context.Background(), bootstrapClient)
+	profileCtx, cancelProfile := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelProfile()
+	tlsProfile, err := tlspkg.FetchAPIServerTLSProfile(profileCtx, bootstrapClient)
 	if err != nil {
 		switch {
 		case apimeta.IsNoMatchError(err):
-			setupLog.Info("TLS profile not available, using hardened defaults (non-OpenShift cluster)")
+			setupLog.Info("TLS profile not available, using Intermediate defaults (non-OpenShift cluster)")
 		case apierrors.IsNotFound(err):
-			setupLog.Info("APIServer resource not found, using hardened defaults")
+			setupLog.Info("APIServer resource not found, using Intermediate defaults")
+		case apierrors.IsServiceUnavailable(err),
+			apierrors.IsTimeout(err),
+			apierrors.IsServerTimeout(err),
+			apierrors.IsTooManyRequests(err),
+			errors.Is(err, context.DeadlineExceeded):
+			setupLog.Info("Transient API error reading TLS profile, using Intermediate defaults", "error", err)
+			tlsProfileFetched = true
 		default:
 			setupLog.Error(err, "unable to read APIServer TLS profile, refusing to start with unknown TLS posture")
 			os.Exit(1)
 		}
+		tlsProfile = *configv1.TLSProfiles[configv1.TLSProfileIntermediateType]
 	} else {
 		tlsProfileFetched = true
-		tlsConfigFn, unsupported := tlspkg.NewTLSConfigFromProfile(tlsProfile)
-		if len(unsupported) > 0 {
-			setupLog.Info("TLS profile contains ciphers unsupported by Go", "unsupported", unsupported)
-		}
-		tlsOpts = append(tlsOpts, tlsConfigFn)
 	}
+	tlsConfigFn, unsupported := tlspkg.NewTLSConfigFromProfile(tlsProfile)
+	if len(unsupported) > 0 {
+		setupLog.Info("TLS profile contains ciphers unsupported by Go", "unsupported", unsupported)
+	}
+	tlsOpts = append(tlsOpts, tlsConfigFn)
 
 	tlsAdherenceFetched := false
-	tlsAdherence, err := tlspkg.FetchAPIServerTLSAdherencePolicy(context.Background(), bootstrapClient)
+	adherenceCtx, cancelAdherence := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelAdherence()
+	tlsAdherence, err := tlspkg.FetchAPIServerTLSAdherencePolicy(adherenceCtx, bootstrapClient)
 	if err != nil {
-		switch {
-		case apimeta.IsNoMatchError(err):
-			setupLog.Info("TLS adherence policy not available (non-OpenShift cluster)")
-		case apierrors.IsNotFound(err):
-			setupLog.Info("APIServer resource not found, skipping adherence policy")
-		default:
-			setupLog.Error(err, "unable to read APIServer TLS adherence policy, refusing to start")
-			os.Exit(1)
-		}
+		setupLog.Info("unable to fetch TLS adherence policy, watcher will retry", "error", err)
 	} else {
 		tlsAdherenceFetched = true
 	}
@@ -265,6 +278,43 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "FeatureStore")
 		os.Exit(1)
 	}
+
+	// Setup Notebook ConfigMap controller for OpenDataHub integration
+	// Default to kubeflow.org/v1 Notebook CRD (used by OpenDataHub)
+	notebookGVK := schema.GroupVersionKind{
+		Group:   "kubeflow.org",
+		Version: "v1",
+		Kind:    "Notebook",
+	}
+	// Validate Notebook CRD availability and skip controller setup if CRD is missing
+	crdExists, err := validateNotebookCRD(context.Background(), mgr.GetConfig(), notebookGVK)
+	if err != nil {
+		setupLog.Error(err, "Notebook CRD validation failed for feast specific configmap", "GVK", notebookGVK)
+		if !crdExists {
+			setupLog.Info("Skipping Notebook ConfigMap controller setup - Notebook CRD not found")
+		} else {
+			setupLog.Info("Notebook ConfigMap controller will be set up anyway (could not verify CRD)")
+		}
+	}
+	if crdExists {
+		if err = setupNotebookController(mgr, notebookGVK); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "NotebookConfigMap")
+			os.Exit(1)
+		}
+	} else {
+		// CRD not found at startup (not an error, just not installed yet).
+		// During DSC deployment the Notebook CRD may be installed after the Feast
+		// operator starts. Poll in the background and trigger a process restart
+		// when the CRD appears so the controller can register during normal startup.
+		// Dynamic controller registration on a running manager is not supported by
+		// controller-runtime v0.18 (cache sync fails for late-added informers).
+		setupLog.Info("Notebook CRD not found at startup, will poll for CRD availability", "GVK", notebookGVK)
+		if addErr := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+			return waitForCRDAndRestart(ctx, mgr.GetConfig(), notebookGVK)
+		})); addErr != nil {
+			setupLog.Error(addErr, "Failed to add CRD watcher runnable")
+		}
+	}
 	// +kubebuilder:scaffold:builder
 
 	// Register SecurityProfileWatcher to restart on TLS profile changes
@@ -306,5 +356,94 @@ func main() {
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+}
+
+// validateNotebookCRD checks if the Notebook CRD exists in the cluster
+// Returns (crdExists bool, error) where crdExists is true if CRD exists, false if not found or unknown
+func validateNotebookCRD(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind) (bool, error) {
+	apiextensionsClientset, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		return false, fmt.Errorf("failed to create apiextensions client: %w", err)
+	}
+
+	// Construct CRD name from GVK (format: plural.group)
+	// For kubeflow.org/v1 Notebook, the CRD name is "notebooks.kubeflow.org"
+	// Simple heuristic: convert Kind to lowercase and add 's' for plural
+	plural := strings.ToLower(gvk.Kind) + "s"
+	crdName := plural + "." + gvk.Group
+
+	_, err = apiextensionsClientset.ApiextensionsV1().CustomResourceDefinitions().Get(
+		ctx,
+		crdName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Not an error: integration is optional and controller setup will be skipped.
+			setupLog.Info(
+				"Notebook CRD not found; skipping Notebook ConfigMap controller setup",
+				"GVK", gvk,
+				"expectedCRD", crdName,
+			)
+			return false, nil
+		}
+		if apierrors.IsForbidden(err) {
+			// Can't verify - assume it might exist and let controller try
+			setupLog.Info(
+				"Unable to validate Notebook CRD (insufficient permissions), will attempt setup",
+				"CRD", crdName,
+				"GVK", gvk,
+			)
+			return true, nil // Return true to allow controller setup
+		}
+		return false, fmt.Errorf("failed to check Notebook CRD availability: %w", err)
+	}
+
+	setupLog.Info("Notebook CRD validated successfully", "CRD", crdName, "GVK", gvk)
+	return true, nil
+}
+
+const crdPollInterval = 5 * time.Second
+
+func setupNotebookController(mgr ctrl.Manager, notebookGVK schema.GroupVersionKind) error {
+	if err := (&controller.NotebookConfigMapReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		NotebookGVK: notebookGVK,
+	}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+	setupLog.Info("Notebook ConfigMap controller setup completed successfully")
+	return nil
+}
+
+// waitForCRDAndRestart polls for the Notebook CRD and exits the process when
+// it becomes available. Kubernetes will restart the pod, and on the next startup
+// the controller registers normally via the standard code path. This avoids
+// dynamically adding controllers to a running manager, which causes cache sync
+// failures in controller-runtime v0.18.
+func waitForCRDAndRestart(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind) error {
+	ticker := time.NewTicker(crdPollInterval)
+	defer ticker.Stop()
+
+	setupLog.Info("Waiting for Notebook CRD to become available...", "GVK", gvk)
+
+	for {
+		select {
+		case <-ctx.Done():
+			setupLog.Info("Context cancelled, stopping CRD watch", "GVK", gvk)
+			return nil
+		case <-ticker.C:
+			crdExists, err := validateNotebookCRD(ctx, config, gvk)
+			if err != nil {
+				setupLog.Error(err, "Failed to check Notebook CRD availability, will retry")
+				continue
+			}
+			if crdExists {
+				setupLog.Info("Notebook CRD detected, restarting operator to initialize Notebook ConfigMap controller", "GVK", gvk)
+				os.Exit(0)
+			}
+		}
 	}
 }
