@@ -11,6 +11,7 @@ from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import CredentialRef
 from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -49,6 +50,7 @@ class FileSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
+        credential_ref: Optional[CredentialRef] = None,
     ):
         """
         Creates a FileSource object.
@@ -70,6 +72,8 @@ class FileSource(DataSource):
                 maintainer.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
+            credential_ref (optional): Reference to external credentials (K8s Secret,
+                Vault path, etc.) for authenticating to the storage backend.
 
         Examples:
             >>> from feast import FileSource
@@ -89,6 +93,7 @@ class FileSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            credential_ref=credential_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -124,6 +129,7 @@ class FileSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+        tags = dict(data_source.tags)
         return FileSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -133,8 +139,9 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            credential_ref=CredentialRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -259,15 +266,44 @@ class FileSource(DataSource):
 
     @staticmethod
     def create_filesystem_and_path(
-        path: str, s3_endpoint_override: str
+        path: str,
+        s3_endpoint_override: str,
+        resolved_credentials: Optional[Dict[str, str]] = None,
     ) -> Tuple[Optional[FileSystem], str]:
         if path.startswith("s3://"):
-            s3fs = S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
-            )
+            kwargs: Dict[str, Optional[str]] = {}
+            if s3_endpoint_override:
+                kwargs["endpoint_override"] = s3_endpoint_override
+
+            if resolved_credentials:
+                access_key = resolved_credentials.get("AWS_ACCESS_KEY_ID", "")
+                secret_key = resolved_credentials.get("AWS_SECRET_ACCESS_KEY", "")
+                session_token = resolved_credentials.get("AWS_SESSION_TOKEN")
+                region = resolved_credentials.get("AWS_DEFAULT_REGION")
+                if access_key and secret_key:
+                    kwargs["access_key"] = access_key
+                    kwargs["secret_key"] = secret_key
+                if session_token:
+                    kwargs["session_token"] = session_token
+                if region:
+                    kwargs["region"] = region
+
+            s3fs = S3FileSystem(**kwargs)
             return s3fs, path.replace("s3://", "")
         else:
             return None, path
+
+    def resolve_credentials(self) -> Optional[Dict[str, str]]:
+        """Resolve credentials from the ``credential_ref`` if set.
+
+        Returns ``None`` when no ``credential_ref`` is configured (ambient
+        credentials are used instead).
+        """
+        if self.credential_ref is None:
+            return None
+        from feast.credentials import resolve_credentials
+
+        return resolve_credentials(self.credential_ref)
 
     def get_table_query_string(self) -> str:
         raise NotImplementedError

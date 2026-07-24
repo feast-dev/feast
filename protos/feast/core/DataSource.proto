@@ -28,8 +28,24 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
 
+// Reference to an external credential store for a DataSource.
+// Allows DataSources to resolve credentials at runtime from K8s Secrets,
+// HashiCorp Vault, cloud secret managers, or environment variables — instead
+// of embedding them in feature_store.yaml or relying on ambient env vars.
+message CredentialRef {
+  // Provider type: "kubernetes", "vault", "aws-secrets-manager",
+  // "gcp-secret-manager", "azure-key-vault", "env".
+  string provider = 1;
+
+  // Provider-specific name: K8s Secret name, Vault path, env var prefix, etc.
+  string name = 2;
+
+  // Optional scope qualifier: K8s namespace, Vault mount, AWS region, etc.
+  string namespace = 3;
+}
+
 // Defines a Data Source that can be used source Feature data
-// Next available id: 29
+// Next available id: 30
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
@@ -94,6 +110,12 @@ message DataSource {
 
   // Optional batch source for streaming sources for historical features and materialization.
   DataSource batch_source = 26;
+
+  // Optional reference to external credentials for this data source.
+  // When set, OfflineStores resolve credentials at runtime via the
+  // registered CredentialProvider instead of using ambient env vars
+  // or the global offline_store config in feature_store.yaml.
+  CredentialRef credential_ref = 29;
 
   SourceMeta meta = 50;
 

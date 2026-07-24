@@ -640,7 +640,9 @@ class DaskOfflineStore(OfflineStore):
             uri=data_source.file_options.uri,
         )
         filesystem, path = FileSource.create_filesystem_and_path(
-            str(absolute_path), data_source.file_options.s3_endpoint_override
+            str(absolute_path),
+            data_source.file_options.s3_endpoint_override,
+            resolved_credentials=data_source.resolve_credentials(),
         )
         try:
             t = pq.read_table(path, filesystem=filesystem, columns=[timestamp_field])
@@ -761,7 +763,9 @@ def _dask_read_batch_arrow(
         uri=data_source.file_options.uri,
     )
     filesystem, path = FileSource.create_filesystem_and_path(
-        str(absolute_path), data_source.file_options.s3_endpoint_override
+        str(absolute_path),
+        data_source.file_options.s3_endpoint_override,
+        resolved_credentials=data_source.resolve_credentials(),
     )
     return pq.read_table(path, filesystem=filesystem)
 
@@ -982,15 +986,30 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _read_datasource(data_source, repo_path) -> dd.DataFrame:
-    storage_options = (
-        {
+    storage_options: Optional[dict] = None
+    resolved_creds = (
+        data_source.resolve_credentials()
+        if hasattr(data_source, "resolve_credentials")
+        else None
+    )
+
+    if resolved_creds:
+        storage_options = {
+            "key": resolved_creds.get("AWS_ACCESS_KEY_ID", ""),
+            "secret": resolved_creds.get("AWS_SECRET_ACCESS_KEY", ""),
+        }
+        endpoint = data_source.file_options.s3_endpoint_override
+        if endpoint:
+            storage_options["client_kwargs"] = {"endpoint_url": endpoint}
+        session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+        if session_token:
+            storage_options["token"] = session_token
+    elif data_source.file_options.s3_endpoint_override:
+        storage_options = {
             "client_kwargs": {
                 "endpoint_url": data_source.file_options.s3_endpoint_override
             }
         }
-        if data_source.file_options.s3_endpoint_override
-        else None
-    )
 
     path = FileSource.get_uri_for_file_path(
         repo_path=repo_path,
