@@ -65,6 +65,55 @@ def shared_sqlite_db_path():
     yield path
 
 
+def test_read_path_normalizes_bare_postgresql_scheme(caplog):
+    """A bare `postgresql://` read_path is rewritten to the psycopg3 driver, the
+    same way `path` is, and logs a migration warning. Without this, read_path
+    silently falls back to psycopg2 while path uses psycopg3."""
+    with caplog.at_level(logging.WARNING):
+        config = SqlRegistryConfig(
+            registry_type="sql",
+            path="postgresql://localhost:5432/db",
+            read_path="postgresql://localhost:5432/replica",
+        )
+    assert config.path == "postgresql+psycopg://localhost:5432/db"
+    assert config.read_path == "postgresql+psycopg://localhost:5432/replica"
+    # The migration warning names the read_path field specifically.
+    assert "`read_path` of the `RegistryConfig`" in caplog.text
+
+
+def test_read_path_normalized_when_registry_type_defaulted():
+    """read_path normalization must still fire when registry_type is left to its
+    default ('sql') rather than passed explicitly — the common real-world config."""
+    config = SqlRegistryConfig(
+        path="postgresql://localhost/db",
+        read_path="postgresql://localhost/replica",
+    )
+    assert config.registry_type == "sql"
+    assert config.read_path == "postgresql+psycopg://localhost/replica"
+
+
+@pytest.mark.parametrize(
+    "read_path",
+    [
+        "postgresql+psycopg2://localhost/replica",  # explicit psycopg2 preserved
+        "postgresql+psycopg://localhost/replica",  # already psycopg3
+        "mysql://localhost/replica",  # non-postgres left untouched
+    ],
+)
+def test_read_path_leaves_explicit_scheme_untouched(read_path):
+    config = SqlRegistryConfig(
+        registry_type="sql",
+        path="sqlite:///unused.db",
+        read_path=read_path,
+    )
+    assert config.read_path == read_path
+
+
+def test_read_path_none_stays_none():
+    config = SqlRegistryConfig(registry_type="sql", path="sqlite:///unused.db")
+    assert config.read_path is None
+
+
 def test_proto_columns_use_longblob_on_mysql():
     """On MySQL and MariaDB, serialized-proto columns must compile to LONGBLOB.
 
