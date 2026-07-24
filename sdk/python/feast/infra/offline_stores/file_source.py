@@ -11,6 +11,7 @@ from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -49,6 +50,7 @@ class FileSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a FileSource object.
@@ -70,6 +72,8 @@ class FileSource(DataSource):
                 maintainer.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
+            connection_ref (optional): Connection reference (K8s Secret, Vault path, etc.)
+                with optional connection_type, auth_type, and non-sensitive params.
 
         Examples:
             >>> from feast import FileSource
@@ -89,6 +93,7 @@ class FileSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -124,6 +129,7 @@ class FileSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+        tags = dict(data_source.tags)
         return FileSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -133,8 +139,9 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -259,12 +266,29 @@ class FileSource(DataSource):
 
     @staticmethod
     def create_filesystem_and_path(
-        path: str, s3_endpoint_override: str
+        path: str,
+        s3_endpoint_override: str,
+        resolved_credentials: Optional[Dict[str, str]] = None,
     ) -> Tuple[Optional[FileSystem], str]:
         if path.startswith("s3://"):
-            s3fs = S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
-            )
+            kwargs: Dict[str, Optional[str]] = {}
+            if s3_endpoint_override:
+                kwargs["endpoint_override"] = s3_endpoint_override
+
+            if resolved_credentials:
+                access_key = resolved_credentials.get("AWS_ACCESS_KEY_ID", "")
+                secret_key = resolved_credentials.get("AWS_SECRET_ACCESS_KEY", "")
+                session_token = resolved_credentials.get("AWS_SESSION_TOKEN")
+                region = resolved_credentials.get("AWS_DEFAULT_REGION")
+                if access_key and secret_key:
+                    kwargs["access_key"] = access_key
+                    kwargs["secret_key"] = secret_key
+                if session_token:
+                    kwargs["session_token"] = session_token
+                if region:
+                    kwargs["region"] = region
+
+            s3fs = S3FileSystem(**kwargs)
             return s3fs, path.replace("s3://", "")
         else:
             return None, path

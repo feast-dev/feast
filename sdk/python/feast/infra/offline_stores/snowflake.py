@@ -28,6 +28,7 @@ import pyarrow
 from pydantic import ConfigDict, Field, StrictStr
 
 from feast import OnDemandFeatureView
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -87,6 +88,31 @@ if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+def _get_snowflake_conn(config: "RepoConfig", data_source=None):
+    """Get a Snowflake connection, optionally overriding config from data source's connection_ref."""
+    override = get_connection_config_override(data_source) if data_source else None
+    if override:
+        from feast.infra.utils.snowflake.snowflake_utils import GetSnowflakeConnection
+
+        patched_config = config.offline_store.model_copy()
+        if "account" in override:
+            patched_config.account = override["account"]
+        if "user" in override or "username" in override:
+            patched_config.user = override.get("user") or override.get("username")
+        if "password" in override:
+            patched_config.password = override["password"]
+        if "database" in override:
+            patched_config.database = override["database"]
+        if "warehouse" in override:
+            patched_config.warehouse = override["warehouse"]
+        if "role" in override:
+            patched_config.role = override["role"]
+        if "schema" in override:
+            patched_config.schema_ = override["schema"]
+        return GetSnowflakeConnection(patched_config)
+    return GetSnowflakeConnection(config.offline_store)
 
 
 class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
