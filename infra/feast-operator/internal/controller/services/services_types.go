@@ -40,6 +40,14 @@ const (
 	NamespaceRegistryDataKey       = "namespaces"
 	DefaultKubernetesNamespace     = "feast-operator-system"
 
+	// ProtectedProjectAnnotation is the annotation key on a FeatureStore CR
+	// that marks its project as protected. Protected projects are excluded
+	// from project listings and shielded from teardown by other instances.
+	// When this annotation is "true", the operator sets FEAST_PROTECTED_PROJECT=true
+	// on the server pods, which causes the server to tag the project in the
+	// shared registry on startup.
+	ProtectedProjectAnnotation = "feast.dev/protected-project"
+
 	HttpPort              = 80
 	HttpsPort             = 443
 	HttpScheme            = "http"
