@@ -55,6 +55,7 @@ if typing.TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
+    from feast.feature_view_projection import FeatureViewProjection
     from feast.infra.registry.base_registry import BaseRegistry
     from feast.on_demand_feature_view import OnDemandFeatureView
 
@@ -1193,6 +1194,19 @@ def _list_feature_views(
     return feature_views
 
 
+def _merge_projection_features(
+    target: "FeatureViewProjection",
+    other: "FeatureViewProjection",
+) -> None:
+    existing_names = {feature.name for feature in target.features}
+    merged = list(target.features)
+    for feature in other.features:
+        if feature.name not in existing_names:
+            existing_names.add(feature.name)
+            merged.append(feature)
+    target.features = merged
+
+
 def _get_feature_views_to_use(
     registry: "BaseRegistry",
     project,
@@ -1223,6 +1237,25 @@ def _get_feature_views_to_use(
         feature_views = parsed  # type: ignore[assignment]
 
     fvs_to_use, od_fvs_to_use = [], []
+    fvs_by_projection_key: Dict[str, "FeatureView"] = {}
+
+    def _append_or_merge_source_fv(fv_with_projection: "FeatureView") -> None:
+        # Index every (source) feature view by its effective projection key so
+        # that a regular FeatureView and an ODFV source projection resolving to
+        # the same key are merged into a single entry instead of duplicated.
+        # Without this, requesting ["src_fv:a", "odfv_b:b_out"] where odfv_b
+        # sources src_fv appends two src_fv entries and later raises
+        # "KeyError: Feature a not found in projection src_fv".
+        projection_key = fv_with_projection.projection.name_to_use()
+        existing = fvs_by_projection_key.get(projection_key)
+        if existing is None:
+            fvs_by_projection_key[projection_key] = fv_with_projection
+            fvs_to_use.append(fv_with_projection)
+        else:
+            _merge_projection_features(
+                existing.projection, fv_with_projection.projection
+            )
+
     for name, version_num, projection in feature_views:
         if version_num is not None:
             if not getattr(registry, "enable_online_versioning", False):
@@ -1286,10 +1319,8 @@ def _get_feature_views_to_use(
                     source_fv.entities = []  # type: ignore[attr-defined]
                     source_fv.entity_columns = []  # type: ignore[attr-defined]
 
-                if source_fv not in fvs_to_use:
-                    fvs_to_use.append(
-                        source_fv.with_projection(copy.copy(source_projection))
-                    )
+                new_source_fv = source_fv.with_projection(copy.copy(source_projection))
+                _append_or_merge_source_fv(new_source_fv)
         else:
             if (
                 hide_dummy_entity
@@ -1302,7 +1333,7 @@ def _get_feature_views_to_use(
                 fv = fv.with_projection(copy.copy(projection))
                 if version_num is not None:
                     fv.projection.version_tag = version_num
-            fvs_to_use.append(fv)
+            _append_or_merge_source_fv(fv)  # type: ignore[arg-type]
 
     return (fvs_to_use, od_fvs_to_use)
 
