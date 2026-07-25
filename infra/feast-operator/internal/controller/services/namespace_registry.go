@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -38,13 +39,7 @@ type NamespaceRegistryData struct {
 
 // deployNamespaceRegistry creates and manages the namespace registry ConfigMap
 func (feast *FeastServices) deployNamespaceRegistry() error {
-	// Check if we can determine the target namespace before creating any resources
-	targetNamespace, err := feast.getNamespaceRegistryNamespace()
-	if err != nil {
-		logger := log.FromContext(feast.Handler.Context)
-		logger.V(1).Info("Skipping namespace registry deployment: unable to determine target namespace", "error", err)
-		return nil // Return nil to avoid failing the entire deployment
-	}
+	targetNamespace := feast.getNamespaceRegistryNamespace()
 
 	logger := log.FromContext(feast.Handler.Context)
 	logger.V(1).Info("Deploying namespace registry", "targetNamespace", targetNamespace)
@@ -209,37 +204,42 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 }
 
 // getNamespaceRegistryNamespace determines the target namespace for the namespace registry ConfigMap
-func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
-	// Check if we're running on OpenShift
+func (feast *FeastServices) getNamespaceRegistryNamespace() string {
 	logger := log.FromContext(feast.Handler.Context)
-	if isOpenShift {
-		// TODO: Add support for reading DSCi configuration
-		if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			if ns := string(data); len(ns) > 0 {
-				logger.V(1).Info("Using OpenShift namespace", "namespace", ns)
-				return ns, nil
-			}
-		}
-		// This is what notebook controller team is doing, we are following them
-		// They are not defaulting to redhat-ods-applications namespace
-		return "", fmt.Errorf("unable to determine the namespace")
+
+	// 1) Explicit override via environment variable (useful in tests or custom setups)
+	if envNs := os.Getenv("FEAST_OPERATOR_NAMESPACE"); envNs != "" {
+		logger.V(1).Info("Using operator namespace from FEAST_OPERATOR_NAMESPACE env var", "namespace", envNs)
+		return envNs
 	}
 
-	return DefaultKubernetesNamespace, nil
+	// 2) Namespace from ServiceAccount token file (standard in Kubernetes/OpenShift)
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); ns != "" {
+			logger.V(1).Info("Using operator namespace from serviceaccount namespace file", "namespace", ns)
+			return ns
+		}
+	}
+
+	// 3) Common Downward API env var, if configured
+	if podNs := os.Getenv("POD_NAMESPACE"); podNs != "" {
+		logger.V(1).Info("Using operator namespace from POD_NAMESPACE env var", "namespace", podNs)
+		return podNs
+	}
+
+	// 4) Fallback for environments without SA mounting (e.g., unit tests)
+	logger.V(1).Info("Falling back to DefaultKubernetesNamespace", "namespace", DefaultKubernetesNamespace)
+	return DefaultKubernetesNamespace
 }
 
 // AddToNamespaceRegistry adds a feature store instance to the namespace registry
 func (feast *FeastServices) AddToNamespaceRegistry() error {
 	logger := log.FromContext(feast.Handler.Context)
-	targetNamespace, err := feast.getNamespaceRegistryNamespace()
-	if err != nil {
-		logger.V(1).Info("Skipping namespace registry addition: unable to determine target namespace", "error", err)
-		return nil // Return nil to avoid failing the entire operation
-	}
+	targetNamespace := feast.getNamespaceRegistryNamespace()
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+	err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
@@ -319,15 +319,11 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	logger := log.FromContext(feast.Handler.Context)
 
 	// Determine the target namespace based on platform
-	targetNamespace, err := feast.getNamespaceRegistryNamespace()
-	if err != nil {
-		logger.V(1).Info("Skipping namespace registry removal: unable to determine target namespace", "error", err)
-		return nil // Return nil to avoid failing the entire operation
-	}
+	targetNamespace := feast.getNamespaceRegistryNamespace()
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
+	err := feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
