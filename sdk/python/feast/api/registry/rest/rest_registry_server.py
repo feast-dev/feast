@@ -327,6 +327,10 @@ class RestRegistryServer:
     ):
         import uvicorn
 
+        from feast.registry_server import _sync_protected_project_tag
+
+        _sync_protected_project_tag(self.store)
+
         if tls_key_path and tls_cert_path:
             logger.info("Starting REST registry server in TLS(SSL) mode")
             logger.info(f"REST registry server listening on https://localhost:{port}")
