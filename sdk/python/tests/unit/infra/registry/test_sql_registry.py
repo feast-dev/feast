@@ -114,6 +114,23 @@ def test_read_path_none_stays_none():
     assert config.read_path is None
 
 
+@pytest.mark.parametrize("field_name", ["path", "read_path"])
+def test_postgres_normalization_only_rewrites_leading_scheme(field_name):
+    raw_url = "postgresql://localhost/db?target=postgresql://replica"
+    config_values = {
+        "registry_type": "sql",
+        "path": "sqlite:///unused.db",
+    }
+    config_values[field_name] = raw_url
+
+    config = SqlRegistryConfig(**config_values)
+
+    assert (
+        getattr(config, field_name)
+        == "postgresql+psycopg://localhost/db?target=postgresql://replica"
+    )
+
+
 def test_proto_columns_use_longblob_on_mysql():
     """On MySQL and MariaDB, serialized-proto columns must compile to LONGBLOB.
 
