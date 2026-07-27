@@ -1779,3 +1779,24 @@ def _get_feature_view_vector_field_metadata(
     if not vector_fields:
         return None
     return vector_fields[0]
+
+
+def _distance_to_score(distance: float, metric: Optional[str] = None) -> float:
+    """Convert a raw distance value into a higher-is-better relevance score.
+
+    OpenAI clients treat ``score`` as higher-is-better (used with
+    ``score_threshold``).  Online stores return raw *distance* values where
+    lower is better, so a metric-aware conversion is required.
+
+    * **L2 / euclidean**: ``1 / (1 + distance)`` — maps [0, inf) to (0, 1]
+    * **cosine** (pgvector ``<=>`` returns ``1 - cosine_similarity``):
+      ``1 - distance`` — recovers cosine similarity, clamped >= 0
+    * **inner_product / ip / dot** (pgvector ``<#>`` returns ``-dot(a, b)``):
+      ``-distance`` — recovers the raw inner product
+    """
+    m = (metric or "L2").lower()
+    if m in ("cosine",):
+        return max(0.0, 1.0 - distance)
+    if m in ("inner_product", "ip", "dot"):
+        return -distance
+    return 1.0 / (1.0 + distance)

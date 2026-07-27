@@ -111,6 +111,13 @@ result = store.retrieve_online_documents_v2(
 )
 ```
 
+### Metadata filtering (OpenAI-compatible)
+
+ScyllaDB supports vector similarity search, but OpenAI-style metadata filtering is **not supported yet**.
+Passing `filters` to `retrieve_online_documents_v2` or the OpenAI-compatible search endpoint raises `NotImplementedError`.
+
+For filtered vector search today, use one of the backends that implement metadata filters (for example Milvus, Elasticsearch, Postgres, SQLite, or MongoDB). See [Alpha Vector Database](../alpha-vector-database.md#supported-online-stores).
+
 ## Functionality Matrix
 
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).

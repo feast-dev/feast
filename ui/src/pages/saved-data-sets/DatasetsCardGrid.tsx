@@ -11,6 +11,7 @@ import {
   EuiToolTip,
   EuiIcon,
   EuiCopy,
+  EuiLink,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -103,6 +104,9 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
   const tags = spec.tags || {};
   const featureServiceName =
     spec.featureServiceName || spec.feature_service_name;
+  const namespace = spec.namespace || "";
+  const collection = spec.collection || "";
+  const description = spec.description || "";
   const createdTimestamp = meta.createdTimestamp || meta.created_timestamp;
   const storagePath = extractStoragePath(dataset);
   const storageType = detectStorageType(dataset);
@@ -169,6 +173,32 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
           </EuiFlexItem>
         </EuiFlexGroup>
 
+        {/* Description */}
+        {description && (
+          <EuiText size="xs" color="subdued" style={{ marginTop: 4 }}>
+            <p style={{ margin: 0, lineHeight: 1.4 }}>{description}</p>
+          </EuiText>
+        )}
+
+        {/* Namespace / Collection badges */}
+        {(namespace || collection) && (
+          <>
+            <EuiSpacer size="s" />
+            <EuiFlexGroup gutterSize="xs" responsive={false} wrap>
+              {namespace && (
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="primary">{namespace}</EuiBadge>
+                </EuiFlexItem>
+              )}
+              {collection && (
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="accent">{collection}</EuiBadge>
+                </EuiFlexItem>
+              )}
+            </EuiFlexGroup>
+          </>
+        )}
+
         <EuiSpacer size="m" />
 
         {/* Storage path */}
@@ -210,6 +240,28 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
               </EuiText>
               <EuiText size="s">
                 <strong>{featureServiceName}</strong>
+              </EuiText>
+            </EuiFlexItem>
+          )}
+          {spec.dataSources && spec.dataSources.length > 0 && (
+            <EuiFlexItem grow={false}>
+              <EuiText size="xs" color="subdued">
+                Source
+              </EuiText>
+              <EuiText size="s">
+                {spec.dataSources.map((dsName: string, idx: number) => (
+                  <span key={dsName}>
+                    {idx > 0 && ", "}
+                    <EuiLink
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        navigate(`/p/${datasetProject}/data-source/${dsName}`);
+                      }}
+                    >
+                      <strong>{dsName}</strong>
+                    </EuiLink>
+                  </span>
+                ))}
               </EuiText>
             </EuiFlexItem>
           )}
