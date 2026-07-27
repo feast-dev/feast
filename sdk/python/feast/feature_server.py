@@ -361,20 +361,27 @@ def _check_already_materializing(
     fv_names: List[str],
 ) -> Optional[JSONResponse]:
     """Return a 409 JSONResponse if any requested FV is already MATERIALIZING."""
+    conflicting: List[str] = []
     for fv_name in fv_names:
         try:
             fv = store.registry.get_feature_view(
                 fv_name, store.project, allow_cache=False
             )
             if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
-                return JSONResponse(
-                    status_code=409,
-                    content={
-                        "error": f"Feature view '{fv_name}' is already materializing"
-                    },
-                )
+                conflicting.append(fv_name)
         except Exception:
             pass
+    if conflicting:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": (
+                    f"Cannot start async materialization — the following feature "
+                    f"views are already in MATERIALIZING state: {conflicting}"
+                ),
+                "feature_views": conflicting,
+            },
+        )
     return None
 
 
