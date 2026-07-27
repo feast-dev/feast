@@ -18,6 +18,8 @@ import logging
 import os
 import time
 import warnings
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import (
@@ -36,6 +38,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from feast.diff.apply_progress import ApplyProgressContext
+    from feast.embedder import EmbeddingProvider
 
 import pandas as pd
 import pyarrow as pa
@@ -70,10 +73,12 @@ from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import (
     DUMMY_ENTITY,
+    DUMMY_ENTITY_ID,
     DUMMY_ENTITY_NAME,
     FeatureView,
     FeatureViewState,
 )
+from feast.filter_models import ComparisonFilter, CompoundFilter, convert_dict_to_filter
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -105,7 +110,12 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
-from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+from feast.utils import (
+    _distance_to_score,
+    _get_feature_view_vector_field_metadata,
+    _utc_now,
+)
+from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
 try:
@@ -143,6 +153,14 @@ warnings.simplefilter("once", DeprecationWarning)
 _UNSET = object()
 
 
+@dataclass
+class _MaterializationDateRange:
+    """Per-batch start dates plus shared end date for materialization watermarks."""
+
+    end_date: datetime
+    fv_start_dates: dict = field(default_factory=dict)
+
+
 class FeatureStore:
     """
     A FeatureStore object is used to define, create, and retrieve features.
@@ -160,6 +178,7 @@ class FeatureStore:
     _registry: Optional[BaseRegistry]
     _provider: Optional[Provider]
     _openlineage_emitter: Optional[Any] = None
+    _embedding_provider: Optional["EmbeddingProvider"]
     _feature_service_cache: Dict[str, List[str]]
 
     def __init__(
@@ -167,6 +186,7 @@ class FeatureStore:
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
         fs_yaml_file: Optional[Path] = None,
+        embedding_provider: Optional["EmbeddingProvider"] = None,
     ):
         """
         Creates a FeatureStore object.
@@ -176,6 +196,10 @@ class FeatureStore:
             config (optional): Configuration object used to configure the feature store.
             fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
                 At most one of 'fs_yaml_file' and 'config' can be set.
+            embedding_provider (optional): Custom embedding provider implementing
+                the :class:`~feast.embedder.EmbeddingProvider` protocol. When not
+                supplied, a :class:`~feast.embedder.SentenceTransformersEmbeddingProvider` is
+                created from ``embedding_model`` in ``feature_store.yaml``.
 
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
@@ -205,6 +229,10 @@ class FeatureStore:
         self._registry = None
         self._provider = None
         self._openlineage_emitter = None
+        self._current_project: ContextVar[Optional[str]] = ContextVar(
+            "current_project", default=None
+        )
+        self._embedding_provider = embedding_provider
 
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
@@ -370,6 +398,31 @@ class FeatureStore:
         )
 
     @property
+    def embedding_provider(self) -> "EmbeddingProvider":
+        """Return the active embedding provider, creating one from config if needed."""
+        if self._embedding_provider is None:
+            from feast.embedder import get_embedding_provider
+
+            embed_cfg = self.config.embedding_model
+            if embed_cfg is None:
+                raise ValueError(
+                    "No embedding provider set and embedding_model is not "
+                    "configured in feature_store.yaml. Either pass an "
+                    "embedding_provider to FeatureStore() or add an "
+                    "'embedding_model' section to feature_store.yaml.\n"
+                    "Example:\n"
+                    "  embedding_model:\n"
+                    "    provider: sentence_transformers\n"
+                    "    model: all-MiniLM-L6-v2"
+                )
+            self._embedding_provider = get_embedding_provider(embed_cfg)
+        return self._embedding_provider
+
+    @embedding_provider.setter
+    def embedding_provider(self, provider: "EmbeddingProvider") -> None:
+        self._embedding_provider = provider
+
+    @property
     def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
         if self._registry is None:
@@ -410,8 +463,14 @@ class FeatureStore:
 
     @property
     def project(self) -> str:
-        """Gets the project of this feature store."""
-        return self.config.project
+        """Gets the project for the current request context, falling back to the configured project."""
+        return self._current_project.get() or self.config.project
+
+    def set_current_project(self, project: Optional[str]):
+        return self._current_project.set(project)
+
+    def reset_current_project(self, token):
+        self._current_project.reset(token)
 
     @property
     def provider(self) -> Provider:
@@ -423,6 +482,163 @@ class FeatureStore:
     def _get_provider(self) -> Provider:
         # TODO: Bake self.repo_path into self.config so that we dont only have one interface to paths
         return self.provider
+
+    def _rollback_fv_states(
+        self,
+        feature_views: list,
+        previous_states: dict,
+    ) -> None:
+        """Restore feature views to their pre-materialization states."""
+        for fv in feature_views:
+            prev = previous_states.get(fv.name)
+            if (
+                hasattr(fv, "state")
+                and prev is not None
+                and prev != FeatureViewState.STATE_UNSPECIFIED
+            ):
+                fv.state = prev
+                self.registry.apply_feature_view(fv, self.project, commit=True)
+
+    def _transition_fv_to_materializing(
+        self,
+        feature_view,
+        already_transitioned: list,
+        previous_states: dict,
+    ) -> None:
+        """
+        Transition a feature view to MATERIALIZING state.
+
+        Rolls back all already-transitioned FVs if this one can't transition.
+        """
+        previous_state = getattr(feature_view, "state", None)
+        if (
+            hasattr(feature_view, "state")
+            and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
+        ):
+            if not feature_view.state.can_transition_to(FeatureViewState.MATERIALIZING):
+                self._rollback_fv_states(already_transitioned, previous_states)
+                raise ValueError(
+                    f"FeatureView {feature_view.name} cannot transition "
+                    f"from {feature_view.state.name} to MATERIALIZING."
+                )
+            feature_view.state = FeatureViewState.MATERIALIZING
+            self.registry.apply_feature_view(feature_view, self.project, commit=True)
+        previous_states[feature_view.name] = previous_state
+
+    def _submit_and_process_materialization_jobs(
+        self,
+        provider,
+        tasks: list,
+        regular_fvs: list,
+        previous_states: dict,
+        date_range: "_MaterializationDateRange",
+    ) -> None:
+        """
+        Submit all tasks to the engine in one call and process the results.
+
+        For each returned job: record watermark on success, roll back state on
+        error. If the engine itself raises, all states are rolled back.
+        """
+        from feast.infra.common.materialization_job import (
+            MaterializationJobStatus,
+        )
+
+        batch_start = time.monotonic()
+        try:
+            jobs = provider.batch_engine.materialize(self.registry, tasks)
+        except Exception:
+            self._rollback_fv_states(regular_fvs, previous_states)
+            raise
+
+        if len(jobs) != len(regular_fvs):
+            self._rollback_fv_states(regular_fvs, previous_states)
+            raise RuntimeError(
+                f"Engine returned {len(jobs)} jobs for {len(regular_fvs)} tasks"
+            )
+
+        first_error = None
+        succeeded_fvs = []
+        failed_fvs = []
+
+        for fv, job in zip(regular_fvs, jobs):
+            fv_status = job.status()
+
+            if fv_status == MaterializationJobStatus.ERROR:
+                failed_fvs.append(fv)
+                if first_error is None and job.error():
+                    first_error = job.error()
+            else:
+                succeeded_fvs.append(fv)
+
+        if failed_fvs:
+            self._rollback_fv_states(failed_fvs, previous_states)
+
+        # Engines that apply watermarks themselves (e.g. SparkApplication pod)
+        # must not get a second apply_materialization — that duplicates intervals.
+        if not getattr(provider.batch_engine, "applies_materialization", False):
+            for fv in succeeded_fvs:
+                self.registry.apply_materialization(
+                    fv,
+                    self.project,
+                    date_range.fv_start_dates[fv.name],
+                    date_range.end_date,
+                )
+
+        _tracker = _get_track_materialization()
+        if _tracker is not None:
+            elapsed = time.monotonic() - batch_start
+            for fv in succeeded_fvs:
+                _tracker(fv.name, True, elapsed)
+            for fv in failed_fvs:
+                _tracker(fv.name, False, elapsed)
+
+        if first_error:
+            raise first_error
+
+    def _materialize_fvs_batch(
+        self,
+        provider,
+        fv_with_dates: list,
+        end_date: datetime,
+        tqdm_builder,
+        disable_event_timestamp: bool = False,
+    ) -> None:
+        """Batch path: collect all FVs, submit to engine in one call.
+
+        Only used when ``provider.batch_engine.supports_batch`` is True.
+        """
+        from feast.infra.common.materialization_job import MaterializationTask
+
+        tasks: list = []
+        regular_fvs: list = []
+        previous_states: dict = {}
+        date_range = _MaterializationDateRange(end_date=end_date)
+
+        for feature_view, fv_start in fv_with_dates:
+            self._transition_fv_to_materializing(
+                feature_view, regular_fvs, previous_states
+            )
+            regular_fvs.append(feature_view)
+            date_range.fv_start_dates[feature_view.name] = fv_start
+            tasks.append(
+                MaterializationTask(
+                    project=self.project,
+                    feature_view=feature_view,
+                    start_time=fv_start,
+                    end_time=end_date,
+                    tqdm_builder=tqdm_builder,
+                    disable_event_timestamp=disable_event_timestamp,
+                )
+            )
+
+        if tasks:
+            self._submit_and_process_materialization_jobs(
+                provider,
+                tasks,
+                regular_fvs,
+                previous_states,
+                date_range,
+            )
 
     @property
     def openlineage_emitter(self) -> Optional[Any]:
@@ -1130,9 +1346,10 @@ class FeatureStore:
                         f"Enable it before materializing."
                     )
                 if hasattr(feature_view, "online") and not feature_view.online:
-                    raise ValueError(
-                        f"FeatureView {feature_view.name} is not configured to be served online."
-                    )
+                    if not getattr(feature_view, "offline", False):
+                        raise ValueError(
+                            f"FeatureView {feature_view.name} is not configured to be served online."
+                        )
                 elif (
                     hasattr(feature_view, "write_to_online_store")
                     and not feature_view.write_to_online_store
@@ -1667,6 +1884,21 @@ class FeatureStore:
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        # Prevent teardown of protected projects
+        try:
+            current = self.registry.get_project(name=self.project, allow_cache=False)
+            if current and current.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Teardown is not allowed on protected project "{self.project}". '
+                    "Protected projects are managed externally and cannot be torn down via Feast."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
+
         tables: List[BaseFeatureView] = []
         tables.extend(self.list_feature_views())
         tables.extend(self.list_label_views())
@@ -1674,7 +1906,10 @@ class FeatureStore:
         entities = self.list_entities()
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
-        self.registry.teardown()
+
+        for project in self.list_projects():
+            self.registry.delete_project(project.name)
+
         self._teardown_openlineage()
 
     def _teardown_openlineage(self):
@@ -2249,7 +2484,15 @@ class FeatureStore:
 
         _mat_start = time.monotonic()
         try:
-            # TODO paging large loads
+            provider = self._get_provider()
+            end_date_tz = utils.make_tzaware(end_date) or _utc_now()
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
+            # (feature_view, start_date) — start_date is always set before append
+            regular_fvs_with_dates: list[tuple[Any, datetime]] = []
+
             for feature_view in feature_views_to_materialize:
                 if isinstance(feature_view, OnDemandFeatureView):
                     if feature_view.write_to_online_store:
@@ -2295,78 +2538,86 @@ class FeatureStore:
                             "the start date will be set to 1 year before the current time."
                         )
                         start_date = _utc_now() - timedelta(weeks=52)
-                provider = self._get_provider()
+
+                start_date = utils.make_tzaware(start_date)
                 print(
                     f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
                     f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
                     f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
                 )
 
-                def tqdm_builder(length):
-                    return tqdm(total=length, ncols=100)
+                regular_fvs_with_dates.append((feature_view, start_date))
 
-                start_date = utils.make_tzaware(start_date)
-                end_date = utils.make_tzaware(end_date) or _utc_now()
-
-                # Transition state to MATERIALIZING before starting.
-                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
-                previous_state = getattr(feature_view, "state", None)
-                if (
-                    hasattr(feature_view, "state")
-                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
-                ):
-                    if not feature_view.state.can_transition_to(
-                        FeatureViewState.MATERIALIZING
-                    ):
-                        raise ValueError(
-                            f"FeatureView {feature_view.name} cannot transition "
-                            f"from {feature_view.state.name} to MATERIALIZING."
-                        )
-                    feature_view.state = FeatureViewState.MATERIALIZING
-                    self.registry.apply_feature_view(
-                        feature_view, self.project, commit=True
-                    )
-
-                fv_start = time.monotonic()
-                fv_success = True
-                try:
-                    provider.materialize_single_feature_view(
-                        config=self.config,
-                        feature_view=feature_view,
-                        start_date=start_date,
-                        end_date=end_date,
-                        registry=self.registry,
-                        project=self.project,
-                        tqdm_builder=tqdm_builder,
-                    )
-                except Exception:
-                    fv_success = False
-                    # Roll back state to previous value on failure.
+            # batch_engine is on PassthroughProvider (concrete); same access as
+            # _submit_and_process_materialization_jobs via untyped provider.
+            batch_engine = getattr(provider, "batch_engine", None)
+            if batch_engine and getattr(batch_engine, "supports_batch", False):
+                self._materialize_fvs_batch(
+                    provider,
+                    regular_fvs_with_dates,
+                    end_date_tz,
+                    tqdm_builder,
+                )
+            else:
+                for feature_view, start_date in regular_fvs_with_dates:
+                    # Transition state to MATERIALIZING before starting.
+                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                    previous_state = getattr(feature_view, "state", None)
                     if (
                         hasattr(feature_view, "state")
-                        and previous_state is not None
-                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                        and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
-                        feature_view.state = previous_state
+                        if not feature_view.state.can_transition_to(
+                            FeatureViewState.MATERIALIZING
+                        ):
+                            raise ValueError(
+                                f"FeatureView {feature_view.name} cannot transition "
+                                f"from {feature_view.state.name} to MATERIALIZING."
+                            )
+                        feature_view.state = FeatureViewState.MATERIALIZING
                         self.registry.apply_feature_view(
                             feature_view, self.project, commit=True
                         )
-                    raise
-                finally:
-                    _tracker = _get_track_materialization()
-                    if _tracker is not None:
-                        _tracker(
-                            feature_view.name,
-                            fv_success,
-                            time.monotonic() - fv_start,
-                        )
 
-                if not isinstance(feature_view, OnDemandFeatureView):
+                    fv_start = time.monotonic()
+                    fv_success = True
+                    try:
+                        provider.materialize_single_feature_view(
+                            config=self.config,
+                            feature_view=feature_view,
+                            start_date=start_date,
+                            end_date=end_date_tz,
+                            registry=self.registry,
+                            project=self.project,
+                            tqdm_builder=tqdm_builder,
+                        )
+                    except Exception:
+                        fv_success = False
+                        # Roll back state to previous value on failure.
+                        if (
+                            hasattr(feature_view, "state")
+                            and previous_state is not None
+                            and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                        ):
+                            feature_view.state = previous_state
+                            self.registry.apply_feature_view(
+                                feature_view, self.project, commit=True
+                            )
+                        raise
+                    finally:
+                        _tracker = _get_track_materialization()
+                        if _tracker is not None:
+                            _tracker(
+                                feature_view.name,
+                                fv_success,
+                                time.monotonic() - fv_start,
+                            )
+
                     self.registry.apply_materialization(
                         feature_view,
                         self.project,
                         start_date,
-                        end_date,
+                        end_date_tz,
                     )
 
             materialized_fv_names = [
@@ -2459,7 +2710,15 @@ class FeatureStore:
 
         _mat_start = time.monotonic()
         try:
-            # TODO paging large loads
+            provider = self._get_provider()
+            start_date = utils.make_tzaware(start_date)
+            end_date = utils.make_tzaware(end_date)
+
+            def tqdm_builder(length):
+                return tqdm(total=length, ncols=100)
+
+            regular_fvs_with_dates: list[tuple[Any, datetime]] = []
+
             for feature_view in feature_views_to_materialize:
                 if isinstance(feature_view, OnDemandFeatureView):
                     if feature_view.write_to_online_store:
@@ -2473,77 +2732,86 @@ class FeatureStore:
                             full_feature_names=full_feature_names,
                         )
                     continue
-                provider = self._get_provider()
+
                 print(
                     f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
                 )
 
-                def tqdm_builder(length):
-                    return tqdm(total=length, ncols=100)
+                regular_fvs_with_dates.append((feature_view, start_date))
 
-                start_date = utils.make_tzaware(start_date)
-                end_date = utils.make_tzaware(end_date)
-
-                # Transition state to MATERIALIZING before starting.
-                # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
-                previous_state = getattr(feature_view, "state", None)
-                if (
-                    hasattr(feature_view, "state")
-                    and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
-                ):
-                    if not feature_view.state.can_transition_to(
-                        FeatureViewState.MATERIALIZING
-                    ):
-                        raise ValueError(
-                            f"FeatureView {feature_view.name} cannot transition "
-                            f"from {feature_view.state.name} to MATERIALIZING."
-                        )
-                    feature_view.state = FeatureViewState.MATERIALIZING
-                    self.registry.apply_feature_view(
-                        feature_view, self.project, commit=True
-                    )
-
-                fv_start = time.monotonic()
-                fv_success = True
-                try:
-                    provider.materialize_single_feature_view(
-                        config=self.config,
-                        feature_view=feature_view,
-                        start_date=start_date,
-                        end_date=end_date,
-                        registry=self.registry,
-                        project=self.project,
-                        tqdm_builder=tqdm_builder,
-                        disable_event_timestamp=disable_event_timestamp,
-                    )
-                except Exception:
-                    fv_success = False
-                    # Roll back state to previous value on failure.
+            # batch_engine is on PassthroughProvider (concrete); same access as
+            # _submit_and_process_materialization_jobs via untyped provider.
+            batch_engine = getattr(provider, "batch_engine", None)
+            if batch_engine and getattr(batch_engine, "supports_batch", False):
+                self._materialize_fvs_batch(
+                    provider,
+                    regular_fvs_with_dates,
+                    end_date,
+                    tqdm_builder,
+                    disable_event_timestamp=disable_event_timestamp,
+                )
+            else:
+                for feature_view, fv_start in regular_fvs_with_dates:
+                    # Transition state to MATERIALIZING before starting.
+                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
+                    previous_state = getattr(feature_view, "state", None)
                     if (
                         hasattr(feature_view, "state")
-                        and previous_state is not None
-                        and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                        and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
-                        feature_view.state = previous_state
+                        if not feature_view.state.can_transition_to(
+                            FeatureViewState.MATERIALIZING
+                        ):
+                            raise ValueError(
+                                f"FeatureView {feature_view.name} cannot transition "
+                                f"from {feature_view.state.name} to MATERIALIZING."
+                            )
+                        feature_view.state = FeatureViewState.MATERIALIZING
                         self.registry.apply_feature_view(
                             feature_view, self.project, commit=True
                         )
-                    raise
-                finally:
-                    _tracker = _get_track_materialization()
-                    if _tracker is not None:
-                        _tracker(
-                            feature_view.name,
-                            fv_success,
-                            time.monotonic() - fv_start,
-                        )
 
-                self.registry.apply_materialization(
-                    feature_view,
-                    self.project,
-                    start_date,
-                    end_date,
-                )
+                    fv_start_time = time.monotonic()
+                    fv_success = True
+                    try:
+                        provider.materialize_single_feature_view(
+                            config=self.config,
+                            feature_view=feature_view,
+                            start_date=fv_start,
+                            end_date=end_date,
+                            registry=self.registry,
+                            project=self.project,
+                            tqdm_builder=tqdm_builder,
+                            disable_event_timestamp=disable_event_timestamp,
+                        )
+                    except Exception:
+                        fv_success = False
+                        # Roll back state to previous value on failure.
+                        if (
+                            hasattr(feature_view, "state")
+                            and previous_state is not None
+                            and previous_state != FeatureViewState.STATE_UNSPECIFIED
+                        ):
+                            feature_view.state = previous_state
+                            self.registry.apply_feature_view(
+                                feature_view, self.project, commit=True
+                            )
+                        raise
+                    finally:
+                        _tracker = _get_track_materialization()
+                        if _tracker is not None:
+                            _tracker(
+                                feature_view.name,
+                                fv_success,
+                                time.monotonic() - fv_start_time,
+                            )
+
+                    self.registry.apply_materialization(
+                        feature_view,
+                        self.project,
+                        fv_start,
+                        end_date,
+                    )
 
             materialized_fv_names = [
                 fv.name
@@ -3733,6 +4001,7 @@ class FeatureStore:
         image_weight: float = 0.5,
         combine_strategy: str = "weighted_sum",
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -3887,8 +4156,181 @@ class FeatureStore:
             top_k,
             distance_metric,
             query_string,
+            filters,
             include_feature_view_version_metadata,
         )
+
+    async def openai_search(
+        self,
+        vector_store_id: str,
+        query: Union[str, List[str]],
+        *,
+        vs_id: Optional[str] = None,
+        max_num_results: int = 10,
+        filters: Optional[
+            Union[ComparisonFilter, CompoundFilter, Dict[str, Any]]
+        ] = None,
+        ranking_options: Optional[Dict[str, Any]] = None,
+        rewrite_query: Optional[bool] = None,
+        features_to_retrieve: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        OpenAI-compatible vector store search.
+
+        Accepts a raw query string, embeds it via the configured embedding
+        provider (when ``embedding_model`` is configured in feature_store.yaml),
+        and returns results in OpenAI's ``vector_store.search_results.page``
+        format.
+
+        Args:
+            vector_store_id: Feature view name (maps to the OpenAI
+                ``vector_store_id`` path parameter).
+            query: Natural language query string, or list of strings.
+            max_num_results: Maximum number of results to return.
+            filters: OpenAI-compatible filters applied to the search.
+            ranking_options: OpenAI-compatible ranking options. Currently
+                unsupported; a ``ValueError`` is raised if
+                ``score_threshold`` or ``ranker`` are provided.
+            rewrite_query: Whether to rewrite the query. Currently
+                unsupported; ``False`` (the default/no-op) is accepted,
+                but ``True`` raises a ``ValueError``.
+            features_to_retrieve: Specific feature names to return.
+                If None, all features from the feature view are used.
+
+        Returns:
+            Dict matching the OpenAI ``vector_store.search_results.page``
+            schema.
+
+        Examples:
+            Keyword search (no embedding model configured)::
+
+                result = await store.openai_search(
+                    vector_store_id="city_embeddings",
+                    query="cities in California",
+                    max_num_results=5,
+                )
+
+            Vector search (embedding model configured in YAML)::
+
+                # feature_store.yaml has:
+                #   embedding_model:
+                #     model: text-embedding-3-small
+                result = await store.openai_search(
+                    vector_store_id="product_embeddings",
+                    query="wireless audio device",
+                    max_num_results=3,
+                    features_to_retrieve=["name", "description"],
+                )
+        """
+        unsupported: List[str] = []
+        if ranking_options:
+            if ranking_options.get("score_threshold") is not None:
+                unsupported.append("ranking_options.score_threshold")
+            if ranking_options.get("ranker") is not None:
+                unsupported.append("ranking_options.ranker")
+        if rewrite_query is True:
+            unsupported.append("rewrite_query")
+        if unsupported:
+            raise ValueError(
+                f"The following parameters are not yet supported: "
+                f"{', '.join(unsupported)}. Remove them from the request or "
+                f"wait for a future release that implements them."
+            )
+
+        feature_view = self.get_feature_view(vector_store_id)
+        display_id = vs_id or feature_view_to_vs_id(self.project, vector_store_id)
+
+        vector_field_metadata = _get_feature_view_vector_field_metadata(feature_view)
+        distance_metric: Optional[str] = None
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
+            distance_metric = vector_field_metadata.vector_search_metric
+
+        if features_to_retrieve:
+            feature_names = features_to_retrieve
+        else:
+            feature_names = [
+                f.name for f in feature_view.features if not f.vector_index
+            ]
+
+        features = [f"{feature_view.name}:{name}" for name in feature_names]
+        query_text = query if isinstance(query, str) else " ".join(query)
+
+        embeddings = await self.embedding_provider.aembed([query_text])
+        query_embedding = embeddings[0]
+
+        typed_filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+        if filters is not None:
+            if isinstance(filters, dict):
+                typed_filters = convert_dict_to_filter(filters)
+            else:
+                typed_filters = filters
+
+        response = await run_in_threadpool(
+            lambda: self.retrieve_online_documents_v2(
+                features=features,
+                query=query_embedding,
+                top_k=max_num_results,
+                filters=typed_filters,
+            )
+        )
+
+        response_dict = response.to_dict()
+
+        entity_key_names = {
+            col.name
+            for col in feature_view.entity_columns
+            if col.name != DUMMY_ENTITY_ID
+        }
+
+        result_data = []
+        if response_dict:
+            first_key = next(iter(response_dict))
+            num_rows = len(response_dict.get(first_key, []))
+            for i in range(num_rows):
+                score = 0.0
+                attributes: Dict[str, Any] = {}
+                content_parts: List[Dict[str, str]] = []
+
+                for key, values in response_dict.items():
+                    val = values[i] if i < len(values) else None
+                    if key == "distance":
+                        raw = float(val) if val is not None else 0.0
+                        score = _distance_to_score(raw, distance_metric)
+                    elif key not in entity_key_names:
+                        attributes[key] = val
+                        if isinstance(val, str):
+                            content_parts.append({"type": "text", "text": val})
+
+                if entity_key_names:
+                    key_parts = [
+                        str(response_dict[k][i])
+                        for k in sorted(entity_key_names)
+                        if k in response_dict and i < len(response_dict[k])
+                    ]
+                    file_id = f"{display_id}_{'_'.join(key_parts)}"
+                else:
+                    file_id = f"{display_id}_{i}"
+
+                result_data.append(
+                    {
+                        "file_id": file_id,
+                        "filename": display_id,
+                        "score": score,
+                        "attributes": attributes,
+                        "content": content_parts
+                        if content_parts
+                        else [{"type": "text", "text": str(attributes)}],
+                    }
+                )
+
+        search_query = query if isinstance(query, list) else [query]
+        return {
+            "object": "vector_store.search_results.page",
+            "search_query": search_query,
+            "data": result_data,
+            "has_more": False,
+            "next_page": None,
+        }
 
     def _retrieve_from_online_store(
         self,
@@ -3952,23 +4394,25 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
         """
         vector_field_metadata = _get_feature_view_vector_field_metadata(table)
-        if vector_field_metadata:
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
             distance_metric = vector_field_metadata.vector_search_metric
 
         documents = provider.retrieve_online_documents_v2(
             config=self.config,
             table=table,
             requested_features=requested_features,
-            query=query,
+            embedding=query,
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,
+            filters=filters,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
@@ -4306,6 +4750,9 @@ class FeatureStore:
         """
         Retrieves the list of projects from the registry.
 
+        Protected projects (feast.dev/protected-project=true) are automatically
+        excluded from the results.
+
         Args:
             allow_cache: Whether to allow returning projects from a cached registry.
             tags: Filter by tags.
@@ -4313,7 +4760,10 @@ class FeatureStore:
         Returns:
             A list of projects.
         """
-        return self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        projects = self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        return [p for p in projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"]
 
     def get_project(self, name: Optional[str]) -> Project:
         """
@@ -4340,11 +4790,29 @@ class FeatureStore:
 
         Raises:
             ProjectNotFoundException: The project could not be found.
+            ValueError: If the project is protected.
         """
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        try:
+            project = self.registry.get_project(name=name, allow_cache=False)
+            if project and project.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Cannot delete protected project "{name}". '
+                    "Protected projects are managed externally."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
         return self.registry.delete_project(name, commit=commit)
 
     def list_saved_datasets(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves the list of saved datasets from the registry.
@@ -4352,12 +4820,18 @@ class FeatureStore:
         Args:
             allow_cache: Whether to allow returning saved datasets from a cached registry.
             tags: Filter by tags.
+            namespace: Filter by logical namespace grouping.
+            collection: Filter by collection sub-grouping within namespace.
 
         Returns:
             A list of saved datasets.
         """
         return self.registry.list_saved_datasets(
-            self.project, allow_cache=allow_cache, tags=tags
+            self.project,
+            allow_cache=allow_cache,
+            tags=tags,
+            namespace=namespace,
+            collection=collection,
         )
 
     async def initialize(self) -> None:

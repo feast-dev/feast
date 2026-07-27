@@ -6,6 +6,136 @@ from pydantic import ValidationError
 
 from feast.feature_store import FeatureStore
 from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
+from feast.infra.mcp_servers.mcp_server import _resolve_schema_references_safe
+
+
+class TestResolveSchemaReferencesSafe(unittest.TestCase):
+    """Tests for the circular-ref-safe OpenAPI schema resolver."""
+
+    def test_simple_ref_resolution(self):
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Pet": {
+                        "type": "object",
+                        "properties": {"name": {"type": "string"}},
+                    }
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Pet"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        self.assertNotIn("$ref", result)
+        self.assertIn("name", result["properties"])
+
+    def test_circular_ref_breaks_cycle(self):
+        """Value -> Struct -> Value must not recurse infinitely."""
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Value": {
+                        "type": "object",
+                        "properties": {
+                            "struct_value": {"$ref": "#/components/schemas/Struct"},
+                        },
+                    },
+                    "Struct": {
+                        "type": "object",
+                        "properties": {
+                            "fields": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Value"
+                                },
+                            }
+                        },
+                    },
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Value"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        self.assertNotIn("$ref", result)
+        # The circular Value ref should be replaced with {"type": "object"}
+        additional = result["properties"]["struct_value"]["properties"]["fields"][
+            "additionalProperties"
+        ]
+        self.assertEqual(additional.get("type"), "object")
+        self.assertNotIn("$ref", additional)
+
+    def test_self_referential_schema(self):
+        """A schema referencing itself (e.g. a tree node)."""
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "TreeNode": {
+                        "type": "object",
+                        "properties": {
+                            "children": {
+                                "type": "array",
+                                "items": {"$ref": "#/components/schemas/TreeNode"},
+                            }
+                        },
+                    }
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/TreeNode"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        child_items = result["properties"]["children"]["items"]
+        self.assertEqual(child_items.get("type"), "object")
+        self.assertNotIn("$ref", child_items)
+
+    def test_no_ref_passthrough(self):
+        schema_part = {"type": "string", "description": "a name"}
+        result = _resolve_schema_references_safe(schema_part, {})
+        self.assertEqual(result, schema_part)
+
+    def test_unknown_ref_preserved(self):
+        schema_part = {"$ref": "#/components/schemas/Missing"}
+        reference_schema = {"components": {"schemas": {}}}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertIn("$ref", result)
+
+    def test_does_not_mutate_input(self):
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Foo": {"type": "object"},
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Foo"}
+        original_copy = schema_part.copy()
+        _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(schema_part, original_copy)
+
+
+class TestPatchFastapiMcpSchemaResolver(unittest.TestCase):
+    """Tests for the monkey-patch helper."""
+
+    @patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
+    def test_patch_replaces_function(self):
+        from feast.infra.mcp_servers.mcp_server import (
+            _patch_fastapi_mcp_schema_resolver,
+            _resolve_schema_references_safe,
+        )
+
+        try:
+            import fastapi_mcp.openapi.utils as mcp_utils
+
+            original = mcp_utils.resolve_schema_references
+            _patch_fastapi_mcp_schema_resolver()
+            self.assertIs(
+                mcp_utils.resolve_schema_references,
+                _resolve_schema_references_safe,
+            )
+            mcp_utils.resolve_schema_references = original
+        except ImportError:
+            self.skipTest("fastapi_mcp not installed")
 
 
 class TestMcpFeatureServerConfig(unittest.TestCase):
@@ -280,13 +410,13 @@ class TestRestRegistryServerMCP(unittest.TestCase):
         mock_store.registry = Mock()
         mock_store.project = "test_project"
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         server = RestRegistryServer(mock_store)
 
         mock_fast_api_mcp.assert_called_once_with(server.app, name="feast-registry-mcp")
-        mock_mcp_instance.mount.assert_called_once()
+        mock_mcp_instance.mount_sse.assert_called_once()
 
     @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
     @patch(

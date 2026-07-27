@@ -36,7 +36,7 @@ message DataSource {
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 13
+  // Next available id: 14
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -51,6 +51,7 @@ message DataSource {
     BATCH_TRINO = 10;
     BATCH_SPARK = 11;
     BATCH_ATHENA = 12;
+    BATCH_ICEBERG = 13;
   }
 
   // Unique name of data source within the project

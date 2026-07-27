@@ -1,6 +1,6 @@
 {
   "name": "@feast-dev/feast-ui",
-  "version": "0.64.0",
+  "version": "0.65.0",
   "private": false,
   "files": [
     "dist"
@@ -32,6 +32,7 @@
     "@types/styled-components": "^5.1.34",
     "dagre": "^0.8.5",
     "inter-ui": "^3.19.3",
+    "keycloak-js": "^26.2.4",
     "long": "^5.2.3",
     "moment": "^2.29.1",
     "protobufjs": "^7.1.1",

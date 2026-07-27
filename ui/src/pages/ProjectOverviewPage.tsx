@@ -31,56 +31,70 @@ const AllProjectsDashboard = () => {
   const navigate = useNavigate();
   const { data: projectsData } = useLoadProjectsList();
 
-  const { data: allFVs } = useResourceQuery<genericFVType[]>({
+  const fvQuery = useResourceQuery<genericFVType[]>({
     resourceType: "all-proj-fvs",
     restPath: "/feature_views/all?limit=100&include_relationships=true",
     restSelect: restFeatureViewsToMergedList,
   });
 
-  const { data: allEntities } = useResourceQuery<any[]>({
+  const entQuery = useResourceQuery<any[]>({
     resourceType: "all-proj-entities",
     restPath: "/entities/all?limit=100",
     restSelect: (d) => d.entities,
   });
 
-  const { data: allDS } = useResourceQuery<any[]>({
+  const dsQuery = useResourceQuery<any[]>({
     resourceType: "all-proj-ds",
     restPath: "/data_sources/all?limit=100",
     restSelect: (d) => d.dataSources,
   });
 
-  const { data: allFS } = useResourceQuery<any[]>({
+  const fsQuery = useResourceQuery<any[]>({
     resourceType: "all-proj-fs",
     restPath: "/feature_services/all?limit=100",
     restSelect: (d) => d.featureServices,
   });
 
-  const { data: allFeatures } = useResourceQuery<any[]>({
+  const featQuery = useResourceQuery<any[]>({
     resourceType: "all-proj-features",
     restPath: "/features/all?limit=100",
     restSelect: (d) => d.features,
   });
 
-  const { data: allLabelViews } = useResourceQuery<any[]>({
+  const lvQuery = useResourceQuery<any[]>({
     resourceType: "all-proj-lvs",
     restPath: "/label_views/all?limit=100&include_relationships=true",
     restSelect: restLabelViewsFromResponse,
   });
 
-  const loaded =
-    allFVs && allEntities && allDS && allFS && allFeatures && allLabelViews;
+  const settled = (q: { isSuccess: boolean; isError: boolean }) =>
+    q.isSuccess || q.isError;
+  const allSettled =
+    settled(fvQuery) &&
+    settled(entQuery) &&
+    settled(dsQuery) &&
+    settled(fsQuery) &&
+    settled(featQuery) &&
+    settled(lvQuery);
 
-  if (!loaded) {
+  if (!allSettled) {
     return <EuiSkeletonText lines={10} />;
   }
 
+  const allFVs = fvQuery.data || [];
+  const allEntities = entQuery.data || [];
+  const allDS = dsQuery.data || [];
+  const allFS = fsQuery.data || [];
+  const allFeatures = featQuery.data || [];
+  const allLabelViews = lvQuery.data || [];
+
   const totalCounts = {
-    featureViews: allFVs.length,
-    entities: allEntities.length,
-    dataSources: allDS.length,
-    featureServices: allFS.length,
-    features: allFeatures.length,
-    labelViews: allLabelViews?.length || 0,
+    featureViews: fvQuery.isPermissionDenied ? null : allFVs.length,
+    entities: entQuery.isPermissionDenied ? null : allEntities.length,
+    dataSources: dsQuery.isPermissionDenied ? null : allDS.length,
+    featureServices: fsQuery.isPermissionDenied ? null : allFS.length,
+    features: featQuery.isPermissionDenied ? null : allFeatures.length,
+    labelViews: lvQuery.isPermissionDenied ? null : allLabelViews.length,
   };
 
   const projects = projectsData?.projects.filter((p) => p.id !== "all") || [];
@@ -90,11 +104,18 @@ const AllProjectsDashboard = () => {
     return {
       ...project,
       counts: {
-        featureViews: allFVs.filter((fv) => matchesProject(fv.object || fv))
-          .length,
-        entities: allEntities.filter(matchesProject).length,
-        features: allFeatures.filter(matchesProject).length,
-        labelViews: (allLabelViews || []).filter(matchesProject).length,
+        featureViews: fvQuery.isPermissionDenied
+          ? null
+          : allFVs.filter((fv: any) => matchesProject(fv.object || fv)).length,
+        entities: entQuery.isPermissionDenied
+          ? null
+          : allEntities.filter(matchesProject).length,
+        features: featQuery.isPermissionDenied
+          ? null
+          : allFeatures.filter(matchesProject).length,
+        labelViews: lvQuery.isPermissionDenied
+          ? null
+          : allLabelViews.filter(matchesProject).length,
       },
     };
   });
@@ -122,48 +143,58 @@ const AllProjectsDashboard = () => {
           </EuiTitle>
           <EuiSpacer size="m" />
           <EuiFlexGroup>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.featureViews.toString()}
-                description="Feature Views"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.entities.toString()}
-                description="Entities"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.features.toString()}
-                description="Features"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.featureServices.toString()}
-                description="Feature Services"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                title={totalCounts.dataSources.toString()}
-                description="Data Sources"
-                titleSize="m"
-                textAlign="center"
-              />
-            </EuiFlexItem>
+            {totalCounts.featureViews != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.featureViews.toString()}
+                  description="Feature Views"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.entities != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.entities.toString()}
+                  description="Entities"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.features != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.features.toString()}
+                  description="Features"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.featureServices != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.featureServices.toString()}
+                  description="Feature Services"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
+            {totalCounts.dataSources != null && (
+              <EuiFlexItem>
+                <EuiStat
+                  title={totalCounts.dataSources.toString()}
+                  description="Data Sources"
+                  titleSize="m"
+                  textAlign="center"
+                />
+              </EuiFlexItem>
+            )}
           </EuiFlexGroup>
-          {totalCounts.labelViews > 0 && (
+          {totalCounts.labelViews != null && totalCounts.labelViews > 0 && (
             <React.Fragment>
               <EuiSpacer size="m" />
               <EuiFlexGroup>
@@ -205,44 +236,53 @@ const AllProjectsDashboard = () => {
               >
                 <EuiSpacer size="s" />
                 <EuiFlexGroup justifyContent="spaceAround" gutterSize="s">
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.featureViews}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Feature Views
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.entities}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Entities
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiText size="s" textAlign="center">
-                      <strong>{project.counts.features}</strong>
-                      <br />
-                      <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                        Features
-                      </span>
-                    </EuiText>
-                  </EuiFlexItem>
-                  {project.counts.labelViews > 0 && (
+                  {project.counts.featureViews != null && (
                     <EuiFlexItem grow={false}>
                       <EuiText size="s" textAlign="center">
-                        <strong>{project.counts.labelViews}</strong>
+                        <strong>{project.counts.featureViews}</strong>
                         <br />
                         <span style={{ fontSize: "0.85em", color: "#69707D" }}>
-                          Label Views
+                          Feature Views
                         </span>
                       </EuiText>
                     </EuiFlexItem>
                   )}
+                  {project.counts.entities != null && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.entities}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Entities
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
+                  {project.counts.features != null && (
+                    <EuiFlexItem grow={false}>
+                      <EuiText size="s" textAlign="center">
+                        <strong>{project.counts.features}</strong>
+                        <br />
+                        <span style={{ fontSize: "0.85em", color: "#69707D" }}>
+                          Features
+                        </span>
+                      </EuiText>
+                    </EuiFlexItem>
+                  )}
+                  {project.counts.labelViews != null &&
+                    project.counts.labelViews > 0 && (
+                      <EuiFlexItem grow={false}>
+                        <EuiText size="s" textAlign="center">
+                          <strong>{project.counts.labelViews}</strong>
+                          <br />
+                          <span
+                            style={{ fontSize: "0.85em", color: "#69707D" }}
+                          >
+                            Label Views
+                          </span>
+                        </EuiText>
+                      </EuiFlexItem>
+                    )}
                 </EuiFlexGroup>
               </EuiCard>
             </EuiFlexItem>

@@ -157,6 +157,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource",
     DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
     DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena_source.AthenaSource",
+    DataSourceProto.SourceType.BATCH_ICEBERG: "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",

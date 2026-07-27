@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from datetime import timezone
 from typing import Literal, Optional, Sequence, Union
@@ -7,7 +8,7 @@ import click
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import ConfigDict, Field, StrictStr, field_validator
 from tqdm import tqdm
 
 import feast
@@ -87,7 +88,40 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
+
+    python_udf_runtime_version: StrictStr = "3.10"
+    """
+    Snowflake Python UDF RUNTIME_VERSION used when Feast deploys its materialization
+    UDFs (see `snowflake_python_udfs_creation.sql`).
+
+    Snowflake periodically decommissions old Python UDF runtimes -- e.g. the 3.9
+    runtime was decommissioned, which required Feast to bump its default runtime
+    from 3.9 to 3.10 (see https://github.com/feast-dev/feast/issues/6606). Rather
+    than hardcoding a version that will eventually go stale again, this field is
+    user-configurable so you are not blocked on a new Feast release the next time
+    Snowflake deprecates a runtime.
+
+    Defaults to "3.10", matching Feast's own minimum supported Python version
+    (`requires-python` in `pyproject.toml`). If Snowflake decommissions the 3.10
+    runtime in the future, override it in your `feature_store.yaml`, e.g.:
+
+        batch_engine:
+          type: snowflake.engine
+          ...
+          python_udf_runtime_version: "3.11"
+    """
+
     model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    @field_validator("python_udf_runtime_version")
+    @classmethod
+    def validate_python_udf_runtime_version(cls, v: str) -> str:
+        if not re.fullmatch(r"\d+\.\d+(\.\d+)?", v):
+            raise ValueError(
+                "python_udf_runtime_version must be a valid Python version string "
+                f"such as '3.10' or '3.11.2', got {v!r}"
+            )
+        return v
 
 
 class SnowflakeComputeEngine(ComputeEngine):
@@ -110,25 +144,18 @@ class SnowflakeComputeEngine(ComputeEngine):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
     ):
-        stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
-        stage_path = f'{stage_context}."feast_{project}"'
+        stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
-            query = f"SHOW USER FUNCTIONS LIKE 'FEAST_{project.upper()}%' IN SCHEMA {stage_context}"
-            cursor = execute_snowflake_statement(conn, query)
-            function_list = pd.DataFrame(
-                cursor.fetchall(),
-                columns=[column.name for column in cursor.description],
-            )
-
-            # if the SHOW FUNCTIONS query returns results,
-            # assumes that the materialization functions have been deployed
-            if len(function_list.index) > 0:
-                click.echo(
-                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already detected."
-                )
-                click.echo()
-                return None
-
+            # Always (re)deploy the materialization functions, using
+            # `CREATE OR REPLACE FUNCTION` below, instead of skipping deployment
+            # when functions already exist. Previously, an early return here
+            # (triggered by a `SHOW USER FUNCTIONS` check) combined with
+            # `CREATE FUNCTION IF NOT EXISTS` in the SQL template meant that
+            # once UDFs were deployed for a project, they were never
+            # redeployed -- so a config change to `python_udf_runtime_version`
+            # (e.g. after Snowflake decommissions a runtime) would silently
+            # keep using the stale, already-deployed runtime version. See
+            # https://github.com/feast-dev/feast/pull/6608#discussion_r3602461959.
             click.echo(
                 f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
             )
@@ -151,7 +178,11 @@ class SnowflakeComputeEngine(ComputeEngine):
                 sqlCommands = sqlFile.split(";")
                 for command in sqlCommands:
                     command = command.replace("STAGE_HOLDER", f"{stage_path}")
-                    query = command.replace("PROJECT_NAME", f"{project}")
+                    command = command.replace("PROJECT_NAME", f"{project}")
+                    query = command.replace(
+                        "RUNTIME_VERSION_HOLDER",
+                        self.repo_config.batch_engine.python_udf_runtime_version,
+                    )
                     execute_snowflake_statement(conn, query)
 
         return None

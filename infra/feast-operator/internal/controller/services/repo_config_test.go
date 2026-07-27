@@ -673,6 +673,72 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.Materialization).To(BeNil())
 			Expect(repoConfig.OpenLineage).To(BeNil())
 		})
+
+		It("should inject default batch_engine.service_account when ConfigMap omits it", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Name = "spark-pg-e2e"
+			featureStore.Spec.BatchEngine = &feastdevv1.BatchEngineConfig{
+				ConfigMapRef: &corev1.LocalObjectReference{Name: "spark-pg-batch-engine"},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			extractCM := func(configMapRef string, configMapKey string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"type":  "spark_application",
+					"image": "quay.io/example/feast-spark-driver:v6",
+					// service_account intentionally omitted
+				}, nil
+			}
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, extractCM, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.BatchEngine).NotTo(BeNil())
+			Expect(repoConfig.BatchEngine.Type).To(Equal("spark_application"))
+			Expect(repoConfig.BatchEngine.Parameters["service_account"]).To(Equal("feast-spark-pg-e2e-batch-driver"))
+		})
+
+		It("should preserve explicit batch_engine.service_account from ConfigMap", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Name = "spark-pg-e2e"
+			featureStore.Spec.BatchEngine = &feastdevv1.BatchEngineConfig{
+				ConfigMapRef: &corev1.LocalObjectReference{Name: "spark-pg-batch-engine"},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			extractCM := func(configMapRef string, configMapKey string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"type":            "spark_application",
+					"service_account": "my-custom-driver",
+				}, nil
+			}
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, extractCM, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.BatchEngine.Parameters["service_account"]).To(Equal("my-custom-driver"))
+		})
+
+		It("should not inject service_account for non-spark_application batch engines", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Name = "spark-pg-e2e"
+			featureStore.Spec.BatchEngine = &feastdevv1.BatchEngineConfig{
+				ConfigMapRef: &corev1.LocalObjectReference{Name: "other-batch-engine"},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			extractCM := func(configMapRef string, configMapKey string) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"type": "spark",
+					// no service_account — must stay omitted for non-spark_application
+				}, nil
+			}
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, extractCM, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.BatchEngine).NotTo(BeNil())
+			Expect(repoConfig.BatchEngine.Type).To(Equal("spark"))
+			_, hasSA := repoConfig.BatchEngine.Parameters["service_account"]
+			Expect(hasSA).To(BeFalse())
+		})
 	})
 	It("should fail to create the repo configs", func() {
 		featureStore := minimalFeatureStore()

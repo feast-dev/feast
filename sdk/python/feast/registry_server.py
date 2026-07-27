@@ -940,6 +940,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListSavedDatasets(
         self, request: RegistryServer_pb2.ListSavedDatasetsRequest, context
     ):
+        namespace_filter = request.namespace if request.namespace else None
+        collection_filter = request.collection if request.collection else None
         paginated_saved_datasets, pagination_metadata = apply_pagination_and_sorting(
             permitted_resources(
                 resources=cast(
@@ -948,6 +950,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         project=request.project,
                         allow_cache=request.allow_cache,
                         tags=dict(request.tags),
+                        namespace=namespace_filter,
+                        collection=collection_filter,
                     ),
                 ),
                 actions=AuthzedAction.DESCRIBE,
@@ -1040,6 +1044,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         store = self.store
         job_manager = get_dataset_job_manager()
         dataset_name = request.name.strip()
+        project = request.project.strip()
 
         entity_source_type = request.entity_source_type
         entity_keys = list(request.entity_keys)
@@ -1056,49 +1061,55 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         allow_overwrite = request.allow_overwrite
 
         def _execute_create(job: DatasetJob):
-            if entity_source_type == "inline":
-                entity_df = build_entity_df_from_inline(
-                    entity_keys=entity_keys,
-                    entity_values=entity_values,
-                    start_date=start_date,
-                    end_date=end_date,
-                    extra_columns=extra_columns,
+            token = store.set_current_project(project)
+            try:
+                if entity_source_type == "inline":
+                    entity_df = build_entity_df_from_inline(
+                        entity_keys=entity_keys,
+                        entity_values=entity_values,
+                        start_date=start_date,
+                        end_date=end_date,
+                        extra_columns=extra_columns,
+                    )
+                else:
+                    entity_df = pd.read_parquet(entity_source_path)
+                    for col in ["event_timestamp", "datetime", "timestamp"]:
+                        if col in entity_df.columns:
+                            entity_df[col] = pd.to_datetime(entity_df[col])
+                            break
+                    if extra_columns:
+                        for col_line in extra_columns.strip().split("\n"):
+                            col_line = col_line.strip()
+                            if "=" in col_line:
+                                col_name, col_value = col_line.split("=", 1)
+                                col_name = col_name.strip()
+                                col_value = col_value.strip()
+                                if col_name:
+                                    entity_df[col_name] = coerce_value(col_value)
+
+                features = (
+                    store.get_feature_service(feature_service_name)
+                    if feature_service_name
+                    else features_list
                 )
-            else:
-                entity_df = pd.read_parquet(entity_source_path)
-                for col in ["event_timestamp", "datetime", "timestamp"]:
-                    if col in entity_df.columns:
-                        entity_df[col] = pd.to_datetime(entity_df[col])
-                        break
-                if extra_columns:
-                    for col_line in extra_columns.strip().split("\n"):
-                        col_line = col_line.strip()
-                        if "=" in col_line:
-                            col_name, col_value = col_line.split("=", 1)
-                            col_name = col_name.strip()
-                            col_value = col_value.strip()
-                            if col_name:
-                                entity_df[col_name] = coerce_value(col_value)
+                storage = build_saved_dataset_storage(
+                    storage_type, storage_path.strip()
+                )
 
-            features = (
-                store.get_feature_service(feature_service_name)
-                if feature_service_name
-                else features_list
-            )
-            storage = build_saved_dataset_storage(storage_type, storage_path.strip())
-
-            store.create_dataset_from_retrieval(
-                name=dataset_name,
-                entity_df=entity_df,
-                features=features,
-                storage=storage,
-                tags=tags,
-                allow_overwrite=allow_overwrite,
-            )
+                store.create_dataset_from_retrieval(
+                    name=dataset_name,
+                    entity_df=entity_df,
+                    features=features,
+                    storage=storage,
+                    tags=tags,
+                    allow_overwrite=allow_overwrite,
+                )
+            finally:
+                store.reset_current_project(token)
 
         job = job_manager.submit_job(
             name=dataset_name,
-            project=request.project.strip(),
+            project=project,
             task_fn=_execute_create,
             metadata={
                 "storage_type": storage_type,
@@ -1122,13 +1133,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         self._require_store()
 
-        dataset = self.store.registry.get_saved_dataset(
-            request.name, self.store.project
-        )
-        assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
+        project = request.project or self.store.project
+        token = self.store.set_current_project(project)
+        try:
+            dataset = self.store.registry.get_saved_dataset(
+                request.name, self.store.project
+            )
+            assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
 
-        limit = request.limit if request.limit > 0 else 10
-        df = self.store.retrieve_dataset_data(request.name, limit=limit)
+            limit = request.limit if request.limit > 0 else 10
+            df = self.store.retrieve_dataset_data(request.name, limit=limit)
+        finally:
+            self.store.reset_current_project(token)
 
         if df.empty:
             return RegistryServer_pb2.GetDatasetDataResponse(
@@ -1471,17 +1487,26 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         ).to_proto()
 
     def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
-        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
-            permitted_resources(
-                resources=cast(
-                    list[FeastObject],
-                    self.proxied_registry.list_projects(
-                        allow_cache=request.allow_cache,
-                        tags=dict(request.tags),
-                    ),
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        permitted_projects = permitted_resources(
+            resources=cast(
+                list[FeastObject],
+                self.proxied_registry.list_projects(
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 ),
-                actions=AuthzedAction.DESCRIBE,
             ),
+            actions=AuthzedAction.DESCRIBE,
+        )
+
+        # Exclude protected projects after RBAC check
+        visible_projects = [
+            p for p in permitted_projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"
+        ]
+
+        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
+            visible_projects,
             pagination=request.pagination,
             sorting=request.sorting,
         )
@@ -1708,6 +1733,57 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
 
+def _sync_protected_project_tag(store: FeatureStore):
+    """Sync the protected project tag based on FEAST_PROTECTED_PROJECT env var.
+
+    When FEAST_PROTECTED_PROJECT=true, tags the project as protected in the
+    shared registry. When the env var is absent or false, removes the tag
+    if it was previously set — allowing temporary protection that can be
+    reversed by removing the annotation from the FeatureStore CR.
+    """
+    import os
+
+    from feast.constants import FEAST_PROTECTED_PROJECT_ENV, PROTECTED_PROJECT_TAG
+
+    should_protect = os.environ.get(FEAST_PROTECTED_PROJECT_ENV, "").lower() == "true"
+
+    try:
+        existing = store.registry.get_project(name=store.project, allow_cache=False)
+    except Exception:
+        if should_protect:
+            from feast.project import Project
+
+            project = Project(
+                name=store.project,
+                tags={PROTECTED_PROJECT_TAG: "true"},
+            )
+            store.registry.apply_project(project, commit=True)
+            logger.info(
+                "Tagged project '%s' as protected (%s=true)",
+                store.project,
+                PROTECTED_PROJECT_TAG,
+            )
+        return
+
+    is_protected = existing.tags.get(PROTECTED_PROJECT_TAG) == "true"
+
+    if should_protect and not is_protected:
+        existing.tags[PROTECTED_PROJECT_TAG] = "true"
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Tagged project '%s' as protected (%s=true)",
+            store.project,
+            PROTECTED_PROJECT_TAG,
+        )
+    elif not should_protect and is_protected:
+        del existing.tags[PROTECTED_PROJECT_TAG]
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Removed protected tag from project '%s'",
+            store.project,
+        )
+
+
 def start_server(
     store: FeatureStore,
     port: int,
@@ -1715,6 +1791,8 @@ def start_server(
     tls_key_path: str = "",
     tls_cert_path: str = "",
 ):
+    _sync_protected_project_tag(store)
+
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(

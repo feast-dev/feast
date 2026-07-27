@@ -245,12 +245,19 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
 
     const st = dsData.sourceType;
     if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
-      payload.file_options = { uri: dsData.fileUri };
+      payload.file_options = {
+        uri: dsData.fileUri,
+        file_format: dsData.fileFormat || "parquet",
+        s3_endpoint_override: dsData.fileS3EndpointOverride || "",
+      };
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
       payload.bigquery_options = {
         table: dsData.bigqueryTable,
         query: dsData.bigqueryQuery,
       };
+      if (dsData.bigqueryDatePartitionColumn) {
+        payload.date_partition_column = dsData.bigqueryDatePartitionColumn;
+      }
     } else if (
       st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)
     ) {
@@ -258,22 +265,35 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
         table: dsData.snowflakeTable,
         database: dsData.snowflakeDatabase,
         schema_: dsData.snowflakeSchema,
+        query: dsData.snowflakeQuery || "",
+        warehouse: dsData.snowflakeWarehouse || "",
       };
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
       payload.redshift_options = {
         table: dsData.redshiftTable,
         database: dsData.redshiftDatabase,
         schema_: dsData.redshiftSchema,
+        query: dsData.redshiftQuery || "",
       };
     } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
       payload.kafka_options = {
         kafka_bootstrap_servers: dsData.kafkaBootstrapServers,
         topic: dsData.kafkaTopic,
+        message_format: dsData.kafkaMessageFormat || "json",
+        watermark_delay_threshold: dsData.kafkaWatermarkDelay || "",
       };
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
       payload.spark_options = {
         table: dsData.sparkTable,
         path: dsData.sparkPath,
+        query: dsData.sparkQuery || "",
+        file_format: dsData.sparkFileFormat || "",
+        table_format: dsData.sparkTableFormat || "",
+        table_format_catalog: dsData.sparkTableFormatCatalog || "",
+        table_format_namespace: dsData.sparkTableFormatNamespace || "",
+        table_format_properties: dsData.sparkTableFormatProperties || "",
+        date_partition_column: dsData.sparkDatePartitionColumn || "",
+        date_partition_column_format: dsData.sparkDatePartitionFormat || "",
       };
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
       payload.trino_options = {
@@ -287,10 +307,32 @@ const FeatureViewFormModal: React.FC<FeatureViewFormModalProps> = ({
         database: dsData.athenaDatabase,
         data_source: dsData.athenaDataSource,
       };
+      if (dsData.athenaDatePartitionColumn) {
+        payload.date_partition_column = dsData.athenaDatePartitionColumn;
+      }
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_ICEBERG)) {
+      const catalogProps = dsData.icebergCatalogProperties?.trim()
+        ? JSON.parse(dsData.icebergCatalogProperties)
+        : {};
+      payload.custom_options = {
+        configuration: JSON.stringify({
+          catalog_type: dsData.icebergCatalogType || "rest",
+          endpoint: dsData.icebergEndpoint,
+          warehouse: dsData.icebergWarehouse,
+          namespace: dsData.icebergNamespace,
+          table: dsData.icebergTable,
+          token_env_var: dsData.icebergTokenEnvVar || null,
+          credential_vending: dsData.icebergCredentialVending !== "false",
+          catalog_properties: catalogProps,
+        }),
+      };
+      payload.data_source_class_type =
+        "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource";
     } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
       payload.kinesis_options = {
         region: dsData.kinesisRegion,
         stream_name: dsData.kinesisStreamName,
+        record_format: dsData.kinesisRecordFormat || "json",
       };
     } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
       payload.custom_options = {
