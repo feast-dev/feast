@@ -404,6 +404,31 @@ def _update_fv_state(
             logger.warning(f"Failed to set state={state} for {fv_name}")
 
 
+def _reset_stuck_materializing_to_generated(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+) -> None:
+    """Reset FVs currently in MATERIALIZING to GENERATED (force override).
+
+    Leaves other states untouched so store.materialize() can transition normally.
+    """
+    stuck: List[str] = []
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
+                stuck.append(fv_name)
+        except Exception:
+            pass
+    if stuck:
+        _update_fv_state(store, stuck, FeatureViewState.GENERATED)
+        logger.info(
+            "Force reset MATERIALIZING → GENERATED for feature views: %s", stuck
+        )
+
+
 def _parse_materialize_timestamps(
     request: "MaterializeRequest",
 ) -> tuple:
@@ -902,13 +927,15 @@ def get_app(
             start_date, end_date = _parse_materialize_timestamps(request)
 
             if async_mode:
-                if not force:
+                if force:
+                    _reset_stuck_materializing_to_generated(store, fv_names)
+                else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
                         return conflict
 
-                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
-
+                # State transitions (MATERIALIZING / AVAILABLE_ONLINE) are owned
+                # by store.materialize(); server only accepts and runs in background.
                 def _run_materialize():
                     try:
                         store.materialize(
@@ -954,13 +981,14 @@ def get_app(
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
 
             if async_mode:
-                if not force:
+                if force:
+                    _reset_stuck_materializing_to_generated(store, fv_names)
+                else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
                         return conflict
 
-                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
-
+                # State transitions owned by store.materialize_incremental().
                 def _run_materialize_incremental():
                     try:
                         store.materialize_incremental(
