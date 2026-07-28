@@ -698,6 +698,8 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves a list of all saved datasets in specified project
@@ -706,6 +708,8 @@ class BaseRegistry(ABC):
             project: Feast project
             allow_cache: Whether to allow returning this dataset from a cached registry
             tags: Filter by tags
+            namespace: Filter by logical namespace grouping
+            collection: Filter by collection sub-grouping within namespace
 
         Returns:
             Returns the list of SavedDatasets

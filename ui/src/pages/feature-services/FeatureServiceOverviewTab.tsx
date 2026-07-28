@@ -39,11 +39,12 @@ const FeatureServiceOverviewTab = () => {
   const labelProjections: any[] = [];
   if (data) {
     data?.spec?.features?.forEach((featureView: any) => {
+      const columnCount = (featureView?.featureColumns || []).length;
       if (featureView.viewType === "labelView") {
-        numLabels += featureView?.featureColumns!.length;
+        numLabels += columnCount;
         labelProjections.push(featureView);
       } else {
-        numFeatures += featureView?.featureColumns!.length;
+        numFeatures += columnCount;
         featureProjections.push(featureView);
       }
     });

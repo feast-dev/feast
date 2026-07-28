@@ -16,7 +16,6 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFieldSearch,
-  EuiStat,
   EuiPanel,
   EuiSelect,
   EuiText,
@@ -32,6 +31,7 @@ import { DatasetIcon } from "../../graphics/DatasetIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import DatasetsCardGrid from "./DatasetsCardGrid";
 import DatasetsListingTable from "./DatasetsListingTable";
+import DatasetCatalogBrowser from "./DatasetCatalogBrowser";
 import DatasetsIndexEmptyState from "./DatasetsIndexEmptyState";
 import AddToCatalogModal from "./AddToCatalogModal";
 import type { RegisterDatasetPayload } from "./RegisterDatasetModal";
@@ -62,6 +62,7 @@ const SORT_OPTIONS = [
 ];
 
 const VIEW_TOGGLE_BUTTONS = [
+  { id: "catalog", label: "Catalog", iconType: "folderClosed" },
   { id: "cards", label: "Cards", iconType: "grid" },
   { id: "table", label: "Table", iconType: "list" },
 ];
@@ -84,7 +85,8 @@ const Index = () => {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_desc");
-  const [viewMode, setViewMode] = useState("cards");
+  const [viewMode, setViewMode] = useState("catalog");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -197,12 +199,18 @@ const Index = () => {
   // Compute summary stats
   const stats = useMemo(() => {
     if (!data)
-      return { total: 0, totalFeatures: 0, storageTypes: new Set<string>() };
+      return {
+        total: 0,
+        totalFeatures: 0,
+        storageTypes: new Set<string>(),
+        namespaces: [] as string[],
+      };
     const totalFeatures = data.reduce(
       (acc: number, ds: any) => acc + (ds.spec?.features?.length || 0),
       0,
     );
     const storageTypes = new Set<string>();
+    const namespacesSet = new Set<string>();
     data.forEach((ds: any) => {
       const storage = ds.spec?.storage;
       if (storage?.fileStorage) storageTypes.add("File");
@@ -213,8 +221,11 @@ const Index = () => {
       else if (storage?.trinoStorage) storageTypes.add("Trino");
       else if (storage?.athenaStorage) storageTypes.add("Athena");
       else if (storage?.customStorage) storageTypes.add("Custom");
+      const ns = ds.spec?.namespace;
+      if (ns) namespacesSet.add(ns);
     });
-    return { total: data.length, totalFeatures, storageTypes };
+    const namespaces = Array.from(namespacesSet).sort();
+    return { total: data.length, totalFeatures, storageTypes, namespaces };
   }, [data]);
 
   // Filter and sort
@@ -222,9 +233,20 @@ const Index = () => {
     if (!data) return [];
     let filtered = data;
 
+    // Namespace filter
+    if (namespaceFilter !== "all") {
+      if (namespaceFilter === "_none") {
+        filtered = filtered.filter((ds: any) => !ds.spec?.namespace);
+      } else {
+        filtered = filtered.filter(
+          (ds: any) => ds.spec?.namespace === namespaceFilter,
+        );
+      }
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = data.filter((ds: any) => {
+      filtered = filtered.filter((ds: any) => {
         const name = (ds.spec?.name || "").toLowerCase();
         const tags = JSON.stringify(ds.spec?.tags || {}).toLowerCase();
         const features = (ds.spec?.features || []).join(" ").toLowerCase();
@@ -233,11 +255,17 @@ const Index = () => {
           ds.spec?.feature_service_name ||
           ""
         ).toLowerCase();
+        const ns = (ds.spec?.namespace || "").toLowerCase();
+        const col = (ds.spec?.collection || "").toLowerCase();
+        const desc = (ds.spec?.description || "").toLowerCase();
         return (
           name.includes(q) ||
           tags.includes(q) ||
           features.includes(q) ||
-          service.includes(q)
+          service.includes(q) ||
+          ns.includes(q) ||
+          col.includes(q) ||
+          desc.includes(q)
         );
       });
     }
@@ -254,7 +282,7 @@ const Index = () => {
     });
 
     return filtered;
-  }, [data, searchQuery, sortBy]);
+  }, [data, searchQuery, sortBy, namespaceFilter]);
 
   const hasData = data && data.length > 0;
 
@@ -434,61 +462,27 @@ const Index = () => {
 
         {isSuccess && hasData && (
           <>
-            {/* Summary Stats */}
-            <EuiFlexGroup gutterSize="l">
-              <EuiFlexItem>
-                <EuiPanel hasBorder paddingSize="m">
-                  <EuiStat
-                    title={stats.total}
-                    description="Datasets"
-                    titleSize="m"
-                    reverse
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiPanel hasBorder paddingSize="m">
-                  <EuiStat
-                    title={stats.totalFeatures}
-                    description="Total Features"
-                    titleSize="m"
-                    reverse
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiPanel hasBorder paddingSize="m">
-                  <EuiStat
-                    title={stats.storageTypes.size}
-                    description="Storage Backends"
-                    titleSize="m"
-                    reverse
-                  />
-                </EuiPanel>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-
-            <EuiSpacer size="l" />
-
-            {/* Search + Sort + View Toggle */}
-            <EuiFlexGroup alignItems="center" gutterSize="m">
-              <EuiFlexItem>
-                <EuiFieldSearch
-                  placeholder="Search by name, features, tags, or service..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  isClearable
-                  fullWidth
-                />
-              </EuiFlexItem>
-              <EuiFlexItem grow={false} style={{ width: 180 }}>
-                <EuiSelect
-                  options={SORT_OPTIONS}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  compressed
-                  prepend="Sort"
-                />
+            {/* View mode toggle — always visible */}
+            <EuiFlexGroup
+              justifyContent="spaceBetween"
+              alignItems="center"
+              gutterSize="m"
+            >
+              <EuiFlexItem grow={false}>
+                <EuiFlexGroup gutterSize="l" responsive={false}>
+                  <EuiFlexItem grow={false}>
+                    <EuiText size="xs" color="subdued">
+                      <strong>{stats.total}</strong> datasets
+                      {stats.namespaces.length > 0 && (
+                        <>
+                          {" "}
+                          across <strong>{stats.namespaces.length}</strong>{" "}
+                          namespaces
+                        </>
+                      )}
+                    </EuiText>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiButtonGroup
@@ -502,25 +496,83 @@ const Index = () => {
               </EuiFlexItem>
             </EuiFlexGroup>
 
-            <EuiSpacer size="l" />
+            <EuiSpacer size="m" />
 
-            {/* Results count when searching */}
-            {searchQuery.trim() && (
+            {/* Search + Namespace Filter + Sort — shared toolbar */}
+            <EuiFlexGroup alignItems="center" gutterSize="m">
+              <EuiFlexItem>
+                <EuiFieldSearch
+                  placeholder="Search by name, description, namespace, collection, features, tags..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  isClearable
+                  fullWidth
+                />
+              </EuiFlexItem>
+              {stats.namespaces.length > 0 && (
+                <EuiFlexItem grow={false} style={{ width: 200 }}>
+                  <EuiSelect
+                    options={[
+                      { value: "all", text: "All namespaces" },
+                      { value: "_none", text: "(No namespace)" },
+                      ...stats.namespaces.map((ns: string) => ({
+                        value: ns,
+                        text: ns,
+                      })),
+                    ]}
+                    value={namespaceFilter}
+                    onChange={(e) => setNamespaceFilter(e.target.value)}
+                    compressed
+                    prepend="Namespace"
+                  />
+                </EuiFlexItem>
+              )}
+              <EuiFlexItem grow={false} style={{ width: 180 }}>
+                <EuiSelect
+                  options={SORT_OPTIONS}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  compressed
+                  prepend="Sort"
+                />
+              </EuiFlexItem>
+            </EuiFlexGroup>
+
+            <EuiSpacer size="m" />
+
+            {/* Results count when filtering */}
+            {(searchQuery.trim() || namespaceFilter !== "all") && (
               <>
                 <EuiText size="xs" color="subdued">
                   Showing {processedData.length} of {data.length} datasets
+                  {namespaceFilter !== "all" && namespaceFilter !== "_none" && (
+                    <>
+                      {" "}
+                      in namespace <strong>{namespaceFilter}</strong>
+                    </>
+                  )}
+                  {namespaceFilter === "_none" && <> with no namespace</>}
                 </EuiText>
                 <EuiSpacer size="s" />
               </>
             )}
 
-            {/* Content */}
-            {viewMode === "cards" ? (
+            {/* Catalog (hierarchical) view */}
+            {viewMode === "catalog" && (
+              <DatasetCatalogBrowser
+                datasets={processedData}
+                onDelete={(name) => setDeleteTarget(name)}
+              />
+            )}
+
+            {/* Flat views (cards / table) */}
+            {viewMode === "cards" && (
               <DatasetsCardGrid
                 datasets={processedData}
                 onDelete={(name) => setDeleteTarget(name)}
               />
-            ) : (
+            )}
+            {viewMode === "table" && (
               <DatasetsListingTable datasets={processedData} />
             )}
           </>
