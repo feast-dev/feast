@@ -1031,6 +1031,7 @@ class SqlRegistry(CachingRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.prepare_for_apply(self, project, allow_cache=True)
         return self._apply_object(
             feature_services,
             project,
@@ -1076,9 +1077,14 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_saved_datasets(
-        self, project: str, tags: Optional[dict[str, str]] = None, **kwargs
+        self,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
+        **kwargs,
     ) -> List[SavedDataset]:
-        return self._list_objects(
+        results = self._list_objects(
             saved_datasets,
             project,
             SavedDatasetProto,
@@ -1087,6 +1093,11 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
             **kwargs,
         )
+        if namespace is not None:
+            results = [sd for sd in results if sd.namespace == namespace]
+        if collection is not None:
+            results = [sd for sd in results if sd.collection == collection]
+        return results
 
     def _list_on_demand_feature_views(
         self, project: str, tags: Optional[dict[str, str]], **kwargs
@@ -1217,6 +1228,10 @@ class SqlRegistry(CachingRegistry):
             FeatureViewNotFoundException,
         )
         fv.materialization_intervals.append((start_date, end_date))
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            fv.state = FeatureViewState.AVAILABLE_ONLINE
         self._apply_object(
             table, project, "feature_view_name", fv, "feature_view_proto"
         )

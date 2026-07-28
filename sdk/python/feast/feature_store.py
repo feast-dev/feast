@@ -510,7 +510,7 @@ class FeatureStore:
 
         Rolls back all already-transitioned FVs if this one can't transition.
         """
-        previous_state = getattr(feature_view, "state", None)
+        previous_states[feature_view.name] = getattr(feature_view, "state", None)
         if (
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
@@ -523,7 +523,6 @@ class FeatureStore:
                 )
             feature_view.state = FeatureViewState.MATERIALIZING
             self.registry.apply_feature_view(feature_view, self.project, commit=True)
-        previous_states[feature_view.name] = previous_state
 
     def _submit_and_process_materialization_jobs(
         self,
@@ -1884,6 +1883,21 @@ class FeatureStore:
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        # Prevent teardown of protected projects
+        try:
+            current = self.registry.get_project(name=self.project, allow_cache=False)
+            if current and current.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Teardown is not allowed on protected project "{self.project}". '
+                    "Protected projects are managed externally and cannot be torn down via Feast."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
+
         tables: List[BaseFeatureView] = []
         tables.extend(self.list_feature_views())
         tables.extend(self.list_label_views())
@@ -1891,7 +1905,10 @@ class FeatureStore:
         entities = self.list_entities()
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
-        self.registry.teardown()
+
+        for project in self.list_projects():
+            self.registry.delete_project(project.name)
+
         self._teardown_openlineage()
 
     def _teardown_openlineage(self):
@@ -2409,6 +2426,31 @@ class FeatureStore:
         )
         self.write_to_online_store(feature_view.name, df=transformed_df)
 
+    def _get_remote_materialize_url(self) -> str:
+        """Get the feature server URL from online_store.path for remote materialization."""
+        online_cfg = self.config.online_store
+        url = getattr(online_cfg, "path", None)
+        if not url:
+            raise ValueError(
+                "online_store.path must be set to use remote materialization. "
+                "Configure online_store with type: remote and a valid path."
+            )
+        return url.rstrip("/")
+
+    def _get_remote_http_session(self):
+        """Get an HTTP session with auth configured for the feature server."""
+        import requests
+
+        auth_config = getattr(self.config, "auth_config", None)
+        if auth_config and getattr(auth_config, "type", "no_auth") != "no_auth":
+            from feast.permissions.client.http_auth_requests_wrapper import (
+                get_http_auth_requests_session,
+            )
+
+            return get_http_auth_requests_session(auth_config)
+
+        return requests.Session()
+
     def materialize_incremental(
         self,
         end_date: datetime,
@@ -2542,8 +2584,6 @@ class FeatureStore:
                 )
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
                     if (
                         hasattr(feature_view, "state")
@@ -2575,7 +2615,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -2734,8 +2773,6 @@ class FeatureStore:
                 )
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
                     if (
                         hasattr(feature_view, "state")
@@ -2768,7 +2805,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -4732,6 +4768,9 @@ class FeatureStore:
         """
         Retrieves the list of projects from the registry.
 
+        Protected projects (feast.dev/protected-project=true) are automatically
+        excluded from the results.
+
         Args:
             allow_cache: Whether to allow returning projects from a cached registry.
             tags: Filter by tags.
@@ -4739,7 +4778,10 @@ class FeatureStore:
         Returns:
             A list of projects.
         """
-        return self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        projects = self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        return [p for p in projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"]
 
     def get_project(self, name: Optional[str]) -> Project:
         """
@@ -4766,11 +4808,29 @@ class FeatureStore:
 
         Raises:
             ProjectNotFoundException: The project could not be found.
+            ValueError: If the project is protected.
         """
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        try:
+            project = self.registry.get_project(name=name, allow_cache=False)
+            if project and project.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Cannot delete protected project "{name}". '
+                    "Protected projects are managed externally."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
         return self.registry.delete_project(name, commit=commit)
 
     def list_saved_datasets(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves the list of saved datasets from the registry.
@@ -4778,12 +4838,18 @@ class FeatureStore:
         Args:
             allow_cache: Whether to allow returning saved datasets from a cached registry.
             tags: Filter by tags.
+            namespace: Filter by logical namespace grouping.
+            collection: Filter by collection sub-grouping within namespace.
 
         Returns:
             A list of saved datasets.
         """
         return self.registry.list_saved_datasets(
-            self.project, allow_cache=allow_cache, tags=tags
+            self.project,
+            allow_cache=allow_cache,
+            tags=tags,
+            namespace=namespace,
+            collection=collection,
         )
 
     async def initialize(self) -> None:

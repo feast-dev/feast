@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+import functools
 import os
 import sys
 import threading
@@ -30,6 +31,7 @@ from dateutil import parser
 from fastapi import (
     Depends,
     FastAPI,
+    Query,
     Request,
     Response,
     WebSocket,
@@ -53,6 +55,7 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_server_utils import convert_response_to_dict
+from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.permissions.action import WRITE, AuthzedAction
@@ -93,12 +96,14 @@ class MaterializeRequest(BaseModel):
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
     full_feature_names: bool = False
+    version: Optional[str] = None
 
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
     feature_views: Optional[List[str]] = None
     full_feature_names: bool = False
+    version: Optional[str] = None
 
 
 class GetOnlineFeaturesRequest(BaseModel):
@@ -330,6 +335,96 @@ async def load_static_artifacts(app: FastAPI, store):
     except Exception as e:
         # Non-fatal error - feature server should still start
         logger.warning(f"Failed to load static artifacts: {e}")
+
+
+def _authorize_materialize_views(
+    store: "feast.FeatureStore",
+    feature_view_names: Optional[List[str]],
+) -> List[str]:
+    """Resolve + authorize feature views for materialization.
+
+    Returns the resolved list of FV names (all eligible FVs when
+    feature_view_names is None).
+    """
+    feature_views_to_materialize = store._get_feature_views_to_materialize(
+        feature_view_names
+    )
+    for fv in feature_views_to_materialize:
+        assert_permissions(
+            resource=fv,
+            actions=[AuthzedAction.WRITE_ONLINE],
+        )
+    return [fv.name for fv in feature_views_to_materialize]
+
+
+def _check_already_materializing(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+) -> Optional[JSONResponse]:
+    """Return a 409 JSONResponse if any requested FV is already MATERIALIZING."""
+    conflicting: List[str] = []
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
+                conflicting.append(fv_name)
+        except Exception:
+            pass
+    if conflicting:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": (
+                    f"Cannot start async materialization — the following feature "
+                    f"views are already in MATERIALIZING state: {conflicting}. "
+                    f"Use ?force=true to override."
+                ),
+                "feature_views": conflicting,
+            },
+        )
+    return None
+
+
+def _update_fv_state(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+    state: FeatureViewState,
+) -> None:
+    """Set FV state in the registry for each named feature view."""
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            fv.state = state
+            store.registry.apply_feature_view(fv, store.project)
+        except Exception:
+            logger.warning(f"Failed to set state={state} for {fv_name}")
+
+
+def _parse_materialize_timestamps(
+    request: "MaterializeRequest",
+) -> tuple:
+    """Parse and validate start/end timestamps from a MaterializeRequest."""
+    if request.disable_event_timestamp:
+        now = datetime.now()
+        return datetime(1970, 1, 1), now
+
+    if not request.start_ts or not request.end_ts:
+        raise ValueError(
+            "start_ts and end_ts are required when disable_event_timestamp is False"
+        )
+    try:
+        start_date = utils.make_tzaware(parser.parse(request.start_ts))
+        end_date = utils.make_tzaware(parser.parse(request.end_ts))
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid timestamp format: {e}") from e
+
+    if start_date >= end_date:
+        raise ValueError(f"start_ts ({start_date}) must be before end_ts ({end_date})")
+    return start_date, end_date
 
 
 def get_app(
@@ -797,36 +892,47 @@ def get_app(
         return Response(content=content, media_type="text/html")
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
-    async def materialize(request: MaterializeRequest) -> None:
+    async def materialize(
+        request: MaterializeRequest,
+        async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
+    ):
         with feast_metrics.track_request_latency("/materialize"):
-            if request.feature_views:
-                for feature_view in request.feature_views:
-                    resource = await _get_feast_object(feature_view, True)
-                    assert_permissions(
-                        resource=resource,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
-            else:
-                feature_views_to_materialize = store._get_feature_views_to_materialize(
-                    None
-                )
-                for fv in feature_views_to_materialize:
-                    assert_permissions(
-                        resource=fv,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
+            fv_names = _authorize_materialize_views(store, request.feature_views)
+            start_date, end_date = _parse_materialize_timestamps(request)
 
-            if request.disable_event_timestamp:
-                now = datetime.now()
-                start_date = datetime(1970, 1, 1)
-                end_date = now
-            else:
-                if not request.start_ts or not request.end_ts:
-                    raise ValueError(
-                        "start_ts and end_ts are required when disable_event_timestamp is False"
-                    )
-                start_date = utils.make_tzaware(parser.parse(request.start_ts))
-                end_date = utils.make_tzaware(parser.parse(request.end_ts))
+            if async_mode:
+                if not force:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
+
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
+                def _run_materialize():
+                    try:
+                        store.materialize(
+                            start_date,
+                            end_date,
+                            fv_names,
+                            disable_event_timestamp=request.disable_event_timestamp,
+                            full_feature_names=request.full_feature_names,
+                            version=request.version,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Async materialization failed for {fv_names}: {e}",
+                            exc_info=True,
+                        )
+                        _update_fv_state(store, fv_names, FeatureViewState.GENERATED)
+
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(None, _run_materialize)
+
+                return JSONResponse(
+                    status_code=202,
+                    content={"status": "accepted", "feature_views": fv_names},
+                )
 
             await run_in_threadpool(
                 store.materialize,
@@ -838,27 +944,48 @@ def get_app(
             )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
-    async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
+    async def materialize_incremental(
+        request: MaterializeIncrementalRequest,
+        async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
+    ):
         with feast_metrics.track_request_latency("/materialize-incremental"):
-            if request.feature_views:
-                for feature_view in request.feature_views:
-                    resource = await _get_feast_object(feature_view, True)
-                    assert_permissions(
-                        resource=resource,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
-            else:
-                feature_views_to_materialize = store._get_feature_views_to_materialize(
-                    None
+            fv_names = _authorize_materialize_views(store, request.feature_views)
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
+            if async_mode:
+                if not force:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
+
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
+                def _run_materialize_incremental():
+                    try:
+                        store.materialize_incremental(
+                            end_date,
+                            fv_names,
+                            full_feature_names=request.full_feature_names,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Async materialize-incremental failed for {fv_names}: {e}",
+                            exc_info=True,
+                        )
+                        _update_fv_state(store, fv_names, FeatureViewState.GENERATED)
+
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(None, _run_materialize_incremental)
+
+                return JSONResponse(
+                    status_code=202,
+                    content={"status": "accepted", "feature_views": fv_names},
                 )
-                for fv in feature_views_to_materialize:
-                    assert_permissions(
-                        resource=fv,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
+
             await run_in_threadpool(
                 store.materialize_incremental,
-                utils.make_tzaware(parser.parse(request.end_ts)),
+                end_date,
                 request.feature_views,
                 full_feature_names=request.full_feature_names,
             )
@@ -1004,6 +1131,7 @@ if sys.platform != "win32":
                 store=store,
                 registry_ttl_sec=options["registry_ttl_sec"],
             )
+            self._store = store
             self._options = options
             self._metrics_enabled = metrics_enabled
             super().__init__()
@@ -1015,15 +1143,19 @@ if sys.platform != "win32":
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
             if self._metrics_enabled:
-                self.cfg.set("post_worker_init", _gunicorn_post_worker_init)
+                self.cfg.set(
+                    "post_worker_init",
+                    functools.partial(_gunicorn_post_worker_init, self._store),
+                )
                 self.cfg.set("child_exit", _gunicorn_child_exit)
 
         def load(self):
             return self._app
 
-    def _gunicorn_post_worker_init(worker):
-        """Start per-worker resource monitoring after Gunicorn forks."""
+    def _gunicorn_post_worker_init(store: "feast.FeatureStore", worker):
+        """Start per-worker resource and freshness monitoring after Gunicorn forks."""
         feast_metrics.init_worker_monitoring()
+        feast_metrics.init_worker_freshness_monitoring(store)
 
     def _gunicorn_child_exit(server, worker):
         """Clean up Prometheus metric files for a dead worker."""
@@ -1061,6 +1193,7 @@ def start_server(
             store,
             metrics_config=flags,
             start_resource_monitoring=not uses_gunicorn,
+            start_freshness_monitoring=not uses_gunicorn,
         )
 
     logger.debug("start_server called")
