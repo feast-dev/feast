@@ -6,10 +6,13 @@ instead of raising ``TypeError``. This exercises the shared
 object model in one place; the per-type tests for ``DataSource``, ``Entity``,
 ``LabelView``, and ``RoleBasedPolicy`` live in their own modules.
 
-The contrib offline sources (athena, couchbase, mssql, oracle, postgres, ray,
+Most contrib offline sources (athena, couchbase, mssql, oracle, postgres, ray,
 trino) and the optional-dependency transformations are intentionally omitted:
 the unit environment does not install their drivers, so they cannot be imported
-here. Their ``__eq__`` follows the identical, mechanical pattern.
+here. Their ``__eq__`` follows the identical, mechanical pattern. SparkSource
+is the exception — its module imports without pyspark, and its ``__eq__``
+accesses spark-only attributes after the shared ``DataSource`` base check, so
+it gets a dedicated cross-subclass test below.
 """
 
 from datetime import timedelta
@@ -18,8 +21,9 @@ import pytest
 
 from feast import Entity, FeatureService, FeatureView, Project
 from feast.aggregation import Aggregation
-from feast.data_format import ProtoFormat
+from feast.data_format import ParquetFormat, ProtoFormat
 from feast.data_source import KafkaSource, KinesisSource, RequestSource
+from feast.feature import Feature
 from feast.field import Field
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
@@ -33,12 +37,16 @@ from feast.permissions.policy import (
     RoleBasedPolicy,
 )
 from feast.types import Int64
+from feast.value_type import ValueType
 
 
 def _instances():
     """One instance of each importable type touched by the __eq__ sweep."""
     return {
         "Entity": Entity(name="e"),
+        "Feature": Feature(name="f", dtype=ValueType.INT64),
+        "ParquetFormat": ParquetFormat(),
+        "ProtoFormat": ProtoFormat("com.example.Msg"),
         "Project": Project(name="proj"),
         "Aggregation": Aggregation(column="c", function="sum"),
         "Permission": Permission(name="perm"),
@@ -92,3 +100,23 @@ def test_eq_cross_type_returns_false(name, obj):
     assert (obj != object()) is True
     # The isinstance guard must not break same-object equality.
     assert (obj == obj) is True
+
+
+def test_spark_source_vs_file_source_eq():
+    # Reported on #6636: swapping a FeatureView's source from FileSource to
+    # SparkSource. The two sources share the base DataSource fields, so
+    # SparkSource.__eq__ used to pass the base check and then raise
+    # AttributeError on FileSource's missing `table`. Both directions must
+    # simply compare False.
+    spark_source = pytest.importorskip(
+        "feast.infra.offline_stores.contrib.spark_offline_store.spark_source"
+    )
+    SparkSource = spark_source.SparkSource
+
+    spark = SparkSource(name="src", table="t", timestamp_field="ts")
+    file = FileSource(name="src", path="/tmp/x.parquet", timestamp_field="ts")
+
+    assert (spark == file) is False
+    assert (file == spark) is False
+    assert (spark == object()) is False
+    assert (spark == SparkSource(name="src", table="t", timestamp_field="ts")) is True
