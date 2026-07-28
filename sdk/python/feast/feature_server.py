@@ -377,7 +377,8 @@ def _check_already_materializing(
             content={
                 "error": (
                     f"Cannot start async materialization — the following feature "
-                    f"views are already in MATERIALIZING state: {conflicting}"
+                    f"views are already in MATERIALIZING state: {conflicting}. "
+                    f"Use ?force=true to override."
                 ),
                 "feature_views": conflicting,
             },
@@ -893,15 +894,17 @@ def get_app(
     async def materialize(
         request: MaterializeRequest,
         async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
     ):
         with feast_metrics.track_request_latency("/materialize"):
             fv_names = _authorize_materialize_views(store, request.feature_views)
             start_date, end_date = _parse_materialize_timestamps(request)
 
             if async_mode:
-                conflict = _check_already_materializing(store, fv_names)
-                if conflict:
-                    return conflict
+                if not force:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
 
                 _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
 
@@ -943,15 +946,17 @@ def get_app(
     async def materialize_incremental(
         request: MaterializeIncrementalRequest,
         async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
     ):
         with feast_metrics.track_request_latency("/materialize-incremental"):
             fv_names = _authorize_materialize_views(store, request.feature_views)
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
 
             if async_mode:
-                conflict = _check_already_materializing(store, fv_names)
-                if conflict:
-                    return conflict
+                if not force:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
 
                 _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
 
