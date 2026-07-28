@@ -102,8 +102,8 @@ jobs:
             push_mode: all_tags
           - component: feast-operator
             target: feast-operator
-            build_args: ""
-            push_mode: all_tags
+            build_args: DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
+            push_mode: imagetools
     env:
       REGISTRY: quay.io/feastdev-ci
     steps:
@@ -135,7 +135,7 @@ jobs:
       - name: Push image
         run: |
           if [[ "${{ matrix.push_mode }}" == "imagetools" ]]; then
-            docker buildx imagetools create -t ${REGISTRY}/feature-server:develop ${REGISTRY}/feature-server:${GITHUB_SHA}
+            docker buildx imagetools create -t ${REGISTRY}/${{ matrix.target }}:develop ${REGISTRY}/${{ matrix.target }}:${GITHUB_SHA}
           else
             docker tag ${REGISTRY}/${{ matrix.target }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.target }}:develop && docker push ${REGISTRY}/${{ matrix.target }} --all-tags
           fi

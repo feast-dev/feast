@@ -1884,6 +1884,21 @@ class FeatureStore:
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        # Prevent teardown of protected projects
+        try:
+            current = self.registry.get_project(name=self.project, allow_cache=False)
+            if current and current.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Teardown is not allowed on protected project "{self.project}". '
+                    "Protected projects are managed externally and cannot be torn down via Feast."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
+
         tables: List[BaseFeatureView] = []
         tables.extend(self.list_feature_views())
         tables.extend(self.list_label_views())
@@ -1891,7 +1906,10 @@ class FeatureStore:
         entities = self.list_entities()
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
-        self.registry.teardown()
+
+        for project in self.list_projects():
+            self.registry.delete_project(project.name)
+
         self._teardown_openlineage()
 
     def _teardown_openlineage(self):
@@ -4732,6 +4750,9 @@ class FeatureStore:
         """
         Retrieves the list of projects from the registry.
 
+        Protected projects (feast.dev/protected-project=true) are automatically
+        excluded from the results.
+
         Args:
             allow_cache: Whether to allow returning projects from a cached registry.
             tags: Filter by tags.
@@ -4739,7 +4760,10 @@ class FeatureStore:
         Returns:
             A list of projects.
         """
-        return self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        projects = self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        return [p for p in projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"]
 
     def get_project(self, name: Optional[str]) -> Project:
         """
@@ -4766,7 +4790,21 @@ class FeatureStore:
 
         Raises:
             ProjectNotFoundException: The project could not be found.
+            ValueError: If the project is protected.
         """
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        try:
+            project = self.registry.get_project(name=name, allow_cache=False)
+            if project and project.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Cannot delete protected project "{name}". '
+                    "Protected projects are managed externally."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
         return self.registry.delete_project(name, commit=commit)
 
     def list_saved_datasets(

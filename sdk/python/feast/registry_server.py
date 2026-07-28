@@ -1487,17 +1487,26 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         ).to_proto()
 
     def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
-        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
-            permitted_resources(
-                resources=cast(
-                    list[FeastObject],
-                    self.proxied_registry.list_projects(
-                        allow_cache=request.allow_cache,
-                        tags=dict(request.tags),
-                    ),
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        permitted_projects = permitted_resources(
+            resources=cast(
+                list[FeastObject],
+                self.proxied_registry.list_projects(
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 ),
-                actions=AuthzedAction.DESCRIBE,
             ),
+            actions=AuthzedAction.DESCRIBE,
+        )
+
+        # Exclude protected projects after RBAC check
+        visible_projects = [
+            p for p in permitted_projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"
+        ]
+
+        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
+            visible_projects,
             pagination=request.pagination,
             sorting=request.sorting,
         )
@@ -1724,6 +1733,57 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
 
+def _sync_protected_project_tag(store: FeatureStore):
+    """Sync the protected project tag based on FEAST_PROTECTED_PROJECT env var.
+
+    When FEAST_PROTECTED_PROJECT=true, tags the project as protected in the
+    shared registry. When the env var is absent or false, removes the tag
+    if it was previously set — allowing temporary protection that can be
+    reversed by removing the annotation from the FeatureStore CR.
+    """
+    import os
+
+    from feast.constants import FEAST_PROTECTED_PROJECT_ENV, PROTECTED_PROJECT_TAG
+
+    should_protect = os.environ.get(FEAST_PROTECTED_PROJECT_ENV, "").lower() == "true"
+
+    try:
+        existing = store.registry.get_project(name=store.project, allow_cache=False)
+    except Exception:
+        if should_protect:
+            from feast.project import Project
+
+            project = Project(
+                name=store.project,
+                tags={PROTECTED_PROJECT_TAG: "true"},
+            )
+            store.registry.apply_project(project, commit=True)
+            logger.info(
+                "Tagged project '%s' as protected (%s=true)",
+                store.project,
+                PROTECTED_PROJECT_TAG,
+            )
+        return
+
+    is_protected = existing.tags.get(PROTECTED_PROJECT_TAG) == "true"
+
+    if should_protect and not is_protected:
+        existing.tags[PROTECTED_PROJECT_TAG] = "true"
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Tagged project '%s' as protected (%s=true)",
+            store.project,
+            PROTECTED_PROJECT_TAG,
+        )
+    elif not should_protect and is_protected:
+        del existing.tags[PROTECTED_PROJECT_TAG]
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Removed protected tag from project '%s'",
+            store.project,
+        )
+
+
 def start_server(
     store: FeatureStore,
     port: int,
@@ -1731,6 +1791,8 @@ def start_server(
     tls_key_path: str = "",
     tls_cert_path: str = "",
 ):
+    _sync_protected_project_tag(store)
+
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(
