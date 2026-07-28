@@ -416,6 +416,7 @@ class FeatureView(BaseFeatureView):
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
             or self.org != other.org
+            or self.state != other.state
         ):
             return False
 
