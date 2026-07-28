@@ -2451,12 +2451,71 @@ class FeatureStore:
 
         return requests.Session()
 
+    def _is_remote_topology(self) -> bool:
+        """True when this client talks to a remote feature server for online ops."""
+        return getattr(self.config.online_store, "type", None) == "remote"
+
+    def _post_to_feature_server(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        query_params: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """POST JSON to the feature server; raise on 409 / 4xx / 5xx."""
+        url = f"{self._get_remote_materialize_url()}{endpoint}"
+        session = self._get_remote_http_session()
+        cert = getattr(self.config.online_store, "cert", "") or ""
+        verify: Any = cert if cert else True
+        try:
+            response = session.post(
+                url,
+                json=payload,
+                params=query_params or {},
+                verify=verify,
+            )
+            if response.status_code == 409:
+                try:
+                    detail = response.json()
+                    message = detail.get("error", response.text)
+                except Exception:
+                    message = response.text
+                raise RuntimeError(
+                    f"Remote materialization conflict (409): {message}"
+                ) from None
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Remote materialization failed "
+                    f"({response.status_code}): {response.text}"
+                )
+            if not response.content:
+                return {}
+            try:
+                return response.json()
+            except Exception:
+                return {"status": "accepted", "raw": response.text}
+        finally:
+            session.close()
+
+    def _delegate_remote_materialize(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        force: bool = False,
+    ) -> None:
+        """Fire-and-forget POST to feature server with ?async=true."""
+        query_params = {"async": "true"}
+        if force:
+            query_params["force"] = "true"
+        result = self._post_to_feature_server(endpoint, payload, query_params)
+        _logger.info("Remote materialization accepted (%s): %s", endpoint, result)
+
     def materialize_incremental(
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2475,6 +2534,8 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology, pass force=true to override stuck
+                MATERIALIZING state on the feature server. Ignored for local topology.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2490,6 +2551,19 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize(
+                "/materialize-incremental", payload, force=force
+            )
+            return
+
         parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views, version=parsed_version
@@ -2676,6 +2750,7 @@ class FeatureStore:
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2694,6 +2769,8 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology, pass force=true to override stuck
+                MATERIALIZING state on the feature server. Ignored for local topology.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -2708,6 +2785,19 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "start_ts": start_date.isoformat(),
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "disable_event_timestamp": disable_event_timestamp,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize("/materialize", payload, force=force)
+            return
+
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
