@@ -1,10 +1,6 @@
 import dill
 import pandas as pd
 
-from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
-)
-from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.udf_rehydrate import rehydrate_udf_from_source, resolve_udf
 
 
@@ -14,13 +10,13 @@ def _sample_udf(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-_SAMPLE_SRC = '''
+_SAMPLE_SRC = """
 def _sample_udf(df):
     import pandas as pd
     out = pd.DataFrame()
     out["doubled"] = df["x"] * 2
     return out
-'''
+"""
 
 
 def test_rehydrate_udf_from_source_prefers_named_function():
@@ -49,7 +45,7 @@ def test_resolve_udf_falls_back_to_dill_when_source_empty():
 
 
 def test_rehydrate_strips_on_demand_decorator():
-    src = '''@on_demand_feature_view(
+    src = """@on_demand_feature_view(
     sources=[feature_view_1],
     schema=[Field(name="metric_sum", dtype=Float64)],
 )
@@ -58,7 +54,7 @@ def metric_sum_odfv(inputs):
     df = pd.DataFrame()
     df["metric_sum"] = inputs["metric_a"] + inputs["metric_b"]
     return df
-'''
+"""
     fn = rehydrate_udf_from_source(src, preferred_name="metric_sum_odfv")
     assert fn is not None
     result = fn(pd.DataFrame({"metric_a": [1.0], "metric_b": [2.0]}))

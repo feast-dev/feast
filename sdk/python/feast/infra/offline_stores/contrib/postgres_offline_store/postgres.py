@@ -124,14 +124,10 @@ class PostgreSQLOfflineStore(OfflineStore):
             """
         else:
             a_field_string = ", ".join(
-                _append_alias(
-                    join_key_columns + feature_name_columns + timestamps, "a"
-                )
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
             )
             b_field_string = ", ".join(
-                _append_alias(
-                    join_key_columns + feature_name_columns + timestamps, "b"
-                )
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
             )
             query = f"""
             SELECT

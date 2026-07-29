@@ -97,9 +97,7 @@ def resolve_udf(
     preferred_name: Optional[str] = None,
 ) -> Callable:
     """Resolve a UDF: source first, then ``fallback_udf``, then dill ``body``."""
-    rehydrated = rehydrate_udf_from_source(
-        udf_string, preferred_name=preferred_name
-    )
+    rehydrated = rehydrate_udf_from_source(udf_string, preferred_name=preferred_name)
     if rehydrated is not None:
         return rehydrated
 

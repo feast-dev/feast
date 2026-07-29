@@ -38,7 +38,6 @@ from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,
     infer_entity_timestamp_column,
 )
-from feast.transformation.udf_rehydrate import resolve_udf
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
@@ -46,6 +45,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.transformation.udf_rehydrate import resolve_udf
 
 logger = logging.getLogger(__name__)
 
