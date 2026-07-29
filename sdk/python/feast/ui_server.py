@@ -62,7 +62,7 @@ def _build_projects_list(
     registry_path_template = f"{root_path}/api/v1"
 
     try:
-        projects = store.registry.list_projects(allow_cache=True)
+        projects = store.registry.list_projects(allow_cache=False)
         for proj in projects:
             discovered_projects.append(
                 {
