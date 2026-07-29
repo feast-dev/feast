@@ -36,7 +36,7 @@ dependencies = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "starlette>=1.0.1",
-    "uvicorn[standard]>=0.30.6,<=0.34.0",
+    "uvicorn[standard]>=0.30.6",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
