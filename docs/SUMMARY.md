@@ -166,6 +166,7 @@
   * [Aerospike](reference/online-stores/aerospike.md)
   * [Elasticsearch](reference/online-stores/elasticsearch.md)
   * [Qdrant](reference/online-stores/qdrant.md)
+  * [Pinecone](reference/online-stores/pinecone.md)
   * [Faiss](reference/online-stores/faiss.md)
   * [Hybrid](reference/online-stores/hybrid.md)
 * [Registries](reference/registries/README.md)

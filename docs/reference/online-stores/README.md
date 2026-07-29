@@ -90,6 +90,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [milvus.md](milvus.md)
 {% endcontent-ref %}
 
+{% content-ref url="pinecone.md" %}
+[pinecone.md](pinecone.md)
+{% endcontent-ref %}
+
 {% content-ref url="faiss.md" %}
 [faiss.md](faiss.md)
 {% endcontent-ref %}
