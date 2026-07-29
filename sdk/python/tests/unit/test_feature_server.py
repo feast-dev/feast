@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import sys
 import time
 from collections import Counter
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -749,3 +750,17 @@ def test_metadata_model_accepts_raw_proto_dict():
     )
     assert full.metadata is not None
     assert full.metadata.feature_names == ["x", "y"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Gunicorn is not used on Windows")
+def test_gunicorn_post_worker_init_starts_resource_and_freshness_monitoring():
+    from feast.feature_server import _gunicorn_post_worker_init
+
+    mock_store = MagicMock()
+    with (
+        patch("feast.feature_server.feast_metrics") as mock_fm,
+    ):
+        _gunicorn_post_worker_init(mock_store, worker=MagicMock())
+
+    mock_fm.init_worker_monitoring.assert_called_once()
+    mock_fm.init_worker_freshness_monitoring.assert_called_once_with(mock_store)

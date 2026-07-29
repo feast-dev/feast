@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+import functools
 import os
 import sys
 import threading
@@ -1004,6 +1005,7 @@ if sys.platform != "win32":
                 store=store,
                 registry_ttl_sec=options["registry_ttl_sec"],
             )
+            self._store = store
             self._options = options
             self._metrics_enabled = metrics_enabled
             super().__init__()
@@ -1015,15 +1017,19 @@ if sys.platform != "win32":
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
             if self._metrics_enabled:
-                self.cfg.set("post_worker_init", _gunicorn_post_worker_init)
+                self.cfg.set(
+                    "post_worker_init",
+                    functools.partial(_gunicorn_post_worker_init, self._store),
+                )
                 self.cfg.set("child_exit", _gunicorn_child_exit)
 
         def load(self):
             return self._app
 
-    def _gunicorn_post_worker_init(worker):
-        """Start per-worker resource monitoring after Gunicorn forks."""
+    def _gunicorn_post_worker_init(store: "feast.FeatureStore", worker):
+        """Start per-worker resource and freshness monitoring after Gunicorn forks."""
         feast_metrics.init_worker_monitoring()
+        feast_metrics.init_worker_freshness_monitoring(store)
 
     def _gunicorn_child_exit(server, worker):
         """Clean up Prometheus metric files for a dead worker."""
@@ -1061,6 +1067,7 @@ def start_server(
             store,
             metrics_config=flags,
             start_resource_monitoring=not uses_gunicorn,
+            start_freshness_monitoring=not uses_gunicorn,
         )
 
     logger.debug("start_server called")
