@@ -1,3 +1,4 @@
+import asyncio
 import os
 import random
 import time
@@ -14,10 +15,11 @@ from botocore.exceptions import BotoCoreError
 
 from feast import FeatureStore
 from feast.entity import Entity
-from feast.errors import FeatureNameCollisionError
+from feast.errors import FeatureNameCollisionError, FeatureViewNotFoundException
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.utils.postgres.postgres_config import ConnectionType
 from feast.online_response import TIMESTAMP_POSTFIX
@@ -31,6 +33,7 @@ from feast.types import (
     ValueType,
 )
 from feast.utils import _utc_now
+from feast.vector_store_utils import feature_view_to_vs_id
 from feast.wait import wait_retry_backoff
 from tests.universal.feature_repos.repo_configuration import (
     Environment,
@@ -1332,3 +1335,305 @@ def test_retrieve_online_documents_v2(environment, fake_document_data):
     assert len(no_match_results["text_field"]) == 0
     assert "text_rank" in no_match_results
     assert len(no_match_results["text_rank"]) == 0
+
+
+def _setup_documents_with_categories(fs):
+    """Shared helper that creates and populates a feature view with embeddings,
+    text, and category fields. Returns (feature_view, entity, dataframe)."""
+    n_rows = 20
+    vector_dim = 2
+    random.seed(42)
+
+    df = pd.DataFrame(
+        {
+            "item_id": list(range(n_rows)),
+            "chunk_id": list(range(n_rows)),
+            "embedding": [list(np.random.random(vector_dim)) for _ in range(n_rows)],
+            "text_field": [
+                f"Document text content {i} with searchable keywords"
+                for i in range(n_rows)
+            ],
+            "category": [f"Category-{i % 5}" for i in range(n_rows)],
+            "event_timestamp": [datetime.now() for _ in range(n_rows)],
+        }
+    )
+
+    data_source = FileSource(
+        path="dummy_path.parquet", timestamp_field="event_timestamp"
+    )
+
+    item_entity = Entity(
+        name="item_id",
+        join_keys=["item_id"],
+        value_type=ValueType.INT64,
+    )
+
+    item_embeddings_fv = FeatureView(
+        name="item_embeddings",
+        entities=[item_entity],
+        schema=[
+            Field(name="embedding", dtype=Array(Float32), vector_index=True),
+            Field(name="text_field", dtype=String),
+            Field(name="category", dtype=String),
+            Field(name="item_id", dtype=Int64),
+            Field(name="chunk_id", dtype=Int64),
+        ],
+        source=data_source,
+    )
+
+    fs.apply([item_embeddings_fv, item_entity])
+    fs.write_to_online_store("item_embeddings", df)
+    return item_embeddings_fv, item_entity, df
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+def test_retrieve_online_documents_v2_with_filters(environment, fake_document_data):
+    """Test that metadata filters narrow down vector/text search results."""
+    fs = environment.feature_store
+    fs.config.online_store.vector_enabled = True
+
+    _, _, df = _setup_documents_with_categories(fs)
+    vector_dim = 2
+    query_embedding = list(np.random.random(vector_dim))
+
+    # --- eq filter: only Category-0 rows ---
+    eq_filter = ComparisonFilter(type="eq", key="category", value="Category-0")
+    results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=10,
+        distance_metric="L2",
+        filters=eq_filter,
+    ).to_dict()
+
+    assert len(results["category"]) > 0
+    assert len(results["category"]) <= 4  # 20 rows / 5 categories
+    assert all(c == "Category-0" for c in results["category"])
+
+    # --- ne filter: exclude Category-0 ---
+    ne_filter = ComparisonFilter(type="ne", key="category", value="Category-0")
+    results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=10,
+        distance_metric="L2",
+        filters=ne_filter,
+    ).to_dict()
+
+    assert len(results["category"]) > 0
+    assert all(c != "Category-0" for c in results["category"])
+
+    # --- in filter: Category-0 or Category-1 ---
+    in_filter = ComparisonFilter(
+        type="in", key="category", value=["Category-0", "Category-1"]
+    )
+    results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=10,
+        distance_metric="L2",
+        filters=in_filter,
+    ).to_dict()
+
+    assert len(results["category"]) > 0
+    assert all(c in ("Category-0", "Category-1") for c in results["category"])
+
+    # --- compound AND filter: category == Category-0 AND chunk_id >= 5 ---
+    and_filter = CompoundFilter(
+        type="and",
+        filters=[
+            ComparisonFilter(type="eq", key="category", value="Category-0"),
+            ComparisonFilter(type="gte", key="chunk_id", value=5),
+        ],
+    )
+    results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:chunk_id",
+        ],
+        query=query_embedding,
+        top_k=10,
+        distance_metric="L2",
+        filters=and_filter,
+    ).to_dict()
+
+    assert len(results["category"]) > 0
+    assert all(c == "Category-0" for c in results["category"])
+    assert all(i >= 5 for i in results["chunk_id"])
+
+    # --- text search + filter ---
+    text_filter = ComparisonFilter(type="eq", key="category", value="Category-2")
+    text_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query_string="searchable keywords",
+        top_k=10,
+        filters=text_filter,
+    ).to_dict()
+
+    assert len(text_results["category"]) > 0
+    assert all(c == "Category-2" for c in text_results["category"])
+
+    # --- filter with no matches ---
+    empty_filter = ComparisonFilter(
+        type="eq", key="category", value="NonexistentCategory"
+    )
+    empty_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=10,
+        distance_metric="L2",
+        filters=empty_filter,
+    ).to_dict()
+
+    assert len(empty_results.get("category", [])) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+def test_openai_search(environment, fake_document_data):
+    """Test OpenAI-compatible vector store search returns the correct response shape."""
+    fs = environment.feature_store
+    fs.config.online_store.vector_enabled = True
+
+    fv, _, df = _setup_documents_with_categories(fs)
+    vector_dim = 2
+    vs_id = feature_view_to_vs_id(fs.project, "item_embeddings")
+
+    fake_embedding = list(np.random.random(vector_dim))
+
+    mock_provider = unittest.mock.MagicMock()
+    mock_provider.aembed = unittest.mock.AsyncMock(return_value=[fake_embedding])
+    fs.embedding_provider = mock_provider
+
+    result = asyncio.run(
+        fs.openai_search(
+            vector_store_id="item_embeddings",
+            query="test query",
+            max_num_results=5,
+        )
+    )
+
+    # Validate top-level OpenAI response shape
+    assert result["object"] == "vector_store.search_results.page"
+    assert isinstance(result["search_query"], list)
+    assert result["search_query"] == ["test query"]
+    assert result["has_more"] is False
+    assert result["next_page"] is None
+
+    assert isinstance(result["data"], list)
+    assert len(result["data"]) > 0
+    assert len(result["data"]) <= 5
+
+    seen_file_ids = set()
+    for item_result in result["data"]:
+        assert "file_id" in item_result
+        fid = item_result["file_id"]
+        assert fid.startswith(f"{vs_id}_")
+        seen_file_ids.add(fid)
+        assert "filename" in item_result
+        assert item_result["filename"] == vs_id
+        assert "score" in item_result
+        assert isinstance(item_result["score"], float)
+        assert "attributes" in item_result
+        assert isinstance(item_result["attributes"], dict)
+        assert "item_id" not in item_result["attributes"]
+        assert "content" in item_result
+        assert isinstance(item_result["content"], list)
+        for part in item_result["content"]:
+            assert "type" in part
+            assert part["type"] == "text"
+            assert "text" in part
+    assert len(seen_file_ids) == len(result["data"])
+
+    # --- Test with features_to_retrieve ---
+    result_subset = asyncio.run(
+        fs.openai_search(
+            vector_store_id="item_embeddings",
+            query="test query",
+            max_num_results=5,
+            features_to_retrieve=["text_field", "category"],
+        )
+    )
+
+    assert len(result_subset["data"]) > 0
+    for item_result in result_subset["data"]:
+        attr_keys = set(item_result["attributes"].keys())
+        assert "embedding" not in attr_keys
+
+    # --- Test with list query ---
+    result_list = asyncio.run(
+        fs.openai_search(
+            vector_store_id="item_embeddings",
+            query=["term1", "term2"],
+            max_num_results=5,
+        )
+    )
+
+    assert result_list["search_query"] == ["term1", "term2"]
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+def test_openai_search_no_embedding_config(environment, fake_document_data):
+    """Test that openai_search raises ValueError
+    when no embedding provider is set and embedding_model is not configured."""
+    fs = environment.feature_store
+    fs.config.online_store.vector_enabled = True
+    _setup_documents_with_categories(fs)
+    fs.config.embedding_model = None
+    fs._embedding_provider = None
+
+    with pytest.raises(ValueError, match="No embedding provider set"):
+        asyncio.run(
+            fs.openai_search(
+                vector_store_id="item_embeddings",
+                query="test query",
+            )
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+def test_openai_search_not_found(environment, fake_document_data):
+    """Test that openai_search raises FeatureViewNotFoundException
+    for a non-existent feature view."""
+    fs = environment.feature_store
+    mock_provider = unittest.mock.MagicMock()
+    mock_provider.aembed = unittest.mock.AsyncMock(return_value=[[0.0, 0.0]])
+    fs.embedding_provider = mock_provider
+
+    with pytest.raises(FeatureViewNotFoundException):
+        asyncio.run(
+            fs.openai_search(
+                vector_store_id="nonexistent_feature_view",
+                query="test query",
+            )
+        )

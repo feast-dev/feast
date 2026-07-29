@@ -34,6 +34,7 @@ from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.feature_service import FeatureService
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
@@ -438,6 +439,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -456,6 +458,7 @@ class RemoteOnlineStore(OnlineStore):
             top_k,
             distance_metric,
             query_string,
+            filters=filters,
             api_version=2,
         )
         response = get_remote_online_documents(config=config, req_body=req_body)
@@ -464,20 +467,31 @@ class RemoteOnlineStore(OnlineStore):
             response_json = json.loads(response.text)
             event_ts: Optional[datetime] = self._get_event_ts(response_json)
 
+            metadata = response_json.get("metadata") or {}
+            feature_names = metadata.get("feature_names") or []
+            results = response_json.get("results") or []
+
+            if not feature_names or not results:
+                logger.debug(
+                    "Empty metadata or results in retrieve_online_documents_v2 response."
+                )
+                return []
+
             # Create feature name to index mapping for efficient lookup
             feature_name_to_index = {
-                name: idx
-                for idx, name in enumerate(response_json["metadata"]["feature_names"])
+                name: idx for idx, name in enumerate(feature_names)
             }
 
             # Process each result row
-            num_results = (
-                len(response_json["results"][0]["values"])
-                if response_json["results"]
-                else 0
-            )
+            first_result_values = results[0].get("values") or []
+            num_results = len(first_result_values)
             result_tuples = []
-
+            if requested_features is None:
+                requested_features = []
+            else:
+                requested_features = list(requested_features)
+            if "distance" not in requested_features:
+                requested_features.append("distance")
             for row_idx in range(num_results):
                 # Build feature values dictionary for requested features
                 feature_values_dict = {}
@@ -639,6 +653,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         api_version: Optional[int] = 2,
     ) -> dict:
         api_requested_features = []
@@ -646,7 +661,7 @@ class RemoteOnlineStore(OnlineStore):
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        return {
+        body: Dict[str, Any] = {
             "features": api_requested_features,
             "query": embedding,
             "top_k": top_k,
@@ -654,12 +669,19 @@ class RemoteOnlineStore(OnlineStore):
             "query_string": query_string,
             "api_version": api_version,
         }
+        if filters is not None:
+            body["filters"] = filters.model_dump()
+        return body
 
-    def _get_event_ts(self, response_json) -> datetime:
-        event_ts = ""
-        if len(response_json["results"]) > 1:
-            event_ts = response_json["results"][1]["event_timestamps"][0]
-        return datetime.fromisoformat(event_ts.replace("Z", "+00:00"))
+    def _get_event_ts(self, response_json) -> Optional[datetime]:
+        results = response_json.get("results") or []
+        if len(results) > 1:
+            event_timestamps = results[1].get("event_timestamps") or []
+            if event_timestamps:
+                return datetime.fromisoformat(
+                    event_timestamps[0].replace("Z", "+00:00")
+                )
+        return None
 
     def _construct_entity_key_from_response(
         self,
@@ -757,16 +779,20 @@ def get_remote_online_features(
 def get_remote_online_documents(
     session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
-    if config.online_store.cert:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents",
-            json=req_body,
-            verify=config.online_store.cert,
-        )
-    else:
-        return session.post(
-            f"{config.online_store.path}/retrieve-online-documents", json=req_body
-        )
+    search_paths = ("/search", "/retrieve-online-documents")
+    last_response: Optional[requests.Response] = None
+    for path in search_paths:
+        url = f"{config.online_store.path}{path}"
+        if config.online_store.cert:
+            last_response = session.post(
+                url, json=req_body, verify=config.online_store.cert
+            )
+        else:
+            last_response = session.post(url, json=req_body)
+        if last_response.status_code != 404:
+            return last_response
+    assert last_response is not None
+    return last_response
 
 
 @rest_error_handling_decorator

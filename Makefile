@@ -730,10 +730,16 @@ push-feast-operator-docker: ## Push Feast Operator Docker image
 	$(MAKE) docker-push
 
 build-feast-operator-docker: ## Build Feast Operator Docker image
-	cd infra/feast-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-build
+	@if [ -n "$(DOCKER_PLATFORMS)" ]; then \
+		cd infra/feast-operator && \
+		docker buildx build --push --platform=$(DOCKER_PLATFORMS) \
+			--tag $(REGISTRY)/feast-operator:$(VERSION) -f Dockerfile .; \
+	else \
+		cd infra/feast-operator && \
+		IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+		VERSION=$(VERSION) \
+		$(MAKE) docker-build; \
+	fi
 
 build-feast-operator-docker-on-mac: ## Build Feast Operator Docker image on Mac
 	cd infra/feast-operator && \

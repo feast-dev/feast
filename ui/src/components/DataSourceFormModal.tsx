@@ -48,6 +48,10 @@ const SOURCE_TYPE_OPTIONS = [
     text: "AWS Athena",
   },
   {
+    value: String(feast.core.DataSource.SourceType.BATCH_ICEBERG),
+    text: "Iceberg / Unity Catalog",
+  },
+  {
     value: String(feast.core.DataSource.SourceType.STREAM_KAFKA),
     text: "Kafka",
   },
@@ -84,42 +88,87 @@ interface DataSourceFormData {
   timestampField: string;
   createdTimestampColumn: string;
   tags: TagEntry[];
+  // File source
   fileUri: string;
+  fileFormat: string;
+  fileS3EndpointOverride: string;
+  // BigQuery
   bigqueryTable: string;
   bigqueryQuery: string;
+  bigqueryDatePartitionColumn: string;
+  // Snowflake
   snowflakeTable: string;
   snowflakeDatabase: string;
   snowflakeSchema: string;
+  snowflakeQuery: string;
+  snowflakeWarehouse: string;
+  // Redshift
   redshiftTable: string;
   redshiftDatabase: string;
   redshiftSchema: string;
+  redshiftQuery: string;
+  // Kafka
   kafkaBootstrapServers: string;
   kafkaTopic: string;
+  kafkaMessageFormat: string;
+  kafkaWatermarkDelay: string;
+  // Spark
   sparkTable: string;
   sparkPath: string;
+  sparkQuery: string;
+  sparkFileFormat: string;
+  sparkTableFormat: string;
+  sparkTableFormatCatalog: string;
+  sparkTableFormatNamespace: string;
+  sparkTableFormatProperties: string;
+  sparkDatePartitionColumn: string;
+  sparkDatePartitionFormat: string;
+  // Kinesis
   kinesisRegion: string;
   kinesisStreamName: string;
+  kinesisRecordFormat: string;
+  // Trino
   trinoTable: string;
   trinoQuery: string;
+  // Athena
   athenaTable: string;
   athenaQuery: string;
   athenaDatabase: string;
   athenaDataSource: string;
+  athenaDatePartitionColumn: string;
+  // Custom
   customSourceClassName: string;
   customSourceConfig: string;
-  // Contrib source fields
+  // Iceberg / Unity Catalog
+  icebergCatalogType: string;
+  icebergEndpoint: string;
+  icebergWarehouse: string;
+  icebergNamespace: string;
+  icebergTable: string;
+  icebergTokenEnvVar: string;
+  icebergCredentialVending: string;
+  icebergCatalogProperties: string;
+  // Ray
   rayReaderType: string;
   rayPath: string;
   rayReaderOptions: string;
+  // Postgres
   postgresTable: string;
   postgresQuery: string;
+  // MongoDB
   mongodbCollection: string;
+  // ClickHouse
   clickhouseTable: string;
   clickhouseQuery: string;
+  // MSSQL
   mssqlTable: string;
   mssqlConnectionStr: string;
+  mssqlDatePartitionColumn: string;
+  // Oracle
   oracleTable: string;
   oracleConnectionStr: string;
+  oracleDatePartitionColumn: string;
+  // Couchbase
   couchbaseDatabase: string;
   couchbaseScope: string;
   couchbaseCollection: string;
@@ -144,28 +193,54 @@ const EMPTY_FORM: DataSourceFormData = {
   createdTimestampColumn: "",
   tags: [],
   fileUri: "",
+  fileFormat: "parquet",
+  fileS3EndpointOverride: "",
   bigqueryTable: "",
   bigqueryQuery: "",
+  bigqueryDatePartitionColumn: "",
   snowflakeTable: "",
   snowflakeDatabase: "",
   snowflakeSchema: "",
+  snowflakeQuery: "",
+  snowflakeWarehouse: "",
   redshiftTable: "",
   redshiftDatabase: "",
   redshiftSchema: "",
+  redshiftQuery: "",
   kafkaBootstrapServers: "",
   kafkaTopic: "",
+  kafkaMessageFormat: "json",
+  kafkaWatermarkDelay: "",
   sparkTable: "",
   sparkPath: "",
+  sparkQuery: "",
+  sparkFileFormat: "parquet",
+  sparkTableFormat: "",
+  sparkTableFormatCatalog: "",
+  sparkTableFormatNamespace: "",
+  sparkTableFormatProperties: "",
+  sparkDatePartitionColumn: "",
+  sparkDatePartitionFormat: "%Y-%m-%d",
   kinesisRegion: "",
   kinesisStreamName: "",
+  kinesisRecordFormat: "json",
   trinoTable: "",
   trinoQuery: "",
   athenaTable: "",
   athenaQuery: "",
   athenaDatabase: "",
   athenaDataSource: "",
+  athenaDatePartitionColumn: "",
   customSourceClassName: "",
   customSourceConfig: "",
+  icebergCatalogType: "rest",
+  icebergEndpoint: "",
+  icebergWarehouse: "",
+  icebergNamespace: "",
+  icebergTable: "",
+  icebergTokenEnvVar: "",
+  icebergCredentialVending: "true",
+  icebergCatalogProperties: "",
   rayReaderType: "parquet",
   rayPath: "",
   rayReaderOptions: "",
@@ -176,8 +251,10 @@ const EMPTY_FORM: DataSourceFormData = {
   clickhouseQuery: "",
   mssqlTable: "",
   mssqlConnectionStr: "",
+  mssqlDatePartitionColumn: "",
   oracleTable: "",
   oracleConnectionStr: "",
+  oracleDatePartitionColumn: "",
   couchbaseDatabase: "",
   couchbaseScope: "",
   couchbaseCollection: "",
@@ -192,6 +269,7 @@ const BATCH_SOURCE_TYPES = new Set([
   String(feast.core.DataSource.SourceType.BATCH_SPARK),
   String(feast.core.DataSource.SourceType.BATCH_TRINO),
   String(feast.core.DataSource.SourceType.BATCH_ATHENA),
+  String(feast.core.DataSource.SourceType.BATCH_ICEBERG),
   "RAY_SOURCE",
   "POSTGRES_SOURCE",
   "MONGODB_SOURCE",
@@ -264,23 +342,36 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     } else if (
       st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)
     ) {
-      if (!formData.snowflakeTable.trim()) {
-        newErrors.snowflakeTable = "Table name is required for Snowflake.";
+      if (!formData.snowflakeTable.trim() && !formData.snowflakeQuery.trim()) {
+        newErrors.snowflakeTable =
+          "Either a table or a query is required for Snowflake.";
       }
       if (!formData.snowflakeDatabase.trim()) {
         newErrors.snowflakeDatabase = "Database is required for Snowflake.";
       }
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
-      if (!formData.redshiftTable.trim()) {
-        newErrors.redshiftTable = "Table name is required for Redshift.";
+      if (!formData.redshiftTable.trim() && !formData.redshiftQuery.trim()) {
+        newErrors.redshiftTable =
+          "Either a table or a query is required for Redshift.";
       }
       if (!formData.redshiftDatabase.trim()) {
         newErrors.redshiftDatabase = "Database is required for Redshift.";
       }
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
-      if (!formData.sparkTable.trim() && !formData.sparkPath.trim()) {
+      if (
+        !formData.sparkTable.trim() &&
+        !formData.sparkPath.trim() &&
+        !formData.sparkQuery.trim()
+      ) {
         newErrors.sparkTable =
-          "Either a table reference or a path is required for Spark.";
+          "Either a table, path, or query is required for Spark.";
+      } else if (
+        formData.sparkPath.trim() &&
+        !formData.sparkTableFormat &&
+        !formData.sparkFileFormat
+      ) {
+        newErrors.sparkFileFormat =
+          "File format is required when using a path without table format.";
       }
     } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
       if (!formData.trinoTable.trim() && !formData.trinoQuery.trim()) {
@@ -294,6 +385,16 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
       }
       if (!formData.athenaDatabase.trim()) {
         newErrors.athenaDatabase = "Database is required for Athena.";
+      }
+    } else if (st === String(feast.core.DataSource.SourceType.BATCH_ICEBERG)) {
+      if (!formData.icebergWarehouse.trim()) {
+        newErrors.icebergWarehouse = "Warehouse is required.";
+      }
+      if (!formData.icebergNamespace.trim()) {
+        newErrors.icebergNamespace = "Namespace is required.";
+      }
+      if (!formData.icebergTable.trim()) {
+        newErrors.icebergTable = "Table name is required.";
       }
     } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
       if (!formData.kafkaBootstrapServers.trim()) {
@@ -402,19 +503,52 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
   };
 
   const renderFileSourceFields = () => (
-    <EuiFormRow
-      label="File Path / URI"
-      isInvalid={!!errors.fileUri}
-      error={errors.fileUri}
-      helpText="Path to the data file accessible by the Feast server (e.g. s3://bucket/path/data.parquet, gs://bucket/data.csv, file:///mnt/data/features.parquet)."
-    >
-      <EuiFieldText
-        value={formData.fileUri}
-        onChange={(e) => updateField("fileUri", e.target.value)}
+    <>
+      <EuiFormRow
+        label="File Path / URI"
         isInvalid={!!errors.fileUri}
-        placeholder="s3://bucket/path/to/data.parquet"
-      />
-    </EuiFormRow>
+        error={errors.fileUri}
+        helpText="Path to the data file accessible by the Feast server (e.g. s3://bucket/path/data.parquet, gs://bucket/data.csv, file:///mnt/data/features.parquet)."
+      >
+        <EuiFieldText
+          value={formData.fileUri}
+          onChange={(e) => updateField("fileUri", e.target.value)}
+          isInvalid={!!errors.fileUri}
+          placeholder="s3://bucket/path/to/data.parquet"
+        />
+      </EuiFormRow>
+      <EuiFlexGroup gutterSize="m">
+        <EuiFlexItem>
+          <EuiFormRow label="File Format" helpText="Format of the data file.">
+            <EuiSelect
+              options={[
+                { value: "parquet", text: "Parquet" },
+                { value: "csv", text: "CSV" },
+                { value: "json", text: "JSON" },
+                { value: "avro", text: "Avro" },
+                { value: "delta", text: "Delta" },
+              ]}
+              value={formData.fileFormat}
+              onChange={(e) => updateField("fileFormat", e.target.value)}
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow
+            label="S3 Endpoint Override (optional)"
+            helpText="Custom S3-compatible endpoint (e.g. MinIO)."
+          >
+            <EuiFieldText
+              value={formData.fileS3EndpointOverride}
+              onChange={(e) =>
+                updateField("fileS3EndpointOverride", e.target.value)
+              }
+              placeholder="http://minio:9000"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </>
   );
 
   const renderSourceTypeHeader = () => {
@@ -489,6 +623,18 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               rows={3}
             />
           </EuiFormRow>
+          <EuiFormRow
+            label="Date Partition Column (optional)"
+            helpText="BigQuery partition column for efficient date-based queries."
+          >
+            <EuiFieldText
+              value={formData.bigqueryDatePartitionColumn}
+              onChange={(e) =>
+                updateField("bigqueryDatePartitionColumn", e.target.value)
+              }
+              placeholder="date_partition"
+            />
+          </EuiFormRow>
         </>
       );
     }
@@ -525,16 +671,48 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               </EuiFormRow>
             </EuiFlexItem>
           </EuiFlexGroup>
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Table"
+                isInvalid={!!errors.snowflakeTable}
+                error={errors.snowflakeTable}
+                helpText="Provide either a table or a query."
+              >
+                <EuiFieldText
+                  value={formData.snowflakeTable}
+                  onChange={(e) =>
+                    updateField("snowflakeTable", e.target.value)
+                  }
+                  isInvalid={!!errors.snowflakeTable}
+                  placeholder="MY_TABLE"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Warehouse (optional)"
+                helpText="Snowflake compute warehouse."
+              >
+                <EuiFieldText
+                  value={formData.snowflakeWarehouse}
+                  onChange={(e) =>
+                    updateField("snowflakeWarehouse", e.target.value)
+                  }
+                  placeholder="COMPUTE_WH"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
           <EuiFormRow
-            label="Table"
-            isInvalid={!!errors.snowflakeTable}
-            error={errors.snowflakeTable}
+            label="Query (optional)"
+            helpText="SQL query as an alternative to a fixed table."
           >
-            <EuiFieldText
-              value={formData.snowflakeTable}
-              onChange={(e) => updateField("snowflakeTable", e.target.value)}
-              isInvalid={!!errors.snowflakeTable}
-              placeholder="MY_TABLE"
+            <EuiTextArea
+              value={formData.snowflakeQuery}
+              onChange={(e) => updateField("snowflakeQuery", e.target.value)}
+              placeholder="SELECT * FROM MY_TABLE WHERE ..."
+              rows={3}
             />
           </EuiFormRow>
         </>
@@ -577,12 +755,24 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
             label="Table"
             isInvalid={!!errors.redshiftTable}
             error={errors.redshiftTable}
+            helpText="Provide either a table or a query."
           >
             <EuiFieldText
               value={formData.redshiftTable}
               onChange={(e) => updateField("redshiftTable", e.target.value)}
               isInvalid={!!errors.redshiftTable}
               placeholder="my_table"
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Query (optional)"
+            helpText="SQL query as an alternative to a fixed table."
+          >
+            <EuiTextArea
+              value={formData.redshiftQuery}
+              onChange={(e) => updateField("redshiftQuery", e.target.value)}
+              placeholder="SELECT * FROM my_table WHERE ..."
+              rows={3}
             />
           </EuiFormRow>
         </>
@@ -607,16 +797,50 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               placeholder="broker1:9092,broker2:9092"
             />
           </EuiFormRow>
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Topic"
+                isInvalid={!!errors.kafkaTopic}
+                error={errors.kafkaTopic}
+              >
+                <EuiFieldText
+                  value={formData.kafkaTopic}
+                  onChange={(e) => updateField("kafkaTopic", e.target.value)}
+                  isInvalid={!!errors.kafkaTopic}
+                  placeholder="my-feature-topic"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Message Format"
+                helpText="Serialization format of Kafka messages."
+              >
+                <EuiSelect
+                  options={[
+                    { value: "json", text: "JSON" },
+                    { value: "avro", text: "Avro" },
+                    { value: "proto", text: "Protobuf" },
+                  ]}
+                  value={formData.kafkaMessageFormat}
+                  onChange={(e) =>
+                    updateField("kafkaMessageFormat", e.target.value)
+                  }
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
           <EuiFormRow
-            label="Topic"
-            isInvalid={!!errors.kafkaTopic}
-            error={errors.kafkaTopic}
+            label="Watermark Delay Threshold (optional)"
+            helpText="Allowed lateness for late-arriving events (e.g. 30 seconds)."
           >
             <EuiFieldText
-              value={formData.kafkaTopic}
-              onChange={(e) => updateField("kafkaTopic", e.target.value)}
-              isInvalid={!!errors.kafkaTopic}
-              placeholder="my-feature-topic"
+              value={formData.kafkaWatermarkDelay}
+              onChange={(e) =>
+                updateField("kafkaWatermarkDelay", e.target.value)
+              }
+              placeholder="30 seconds"
             />
           </EuiFormRow>
         </>
@@ -630,7 +854,7 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
             label="Table"
             isInvalid={!!errors.sparkTable}
             error={errors.sparkTable}
-            helpText="Spark catalog table (catalog.database.table). Provide either table or path."
+            helpText="Spark catalog table (catalog.database.table). Provide table, path, or query."
           >
             <EuiFieldText
               value={formData.sparkTable}
@@ -641,14 +865,143 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
           </EuiFormRow>
           <EuiFormRow
             label="Path (optional)"
-            helpText="Alternative: direct path to data files."
+            helpText="Direct path to data files."
           >
             <EuiFieldText
               value={formData.sparkPath}
               onChange={(e) => updateField("sparkPath", e.target.value)}
-              placeholder="s3://bucket/path/"
+              placeholder="s3://bucket/path/ or abfss://container@account/path/"
             />
           </EuiFormRow>
+          <EuiFormRow
+            label="Query (optional)"
+            helpText="SQL query as an alternative to table/path."
+          >
+            <EuiTextArea
+              value={formData.sparkQuery}
+              onChange={(e) => updateField("sparkQuery", e.target.value)}
+              placeholder="SELECT * FROM catalog.db.table WHERE ..."
+              rows={3}
+            />
+          </EuiFormRow>
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="File Format (optional)"
+                helpText="Required when using path without table format."
+              >
+                <EuiSelect
+                  options={[
+                    { value: "", text: "— None —" },
+                    { value: "parquet", text: "Parquet" },
+                    { value: "csv", text: "CSV" },
+                    { value: "json", text: "JSON" },
+                    { value: "avro", text: "Avro" },
+                  ]}
+                  value={formData.sparkFileFormat}
+                  onChange={(e) =>
+                    updateField("sparkFileFormat", e.target.value)
+                  }
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Table Format (optional)"
+                helpText="Advanced table format for path-based reads."
+              >
+                <EuiSelect
+                  options={[
+                    { value: "", text: "— None —" },
+                    { value: "iceberg", text: "Iceberg" },
+                    { value: "delta", text: "Delta Lake" },
+                    { value: "hudi", text: "Hudi" },
+                  ]}
+                  value={formData.sparkTableFormat}
+                  onChange={(e) =>
+                    updateField("sparkTableFormat", e.target.value)
+                  }
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          {formData.sparkTableFormat && (
+            <>
+              <EuiFlexGroup gutterSize="m">
+                <EuiFlexItem>
+                  <EuiFormRow
+                    label="Catalog Name (optional)"
+                    helpText="Table format catalog name."
+                  >
+                    <EuiFieldText
+                      value={formData.sparkTableFormatCatalog}
+                      onChange={(e) =>
+                        updateField("sparkTableFormatCatalog", e.target.value)
+                      }
+                      placeholder="my_catalog"
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <EuiFormRow
+                    label="Namespace (optional)"
+                    helpText="Table format namespace/database."
+                  >
+                    <EuiFieldText
+                      value={formData.sparkTableFormatNamespace}
+                      onChange={(e) =>
+                        updateField("sparkTableFormatNamespace", e.target.value)
+                      }
+                      placeholder="my_db"
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+              </EuiFlexGroup>
+              <EuiFormRow
+                label="Table Format Properties (JSON, optional)"
+                helpText="Additional catalog/format properties."
+              >
+                <EuiTextArea
+                  value={formData.sparkTableFormatProperties}
+                  onChange={(e) =>
+                    updateField("sparkTableFormatProperties", e.target.value)
+                  }
+                  placeholder='{"warehouse": "s3://bucket/warehouse"}'
+                  rows={2}
+                />
+              </EuiFormRow>
+            </>
+          )}
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Date Partition Column (optional)"
+                helpText="Column used for date-based partitioning."
+              >
+                <EuiFieldText
+                  value={formData.sparkDatePartitionColumn}
+                  onChange={(e) =>
+                    updateField("sparkDatePartitionColumn", e.target.value)
+                  }
+                  placeholder="date_partition"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Partition Format (optional)"
+                helpText="Date format for partition column."
+              >
+                <EuiFieldText
+                  value={formData.sparkDatePartitionFormat}
+                  onChange={(e) =>
+                    updateField("sparkDatePartitionFormat", e.target.value)
+                  }
+                  placeholder="%Y-%m-%d"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
         </>
       );
     }
@@ -734,6 +1087,127 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               rows={3}
             />
           </EuiFormRow>
+          <EuiFormRow
+            label="Date Partition Column (optional)"
+            helpText="Column used for date-based partitioning."
+          >
+            <EuiFieldText
+              value={formData.athenaDatePartitionColumn}
+              onChange={(e) =>
+                updateField("athenaDatePartitionColumn", e.target.value)
+              }
+              placeholder="date_partition"
+            />
+          </EuiFormRow>
+        </>
+      );
+    }
+
+    if (st === String(feast.core.DataSource.SourceType.BATCH_ICEBERG)) {
+      return (
+        <>
+          <EuiFormRow
+            label="Catalog Type"
+            helpText="Iceberg catalog backend to use."
+          >
+            <EuiSelect
+              options={[
+                {
+                  value: "rest",
+                  text: "REST (Unity Catalog, Polaris, Nessie)",
+                },
+                { value: "hive", text: "Hive Metastore" },
+                { value: "glue", text: "AWS Glue" },
+                { value: "sql", text: "SQL (JDBC)" },
+                { value: "dynamodb", text: "DynamoDB" },
+              ]}
+              value={formData.icebergCatalogType}
+              onChange={(e) =>
+                updateField("icebergCatalogType", e.target.value)
+              }
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Endpoint"
+            helpText="Catalog endpoint URL (required for REST catalogs)."
+          >
+            <EuiFieldText
+              value={formData.icebergEndpoint}
+              onChange={(e) => updateField("icebergEndpoint", e.target.value)}
+              placeholder="http://localhost:8080/api/2.1/unity-catalog/iceberg"
+            />
+          </EuiFormRow>
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Warehouse"
+                isInvalid={!!errors.icebergWarehouse}
+                error={errors.icebergWarehouse}
+              >
+                <EuiFieldText
+                  value={formData.icebergWarehouse}
+                  onChange={(e) =>
+                    updateField("icebergWarehouse", e.target.value)
+                  }
+                  isInvalid={!!errors.icebergWarehouse}
+                  placeholder="unity"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Namespace"
+                isInvalid={!!errors.icebergNamespace}
+                error={errors.icebergNamespace}
+              >
+                <EuiFieldText
+                  value={formData.icebergNamespace}
+                  onChange={(e) =>
+                    updateField("icebergNamespace", e.target.value)
+                  }
+                  isInvalid={!!errors.icebergNamespace}
+                  placeholder="default"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          <EuiFormRow
+            label="Table"
+            isInvalid={!!errors.icebergTable}
+            error={errors.icebergTable}
+          >
+            <EuiFieldText
+              value={formData.icebergTable}
+              onChange={(e) => updateField("icebergTable", e.target.value)}
+              isInvalid={!!errors.icebergTable}
+              placeholder="driver_stats"
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Token Env Variable (optional)"
+            helpText="Name of environment variable holding the auth token."
+          >
+            <EuiFieldText
+              value={formData.icebergTokenEnvVar}
+              onChange={(e) =>
+                updateField("icebergTokenEnvVar", e.target.value)
+              }
+              placeholder="DATABRICKS_TOKEN"
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Catalog Properties (JSON, optional)"
+            helpText="Additional catalog-specific configuration passed to PyIceberg."
+          >
+            <EuiTextArea
+              value={formData.icebergCatalogProperties}
+              onChange={(e) =>
+                updateField("icebergCatalogProperties", e.target.value)
+              }
+              placeholder='{"s3.region": "us-east-1"}'
+              rows={3}
+            />
+          </EuiFormRow>
         </>
       );
     }
@@ -741,18 +1215,40 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
     if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
       return (
         <>
-          <EuiFormRow
-            label="AWS Region"
-            isInvalid={!!errors.kinesisRegion}
-            error={errors.kinesisRegion}
-          >
-            <EuiFieldText
-              value={formData.kinesisRegion}
-              onChange={(e) => updateField("kinesisRegion", e.target.value)}
-              isInvalid={!!errors.kinesisRegion}
-              placeholder="us-east-1"
-            />
-          </EuiFormRow>
+          <EuiFlexGroup gutterSize="m">
+            <EuiFlexItem>
+              <EuiFormRow
+                label="AWS Region"
+                isInvalid={!!errors.kinesisRegion}
+                error={errors.kinesisRegion}
+              >
+                <EuiFieldText
+                  value={formData.kinesisRegion}
+                  onChange={(e) => updateField("kinesisRegion", e.target.value)}
+                  isInvalid={!!errors.kinesisRegion}
+                  placeholder="us-east-1"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiFormRow
+                label="Record Format"
+                helpText="Serialization format of stream records."
+              >
+                <EuiSelect
+                  options={[
+                    { value: "json", text: "JSON" },
+                    { value: "avro", text: "Avro" },
+                    { value: "proto", text: "Protobuf" },
+                  ]}
+                  value={formData.kinesisRecordFormat}
+                  onChange={(e) =>
+                    updateField("kinesisRecordFormat", e.target.value)
+                  }
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+          </EuiFlexGroup>
           <EuiFormRow
             label="Stream Name"
             isInvalid={!!errors.kinesisStreamName}
@@ -943,6 +1439,18 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
               placeholder="mssql+pyodbc://user:pass@host/db" // pragma: allowlist secret
             />
           </EuiFormRow>
+          <EuiFormRow
+            label="Date Partition Column (optional)"
+            helpText="Column used for date-based partitioning."
+          >
+            <EuiFieldText
+              value={formData.mssqlDatePartitionColumn}
+              onChange={(e) =>
+                updateField("mssqlDatePartitionColumn", e.target.value)
+              }
+              placeholder="date_partition"
+            />
+          </EuiFormRow>
         </>
       );
     }
@@ -972,6 +1480,18 @@ const DataSourceFormModal: React.FC<DataSourceFormModalProps> = ({
                 updateField("oracleConnectionStr", e.target.value)
               }
               placeholder="oracle+cx_oracle://user:pass@host:1521/service" // pragma: allowlist secret
+            />
+          </EuiFormRow>
+          <EuiFormRow
+            label="Date Partition Column (optional)"
+            helpText="Column used for date-based partitioning."
+          >
+            <EuiFieldText
+              value={formData.oracleDatePartitionColumn}
+              onChange={(e) =>
+                updateField("oracleDatePartitionColumn", e.target.value)
+              }
+              placeholder="date_partition"
             />
           </EuiFormRow>
         </>

@@ -95,7 +95,6 @@ const DatasetInstance = () => {
           <EuiButton
             key="edit"
             iconType="pencil"
-            size="s"
             onClick={() => {
               setEditError(null);
               setShowEditModal(true);
@@ -106,7 +105,6 @@ const DatasetInstance = () => {
           <EuiButtonEmpty
             key="delete"
             iconType="trash"
-            size="s"
             color="danger"
             onClick={() => setShowDeleteConfirm(true)}
           >
