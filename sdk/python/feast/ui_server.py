@@ -889,9 +889,11 @@ def get_app(
 
     ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined, arg-type]
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
-        projects_dict = _build_projects_list(store, project_id, root_path)
-        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
-            f.write(json.dumps(projects_dict))
+        pass
+
+    @app.get("/projects-list.json")
+    def get_projects_list():
+        return _build_projects_list(store, project_id, root_path)
 
     @app.get("/api/mlflow-runs")
     def get_mlflow_runs(max_results: int = 50):
