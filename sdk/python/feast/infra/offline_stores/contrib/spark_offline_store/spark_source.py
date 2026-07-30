@@ -262,8 +262,13 @@ class SparkSource(DataSource):
         return reader.load(self.path)
 
     def __eq__(self, other):
-        base_eq = super().__eq__(other)
-        if not base_eq:
+        # Guard before the spark-specific attribute access below: the base
+        # DataSource.__eq__ accepts any DataSource subclass, so a cross-type
+        # comparison (e.g. against a FileSource with a matching name) would
+        # otherwise raise AttributeError on `other.table` (#6636).
+        if not isinstance(other, SparkSource):
+            return False
+        if not super().__eq__(other):
             return False
         return (
             self.table == other.table
