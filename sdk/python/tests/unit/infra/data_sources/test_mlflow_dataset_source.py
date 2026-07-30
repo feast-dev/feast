@@ -224,12 +224,12 @@ class TestSearchTracesForAssessments:
 
 class TestResolveLabelsFromFeast:
     def test_historical_applies_conflict_policy(self):
-        from feast.finetuning.label_resolver import resolve_labels_from_feast
-        from feast.finetuning.trace_extractor import FinetuningExample
         from feast.labeling.conflict_policy import ConflictPolicy
+        from feast.trace_export.label_resolver import resolve_labels_from_feast
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1", messages=[{"role": "user", "content": "hi"}]
             ),
         ]
@@ -279,11 +279,11 @@ class TestResolveLabelsFromFeast:
         assert result[0].labeler == "human"
 
     def test_online_uses_get_online_features(self):
-        from feast.finetuning.label_resolver import resolve_labels_from_feast
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.label_resolver import resolve_labels_from_feast
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1", messages=[{"role": "user", "content": "hi"}]
             ),
         ]

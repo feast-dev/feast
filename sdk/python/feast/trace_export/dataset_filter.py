@@ -7,16 +7,16 @@ MLflow dataset (via the "Add to dataset" UI or programmatic API).
 import logging
 from typing import List
 
-from feast.finetuning.trace_extractor import FinetuningExample
+from feast.trace_export.trace_extractor import TraceExportExample
 
 logger = logging.getLogger(__name__)
 
 
 def filter_by_mlflow_dataset(
-    examples: List[FinetuningExample],
+    examples: List[TraceExportExample],
     dataset_name: str,
     tracking_uri: str,
-) -> List[FinetuningExample]:
+) -> List[TraceExportExample]:
     """Keep only examples whose trace_id is in the named MLflow dataset.
 
     Uses ``mlflow.genai.datasets.get_dataset()`` to retrieve dataset records,

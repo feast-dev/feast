@@ -175,14 +175,14 @@ def export_traces_cmd(
 ):
     """Export fine-tuning JSONL from MLflow traces with labels."""
     _require_mlflow()
-    from feast.finetuning.exporters import get_exporter
-    from feast.finetuning.label_resolver import (
+    from feast.repo_operations import create_feature_store
+    from feast.trace_export.exporters import get_exporter
+    from feast.trace_export.label_resolver import (
         filter_labeled_only,
         resolve_labels_from_feast,
         resolve_labels_from_mlflow,
     )
-    from feast.finetuning.trace_extractor import extract_from_traces
-    from feast.repo_operations import create_feature_store
+    from feast.trace_export.trace_extractor import extract_from_traces
 
     store = create_feature_store(ctx)
     tracking_uri = _require_tracking_uri(store)
@@ -203,7 +203,7 @@ def export_traces_cmd(
         return
 
     if dataset:
-        from feast.finetuning.dataset_filter import filter_by_mlflow_dataset
+        from feast.trace_export.dataset_filter import filter_by_mlflow_dataset
 
         examples = filter_by_mlflow_dataset(
             examples, dataset_name=dataset, tracking_uri=tracking_uri

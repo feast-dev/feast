@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, List, Literal
 
 import pandas as pd
 
-from feast.finetuning.trace_extractor import FinetuningExample
+from feast.trace_export.trace_extractor import TraceExportExample
 
 if TYPE_CHECKING:
     from feast.feature_store import FeatureStore
@@ -28,14 +28,14 @@ LabelSource = Literal["historical", "online"]
 
 
 def resolve_labels_from_feast(
-    examples: List[FinetuningExample],
+    examples: List[TraceExportExample],
     store: "FeatureStore",
     label_view_name: str,
     label_fields: List[str],
     join_key: str = "trace_id",
     sync_feedback_to_mlflow: bool = False,
     label_source: LabelSource = "historical",
-) -> List[FinetuningExample]:
+) -> List[TraceExportExample]:
     """Join examples with labels from a Feast LabelView.
 
     Args:
@@ -75,7 +75,7 @@ def resolve_labels_from_feast(
     label_view = store.get_label_view(label_view_name)
     labeler_field = label_view.labeler_field
 
-    def _get_join_value(ex: FinetuningExample) -> Any:
+    def _get_join_value(ex: TraceExportExample) -> Any:
         if join_key == "trace_id":
             return ex.trace_id
         if ex.entity_values and join_key in ex.entity_values:
@@ -132,7 +132,7 @@ def _fetch_labels_online(
     label_view_name: str,
     label_fields: List[str],
     join_key: str,
-    examples: List[FinetuningExample],
+    examples: List[TraceExportExample],
 ) -> pd.DataFrame:
     """Fetch latest labels via online store (LAST_WRITE_WINS)."""
     feature_refs = [f"{label_view_name}:{f}" for f in label_fields]
@@ -141,7 +141,7 @@ def _fetch_labels_online(
     if labeler_field not in label_fields:
         feature_refs.append(f"{label_view_name}:{labeler_field}")
 
-    def _get_join_value(ex: FinetuningExample) -> Any:
+    def _get_join_value(ex: TraceExportExample) -> Any:
         if join_key == "trace_id":
             return ex.trace_id
         if ex.entity_values and join_key in ex.entity_values:
@@ -238,7 +238,7 @@ def _fetch_labels_via_historical_features(
     return pd.DataFrame(columns=[join_key, *feature_names])
 
 
-def _sync_feedback(examples: List[FinetuningExample]) -> None:
+def _sync_feedback(examples: List[TraceExportExample]) -> None:
     """Log resolved labels as MLflow feedback assessments on the original traces."""
     try:
         import mlflow
@@ -272,9 +272,9 @@ def _sync_feedback(examples: List[FinetuningExample]) -> None:
 
 
 def resolve_labels_from_mlflow(
-    examples: List[FinetuningExample],
+    examples: List[TraceExportExample],
     expectation_name: str = "expected_response",
-) -> List[FinetuningExample]:
+) -> List[TraceExportExample]:
     """Promote MLflow expectations to ``corrected_response``.
 
     The expectation value is assumed to have been placed in
@@ -300,8 +300,8 @@ def resolve_labels_from_mlflow(
 
 
 def filter_labeled_only(
-    examples: List[FinetuningExample],
-) -> List[FinetuningExample]:
+    examples: List[TraceExportExample],
+) -> List[TraceExportExample]:
     """Keep only examples that have a ``corrected_response``.
 
     Args:
