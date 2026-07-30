@@ -49,7 +49,15 @@ jobs:
 
           git checkout -b "$BRANCH" upstream/master
 
-          if git cherry-pick -m 1 "$MERGE_SHA"; then
+          PARENT_COUNT=$(git cat-file -p "$MERGE_SHA" | grep -c "^parent")
+          if [ "$PARENT_COUNT" -gt 1 ]; then
+            CHERRY_PICK_CMD="git cherry-pick -m 1 $MERGE_SHA"
+          else
+            COMMIT_COUNT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits | length')
+            CHERRY_PICK_CMD="git cherry-pick ${MERGE_SHA}~$((COMMIT_COUNT - 1))^..${MERGE_SHA}"
+          fi
+
+          if eval "$CHERRY_PICK_CMD"; then
             echo "conflict=false" >> "$GITHUB_OUTPUT"
           else
             git cherry-pick --abort || true
