@@ -544,6 +544,11 @@ type OnlineStore struct {
 	// Controls metrics granularity, offline push batching, and MCP.
 	// +optional
 	Serving *ServingConfig `json:"serving,omitempty"`
+	// Disabled skips deploying the online store service entirely, including its
+	// serving pod and persistence. Omitting the online store block, or setting
+	// this to false, deploys the online store with defaults as before.
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // ServingConfig configures the feature_server section of the generated feature_store.yaml.
