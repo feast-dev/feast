@@ -1,9 +1,7 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
-  EuiButtonIcon,
   EuiCard,
   EuiFlexGrid,
-  EuiFlexGroup,
   EuiFlexItem,
   EuiIcon,
   EuiSkeletonText,
@@ -12,22 +10,13 @@ import {
   EuiTitle,
   EuiHorizontalRule,
 } from "@elastic/eui";
-import {
-  useLoadProjectsList,
-  ProjectListContext,
-  ProjectsListSchema,
-} from "../contexts/ProjectListContext";
+import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "react-query";
 import FeastIconBlue from "../graphics/FeastIconBlue";
 
 const RootProjectSelectionPage = () => {
   const { isLoading, isSuccess, data } = useLoadProjectsList();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const projectListCtx = useContext(ProjectListContext);
-  const basename = projectListCtx?.basename || "";
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (data && data.default) {
@@ -40,21 +29,6 @@ const RootProjectSelectionPage = () => {
       navigate(`/p/${data.projects[0].id}`);
     }
   }, [data, navigate]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await fetch(`${basename}/api/registry/refresh`, { method: "POST" });
-      const res = await fetch(`${basename}/projects-list.json`, {
-        headers: { "Content-Type": "application/json" },
-      });
-      const json = await res.json();
-      const parsed = ProjectsListSchema.parse(json);
-      queryClient.setQueryData("feast-projects-list", parsed);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const projectCards = data?.projects.map((item, index) => {
     return (
@@ -74,23 +48,9 @@ const RootProjectSelectionPage = () => {
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Section>
-        <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
-          <EuiFlexItem grow={false}>
-            <EuiTitle size="s">
-              <h1>Welcome to Feast</h1>
-            </EuiTitle>
-          </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiButtonIcon
-              iconType="refresh"
-              aria-label="Refresh projects"
-              onClick={handleRefresh}
-              isLoading={refreshing}
-              display="base"
-              size="m"
-            />
-          </EuiFlexItem>
-        </EuiFlexGroup>
+        <EuiTitle size="s">
+          <h1>Welcome to Feast</h1>
+        </EuiTitle>
         <EuiText>
           <p>Select one of the projects.</p>
         </EuiText>

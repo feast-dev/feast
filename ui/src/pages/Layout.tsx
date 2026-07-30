@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 
 import {
+  EuiButton,
   EuiPage,
   EuiPageSidebar,
   EuiPageBody,
@@ -18,10 +19,15 @@ import {
   EuiIcon,
 } from "@elastic/eui";
 import { Outlet } from "react-router-dom";
+import { useQueryClient } from "react-query";
 
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import { useParams } from "react-router-dom";
-import { useLoadProjectsList } from "../contexts/ProjectListContext";
+import {
+  useLoadProjectsList,
+  ProjectListContext,
+  ProjectsListSchema,
+} from "../contexts/ProjectListContext";
 import useLoadRegistry from "../queries/useLoadRegistry";
 
 import ProjectSelector from "../components/ProjectSelector";
@@ -39,8 +45,12 @@ const Layout = () => {
   let { projectName } = useParams();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const searchRef = useRef<RegistrySearchRef>(null);
   const { user, logout, isAuthEnabled } = useAuth();
+  const queryClient = useQueryClient();
+  const projectListCtx = useContext(ProjectListContext);
+  const basename = projectListCtx?.basename || "";
 
   const { data: projectsData } = useLoadProjectsList();
 
@@ -146,6 +156,21 @@ const Layout = () => {
       ]
     : [];
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetch(`${basename}/api/v1/registry/refresh`, { method: "POST" });
+      const res = await fetch(`${basename}/projects-list.json`, {
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      const parsed = ProjectsListSchema.parse(json);
+      queryClient.setQueryData("feast-projects-list", parsed);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleSearchOpen = () => {
     setIsCommandPaletteOpen(true);
   };
@@ -241,6 +266,17 @@ const Layout = () => {
                     </EuiFlexItem>
                   )}
                   {!data && <EuiFlexItem />}
+
+                  <EuiFlexItem grow={false}>
+                    <EuiButton
+                      iconType="refresh"
+                      onClick={handleRefresh}
+                      isLoading={refreshing}
+                      size="s"
+                    >
+                      Refresh Registry
+                    </EuiButton>
+                  </EuiFlexItem>
 
                   {isAuthEnabled && user && (
                     <EuiFlexItem grow={false}>

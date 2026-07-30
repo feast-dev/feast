@@ -158,6 +158,11 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
 
     register_all_routes(rest_app, grpc_handler, store=store)
 
+    @rest_app.post("/registry/refresh")
+    def refresh_registry():
+        store.refresh_registry()
+        return Response(status_code=status.HTTP_200_OK)
+
     class PushRequest(BaseModel):
         push_source_name: str
         df: Dict[str, List]
@@ -889,16 +894,13 @@ def get_app(
 
     ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined, arg-type]
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
-        pass
+        projects_dict = _build_projects_list(store, project_id, root_path)
+        with ui_dir.joinpath("projects-list.json").open(mode="w") as f:
+            f.write(json.dumps(projects_dict))
 
     @app.get("/projects-list.json")
     def get_projects_list():
         return _build_projects_list(store, project_id, root_path)
-
-    @app.post("/api/registry/refresh")
-    def refresh_registry():
-        store.refresh_registry()
-        return Response(status_code=status.HTTP_200_OK)
 
     @app.get("/api/mlflow-runs")
     def get_mlflow_runs(max_results: int = 50):

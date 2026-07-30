@@ -283,7 +283,7 @@ def test_projects_list_dynamic_refresh(mock_feature_store):
 
 
 def test_registry_refresh_endpoint(mock_feature_store):
-    """POST /api/registry/refresh calls store.refresh_registry()."""
+    """POST /api/v1/registry/refresh calls store.refresh_registry()."""
     mock_feature_store.refresh_registry = MagicMock()
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -293,6 +293,6 @@ def test_registry_refresh_endpoint(mock_feature_store):
             app = get_app(mock_feature_store, TEST_PROJECT_NAME)
 
         client = TestClient(app)
-        resp = client.post("/api/registry/refresh")
+        resp = client.post("/api/v1/registry/refresh")
         assertpy.assert_that(resp.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
         mock_feature_store.refresh_registry.assert_called_once()
