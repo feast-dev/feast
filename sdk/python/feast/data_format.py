@@ -33,6 +33,8 @@ class FileFormat(ABC):
         pass
 
     def __eq__(self, other):
+        if not isinstance(other, FileFormat):
+            return False
         return self.to_proto() == other.to_proto()
 
     @classmethod
@@ -95,6 +97,8 @@ class StreamFormat(ABC):
         pass
 
     def __eq__(self, other):
+        if not isinstance(other, StreamFormat):
+            return False
         return self.to_proto() == other.to_proto()
 
     @classmethod

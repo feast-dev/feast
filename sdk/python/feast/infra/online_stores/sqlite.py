@@ -60,6 +60,7 @@ from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTablePr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import feast_value_type_to_python_type
 from feast.types import FEAST_VECTOR_TYPES, PrimitiveFeastType
 from feast.utils import (
@@ -465,20 +466,23 @@ class SqliteOnlineStore(OnlineStore):
             config.online_store, "enable_openai_compatible_store", False
         )
 
+        # FeatureView.from_proto() is @typechecked and only accepts a
+        # FeatureViewProto, so it can't be applied to stream_feature_views
+        # (StreamFeatureViewProto) too -- each list needs its matching class.
+        views = [
+            FeatureView.from_proto(view)
+            for view in desired_registry_proto.feature_views
+        ] + [
+            StreamFeatureView.from_proto(view)
+            for view in desired_registry_proto.stream_feature_views
+        ]
         infra_objects: List[InfraObject] = [
             SqliteTable(
                 path=self._get_db_path(config),
-                name=_table_id(
-                    project,
-                    FeatureView.from_proto(view),
-                    versioning,
-                ),
+                name=_table_id(project, view, versioning),
                 include_value_num=include_value_num,
             )
-            for view in [
-                *desired_registry_proto.feature_views,
-                *desired_registry_proto.stream_feature_views,
-            ]
+            for view in views
         ]
 
         for lv_proto in desired_registry_proto.label_views:

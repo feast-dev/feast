@@ -395,9 +395,7 @@ class FeatureView(BaseFeatureView):
 
     def __eq__(self, other):
         if not isinstance(other, FeatureView):
-            raise TypeError(
-                "Comparisons should only involve FeatureView class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False
