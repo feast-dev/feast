@@ -459,9 +459,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def __eq__(self, other):
         if not isinstance(other, OnDemandFeatureView):
-            raise TypeError(
-                "Comparisons should only involve OnDemandFeatureView class objects."
-            )
+            return False
 
         # Note, no longer evaluating the base feature view layer as ODFVs can have
         # multiple datasources and a base_feature_view only has one source

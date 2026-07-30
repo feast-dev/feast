@@ -172,9 +172,7 @@ class BaseFeatureView(ABC):
 
     def __eq__(self, other):
         if not isinstance(other, BaseFeatureView):
-            raise TypeError(
-                "Comparisons should only involve BaseFeatureView class objects."
-            )
+            return False
 
         if (
             self.name != other.name
