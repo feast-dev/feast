@@ -40,6 +40,13 @@ class OidcAuthConfig(AuthConfig):
     ui_client_id: Optional[str] = None
     verify_ssl: bool = True
     ca_cert_path: str = ""
+    # When set, incoming tokens must carry a matching `aud` / `iss` claim;
+    # when left unset (the default), the corresponding claim is not verified.
+    # Set these to the values your IdP puts in the token itself, which may
+    # differ from the discovery document (e.g. Entra ID v1.0 tokens validated
+    # against a v2.0 discovery URL).
+    audience: Optional[str] = None
+    issuer: Optional[str] = None
 
 
 class OidcClientAuthConfig(OidcAuthConfig):

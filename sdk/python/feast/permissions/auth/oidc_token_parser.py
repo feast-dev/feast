@@ -116,7 +116,15 @@ class OidcTokenParser(TokenParser):
         return False
 
     def _decode_token(self, access_token: str) -> dict:
-        """Fetch the JWKS signing key and decode + verify the JWT."""
+        """Fetch the JWKS signing key and decode + verify the JWT.
+
+        Signature and expiry are always verified. Audience and issuer are
+        verified only when ``audience`` / ``issuer`` are set on
+        ``OidcAuthConfig``; both default to off, because the claim values a
+        provider puts in the token can legitimately differ from its discovery
+        metadata (e.g. Entra ID v1.0 tokens validated against a v2.0
+        discovery document).
+        """
         optional_custom_headers = {"User-agent": "custom-user-agent"}
         ssl_ctx = ssl.create_default_context()
         if not self._auth_config.verify_ssl:
@@ -132,15 +140,21 @@ class OidcTokenParser(TokenParser):
             ssl_context=ssl_ctx,
         )
         signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        expected_audience = self._auth_config.audience
+        expected_issuer = self._auth_config.issuer
         return jwt.decode(
             access_token,
             signing_key.key,
             algorithms=["RS256"],
-            audience="account",
+            # "account" preserves the historical Keycloak-shaped default; it
+            # is inert while verify_aud is off.
+            audience=expected_audience if expected_audience is not None else "account",
+            issuer=expected_issuer,
             options={
-                "verify_aud": False,
+                "verify_aud": expected_audience is not None,
                 "verify_signature": True,
                 "verify_exp": True,
+                "verify_iss": expected_issuer is not None,
             },
             leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
         )
