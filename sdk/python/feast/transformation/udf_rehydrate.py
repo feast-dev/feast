@@ -10,24 +10,92 @@ Preferring source avoids:
 from __future__ import annotations
 
 import logging
-import re
 from typing import Callable, Optional
 
 import dill
 
 logger = logging.getLogger(__name__)
 
-# Leading decorators (e.g. @on_demand_feature_view(...)) are often included in
-# dill.source.getsource() output. They are not needed to recover the callable and
-# usually reference names unavailable at rehydrate time.
-_DECORATOR_BLOCK = re.compile(
-    r"^(?:\s*@[\s\S]*?\n)+(?=\s*(?:async\s+)?def\s+)",
-    re.MULTILINE,
-)
-
 
 def _strip_leading_decorators(udf_string: str) -> str:
-    stripped = _DECORATOR_BLOCK.sub("", udf_string.lstrip(), count=1)
+    """Remove leading ``@decorator`` lines before ``def`` / ``async def``.
+
+    Uses a linear paren-balanced scan (O(n)). Avoids nested regex quantifiers that
+    CodeQL flags as ReDoS-prone on adversarial ``@`` / newline spam in body_text.
+    """
+    text = udf_string.lstrip()
+    if not text.startswith("@"):
+        return text
+
+    i = 0
+    n = len(text)
+
+    while i < n:
+        while i < n and text[i] in " \t\r\n":
+            i += 1
+        if i >= n:
+            break
+
+        if text[i] == "#":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+
+        rest = text[i:]
+        if rest.startswith("async def ") or rest.startswith("def "):
+            break
+        if text[i] != "@":
+            break
+
+        i += 1  # past '@'
+        while i < n and (text[i].isalnum() or text[i] in "._"):
+            i += 1
+        while i < n and text[i] in " \t":
+            i += 1
+
+        if i < n and text[i] == "(":
+            depth = 0
+            in_str: Optional[str] = None
+            while i < n:
+                ch = text[i]
+                if in_str is not None:
+                    if ch == "\\" and i + 1 < n:
+                        i += 2
+                        continue
+                    if text.startswith(in_str, i):
+                        i += len(in_str)
+                        in_str = None
+                        continue
+                    i += 1
+                    continue
+                if text.startswith('"""', i) or text.startswith("'''", i):
+                    in_str = text[i : i + 3]
+                    i += 3
+                    continue
+                if ch in ("'", '"'):
+                    in_str = ch
+                    i += 1
+                    continue
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    i += 1
+                    if depth == 0:
+                        break
+                    continue
+                i += 1
+            while i < n and text[i] in " \t\r":
+                i += 1
+            if i < n and text[i] == "\n":
+                i += 1
+        else:
+            while i < n and text[i] != "\n":
+                i += 1
+            if i < n and text[i] == "\n":
+                i += 1
+
+    stripped = text[i:]
     return stripped if stripped.strip() else udf_string
 
 

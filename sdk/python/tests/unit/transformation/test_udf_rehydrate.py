@@ -1,7 +1,13 @@
+import time
+
 import dill
 import pandas as pd
 
-from feast.transformation.udf_rehydrate import rehydrate_udf_from_source, resolve_udf
+from feast.transformation.udf_rehydrate import (
+    _strip_leading_decorators,
+    rehydrate_udf_from_source,
+    resolve_udf,
+)
 
 
 def _sample_udf(df: pd.DataFrame) -> pd.DataFrame:
@@ -59,3 +65,30 @@ def metric_sum_odfv(inputs):
     assert fn is not None
     result = fn(pd.DataFrame({"metric_a": [1.0], "metric_b": [2.0]}))
     assert result["metric_sum"].iloc[0] == 3.0
+
+
+def test_strip_leading_decorators_multiline_and_bare():
+    src = """@decorator
+@foo(
+    a=1,
+    b="x(y)",
+)
+def bar():
+    return 1
+"""
+    stripped = _strip_leading_decorators(src)
+    assert stripped.lstrip().startswith("def bar")
+    assert "@" not in stripped.split("def", 1)[0]
+
+
+def test_strip_leading_decorators_adversarial_at_spam_is_linear():
+    # CodeQL concern: nested regex on many '@' / newlines. Must stay O(n).
+    spam = "@\n" * 20_000
+    started = time.perf_counter()
+    stripped = _strip_leading_decorators(spam)
+    elapsed = time.perf_counter() - started
+    assert elapsed < 1.0
+    # No def — strip may consume all decorators; result should not hang and
+    # rehydrate should fail closed so dill fallback can run.
+    assert rehydrate_udf_from_source(spam) is None
+    assert isinstance(stripped, str)
