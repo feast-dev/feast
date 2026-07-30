@@ -1,5 +1,6 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
+from typing import Any
 
 from feast.demos import copy_demo_notebooks
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
@@ -75,6 +76,7 @@ __all__ = [
     "SnowflakeSource",
     "PushSource",
     "RequestSource",
+    "MlflowDatasetSource",
     "AthenaSource",
     "OracleSource",
     "Project",
@@ -92,3 +94,15 @@ __all__ = [
     "get_embedding_provider",
     "FilterTranslator",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    # Lazy export: importing MlflowDatasetSource during feast package init
+    # re-enters feast.data_source → type_map while __init__ is incomplete and
+    # can fail with ModuleNotFoundError for google.protobuf.* in CLI subprocesses
+    # (e.g. macOS CI ``feast init`` / test_parse_repo).
+    if name == "MlflowDatasetSource":
+        from feast.infra.data_sources.mlflow import MlflowDatasetSource
+
+        return MlflowDatasetSource
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
