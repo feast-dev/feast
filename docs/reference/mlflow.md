@@ -51,6 +51,7 @@ mlflow:
   entity_df_max_rows: 100000             # default
   log_operations: false                  # default
   ops_experiment_suffix: "-feast-ops"    # default
+  enable_distributed_tracing: true       # default
 ```
 
 ### Configuration options
@@ -64,6 +65,7 @@ mlflow:
 | `entity_df_max_rows` | int | `100000` | Skip entity DataFrame artifact upload for DataFrames exceeding this limit |
 | `log_operations` | bool | `false` | Log `feast apply` and `feast materialize` to a separate MLflow experiment |
 | `ops_experiment_suffix` | string | `"-feast-ops"` | Suffix appended to project name for the operations experiment |
+| `enable_distributed_tracing` | bool | `true` | When enabled, server-side API calls create MLflow trace spans. Supports parent-child linking via `traceparent` headers. See [Distributed tracing](#distributed-tracing) |
 
 ### Tracking URI resolution
 
@@ -344,4 +346,544 @@ Start the Feast UI with:
 
 ```bash
 feast ui --host 127.0.0.1 --port 8888
+```
+
+## Distributed tracing
+
+When `enable_distributed_tracing` is `true` (the default when `mlflow.enabled=true`), server-side API calls create MLflow trace spans via `mlflow.start_span()`. Spans appear in the MLflow UI **Traces** tab and support parent-child linking via W3C `traceparent` headers.
+
+All feature server endpoints will emit MLflow traces automatically.
+
+### Automatic server traces (MCP & HTTP clients)
+
+When any client (Cursor, Claude Desktop, or direct HTTP) calls the Feast feature server, traces are created automatically with no client-side code changes.
+
+Each trace includes:
+
+| Span attribute | Description |
+|----------------|-------------|
+| `feast.feature_refs` | Which features were served |
+| `feast.entity_count` | Number of entities in the request |
+| `feast.project` | Project name |
+| `feast.retrieval_type` | `online` |
+| `feast.mcp_session_id` | MCP session identifier (when called via MCP) |
+
+The `mcp_session_id` groups all tool calls from a single MCP session (e.g., one Cursor chat conversation), allowing you to filter and correlate all feature retrievals made during that session.
+
+**MCP client configuration** (`mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "feast": {
+      "url": "http://127.0.0.1:6567/mcp"
+    }
+  }
+}
+```
+
+**Result:** Independent traces per request in MLflow, filterable by `feast.mcp_session_id`.
+
+### Cross-process trace linking (HTTP agents)
+
+When your agent calls the Feast feature server over HTTP, pass the `traceparent` header to produce a unified trace tree in MLflow.
+
+```python
+import mlflow
+import requests
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    headers = mlflow.tracing.get_tracing_context_headers_for_http_request()
+
+    resp = requests.post(
+        "http://feast-server:6567/get-online-features",
+        json={"features": [...], "entities": {...}},
+        headers=headers,
+    )
+    features = resp.json()
+
+    response = llm.chat.completions.create(...)
+    return response.choices[0].message.content
+```
+
+**Result:** A single MLflow trace containing both agent spans and Feast server spans.
+
+### In-process feature context tagging (SDK usage)
+
+When using Feast as a Python library, use `feast_trace_scope` to capture which features were retrieved and attach that metadata to the LLM span.
+
+```python
+import mlflow
+from feast import FeatureStore
+from feast.tracing_context import feast_trace_scope
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+
+store = FeatureStore(repo_path=".")
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    feature_refs = ["my_view:feature_a", "my_view:feature_b"]
+
+    with feast_trace_scope() as ctx:
+        features = store.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"entity_id": entity_id}],
+        )
+        ctx.push_retrieval(feature_refs)
+        context_attrs = ctx.get_context_attributes()
+
+    with mlflow.start_span(name="llm_call") as span:
+        span.set_attributes(context_attrs)
+        response = llm.chat.completions.create(...)
+
+    return response.choices[0].message.content
+```
+
+**Result:** The LLM span in MLflow contains:
+
+- `feast.context_features` — which features were retrieved
+- `feast.context_feature_views` — which feature views were queried
+- `feast.context_feature_count` — number of features
+
+### Automatic LLM span tagging
+
+Instead of manually calling `ctx.get_context_attributes()` and `span.set_attributes(...)`, you can install the Feast span processor once at agent startup. It automatically tags any `LLM` / `CHAT_MODEL` span with Feast feature context when a `FeastTraceContext` is active:
+
+```python
+from feast.tracing_hooks import install_feast_span_processor
+
+install_feast_span_processor()
+```
+
+With this installed, the agent code simplifies to:
+
+```python
+import mlflow
+from feast import FeatureStore
+from feast.tracing_context import feast_trace_scope
+from feast.tracing_hooks import install_feast_span_processor
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.openai.autolog()
+install_feast_span_processor()
+
+store = FeatureStore(repo_path=".")
+
+@mlflow.trace
+def my_agent(entity_id: int):
+    feature_refs = ["my_view:feature_a", "my_view:feature_b"]
+
+    with feast_trace_scope() as ctx:
+        features = store.get_online_features(
+            features=feature_refs,
+            entity_rows=[{"entity_id": entity_id}],
+        )
+        ctx.push_retrieval(feature_refs)
+
+    response = llm.chat.completions.create(...)
+    return response.choices[0].message.content
+```
+
+The LLM span is automatically tagged with `feast.context_*` attributes — no manual `set_attributes` call needed.
+
+### Tracing API reference
+
+| Function | Description |
+|----------|-------------|
+| `mlflow.tracing.get_tracing_context_headers_for_http_request()` | Returns `dict` with `traceparent` header for cross-process linking |
+| `feast_trace_scope()` | Context manager that creates a `FeastTraceContext` (clears on exit) |
+| `ctx.push_retrieval(feature_refs)` | Records retrieved feature references |
+| `ctx.get_context_attributes()` | Returns span-ready `dict` of accumulated metadata |
+| `install_feast_span_processor()` | Registers a span processor that auto-tags LLM spans with Feast context |
+
+**Important:** Call `ctx.get_context_attributes()` inside the `with feast_trace_scope()` block. The context is cleared on scope exit.
+
+## Dataset sync: MLflow GenAI Datasets → Feast
+
+`MlflowDatasetSource` is the first-class Feast `DataSource` for [MLflow GenAI EvaluationDatasets](https://mlflow.org/docs/latest/genai/datasets/). Declare it on a FeatureView (or LabelView), `feast apply`, then run `feast mlflow sync-dataset`.
+
+This uses existing Feast primitives (DataSource + FeatureView/LabelView + offline `batch_source`). It does **not** invent a separate “Feast DataSets” product, and it does **not** sync model metadata into the registry.
+
+### Unavailable / graceful degradation
+
+| State | Behavior |
+|---|---|
+| `pip install feast` without `[mlflow]` | Serving unaffected. CLI exits with an install hint. |
+| `mlflow.enabled: false` or no tracking URI | Tracing/auto-log stay off. Sync/export require a tracking URI. |
+| MLflow not installed in the cluster | Feature Store keeps serving; sync/export commands fail clearly. |
+| FileStore MLflow tracking | GenAI EvaluationDatasets require a SQL-backed MLflow tracking server. |
+
+Access uses the process credentials already configured for MLflow (`MLFLOW_TRACKING_URI`, tokens/secrets). Feast does not bypass MLflow or Feast RBAC.
+
+### Feature repository definition
+
+```python
+# feature_repo/mlflow_labels.py
+from datetime import timedelta
+
+from feast import Entity, FeatureView, Field, FileSource, MlflowDatasetSource
+from feast.types import String
+
+dataset_record = Entity(name="dataset_record", join_keys=["dataset_record_id"])
+
+mlflow_eval = MlflowDatasetSource(
+    name="mlflow_eval_source",
+    dataset_name="agent-feedback-v3",
+    # tracking_uri optional — falls back to feature_store.yaml / MLFLOW_TRACKING_URI
+    timestamp_field="event_timestamp",
+    field_mapping={
+        "expectations.expected_response": "expected_response",
+        "source.trace.trace_id": "trace_id",
+    },
+    batch_source=FileSource(
+        name="mlflow_eval_batch",
+        path="data/mlflow_eval.parquet",
+        timestamp_field="event_timestamp",
+    ),
+)
+
+mlflow_labels_view = FeatureView(
+    name="mlflow_labels",
+    entities=[dataset_record],
+    ttl=timedelta(days=0),
+    schema=[
+        Field(name="trace_id", dtype=String),
+        Field(name="input_question", dtype=String),
+        Field(name="expected_response", dtype=String),
+        Field(name="guidelines", dtype=String),
+    ],
+    source=mlflow_eval,
+    online=True,
+)
+```
+
+### Configuration
+
+Add the `dataset_sync` section under `mlflow` in `feature_store.yaml`:
+
+```yaml
+mlflow:
+  enabled: true
+  tracking_uri: http://mlflow:5000
+  dataset_sync:
+    default_field_mapping:
+      "expectations.expected_response": "corrected_response"
+      "source.trace.trace_id": "trace_id"
+    watermark_key: "feast_last_sync_time"
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dataset_sync.default_field_mapping` | dict | `{}` | Default field mapping overrides (dot-delimited MLflow paths → Feast column names) |
+| `dataset_sync.watermark_key` | string | `"feast_last_sync_time"` | MLflow dataset tag key for incremental sync tracking |
+| `dataset_sync.default_batch_size` | int | `10000` | Batch size for `write_to_online_store` during sync |
+
+### CLI commands
+
+```bash
+# Sync from MlflowDatasetSource declared on the FeatureView
+feast mlflow sync-dataset --feature-view mlflow_labels --full-refresh
+
+# Incremental sync (only new/updated since last sync)
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Sync every view whose source is MlflowDatasetSource
+feast mlflow sync-dataset
+
+# Preview flattened records without writing
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+
+# Dry run (fetch & flatten, no writes)
+feast mlflow sync-dataset --feature-view mlflow_labels --dry-run
+
+# Override dataset name / field mapping from the CLI
+feast mlflow sync-dataset --feature-view mlflow_labels --source agent-feedback-v3 --field-mapping mapping.json
+```
+
+### Default flattening rules
+
+| MLflow path | Feast column |
+|---|---|
+| `inputs.X` | `input_X` |
+| `expectations.X` | `X` |
+| `source.trace.trace_id` | `trace_id` |
+| `tags.X` | `tag_X` |
+| `last_update_time` | `event_timestamp` |
+
+Override with a `--field-mapping` JSON file or `dataset_sync.default_field_mapping` in config.
+
+### Incremental sync strategy
+
+After each sync, the command tags the MLflow dataset with the configured watermark key. On the next incremental run, only records with `last_update_time` newer than the watermark are ingested. Use `--full-refresh` to ignore the watermark.
+
+### Retrieving synced features
+
+**Online:**
+
+```python
+store = FeatureStore(repo_path="feature_repo/")
+features = store.get_online_features(
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+    entity_rows=[{"dataset_record_id": "rec-abc123"}],
+).to_dict()
+```
+
+**Offline (batch):**
+
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=["mlflow_labels:expected_response", "mlflow_labels:guidelines"],
+).to_df()
+```
+
+### When to use FeatureView vs LabelView
+
+Prefer `MlflowDatasetSource` on a **FeatureView** for curated golden eval sets. For mutable human/LLM feedback labels, use a **LabelView** with `feast mlflow sync-assessments`. Decision guide:
+
+| Data type | Feast primitive | Why |
+|---|---|---|
+| Curated golden eval set (immutable Q&A pairs) | **FeatureView** + `MlflowDatasetSource` | Reference data keyed by `dataset_record_id`. No multi-labeler semantics needed. Serves at inference time via `get_online_features`. |
+| Human corrections / quality ratings | **LabelView** | Mutable labels keyed by `trace_id`. Multiple reviewers can label the same trace; `conflict_policy` resolves disagreements for offline/training reads. |
+| LLM-as-a-judge feedback | **LabelView** | Same as human labels, but `labeler_field` identifies the source as an LLM (e.g. `"gpt-4-judge"`). |
+| Fine-tuning JSONL | **Neither** (output only) | JSONL is an export format. Produced by `feast mlflow export-traces`, not stored in Feast. |
+
+## Assessment sync: MLflow trace assessments → Feast
+
+The `feast mlflow sync-assessments` command scans MLflow traces for expectations and feedback assessments, then writes them into a Feast FeatureView or LabelView.
+
+### Flat mode (default)
+
+Each assessment becomes its own row with a generic schema:
+
+```bash
+feast mlflow sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view trace_assessments
+```
+
+Columns: `trace_id`, `assessment_name`, `assessment_type`, `value`, `source_id`, `rationale`, `event_timestamp`.
+
+### Pivot mode (LabelView-compatible)
+
+When targeting a LabelView, use `--pivot` to collapse assessments into one row per `trace_id` with columns matching the LabelView schema:
+
+```bash
+feast mlflow sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view agent_feedback \
+  --pivot \
+  --assessment-mapping mapping.json \
+  --labeler-column labeler
+```
+
+Where `mapping.json` maps assessment names to LabelView column names:
+
+```json
+{
+  "expected_response": "corrected_response",
+  "response_quality": "response_quality"
+}
+```
+
+The `source_id` from each assessment (who wrote it) is written to the `--labeler-column` (default: `labeler`).
+
+### LabelView definition for assessments
+
+```python
+from feast import Entity, Field, FileSource, LabelView, PushSource
+from feast.labeling.conflict_policy import ConflictPolicy
+from feast.types import String
+from feast.value_type import ValueType
+
+trace_entity = Entity(name="trace", join_keys=["trace_id"], value_type=ValueType.STRING)
+
+agent_feedback_source = PushSource(
+    name="agent_feedback_push",
+    batch_source=FileSource(
+        name="agent_feedback_batch",
+        path="data/agent_feedback.parquet",
+        timestamp_field="event_timestamp",
+    ),
+)
+
+agent_feedback = LabelView(
+    name="agent_feedback",
+    entities=[trace_entity],
+    schema=[
+        Field(name="corrected_response", dtype=String),
+        Field(name="response_quality", dtype=String),
+        Field(name="labeler", dtype=String),
+    ],
+    source=agent_feedback_source,
+    labeler_field="labeler",
+    conflict_policy=ConflictPolicy.LAST_WRITE_WINS,
+)
+```
+
+### CLI reference
+
+```
+feast mlflow sync-assessments [OPTIONS]
+
+Required:
+  --experiment TEXT        MLflow experiment name to scan
+  --feature-view TEXT     Target Feast FeatureView or LabelView name
+
+Pivot mode (for LabelView targets):
+  --pivot / --no-pivot    Pivot assessments into one row per trace_id
+  --assessment-mapping    Path to JSON file mapping assessment names to columns
+  --labeler-column TEXT   Column name for assessment source_id (default: labeler)
+
+Filtering:
+  --filter TEXT           MLflow search_traces filter expression
+  --max-results INT       Max traces to scan (default: 1000)
+  --assessment-names TEXT Comma-separated assessment names to sync
+
+Options:
+  --batch-size INT        Rows per batch
+  --dry-run / --no-dry-run  Extract without writing
+```
+
+### LLM-as-a-judge example
+
+An LLM judge evaluates agent responses and logs feedback on each trace. The feedback is then synced to a Feast LabelView for training data curation:
+
+```python
+import mlflow
+from mlflow.entities import AssessmentSource, AssessmentSourceType
+
+mlflow.set_tracking_uri("http://localhost:5000")
+
+for trace_id in trace_ids:
+    trace = mlflow.get_trace(trace_id)
+    judge_verdict = llm_judge.evaluate(trace)
+
+    mlflow.log_feedback(
+        trace_id=trace_id,
+        name="response_quality",
+        value=judge_verdict.rating,
+        source=AssessmentSource(
+            source_type=AssessmentSourceType.LLM,
+            source_id="gpt-4-judge",
+        ),
+        rationale=judge_verdict.explanation,
+    )
+```
+
+Then sync to Feast:
+
+```bash
+feast mlflow sync-assessments \
+  --experiment my_agent_traces \
+  --feature-view agent_feedback \
+  --pivot \
+  --assessment-names "response_quality" \
+  --labeler-column labeler
+```
+
+The `labeler` column will contain `"gpt-4-judge"`, distinguishing LLM feedback from human labels in the same LabelView. The LabelView's `conflict_policy` determines which label wins when both a human and an LLM judge write labels for the same trace.
+
+> **Note:** `feast mlflow export-traces --label-view` defaults to
+> `--label-source=historical`, which pulls offline label history and applies
+> `ConflictPolicy` via `resolve_conflicts`. Use `--label-source=online` only
+> when you explicitly want LAST_WRITE_WINS from the online store.
+
+## Trace export: `feast mlflow export-traces`
+
+Extract MLflow traces into training-ready JSONL. Labels come from expectations and feedback logged directly on traces, or optionally from a Feast LabelView.
+
+### Two label sources
+
+**From traces** — expectations and feedback (human or LLM judge) logged on individual traces:
+
+```bash
+feast mlflow export-traces \
+  --experiment my_agent_traces \
+  -o training.jsonl \
+  --labeled-only \
+  --register
+```
+
+**From a Feast LabelView** — join conflict-resolved offline labels (by `trace_id` by default):
+
+```bash
+feast mlflow export-traces \
+  --experiment my_agent_traces \
+  --label-view agent_feedback \
+  --label-fields corrected_response,response_quality \
+  --label-source historical \
+  -o training.jsonl \
+  --labeled-only
+```
+
+**From a curated dataset** — only traces added to an MLflow GenAI Dataset are exported:
+
+```bash
+feast mlflow export-traces \
+  --experiment my_agent_traces \
+  --dataset finetuning_v2 \
+  -o training.jsonl \
+  --all-traces \
+  --register \
+  --register-experiment training_artifacts
+```
+
+### Saving the artifact
+
+`--register` saves the JSONL as an MLflow artifact. Control where it lands:
+
+| Flag | Behavior |
+|---|---|
+| `--register` | Creates a new run in the same experiment as `--experiment` |
+| `--register-experiment NAME` | Creates a new run in a different experiment |
+| `--register-run RUN_ID` | Attaches to an existing run (ignores `--register-experiment`) |
+
+### CLI reference
+
+```
+feast mlflow export-traces [OPTIONS]
+
+Required:
+  --experiment TEXT              MLflow experiment to read traces from
+  --output / -o TEXT             Output JSONL path
+
+Filtering:
+  --dataset TEXT                 Only export traces in this MLflow dataset
+  --filter TEXT                  MLflow search_traces filter expression
+  --max-results INT              Max traces to scan (default: 1000)
+  --labeled-only / --all-traces  Only export labeled traces (default: labeled-only)
+
+LabelView join (optional):
+  --label-view TEXT              Join labels from this LabelView
+  --label-fields TEXT            Comma-separated fields (default: corrected_response)
+  --label-join-key TEXT          Entity join key (default: trace_id)
+  --label-source [historical|online]
+                                 historical (default) applies ConflictPolicy;
+                                 online uses get_online_features (LAST_WRITE_WINS)
+
+Output:
+  --format [openai|enriched]     Export format (default: openai)
+  --register / --no-register     Save JSONL as an MLflow artifact
+  --register-experiment TEXT     Experiment for the artifact run
+  --register-run TEXT            Attach artifact to an existing run
+  --dataset-tags TEXT            key=value tags for the MLflow run
+```
+
+### Output formats
+
+**OpenAI** (`--format openai`):
+```json
+{"messages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+```
+
+**Enriched** (`--format enriched`):
+```json
+{"messages": [...], "feast_metadata": {"trace_id": "...", "feature_refs": [...], "label": "good"}}
 ```

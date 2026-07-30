@@ -246,13 +246,20 @@ class FeatureView(BaseFeatureView):
                 "source must be a DataSource, a FeatureView, or a list of FeatureView."
             )
 
-        # Set up stream, batch and derived view sources
+        # Set up stream, batch and derived view sources.
+        # MlflowDatasetSource follows the PushSource pattern (ingest handle +
+        # required batch_source for historical / offline reads).
+        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+            MlflowDatasetSource,
+        )
+
         if (
             isinstance(self.data_source, PushSource)
             or isinstance(self.data_source, KafkaSource)
             or isinstance(self.data_source, KinesisSource)
+            or isinstance(self.data_source, MlflowDatasetSource)
         ):
-            # Stream source definition
+            # Stream / pull-ingest source definition
             self.stream_source = self.data_source
             if not self.data_source.batch_source:
                 raise ValueError(
