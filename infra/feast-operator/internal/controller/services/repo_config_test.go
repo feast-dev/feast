@@ -233,6 +233,19 @@ var _ = Describe("Repo Config", func() {
 			repoConfig = getClientRepoConfig(featureStore, nil)
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
 
+			By("Coercing numeric audience and issuer Secret values to strings")
+			secretExtractionFunc = mockOidcConfigFromSecret(map[string]interface{}{
+				string(OidcAuthDiscoveryUrl): "discovery-url",
+				string(OidcClientId):         clientIDValue,
+				// Secret extraction YAML-parses values, so an all-digits
+				// audience/issuer reaches this code as an int.
+				string(OidcAudience): 1234567890,
+				string(OidcIssuer):   9876543210})
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcAudience), "1234567890"))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcIssuer), "9876543210"))
+
 			By("Having oidc authorization with issuerUrl only (no Secret)")
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
 				OidcAuthz: &feastdevv1.OidcAuthz{
