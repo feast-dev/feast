@@ -62,7 +62,7 @@ def _build_projects_list(
     registry_path_template = f"{root_path}/api/v1"
 
     try:
-        projects = store.registry.list_projects(allow_cache=False)
+        projects = store.registry.list_projects(allow_cache=True)
         for proj in projects:
             discovered_projects.append(
                 {
@@ -894,6 +894,11 @@ def get_app(
     @app.get("/projects-list.json")
     def get_projects_list():
         return _build_projects_list(store, project_id, root_path)
+
+    @app.post("/api/registry/refresh")
+    def refresh_registry():
+        store.refresh_registry()
+        return Response(status_code=status.HTTP_200_OK)
 
     @app.get("/api/mlflow-runs")
     def get_mlflow_runs(max_results: int = 50):
