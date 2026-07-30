@@ -139,9 +139,7 @@ jobs:
           git add .
           git cherry-pick --continue
           git push origin ${BRANCH} --force
-          \`\`\`" \
-              --label "sync-to-${VERSION}" \
-              --label "needs-manual-resolution")
+          \`\`\`")
           else
             PR_URL=$(gh pr create \
               --repo "$DOWNSTREAM_REPO" \
@@ -152,8 +150,7 @@ jobs:
 
           Cherry-pick of ${SOURCE_PR_URL} to \`${TARGET_BRANCH}\`.
 
-          This PR was automatically created and will auto-merge after CI passes." \
-              --label "sync-to-${VERSION}")
+          This PR was automatically created and will auto-merge after CI passes.")
           fi
 
           echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"

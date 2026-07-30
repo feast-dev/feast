@@ -80,9 +80,7 @@ jobs:
           git add .
           git cherry-pick --continue
           git push origin auto-sync/stable/${PR_NUMBER} --force
-          \`\`\`" \
-              --label "sync-to-stable" \
-              --label "needs-manual-resolution")
+          \`\`\`")
           else
             PR_URL=$(gh pr create \
               --base stable \
@@ -92,8 +90,7 @@ jobs:
 
           Cherry-pick of ${SOURCE_PR_URL} to \`stable\` branch.
 
-          This PR was automatically created and will auto-merge after CI passes." \
-              --label "sync-to-stable")
+          This PR was automatically created and will auto-merge after CI passes.")
           fi
 
           echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"

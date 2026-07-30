@@ -88,9 +88,7 @@ jobs:
           git add .
           git cherry-pick --continue
           git push origin ${BRANCH} --force
-          \`\`\`" \
-              --label "sync-to-upstream" \
-              --label "needs-manual-resolution")
+          \`\`\`")
           else
             PR_URL=$(gh pr create \
               --repo "$UPSTREAM_REPO" \
@@ -101,8 +99,7 @@ jobs:
 
           Cherry-pick of ${SOURCE_PR_URL} to upstream \`master\` branch.
 
-          This PR was automatically created from the midstream repository." \
-              --label "sync-to-upstream")
+          This PR was automatically created from the midstream repository.")
           fi
 
           echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
