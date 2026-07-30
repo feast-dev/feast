@@ -33,6 +33,7 @@ import (
 
 const (
 	tlsFetchTimeout = 10 * time.Second
+	alpnH2          = "h2"
 	alpnHTTP11      = "http/1.1"
 )
 
@@ -76,10 +77,18 @@ func fetchTLSAdherencePolicy(ctx context.Context, k8sClient client.Client) (conf
 	defer cancel()
 
 	policy, err := tlspkg.FetchAPIServerTLSAdherencePolicy(fetchCtx, k8sClient)
-	if err != nil {
-		return configv1.TLSAdherencePolicy(""), false, nil
+	if err == nil {
+		return policy, true, nil
 	}
-	return policy, true, nil
+
+	switch {
+	case apimeta.IsNoMatchError(err),
+		apierrors.IsNotFound(err),
+		isTransientError(err):
+		return "", false, nil
+	default:
+		return "", false, fmt.Errorf("unable to read APIServer TLS adherence policy: %w", err)
+	}
 }
 
 func bootstrapTLS(ctx context.Context, k8sClient client.Client) (*tlsBootstrapResult, error) {
@@ -110,7 +119,7 @@ func bootstrapTLS(ctx context.Context, k8sClient client.Client) (*tlsBootstrapRe
 	result.AdherencePolicy = adherence
 
 	result.TLSOpts = append(result.TLSOpts, func(c *tls.Config) {
-		c.NextProtos = []string{"h2", alpnHTTP11}
+		c.NextProtos = []string{alpnH2, alpnHTTP11}
 	})
 
 	return result, nil
