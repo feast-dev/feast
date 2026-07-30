@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union, cast
 
-from pydantic import StrictInt, StrictStr, ValidationInfo, field_validator
+from pydantic import StrictInt, StrictStr, field_validator
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
@@ -307,13 +307,11 @@ class SqlRegistryConfig(RegistryConfig):
     """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
 
     @field_validator("read_path")
-    def validate_read_path(
-        cls, read_path: Optional[str], values: ValidationInfo
-    ) -> Optional[str]:
+    def validate_read_path(cls, read_path: Optional[str]) -> Optional[str]:
         # Mirror `RegistryConfig.validate_path`: a bare `postgresql://` read_path
         # must be rewritten to the psycopg3 driver too, otherwise it silently
         # falls back to psycopg2 while `path` uses psycopg3.
-        if read_path is not None and values.data.get("registry_type") == "sql":
+        if read_path is not None:
             return cls._normalize_postgres_scheme(read_path, "read_path")
         return read_path
 

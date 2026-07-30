@@ -219,9 +219,9 @@ class RegistryConfig(FeastBaseModel):
                 f"The `{field_name}` of the `RegistryConfig` starts with a plain "
                 "`postgresql` string. We are updating this to `postgresql+psycopg` "
                 "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
-                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
+                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitly "
                 f"to `{field_name}`. To silence this warning, pass `postgresql+psycopg` "
-                f"explicitely to `{field_name}`."
+                f"explicitly to `{field_name}`."
             )
             # Rewrite only the leading scheme, not any later occurrence (e.g.
             # inside credentials or a query string).
