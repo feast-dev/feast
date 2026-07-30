@@ -299,6 +299,41 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init -t spark"))
+
+			// initImage is independent of server images: init containers use initImage,
+			// main containers keep their own server.image.
+			initImage := "quay.io/org/feast-init:custom"
+			serverImage := "quay.io/org/feast-online:server"
+			if resource.Spec.Services == nil {
+				resource.Spec.Services = &feastdevv1.FeatureStoreServices{}
+			}
+			resource.Spec.Services.InitImage = &initImage
+			if resource.Spec.Services.OnlineStore == nil {
+				resource.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{}
+			}
+			if resource.Spec.Services.OnlineStore.Server == nil {
+				resource.Spec.Services.OnlineStore.Server = &feastdevv1.ServerConfigs{}
+			}
+			resource.Spec.Services.OnlineStore.Server.Image = &serverImage
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Image).To(Equal(initImage))
+			Expect(deploy.Spec.Template.Spec.InitContainers[1].Image).To(Equal(initImage))
+			online = services.GetOnlineContainer(*deploy)
+			Expect(online).NotTo(BeNil())
+			Expect(online.Image).To(Equal(serverImage))
+			Expect(online.Image).NotTo(Equal(initImage))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
