@@ -1,8 +1,8 @@
-"""Extract fine-tuning examples from MLflow traces with Feast context.
+"""Extract trace export examples from MLflow traces with Feast context.
 
 Queries an MLflow experiment for traces containing CHAT_MODEL spans,
 extracts prompt/completion pairs and ``feast.*`` span attributes, and
-returns a list of :class:`FinetuningExample` objects ready for label
+returns a list of :class:`TraceExportExample` objects ready for label
 resolution and export.
 """
 
@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class FinetuningExample:
-    """A single fine-tuning training example extracted from an MLflow trace.
+class TraceExportExample:
+    """A single training example extracted from an MLflow trace.
 
     Flows through the entire pipeline: extractor → label_resolver → exporter.
     Label fields (``label``, ``corrected_response``, ``labeler``) are populated
-    by :mod:`feast.finetuning.label_resolver` after extraction.
+    by :mod:`feast.trace_export.label_resolver` after extraction.
     """
 
     trace_id: str
@@ -54,7 +54,7 @@ def extract_from_traces(
     experiment_name: str,
     filter_string: Optional[str] = None,
     max_results: int = 1000,
-) -> List[FinetuningExample]:
+) -> List[TraceExportExample]:
     """Query MLflow traces and extract fine-tuning examples.
 
     Args:
@@ -64,10 +64,10 @@ def extract_from_traces(
         max_results: Maximum number of traces to retrieve.
 
     Returns:
-        A list of :class:`FinetuningExample` with prompt/completion pairs
+        A list of :class:`TraceExportExample` with prompt/completion pairs
         extracted. Label fields are ``None`` — populate them via
-        :func:`~feast.finetuning.label_resolver.resolve_labels_from_feast`
-        or :func:`~feast.finetuning.label_resolver.resolve_labels_from_mlflow`.
+        :func:`~feast.trace_export.label_resolver.resolve_labels_from_feast`
+        or :func:`~feast.trace_export.label_resolver.resolve_labels_from_mlflow`.
     """
     mlflow = _require_mlflow()
     mlflow.set_tracking_uri(tracking_uri)
@@ -90,7 +90,7 @@ def extract_from_traces(
     # when the installed MLflow version does not support it.
     traces = _search_traces_bulk(mlflow, search_kwargs)
 
-    examples: List[FinetuningExample] = []
+    examples: List[TraceExportExample] = []
     skipped = 0
 
     for trace in traces:
@@ -184,8 +184,8 @@ def _get_spans(trace: Any) -> List[Any]:
     return []
 
 
-def _process_trace(trace: Any) -> Optional[FinetuningExample]:
-    """Convert a single MLflow trace into a FinetuningExample, or None."""
+def _process_trace(trace: Any) -> Optional[TraceExportExample]:
+    """Convert a single MLflow trace into a TraceExportExample, or None."""
     trace_id = _get_trace_id(trace)
     spans = _get_spans(trace)
     if not spans:
@@ -217,7 +217,7 @@ def _process_trace(trace: Any) -> Optional[FinetuningExample]:
 
     metadata = _build_metadata(chat_span, trace)
 
-    return FinetuningExample(
+    return TraceExportExample(
         trace_id=trace_id,
         messages=messages,
         original_completion=completion,

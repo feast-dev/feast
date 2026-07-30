@@ -859,7 +859,7 @@ def _write_offline_batch(
 def _search_traces_for_assessments(mlflow: Any, search_kwargs: Dict[str, Any]) -> list:
     """Fetch traces for assessment sync with bulk / list fallbacks.
 
-    Mirrors ``feast.finetuning.trace_extractor._search_traces_bulk`` so MLflow
+    Mirrors ``feast.trace_export.trace_extractor._search_traces_bulk`` so MLflow
     3.x DataFrames without an ``assessments`` column still yield Trace objects.
     """
     try:

@@ -1,4 +1,4 @@
-"""Unit tests for feast.finetuning package."""
+"""Unit tests for feast.mlflow_integration trace export modules."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import pytest
 
 class TestSearchTracesBulk:
     def test_prefers_return_type_list(self):
-        from feast.finetuning.trace_extractor import _search_traces_bulk
+        from feast.trace_export.trace_extractor import _search_traces_bulk
 
         mock_mlflow = MagicMock()
         traces = [MagicMock(name="t1"), MagicMock(name="t2")]
@@ -33,7 +33,7 @@ class TestSearchTracesBulk:
         mock_mlflow.get_trace.assert_not_called()
 
     def test_falls_back_to_embedded_trace_column(self):
-        from feast.finetuning.trace_extractor import _search_traces_bulk
+        from feast.trace_export.trace_extractor import _search_traces_bulk
 
         mock_mlflow = MagicMock()
         t1, t2 = MagicMock(name="t1"), MagicMock(name="t2")
@@ -56,7 +56,7 @@ class TestSearchTracesBulk:
         mock_mlflow.get_trace.assert_not_called()
 
     def test_legacy_get_trace_fallback(self):
-        from feast.finetuning.trace_extractor import _search_traces_bulk
+        from feast.trace_export.trace_extractor import _search_traces_bulk
 
         mock_mlflow = MagicMock()
         fetched = MagicMock(name="fetched")
@@ -75,11 +75,11 @@ class TestSearchTracesBulk:
         mock_mlflow.get_trace.assert_called_once_with("tr-1")
 
 
-class TestFinetuningExample:
+class TestTraceExportExample:
     def test_defaults(self):
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.trace_extractor import TraceExportExample
 
-        ex = FinetuningExample(
+        ex = TraceExportExample(
             trace_id="tr-1",
             messages=[{"role": "user", "content": "hello"}],
         )
@@ -98,11 +98,11 @@ class TestFinetuningExample:
 
 class TestOpenAIChatExporter:
     def test_exports_corrected_response(self):
-        from feast.finetuning.exporters import OpenAIChatExporter
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.exporters import OpenAIChatExporter
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "What is 2+2?"}],
                 original_completion="5",
@@ -126,11 +126,11 @@ class TestOpenAIChatExporter:
             os.unlink(path)
 
     def test_skips_examples_without_completion(self):
-        from feast.finetuning.exporters import OpenAIChatExporter
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.exporters import OpenAIChatExporter
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "hello"}],
             )
@@ -149,11 +149,11 @@ class TestOpenAIChatExporter:
 
 class TestFeastEnrichedExporter:
     def test_includes_metadata(self):
-        from feast.finetuning.exporters import FeastEnrichedExporter
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.exporters import FeastEnrichedExporter
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "hello"}],
                 original_completion="hi there",
@@ -186,13 +186,13 @@ class TestFeastEnrichedExporter:
 
 class TestGetExporter:
     def test_valid_formats(self):
-        from feast.finetuning.exporters import get_exporter
+        from feast.trace_export.exporters import get_exporter
 
         assert get_exporter("openai") is not None
         assert get_exporter("enriched") is not None
 
     def test_invalid_format(self):
-        from feast.finetuning.exporters import get_exporter
+        from feast.trace_export.exporters import get_exporter
 
         with pytest.raises(ValueError, match="Unknown export format"):
             get_exporter("invalid_format")
@@ -205,11 +205,11 @@ class TestGetExporter:
 
 class TestResolveLabelsMlflow:
     def test_promotes_expectations(self):
-        from feast.finetuning.label_resolver import resolve_labels_from_mlflow
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.label_resolver import resolve_labels_from_mlflow
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "q"}],
                 metadata={"expectations": {"expected_response": "correct answer"}},
@@ -221,11 +221,11 @@ class TestResolveLabelsMlflow:
         assert result[0].labeler == "mlflow_expectation"
 
     def test_noop_when_no_expectations(self):
-        from feast.finetuning.label_resolver import resolve_labels_from_mlflow
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.label_resolver import resolve_labels_from_mlflow
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "q"}],
             )
@@ -236,16 +236,16 @@ class TestResolveLabelsMlflow:
 
 class TestFilterLabeledOnly:
     def test_filters_correctly(self):
-        from feast.finetuning.label_resolver import filter_labeled_only
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.label_resolver import filter_labeled_only
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[],
                 corrected_response="fixed",
             ),
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-2",
                 messages=[],
             ),
@@ -257,18 +257,18 @@ class TestFilterLabeledOnly:
 
 class TestSyncFeedback:
     def test_sync_calls_log_feedback(self):
-        from feast.finetuning.label_resolver import _sync_feedback
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.label_resolver import _sync_feedback
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[],
                 label="poor",
                 corrected_response="better answer",
                 labeler="reviewer@co.com",
             ),
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-2",
                 messages=[],
             ),
@@ -304,11 +304,11 @@ class TestSyncFeedback:
 
 class TestRegisterInMlflow:
     def test_register_returns_run_id(self):
-        from feast.finetuning.exporters import OpenAIChatExporter
-        from feast.finetuning.trace_extractor import FinetuningExample
+        from feast.trace_export.exporters import OpenAIChatExporter
+        from feast.trace_export.trace_extractor import TraceExportExample
 
         examples = [
-            FinetuningExample(
+            TraceExportExample(
                 trace_id="tr-1",
                 messages=[{"role": "user", "content": "hello"}],
                 original_completion="hi",
@@ -952,7 +952,7 @@ class TestExtractAssessments:
         return assessment
 
     def test_extract_expectations(self):
-        from feast.finetuning.trace_extractor import _extract_assessments
+        from feast.trace_export.trace_extractor import _extract_assessments
 
         trace = MagicMock()
         trace.info.assessments = [
@@ -966,7 +966,7 @@ class TestExtractAssessments:
         assert result["expected_response"] == "Correct answer"
 
     def test_extract_feedback(self):
-        from feast.finetuning.trace_extractor import _extract_assessments
+        from feast.trace_export.trace_extractor import _extract_assessments
 
         trace = MagicMock()
         trace.info.assessments = [
@@ -987,7 +987,7 @@ class TestExtractAssessments:
 
     def test_extract_llm_judge_feedback(self):
         """LLM-as-a-judge feedback is extracted the same as human feedback."""
-        from feast.finetuning.trace_extractor import _extract_assessments
+        from feast.trace_export.trace_extractor import _extract_assessments
 
         trace = MagicMock()
         trace.info.assessments = [
@@ -1007,7 +1007,7 @@ class TestExtractAssessments:
         assert result["safety_check"]["source_id"] == "safety-scanner-v2"
 
     def test_extract_no_assessments(self):
-        from feast.finetuning.trace_extractor import _extract_assessments
+        from feast.trace_export.trace_extractor import _extract_assessments
 
         trace = MagicMock()
         trace.info.assessments = []
@@ -1016,7 +1016,7 @@ class TestExtractAssessments:
         assert result == {}
 
     def test_extract_ignores_wrong_kind(self):
-        from feast.finetuning.trace_extractor import _extract_assessments
+        from feast.trace_export.trace_extractor import _extract_assessments
 
         trace = MagicMock()
         trace.info.assessments = [

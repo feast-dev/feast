@@ -1,6 +1,6 @@
 """Pluggable fine-tuning dataset exporters.
 
-Each exporter takes a list of :class:`~feast.finetuning.trace_extractor.FinetuningExample`
+Each exporter takes a list of :class:`~feast.trace_export.trace_extractor.TraceExportExample`
 objects and writes them to a file in a specific format.  New formats are added
 by subclassing :class:`BaseExporter` and registering in :data:`EXPORTERS`.
 """
@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Type
 
-from feast.finetuning.trace_extractor import FinetuningExample
+from feast.trace_export.trace_extractor import TraceExportExample
 
 _logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class BaseExporter(ABC):
     """Abstract base for fine-tuning dataset exporters."""
 
     @abstractmethod
-    def export(self, examples: List[FinetuningExample], output_path: str) -> int:
+    def export(self, examples: List[TraceExportExample], output_path: str) -> int:
         """Write *examples* to *output_path*.
 
         Returns:
@@ -96,7 +96,7 @@ class OpenAIChatExporter(BaseExporter):
     otherwise ``original_completion``.  Examples with neither are skipped.
     """
 
-    def export(self, examples: List[FinetuningExample], output_path: str) -> int:
+    def export(self, examples: List[TraceExportExample], output_path: str) -> int:
         examples = sorted(examples, key=lambda ex: ex.trace_id)
         count = 0
         with open(output_path, "w", encoding="utf-8") as fh:
@@ -129,7 +129,7 @@ class FeastEnrichedExporter(BaseExporter):
         }}
     """
 
-    def export(self, examples: List[FinetuningExample], output_path: str) -> int:
+    def export(self, examples: List[TraceExportExample], output_path: str) -> int:
         examples = sorted(examples, key=lambda ex: ex.trace_id)
         count = 0
         with open(output_path, "w", encoding="utf-8") as fh:
@@ -196,7 +196,7 @@ def get_exporter(format_name: str) -> BaseExporter:
 
 
 def _build_messages(
-    ex: FinetuningExample, assistant_content: str
+    ex: TraceExportExample, assistant_content: str
 ) -> List[Dict[str, str]]:
     """Build the messages array, replacing the last assistant turn."""
     messages: List[Dict[str, str]] = []
