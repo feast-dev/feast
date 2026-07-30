@@ -212,16 +212,20 @@ var _ = Describe("Repo Config", func() {
 				string(OidcClientId):         clientIDValue,
 				string(OidcClientSecret):     "client-secret",
 				string(OidcUsername):         "username",
-				string(OidcPassword):         "password"})
+				string(OidcPassword):         "password",
+				string(OidcAudience):         "api://feast-feature-server",
+				string(OidcIssuer):           "https://login.example.com/realms/master"})
 			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(5))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(7))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientId)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcAuthDiscoveryUrl)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientSecret)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcUsername)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcPassword)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcAudience), "api://feast-feature-server"))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcIssuer), "https://login.example.com/realms/master"))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(defaultOnlineStoreConfig(featureStore)))
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))

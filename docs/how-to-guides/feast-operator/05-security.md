@@ -62,7 +62,11 @@ stringData:
   client_secret: <your-client-secret>
   username: <service-account-username>     # used for client-credentials flow
   password: <service-account-password>
+  audience: <expected-aud-claim>           # optional: reject tokens whose aud claim differs
+  issuer: <expected-iss-claim>             # optional: reject tokens whose iss claim differs
 ```
+
+The optional `audience` and `issuer` keys enable strict claim verification on the feature server; when omitted, only signature and expiry are verified. Set them to the values your IdP puts in the token itself, which are not always the ones in the discovery document (see [OIDC Authorization](../../getting-started/components/authz_manager.md#oidc-authorization)).
 
 Reference the Secret from the CR:
 
