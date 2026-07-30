@@ -1387,10 +1387,7 @@ def _get_online_request_context(
 ):
     from feast.feature_view import DUMMY_ENTITY_NAME
 
-    # Online serve must see fresh FeatureViewState (AVAILABLE_ONLINE vs
-    # MATERIALIZING/GENERATED). Cached registry reads cause brief or stuck 500s
-    # after remote materialize completes.
-    _feature_refs = _get_features(registry, project, features, allow_cache=False)
+    _feature_refs = _get_features(registry, project, features, allow_cache=True)
 
     (
         requested_feature_views,
@@ -1399,7 +1396,7 @@ def _get_online_request_context(
         registry=registry,
         project=project,
         features=features,
-        allow_cache=False,
+        allow_cache=True,
         hide_dummy_entity=False,
     )
 
