@@ -46,7 +46,7 @@ from feast.monitoring.monitoring_utils import (
     opt_float,
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import compute_non_entity_date_range, to_naive_utc
+from feast.utils import compute_non_entity_date_range
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
@@ -494,6 +494,59 @@ class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
     staging_location: Optional[str] = None
 
     staging_location_endpoint_override: Optional[str] = None
+
+
+def _build_entity_df_from_sources(
+    config: RepoConfig,
+    feature_views: List[FeatureView],
+    start_date: datetime,
+    end_date: datetime,
+    data_source_reader: Callable[[DataSource, str], Table],
+) -> pd.DataFrame:
+    """Build a synthetic entity DataFrame for non-entity mode.
+
+    Scans each feature view's source within the date range to discover all unique
+    entity key combinations, then creates a single row per entity with
+    event_timestamp = end_date so the PIT join returns the latest feature values.
+    """
+    entity_dfs: List[pd.DataFrame] = []
+    repo_path = str(config.repo_path) if config.repo_path else ""
+
+    for fv in feature_views:
+        source = fv.batch_source
+        assert source is not None, f"Feature view '{fv.name}' has no batch_source"
+        table = data_source_reader(source, repo_path)
+        ts_col = source.timestamp_field
+
+        if fv.projection.join_key_map:
+            join_keys = list(fv.projection.join_key_map.values())
+        elif fv.entity_columns:
+            join_keys = [e.name for e in fv.entity_columns]
+        else:
+            join_keys = list(fv.entities) if fv.entities else []
+
+        filtered = table.filter(
+            (table[ts_col] >= ibis.literal(start_date))
+            & (table[ts_col] <= ibis.literal(end_date))
+        )
+
+        if join_keys:
+            sub_df = filtered.select(join_keys).execute().drop_duplicates()
+        else:
+            sub_df = pd.DataFrame(index=[0])
+
+        entity_dfs.append(sub_df)
+
+    if not entity_dfs:
+        return pd.DataFrame(columns=["event_timestamp"])
+
+    combined = pd.concat(entity_dfs, ignore_index=True).drop_duplicates()
+    combined["event_timestamp"] = (
+        pd.Timestamp(end_date).tz_convert("UTC")
+        if pd.Timestamp(end_date).tzinfo
+        else pd.Timestamp(end_date, tz="UTC")
+    )
+    return combined
 
 
 class DuckDBOfflineStore(OfflineStore):
