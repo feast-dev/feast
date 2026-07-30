@@ -491,12 +491,14 @@ curl -X POST \
 
 ### Adding New Features
 
+<!-- fmt:off -->
 ```python
 # In example_repo.py, add to text_features_fv schema:
-(Field(name="hashtag_count", dtype=Int64, description="Number of hashtags"),)
-(Field(name="mention_count", dtype=Int64, description="Number of @mentions"),)
-(Field(name="url_count", dtype=Int64, description="Number of URLs"),)
+Field(name="hashtag_count", dtype=Int64, description="Number of hashtags"),
+Field(name="mention_count", dtype=Int64, description="Number of @mentions"),
+Field(name="url_count", dtype=Int64, description="Number of URLs"),
 ```
+<!-- fmt:on -->
 
 ### Using Different Models
 
