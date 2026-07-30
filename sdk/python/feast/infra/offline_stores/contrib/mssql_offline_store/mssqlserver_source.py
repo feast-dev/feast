@@ -170,9 +170,7 @@ class MsSqlServerSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, MsSqlServerSource):
-            raise TypeError(
-                "Comparisons should only involve SqlServerSource class objects."
-            )
+            return False
 
         return (
             self.name == other.name

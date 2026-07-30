@@ -146,9 +146,7 @@ class TrinoSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, TrinoSource):
-            raise TypeError(
-                "Comparisons should only involve TrinoSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
