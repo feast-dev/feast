@@ -87,26 +87,32 @@ var _ = Describe("ApplyDefaultsToStatus", func() {
 
 func TestGetInitContainerImage(t *testing.T) {
 	customInit := "quay.io/org/feast-init:custom"
+	packagedImage := "quay.io/org/feast-packaged:test"
 	envImage := "quay.io/org/feast-env:test"
 
-	t.Run("uses initImage and ignores differing server images", func(t *testing.T) {
+	t.Run("uses initImage ahead of packaged and server images", func(t *testing.T) {
 		t.Setenv(feastServerImageVar, envImage)
-		got := getInitContainerImage(&feastdevv1.FeatureStoreServices{
-			InitImage: ptr.To(customInit),
-			OfflineStore: &feastdevv1.OfflineStore{
-				Server: &feastdevv1.ServerConfigs{
-					ContainerConfigs: feastdevv1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr.To("quay.io/org/offline:v1"),
+		got := getInitContainerImage(&feastdevv1.FeatureStoreSpec{
+			FeastProjectDir: &feastdevv1.FeastProjectDir{
+				Packaged: &feastdevv1.FeastPackagedOptions{Image: packagedImage},
+			},
+			Services: &feastdevv1.FeatureStoreServices{
+				InitImage: ptr.To(customInit),
+				OfflineStore: &feastdevv1.OfflineStore{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+								Image: ptr.To("quay.io/org/offline:v1"),
+							},
 						},
 					},
 				},
-			},
-			OnlineStore: &feastdevv1.OnlineStore{
-				Server: &feastdevv1.ServerConfigs{
-					ContainerConfigs: feastdevv1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: ptr.To("quay.io/org/online:v1"),
+				OnlineStore: &feastdevv1.OnlineStore{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+								Image: ptr.To("quay.io/org/online:v1"),
+							},
 						},
 					},
 				},
@@ -117,9 +123,24 @@ func TestGetInitContainerImage(t *testing.T) {
 		}
 	})
 
+	t.Run("uses packaged image ahead of RELATED_IMAGE_FEATURE_SERVER", func(t *testing.T) {
+		t.Setenv(feastServerImageVar, envImage)
+		got := getInitContainerImage(&feastdevv1.FeatureStoreSpec{
+			FeastProjectDir: &feastdevv1.FeastProjectDir{
+				Packaged: &feastdevv1.FeastPackagedOptions{Image: packagedImage},
+			},
+			Services: &feastdevv1.FeatureStoreServices{},
+		})
+		if got != packagedImage {
+			t.Fatalf("got %q, want %q", got, packagedImage)
+		}
+	})
+
 	t.Run("falls back to RELATED_IMAGE_FEATURE_SERVER", func(t *testing.T) {
 		t.Setenv(feastServerImageVar, envImage)
-		got := getInitContainerImage(&feastdevv1.FeatureStoreServices{})
+		got := getInitContainerImage(&feastdevv1.FeatureStoreSpec{
+			Services: &feastdevv1.FeatureStoreServices{},
+		})
 		if got != envImage {
 			t.Fatalf("got %q, want %q", got, envImage)
 		}
@@ -135,11 +156,16 @@ func TestGetInitContainerImage(t *testing.T) {
 
 	t.Run("ignores empty initImage", func(t *testing.T) {
 		t.Setenv(feastServerImageVar, envImage)
-		got := getInitContainerImage(&feastdevv1.FeatureStoreServices{
-			InitImage: ptr.To(""),
+		got := getInitContainerImage(&feastdevv1.FeatureStoreSpec{
+			FeastProjectDir: &feastdevv1.FeastProjectDir{
+				Packaged: &feastdevv1.FeastPackagedOptions{Image: packagedImage},
+			},
+			Services: &feastdevv1.FeatureStoreServices{
+				InitImage: ptr.To(""),
+			},
 		})
-		if got != envImage {
-			t.Fatalf("got %q, want %q", got, envImage)
+		if got != packagedImage {
+			t.Fatalf("got %q, want %q", got, packagedImage)
 		}
 	})
 }
