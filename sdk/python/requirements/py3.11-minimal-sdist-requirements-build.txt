@@ -367,7 +367,6 @@ flit-core==3.12.0 \
     #   sphinxcontrib-qthelp
     #   sphinxcontrib-serializinghtml
     #   tomli
-    #   truststore
     #   typing-extensions
     #   wheel
 hatch-fancy-pypi-readme==25.1.0 \
@@ -376,9 +375,7 @@ hatch-fancy-pypi-readme==25.1.0 \
     # via
     #   attrs
     #   httpcore
-    #   httpcore2
     #   httpx
-    #   httpx2
     #   jsonschema
     #   pydantic
 hatch-vcs==0.4.0 \
@@ -414,15 +411,11 @@ hatchling==1.31.0 \
     #   hatch-fancy-pypi-readme
     #   hatch-vcs
     #   httpcore
-    #   httpcore2
     #   httpx
-    #   httpx2
     #   ibis-framework
     #   jsonschema
     #   jsonschema-specifications
     #   mcp
-    #   mcp-types
-    #   opentelemetry-api
     #   platformdirs
     #   pyarrow-hotfix
     #   pydantic
@@ -961,6 +954,7 @@ setuptools-scm==10.2.1 \
     #   dask
     #   duckdb
     #   hatch-vcs
+    #   httpx-sse
     #   importlib-metadata
     #   libcst
     #   pluggy
@@ -1052,11 +1046,7 @@ typing-extensions==4.16.0 \
 uv-dynamic-versioning==0.14.0 \
     --hash=sha256:574fbc07e87ace45c01d55967ad3b864871257b98ff5b8ac87c261227ac8db5b \
     --hash=sha256:e087c346a786e98d41292ac2315180fb700cedfb30565fc973d64ce11a112387
-    # via
-    #   httpcore2
-    #   httpx2
-    #   mcp
-    #   mcp-types
+    # via mcp
 vcs-versioning==2.2.3 \
     --hash=sha256:4f7873af76f5cc24e701608354f376f5eb70b317d663787ace57a7edd7a27506 \
     --hash=sha256:c21e284aa98c8269996791a19d6173baf953cf9996ef42ec3ebcbdc151e18b9b
@@ -1077,6 +1067,7 @@ wheel==0.47.0 \
     #   grpcio-health-checking
     #   grpcio-reflection
     #   grpcio-status
+    #   httpx-sse
     #   libcst
     #   meson
     #   mmh3
@@ -1124,6 +1115,7 @@ setuptools==80.10.2 \
     #   grpcio-status
     #   gunicorn
     #   httptools
+    #   httpx-sse
     #   importlib-metadata
     #   libcst
     #   librt
