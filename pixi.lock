@@ -2429,6 +2429,7 @@ packages:
   - snowflake-connector-python[pandas]>=3.7,<5 ; extra == 'snowflake'
   - sqlite-vec==0.1.6 ; extra == 'sqlite-vec'
   - fastapi-mcp ; extra == 'mcp'
+  - mcp>=1.0,<2 ; extra == 'mcp'
   - mlflow>=2.10.0 ; extra == 'mlflow'
   - dbt-artifacts-parser ; extra == 'dbt'
   - pytest>=6.0.0,<8 ; extra == 'test'
