@@ -188,13 +188,18 @@ def get_historical_features_ibis(
                 fv_table = fv_table.rename({new_name: old_name})
 
         timestamp_field = feature_view.batch_source.timestamp_field
+        created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
-        # TODO mutate only if tz-naive
+        # deduplicate() orders by created_timestamp_column regardless of the cutoff, so
+        # normalize both unconditionally. An already-tz-aware cast compiles away.
+        utc_columns = [timestamp_field]
+        if created_timestamp_column:
+            utc_columns.append(created_timestamp_column)
+
         fv_table = fv_table.mutate(
             **{
-                timestamp_field: fv_table[timestamp_field].cast(
-                    dt.Timestamp(timezone="UTC")
-                )
+                column: fv_table[column].cast(dt.Timestamp(timezone="UTC"))
+                for column in utc_columns
             }
         )
 
@@ -220,8 +225,8 @@ def get_historical_features_ibis(
 
         return (
             fv_table,
-            feature_view.batch_source.timestamp_field,
-            feature_view.batch_source.created_timestamp_column,
+            timestamp_field,
+            created_timestamp_column,
             feature_view.projection.join_key_map
             or {e.name: e.name for e in feature_view.entity_columns},
             feature_refs,
@@ -439,10 +444,8 @@ def point_in_time_join(
 
         if filter_by_created_timestamp and created_timestamp_field:
             predicates.append(
-                feature_table[created_timestamp_field].cast(
-                    dt.Timestamp(timezone="UTC")
-                )
-                <= entity_table[event_timestamp_col]
+                feature_table[created_timestamp_field]
+                <= entity_table[event_timestamp_col],
             )
 
         if ttl:
