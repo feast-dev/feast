@@ -36,7 +36,7 @@ dependencies = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "starlette>=1.0.1",
-    "uvicorn[standard]>=0.30.6,<=0.34.0",
+    "uvicorn[standard]>=0.30.6",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -261,6 +261,10 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 line-length = 88
 target-version = "py310"
 include = ["*.py", "*.pyi"]
+
+[tool.ruff.lint]
+# Keep on using old default rules: https://astral.sh/blog/ruff-v0.16.0
+select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
