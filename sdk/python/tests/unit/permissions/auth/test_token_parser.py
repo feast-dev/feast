@@ -1,5 +1,6 @@
 import asyncio
 import os
+import ssl
 import time
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -473,6 +474,116 @@ def test_oidc_inter_server_comm(
 
 
 # ---------------------------------------------------------------------------
+# JWKS client lifecycle (one lazy client per parser)
+# ---------------------------------------------------------------------------
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_jwks_client_is_lazy_and_reused_per_parser(
+    mock_discovery_data,
+    mock_jwks_client_cls,
+    mock_jwt,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+):
+    """One JWKS client per parser: built on the first request (not at
+    construction, which would move a blocking discovery fetch into server
+    startup), reused across requests, and scoped to the parser instance."""
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(0)
+
+    for _ in range(3):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(1)
+
+    # A second parser must not see the first parser's client: each parser
+    # verifies against the JWKS of its own configured provider.
+    other_parser = OidcTokenParser(auth_config=oidc_config)
+    asyncio.run(other_parser.user_details_from_access_token(access_token="aaa-bbb-ccc"))
+    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(2)
+
+
+@pytest.mark.parametrize("verify_ssl", [True, False])
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_jwks_client_ssl_context_follows_config(
+    mock_discovery_data,
+    mock_jwks_client_cls,
+    mock_jwt,
+    mock_oauth2,
+    verify_ssl,
+    discovery_data,
+):
+    """The client is built with the discovery JWKS URL and an SSL context
+    matching verify_ssl: default configs must keep certificate verification
+    on, and verify_ssl=False must be the only way to turn it off."""
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+
+    token_parser = OidcTokenParser(auth_config=_oidc_config_with(verify_ssl=verify_ssl))
+    asyncio.run(token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc"))
+
+    call = mock_jwks_client_cls.call_args
+    assertpy.assert_that(call.args[0]).is_equal_to(discovery_data["jwks_uri"])
+    ssl_ctx = call.kwargs["ssl_context"]
+    if verify_ssl:
+        assertpy.assert_that(ssl_ctx.verify_mode).is_equal_to(ssl.CERT_REQUIRED)
+        assertpy.assert_that(ssl_ctx.check_hostname).is_true()
+    else:
+        assertpy.assert_that(ssl_ctx.verify_mode).is_equal_to(ssl.CERT_NONE)
+        assertpy.assert_that(ssl_ctx.check_hostname).is_false()
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_jwks_client_construction_failure_is_retried(
+    mock_discovery_data,
+    mock_jwks_client_cls,
+    mock_jwt,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+):
+    """A failed first construction must leave the parser able to retry on
+    the next request: the parser is a process singleton, so caching a failed
+    or half-built client would wedge authentication until restart."""
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+    mock_jwks_client_cls.side_effect = [RuntimeError("IdP unreachable"), MagicMock()]
+
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    with pytest.raises(RuntimeError):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+    )
+    assertpy.assert_that(user.username).is_equal_to("my-name")
+    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(2)
+
+
+# ---------------------------------------------------------------------------
 # Optional audience / issuer verification (opt-in via OidcAuthConfig)
 # ---------------------------------------------------------------------------
 
@@ -669,38 +780,6 @@ def test_oidc_default_supports_v1_tokens_against_v2_discovery(
     if isinstance(user, User):
         assertpy.assert_that(user.username).is_equal_to("client-app-id")
         assertpy.assert_that(user.roles).is_equal_to(["reader"])
-
-
-@patch(
-    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
-)
-@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
-@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
-@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
-def test_oidc_jwks_client_is_reused_across_requests(
-    mock_jwks_client_cls,
-    mock_discovery_data,
-    mock_jwt,
-    mock_oauth2,
-    oidc_config,
-    discovery_data,
-):
-    """The JWKS client must be built once per parser, not once per request:
-    a fresh client starts with a cold JWK-set cache, which forces a full
-    HTTPS fetch of the JWKS document on every authenticated call."""
-    mock_discovery_data.return_value = discovery_data
-    mock_jwt.return_value = {"preferred_username": "my-name"}
-
-    token_parser = OidcTokenParser(auth_config=oidc_config)
-    for _ in range(3):
-        asyncio.run(
-            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
-        )
-
-    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(1)
-    assertpy.assert_that(
-        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.call_count
-    ).is_equal_to(3)
 
 
 # TODO RBAC: Move role bindings to a reusable fixture

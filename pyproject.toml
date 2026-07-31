@@ -43,7 +43,9 @@ dependencies = [
     "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
-    "pyjwt",
+    # >=2.13 for PyJWKClient's JWK-set cache surviving transient fetch
+    # failures; the OIDC token parser reuses one client and relies on it.
+    "pyjwt>=2.13.0",
 ]
 
 [project.optional-dependencies]

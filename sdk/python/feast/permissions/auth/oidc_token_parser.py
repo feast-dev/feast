@@ -46,13 +46,15 @@ class OidcTokenParser(TokenParser):
     def _get_jwks_client(self) -> PyJWKClient:
         """Lazily build and cache a parser-lifetime ``PyJWKClient``.
 
-        A per-request client starts with a cold JWK-set cache, so every
-        authenticated request pays a full HTTPS fetch of the JWKS document
-        (TLS handshake included) before signature verification, and
-        concurrent requests serialize behind that blocking I/O. Reusing one
-        client lets PyJWT's built-in JWK-set cache do its job; on IdP key
-        rotation the client refetches automatically when it sees an unknown
-        ``kid`` (``PyJWKClient.get_signing_key`` refreshes and retries once).
+        A per-request client starts with a cold JWK-set cache, forcing a
+        full HTTPS fetch of the JWKS document on every authenticated
+        request. Reusing one client lets PyJWT cache the JWK set for
+        ``lifespan`` seconds, which also bounds two staleness windows: a
+        key the IdP has removed keeps validating, and a rotation that
+        reuses an existing ``kid`` keeps failing, for at most that long.
+        Rotations that introduce a new ``kid`` recover immediately
+        (``PyJWKClient.get_signing_key`` refreshes and retries once on a
+        cache miss).
         """
         if self._jwks_client is None:
             ssl_ctx = ssl.create_default_context()
@@ -67,6 +69,11 @@ class OidcTokenParser(TokenParser):
                 self.oidc_discovery_service.get_jwks_url(),
                 headers={"User-agent": "custom-user-agent"},
                 ssl_context=ssl_ctx,
+                # Explicit so upgrades cannot silently change the staleness
+                # window documented above, and so a hung IdP bounds how long
+                # a fetch can block the serving path.
+                lifespan=300,
+                timeout=10,
             )
         return self._jwks_client
 
