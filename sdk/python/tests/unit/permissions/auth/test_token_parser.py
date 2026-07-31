@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import assertpy
 import jwt
 import pytest
+from pydantic import ValidationError
 from starlette.authentication import (
     AuthenticationError,
 )
@@ -547,6 +548,67 @@ def test_oidc_jwks_client_ssl_context_follows_config(
     else:
         assertpy.assert_that(ssl_ctx.verify_mode).is_equal_to(ssl.CERT_NONE)
         assertpy.assert_that(ssl_ctx.check_hostname).is_false()
+
+
+@pytest.mark.parametrize(
+    "overrides,expected_lifespan,expected_timeout",
+    [
+        ({}, 300, 10),
+        (
+            {
+                "jwks_cache_lifespan_seconds": 60,
+                "jwks_request_timeout_seconds": 2.5,
+            },
+            60,
+            2.5,
+        ),
+    ],
+)
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_jwks_client_cache_and_timeout_follow_config(
+    mock_discovery_data,
+    mock_jwks_client_cls,
+    mock_jwt,
+    mock_oauth2,
+    overrides,
+    expected_lifespan,
+    expected_timeout,
+    discovery_data,
+):
+    """The JWK-set cache lifespan and the fetch timeout are operator-tunable:
+    the lifespan bounds how long a revoked key keeps validating, and the
+    timeout bounds how long an unresponsive IdP blocks the serving path."""
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+
+    token_parser = OidcTokenParser(auth_config=_oidc_config_with(**overrides))
+    asyncio.run(token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc"))
+
+    kwargs = mock_jwks_client_cls.call_args.kwargs
+    assertpy.assert_that(kwargs["lifespan"]).is_equal_to(expected_lifespan)
+    assertpy.assert_that(kwargs["timeout"]).is_equal_to(expected_timeout)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"jwks_cache_lifespan_seconds": 0},
+        {"jwks_cache_lifespan_seconds": -1},
+        {"jwks_request_timeout_seconds": 0},
+        {"jwks_request_timeout_seconds": -1},
+    ],
+)
+def test_oidc_jwks_tunables_reject_non_positive_values(overrides):
+    """A non-positive lifespan would expire the cache immediately, silently
+    restoring a JWKS fetch per request; a non-positive timeout is equally
+    meaningless. Reject both at config load rather than at serving time."""
+    with pytest.raises(ValidationError):
+        _oidc_config_with(**overrides)
 
 
 @patch(

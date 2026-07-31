@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Tuple
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -47,6 +47,15 @@ class OidcAuthConfig(AuthConfig):
     # against a v2.0 discovery URL).
     audience: Optional[str] = None
     issuer: Optional[str] = None
+    # How long the fetched JWK set is reused before the server refetches it.
+    # This also bounds how long a key the IdP has revoked keeps validating
+    # tokens, so lower it if your provider rotates or revokes aggressively;
+    # every reduction costs a corresponding increase in JWKS fetches.
+    jwks_cache_lifespan_seconds: int = Field(default=300, gt=0)
+    # Network timeout for the JWKS fetch. This fetch happens inline on the
+    # request path, so an unresponsive IdP blocks serving for at most this
+    # long.
+    jwks_request_timeout_seconds: float = Field(default=10, gt=0)
 
 
 class OidcClientAuthConfig(OidcAuthConfig):
