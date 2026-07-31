@@ -14,7 +14,7 @@ from feast.api.registry.rest.lineage import get_lineage_router
 from feast.api.registry.rest.metrics import get_metrics_router
 from feast.api.registry.rest.monitoring import get_monitoring_router
 from feast.api.registry.rest.permissions import get_permission_router
-from feast.api.registry.rest.projects import get_project_router
+from feast.api.registry.rest.projects import get_project_router, get_registry_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
 from feast.api.registry.rest.search import get_search_router
 
@@ -43,6 +43,9 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_monitoring_router(grpc_handler, store=resolved_store))
     app.include_router(get_compute_engine_router(grpc_handler, store=resolved_store))
+
+    if resolved_store:
+        app.include_router(get_registry_router(resolved_store))
 
     _register_openlineage_consumer(app, resolved_store)
 
