@@ -509,8 +509,15 @@ class FeatureStore:
         Transition a feature view to MATERIALIZING state.
 
         Rolls back all already-transitioned FVs if this one can't transition.
+        Already MATERIALIZING is a no-op (async server may have reserved the state
+        before returning 202); rollback target is GENERATED in that case.
         """
-        previous_states[feature_view.name] = getattr(feature_view, "state", None)
+        current = getattr(feature_view, "state", None)
+        if current == FeatureViewState.MATERIALIZING:
+            previous_states[feature_view.name] = FeatureViewState.GENERATED
+            return
+
+        previous_states[feature_view.name] = current
         if (
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
@@ -2501,13 +2508,32 @@ class FeatureStore:
         endpoint: str,
         payload: Dict[str, Any],
         force: bool = False,
+        run_async: bool = True,
     ) -> None:
-        """Fire-and-forget POST to feature server with ?async=true."""
-        query_params = {"async": "true"}
+        """POST materialize to the feature server.
+
+        When run_async=True (default), sends ?async=true and returns after 202.
+        When run_async=False, omits async and blocks until the server finishes
+        synchronous materialization (HTTP response).
+        force=True is only valid with run_async=True (server force applies to async).
+        """
+        if force and not run_async:
+            raise ValueError(
+                "force=True requires run_async=True. "
+                "force only overrides stuck MATERIALIZING on the async path."
+            )
+
+        query_params: Dict[str, str] = {}
+        if run_async:
+            query_params["async"] = "true"
         if force:
             query_params["force"] = "true"
-        result = self._post_to_feature_server(endpoint, payload, query_params)
-        _logger.info("Remote materialization accepted (%s): %s", endpoint, result)
+
+        result = self._post_to_feature_server(endpoint, payload, query_params or None)
+        if run_async:
+            _logger.info("Remote materialization accepted (%s): %s", endpoint, result)
+        else:
+            _logger.info("Remote materialization completed (%s): %s", endpoint, result)
 
     def materialize_incremental(
         self,
@@ -2516,6 +2542,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         version: Optional[str] = None,
         force: bool = False,
+        run_async: bool = True,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2534,8 +2561,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
-            force (bool): When using remote topology, pass force=true to override stuck
-                MATERIALIZING state on the feature server. Ignored for local topology.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if True (default) POST with ?async=true
+                and return after 202. If False, POST without async and block until the server
+                finishes sync materialization. Ignored for local topology.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2560,7 +2590,10 @@ class FeatureStore:
             if version is not None:
                 payload["version"] = version
             self._delegate_remote_materialize(
-                "/materialize-incremental", payload, force=force
+                "/materialize-incremental",
+                payload,
+                force=force,
+                run_async=run_async,
             )
             return
 
@@ -2659,7 +2692,9 @@ class FeatureStore:
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
@@ -2751,6 +2786,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         version: Optional[str] = None,
         force: bool = False,
+        run_async: bool = True,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2769,8 +2805,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
-            force (bool): When using remote topology, pass force=true to override stuck
-                MATERIALIZING state on the feature server. Ignored for local topology.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if True (default) POST with ?async=true
+                and return after 202. If False, POST without async and block until the server
+                finishes sync materialization. Ignored for local topology.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -2795,7 +2834,9 @@ class FeatureStore:
             }
             if version is not None:
                 payload["version"] = version
-            self._delegate_remote_materialize("/materialize", payload, force=force)
+            self._delegate_remote_materialize(
+                "/materialize", payload, force=force, run_async=run_async
+            )
             return
 
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
@@ -2864,7 +2905,9 @@ class FeatureStore:
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):

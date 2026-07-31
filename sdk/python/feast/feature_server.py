@@ -42,7 +42,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 import feast
 from feast import metrics as feast_metrics
@@ -96,14 +96,26 @@ class MaterializeRequest(BaseModel):
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
     full_feature_names: bool = False
-    version: Optional[str] = None
+    version: Optional[str] = Field(
+        None,
+        description=(
+            "Optional version to materialize (e.g. 'v2'). Requires feature_views "
+            "with exactly one entry and registry.enable_online_feature_view_versioning."
+        ),
+    )
 
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
     feature_views: Optional[List[str]] = None
     full_feature_names: bool = False
-    version: Optional[str] = None
+    version: Optional[str] = Field(
+        None,
+        description=(
+            "Optional version to materialize (e.g. 'v2'). Requires feature_views "
+            "with exactly one entry and registry.enable_online_feature_view_versioning."
+        ),
+    )
 
 
 class GetOnlineFeaturesRequest(BaseModel):
@@ -340,14 +352,16 @@ async def load_static_artifacts(app: FastAPI, store):
 def _authorize_materialize_views(
     store: "feast.FeatureStore",
     feature_view_names: Optional[List[str]],
+    version: Optional[str] = None,
 ) -> List[str]:
     """Resolve + authorize feature views for materialization.
 
     Returns the resolved list of FV names (all eligible FVs when
     feature_view_names is None).
     """
+    parsed_version = store._validate_materialize_version(version, feature_view_names)
     feature_views_to_materialize = store._get_feature_views_to_materialize(
-        feature_view_names
+        feature_view_names, version=parsed_version
     )
     for fv in feature_views_to_materialize:
         assert_permissions(
@@ -370,8 +384,12 @@ def _check_already_materializing(
             )
             if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
                 conflicting.append(fv_name)
-        except Exception:
+        except (FeatureViewNotFoundException, KeyError):
             pass
+        except Exception as e:
+            logger.warning(
+                f"Unexpected error checking MATERIALIZING state for {fv_name}: {e}"
+            )
     if conflicting:
         return JSONResponse(
             status_code=409,
@@ -400,18 +418,17 @@ def _update_fv_state(
             )
             fv.state = state
             store.registry.apply_feature_view(fv, store.project)
-        except Exception:
-            logger.warning(f"Failed to set state={state} for {fv_name}")
+        except (FeatureViewNotFoundException, KeyError):
+            logger.warning(f"Feature view {fv_name} not found; skip state={state}")
+        except Exception as e:
+            logger.warning(f"Failed to set state={state} for {fv_name}: {e}")
 
 
 def _reset_stuck_materializing_to_generated(
     store: "feast.FeatureStore",
     fv_names: List[str],
 ) -> None:
-    """Reset FVs currently in MATERIALIZING to GENERATED (force override).
-
-    Leaves other states untouched so store.materialize() can transition normally.
-    """
+    """Reset FVs currently in MATERIALIZING to GENERATED (force override)."""
     stuck: List[str] = []
     for fv_name in fv_names:
         try:
@@ -420,8 +437,10 @@ def _reset_stuck_materializing_to_generated(
             )
             if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
                 stuck.append(fv_name)
-        except Exception:
+        except (FeatureViewNotFoundException, KeyError):
             pass
+        except Exception as e:
+            logger.warning(f"Unexpected error while force-resetting {fv_name}: {e}")
     if stuck:
         _update_fv_state(store, stuck, FeatureViewState.GENERATED)
         logger.info(
@@ -923,7 +942,9 @@ def get_app(
         force: bool = Query(False),
     ):
         with feast_metrics.track_request_latency("/materialize"):
-            fv_names = _authorize_materialize_views(store, request.feature_views)
+            fv_names = _authorize_materialize_views(
+                store, request.feature_views, version=request.version
+            )
             start_date, end_date = _parse_materialize_timestamps(request)
 
             if async_mode:
@@ -934,8 +955,10 @@ def get_app(
                     if conflict:
                         return conflict
 
-                # State transitions (MATERIALIZING / AVAILABLE_ONLINE) are owned
-                # by store.materialize(); server only accepts and runs in background.
+                # Reserve MATERIALIZING before 202 so concurrent requests hit 409.
+                # store.materialize() treats already-MATERIALIZING as a no-op.
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
                 def _run_materialize():
                     try:
                         store.materialize(
@@ -965,9 +988,10 @@ def get_app(
                 store.materialize,
                 start_date,
                 end_date,
-                request.feature_views,
+                fv_names,
                 disable_event_timestamp=request.disable_event_timestamp,
                 full_feature_names=request.full_feature_names,
+                version=request.version,
             )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
@@ -977,7 +1001,9 @@ def get_app(
         force: bool = Query(False),
     ):
         with feast_metrics.track_request_latency("/materialize-incremental"):
-            fv_names = _authorize_materialize_views(store, request.feature_views)
+            fv_names = _authorize_materialize_views(
+                store, request.feature_views, version=request.version
+            )
             end_date = utils.make_tzaware(parser.parse(request.end_ts))
 
             if async_mode:
@@ -988,13 +1014,15 @@ def get_app(
                     if conflict:
                         return conflict
 
-                # State transitions owned by store.materialize_incremental().
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
                 def _run_materialize_incremental():
                     try:
                         store.materialize_incremental(
                             end_date,
                             fv_names,
                             full_feature_names=request.full_feature_names,
+                            version=request.version,
                         )
                     except Exception as e:
                         logger.error(
@@ -1014,8 +1042,9 @@ def get_app(
             await run_in_threadpool(
                 store.materialize_incremental,
                 end_date,
-                request.feature_views,
+                fv_names,
                 full_feature_names=request.full_feature_names,
+                version=request.version,
             )
 
     @app.exception_handler(Exception)
