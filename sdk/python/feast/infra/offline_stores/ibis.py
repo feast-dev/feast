@@ -153,6 +153,7 @@ def get_historical_features_ibis(
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
     event_expire_timestamp_fn=None,
+    filter_by_created_timestamp: bool = False,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -187,13 +188,18 @@ def get_historical_features_ibis(
                 fv_table = fv_table.rename({new_name: old_name})
 
         timestamp_field = feature_view.batch_source.timestamp_field
+        created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
-        # TODO mutate only if tz-naive
+        # deduplicate() orders by created_timestamp_column whether or not the cutoff is
+        # on, so this cannot be gated on it. Casting an already-UTC column is a no-op.
+        utc_columns = [timestamp_field]
+        if created_timestamp_column:
+            utc_columns.append(created_timestamp_column)
+
         fv_table = fv_table.mutate(
             **{
-                timestamp_field: fv_table[timestamp_field].cast(
-                    dt.Timestamp(timezone="UTC")
-                )
+                column: fv_table[column].cast(dt.Timestamp(timezone="UTC"))
+                for column in utc_columns
             }
         )
 
@@ -219,8 +225,8 @@ def get_historical_features_ibis(
 
         return (
             fv_table,
-            feature_view.batch_source.timestamp_field,
-            feature_view.batch_source.created_timestamp_column,
+            timestamp_field,
+            created_timestamp_column,
             feature_view.projection.join_key_map
             or {e.name: e.name for e in feature_view.entity_columns},
             feature_refs,
@@ -235,6 +241,7 @@ def get_historical_features_ibis(
         ],
         event_timestamp_col=event_timestamp_col,
         event_expire_timestamp_fn=event_expire_timestamp_fn,
+        filter_by_created_timestamp=filter_by_created_timestamp,
     )
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
@@ -379,6 +386,7 @@ def point_in_time_join(
     feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
     event_expire_timestamp_fn=None,
+    filter_by_created_timestamp: bool = False,
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
@@ -433,6 +441,12 @@ def point_in_time_join(
         predicates.append(
             feature_table[timestamp_field] <= entity_table[event_timestamp_col],
         )
+
+        if filter_by_created_timestamp and created_timestamp_field:
+            predicates.append(
+                feature_table[created_timestamp_field]
+                <= entity_table[event_timestamp_col],
+            )
 
         if ttl:
             predicates.append(
