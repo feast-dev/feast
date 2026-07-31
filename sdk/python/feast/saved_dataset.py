@@ -133,9 +133,7 @@ class SavedDataset:
 
     def __eq__(self, other):
         if not isinstance(other, SavedDataset):
-            raise TypeError(
-                "Comparisons should only involve SavedDataset class objects."
-            )
+            return False
 
         if (
             self.name != other.name

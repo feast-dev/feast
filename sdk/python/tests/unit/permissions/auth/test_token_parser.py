@@ -1,9 +1,11 @@
 import asyncio
 import os
+import time
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import assertpy
+import jwt
 import pytest
 from starlette.authentication import (
     AuthenticationError,
@@ -11,6 +13,7 @@ from starlette.authentication import (
 
 from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
+from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.user import User
 
 _CLIENT_ID = "test"
@@ -467,6 +470,205 @@ def test_oidc_inter_server_comm(
             assertpy.assert_that(user.has_matching_role(["reader"])).is_true()
             assertpy.assert_that(user.has_matching_role(["writer"])).is_true()
             assertpy.assert_that(user.has_matching_role(["updater"])).is_false()
+
+
+# ---------------------------------------------------------------------------
+# Optional audience / issuer verification (opt-in via OidcAuthConfig)
+# ---------------------------------------------------------------------------
+
+
+def _oidc_config_with(**overrides) -> OidcAuthConfig:
+    return OidcAuthConfig(
+        auth_discovery_url="https://localhost:8080/realms/master/.well-known/openid-configuration",
+        client_id=_CLIENT_ID,
+        type="oidc",
+        **overrides,
+    )
+
+
+@pytest.fixture(scope="module")
+def rsa_keypair() -> tuple:
+    """A real RSA keypair, so the aud/iss tests exercise the real ``jwt.decode``."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return private_pem, public_pem
+
+
+def _make_token(private_pem: bytes, claims: dict) -> str:
+    now = int(time.time())
+    return jwt.encode(
+        {"iat": now, "exp": now + 300, **claims}, private_pem, algorithm="RS256"
+    )
+
+
+@pytest.mark.parametrize(
+    "audience,issuer",
+    [
+        (None, None),
+        ("api://feast-server", None),
+        (None, "https://idp.example.com/realm"),
+        ("api://feast-server", "https://idp.example.com/realm"),
+    ],
+)
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_decode_verification_options_follow_config(
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    mock_oauth2,
+    audience,
+    issuer,
+    discovery_data,
+    signing_key,
+):
+    """The verified decode enables aud/iss checks exactly when the config
+    provides expected values, and stays permissive otherwise."""
+    mock_signing_key.return_value = signing_key
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+
+    token_parser = OidcTokenParser(
+        auth_config=_oidc_config_with(audience=audience, issuer=issuer)
+    )
+    asyncio.run(token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc"))
+
+    verified_calls = [
+        c
+        for c in mock_jwt.call_args_list
+        if c.kwargs.get("options", {}).get("verify_signature") is not False
+    ]
+    assertpy.assert_that(verified_calls).is_length(1)
+    kwargs = verified_calls[0].kwargs
+    assertpy.assert_that(kwargs["options"]["verify_aud"]).is_equal_to(
+        audience is not None
+    )
+    assertpy.assert_that(kwargs["options"]["verify_iss"]).is_equal_to(
+        issuer is not None
+    )
+    assertpy.assert_that(kwargs["audience"]).is_equal_to(
+        audience if audience is not None else "account"
+    )
+    assertpy.assert_that(kwargs["issuer"]).is_equal_to(issuer)
+
+
+@pytest.mark.parametrize(
+    "config_kwargs,claims,should_authenticate",
+    [
+        # Opt-in audience: match accepted, mismatch and missing rejected.
+        ({"audience": "api://feast-server"}, {"aud": "api://feast-server"}, True),
+        ({"audience": "api://feast-server"}, {"aud": "api://another-app"}, False),
+        ({"audience": "api://feast-server"}, {}, False),
+        # Opt-in issuer: match accepted, mismatch rejected.
+        (
+            {"issuer": "https://idp.example.com/expected"},
+            {"iss": "https://idp.example.com/expected"},
+            True,
+        ),
+        (
+            {"issuer": "https://idp.example.com/expected"},
+            {"iss": "https://idp.example.com/other"},
+            False,
+        ),
+        # Default config: neither claim is verified, so a token minted for a
+        # different resource still authenticates (pre-existing behavior).
+        ({}, {"aud": "api://another-app", "iss": "https://idp.example.com/any"}, True),
+    ],
+)
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_audience_issuer_verification_end_to_end(
+    mock_discovery_data,
+    mock_signing_key,
+    mock_oauth2,
+    config_kwargs,
+    claims,
+    should_authenticate,
+    discovery_data,
+    rsa_keypair,
+):
+    """Real RS256-signed tokens through the real ``jwt.decode``: opt-in checks
+    reject mismatched aud/iss and the default stays permissive."""
+    private_pem, public_pem = rsa_keypair
+    mock_discovery_data.return_value = discovery_data
+    key = MagicMock()
+    key.key = public_pem
+    mock_signing_key.return_value = key
+
+    token = _make_token(private_pem, {"preferred_username": "my-name", **claims})
+    token_parser = OidcTokenParser(auth_config=_oidc_config_with(**config_kwargs))
+
+    if should_authenticate:
+        user = asyncio.run(
+            token_parser.user_details_from_access_token(access_token=token)
+        )
+        assertpy.assert_that(user).is_type_of(User)
+        if isinstance(user, User):
+            assertpy.assert_that(user.username).is_equal_to("my-name")
+    else:
+        with pytest.raises(AuthenticationError):
+            asyncio.run(token_parser.user_details_from_access_token(access_token=token))
+
+
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_default_supports_v1_tokens_against_v2_discovery(
+    mock_discovery_data,
+    mock_signing_key,
+    mock_oauth2,
+    discovery_data,
+    rsa_keypair,
+):
+    """Pins the Entra ID v1-token-against-v2-discovery setup: with no expected
+    audience or issuer configured, a v1.0-shaped app-only token (issuer under
+    ``sts.windows.net``, ``api://`` audience, ``appid`` identity) validates
+    against a v2.0-style discovery document, because discovery is used only to
+    source the JWKS signing keys. A future strict-by-default change would
+    break real deployments and must fail here first."""
+    private_pem, public_pem = rsa_keypair
+    mock_discovery_data.return_value = discovery_data
+    key = MagicMock()
+    key.key = public_pem
+    mock_signing_key.return_value = key
+
+    token = _make_token(
+        private_pem,
+        {
+            "iss": "https://sts.windows.net/11111111-2222-3333-4444-555555555555/",
+            "aud": "api://66666666-7777-8888-9999-000000000000",
+            "appid": "client-app-id",
+            "roles": ["reader"],
+        },
+    )
+    token_parser = OidcTokenParser(auth_config=_oidc_config_with())
+
+    user = asyncio.run(token_parser.user_details_from_access_token(access_token=token))
+
+    assertpy.assert_that(user).is_type_of(User)
+    if isinstance(user, User):
+        assertpy.assert_that(user.username).is_equal_to("client-app-id")
+        assertpy.assert_that(user.roles).is_equal_to(["reader"])
 
 
 # TODO RBAC: Move role bindings to a reusable fixture

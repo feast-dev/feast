@@ -248,7 +248,7 @@ class StreamFeatureView(FeatureView):
 
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
-            raise TypeError("Comparisons should only involve StreamFeatureViews")
+            return False
 
         if not super().__eq__(other):
             return False
