@@ -22,6 +22,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
+{% content-ref url="valkey.md" %}
+[valkey.md](valkey.md)
+{% endcontent-ref %}
+
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
