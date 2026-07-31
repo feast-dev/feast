@@ -671,6 +671,38 @@ def test_oidc_default_supports_v1_tokens_against_v2_discovery(
         assertpy.assert_that(user.roles).is_equal_to(["reader"])
 
 
+@patch(
+    "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__"
+)
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient")
+def test_oidc_jwks_client_is_reused_across_requests(
+    mock_jwks_client_cls,
+    mock_discovery_data,
+    mock_jwt,
+    mock_oauth2,
+    oidc_config,
+    discovery_data,
+):
+    """The JWKS client must be built once per parser, not once per request:
+    a fresh client starts with a cold JWK-set cache, which forces a full
+    HTTPS fetch of the JWKS document on every authenticated call."""
+    mock_discovery_data.return_value = discovery_data
+    mock_jwt.return_value = {"preferred_username": "my-name"}
+
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    for _ in range(3):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+    assertpy.assert_that(mock_jwks_client_cls.call_count).is_equal_to(1)
+    assertpy.assert_that(
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.call_count
+    ).is_equal_to(3)
+
+
 # TODO RBAC: Move role bindings to a reusable fixture
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
 @patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")

@@ -41,6 +41,34 @@ class OidcTokenParser(TokenParser):
             ca_cert_path=self._auth_config.ca_cert_path,
         )
         self._k8s_auth_api = None
+        self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
+
+    def _get_jwks_client(self) -> PyJWKClient:
+        """Lazily build and cache a parser-lifetime ``PyJWKClient``.
+
+        A per-request client starts with a cold JWK-set cache, so every
+        authenticated request pays a full HTTPS fetch of the JWKS document
+        (TLS handshake included) before signature verification, and
+        concurrent requests serialize behind that blocking I/O. Reusing one
+        client lets PyJWT's built-in JWK-set cache do its job; on IdP key
+        rotation the client refetches automatically when it sees an unknown
+        ``kid`` (``PyJWKClient.get_signing_key`` refreshes and retries once).
+        """
+        if self._jwks_client is None:
+            ssl_ctx = ssl.create_default_context()
+            if not self._auth_config.verify_ssl:
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+            elif self._auth_config.ca_cert_path and os.path.exists(
+                self._auth_config.ca_cert_path
+            ):
+                ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
+            self._jwks_client = PyJWKClient(
+                self.oidc_discovery_service.get_jwks_url(),
+                headers={"User-agent": "custom-user-agent"},
+                ssl_context=ssl_ctx,
+            )
+        return self._jwks_client
 
     async def _validate_token(self, access_token: str):
         """
@@ -125,21 +153,7 @@ class OidcTokenParser(TokenParser):
         metadata (e.g. Entra ID v1.0 tokens validated against a v2.0
         discovery document).
         """
-        optional_custom_headers = {"User-agent": "custom-user-agent"}
-        ssl_ctx = ssl.create_default_context()
-        if not self._auth_config.verify_ssl:
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-        elif self._auth_config.ca_cert_path and os.path.exists(
-            self._auth_config.ca_cert_path
-        ):
-            ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
-        jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(),
-            headers=optional_custom_headers,
-            ssl_context=ssl_ctx,
-        )
-        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        signing_key = self._get_jwks_client().get_signing_key_from_jwt(access_token)
         expected_audience = self._auth_config.audience
         expected_issuer = self._auth_config.issuer
         return jwt.decode(
