@@ -276,8 +276,14 @@ var _ = Describe("Repo Config", func() {
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(3))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcJwksCacheLifespanSeconds), int32(60)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcJwksRequestTimeoutSeconds), int32(5)))
+
+			By("Keeping the JWKS tunables out of the client config, which does not accept them")
+			clientRepoConfig := getClientRepoConfig(featureStore, nil)
+			Expect(clientRepoConfig.AuthzConfig.OidcParameters).NotTo(HaveKey(string(OidcJwksCacheLifespanSeconds)))
+			Expect(clientRepoConfig.AuthzConfig.OidcParameters).NotTo(HaveKey(string(OidcJwksRequestTimeoutSeconds)))
 
 			By("Having oidc with issuerUrl on CR and auth_discovery_url in Secret — CR wins")
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
