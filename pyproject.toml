@@ -139,7 +139,7 @@ snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
-mcp = ["fastapi_mcp"]
+mcp = ["fastapi_mcp", "mcp>=1.0,<2"]
 mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
