@@ -102,7 +102,15 @@ authz:
     tokenEnvVar: FEAST_TOKEN          # env var from which servers read the Bearer token
     verifySSL: false                  # disable SSL verification (dev only)
     caCertConfigMap: oidc-ca-cert     # ConfigMap with CA cert for SSL verification
+    jwksCacheLifespanSeconds: 300     # how long servers reuse the fetched JWK set
+    jwksRequestTimeoutSeconds: 10     # network timeout for the JWKS fetch
 ```
+
+`jwksCacheLifespanSeconds` is not only a performance setting: it also bounds how long a key the provider has **revoked** continues to validate tokens. Lower it if your provider rotates or revokes aggressively, at the cost of proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless, because an unknown key id forces a refetch. `jwksRequestTimeoutSeconds` bounds how long an unresponsive provider can block request serving. Both must be at least 1, and both are omitted from the generated configuration when unset so the SDK defaults apply.
+
+{% hint style="warning" %}
+These two options require a feature server image that supports them. Setting them while running an older image causes the server to reject its configuration at startup, so upgrade the image alongside the operator before enabling them.
+{% endhint %}
 
 **SDK docs**: [Feast OIDC Auth](../../getting-started/components/authz_manager.md#oidc-authorization)
 

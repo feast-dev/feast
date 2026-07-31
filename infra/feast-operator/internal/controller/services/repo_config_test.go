@@ -259,6 +259,26 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(1))
 			Expect(repoConfig.AuthzConfig.OidcParameters[string(OidcAuthDiscoveryUrl)]).To(Equal("https://keycloak.example.com/realms/test/.well-known/openid-configuration"))
 
+			By("Omitting the JWKS tunables when unset, so the SDK defaults apply")
+			Expect(repoConfig.AuthzConfig.OidcParameters).NotTo(HaveKey(string(OidcJwksCacheLifespanSeconds)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).NotTo(HaveKey(string(OidcJwksRequestTimeoutSeconds)))
+
+			By("Forwarding the JWKS tunables when set on the CR")
+			jwksLifespan := int32(60)
+			jwksTimeout := int32(5)
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
+					IssuerUrl:                 "https://keycloak.example.com/realms/test",
+					JwksCacheLifespanSeconds:  &jwksLifespan,
+					JwksRequestTimeoutSeconds: &jwksTimeout,
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcJwksCacheLifespanSeconds), int32(60)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcJwksRequestTimeoutSeconds), int32(5)))
+
 			By("Having oidc with issuerUrl on CR and auth_discovery_url in Secret — CR wins")
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
 				OidcAuthz: &feastdevv1.OidcAuthz{
