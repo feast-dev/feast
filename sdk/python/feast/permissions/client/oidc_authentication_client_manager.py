@@ -1,6 +1,8 @@
 import logging
 import os
-from typing import Optional
+import threading
+import time
+from typing import Dict, Optional, Tuple
 
 import jwt
 import requests
@@ -12,6 +14,18 @@ from feast.permissions.oidc_service import OIDCDiscoveryService
 logger = logging.getLogger(__name__)
 
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+# IdP-issued tokens cached until near expiry, keyed by the token-request
+# identity. The auth interceptors build a fresh manager for every outbound
+# RPC, so instance state would not survive between calls; without this
+# cache every RPC pays a discovery GET plus a token POST against the IdP.
+# Concurrent misses may fetch in parallel (benign: last write wins).
+_token_cache: Dict[Tuple, Tuple[str, float]] = {}
+_token_cache_lock = threading.Lock()
+
+# Stop reusing a token this many seconds before its expiry, so a reused
+# token cannot expire between header injection and server-side validation.
+_TOKEN_REFRESH_MARGIN_SECONDS = 30
 
 
 class OidcAuthClientManager(AuthenticationClientManager):
@@ -67,7 +81,67 @@ class OidcAuthClientManager(AuthenticationClientManager):
         return None
 
     def _fetch_token_from_idp(self) -> str:
-        """Obtain an access token via client_credentials or ROPG flow."""
+        """Return a cached IdP token, or obtain and cache a fresh one.
+
+        Tokens are reused until ``_TOKEN_REFRESH_MARGIN_SECONDS`` before
+        their expiry (read from the token's ``exp`` claim, falling back to
+        the token response's ``expires_in``); a token whose expiry cannot
+        be determined is not cached, preserving the previous per-call
+        behavior for opaque tokens.
+        """
+        cache_key = (
+            self.auth_config.auth_discovery_url,
+            self.auth_config.client_id,
+            self.auth_config.client_secret,
+            self.auth_config.username,
+            self.auth_config.password,
+        )
+        with _token_cache_lock:
+            cached = _token_cache.get(cache_key)
+            if cached is not None and time.time() < cached[1]:
+                return cached[0]
+
+        access_token, expires_in = self._request_token_from_idp()
+
+        refresh_deadline = self._token_refresh_deadline(access_token, expires_in)
+        if refresh_deadline is not None:
+            with _token_cache_lock:
+                _token_cache[cache_key] = (access_token, refresh_deadline)
+        return access_token
+
+    @staticmethod
+    def _token_refresh_deadline(
+        access_token: str, expires_in: Optional[float]
+    ) -> Optional[float]:
+        """Epoch time to stop reusing *access_token*, or ``None`` to skip caching.
+
+        Prefers the token's own ``exp`` claim (authoritative); falls back to
+        the token endpoint's ``expires_in``. Returns ``None`` when neither is
+        usable or the remaining lifetime is inside the refresh margin.
+        """
+        exp: Optional[float] = None
+        try:
+            claims = jwt.decode(access_token, options={"verify_signature": False})
+            claim = claims.get("exp")
+            if isinstance(claim, (int, float)):
+                exp = float(claim)
+        except jwt.exceptions.DecodeError:
+            pass
+        if exp is None and isinstance(expires_in, (int, float)):
+            exp = time.time() + float(expires_in)
+        if exp is None:
+            return None
+        deadline = exp - _TOKEN_REFRESH_MARGIN_SECONDS
+        if deadline <= time.time():
+            return None
+        return deadline
+
+    def _request_token_from_idp(self) -> Tuple[str, Optional[float]]:
+        """Obtain an access token via client_credentials or ROPG flow.
+
+        Returns the token and the token response's ``expires_in`` (seconds),
+        when the IdP provides one.
+        """
         if self.auth_config.auth_discovery_url is None:
             raise ValueError(
                 "auth_discovery_url is required for IDP token fetch "
@@ -106,13 +180,17 @@ class OidcAuthClientManager(AuthenticationClientManager):
         )
 
         if token_response.status_code == 200:
-            access_token = token_response.json()["access_token"]
+            response_body = token_response.json()
+            access_token = response_body["access_token"]
             if not access_token:
                 logger.debug(
                     f"access_token is empty for the client_id=${self.auth_config.client_id}"
                 )
                 raise RuntimeError("access token is empty")
-            return access_token
+            expires_in = response_body.get("expires_in")
+            return access_token, expires_in if isinstance(
+                expires_in, (int, float)
+            ) else None
         else:
             raise RuntimeError(
                 f"""Failed to obtain oidc access token:url=[{token_endpoint}] {token_response.status_code} - {token_response.text}"""
