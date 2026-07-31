@@ -35,7 +35,7 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 {% endcontent-ref %}
 
 {% content-ref url="bigtable.md" %}
-[bigtable.md](mysql.md)
+[bigtable.md](bigtable.md)
 {% endcontent-ref %}
 
 {% content-ref url="postgres.md" %}
