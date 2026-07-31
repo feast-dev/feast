@@ -41,6 +41,41 @@ class OidcTokenParser(TokenParser):
             ca_cert_path=self._auth_config.ca_cert_path,
         )
         self._k8s_auth_api = None
+        self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
+
+    def _get_jwks_client(self) -> PyJWKClient:
+        """Lazily build and cache a parser-lifetime ``PyJWKClient``.
+
+        A per-request client starts with a cold JWK-set cache, forcing a
+        full HTTPS fetch of the JWKS document on every authenticated
+        request. Reusing one client lets PyJWT cache the JWK set for
+        ``jwks_cache_lifespan_seconds``, which also bounds two staleness
+        windows: a key the IdP has removed keeps validating, and a
+        rotation that reuses an existing ``kid`` keeps failing, for at
+        most that long. Rotations that introduce a new ``kid`` recover
+        immediately (``PyJWKClient.get_signing_key`` refreshes and
+        retries once on a cache miss).
+        """
+        if self._jwks_client is None:
+            ssl_ctx = ssl.create_default_context()
+            if not self._auth_config.verify_ssl:
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+            elif self._auth_config.ca_cert_path and os.path.exists(
+                self._auth_config.ca_cert_path
+            ):
+                ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
+            self._jwks_client = PyJWKClient(
+                self.oidc_discovery_service.get_jwks_url(),
+                headers={"User-agent": "custom-user-agent"},
+                ssl_context=ssl_ctx,
+                # Explicit so upgrades cannot silently change the staleness
+                # window documented above, and so a hung IdP bounds how long
+                # a fetch can block the serving path.
+                lifespan=self._auth_config.jwks_cache_lifespan_seconds,
+                timeout=self._auth_config.jwks_request_timeout_seconds,
+            )
+        return self._jwks_client
 
     async def _validate_token(self, access_token: str):
         """
@@ -125,21 +160,7 @@ class OidcTokenParser(TokenParser):
         metadata (e.g. Entra ID v1.0 tokens validated against a v2.0
         discovery document).
         """
-        optional_custom_headers = {"User-agent": "custom-user-agent"}
-        ssl_ctx = ssl.create_default_context()
-        if not self._auth_config.verify_ssl:
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-        elif self._auth_config.ca_cert_path and os.path.exists(
-            self._auth_config.ca_cert_path
-        ):
-            ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
-        jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(),
-            headers=optional_custom_headers,
-            ssl_context=ssl_ctx,
-        )
-        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        signing_key = self._get_jwks_client().get_signing_key_from_jwt(access_token)
         expected_audience = self._auth_config.audience
         expected_issuer = self._auth_config.issuer
         return jwt.decode(
