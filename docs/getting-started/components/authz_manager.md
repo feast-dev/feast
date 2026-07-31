@@ -122,6 +122,19 @@ A token whose `aud` (or `iss`) claim does not match is rejected at authenticatio
 Set these to the values your IdP puts **in the token itself**, which are not always the ones in the discovery document. For example, Microsoft Entra ID commonly issues v1.0 tokens (`iss: https://sts.windows.net/<tenant-id>/`, `aud: api://<app-id-uri>`) even when `auth_discovery_url` points at the v2.0 endpoint. That setup keeps working with these options unset, or set to the v1.0 values — but copying the v2.0 issuer from the discovery document would reject every v1.0 token.
 {% endhint %}
 
+To validate token signatures the server fetches the provider's JWKS document and caches it, refetching when the cache expires or when a token presents an unknown key id. Two options tune that behavior:
+
+```yaml
+auth:
+  type: oidc
+  client_id: _CLIENT_ID_
+  auth_discovery_url: https://login.example.com/.well-known/openid-configuration
+  jwks_cache_lifespan_seconds: 300   # default; how long the fetched key set is reused
+  jwks_request_timeout_seconds: 10   # default; network timeout for the JWKS fetch
+```
+
+`jwks_cache_lifespan_seconds` also bounds how long a key the provider has **revoked** continues to validate tokens, so lower it if your provider rotates or revokes aggressively; each reduction costs proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless of this setting, because an unknown key id triggers a refetch. `jwks_request_timeout_seconds` bounds how long an unresponsive provider can block request serving. Both must be greater than zero.
+
 #### Client-Side Configuration
 
 The client supports multiple token source modes. The SDK resolves tokens in the following priority order:
