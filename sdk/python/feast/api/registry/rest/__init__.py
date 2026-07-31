@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI
 
 from feast.api.registry.rest.compute_engines import get_compute_engine_router
 from feast.api.registry.rest.data_sources import get_data_source_router
@@ -14,7 +14,7 @@ from feast.api.registry.rest.lineage import get_lineage_router
 from feast.api.registry.rest.metrics import get_metrics_router
 from feast.api.registry.rest.monitoring import get_monitoring_router
 from feast.api.registry.rest.permissions import get_permission_router
-from feast.api.registry.rest.projects import get_project_router
+from feast.api.registry.rest.projects import get_project_router, get_registry_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
 from feast.api.registry.rest.search import get_search_router
 
@@ -45,27 +45,7 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_compute_engine_router(grpc_handler, store=resolved_store))
 
     if resolved_store:
-
-        @app.post("/registry/refresh")
-        def refresh_registry():
-            try:
-                from feast.permissions.action import AuthzedAction
-                from feast.permissions.security_manager import assert_permissions
-
-                project = resolved_store.registry.get_project(
-                    name=resolved_store.project, allow_cache=True
-                )
-                assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
-
-                resolved_store.refresh_registry()
-                return Response(status_code=status.HTTP_200_OK)
-            except Exception:
-                logger.exception("Registry refresh failed")
-                return Response(
-                    content='{"detail":"Registry refresh failed. Check server logs for details."}',
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    media_type="application/json",
-                )
+        app.include_router(get_registry_router(resolved_store))
 
     _register_openlineage_consumer(app, resolved_store)
 

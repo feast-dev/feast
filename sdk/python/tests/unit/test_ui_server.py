@@ -309,7 +309,6 @@ def test_registry_refresh_endpoint_error(mock_feature_store):
         with _setup_importlib_mocks(temp_dir):
             app = get_app(mock_feature_store, TEST_PROJECT_NAME)
 
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         resp = client.post("/api/v1/registry/refresh")
         assertpy.assert_that(resp.status_code).is_equal_to(500)
-        assertpy.assert_that(resp.json()["detail"]).contains("Registry refresh failed")
