@@ -5,6 +5,8 @@ After familiarizing yourself with the documentation, the simplest way to get sta
 1. Setup your developer environment by following [development guide](development-guide.md). 
 2. Either create a [GitHub issue](https://github.com/feast-dev/feast/issues) or make a draft PR (following [development guide](development-guide.md)) to get the ball rolling!
 
+> **Reporting a security vulnerability?** Do not open an issue or PR. Report it privately through [GitHub's advisory form](https://github.com/feast-dev/feast/security/advisories/new); see the [security policy](https://github.com/feast-dev/feast/blob/master/SECURITY.md).
+
 ## Decision making process
 *See [governance](../../community/governance.md) for more details here*
 
