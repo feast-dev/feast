@@ -43,8 +43,17 @@ class OidcTokenParser(TokenParser):
         self._k8s_auth_api = None
 
     async def _validate_token(self, access_token: str):
-        """
-        Validate the token extracted from the header of the user request against the OAuth2 server.
+        """Check that the provider's discovery document exposes the OAuth2 endpoints.
+
+        This does **not** verify *access_token*, despite taking it: the bearer
+        scheme below only parses an ``Authorization`` header, and this method
+        supplies that header itself, so any token value passes. The token is
+        genuinely verified in ``_decode_token``, which checks the signature
+        against the provider's JWKS and validates the claims.
+
+        What can fail here is constructing the scheme, which reads the token
+        and authorization endpoints from the discovery document. A document
+        missing either one raises before any token is inspected.
         """
         # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
         # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
@@ -198,7 +207,7 @@ class OidcTokenParser(TokenParser):
         # Standard OIDC / Keycloak flow
         try:
             await self._validate_token(access_token)
-            logger.debug("Token successfully validated.")
+            logger.debug("OIDC discovery document exposes the expected endpoints.")
         except Exception as e:
             if self._is_ssl_error(e):
                 logger.error(
