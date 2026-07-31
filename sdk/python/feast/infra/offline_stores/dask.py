@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import dask
 import dask.dataframe as dd
@@ -302,6 +302,9 @@ class DaskOfflineStore(OfflineStore):
                 if non_entity_mode:
                     current_join_keys = []
 
+                # Snapshot before the merge blends the two sides together.
+                entity_df_columns = list(entity_df_with_features.columns)
+
                 df_to_join = _merge(
                     entity_df_with_features, df_to_join, current_join_keys
                 )
@@ -318,11 +321,14 @@ class DaskOfflineStore(OfflineStore):
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
-                    df_to_join = _filter_created_timestamp(
+                    df_to_join = _apply_created_timestamp_cutoff(
                         df_to_join,
                         timestamp_field,
                         created_timestamp_column,
                         entity_df_event_timestamp_col,
+                        # Join keys too: in non-entity mode they come from the
+                        # feature view side.
+                        set(entity_df_columns) | set(join_keys),
                     )
 
                 df_to_join = _drop_duplicates(
@@ -1194,22 +1200,31 @@ def _filter_ttl(
     return df_to_join
 
 
-def _filter_created_timestamp(
+def _apply_created_timestamp_cutoff(
     df_to_join: dd.DataFrame,
     timestamp_field: str,
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
+    preserved_columns: Set[str],
 ) -> dd.DataFrame:
-    # timestamp_field is NaN only for unmatched entity rows from the left join,
-    # which must be kept; null created timestamps fail the comparison and are
-    # excluded, matching the SQL predicate. Kept lazy to fuse into the next persist.
-    return df_to_join[
-        df_to_join[timestamp_field].isna()
-        | (
-            df_to_join[created_timestamp_column]
-            <= df_to_join[entity_df_event_timestamp_col]
-        )
-    ]
+    # Blanking rather than dropping preserves entity-dataframe cardinality when every
+    # candidate is too new. A blanked row looks like an unmatched left join, which
+    # _drop_duplicates already resolves (nulls sort first, keep="last"). The isna() term
+    # keeps a matched row whose source timestamp is null, as _filter_ttl does.
+    too_new = ~df_to_join[timestamp_field].isna() & ~(
+        df_to_join[created_timestamp_column]
+        <= df_to_join[entity_df_event_timestamp_col]
+    )
+
+    # One assign, not a per-column loop: chained assignments make optimization
+    # super-linear in column count. Lazy so it fuses into the next persist.
+    return df_to_join.assign(
+        **{
+            column: df_to_join[column].mask(too_new)
+            for column in df_to_join.columns
+            if column not in preserved_columns
+        }
+    )
 
 
 def _drop_duplicates(

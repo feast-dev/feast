@@ -21,7 +21,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.ibis import point_in_time_join
 from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
 from feast.repo_config import RepoConfig
-from feast.types import Float32, ValueType
+from feast.types import Float32, Int64, ValueType
 
 CREATED_TIMESTAMP_PREDICATE = (
     "subquery.created_timestamp <= entity_dataframe.entity_timestamp"
@@ -122,7 +122,7 @@ def test_stores_declare_filter_by_created_timestamp_support():
 
 
 class TestDaskFilterByCreatedTimestamp:
-    def _run(self, filter_by_created_timestamp, monkeypatch, src=None):
+    def _run(self, filter_by_created_timestamp, monkeypatch, src=None, entity_df=None):
         if src is None:
             src = pd.DataFrame(
                 {
@@ -168,15 +168,19 @@ class TestDaskFilterByCreatedTimestamp:
             ),
             ttl=timedelta(days=7),
         )
+        # Without this the derived join keys are empty and _merge cross joins, which
+        # hides per-entity bugs. apply()/infer_features() sets it in real usage.
+        fv.entity_columns = [Field(name="driver_id", dtype=Int64)]
         registry = MagicMock()
         registry.list_on_demand_feature_views.return_value = []
 
-        entity_df = pd.DataFrame(
-            {
-                "driver_id": [1],
-                "event_timestamp": pd.to_datetime(["2025-01-02T00:00:00Z"]),
-            }
-        )
+        if entity_df is None:
+            entity_df = pd.DataFrame(
+                {
+                    "driver_id": [1],
+                    "event_timestamp": pd.to_datetime(["2025-01-02T00:00:00Z"]),
+                }
+            )
 
         job = DaskOfflineStore.get_historical_features(
             config=repo_config,
@@ -215,6 +219,55 @@ class TestDaskFilterByCreatedTimestamp:
         )
         df = self._run(True, monkeypatch, src=src)
         assert df["conv_rate"].tolist() == [0.4]
+
+    def test_entity_row_is_kept_when_every_candidate_is_future_created(
+        self, monkeypatch
+    ):
+        src = pd.DataFrame(
+            {
+                "driver_id": [1, 1],
+                "event_timestamp": pd.to_datetime(
+                    ["2025-01-01T10:00:00Z", "2025-01-01T11:00:00Z"]
+                ),
+                "created_ts": pd.to_datetime(
+                    ["2025-01-03T00:00:00Z", "2025-01-04T00:00:00Z"]
+                ),
+                "conv_rate": [0.4, 0.6],
+            }
+        )
+        df = self._run(True, monkeypatch, src=src)
+        assert len(df) == 1
+        assert df["driver_id"].tolist() == [1]
+        assert df["conv_rate"].isna().all()
+
+    def test_entity_rows_without_a_valid_version_do_not_borrow_from_others(
+        self, monkeypatch
+    ):
+        src = pd.DataFrame(
+            {
+                "driver_id": [1, 2],
+                "event_timestamp": pd.to_datetime(
+                    ["2025-01-01T10:00:00Z", "2025-01-01T10:00:00Z"]
+                ),
+                "created_ts": pd.to_datetime(
+                    ["2025-01-01T12:00:00Z", "2025-01-03T00:00:00Z"]
+                ),
+                "conv_rate": [0.4, 0.6],
+            }
+        )
+        entity_df = pd.DataFrame(
+            {
+                "driver_id": [1, 2],
+                "event_timestamp": pd.to_datetime(
+                    ["2025-01-02T00:00:00Z", "2025-01-02T00:00:00Z"]
+                ),
+            }
+        )
+        df = self._run(True, monkeypatch, src=src, entity_df=entity_df)
+        by_driver = df.set_index("driver_id")["conv_rate"]
+        assert len(df) == 2
+        assert by_driver.loc[1] == pytest.approx(0.4)
+        assert pd.isna(by_driver.loc[2])
 
 
 class TestIbisFilterByCreatedTimestamp:
