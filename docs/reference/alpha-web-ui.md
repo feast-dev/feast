@@ -154,11 +154,11 @@ const tabsRegistry = {
 
 Examples of custom tabs can be found in the `ui/custom-tabs` folder.
 
-## Refreshing the project list
+## Refreshing the registry
 
-The Feast UI caches the project list using the same registry cache. After running `feast apply` to add a new project, it may take up to `cache_ttl_seconds` before the project appears in the UI.
+The Feast UI caches registry data (projects, feature views, entities, etc.) using the registry cache. After running `feast apply` to make changes, it may take up to `cache_ttl_seconds` before the updates appear in the UI.
 
-To see new projects faster:
+To see changes faster:
 
 - **Lower the TTL**: Set `cache_ttl_seconds: 10` (or similar) in your `feature_store.yaml` registry config. This makes all registry consumers — including the UI — pick up changes within 10 seconds.
-- **Refresh on demand**: The project selection page has a **Refresh** button that explicitly invalidates the server-side registry cache (`POST /api/v1/registry/refresh`) and reloads the project list without a full page refresh.
+- **Refresh on demand**: The UI has a **Refresh** button that explicitly invalidates the server-side registry cache (`POST /api/v1/registry/refresh`) and reloads the UI without a full page refresh.

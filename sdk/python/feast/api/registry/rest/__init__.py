@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 
 from feast.api.registry.rest.compute_engines import get_compute_engine_router
 from feast.api.registry.rest.data_sources import get_data_source_router
@@ -43,6 +43,21 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_saved_dataset_router(grpc_handler))
     app.include_router(get_monitoring_router(grpc_handler, store=resolved_store))
     app.include_router(get_compute_engine_router(grpc_handler, store=resolved_store))
+
+    if resolved_store:
+
+        @app.post("/registry/refresh")
+        def refresh_registry():
+            try:
+                resolved_store.refresh_registry()
+                return Response(status_code=status.HTTP_200_OK)
+            except Exception:
+                logger.exception("Registry refresh failed")
+                return Response(
+                    content='{"detail":"Registry refresh failed. Check server logs for details."}',
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    media_type="application/json",
+                )
 
     _register_openlineage_consumer(app, resolved_store)
 

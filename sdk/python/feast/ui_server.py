@@ -158,11 +158,6 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
 
     register_all_routes(rest_app, grpc_handler, store=store)
 
-    @rest_app.post("/registry/refresh")
-    def refresh_registry():
-        store.refresh_registry()
-        return Response(status_code=status.HTTP_200_OK)
-
     class PushRequest(BaseModel):
         push_source_name: str
         df: Dict[str, List]

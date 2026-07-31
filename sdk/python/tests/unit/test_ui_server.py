@@ -296,3 +296,21 @@ def test_registry_refresh_endpoint(mock_feature_store):
         resp = client.post("/api/v1/registry/refresh")
         assertpy.assert_that(resp.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
         mock_feature_store.refresh_registry.assert_called_once()
+
+
+def test_registry_refresh_endpoint_error(mock_feature_store):
+    """POST /api/v1/registry/refresh returns 500 when refresh_registry raises."""
+    mock_feature_store.refresh_registry = MagicMock(
+        side_effect=Exception("registry unreachable")
+    )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        client = TestClient(app)
+        resp = client.post("/api/v1/registry/refresh")
+        assertpy.assert_that(resp.status_code).is_equal_to(500)
+        assertpy.assert_that(resp.json()["detail"]).contains("Registry refresh failed")
