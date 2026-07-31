@@ -154,7 +154,6 @@ anyio==4.14.2 \
     --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
     # via
     #   httpx
-    #   httpx2
     #   mcp
     #   sse-starlette
     #   starlette
@@ -588,9 +587,9 @@ faiss-cpu==1.14.3 \
     --hash=sha256:f278003d00c30c90cf118b98428bb96f73eba4b9dadac6993c788966d2e983bd \
     --hash=sha256:f9d0e84d909194f63f027bbd3c1e35e905e48c9345c2db6e6f24da09a6bc5906
     # via milvus-lite
-fastapi==0.141.0 \
-    --hash=sha256:5567705c791fa33202dabd1860df1d1650a7b1bf373378198d7b0675c9574618 \
-    --hash=sha256:cae32222bdc8b2805c4d3deb4e024b381ea2a6f2de7febfe3a9a73a9c29c2e5e
+fastapi==0.141.1 \
+    --hash=sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3 \
+    --hash=sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1
     # via
     #   feast (pyproject.toml)
     #   fastapi-mcp
@@ -598,9 +597,9 @@ fastapi-mcp==0.4.0 \
     --hash=sha256:d4a3fe7966af24d44e4b412720561c95eb12bed999a4443a88221834b3b15aec \
     --hash=sha256:d4ca9410996f4c7b8ea0d7b20fdf79878dc359ebf89cbf3b222e0b675a55097d
     # via feast (pyproject.toml)
-filelock==3.32.0 \
-    --hash=sha256:7be2ad23a14607ccc71808e68fe30848aeace7058ace17852f68e2a68e310402 \
-    --hash=sha256:d396bea984af47333ef05e50eae7eff88c84256de6112aea0ec48a233c064fe3
+filelock==3.32.2 \
+    --hash=sha256:87dd94cf281e586d135fa51132b8e3d9a598b316e90377a288663c9321036c82 \
+    --hash=sha256:c33351e1f49cae33414acbc6d56784e6ecee82514ec90795da1161fc4836b5b8
     # via snowflake-connector-python
 frozenlist==1.8.0 \
     --hash=sha256:0325024fe97f94c41c08872db482cf8ac4800d80e79222c6b0b7b162d5b13686 \
@@ -774,9 +773,9 @@ google-auth-oauthlib==1.4.0 \
     # via
     #   pandas-gbq
     #   pydata-google-auth
-google-cloud-bigquery[pandas]==3.42.2 \
-    --hash=sha256:08d4b264e5ee4790f719724c76b538f204b7190999328a2f1a6a95eaab74ca39 \
-    --hash=sha256:41658c19e8ed5b83307011b4e55aca3b1f72052545a22788f1d637984615173f
+google-cloud-bigquery[pandas]==3.42.3 \
+    --hash=sha256:81b9bfa3a5fa098a04351c1a12579d16f28b93b836e4556ef6410a01deebf418 \
+    --hash=sha256:d03f8da5ed94aeae5457f3127216cb385392ba266bede25ea257aeec94512900
     # via
     #   feast (pyproject.toml)
     #   pandas-gbq
@@ -949,7 +948,6 @@ h11==0.16.0 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
     # via
     #   httpcore
-    #   httpcore2
     #   uvicorn
 hiredis==3.4.0 \
     --hash=sha256:02298551060cbfe17b1acb02e9d066eadd51e37357369736f8fc1f5533875255 \
@@ -1069,10 +1067,6 @@ httpcore==1.0.9 \
     --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55 \
     --hash=sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8
     # via httpx
-httpcore2==2.9.1 \
-    --hash=sha256:4d8acbf8b306f48c9d6046591fd5ba4037d1b1b1000d140fc2c3eab1e9a0c0e2 \
-    --hash=sha256:6182472379e855fe4221246a2bb7ecede403bc61c6798062ae1787d051ccde26
-    # via httpx2
 httptools==0.8.0 \
     --hash=sha256:0770728beb05094c809b98e814edff5fef69d26ad7d21185f2f6d5884a0ba683 \
     --hash=sha256:0ea897f0c729581ebf72131a438a7932d9b14efef72d75ada966700cac3caaeb \
@@ -1128,10 +1122,12 @@ httptools==0.8.0 \
 httpx==0.28.1 \
     --hash=sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
-    # via fastapi-mcp
-httpx2==2.9.1 \
-    --hash=sha256:1820fe14a9ab1107bfeff39259987429450b070ec0ff38cc87eb0d8c97fdc71a \
-    --hash=sha256:1932a768737e3666291582833da748cc4e563c337cf96706fccc04fa6e58764a
+    # via
+    #   fastapi-mcp
+    #   mcp
+httpx-sse==0.4.3 \
+    --hash=sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc \
+    --hash=sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d
     # via mcp
 ibis-framework[duckdb]==12.0.0 \
     --hash=sha256:0bbd790f268da9cb87926d5eaad2b827a573927113c4ed3be5095efa89b9e512 \
@@ -1143,7 +1139,6 @@ idna==3.18 \
     # via
     #   anyio
     #   httpx
-    #   httpx2
     #   requests
     #   snowflake-connector-python
     #   yarl
@@ -1367,14 +1362,12 @@ markupsafe==3.0.3 \
     --hash=sha256:f9e130248f4462aaa8e2552d547f36ddadbeaa573879158d721bbd33dfe4743a \
     --hash=sha256:fed51ac40f757d41b7c48425901843666a6677e3e8eb0abcff09e4ba6e664f50
     # via jinja2
-mcp==2.0.0 \
-    --hash=sha256:0f440e735c13ece8bb19bc62cf0b86f4313448432fbb77d35e14034f4e050728 \
-    --hash=sha256:1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6
-    # via fastapi-mcp
-mcp-types==2.0.0 \
-    --hash=sha256:6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0 \
-    --hash=sha256:d7d939b9285c9961ae8866ba75ef85da34d12bafe276efbf4eb6a131786d8379
-    # via mcp
+mcp==1.29.0 \
+    --hash=sha256:52d01f334de1868cc3bb2d6604931126a67631f99a6c5d3b82ba47290315ec36 \
+    --hash=sha256:f5a075bb611f23d6f4d080c6a1699fa62772eebc562ba9e66b306ddde1c755f7
+    # via
+    #   feast (pyproject.toml)
+    #   fastapi-mcp
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
@@ -1763,10 +1756,6 @@ oauthlib==3.3.1 \
     --hash=sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9 \
     --hash=sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1
     # via requests-oauthlib
-opentelemetry-api==1.44.0 \
-    --hash=sha256:67647e5e9566edcf421166fdf022b3537f818635daa852b289e34604dc6fb33a \
-    --hash=sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef
-    # via mcp
 orjson==3.11.9 \
     --hash=sha256:011382e2a60fda9d46f1cdee31068cfc52ffe952b587d683ec0463002802a0f4 \
     --hash=sha256:03db380e3780fa0015ed776a90f20e8e20bb11dde13b216ce19e5718e3dfba62 \
@@ -2212,7 +2201,6 @@ pydantic==2.13.4 \
     #   fastapi
     #   fastapi-mcp
     #   mcp
-    #   mcp-types
     #   pydantic-settings
 pydantic-core==2.46.4 \
     --hash=sha256:00c603d540afdd6b80eb39f078f33ebd46211f02f33e34a32d9f053bba711de0 \
@@ -2339,7 +2327,9 @@ pydantic-core==2.46.4 \
 pydantic-settings==2.14.2 \
     --hash=sha256:a20c97b37910b6550d5ea50fbcc2d4187defe58cd57070b73863d069419c9440 \
     --hash=sha256:c19dd64b19097f1de80184f0cc7b0272a13ae6e170cbf240a3e27e381ed14a5f
-    # via fastapi-mcp
+    # via
+    #   fastapi-mcp
+    #   mcp
 pydata-google-auth==1.9.1 \
     --hash=sha256:0a51ce41c601ca0bc69b8795bf58bedff74b4a6a007c9106c7cbcdec00eaced2 \
     --hash=sha256:75ffce5d106e34b717b31844c1639ea505b7d9550dc23b96fb6c20d086b53fa3
@@ -2838,12 +2828,6 @@ tqdm==4.70.0 \
     --hash=sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220 \
     --hash=sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953
     # via feast (pyproject.toml)
-truststore==0.10.4 \
-    --hash=sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301 \
-    --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
-    # via
-    #   httpcore2
-    #   httpx2
 typeguard==4.6.0 \
     --hash=sha256:79878165bb86f2cf5d41d159a0ff1792a796cf496882d2fe1b1c6c7049b9cdd7 \
     --hash=sha256:e7414f09111317de3e335de92cd397c5c0ca00b1cc1676de12e1d444a79b3f21
@@ -2868,13 +2852,10 @@ typing-extensions==4.16.0 \
     #   exceptiongroup
     #   fastapi
     #   grpcio
-    #   httpx2
     #   ibis-framework
     #   mcp
-    #   mcp-types
     #   multidict
     #   mypy
-    #   opentelemetry-api
     #   psycopg
     #   psycopg-pool
     #   pydantic

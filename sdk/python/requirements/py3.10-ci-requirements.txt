@@ -136,6 +136,7 @@ aiohttp==3.14.3 \
     #   aiobotocore
     #   fsspec
     #   kubernetes
+    #   mlflow
 aioitertools==0.13.0 \
     --hash=sha256:0be0292b856f08dfac90e31f4739432f4cb6d7520ab9eb73e143f4f2fa5259be \
     --hash=sha256:620bd241acc0bbb9ec819f1ab215866871b4bbd1f73836a55f799200ee86950c
@@ -170,7 +171,6 @@ anyio==4.14.2 \
     # via
     #   elasticsearch
     #   httpx
-    #   httpx2
     #   jupyter-server
     #   mcp
     #   sse-starlette
@@ -218,6 +218,10 @@ arrow==1.4.0 \
     --hash=sha256:749f0769958ebdc79c173ff0b0670d59051a535fa26e8eba02953dc19eb43205 \
     --hash=sha256:ed0cc050e98001b8779e84d461b0098c4ac597e88704a655582b21d116e526d7
     # via isoduration
+asgiref==3.12.1 \
+    --hash=sha256:59dcb51c272ad209d59bed5708a64a333083e86017d7fcdd67498eeab7784340 \
+    --hash=sha256:fe386d1c2bff7259ea95929266d12a8cf9a8b5a1c2598402967d8792e7a7c094
+    # via opentelemetry-instrumentation-asgi
 asn1crypto==1.5.1 \
     --hash=sha256:13ae38502be632115abf8a24cbe5f4da52e3b5231990aff31123c805306ccb9c \
     --hash=sha256:db4e40728b728508912cbb3d44f19ce188f218e9eba635821bb4b68564f8fd67
@@ -1028,6 +1032,7 @@ cryptography==49.0.0 \
     #   google-auth
     #   great-expectations
     #   jwcrypto
+    #   mlflow
     #   moto
     #   msal
     #   oracledb
@@ -1044,9 +1049,9 @@ dask[dataframe]==2026.7.1 \
     --hash=sha256:5727484427665f051e86bf87d021a64d6411141cdc8a20bfe3c1ad2968cc06b7 \
     --hash=sha256:985ffd6c5e9d7979ede515e84ae8d39b647d6aa64f77600f15714ff65f578fe6
     # via feast (pyproject.toml)
-databricks-sdk==0.122.0 \
-    --hash=sha256:7d998ec47f580be6be1cfe066be78038054767575b7437af5e4f76b67dde49c2 \
-    --hash=sha256:eb11be13f0c02fc4ffc6e2672ad47478ce26ac4b310bd26916af8ba56e374e98
+databricks-sdk==0.67.0 \
+    --hash=sha256:ef49e49db45ed12c015a32a6f9d4ba395850f25bb3dcffdcaf31a5167fe03ee2 \
+    --hash=sha256:f923227babcaad428b0c2eede2755ebe9deb996e2c8654f179eb37f486b37a36
     # via
     #   mlflow-skinny
     #   mlflow-tracing
@@ -1298,9 +1303,9 @@ faiss-cpu==1.10.0 \
     # via
     #   feast (pyproject.toml)
     #   milvus-lite
-fastapi==0.141.0 \
-    --hash=sha256:5567705c791fa33202dabd1860df1d1650a7b1bf373378198d7b0675c9574618 \
-    --hash=sha256:cae32222bdc8b2805c4d3deb4e024b381ea2a6f2de7febfe3a9a73a9c29c2e5e
+fastapi==0.141.1 \
+    --hash=sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3 \
+    --hash=sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1
     # via
     #   feast (pyproject.toml)
     #   fastapi-mcp
@@ -1313,9 +1318,9 @@ fastjsonschema==2.22.1 \
     --hash=sha256:0b83d1ce8d7845b959dcb20e1a5c3c8883b6541d9c52ab02cce5166b75ec805f \
     --hash=sha256:cf377ff5c9a6f4f3125fb35f75a2c5767bd824ffbcf62c209a93cd48d1453999
     # via nbformat
-filelock==3.32.0 \
-    --hash=sha256:7be2ad23a14607ccc71808e68fe30848aeace7058ace17852f68e2a68e310402 \
-    --hash=sha256:d396bea984af47333ef05e50eae7eff88c84256de6112aea0ec48a233c064fe3
+filelock==3.32.2 \
+    --hash=sha256:87dd94cf281e586d135fa51132b8e3d9a598b316e90377a288663c9321036c82 \
+    --hash=sha256:c33351e1f49cae33414acbc6d56784e6ecee82514ec90795da1161fc4836b5b8
     # via
     #   datasets
     #   huggingface-hub
@@ -1331,6 +1336,12 @@ filetype==1.2.0 \
 flask==3.1.3 \
     --hash=sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb \
     --hash=sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c
+    # via
+    #   flask-cors
+    #   mlflow
+flask-cors==6.0.5 \
+    --hash=sha256:30c5031552cd59f620ac0c8211dac45b345d3b2df310e7721879e4f46ef9c601 \
+    --hash=sha256:68fcf75693e961f3af26683b23c4b9a8fb6b64de17d20d0c37b95e8de7ab2ed8
     # via mlflow
 fonttools==4.63.0 \
     --hash=sha256:032038247a96c1690f9f31e377c389383c902531b085aa4e4dabd6f57f870e69 \
@@ -1579,9 +1590,9 @@ google-auth-oauthlib==1.4.0 \
     # via
     #   pandas-gbq
     #   pydata-google-auth
-google-cloud-bigquery[pandas]==3.42.2 \
-    --hash=sha256:08d4b264e5ee4790f719724c76b538f204b7190999328a2f1a6a95eaab74ca39 \
-    --hash=sha256:41658c19e8ed5b83307011b4e55aca3b1f72052545a22788f1d637984615173f
+google-cloud-bigquery[pandas]==3.42.3 \
+    --hash=sha256:81b9bfa3a5fa098a04351c1a12579d16f28b93b836e4556ef6410a01deebf418 \
+    --hash=sha256:d03f8da5ed94aeae5457f3127216cb385392ba266bede25ea257aeec94512900
     # via
     #   feast (pyproject.toml)
     #   pandas-gbq
@@ -1752,78 +1763,78 @@ grpcio==1.83.0 \
     #   milvus-lite
     #   pymilvus
     #   qdrant-client
-grpcio-health-checking==1.81.1 \
-    --hash=sha256:cbc6a4171825ec64389de2f062d296ba129a5c27eefd0dd55fa837909184bdf9 \
-    --hash=sha256:ecc61480e25058a4a04e11e4ab6900ad7439b32e60a8ce4ece7d9f219221c85d
+grpcio-health-checking==1.83.0 \
+    --hash=sha256:7d8b47a5bfbc699d4aee0fc7a27f5d0265eb23a6a64db5ac2d8b749a0f8a9911 \
+    --hash=sha256:ad6bc4d5a1103ad704d25ccd82def300dfa27996b185cab3e4cceeef2c6867d4
     # via feast (pyproject.toml)
-grpcio-reflection==1.81.1 \
-    --hash=sha256:3d7160000f5fdd0e241f9b1a3d402f15ebcd5f281be105b374a025f38c6434a8 \
-    --hash=sha256:d82fc4ac39dd5dcfd63e577075f6a68eac4a765e66a453914bbf57caf35665d0
+grpcio-reflection==1.83.0 \
+    --hash=sha256:6a2a30a462ac2c3c6d149734a8fe655fa7617c17fa2cda9949006f3bf07f5b3e \
+    --hash=sha256:9d4151f68f18a85aa5b0eff5d493ad13f9421f96c8d9c01c840b353dc979be93
     # via feast (pyproject.toml)
 grpcio-status==1.83.0 \
     --hash=sha256:837219c6de9afdccb6f6f72b34bc71e151a2011ef04040e3faaca746a57e54ae \
     --hash=sha256:f6a838a7c5fb84ae98833ec0ef81ed438c26e11e54b2ddb8e92ad328c861de69
     # via google-api-core
-grpcio-testing==1.81.1 \
-    --hash=sha256:69792db25781cefd2479d12285ca6bebe589e2aa1d64b4b8d18cf35f58c6b810 \
-    --hash=sha256:f381121d7203f4380b1c01e6c8f15aa220bafdc372e8ed82eddf79a16149abcc
+grpcio-testing==1.83.0 \
+    --hash=sha256:7f4d65753a490626e1ab23e18156cf4bfe9232d2621d11168d53da69fe450afd \
+    --hash=sha256:ffaa7aa3e7241ac3570c178f7cd6e94581142b5121eb47ac93983ed607f06bdd
     # via feast (pyproject.toml)
-grpcio-tools==1.81.1 \
-    --hash=sha256:0265fd1386b7458302f79542558345880d484f8fa92ae196c0c0268242c5f23a \
-    --hash=sha256:136e90906af0df51ad929713244ba812d0dbb1844b4f467d5d86bdb054698f90 \
-    --hash=sha256:1680b35a84f4694401819ac4acac42dda6dbc7bb8fc74112fd1a60425a07adf4 \
-    --hash=sha256:1d602b410b2b2addc434cace9ce4fe2035974a3078228f98ffa049a5c90acc2f \
-    --hash=sha256:204de03b539a4b08772c6553b92bcc112cbc965e0ac22f909f6d133b8ac33a8c \
-    --hash=sha256:21bb3ba90e6d8df1ff663d4ee39a4e5b25a64e8ed4902476ca9ded0954d3917a \
-    --hash=sha256:2baa7e735f35b2a648144c03348a126097b13e101d3c242d5edb6ac91437ccbe \
-    --hash=sha256:2c306c307f8f74cddc4056fdbb6f1da55de087a21120efbd02bd915daa5a52fd \
-    --hash=sha256:3389e705460efa3f3758141ba5520e6743b131c9576197c944fb9cbe49048126 \
-    --hash=sha256:353b1fafcc739c31ed42271052709595b340d34f27c459beeb78a32938305bb5 \
-    --hash=sha256:3c8611d6e4e859ac5373422ef27c4b7540cf98c9991c9abc6722613ef72b13aa \
-    --hash=sha256:3d604b4fd114b79ebb9f865bf3e04fd3ae93c704e1fad96f7fd03b0865c263b7 \
-    --hash=sha256:3dca56016d90a710c4d9861bae793dc089c1430a90c79ce672e948ddb65fa539 \
-    --hash=sha256:43baf71dc60fd653062da2e95e95c73b35dd130be8f9fa3d544c3af3f808a290 \
-    --hash=sha256:43c528655b226375013036692d8db4cd59060c1f41dd62c77f4d17b69f6ce828 \
-    --hash=sha256:53ef76cc3b0493ff734a5e8c39d5b519e1822236fcccdfe7677c5e1efd767761 \
-    --hash=sha256:690e6dcaa8b8a7886ce206ba344e2127211597e1a1ddab73df9f3d80c8f6707e \
-    --hash=sha256:724ecb69af63d2f6d4ccea3e6fa0ca110ed9c5824d48c2f887c631bbb03c1c3c \
-    --hash=sha256:768f584c2423cbeb6cb6867817a39365b987ff16b8259a3adbc6546b9e303a4e \
-    --hash=sha256:7746e508d4239a02f7e93638be5bc0ebb0120ddb796f7506aaae9d47a4599d97 \
-    --hash=sha256:7d168ea26390717d0462c0d0408331dc98a60fc7f7e6118afac9b73f5a66d87c \
-    --hash=sha256:7f208c207aca639dcb34648d3826c38d7cf3485118fb2065117e9fc4827406b3 \
-    --hash=sha256:801d9d8ab5cddf8f8e064225292f0713427011252a07828a6b54e2ed64d534de \
-    --hash=sha256:8161f398f957a376cae7385ea7c8684f439d460ef702b528912da3bcb31fc515 \
-    --hash=sha256:82740248eb6f3b6a38988cb5e64adb7303af9ea5cb4197c8ed08c1fabc767440 \
-    --hash=sha256:87b25ca0e27373a4a32a629a4ba976f5764b9887dd50d6fe017d38009a0363e8 \
-    --hash=sha256:895a6782cec86beac71ccebb4b9848259c6f04a3028b8e42fa8d40cfe5146593 \
-    --hash=sha256:8a17d8ceeb6a855fadf39f5171c80a382d97c4db98d5943eca553497fdebf84b \
-    --hash=sha256:9b6ba8a72cfda576508701a7c0bbeebe6f6f9843320d4f12e74efd19ddccd965 \
-    --hash=sha256:9d383724bcd67244b6def9e9164c640ee9380c0b7534ee7545a6fb0022a59afe \
-    --hash=sha256:a22a3870180927fdd84e2b27d079ef5b7f5f8c6110181b6736afc17a463481f1 \
-    --hash=sha256:a28d231455ab6e3558299f7d831a73c8be8ee6b7ec614ecf39eb50c0ed15767f \
-    --hash=sha256:a882382507bb5ec6d7edc9648053dfd3bc8f9285cde56a6fa9b9a83b4bd07f1c \
-    --hash=sha256:a987c85dcbe1b32066d7acd46266d1a428aecbd629331bf5b853e74c835bf876 \
-    --hash=sha256:a9c6fcc68c9d5a208967bfe4fd3224d3c3be9a950c3e827e8f4b17e15c2dc555 \
-    --hash=sha256:ac47a9ea1224df8b653072614e6f0207e9fbfe63fdabaa5918a60ca5fc931b88 \
-    --hash=sha256:ad7a997c07bd345e84842e60561e7e2cc090ce6c4e1d2f0407e31b85b40fc49a \
-    --hash=sha256:b62d254c214faa3773eac709376ae25cf7abff1a76ba5fc4dbcd7b14fc4e4ae6 \
-    --hash=sha256:b6bd163ece4535726e5292b845ed80ae9b2cae73ba091c7d6c66033c430e3857 \
-    --hash=sha256:b7b6d1e986d5923751bfe2b5cca9c4cb3d5653446e4fa4aacd438033e2dc360a \
-    --hash=sha256:ba8f1ae82ad199f43448995715445cc623fb20d3882382e4be61f0da8ccb3f0e \
-    --hash=sha256:bd0b68dc76b10b3384b9b6e9f59202b83dcaafd8098eb644759a69316686acf8 \
-    --hash=sha256:bd6c3bf3ea6a61eb58c54368d72ada591f2a270f3a31a32e8536e773337e76d9 \
-    --hash=sha256:bdbdc927be2e0ea13c32564a72ee31d712a716fb6f8c0d53d37a77d8277c272c \
-    --hash=sha256:cb08172b7b629e75cb33866928d319a3196540a725eaab628ba721007140f1af \
-    --hash=sha256:cc410b621dd85193766c12dca2e238696199a27a65d2b31b6f0a4c6c0043ff26 \
-    --hash=sha256:eac4bb645ceff0c147cc720a40ae68f97427eaafb4968e866dd8fcc20d3d4831 \
-    --hash=sha256:f3eb15849979ca7bb864ce81a74d68b0f225a7f111ed3fe212bfc08cf9812b10 \
-    --hash=sha256:f64e665c8ec639278ecf009beb92cbdcc5994f617c1af3d58036e1f70b1423ec \
-    --hash=sha256:f8cb64f87c45ccca8234fa47e6b21f09e43801ff11b556deecb461b3b3e9f292 \
-    --hash=sha256:fc3d2a41a7a4467fa03b391394fffada9291fe8feebc8679b526f6bc36942b25
+grpcio-tools==1.83.0 \
+    --hash=sha256:04284627655629387b63278591e5efd0aded28d3a08432fe8a8765e4daf2d5b2 \
+    --hash=sha256:0ca67941524662e01adea91571bb79df1ac9b4b2641812ef8636e21945119bee \
+    --hash=sha256:0f27da6dc58c910f31dcee4fcbfd05659c10c14b9e132f4f17da48d867e75eb4 \
+    --hash=sha256:1aa9617ce9c2bcbfb8f2fa08e6259e1b3cadaab0316e41f71496847af2f0a664 \
+    --hash=sha256:1cfee967ae073bc064862971871229248965422f38556096aec76db19d8a8c79 \
+    --hash=sha256:1d5a9a9664d2f4bdda000652e7febf9ab4545a6391c8f05babd52ecb27d7e03e \
+    --hash=sha256:1ea047ff4bd2bb32fe5268042cb9c9e7bb054e932b52ad756642622f032ef656 \
+    --hash=sha256:2106b29b9dae5068acab7ee2f6b104d3054b4f31289f105b4afe1fcfbf1966c4 \
+    --hash=sha256:281d5d056d7ba839f4fff9b63f9ad239fe3353fe10e28e782251bdae6ba68306 \
+    --hash=sha256:3277cfbb7cbbd2d72921fbcd7aba6c8ab1c91a9ab27e8045ac0a0f2e0517cec9 \
+    --hash=sha256:33350bd94c4913f8eaf6ca79ce69cc673bb46ca5f800e6474b1d6899ed321dad \
+    --hash=sha256:35af1be2fe409abf9817ec43c34aab8a99189b15530eb78f3a94a6b1266d8b12 \
+    --hash=sha256:3647c6adae9528dd56183061371151e3a96f71c299dc69c540318c3af2233a88 \
+    --hash=sha256:4bf0e421e1ab5f2cd638de44fc903aed3ba4a2fcb19b93c6f528ff0ec63e3a6a \
+    --hash=sha256:4fe627a5248d8e712f5ec3e019420050e61b10600ed241264aefb379a0f1b338 \
+    --hash=sha256:515907265d14fa9975d0c7723f95a9da01463d7ac607546a03f8741f86a1bb07 \
+    --hash=sha256:6d1a1c9e62689d04b63b227558b759a55dce8fb81a3934d3b5f95d1ee26a2b45 \
+    --hash=sha256:72471a4a46909f1d798836c0a0aa2f568e10f6404585d7b22ac7330dd6a7bc74 \
+    --hash=sha256:762a9f8a4a4a39bda02feebed94efb8d778e0e5a82d0c8f786dce5ddcb950c7f \
+    --hash=sha256:7980b3ca9dd31c42468c5af8cec97037f83715ea6efbe1b936ecb9c6832ac0f5 \
+    --hash=sha256:7a8ac9cb3fbf7a5e4fe59f211e77b4fa4d51279c9f480e6ff98037cf56da1ad8 \
+    --hash=sha256:7b1bd6db403b38addded54866187eba6f9ab9afadf72bb8d0515ed13f0b16c5c \
+    --hash=sha256:7d4edc6ba9fdca70bbf585ff6ab5971b8cd6140b4b316df66fd91d168bc1b617 \
+    --hash=sha256:7da547dd1e0b1fe3d6d5677e9c1848969ecdbd51a92c342cf82d885c5935de7d \
+    --hash=sha256:7f5f5b6e1a91422069601fbf94f7fc970a7647fa69d2bc9f59e38913523117af \
+    --hash=sha256:8350e236470700b02bc4ba7f27a8796559630170e6527dda41c0344fbe988e56 \
+    --hash=sha256:846fd211ebb72f50d39d3874cc0d616c2b9bcb71db51121ca86af29eec013c74 \
+    --hash=sha256:88fc53ee3ce28d3ea2fe8fe1d3ed57854d0d25d6dac18e74c1f24e0a377bb509 \
+    --hash=sha256:92d2343806b5c21162a57fbaad24fcd8d935ef530f95a0f706a4e2546fdc0662 \
+    --hash=sha256:a47e674e6afac5d73ee3a87d57ed53f7b79cc01f44d602fe6ee90919aa171583 \
+    --hash=sha256:a5fa95fb33a600d2491867a1048f47baa27a830eac01f475043b8ccf63a471eb \
+    --hash=sha256:a6ac3cc2c2d77f869a96dfaf2b1315852878babddfe2dc49b9fd47afbf502865 \
+    --hash=sha256:ad00de87334154901e9af50a7f3f95261a0133502c6c0cea1f4e6107245154c3 \
+    --hash=sha256:ad37c786ea92825534466052f5f22f1f29983b1d00ca71ad43e256715a86bba3 \
+    --hash=sha256:b1649f47c4675c1540ad2a77005f4d08392c06202686a0b1bb6b894f96cb75fe \
+    --hash=sha256:b3a5000e8540efb80f74d9c760f36ed9408294d76edb0fa4b87fd287b0a8a258 \
+    --hash=sha256:b6346c688d25bcf264e55f0c5f48ae825f7a2906ab969ed3b4a93df53e48bf07 \
+    --hash=sha256:b8c9686b0c19f70b63d8d6cfeff5ad3480bdedecd60f14711fe43950f5397253 \
+    --hash=sha256:bd93bbe18c4424805fd2e39854f75d76f80655175621254dc43cb45ec8e91e85 \
+    --hash=sha256:c6c469c928a183f1a99ab26e263fe307347ee7023fa623b55bc778846b2f51b9 \
+    --hash=sha256:c82216864d435ecf6f535798d03e9f6b9025a672a2e815715d629aba4ba70349 \
+    --hash=sha256:cad9333c0d5afcc2ffb26bebc5e8f097e3218b964758c3c65609dbcb77ec2aa7 \
+    --hash=sha256:d654c645af7cf608a30644bffb8d1ef6b14e8846482c3d0131d0dda91f6fb590 \
+    --hash=sha256:dc2d370563ee1ee6c1769e49df35ef3f6e75cea8f25acf4ac6e54b335e6f788f \
+    --hash=sha256:de2b0c645363f7c4b005f145e06e790870dfb21bb7e162dec6fee2f054de9291 \
+    --hash=sha256:e2a5816a5b6b06b42a6989f02944841c2a8b3daaa7f033dac9267f70078028ef \
+    --hash=sha256:f281cb706999676bb841bcd57129a69091b9286236c89d6114c752ebf6cd5a1b \
+    --hash=sha256:f4a83f002895b11c4a862c366d77165825e0064aff14bf2c7453f59f66599b0e \
+    --hash=sha256:f710032264ed114c9d3b52f4c5cf71d68ccf70f25c4cb5776fe60388374bc01b \
+    --hash=sha256:f7e82ee718ae09f879cb832e4517a56691de24383a2da673be184ad8b18e452f \
+    --hash=sha256:fd2ff46917f566b3b63dae191d1b05ef2188fe51e756ef321cbdd707ab29dbfb
     # via feast (pyproject.toml)
-gunicorn==23.0.0 \
-    --hash=sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d \
-    --hash=sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec
+gunicorn==26.0.0 \
+    --hash=sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc \
+    --hash=sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf
     # via
     #   feast (pyproject.toml)
     #   mlflow
@@ -1833,7 +1844,6 @@ h11==0.16.0 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
     # via
     #   httpcore
-    #   httpcore2
     #   uvicorn
 h2==4.4.0 \
     --hash=sha256:46b551bdcdc7e83cf5c04d0bf93badb8a939bd2287d9fee1abb23a445b9e0580 \
@@ -1988,10 +1998,6 @@ httpcore==1.0.9 \
     --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55 \
     --hash=sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8
     # via httpx
-httpcore2==2.9.1 \
-    --hash=sha256:4d8acbf8b306f48c9d6046591fd5ba4037d1b1b1000d140fc2c3eab1e9a0c0e2 \
-    --hash=sha256:6182472379e855fe4221246a2bb7ecede403bc61c6798062ae1787d051ccde26
-    # via httpx2
 httptools==0.8.0 \
     --hash=sha256:0770728beb05094c809b98e814edff5fef69d26ad7d21185f2f6d5884a0ba683 \
     --hash=sha256:0ea897f0c729581ebf72131a438a7932d9b14efef72d75ada966700cac3caaeb \
@@ -2052,13 +2058,18 @@ httpx[http2]==0.27.2 \
     #   datasets
     #   fastapi-mcp
     #   jupyterlab
+    #   mcp
     #   openlineage-python
     #   python-keycloak
     #   qdrant-client
-httpx2==2.9.1 \
-    --hash=sha256:1820fe14a9ab1107bfeff39259987429450b070ec0ff38cc87eb0d8c97fdc71a \
-    --hash=sha256:1932a768737e3666291582833da748cc4e563c337cf96706fccc04fa6e58764a
+httpx-sse==0.4.3 \
+    --hash=sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc \
+    --hash=sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d
     # via mcp
+huey==3.3.0 \
+    --hash=sha256:a7b1581aaae5f70540faafcf3306d74fa138ec7bad520f81150bb70b224eaddf \
+    --hash=sha256:e0c2a1542e6c3acb894821cde895cf9dbf72e42deb25f55b2d44096aa30f8f24
+    # via mlflow
 huggingface-hub==0.36.2 \
     --hash=sha256:1934304d2fb224f8afa3b87007d58501acfda9215b334eed53072dd5e815ff7a \
     --hash=sha256:48f0c8eac16145dfce371e9d2d7772854a4f591bcb56c9cf548accf531d54270
@@ -2089,7 +2100,6 @@ idna==3.18 \
     # via
     #   anyio
     #   httpx
-    #   httpx2
     #   jsonschema
     #   requests
     #   snowflake-connector-python
@@ -2102,9 +2112,9 @@ imagesize==2.0.0 \
     --hash=sha256:5667c5bbb57ab3f1fa4bc366f4fbc971db3d5ed011fd2715fd8001f782718d96 \
     --hash=sha256:8e8358c4a05c304f1fccf7ff96f036e7243a189e9e42e90851993c558cfe9ee3
     # via sphinx
-importlib-metadata==8.9.0 \
-    --hash=sha256:58850626cef4bd2df100378b0f2aea9724a7b92f10770d547725b047078f99ee \
-    --hash=sha256:e0f761b6ea91ced3b0844c14c9d955224d538105921f8e6754c00f6ca79fba7f
+importlib-metadata==9.0.0 \
+    --hash=sha256:2d21d1cc5a017bd0559e36150c21c830ab1dc304dedd1b7ea85d20f45ef3edd7 \
+    --hash=sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc
     # via
     #   build
     #   dask
@@ -2212,9 +2222,9 @@ jsonschema-specifications==2025.9.1 \
     --hash=sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe \
     --hash=sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d
     # via jsonschema
-jupyter-builder==1.1.1 \
-    --hash=sha256:1a13977912b08deda77fce2c803940131c27cf77a27ed64b9ffca25aa0ed7e6c \
-    --hash=sha256:f9c14bc55c0488a073f62af12d468936fcf9ecb7e9dd802f6f9c33de46ad70db
+jupyter-builder==1.2.0 \
+    --hash=sha256:c8a003714a118ebb590f79b459e1e384dee7dce9aebaa86ace045f5960997fe4 \
+    --hash=sha256:e62ed4a7e224c73197dd76974754c93070c9f0451ca450a2c81126838b00f866
     # via
     #   jupyterlab
     #   notebook
@@ -2796,14 +2806,12 @@ matplotlib-inline==0.2.2 \
     # via
     #   ipykernel
     #   ipython
-mcp==2.0.0 \
-    --hash=sha256:0f440e735c13ece8bb19bc62cf0b86f4313448432fbb77d35e14034f4e050728 \
-    --hash=sha256:1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6
-    # via fastapi-mcp
-mcp-types==2.0.0 \
-    --hash=sha256:6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0 \
-    --hash=sha256:d7d939b9285c9961ae8866ba75ef85da34d12bafe276efbf4eb6a131786d8379
-    # via mcp
+mcp==1.29.0 \
+    --hash=sha256:52d01f334de1868cc3bb2d6604931126a67631f99a6c5d3b82ba47290315ec36 \
+    --hash=sha256:f5a075bb611f23d6f4d080c6a1699fa62772eebc562ba9e66b306ddde1c755f7
+    # via
+    #   feast (pyproject.toml)
+    #   fastapi-mcp
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
@@ -2822,17 +2830,17 @@ mistune==3.3.4 \
     # via
     #   great-expectations
     #   nbconvert
-mlflow==3.2.0 \
-    --hash=sha256:db97b925cc8afba15caf3749dcb4a95be83f9608e974f23253fbbc1d675247ea \
-    --hash=sha256:e96bd42238ea8b477691c8a8f6e8bdbf9247415ad7892e6e885994c6940bcf74
+mlflow==3.15.0 \
+    --hash=sha256:3ae54c7f91a6b98ae9360aaeda9b31eb7930571c2690491a7b550c84f795a709 \
+    --hash=sha256:c53d7933391fefda2ac0f6b942d1744a02b5b65da74a93cc125247f4c4da57c9
     # via feast (pyproject.toml)
-mlflow-skinny==3.2.0 \
-    --hash=sha256:b359ec082a0a966e4e8e80f03d850da7fa677ebe57e67b1c0877029e5eeee443 \
-    --hash=sha256:ec33a6fc164973e3b4d208e4ab8bec118ea93ff890ffbd08817b66468235ed71
+mlflow-skinny==3.15.0 \
+    --hash=sha256:6faad0bb5b0b8adc08550c6cd2ab5a87f9e7d7fe8814278e22b79f9cac99d943 \
+    --hash=sha256:fc609ea5f7325a76d6f905489d8be73e85bcba0eef64144a763cf446de83192e
     # via mlflow
-mlflow-tracing==3.2.0 \
-    --hash=sha256:4180d48b6b68a70b3e37987def3b0689d3f4ba722f5d2b98344c3717d2289b99 \
-    --hash=sha256:6f3dd940752ca28871b09880e9426d1293460822faa8706b33af1d50c29a0355
+mlflow-tracing==3.15.0 \
+    --hash=sha256:3762f654a858474c7988c0a2a5246765b173fa2b6a2bb8f035c115db1a8e3a6a \
+    --hash=sha256:e4e73243eed04d0771954b6fa17014dd21dabc67af17d4937fac2b62ec476e95
     # via mlflow
 mmh3==5.2.1 \
     --hash=sha256:022aa1a528604e6c83d0a7705fdef0b5355d897a9e0fa3a8d26709ceaa06965d \
@@ -3393,6 +3401,7 @@ numpy==2.2.6 \
     #   scipy
     #   sentence-transformers
     #   shapely
+    #   skops
     #   tifffile
     #   torchvision
     #   transformers
@@ -3422,21 +3431,63 @@ opentelemetry-api==1.44.0 \
     --hash=sha256:67647e5e9566edcf421166fdf022b3537f818635daa852b289e34604dc6fb33a \
     --hash=sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef
     # via
-    #   mcp
+    #   feast (pyproject.toml)
     #   mlflow-skinny
     #   mlflow-tracing
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-instrumentation-httpx
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
+opentelemetry-instrumentation==0.65b0 \
+    --hash=sha256:071d9d9eced9bd6460444ec3b0c77229870ed05a881c22c84fdede58e4eed09b \
+    --hash=sha256:ea967a72b9939b5fcfdad572753b4306c59dcb99e3f382d95dae04286805e137
+    # via
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-instrumentation-httpx
+opentelemetry-instrumentation-asgi==0.65b0 \
+    --hash=sha256:3a845a8ebd1c4ef0d8263401e6545f5b219b2feee612090d50f578a87e71fd65 \
+    --hash=sha256:892bca67c56522ffa85a8a83cf934d7b50b3be2132e45cbee705825f0a5ba426
+    # via opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-fastapi==0.65b0 \
+    --hash=sha256:10a3a95486036230413a58fe4fdf4a83fa6bba46918407e527476994bd92bd97 \
+    --hash=sha256:cda2610a0ec1b22d19886f33e4d861e9f5dbb886aeaa3a1263b47aff82c36943
+    # via feast (pyproject.toml)
+opentelemetry-instrumentation-httpx==0.65b0 \
+    --hash=sha256:400f1b78afa4ee2332b5debe58e1ed1b317913d58812c952576be76660aeadb1 \
+    --hash=sha256:4627aa9c6bb99bf4462c8b565b0ef6aeb9ffad95c6c92868be1ef7895de112ee
+    # via feast (pyproject.toml)
+opentelemetry-proto==1.44.0 \
+    --hash=sha256:898b155a0e1557afd867478fb6158e8122a46329ca0bb8dc53cc55e98f017f56 \
+    --hash=sha256:c547a79c2f8c0c515d31509154682e5921c7cfd5ca67b70e1f9266e2c3e103f3
+    # via
+    #   mlflow-skinny
+    #   mlflow-tracing
 opentelemetry-sdk==1.44.0 \
     --hash=sha256:cebe7f65dc12f26ead75c6064de12fd2a9052e5060c0272d402cfa203aae123b \
     --hash=sha256:df081c4c6bcfdb1211e3e86140376792643128a25f8d72d1d27675936e7e96ad
     # via
+    #   feast (pyproject.toml)
     #   mlflow-skinny
     #   mlflow-tracing
 opentelemetry-semantic-conventions==0.65b0 \
     --hash=sha256:1cacde7b0ad306f84c5ef08c3dbe1bbaf20165bba6f8bff43b670e555a086bcb \
     --hash=sha256:f9b2b81e9d5b64f11bc952075e7e9c7fb0aab075c7fd1c46d597f1b919852d60
-    # via opentelemetry-sdk
+    # via
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-sdk
+opentelemetry-util-http==0.65b0 \
+    --hash=sha256:7553b606f963097cb190536dc30556cce85090692e471a422fff30ca29b04348 \
+    --hash=sha256:84f82d826978bba416ab453460ff6a7391cdc3534c93a786595e4068680016b7
+    # via
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-instrumentation-httpx
 oracledb==4.0.2 \
     --hash=sha256:0101b88c15ae628af556506840ae876e12bdb75506ef342e4990ac1758bad1eb \
     --hash=sha256:04fd67692b3cdea2ac7135e6f87c82ce9035f3caa0891a26710a4c654f1e375e \
@@ -3568,9 +3619,9 @@ overrides==7.7.0 \
     --hash=sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a \
     --hash=sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49
     # via jupyter-server
-packaging==25.0 \
-    --hash=sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484 \
-    --hash=sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e \
+    --hash=sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661
     # via
     #   accelerate
     #   build
@@ -3596,10 +3647,12 @@ packaging==25.0 \
     #   mlflow-tracing
     #   nbconvert
     #   openlineage-python
+    #   opentelemetry-instrumentation
     #   pandas-gbq
     #   pytest
     #   ray
     #   scikit-image
+    #   skops
     #   snowflake-connector-python
     #   sphinx
     #   transformers
@@ -3826,9 +3879,9 @@ pillow==11.3.0 \
     #   python-pptx
     #   scikit-image
     #   torchvision
-pip==26.1.2 \
-    --hash=sha256:382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab \
-    --hash=sha256:f49cd134c61cf2fd75e0ce2676db03e4054504a5a4986d00f8299ae632dc4605
+pip==26.2 \
+    --hash=sha256:2d8542afcc84cdd8e846c2b36b2861fad1da376dd98f8e7113e9108a3c331690 \
+    --hash=sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad
     # via pip-tools
 pip-tools==7.6.0 \
     --hash=sha256:4bd99155b6d8de358a214b0865e1a2855a453570c1a83d40f7b564870b8657be \
@@ -3860,6 +3913,10 @@ pre-commit==3.3.1 \
     --hash=sha256:218e9e3f7f7f3271ebc355a15598a4d3893ad9fc7b57fe446db75644543323b9 \
     --hash=sha256:733f78c9a056cdd169baa6cd4272d51ecfda95346ef8a89bf93712706021b907
     # via feast (pyproject.toml)
+prettytable==3.18.0 \
+    --hash=sha256:439217116152244369caf3d9f1caf2f9fe29b03bd79e88d2928c8e718c95d680 \
+    --hash=sha256:b3346e0e6f79180833aebaac088ae926340586cf6d7d991b9eb125b65f72313a
+    # via skops
 prometheus-client==0.24.1 \
     --hash=sha256:150db128af71a5c2482b36e588fc8a6b95e498750da4b17065947c16070f4055 \
     --hash=sha256:7e0ced7fbbd40f7b84962d5d2ab6f17ef88a72504dcf7c0b40737b43b2a461f9
@@ -4003,20 +4060,17 @@ proto-plus==1.28.2 \
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
     #   google-cloud-datastore
-protobuf==6.33.6 \
-    --hash=sha256:0cd27b587afca21b7cfa59a74dcbd48a50f0a6400cfb59391340ad729d91d326 \
-    --hash=sha256:77179e006c476e69bf8e8ce866640091ec42e1beb80b213c3900006ecfba6901 \
-    --hash=sha256:7d29d9b65f8afef196f8334e80d6bc1d5d4adedb449971fefd3723824e6e77d3 \
-    --hash=sha256:9720e6961b251bde64edfdab7d500725a2af5280f3f4c87e57c0208376aa8c3a \
-    --hash=sha256:a6768d25248312c297558af96a9f9c929e8c4cee0659cb07e780731095f38135 \
-    --hash=sha256:bd56799fb262994b2c2faa1799693c95cc2e22c62f56fb43af311cae45d26f0e \
-    --hash=sha256:c96c37eec15086b79762ed265d59ab204dabc53056e3443e702d2681f4b39ce3 \
-    --hash=sha256:e2afbae9b8e1825e3529f88d514754e094278bb95eadc0e199751cdd9a2e82a2 \
-    --hash=sha256:e9db7e292e0ab79dd108d7f1a94fe31601ce1ee3f7b79e0692043423020b0593 \
-    --hash=sha256:f443a394af5ed23672bc6c486be138628fbe5c651ccbc536873d7da23d1868cf
+protobuf==7.35.1 \
+    --hash=sha256:11d6b0ec246892d85215b0a13ca6e0233cf5284b68f0ac02646427f4ff88a799 \
+    --hash=sha256:230a75ddfc2de4806e56696ce9640c1cdfdb6543b7cfce98d42a4c0a0e7bdb87 \
+    --hash=sha256:24f857477359a85c0c235261b8ba905fd51b2562f4a64ca1df5473f29850cbf6 \
+    --hash=sha256:353652e4efd0bca5b5fc2656abf8307ef351f0cf938c9eba09f0e09c20a25c30 \
+    --hash=sha256:4bc97768d8fe4ad6743c8a19403e314511ed9f6d13205b687e52421c023ac1b9 \
+    --hash=sha256:74758715c53d7158fb76caf4f0cfdacc5329a4b1bb994f865d6cf302d413a1c4 \
+    --hash=sha256:b73f9489a4b8b1c9cb1f8ed951c736392592edb24b9d6819f36d2e10b171d5b4 \
+    --hash=sha256:ce115a26fe0c39a2c29973d914d327e516a6455464489fe3cd1e51a1b354f81a
     # via
     #   feast (pyproject.toml)
-    #   databricks-sdk
     #   google-api-core
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
@@ -4031,6 +4085,7 @@ protobuf==6.33.6 \
     #   mlflow-skinny
     #   mlflow-tracing
     #   mypy-protobuf
+    #   opentelemetry-proto
     #   proto-plus
     #   pymilvus
     #   qdrant-client
@@ -4159,50 +4214,50 @@ py4j==0.10.9.9 \
     --hash=sha256:c7c26e4158defb37b0bb124933163641a2ff6e3a3913f7811b0ddbe07ed61533 \
     --hash=sha256:f694cad19efa5bd1dee4f3e5270eb406613c974394035e5bfc4ec1aba870b879
     # via pyspark
-pyarrow==21.0.0 \
-    --hash=sha256:067c66ca29aaedae08218569a114e413b26e742171f526e828e1064fcdec13f4 \
-    --hash=sha256:072116f65604b822a7f22945a7a6e581cfa28e3454fdcc6939d4ff6090126623 \
-    --hash=sha256:0c4e75d13eb76295a49e0ea056eb18dbd87d81450bfeb8afa19a7e5a75ae2ad7 \
-    --hash=sha256:186aa00bca62139f75b7de8420f745f2af12941595bbbfa7ed3870ff63e25636 \
-    --hash=sha256:1e005378c4a2c6db3ada3ad4c217b381f6c886f0a80d6a316fe586b90f77efd7 \
-    --hash=sha256:203003786c9fd253ebcafa44b03c06983c9c8d06c3145e37f1b76a1f317aeae1 \
-    --hash=sha256:222c39e2c70113543982c6b34f3077962b44fca38c0bd9e68bb6781534425c10 \
-    --hash=sha256:26bfd95f6bff443ceae63c65dc7e048670b7e98bc892210acba7e4995d3d4b51 \
-    --hash=sha256:3a302f0e0963db37e0a24a70c56cf91a4faa0bca51c23812279ca2e23481fccd \
-    --hash=sha256:3a81486adc665c7eb1a2bde0224cfca6ceaba344a82a971ef059678417880eb8 \
-    --hash=sha256:3b4d97e297741796fead24867a8dabf86c87e4584ccc03167e4a811f50fdf74d \
-    --hash=sha256:40ebfcb54a4f11bcde86bc586cbd0272bac0d516cfa539c799c2453768477569 \
-    --hash=sha256:479ee41399fcddc46159a551705b89c05f11e8b8cb8e968f7fec64f62d91985e \
-    --hash=sha256:5051f2dccf0e283ff56335760cbc8622cf52264d67e359d5569541ac11b6d5bc \
-    --hash=sha256:555ca6935b2cbca2c0e932bedd853e9bc523098c39636de9ad4693b5b1df86d6 \
-    --hash=sha256:585e7224f21124dd57836b1530ac8f2df2afc43c861d7bf3d58a4870c42ae36c \
-    --hash=sha256:58c30a1729f82d201627c173d91bd431db88ea74dcaa3885855bc6203e433b82 \
-    --hash=sha256:6299449adf89df38537837487a4f8d3bd91ec94354fdd2a7d30bc11c48ef6e79 \
-    --hash=sha256:65f8e85f79031449ec8706b74504a316805217b35b6099155dd7e227eef0d4b6 \
-    --hash=sha256:689f448066781856237eca8d1975b98cace19b8dd2ab6145bf49475478bcaa10 \
-    --hash=sha256:69cbbdf0631396e9925e048cfa5bce4e8c3d3b41562bbd70c685a8eb53a91e61 \
-    --hash=sha256:731c7022587006b755d0bdb27626a1a3bb004bb56b11fb30d98b6c1b4718579d \
-    --hash=sha256:7be45519b830f7c24b21d630a31d48bcebfd5d4d7f9d3bdb49da9cdf6d764edb \
-    --hash=sha256:898afce396b80fdda05e3086b4256f8677c671f7b1d27a6976fa011d3fd0a86e \
-    --hash=sha256:8d58d8497814274d3d20214fbb24abcad2f7e351474357d552a8d53bce70c70e \
-    --hash=sha256:9b0b14b49ac10654332a805aedfc0147fb3469cbf8ea951b3d040dab12372594 \
-    --hash=sha256:9d9f8bcb4c3be7738add259738abdeddc363de1b80e3310e04067aa1ca596634 \
-    --hash=sha256:a7a102574faa3f421141a64c10216e078df467ab9576684d5cd696952546e2da \
-    --hash=sha256:a7f6524e3747e35f80744537c78e7302cd41deee8baa668d56d55f77d9c464b3 \
-    --hash=sha256:b6b27cf01e243871390474a211a7922bfbe3bda21e39bc9160daf0da3fe48876 \
-    --hash=sha256:b7ae0bbdc8c6674259b25bef5d2a1d6af5d39d7200c819cf99e07f7dfef1c51e \
-    --hash=sha256:bd04ec08f7f8bd113c55868bd3fc442a9db67c27af098c5f814a3091e71cc61a \
-    --hash=sha256:c077f48aab61738c237802836fc3844f85409a46015635198761b0d6a688f87b \
-    --hash=sha256:cdc4c17afda4dab2a9c0b79148a43a7f4e1094916b3e18d8975bfd6d6d52241f \
-    --hash=sha256:cf56ec8b0a5c8c9d7021d6fd754e688104f9ebebf1bf4449613c9531f5346a18 \
-    --hash=sha256:d2fe8e7f3ce329a71b7ddd7498b3cfac0eeb200c2789bd840234f0dc271a8efe \
-    --hash=sha256:dc56bc708f2d8ac71bd1dcb927e458c93cec10b98eb4120206a4091db7b67b99 \
-    --hash=sha256:e563271e2c5ff4d4a4cbeb2c83d5cf0d4938b891518e676025f7268c6fe5fe26 \
-    --hash=sha256:e72a8ec6b868e258a2cd2672d91f2860ad532d590ce94cdf7d5e7ec674ccf03d \
-    --hash=sha256:e99310a4ebd4479bcd1964dff9e14af33746300cb014aa4a3781738ac63baf4a \
-    --hash=sha256:f522e5709379d72fb3da7785aa489ff0bb87448a9dc5a75f45763a795a089ebd \
-    --hash=sha256:fc0d2f88b81dcf3ccf9a6ae17f89183762c8a94a5bdcfa09e05cfe413acf0503 \
-    --hash=sha256:fee33b0ca46f4c85443d6c450357101e47d53e6c3f008d658c27a2d020d44c79
+pyarrow==25.0.0 \
+    --hash=sha256:0222f0071d13313962a88d21bf28b80d355ac39d81bfa6ff3fe00eeaf748e4be \
+    --hash=sha256:0490a7f8b38ffe11cc26526b50c65d111cb54ddac3717cec781806793f1244dc \
+    --hash=sha256:0721332c30fdd453fdd1fc203b2ac1f4c9db5aea28fa38d41f2574c4b068b9ec \
+    --hash=sha256:13240f0d3dc5932ccd0bfa90cd76d835680b9d94a7661c635df4b703d40ce849 \
+    --hash=sha256:149730a3d1f0fb59d663a0b8aa210adfd9c17c27cd94a0d143e60daea8320d4e \
+    --hash=sha256:161649d60a7a46c613a19fd795763ea8a88c36ba997dd99d9bc66e6794ee36e8 \
+    --hash=sha256:18dcc8cc50b5e72eae6fcbfc6c8776c21a007176b27a3cdec5c2f5bcf126708d \
+    --hash=sha256:20887a762dd61dcc530f93a140840ab1f6aa7836b33270e42d627ab3cf11e537 \
+    --hash=sha256:244f98a595f70fa4fd35faa7508c4ae67e14a173397a4b3b49d2b3c360fb0062 \
+    --hash=sha256:26be35b80780d2d21f4bae3d568b1666337c3a89722cc1794c956a77017cb24e \
+    --hash=sha256:2e093efbecb5317372f819228fa4b4e6157eee48d3f0a7b0303705ebf81a7104 \
+    --hash=sha256:2e3b6544e26e393fe2cd530f523e36c1c8d3c345bbbb60cca3fd866be8322517 \
+    --hash=sha256:38a2c887cb3883e241b70201688db34133b6dfadd04f03c8f9213df53770c18e \
+    --hash=sha256:3f356afe61186395c861d5cd63dc21ff7d5fa335012a4668d979257df7fea0f5 \
+    --hash=sha256:447df764beb07c544f0178a5f6b70ef44b9ecf382b3cdfad4c2d7867353c3887 \
+    --hash=sha256:4ec1895a87aa834c3b99b7a1e758747eb8bb57f922b32c0e0fa04afb8d6998b1 \
+    --hash=sha256:58d1ab556b0cea1c93fdb799b24ad58adb2f2a2788dbce782a94f64ae1a5cc9b \
+    --hash=sha256:59516c822d5fd8e544aaa0dfe72f36fed5d4c24ea8390aab1bcd31d7e959c6be \
+    --hash=sha256:5d1dbf24e151042f2fa3c129563f65d66674128868496fb008c4272b16bdf778 \
+    --hash=sha256:5f4bacb60f91dd2fca6c52f1b9a0012cd090e0294f1f781dc1881a247a352f8e \
+    --hash=sha256:5fb2d837960f1df7f679ff9f1a55065e306347d379e0768cebf14781254d6194 \
+    --hash=sha256:6f4812bfbf11ca7d8faf59eb8fff8bf4dd25ce3a38b62baa010cc17a0926d1b2 \
+    --hash=sha256:6f9dbd83e91c239a1f5ee7ce13f108b5f6c0efbe40a4375260d8f08b43ad05e9 \
+    --hash=sha256:72132b9a8a0a1840197794d4dea26080069b6b0981c116bc078762dc9691b21b \
+    --hash=sha256:77c8d1ae46a44b4006e8db1cc977bbcc6ce4873c92f74137d68e45503b97fb18 \
+    --hash=sha256:7d6da02ffc7a3a9bda3b7ded4cc2a27ff73969ab37153f3afd46bbbc1ba4f0f7 \
+    --hash=sha256:8831a3ba52fa7cdb78d368d968b1dcd06171e6dff5461e16d90de91d371e47bc \
+    --hash=sha256:ac5dfeee59f9ceb4d45ba76e83b026c38c24334135bb329d8274baa49cec3c62 \
+    --hash=sha256:add690feafa0953c443cdba9e9e87f5eaa198f1ea2e43a3b146ea83f202262d0 \
+    --hash=sha256:b58726f118c079f9d4ed7e904975d4f15fd69d0741ba511a4e2dcaa4ef16354f \
+    --hash=sha256:b724d127783b4c19f088fcdfc844cbc318809246a30307bcabd5ed02045e890e \
+    --hash=sha256:b72d943ff4e10fec8d48aedb23322d8f6ea8bc2d698b81db37e73730f69e4862 \
+    --hash=sha256:b8af8ceedf0c9c160fd2b63440f2d205b9404db85866c1217bfea601de7cfb50 \
+    --hash=sha256:c70a5fd9a82bd1a702fd482bdc62d38dcb672fb2b449b1d7c0d7d1f4be7b7bfe \
+    --hash=sha256:ce0ca222802087b9a8cb031a6468442cb6b67c290a45a601cac64753d34954d3 \
+    --hash=sha256:d293e9959b29a24c82d936d04ab2b7fd8b8d334030de2e56a99aba94f008ad7a \
+    --hash=sha256:d2d697008b5ec06d75952ef260c2e9a8a0f6ccfce24266c04c9c8ade927cb3b4 \
+    --hash=sha256:dbf9fa5d4bde73b1cc16377dcaaa010f971e6fa7f5083f5d44f34b50bc1d74af \
+    --hash=sha256:e009ef945e498dca2f050ea10d2e9764cb44017254826fc4574fdb8d2530173b \
+    --hash=sha256:e83916bbcf380866b4e14255850b33323ff678dc9758411d0409cdd2523880b0 \
+    --hash=sha256:f0f100dacf2c0f400601664a79d1a907ced4740514bb2b00917341038e2ce76f \
+    --hash=sha256:f57a39dbcb416345401c2e77a4373669b45fd111a1768e6cf267a7a0607ff0ec \
+    --hash=sha256:fa1482b3da10cac2d4db6e26b81da543e237616af2ef6d466018b31ca586496f
     # via
     #   feast (pyproject.toml)
     #   dask
@@ -4330,7 +4385,6 @@ pydantic==2.13.4 \
     #   fastapi-mcp
     #   great-expectations
     #   mcp
-    #   mcp-types
     #   mlflow-skinny
     #   mlflow-tracing
     #   pydantic-settings
@@ -4465,6 +4519,7 @@ pydantic-settings==2.14.2 \
     #   docling
     #   docling-core
     #   fastapi-mcp
+    #   mcp
 pydata-google-auth==1.9.1 \
     --hash=sha256:0a51ce41c601ca0bc69b8795bf58bedff74b4a6a007c9106c7cbcdec00eaced2 \
     --hash=sha256:75ffce5d106e34b717b31844c1639ea505b7d9550dc23b96fb6c20d086b53fa3
@@ -5046,6 +5101,7 @@ python-dotenv==1.2.2 \
     --hash=sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a \
     --hash=sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3
     # via
+    #   mlflow-skinny
     #   pydantic-settings
     #   pymilvus
     #   testcontainers
@@ -5626,25 +5682,25 @@ ruamel-yaml==0.17.17 \
     --hash=sha256:9751de4cbb57d4bfbf8fc394e125ed4a2f170fbff3dc3d78abf50be85924f8be \
     --hash=sha256:9af3ec5d7f8065582f3aa841305465025d0afd26c5fb54e15b964e11838fc74f
     # via great-expectations
-ruff==0.16.0 \
-    --hash=sha256:0ff4a79ce3ec0172f3241943835de1c4cb4e2dcd07f0f8c2d02603dbbbee4b17 \
-    --hash=sha256:14296fedcd2705c77ab8235439278bbb38f285cf7da5528b00b3e330c3d4872d \
-    --hash=sha256:28ea2b7df8ebf7f9da6b7d47b230ab48f387c0a29be3b474c4d0740e197bb9af \
-    --hash=sha256:33a3dfac8c35f81498dea9181bccc2f4c4bc8f1521a1dd9406e77643e0f0fb09 \
-    --hash=sha256:3c954b1d580bfa035b41654f7858cc7e71d5fc3ac5b723dd62bd9133830ed522 \
-    --hash=sha256:429c117f022bf481fabd9d551e7a3952b24c65e6ef44337ea09d90bebef14472 \
-    --hash=sha256:48044c678e9cb8698246c99b14aaccfa6601dea7379eb48a6f8f73f7a6d86cd0 \
-    --hash=sha256:4f11a8d11010301d0a398a2fdef67691feca7294da6aef55e2150e8fa2cd520b \
-    --hash=sha256:6e364e5ed22ed8dc05082fd78e35308618260907ac2d3c1d637b2e682415b6c9 \
-    --hash=sha256:7aa0959bad8eb8bef50340154fc9b58678dae31fa4293afa38b44b6e552c0213 \
-    --hash=sha256:7fab76fa065c873f41ff744347c6e77bcc3dfec4bcc754dc26b63d23c0f7f5fb \
-    --hash=sha256:a5237a0bda500d30d81b8e07a6973a5cbc772864cbf746ae2f4e8a2e01c9f4ed \
-    --hash=sha256:a9b50c55e263103586b3dcf5f73d479eb8cb5fdb6098fec59a62891dab653717 \
-    --hash=sha256:d327b8fc113a1d4421a04f3839d3752057c8dd1ee320223a6f3f52d04ada462a \
-    --hash=sha256:e01c21d10eb1b29f47b7454e1f4056db9a3f0260c646aa88457c610291db9f81 \
-    --hash=sha256:e460aafd5495ec89efaa6ced2e4a9a581116451e1c88b9d37ef497e0f8e93982 \
-    --hash=sha256:e5115729eb08c585e5121978ba5d5b60caeae394ce21b9fb5e6cd33a1c6c9b1e \
-    --hash=sha256:e95c448fca1fb2a18372a9440926c5a6ee789639bb975c72e7ae6d0b04218ab4
+ruff==0.16.1 \
+    --hash=sha256:07bf434b1c95f4e093be4532068ef4fcf00924eb2ade8796075980902d6fd54a \
+    --hash=sha256:09b05e8b90c2cb06ad63464350e7a45e8e44a2dfe52072ebfba6666ca8d3f596 \
+    --hash=sha256:24e9c631573cbca9d20f1283f8f479b2afa4a8503504822bd71a293889f16743 \
+    --hash=sha256:26e9ca5c9bc3971f20d3cf18a957f52ffd6a5f6564ff15c4912a144dcac22494 \
+    --hash=sha256:30affbcedf59ad5703d9c91f82266e02b47739f797e1a7b6e158e5526a6dae38 \
+    --hash=sha256:39897739f112253ee4fdd2e8aa9a4f9ded99fb2be367d5f31dfa4ded6025584c \
+    --hash=sha256:4d5f2ed10f8242d83fc08d521301089364e3375375705356f20c0e31606ef3ef \
+    --hash=sha256:58edb313b88f0c5460a26adf5f39a37a3be789494a15e3e411e35fa78b89f9a0 \
+    --hash=sha256:67e1e1e3fa4f0c82f0e36d4cd61e661f6e7a6196cb1aa92fe0828fa7b8f257cd \
+    --hash=sha256:82ae3c0c0d74daf17b968a10b7b3bb3ef297ab7de0c1f749646b25e690ccb150 \
+    --hash=sha256:a4665b309891f83f3e3c25447935f1213e9abbd4b5640af7a1f2def9f8d413c1 \
+    --hash=sha256:b0d1e1393b7648079e13669de1c1f4fde06d4583e84d8fd5c1551e0a77a2aa75 \
+    --hash=sha256:b41bdd48fb420987a9b5212e4957c26ad4abce401fa9ea9d4d85843727945f4f \
+    --hash=sha256:d31765e131295b8445caf301e3e8a85b34d1b9b211b4109b7ba457888b051806 \
+    --hash=sha256:dbaadaac38c70239f056d306b7476f246b0bf000fa6b3876402acbf5b227eaf8 \
+    --hash=sha256:e0d4c20532fca4f7fa609369161d968dd28f65d83dabbd61d8e9c7edbf7001f6 \
+    --hash=sha256:fde5a99e2f97479af66edd6622c6d5a2a7592c77cf4153d9e4428f5eeb55b60c \
+    --hash=sha256:fedad7c801dabd3fb9741d76aca39246e6ddd9ca446a015875207bf19f1e6bc7
     # via feast (pyproject.toml)
 s3transfer==0.19.2 \
     --hash=sha256:ba0309fd86be3c27dbf78cdd813c13c5e1df16e5874b99d2535ebbdfb9892993 \
@@ -5733,6 +5789,7 @@ scikit-learn==1.7.2 \
     #   feast (pyproject.toml)
     #   mlflow
     #   sentence-transformers
+    #   skops
 scipy==1.15.3 \
     --hash=sha256:05dc6abcd105e1a29f95eada46d4a3f251743cfd7d3ae8ddb4088047f24ea477 \
     --hash=sha256:06efcba926324df1696931a57a176c80848ccd67ce6ad020c810736bfd58eb1c \
@@ -5788,6 +5845,7 @@ scipy==1.15.3 \
     #   scikit-image
     #   scikit-learn
     #   sentence-transformers
+    #   skops
 scylla-driver==3.29.11 \
     --hash=sha256:0a93dd4af8995ac08335e581aca393a2bca64c3d4748ec359b9400797f2a7449 \
     --hash=sha256:17b19807a8690a4df2e52bb23327a746715e7076f5f28b45a6ce4556b2a00dd7 \
@@ -5931,6 +5989,10 @@ six==1.17.0 \
     #   python-dateutil
     #   rfc3339-validator
     #   thriftpy2
+skops==0.14.0 \
+    --hash=sha256:60a5db78a9db46ccee2139a0ba13ab5afb1c96f4749b382e75a371291bbe3e36 \
+    --hash=sha256:6c8c0e047f691a3a582c3258943eecafcbfd79c8c7eef66260f3703e363254f0
+    # via mlflow
 smmap==5.0.3 \
     --hash=sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c \
     --hash=sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f
@@ -6137,6 +6199,7 @@ starlette==1.3.1 \
     #   feast (pyproject.toml)
     #   fastapi
     #   mcp
+    #   mlflow-skinny
     #   sse-starlette
 strictyaml==1.7.3 \
     --hash=sha256:22f854a5fcab42b5ddba8030a0e4be51ca89af0267961c8d6cfa86395586c407 \
@@ -6566,12 +6629,6 @@ trino==0.338.0 \
     --hash=sha256:093952f8a53b6f47ab357b77cbe92f1d66453290f7d8bcc4b74bd662e5ff2704 \
     --hash=sha256:1103d249cb96ba8f88f699588581965e2be088c16b9f8178e34cb64aa8a6c011
     # via feast (pyproject.toml)
-truststore==0.10.4 \
-    --hash=sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301 \
-    --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
-    # via
-    #   httpcore2
-    #   httpx2
 typeguard==4.6.0 \
     --hash=sha256:79878165bb86f2cf5d41d159a0ff1792a796cf496882d2fe1b1c6c7049b9cdd7 \
     --hash=sha256:e7414f09111317de3e335de92cd397c5c0ca00b1cc1676de12e1d444a79b3f21
@@ -6644,6 +6701,7 @@ typing-extensions==4.16.0 \
     #   aiosignal
     #   alembic
     #   anyio
+    #   asgiref
     #   async-lru
     #   azure-core
     #   azure-identity
@@ -6655,10 +6713,10 @@ typing-extensions==4.16.0 \
     #   elasticsearch
     #   exceptiongroup
     #   fastapi
+    #   flask-cors
     #   graphene
     #   great-expectations
     #   grpcio
-    #   httpx2
     #   huggingface-hub
     #   ibis-framework
     #   ipython
@@ -6666,7 +6724,6 @@ typing-extensions==4.16.0 \
     #   jupyterlab
     #   jwcrypto
     #   mcp
-    #   mcp-types
     #   minio
     #   mistune
     #   mlflow-skinny
@@ -6727,7 +6784,6 @@ urllib3==2.7.0 \
     #   feast (pyproject.toml)
     #   botocore
     #   clickhouse-connect
-    #   databricks-sdk
     #   docker
     #   elastic-transport
     #   great-expectations
@@ -6919,7 +6975,9 @@ watchfiles==1.2.0 \
 wcwidth==0.8.2 \
     --hash=sha256:91fbef97204b96a3d4d421609b80340b760cf33e26da123ff243d76b1fda8dda \
     --hash=sha256:d63947694a0539a1d51e01eda7caf800c291020e6cdd7e28ad7b14dd33ad4f85
-    # via prompt-toolkit
+    # via
+    #   prettytable
+    #   prompt-toolkit
 webcolors==25.10.0 \
     --hash=sha256:032c727334856fc0b968f63daa252a1ac93d33db2f5267756623c210e57a4f1d \
     --hash=sha256:62abae86504f66d0f6364c2a8520de4a0c47b80c03fc3a5f1815fedbef7c19bf
@@ -7052,6 +7110,7 @@ werkzeug==3.1.8 \
     --hash=sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44
     # via
     #   flask
+    #   flask-cors
     #   moto
 wheel==0.47.0 \
     --hash=sha256:212281cab4dff978f6cedd499cd893e1f620791ca6ff7107cf270781e587eced \
@@ -7157,6 +7216,8 @@ wrapt==2.3.0 \
     # via
     #   aiobotocore
     #   deprecated
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-httpx
     #   testcontainers
 xlsxwriter==3.2.9 \
     --hash=sha256:254b1c37a368c444eac6e2f867405cc9e461b0ed97a3233b2ac1e574efb4140c \
