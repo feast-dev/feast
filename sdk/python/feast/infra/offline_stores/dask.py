@@ -1207,17 +1207,16 @@ def _apply_created_timestamp_cutoff(
     entity_df_event_timestamp_col: str,
     preserved_columns: Set[str],
 ) -> dd.DataFrame:
-    # Blanking rather than dropping preserves entity-dataframe cardinality when every
-    # candidate is too new. A blanked row looks like an unmatched left join, which
-    # _drop_duplicates already resolves (nulls sort first, keep="last"). The isna() term
-    # keeps a matched row whose source timestamp is null, as _filter_ttl does.
+    # Versions created after the entity timestamp. The isna() term leaves rows with a
+    # null source timestamp untouched, matching _filter_ttl.
     too_new = ~df_to_join[timestamp_field].isna() & ~(
         df_to_join[created_timestamp_column]
         <= df_to_join[entity_df_event_timestamp_col]
     )
 
-    # One assign, not a per-column loop: chained assignments make optimization
-    # super-linear in column count. Lazy so it fuses into the next persist.
+    # Blank instead of drop, so the entity row survives when every candidate is too new.
+    # _drop_duplicates then prefers a real match (nulls sort first, keep="last").
+    # Single assign, left lazy: a per-column loop is super-linear to optimize.
     return df_to_join.assign(
         **{
             column: df_to_join[column].mask(too_new)

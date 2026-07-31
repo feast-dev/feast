@@ -190,8 +190,8 @@ def get_historical_features_ibis(
         timestamp_field = feature_view.batch_source.timestamp_field
         created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
-        # deduplicate() orders by created_timestamp_column regardless of the cutoff, so
-        # normalize both unconditionally. An already-tz-aware cast compiles away.
+        # deduplicate() orders by created_timestamp_column whether or not the cutoff is
+        # on, so this cannot be gated on it. Casting an already-UTC column is a no-op.
         utc_columns = [timestamp_field]
         if created_timestamp_column:
             utc_columns.append(created_timestamp_column)
