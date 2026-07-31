@@ -929,6 +929,17 @@ type OidcAuthz struct {
 	// ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH.
 	// +optional
 	CACertConfigMap *OidcCACertConfigMap `json:"caCertConfigMap,omitempty"`
+	// Seconds the servers reuse the provider's fetched JWK set before refetching. Defaults to 300.
+	// Also bounds how long a key the provider revoked keeps validating tokens, so lower it if the
+	// provider rotates or revokes aggressively, at the cost of more JWKS fetches.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	JwksCacheLifespanSeconds *int32 `json:"jwksCacheLifespanSeconds,omitempty"`
+	// Seconds before a JWKS fetch times out. Defaults to 10. The fetch happens inline on the request
+	// path, so an unresponsive provider blocks serving for at most this long.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	JwksRequestTimeoutSeconds *int32 `json:"jwksRequestTimeoutSeconds,omitempty"`
 }
 
 // OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
