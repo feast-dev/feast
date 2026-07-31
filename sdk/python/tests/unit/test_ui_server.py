@@ -148,12 +148,11 @@ def test_catch_all_route(ui_app_with_registry):
 # ---------- projects-list.json tests ----------
 
 
-def _get_projects_list(app):
-    """Fetch the dynamic projects-list.json endpoint."""
-    client = TestClient(app)
-    resp = client.get("/projects-list.json")
-    assertpy.assert_that(resp.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-    return resp.json()
+def _read_projects_list(temp_dir):
+    """Read the projects-list.json written by get_app via the mock (ui_dir = temp_dir)."""
+    projects_file = os.path.join(temp_dir, "projects-list.json")
+    with open(projects_file) as f:
+        return json.load(f)
 
 
 def test_projects_list_registry_path(mock_feature_store):
@@ -166,9 +165,9 @@ def test_projects_list_registry_path(mock_feature_store):
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
-        data = _get_projects_list(app)
+        data = _read_projects_list(temp_dir)
         assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
 
 
@@ -182,13 +181,13 @@ def test_projects_list_with_root_path(mock_feature_store):
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(
+            get_app(
                 mock_feature_store,
                 TEST_PROJECT_NAME,
                 root_path="/feast",
             )
 
-        data = _get_projects_list(app)
+        data = _read_projects_list(temp_dir)
         assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to(
             "/feast/api/v1"
         )
@@ -207,9 +206,9 @@ def test_projects_list_multiple_projects(mock_feature_store):
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
-        data = _get_projects_list(app)
+        data = _read_projects_list(temp_dir)
         assertpy.assert_that(len(data["projects"])).is_equal_to(3)
         assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("all")
         assertpy.assert_that(data["projects"][1]["id"]).is_equal_to("project_alpha")
@@ -226,9 +225,9 @@ def test_projects_list_fallback_on_empty(mock_feature_store):
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
-        data = _get_projects_list(app)
+        data = _read_projects_list(temp_dir)
         assertpy.assert_that(len(data["projects"])).is_equal_to(1)
         assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
 
@@ -243,9 +242,9 @@ def test_projects_list_fallback_on_exception(mock_feature_store):
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+            get_app(mock_feature_store, TEST_PROJECT_NAME)
 
-        data = _get_projects_list(app)
+        data = _read_projects_list(temp_dir)
         assertpy.assert_that(len(data["projects"])).is_equal_to(1)
         assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
 

@@ -2286,3 +2286,46 @@ def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     assert data["featureServices"] == []
     assert data["featureViews"] == []
     assert "registryLastUpdated" in data
+
+
+def test_registry_refresh_via_rest(fastapi_test_app):
+    """POST /registry/refresh invalidates the registry cache and returns 200."""
+    response = fastapi_test_app.post("/registry/refresh")
+    assert response.status_code == 200
+
+
+def test_registry_refresh_via_rest_error():
+    """POST /registry/refresh returns 500 when refresh fails."""
+    from unittest.mock import patch
+
+    from feast.api.registry.rest import register_all_routes
+    from feast.registry_server import RegistryServer
+
+    tmp_dir = tempfile.TemporaryDirectory()
+    registry_path = os.path.join(tmp_dir.name, "registry.db")
+
+    config = {
+        "registry": registry_path,
+        "project": "demo_project",
+        "provider": "local",
+        "offline_store": {"type": "file"},
+        "online_store": {"type": "sqlite", "path": ":memory:"},
+    }
+    from fastapi import FastAPI
+
+    from feast.repo_config import RepoConfig
+
+    store = FeatureStore(config=RepoConfig.model_validate(config))
+    store.apply([])
+
+    app = FastAPI()
+    grpc_handler = RegistryServer(store.registry, store=store)
+    register_all_routes(app, grpc_handler, store=store)
+
+    with patch.object(store, "refresh_registry", side_effect=Exception("db error")):
+        client = TestClient(app)
+        response = client.post("/registry/refresh")
+        assert response.status_code == 500
+        assert "Registry refresh failed" in response.json()["detail"]
+
+    tmp_dir.cleanup()

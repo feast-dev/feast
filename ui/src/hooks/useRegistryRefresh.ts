@@ -4,6 +4,7 @@ import {
   ProjectListContext,
   ProjectsListSchema,
 } from "../contexts/ProjectListContext";
+import { useDataMode } from "../contexts/DataModeContext";
 
 interface Toast {
   id: string;
@@ -18,6 +19,7 @@ const useRegistryRefresh = () => {
   const queryClient = useQueryClient();
   const projectListCtx = useContext(ProjectListContext);
   const basename = projectListCtx?.basename || "";
+  const { fetchOptions } = useDataMode();
 
   const removeToast = useCallback((removedToast: { id: string }) => {
     setToasts((prev) => prev.filter((t) => t.id !== removedToast.id));
@@ -28,12 +30,18 @@ const useRegistryRefresh = () => {
     try {
       const refreshRes = await fetch(`${basename}/api/v1/registry/refresh`, {
         method: "POST",
+        headers: { ...fetchOptions?.headers },
+        credentials: fetchOptions?.credentials,
       });
       if (!refreshRes.ok) {
         throw new Error(`Registry refresh failed (${refreshRes.status})`);
       }
       const res = await fetch(`${basename}/projects-list.json`, {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...fetchOptions?.headers,
+        },
+        credentials: fetchOptions?.credentials,
       });
       if (!res.ok) {
         throw new Error(`Failed to fetch project list (${res.status})`);
@@ -64,7 +72,7 @@ const useRegistryRefresh = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [basename, queryClient]);
+  }, [basename, queryClient, fetchOptions]);
 
   return { refreshing, toasts, handleRefresh, removeToast };
 };

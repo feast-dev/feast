@@ -49,6 +49,14 @@ def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
         @app.post("/registry/refresh")
         def refresh_registry():
             try:
+                from feast.permissions.action import AuthzedAction
+                from feast.permissions.security_manager import assert_permissions
+
+                project = resolved_store.registry.get_project(
+                    name=resolved_store.project, allow_cache=True
+                )
+                assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
+
                 resolved_store.refresh_registry()
                 return Response(status_code=status.HTTP_200_OK)
             except Exception:
