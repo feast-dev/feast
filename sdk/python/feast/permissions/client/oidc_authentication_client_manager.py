@@ -23,10 +23,6 @@ SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 _token_cache: Dict[Tuple, Tuple[str, float]] = {}
 _token_cache_lock = threading.Lock()
 
-# Stop reusing a token this many seconds before its expiry, so a reused
-# token cannot expire between header injection and server-side validation.
-_TOKEN_REFRESH_MARGIN_SECONDS = 30
-
 
 class OidcAuthClientManager(AuthenticationClientManager):
     def __init__(self, auth_config: OidcClientAuthConfig):
@@ -81,13 +77,14 @@ class OidcAuthClientManager(AuthenticationClientManager):
         return None
 
     def _fetch_token_from_idp(self) -> str:
-        """Return a cached IdP token, or obtain and cache a fresh one.
+        """Return a cached IdP token, or obtain a fresh one.
 
-        Tokens are reused until ``_TOKEN_REFRESH_MARGIN_SECONDS`` before
+        Tokens are reused until ``token_refresh_margin_seconds`` before
         their expiry (read from the token's ``exp`` claim, falling back to
-        the token response's ``expires_in``); a token whose expiry cannot
-        be determined is not cached, preserving the previous per-call
-        behavior for opaque tokens.
+        the token response's ``expires_in``). A freshly obtained token is
+        cached only when that expiry is known and leaves more than the
+        margin remaining, so opaque tokens and already-near-expiry tokens
+        keep the previous per-call behavior.
         """
         cache_key = (
             self.auth_config.auth_discovery_url,
@@ -103,7 +100,9 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
         access_token, expires_in = self._request_token_from_idp()
 
-        refresh_deadline = self._token_refresh_deadline(access_token, expires_in)
+        refresh_deadline = self._token_refresh_deadline(
+            access_token, expires_in, self.auth_config.token_refresh_margin_seconds
+        )
         if refresh_deadline is not None:
             with _token_cache_lock:
                 _token_cache[cache_key] = (access_token, refresh_deadline)
@@ -111,13 +110,13 @@ class OidcAuthClientManager(AuthenticationClientManager):
 
     @staticmethod
     def _token_refresh_deadline(
-        access_token: str, expires_in: Optional[float]
+        access_token: str, expires_in: Optional[float], margin_seconds: float
     ) -> Optional[float]:
         """Epoch time to stop reusing *access_token*, or ``None`` to skip caching.
 
         Prefers the token's own ``exp`` claim (authoritative); falls back to
         the token endpoint's ``expires_in``. Returns ``None`` when neither is
-        usable or the remaining lifetime is inside the refresh margin.
+        usable or the remaining lifetime is inside *margin_seconds*.
         """
         exp: Optional[float] = None
         try:
@@ -131,7 +130,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             exp = time.time() + float(expires_in)
         if exp is None:
             return None
-        deadline = exp - _TOKEN_REFRESH_MARGIN_SECONDS
+        deadline = exp - margin_seconds
         if deadline <= time.time():
             return None
         return deadline
@@ -188,9 +187,9 @@ class OidcAuthClientManager(AuthenticationClientManager):
                 )
                 raise RuntimeError("access token is empty")
             expires_in = response_body.get("expires_in")
-            return access_token, expires_in if isinstance(
-                expires_in, (int, float)
-            ) else None
+            if not isinstance(expires_in, (int, float)):
+                expires_in = None
+            return access_token, expires_in
         else:
             raise RuntimeError(
                 f"""Failed to obtain oidc access token:url=[{token_endpoint}] {token_response.status_code} - {token_response.text}"""

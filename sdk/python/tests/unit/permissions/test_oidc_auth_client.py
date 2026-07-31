@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
+from pydantic import ValidationError
 from requests import Session
 
 from feast.permissions.auth_model import (
@@ -163,6 +164,45 @@ def test_opaque_token_without_expiry_is_not_cached(mock_post, mock_discovery):
     get_auth_token(config)
 
     assert mock_post.call_count == 2
+
+
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+@patch("feast.permissions.client.oidc_authentication_client_manager.requests.post")
+def test_refresh_margin_is_configurable(mock_post, mock_discovery):
+    """token_refresh_margin_seconds tunes how early a token stops being
+    reused: a token 60s from expiry is reusable under the default 30s margin
+    but not under a 120s one."""
+    mock_discovery.return_value = _DISCOVERY
+    mock_post.return_value = _token_response(_jwt_expiring_in(60))
+
+    default_margin = _get_dummy_oidc_auth_type()
+    get_auth_token(default_margin)
+    get_auth_token(default_margin)
+    assert mock_post.call_count == 1
+
+    oidc_authentication_client_manager._token_cache.clear()
+    mock_post.reset_mock()
+    mock_post.return_value = _token_response(_jwt_expiring_in(60))
+
+    wide_margin = _get_dummy_oidc_auth_type()
+    wide_margin.token_refresh_margin_seconds = 120
+    get_auth_token(wide_margin)
+    get_auth_token(wide_margin)
+    assert mock_post.call_count == 2
+
+
+@pytest.mark.parametrize("margin", [0, -1])
+def test_refresh_margin_rejects_non_positive_values(margin):
+    """A zero or negative margin would let a token be reused right up to (or
+    past) its expiry, so reject it at config load rather than at request time."""
+    with pytest.raises(ValidationError):
+        OidcClientAuthConfig(
+            auth_discovery_url="http://localhost:8080/realms/master/.well-known/openid-configuration",
+            type="oidc",
+            client_id="dummy_client_id",
+            client_secret="client_secret",
+            token_refresh_margin_seconds=margin,
+        )
 
 
 @patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")

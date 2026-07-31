@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Tuple
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -58,6 +58,11 @@ class OidcClientAuthConfig(OidcAuthConfig):
     client_secret: Optional[str] = None
     token: Optional[str] = None
     token_env_var: Optional[str] = None
+    # Stop reusing an IdP-issued token this many seconds before it expires,
+    # so a reused token still has life left when the server validates it.
+    # Raise it if clients see sporadic 401s from clock skew or slow calls;
+    # lower it to squeeze more reuse out of short-lived tokens.
+    token_refresh_margin_seconds: float = Field(default=30, gt=0)
 
     @model_validator(mode="after")
     def _validate_credentials(self):
