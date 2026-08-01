@@ -3647,20 +3647,19 @@ class FeatureStore:
         Fails if the dataframe columns do not match the columns of the batch data source. Optionally
         reorders the columns of the dataframe to match.
         """
-        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
-        try:
-            feature_view: FeatureView = self.get_stream_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
-        except FeatureViewNotFoundException:
-            try:
-                feature_view = self.get_feature_view(
-                    feature_view_name, allow_registry_cache=allow_registry_cache
-                )
-            except FeatureViewNotFoundException:
-                feature_view = self.get_label_view(  # type: ignore[assignment]
-                    feature_view_name, allow_registry_cache=allow_registry_cache
-                )
+        # Resolve the feature view with a single registry lookup regardless of its
+        # type. The previous try/except chain tried get_stream_feature_view, then
+        # get_feature_view, then get_label_view in turn, so the common plain
+        # FeatureView always paid one guaranteed-miss lookup first. On a
+        # RemoteRegistry each miss is a wasted gRPC round-trip on this per-batch
+        # write path (see #6671).
+        # TODO: validate that the resolved feature view type supports offline writes.
+        feature_view = cast(
+            FeatureView,
+            self.registry.get_any_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            ),
+        )
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
