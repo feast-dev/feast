@@ -94,6 +94,27 @@ class MetricsConfig(FeastConfigBaseModel):
     identity, entity keys, feature views, row counts, and latency."""
 
 
+class AuditLoggingConfig(FeastConfigBaseModel):
+    """Structured audit logging configuration for the feature server.
+
+    Emits JSONL audit events for MCP tool calls, REST requests,
+    and authentication/authorization decisions.
+    """
+
+    enabled: StrictBool = False
+    """Whether structured audit logging is enabled."""
+
+    sink: str = "stdout"
+    """Audit event sink: ``stdout``, ``file``, or ``logger``."""
+
+    file_path: str = "feast_audit.log"
+    """File path when ``sink`` is ``file``."""
+
+    log_successful_reads: StrictBool = True
+    """Emit audit events for successful read operations. Set to ``False``
+    to reduce log volume in high-throughput read-heavy deployments."""
+
+
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""
 
@@ -106,6 +127,10 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
 
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """
+
+    audit_logging: Optional[AuditLoggingConfig] = None
+    """Structured audit logging configuration. Emits JSONL audit events
+    for MCP tool calls, REST requests, and auth decisions."""
 
     offline_push_batching_enabled: Optional[StrictBool] = None
     """Whether to batch writes to the offline store via the `/push` endpoint."""
