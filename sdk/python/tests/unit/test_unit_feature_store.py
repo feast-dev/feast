@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from typing import Dict, List
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from feast import utils
+from feast.feature_store import FeatureStore
 from feast.protos.feast.types.Value_pb2 import Value
 
 
@@ -129,3 +132,52 @@ def test_get_unique_entities_missing_all_join_keys_error():
         in error_message
     )
     assert "Provided join_key_values: ['entity_3']" in error_message
+
+
+def test_write_to_offline_store_resolves_feature_view_with_single_lookup():
+    """``write_to_offline_store`` must resolve the feature view with a single
+    registry lookup via ``get_any_feature_view`` rather than the legacy
+    per-type try/except chain.
+
+    The old chain called ``get_stream_feature_view`` first, so the common plain
+    ``FeatureView`` always paid a guaranteed-miss lookup before the one that
+    could succeed. On a ``RemoteRegistry`` each miss is a wasted gRPC round-trip
+    on this per-batch write path (#6671).
+    """
+    store = FeatureStore.__new__(FeatureStore)
+
+    feature_view = MagicMock()
+    feature_view.name = "driver_hourly_stats"
+    feature_view.batch_source = MagicMock()
+
+    registry = MagicMock()
+    registry.get_any_feature_view.return_value = feature_view
+    store._registry = registry
+
+    current_project = MagicMock()
+    current_project.get.return_value = "test_project"
+    store._current_project = current_project
+    store.config = MagicMock()
+
+    provider = MagicMock()
+    provider.get_table_column_names_and_types_from_data_source.return_value = [
+        ("driver_id", "INT64"),
+    ]
+
+    df = pd.DataFrame({"driver_id": [1, 2, 3]})
+
+    with patch.object(FeatureStore, "_get_provider", return_value=provider):
+        store.write_to_offline_store("driver_hourly_stats", df, reorder_columns=False)
+
+    # A single unified lookup, with the default allow_registry_cache=True
+    # forwarded as allow_cache.
+    registry.get_any_feature_view.assert_called_once_with(
+        "driver_hourly_stats", "test_project", allow_cache=True
+    )
+    # None of the legacy per-type getters are used, so there is no
+    # guaranteed-miss lookup before the real one.
+    registry.get_stream_feature_view.assert_not_called()
+    registry.get_feature_view.assert_not_called()
+    registry.get_label_view.assert_not_called()
+
+    provider.ingest_df_to_offline_store.assert_called_once()
