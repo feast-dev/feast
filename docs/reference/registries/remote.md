@@ -26,6 +26,11 @@ For **mutual TLS (mTLS)**, you can also configure:
 When connecting through a tunnel or proxy where the connection address differs from the server hostname, set:
 * `authority` — Overrides the gRPC `:authority` header so the server certificate is validated against the correct hostname.
 
+For **connection tuning and timeout controls**, you can also configure:
+* `timeout` — Default deadline in seconds for registry gRPC calls (e.g. 5).
+* `keepalive_time_ms` — Interval in milliseconds after which keepalive pings are sent on the transport.
+* `keepalive_timeout_ms` — Timeout in milliseconds for keepalive ping acknowledgement.
+
 {% code title="feature_store.yaml" %}
 ```yaml
 registry:
@@ -35,6 +40,9 @@ registry:
   client_cert: /path/to/tls.crt
   client_key: /path/to/tls.key
   authority: feature-registry.example.com
+  timeout: 5
+  keepalive_time_ms: 10000
+  keepalive_timeout_ms: 5000
 ```
 {% endcode %}
 
