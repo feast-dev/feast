@@ -7,7 +7,7 @@ This is a K8s Operator that can be used to deploy and manage **Feast**, an open 
 
 | Guide | Topic |
 |-------|-------|
-| [1 — Project Provisioning](https://docs.feast.dev/how-to-guides/feast-operator/01-project-provisioning) | `feastProjectDir`: git clone vs `feast init` templates |
+| [1 — Project Provisioning](https://docs.feast.dev/how-to-guides/feast-operator/01-project-provisioning) | `feastProjectDir`: git clone, `feast init`, or a repository packaged in an image |
 | [2 — Persistence](https://docs.feast.dev/how-to-guides/feast-operator/02-persistence) | File (path + PVC) vs DB store for offline/online/registry; Secret format |
 | [3 — Serving & Observability](https://docs.feast.dev/how-to-guides/feast-operator/03-serving-and-observability) | Workers, log level, Prometheus metrics, offline push batching, MCP |
 | [4 — Registry Topology](https://docs.feast.dev/how-to-guides/feast-operator/04-registry-topology) | Local, remote, cross-namespace `feastRef` |

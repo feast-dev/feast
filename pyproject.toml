@@ -36,14 +36,16 @@ dependencies = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "starlette>=1.0.1",
-    "uvicorn[standard]>=0.30.6,<=0.34.0",
+    "uvicorn[standard]>=0.30.6",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
-    "pyjwt",
+    # >=2.13 for PyJWKClient's JWK-set cache surviving transient fetch
+    # failures; the OIDC token parser reuses one client and relies on it.
+    "pyjwt>=2.13.0",
 ]
 
 [project.optional-dependencies]
@@ -56,7 +58,7 @@ azure = [
     "azure-identity>=1.6.1",
     "SQLAlchemy>=1.4.19",
     "pyodbc>=4.0.30",
-    "pymssql<2.3.3"
+    "pymssql>=2.3.6"
 ]
 cassandra = ["cassandra-driver>=3.26.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
@@ -139,7 +141,7 @@ snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
-mcp = ["fastapi_mcp"]
+mcp = ["fastapi_mcp", "mcp>=1.0,<2"]
 mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
@@ -261,6 +263,10 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 line-length = 88
 target-version = "py310"
 include = ["*.py", "*.pyi"]
+
+[tool.ruff.lint]
+# Keep on using old default rules: https://astral.sh/blog/ruff-v0.16.0
+select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
