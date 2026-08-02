@@ -81,3 +81,35 @@ def test_postgres_template_registry_path_is_parameterized() -> None:
     contents = template_fs_yaml.read_text(encoding="utf-8")
     expected = "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME"
     assert expected in contents
+
+
+def test_recommendation_template_artifacts() -> None:
+    template_dir = (
+        Path(__file__).resolve().parents[3] / "feast" / "templates" / "recommendation"
+    )
+
+    for name in [
+        "bootstrap.py",
+        "feature_repo/feature_definitions.py",
+        "feature_repo/feature_store.yaml",
+        "feature_repo/test_workflow.py",
+    ]:
+        assert (template_dir / name).is_file(), f"template missing {name}"
+
+    # The demo does top-k similarity search, so it needs vector search on a local
+    # sqlite store.
+    config = (template_dir / "feature_repo" / "feature_store.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "type: sqlite" in config
+    assert "vector_enabled: true" in config
+
+    # 384-dim vector index (all-MiniLM-L6-v2) plus the placeholders bootstrap.py
+    # fills in during `feast init`.
+    definitions = (template_dir / "feature_repo" / "feature_definitions.py").read_text(
+        encoding="utf-8"
+    )
+    assert "vector_index=True" in definitions
+    assert "vector_length=384" in definitions
+    assert "%PROJECT_NAME%" in definitions
+    assert "%PARQUET_PATH%" in definitions
