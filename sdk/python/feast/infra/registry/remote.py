@@ -93,6 +93,15 @@ class RemoteRegistryConfig(RegistryConfig):
     Required when the connection address differs from the service hostname,
     e.g. when connecting through a tunnel or proxy for local development. """
 
+    timeout: Optional[int] = None
+    """ int: Timeout in seconds for registry gRPC calls. """
+
+    keepalive_time_ms: Optional[int] = None
+    """ int: Period in milliseconds after which a keepalive ping is sent on the transport. """
+
+    keepalive_timeout_ms: Optional[int] = None
+    """ int: Timeout in milliseconds for keepalive ping acknowledgement. """
+
 
 class RemoteRegistry(BaseRegistry):
     def __init__(
@@ -107,12 +116,27 @@ class RemoteRegistry(BaseRegistry):
         self.channel = self._create_grpc_channel(registry_config)
         weakref.finalize(self, self.channel.close)
 
-        auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
+        auth_header_interceptor = GrpcClientAuthHeaderInterceptor(
+            auth_config, timeout=registry_config.timeout
+        )
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
 
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
+
+        options = []
+        if registry_config.authority:
+            options.append(("grpc.default_authority", registry_config.authority))
+        if registry_config.keepalive_time_ms is not None:
+            options.append(
+                ("grpc.keepalive_time_ms", registry_config.keepalive_time_ms)
+            )
+        if registry_config.keepalive_timeout_ms is not None:
+            options.append(
+                ("grpc.keepalive_timeout_ms", registry_config.keepalive_timeout_ms)
+            )
+
         if registry_config.cert or registry_config.is_tls:
             cafile = (
                 registry_config.cert
@@ -146,16 +170,12 @@ class RemoteRegistry(BaseRegistry):
                 certificate_chain=certificate_chain,
             )
 
-            options = []
-            if registry_config.authority:
-                options.append(("grpc.default_authority", registry_config.authority))
-
             return grpc.secure_channel(
                 registry_config.path, tls_credentials, options=options
             )
         else:
             # Create an insecure gRPC channel
-            return grpc.insecure_channel(registry_config.path)
+            return grpc.insecure_channel(registry_config.path, options=options)
 
     def close(self):
         if self.channel:
