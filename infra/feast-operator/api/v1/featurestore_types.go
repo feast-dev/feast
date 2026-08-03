@@ -145,6 +145,7 @@ type OpenLineageConsumerConfig struct {
 // MlflowConfig enables MLflow experiment tracking integration for Feast.
 // When enabled, feature retrieval metadata is automatically logged to MLflow runs
 // and the Feast UI displays lineage from feature views to registered models.
+// +kubebuilder:validation:XValidation:rule="!has(self.extraConfig) || !('enabled' in self.extraConfig) && !('tracking_uri' in self.extraConfig) && !('ui_url' in self.extraConfig) && !('tracking_auth' in self.extraConfig) && !('auto_log' in self.extraConfig) && !('auto_log_entity_df' in self.extraConfig) && !('entity_df_max_rows' in self.extraConfig) && !('log_operations' in self.extraConfig) && !('ops_experiment_suffix' in self.extraConfig)",message="extraConfig must not contain keys that duplicate typed fields (enabled, tracking_uri, ui_url, tracking_auth, auto_log, auto_log_entity_df, entity_df_max_rows, log_operations, ops_experiment_suffix); use the corresponding spec fields instead."
 type MlflowConfig struct {
 	// Enable MLflow integration.
 	Enabled bool `json:"enabled"`
@@ -180,6 +181,12 @@ type MlflowConfig struct {
 	// Defaults to "-feast-ops".
 	// +optional
 	OpsExperimentSuffix *string `json:"opsExperimentSuffix,omitempty"`
+	// Authentication method used by Feast pods when calling the MLflow tracking
+	// server. Common values: "kubernetes-namespaced" (token-based, default on
+	// OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+	// Defaults to "kubernetes-namespaced".
+	// +optional
+	TrackingAuth *string `json:"trackingAuth,omitempty"`
 	// ExtraConfig holds additional MLflow key-value settings written inline into
 	// the mlflow block of feature_store.yaml. Boolean and integer string values
 	// are coerced to native YAML types. Keys must be valid Feast MlflowConfig

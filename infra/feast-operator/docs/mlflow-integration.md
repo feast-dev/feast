@@ -8,22 +8,17 @@ When both the Feast operator and MLflow operator are enabled (`Managed`) on RHOA
 - **Feast UI lineage panels** (training runs, model associations, registry graph) via the operator-managed UI Route
 - **Operations audit trail** for `feast apply` and `feast materialize`
 
-## How it works
+## Auto-discovery
 
-1. The Feast operator looks for the singleton cluster-scoped `MLflow` CR (`mlflow.opendatahub.io/v1`, name `mlflow`).
-2. If found and Ready (checked via `status.conditions`), the operator reads `status.address.url` (in-cluster HTTPS) as the tracking URI.
-3. The `mlflow:` block is written into:
-   - **Server `feature_store.yaml`** (all Feast pods: online, offline, registry, UI, cron)
-   - **Client ConfigMap** (workbench notebooks)
-4. `MLFLOW_TRACKING_AUTH=kubernetes-namespaced` and `MLFLOW_TRACKING_URI` env vars are injected into Feast service containers.
-5. An `mlflow-integration` RoleBinding is created for the FeatureStore ServiceAccount.
-6. The controller watches the MLflow CR, so FeatureStores are automatically reconciled when MLflow becomes Ready or is removed.
+The operator lists all MLflow CRs (`mlflow.opendatahub.io/v1`) in the cluster and uses the first one with an `Available=True` or `Ready=True` condition. The RHOAI MLflow CRD enforces a singleton named `mlflow`, but the operator uses list-based discovery for forward-compatibility.
+
+If the MLflow CR does not report conditions (older operator versions), auto-discovery will not activate. In that case, set `trackingUri` explicitly.
 
 ## FeatureStore CR configuration
 
 ### Auto-enabled (default when MLflow is present)
 
-No `spec.mlflow` needed. The operator auto-enables when MLflow is detected:
+No `spec.mlflow` needed. The operator auto-enables when an Available MLflow CR is detected:
 
 ```yaml
 apiVersion: feast.dev/v1
@@ -58,6 +53,7 @@ spec:
     enabled: true
     trackingUri: "https://custom-mlflow.example.com:8443"
     uiUrl: "https://dashboard.example.com/mlflow"
+    trackingAuth: "kubernetes-namespaced"
     autoLog: true
     autoLogEntityDf: true
     entityDfMaxRows: 50000
@@ -82,12 +78,27 @@ spec:
 | `enabled` | bool | auto-detected | Master switch for MLflow integration |
 | `trackingUri` | string | auto-discovered | MLflow tracking server URI (in-cluster, from `status.address.url`) |
 | `uiUrl` | string | auto-discovered | Browser-reachable MLflow URL for Feast UI lineage hyperlinks (from `status.url`) |
+| `trackingAuth` | *string | `"kubernetes-namespaced"` | Auth method for Feast pods calling MLflow (see [Authentication](#authentication)) |
 | `autoLog` | *bool | `true` | Auto-log feature metadata on every retrieval |
 | `autoLogEntityDf` | *bool | `false` | Save entity DataFrame as artifact |
 | `entityDfMaxRows` | *int32 | `100000` | Skip artifact for large DataFrames |
 | `logOperations` | *bool | `false` | Log `feast apply` / `materialize` to ops experiment |
 | `opsExperimentSuffix` | *string | `"-feast-ops"` | Ops experiment name suffix |
 | `extraConfig` | map[string]string | — | Additional YAML fields (coerced to native types) |
+
+## Authentication
+
+The operator injects `MLFLOW_TRACKING_AUTH` into all Feast pod containers. This env var is consumed by the MLflow Python client's auth plugin system to attach credentials to HTTP requests made to the tracking server.
+
+| `trackingAuth` value | Behavior |
+|---------------------|----------|
+| `"kubernetes-namespaced"` (default) | Reads the pod's SA token and namespace from `/var/run/secrets/kubernetes.io/serviceaccount/`, sends `Authorization: Bearer <token>` and `X-MLFLOW-WORKSPACE: <namespace>` headers. Multi-tenant isolation on RHOAI. |
+| `"kubernetes"` | Same as above but without the workspace header. Single-tenant setups. |
+| `"basic"` | HTTP Basic auth using `MLFLOW_TRACKING_USERNAME` / `MLFLOW_TRACKING_PASSWORD` env vars. |
+| `"bearer"` | Static bearer token from `MLFLOW_TRACKING_TOKEN` env var. |
+| `""` (empty string) | No auth header. For local dev or unprotected MLflow instances. |
+
+No Kubernetes RoleBinding is required for MLflow tracking API access. The MLflow server validates the SA token directly via TokenReview and applies its own access policies.
 
 ## Where to see lineage
 
@@ -123,7 +134,7 @@ with store.mlflow.start_run(run_name="training"):
 ## Tracking URI resolution order
 
 1. Explicit `trackingUri` in FeatureStore CR
-2. Auto-discovered from MLflow CR `status.address.url`
+2. Auto-discovered from MLflow CR `status.address.url` (first Available/Ready CR)
 3. `MLFLOW_TRACKING_URI` environment variable (on workbench pods, injected by MLflow operator)
 4. MLflow default (`./mlruns`)
 
@@ -137,6 +148,6 @@ with store.mlflow.start_run(run_name="training"):
 ## Graceful degradation
 
 - If MLflow operator is not installed: no mlflow block in YAML; FeatureStore stays Ready.
-- If MLflow CR is not Ready: discovery returns empty; mlflow stays off.
+- If no MLflow CR has `Available=True` or `Ready=True` condition: discovery returns empty; mlflow stays off.
 - If tracking URI becomes unreachable: SDK logs a warning but does not block feature retrieval.
 - If UI pod lacks RBAC: `/api/mlflow-*` returns empty responses; lineage panels are hidden.

@@ -68,10 +68,10 @@ func (feast *FeastServices) applyMlflowDefaults() {
 		needsDiscovery := cr.Spec.Mlflow.TrackingUri == nil || cr.Spec.Mlflow.UiUrl == nil
 		if needsDiscovery && feast.Handler.Client != nil {
 			if discovered, ok := DiscoverMlflow(feast.Handler.Context, feast.Handler.Client); ok {
-				if cr.Status.Applied.Mlflow.TrackingUri == nil {
+				if cr.Status.Applied.Mlflow != nil && cr.Status.Applied.Mlflow.TrackingUri == nil {
 					cr.Status.Applied.Mlflow.TrackingUri = &discovered.TrackingUri
 				}
-				if cr.Status.Applied.Mlflow.UiUrl == nil && discovered.UiUrl != "" {
+				if cr.Status.Applied.Mlflow != nil && cr.Status.Applied.Mlflow.UiUrl == nil && discovered.UiUrl != "" {
 					cr.Status.Applied.Mlflow.UiUrl = &discovered.UiUrl
 				}
 			}
@@ -138,7 +138,10 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
-	if err := feast.deployMlflowRoleBinding(); err != nil {
+	// Remove RoleBindings created by older operator versions that incorrectly
+	// bound the FeatureStore SA to an MLflow ClusterRole. Auth is handled via
+	// MLFLOW_TRACKING_AUTH (SA token), not Kubernetes RBAC RoleBindings.
+	if err := feast.cleanupLegacyMlflowRoleBinding(); err != nil {
 		return err
 	}
 	if err := feast.deployNamespaceRegistry(); err != nil {
@@ -603,6 +606,8 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 }
 
+const defaultMlflowTrackingAuth = "kubernetes-namespaced"
+
 // injectMlflowEnv adds MLFLOW_TRACKING_AUTH and MLFLOW_TRACKING_URI env vars
 // to the container when MLflow integration is enabled.
 func (feast *FeastServices) injectMlflowEnv(container *corev1.Container) {
@@ -610,8 +615,18 @@ func (feast *FeastServices) injectMlflowEnv(container *corev1.Container) {
 	if applied == nil || !applied.Enabled {
 		return
 	}
-	mlflowEnv := []corev1.EnvVar{
-		{Name: "MLFLOW_TRACKING_AUTH", Value: "kubernetes-namespaced"},
+
+	trackingAuth := defaultMlflowTrackingAuth
+	if applied.TrackingAuth != nil {
+		trackingAuth = *applied.TrackingAuth
+	}
+
+	var mlflowEnv []corev1.EnvVar
+	if trackingAuth != "" {
+		mlflowEnv = append(mlflowEnv, corev1.EnvVar{
+			Name:  "MLFLOW_TRACKING_AUTH",
+			Value: trackingAuth,
+		})
 	}
 	if applied.TrackingUri != nil {
 		mlflowEnv = append(mlflowEnv, corev1.EnvVar{
@@ -619,7 +634,9 @@ func (feast *FeastServices) injectMlflowEnv(container *corev1.Container) {
 			Value: *applied.TrackingUri,
 		})
 	}
-	container.Env = envOverride(container.Env, mlflowEnv)
+	if len(mlflowEnv) > 0 {
+		container.Env = envOverride(container.Env, mlflowEnv)
+	}
 }
 
 func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1.ContainerConfigs, fsYamlB64 string) *corev1.Container {

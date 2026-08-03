@@ -829,6 +829,11 @@ func (in *MlflowConfig) DeepCopyInto(out *MlflowConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.TrackingAuth != nil {
+		in, out := &in.TrackingAuth, &out.TrackingAuth
+		*out = new(string)
+		**out = **in
+	}
 	if in.ExtraConfig != nil {
 		in, out := &in.ExtraConfig, &out.ExtraConfig
 		*out = make(map[string]string, len(*in))

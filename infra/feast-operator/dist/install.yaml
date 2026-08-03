@@ -906,6 +906,11 @@ spec:
                       Suffix appended to the project name for the operations experiment.
                       Defaults to "-feast-ops".
                     type: string
+                  trackingAuth:
+                    description: |-
+                      Authentication method used by Feast pods when calling the MLflow tracking
+                      server.
+                    type: string
                   trackingUri:
                     description: |-
                       MLflow tracking server URI. When omitted, the operator auto-discovers
@@ -918,6 +923,18 @@ spec:
                 required:
                 - enabled
                 type: object
+                x-kubernetes-validations:
+                - message: extraConfig must not contain keys that duplicate typed
+                    fields (enabled, tracking_uri, ui_url, tracking_auth, auto_log,
+                    auto_log_entity_df, entity_df_max_rows, log_operations, ops_experiment_suffix);
+                    use the corresponding spec fields instead.
+                  rule: '!has(self.extraConfig) || !(''enabled'' in self.extraConfig)
+                    && !(''tracking_uri'' in self.extraConfig) && !(''ui_url'' in
+                    self.extraConfig) && !(''tracking_auth'' in self.extraConfig)
+                    && !(''auto_log'' in self.extraConfig) && !(''auto_log_entity_df''
+                    in self.extraConfig) && !(''entity_df_max_rows'' in self.extraConfig)
+                    && !(''log_operations'' in self.extraConfig) && !(''ops_experiment_suffix''
+                    in self.extraConfig)'
               openlineage:
                 description: |-
                   OpenLineage enables OpenLineage data lineage tracking for Feast operations.
@@ -7280,6 +7297,11 @@ spec:
                           Suffix appended to the project name for the operations experiment.
                           Defaults to "-feast-ops".
                         type: string
+                      trackingAuth:
+                        description: |-
+                          Authentication method used by Feast pods when calling the MLflow tracking
+                          server.
+                        type: string
                       trackingUri:
                         description: |-
                           MLflow tracking server URI. When omitted, the operator auto-discovers
@@ -7292,6 +7314,18 @@ spec:
                     required:
                     - enabled
                     type: object
+                    x-kubernetes-validations:
+                    - message: extraConfig must not contain keys that duplicate typed
+                        fields (enabled, tracking_uri, ui_url, tracking_auth, auto_log,
+                        auto_log_entity_df, entity_df_max_rows, log_operations, ops_experiment_suffix);
+                        use the corresponding spec fields instead.
+                      rule: '!has(self.extraConfig) || !(''enabled'' in self.extraConfig)
+                        && !(''tracking_uri'' in self.extraConfig) && !(''ui_url''
+                        in self.extraConfig) && !(''tracking_auth'' in self.extraConfig)
+                        && !(''auto_log'' in self.extraConfig) && !(''auto_log_entity_df''
+                        in self.extraConfig) && !(''entity_df_max_rows'' in self.extraConfig)
+                        && !(''log_operations'' in self.extraConfig) && !(''ops_experiment_suffix''
+                        in self.extraConfig)'
                   openlineage:
                     description: |-
                       OpenLineage enables OpenLineage data lineage tracking for Feast operations.
