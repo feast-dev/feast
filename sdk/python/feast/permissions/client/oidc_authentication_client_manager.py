@@ -15,10 +15,13 @@ logger = logging.getLogger(__name__)
 
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
-# IdP-issued tokens cached until near expiry, keyed by the token-request
-# identity. The auth interceptors build a fresh manager for every outbound
+# IdP-issued tokens keyed by the token-request identity, stored with their
+# true expiry. The auth interceptors build a fresh manager for every outbound
 # RPC, so instance state would not survive between calls; without this
 # cache every RPC pays a discovery GET plus a token POST against the IdP.
+# The refresh margin is applied on read, not baked into the stored value, so
+# configs sharing IdP credentials but setting different margins can share
+# tokens while each still honors its own margin.
 # Concurrent misses may fetch in parallel (benign: last write wins).
 _token_cache: Dict[Tuple, Tuple[str, float]] = {}
 _token_cache_lock = threading.Lock()
@@ -79,12 +82,13 @@ class OidcAuthClientManager(AuthenticationClientManager):
     def _fetch_token_from_idp(self) -> str:
         """Return a cached IdP token, or obtain a fresh one.
 
-        Tokens are reused until ``token_refresh_margin_seconds`` before
-        their expiry (read from the token's ``exp`` claim, falling back to
-        the token response's ``expires_in``). A freshly obtained token is
-        cached only when that expiry is known and leaves more than the
-        margin remaining, so opaque tokens and already-near-expiry tokens
-        keep the previous per-call behavior.
+        The cache stores each token's true expiry (its ``exp`` claim, falling
+        back to the token response's ``expires_in``), and this config's
+        ``token_refresh_margin_seconds`` is applied when reading. Keeping the
+        margin out of the stored value lets configs that share IdP credentials
+        but set different margins share tokens while each honors its own
+        margin. A token whose expiry is unknowable is not cached, preserving
+        the previous per-call behavior for opaque tokens.
         """
         cache_key = (
             self.auth_config.auth_discovery_url,
@@ -95,28 +99,33 @@ class OidcAuthClientManager(AuthenticationClientManager):
         )
         with _token_cache_lock:
             cached = _token_cache.get(cache_key)
-            if cached is not None and time.time() < cached[1]:
-                return cached[0]
+        if cached is not None:
+            cached_token, cached_expiry = cached
+            margin = self.auth_config.token_refresh_margin_seconds
+            if time.time() < cached_expiry - margin:
+                return cached_token
 
         access_token, expires_in = self._request_token_from_idp()
 
-        refresh_deadline = self._token_refresh_deadline(
-            access_token, expires_in, self.auth_config.token_refresh_margin_seconds
-        )
-        if refresh_deadline is not None:
+        expiry = self._token_expiry(access_token, expires_in)
+        if expiry is not None:
             with _token_cache_lock:
-                _token_cache[cache_key] = (access_token, refresh_deadline)
+                _token_cache[cache_key] = (access_token, expiry)
         return access_token
 
     @staticmethod
-    def _token_refresh_deadline(
-        access_token: str, expires_in: Optional[float], margin_seconds: float
+    def _token_expiry(
+        access_token: str, expires_in: Optional[float]
     ) -> Optional[float]:
-        """Epoch time to stop reusing *access_token*, or ``None`` to skip caching.
+        """Epoch expiry of *access_token*, or ``None`` when it is unknowable.
 
         Prefers the token's own ``exp`` claim (authoritative); falls back to
-        the token endpoint's ``expires_in``. Returns ``None`` when neither is
-        usable or the remaining lifetime is inside *margin_seconds*.
+        the token endpoint's ``expires_in``.
+
+        The refresh margin is deliberately not subtracted here. Storing one
+        caller's deadline would let another config with a wider margin reuse
+        the token past its own safety window, since the margin is not part of
+        the cache key.
         """
         exp: Optional[float] = None
         try:
@@ -128,12 +137,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             pass
         if exp is None and isinstance(expires_in, (int, float)):
             exp = time.time() + float(expires_in)
-        if exp is None:
-            return None
-        deadline = exp - margin_seconds
-        if deadline <= time.time():
-            return None
-        return deadline
+        return exp
 
     def _request_token_from_idp(self) -> Tuple[str, Optional[float]]:
         """Obtain an access token via client_credentials or ROPG flow.
