@@ -9,8 +9,11 @@ image:
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml
+# feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml. Stored in a Kubernetes Secret (not passed as a plain env value). Ignored when existingSecret is set.
 feature_store_yaml_base64: ""
+
+# existingSecret -- Name of an existing Kubernetes Secret that contains the key `feature_store_yaml_base64` with the base64-encoded feature_store.yaml. When set, the chart will not create its own Secret.
+existingSecret: ""
 
 livenessProbe:
   # livenessProbe.enabled -- Flag to enabled the probe
@@ -43,7 +46,7 @@ readinessProbe:
 service:
   # service.type -- Kubernetes service type
   type: ClusterIP
-  # service.port -- Service port
+  # service.port -- Service port for HTTP requests
   port: 6566
   # service.nodePort -- Port number that each cluster node will listen to
   nodePort:
@@ -51,6 +54,22 @@ service:
   loadBalancerIP:
   # service.loadBalancerSourceRanges -- Optionally restrict load balancer traffic to specified IPs
   loadBalancerSourceRanges: []
+
+ingress:
+  http:
+    # ingress.http.enabled -- Flag to create an ingress resource for the service
+    enabled: false
+    # ingress.http.ingressClassName -- IngressClass resource name (for networking.k8s.io/v1)
+    ingressClassName:
+    # ingress.http.hosts -- List of hostnames to match when routing requests
+    hosts: []
+    # ingress.http.annotations -- Extra annotations for the ingress (use this for controller-specific settings like nginx auth, whitelist, etc.)
+    annotations: {}
+    https:
+      # ingress.http.https.enabled -- Flag to enable HTTPS
+      enabled: true
+      # ingress.http.https.secretNames -- Map of hostname to TLS secret name
+      secretNames: {}
 
 # resources -- CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 resources: {}
@@ -64,8 +83,8 @@ envOverrides: {}
 # secrets -- List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>.
 secrets: []
 
-# podAnnotations -- Annotations to be added to Feast Serving pods
+# podAnnotations -- Annotations to be added to Feature Server pods
 podAnnotations: {}
 
-# podLabels -- Labels to be added to Feast Serving pods
+# podLabels -- Labels to be added to Feature Server pods
 podLabels: {}

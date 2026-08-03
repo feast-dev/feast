@@ -4,35 +4,41 @@ metadata:
   name: {{ template "feature-server.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app: {{ template "feature-server.name" . }}
-    component: serving
-    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "feature-server.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "feature-server.name" . }}
-      component: serving
-      release: {{ .Release.Name }}
+      {{- include "feature-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- if .Values.podAnnotations }}
+      {{- if or (not .Values.existingSecret) .Values.podAnnotations }}
       annotations:
-        {{ toYaml .Values.podAnnotations | nindent 8 }}
+        {{- if not .Values.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       labels:
-        app: {{ template "feature-server.name" . }}
-        component: serving
-        release: {{ .Release.Name }}
+        {{- include "feature-server.selectorLabels" . | nindent 8 }}
       {{- if .Values.podLabels }}
-        {{ toYaml .Values.podLabels | nindent 8 }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
       {{- end }}
     spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- if .Values.secrets }}
+      volumes:
+      {{- range $secret := .Values.secrets }}
+      - name: {{ $secret }}
+        secret:
+          secretName: {{ $secret }}
+      {{- end }}
       {{- end }}
 
       containers:
@@ -42,7 +48,10 @@ spec:
 
         env:
         - name: FEATURE_STORE_YAML_BASE64
-          value: {{ .Values.feature_store_yaml_base64 }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.existingSecret | default (include "feature-server.fullname" .) }}
+              key: feature_store_yaml_base64
 
         {{- range $key, $value := .Values.envOverrides }}
         - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
@@ -67,6 +76,15 @@ spec:
           containerPort: {{ .Values.service.port }}
           protocol: TCP
 
+        {{- if .Values.secrets }}
+        volumeMounts:
+        {{- range $secret := .Values.secrets }}
+        - name: {{ $secret }}
+          mountPath: "/etc/secrets/{{ $secret }}"
+          readOnly: true
+        {{- end }}
+        {{- end }}
+
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           tcpSocket:
@@ -74,6 +92,7 @@ spec:
           initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
           failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
         {{- end }}
 
@@ -84,6 +103,7 @@ spec:
           initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
           failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
         {{- end }}
 

@@ -21,7 +21,16 @@ helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
-Install Feast
+Install Feast (using an existing Secret — recommended for production):
+```
+kubectl create secret generic my-feast-config \
+  --from-literal=feature_store_yaml_base64=$(base64 < feature_store.yaml)
+
+helm install feast-release feast-charts/feast \
+  --set feature-server.existingSecret=my-feast-config
+```
+
+Or pass the config inline (the value will be stored in Helm release metadata):
 ```
 helm install feast-release feast-charts/feast \
   --set feature-server.feature_store_yaml_base64=$(base64 < feature_store.yaml)
@@ -31,12 +40,17 @@ helm install feast-release feast-charts/feast \
 
 This Feast chart comes with a [values.yaml](values.yaml) that allows for configuration and customization of all sub-charts.
 
-The feature server requires a base64-encoded `feature_store.yaml` to be provided:
+The feature server requires a base64-encoded `feature_store.yaml`. You can either reference a pre-existing Kubernetes Secret or provide the value inline:
 
 ```yaml
 feature-server:
+  # Option A: reference an existing Secret (recommended)
+  existingSecret: my-feast-config
+  # Option B: provide inline (stored in Helm release metadata)
   feature_store_yaml_base64: <base64 encoded feature_store.yaml>
 ```
+
+> **Upgrading from the Java chart?** See the [feature-server migration guide](charts/feature-server/README.md#migration-from-java-chart) for details on removed gRPC and Java-specific values.
 
 For more details, please see: https://docs.feast.dev/how-to-guides/running-feast-in-production
 
