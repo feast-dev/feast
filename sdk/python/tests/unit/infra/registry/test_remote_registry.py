@@ -146,3 +146,26 @@ def test_remote_registry_client_timeout_interceptor():
     interceptor._handle_call(mock_continuation, call_details_with_timeout, None)
     passed_details_with_timeout = mock_continuation.call_args[0][0]
     assert passed_details_with_timeout.timeout == 5.0
+
+
+def test_remote_registry_validation_positive_values():
+    from pydantic import ValidationError
+
+    from feast.infra.registry.remote import RemoteRegistryConfig
+
+    # Valid configurations should work
+    config = RemoteRegistryConfig(
+        path="localhost:50051",
+        timeout=5,
+        keepalive_time_ms=1000,
+        keepalive_timeout_ms=500,
+    )
+    assert config.timeout == 5
+    assert config.keepalive_time_ms == 1000
+    assert config.keepalive_timeout_ms == 500
+
+    # Invalid values should throw ValidationError
+    for field in ["timeout", "keepalive_time_ms", "keepalive_timeout_ms"]:
+        for bad_val in [0, -1]:
+            with pytest.raises(ValidationError):
+                RemoteRegistryConfig(path="localhost:50051", **{field: bad_val})
