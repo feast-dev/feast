@@ -175,17 +175,36 @@ class RemoteRegistry(CachingRegistry):
         if self.channel:
             self.channel.close()
 
+    def _refresh_cache_after_mutation(self, commit: bool = True):
+        # Now that RemoteRegistry caches the registry proto client-side, a
+        # mutation issued over gRPC would otherwise leave the local cache stale
+        # until the TTL expires -- so a subsequent allow_cache read on the same
+        # client (e.g. apply_feature_view() then get_feature_view(...,
+        # allow_cache=True)) would return the pre-mutation object. Mirror
+        # SqlRegistry and reload the client-side cache after the change lands.
+        #
+        # Only refresh once the write is committed on the server. Uncommitted
+        # (commit=False) writes -- e.g. the batched applies in
+        # FeatureStore.apply() -- are flushed by the trailing commit(), which
+        # refreshes then, so we avoid a full Proto() round-trip per object.
+        # In "thread" cache mode the background refresh thread owns freshness,
+        # matching the SqlRegistry contract.
+        if commit and self.cache_mode == "sync":
+            self.refresh()
+
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(
             entity=entity.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyEntity(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteEntityRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteEntity(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_entity(self, name: str, project: str) -> Entity:
         request = RegistryServer_pb2.GetEntityRequest(name=name, project=project)
@@ -208,12 +227,14 @@ class RemoteRegistry(CachingRegistry):
             data_source=data_source.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyDataSource(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteDataSourceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteDataSource(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_data_source(self, name: str, project: str) -> DataSource:
         request = RegistryServer_pb2.GetDataSourceRequest(name=name, project=project)
@@ -238,12 +259,14 @@ class RemoteRegistry(CachingRegistry):
             feature_service=feature_service.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureServiceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_feature_service(self, name: str, project: str) -> FeatureService:
         request = RegistryServer_pb2.GetFeatureServiceRequest(
@@ -302,12 +325,14 @@ class RemoteRegistry(CachingRegistry):
         )
 
         self.stub.ApplyFeatureView(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureViewRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteFeatureView(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_stream_feature_view(self, name: str, project: str) -> StreamFeatureView:
         request = RegistryServer_pb2.GetStreamFeatureViewRequest(
@@ -457,6 +482,7 @@ class RemoteRegistry(CachingRegistry):
             commit=commit,
         )
         self.stub.ApplyMaterialization(request)
+        self._refresh_cache_after_mutation(commit)
 
     def apply_saved_dataset(
         self,
@@ -468,12 +494,14 @@ class RemoteRegistry(CachingRegistry):
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteSavedDataset(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_saved_dataset(self, name: str, project: str) -> SavedDataset:
         request = RegistryServer_pb2.GetSavedDatasetRequest(name=name, project=project)
@@ -511,12 +539,14 @@ class RemoteRegistry(CachingRegistry):
             commit=commit,
         )
         self.stub.ApplyValidationReference(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteValidationReferenceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteValidationReference(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_validation_reference(self, name: str, project: str) -> ValidationReference:
         request = RegistryServer_pb2.GetValidationReferenceRequest(
@@ -549,6 +579,7 @@ class RemoteRegistry(CachingRegistry):
             infra=infra.to_proto(), project=project, commit=commit
         )
         self.stub.UpdateInfra(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_infra(self, project: str) -> Infra:
         request = RegistryServer_pb2.GetInfraRequest(project=project)
@@ -578,12 +609,14 @@ class RemoteRegistry(CachingRegistry):
             permission=permission_proto, project=project, commit=commit
         )
         self.stub.ApplyPermission(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeletePermissionRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeletePermission(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_permission(self, name: str, project: str) -> Permission:
         request = RegistryServer_pb2.GetPermissionRequest(name=name, project=project)
@@ -613,6 +646,7 @@ class RemoteRegistry(CachingRegistry):
             project=project_proto, commit=commit
         )
         self.stub.ApplyProject(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_project(
         self,
@@ -621,6 +655,7 @@ class RemoteRegistry(CachingRegistry):
     ):
         request = RegistryServer_pb2.DeleteProjectRequest(name=name, commit=commit)
         self.stub.DeleteProject(request)
+        self._refresh_cache_after_mutation(commit)
 
     def _get_project(
         self,
@@ -658,6 +693,9 @@ class RemoteRegistry(CachingRegistry):
 
     def commit(self):
         self.stub.Commit(Empty())
+        # commit() flushes writes staged with commit=False (e.g. the batch in
+        # FeatureStore.apply()), so refresh the client-side cache here too.
+        self._refresh_cache_after_mutation(commit=True)
 
     def refresh(self, project: Optional[str] = None):
         # Reload our client-side cache from the server; this is what makes
