@@ -1,0 +1,23 @@
+Feast Feature Server has been deployed.
+
+{{- if and (not .Values.existingSecret) (not .Values.feature_store_yaml_base64) }}
+
+WARNING: Neither "existingSecret" nor "feature_store_yaml_base64" is set.
+  The feature server will fail to start without a valid feature_store.yaml.
+
+  Option A (recommended): create a Secret and reference it:
+    kubectl create secret generic my-feast-config \
+      --from-literal=feature_store_yaml_base64=$(base64 < feature_store.yaml)
+    helm upgrade {{ .Release.Name }} . --set existingSecret=my-feast-config
+
+  Option B: provide inline:
+    helm upgrade {{ .Release.Name }} . \
+      --set feature_store_yaml_base64=$(base64 < feature_store.yaml)
+{{- end }}
+
+{{- if and .Values.feature_store_yaml_base64 (not .Values.existingSecret) }}
+
+NOTE: "feature_store_yaml_base64" is stored in Helm release metadata.
+  If feature_store.yaml contains credentials, consider using "existingSecret"
+  to keep sensitive data out of Helm values.
+{{- end }}
