@@ -20,11 +20,10 @@ import (
 	"context"
 
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var mlflowGVK = schema.GroupVersionKind{
@@ -42,28 +41,42 @@ type MlflowDiscoveryResult struct {
 	UiUrl string
 }
 
-// DiscoverMlflow attempts to find the cluster-scoped MLflow CR and returns
-// both the in-cluster tracking URI and the external browser-reachable UI URL.
-// Returns (zero-value, false) when MLflow is not installed, not ready, or not available.
-// This function never returns an error — it is designed for best-effort discovery
-// so that the FeatureStore reconcile is not blocked by MLflow absence.
+// DiscoverMlflow lists all MLflow CRs in the cluster and returns the URIs
+// from the first one that is Available/Ready. The MLflow CRD enforces a
+// singleton named "mlflow", but listing is used for forward-compatibility.
+// Returns (zero-value, false) when MLflow is not installed, not available, or
+// has no tracking URI. This function never returns an error — it is designed
+// for best-effort discovery so that FeatureStore reconcile is not blocked.
 func DiscoverMlflow(ctx context.Context, c client.Client) (MlflowDiscoveryResult, bool) {
-	mlflow := &unstructured.Unstructured{}
-	mlflow.SetGroupVersionKind(mlflowGVK)
+	list := &unstructured.UnstructuredList{}
+	list.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   mlflowGVK.Group,
+		Version: mlflowGVK.Version,
+		Kind:    mlflowGVK.Kind + "List",
+	})
 
-	if err := c.Get(ctx, client.ObjectKey{Name: "mlflow"}, mlflow); err != nil {
+	if err := c.List(ctx, list); err != nil || len(list.Items) == 0 {
 		return MlflowDiscoveryResult{}, false
 	}
 
-	status, found, _ := unstructured.NestedMap(mlflow.Object, "status")
-	if !found {
-		return MlflowDiscoveryResult{}, false
+	for i := range list.Items {
+		item := &list.Items[i]
+		status, found, _ := unstructured.NestedMap(item.Object, "status")
+		if !found || !isMlflowReady(status) {
+			continue
+		}
+
+		result := extractMlflowURIs(status)
+		if result.TrackingUri != "" {
+			return result, true
+		}
 	}
 
-	if !isMlflowReady(status) {
-		return MlflowDiscoveryResult{}, false
-	}
+	return MlflowDiscoveryResult{}, false
+}
 
+// extractMlflowURIs reads the tracking URI and UI URL from a MLflow CR status map.
+func extractMlflowURIs(status map[string]interface{}) MlflowDiscoveryResult {
 	result := MlflowDiscoveryResult{}
 
 	// In-cluster address (HTTPS service URL) — used for API calls
@@ -83,20 +96,17 @@ func DiscoverMlflow(ctx context.Context, c client.Client) (MlflowDiscoveryResult
 		result.TrackingUri = result.UiUrl
 	}
 
-	if result.TrackingUri == "" {
-		return MlflowDiscoveryResult{}, false
-	}
-
-	return result, true
+	return result
 }
 
-// isMlflowReady checks status.conditions for a Ready=True condition.
-// Returns true when conditions are absent (best-effort: older MLflow CRs may
-// not report conditions, so we fall through to URL-based discovery).
+// isMlflowReady checks status.conditions for an Available=True or Ready=True
+// condition. The RHOAI MLflow operator uses "Available" as its readiness
+// signal; we also accept "Ready" for forward-compatibility with other operators.
+// Returns false when conditions are absent or none indicate readiness.
 func isMlflowReady(status map[string]interface{}) bool {
 	conditions, ok := status["conditions"].([]interface{})
 	if !ok || len(conditions) == 0 {
-		return true
+		return false
 	}
 	for _, c := range conditions {
 		cond, ok := c.(map[string]interface{})
@@ -105,53 +115,27 @@ func isMlflowReady(status map[string]interface{}) bool {
 		}
 		condType, _ := cond["type"].(string)
 		condStatus, _ := cond["status"].(string)
-		if condType == "Ready" {
-			return condStatus == "True"
+		if (condType == "Available" || condType == "Ready") && condStatus == "True" {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-const mlflowRoleBindingSuffix = "-mlflow-integration"
+// legacyMlflowRoleBindingSuffix is the suffix used by earlier operator versions
+// that created a RoleBinding for MLflow API access. That RoleBinding is no longer
+// needed — authentication uses the pod SA token via MLFLOW_TRACKING_AUTH.
+const legacyMlflowRoleBindingSuffix = "-mlflow-integration"
 
-// deployMlflowRoleBinding creates or updates a RoleBinding that grants the
-// FeatureStore's ServiceAccount access to the MLflow API via the
-// mlflow-integration ClusterRole. This is required for Feast UI and service
-// pods to query MLflow for lineage data.
-// When MLflow is disabled, the RoleBinding is removed.
-func (feast *FeastServices) deployMlflowRoleBinding() error {
-	applied := feast.Handler.FeatureStore.Status.Applied.Mlflow
-	rbName := GetFeastName(feast.Handler.FeatureStore) + mlflowRoleBindingSuffix
-
-	rb := &rbacv1.RoleBinding{}
-	rb.Name = rbName
-	rb.Namespace = feast.Handler.FeatureStore.Namespace
+// cleanupLegacyMlflowRoleBinding deletes the RoleBinding created by older
+// operator versions (if present). Safe no-op when the object does not exist.
+func (feast *FeastServices) cleanupLegacyMlflowRoleBinding() error {
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetFeastName(feast.Handler.FeatureStore) + legacyMlflowRoleBindingSuffix,
+			Namespace: feast.Handler.FeatureStore.Namespace,
+		},
+	}
 	rb.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"))
-
-	if applied == nil || !applied.Enabled {
-		return feast.Handler.DeleteOwnedFeastObj(rb)
-	}
-
-	logger := log.FromContext(feast.Handler.Context)
-	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, rb, controllerutil.MutateFn(func() error {
-		rb.Labels = feast.getLabels()
-		rb.Subjects = []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      GetFeastName(feast.Handler.FeatureStore),
-				Namespace: feast.Handler.FeatureStore.Namespace,
-			},
-		}
-		rb.RoleRef = rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "mlflow-integration",
-		}
-		return controllerutil.SetControllerReference(feast.Handler.FeatureStore, rb, feast.Handler.Scheme)
-	})); err != nil {
-		return err
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
-		logger.Info("Successfully reconciled MLflow RoleBinding", "RoleBinding", rbName, "operation", op)
-	}
-	return nil
+	return feast.Handler.DeleteOwnedFeastObj(rb)
 }

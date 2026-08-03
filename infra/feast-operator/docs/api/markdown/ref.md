@@ -581,6 +581,10 @@ DataFrames exceeding this limit are skipped. Defaults to 100000. |
 Defaults to false. |
 | `opsExperimentSuffix` _string_ | Suffix appended to the project name for the operations experiment.
 Defaults to "-feast-ops". |
+| `trackingAuth` _string_ | Authentication method used by Feast pods when calling the MLflow tracking
+server. Common values: "kubernetes-namespaced" (token-based, default on
+OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+Defaults to "kubernetes-namespaced". |
 | `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional MLflow key-value settings written inline into
 the mlflow block of feature_store.yaml. Boolean and integer string values
 are coerced to native YAML types. Keys must be valid Feast MlflowConfig

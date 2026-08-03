@@ -1275,6 +1275,9 @@ var _ = Describe("MLflow Configuration", func() {
 			mlflow.SetName("mlflow")
 			mlflow.Object["status"] = map[string]interface{}{
 				"url": "https://mlflow.apps.example.com",
+				"conditions": []interface{}{
+					map[string]interface{}{"type": "Available", "status": "True"},
+				},
 			}
 			fakeClient := fake.NewClientBuilder().WithObjects(mlflow).Build()
 
@@ -1282,6 +1285,19 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(ok).To(BeTrue())
 			Expect(result.TrackingUri).To(Equal("https://mlflow.apps.example.com"))
 			Expect(result.UiUrl).To(Equal("https://mlflow.apps.example.com"))
+		})
+
+		It("should return false when MLflow CR has no Available/Ready condition", func() {
+			mlflow := &unstructured.Unstructured{}
+			mlflow.SetGroupVersionKind(mlflowGVK)
+			mlflow.SetName("mlflow")
+			mlflow.Object["status"] = map[string]interface{}{
+				"url": "https://mlflow.apps.example.com",
+			}
+			fakeClient := fake.NewClientBuilder().WithObjects(mlflow).Build()
+
+			_, ok := DiscoverMlflow(context.Background(), fakeClient)
+			Expect(ok).To(BeFalse())
 		})
 
 		It("should return false when MLflow CR is absent", func() {
@@ -1292,8 +1308,20 @@ var _ = Describe("MLflow Configuration", func() {
 	})
 
 	Context("isMlflowReady", func() {
-		It("should return true when no conditions are present", func() {
+		It("should return false when no conditions are present", func() {
 			status := map[string]interface{}{}
+			Expect(isMlflowReady(status)).To(BeFalse())
+		})
+
+		It("should return true when Available condition is True", func() {
+			status := map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Available",
+						"status": "True",
+					},
+				},
+			}
 			Expect(isMlflowReady(status)).To(BeTrue())
 		})
 
@@ -1309,6 +1337,18 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(isMlflowReady(status)).To(BeTrue())
 		})
 
+		It("should return false when Available condition is False", func() {
+			status := map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Available",
+						"status": "False",
+					},
+				},
+			}
+			Expect(isMlflowReady(status)).To(BeFalse())
+		})
+
 		It("should return false when Ready condition is False", func() {
 			status := map[string]interface{}{
 				"conditions": []interface{}{
@@ -1321,7 +1361,7 @@ var _ = Describe("MLflow Configuration", func() {
 			Expect(isMlflowReady(status)).To(BeFalse())
 		})
 
-		It("should return true when conditions exist but no Ready type", func() {
+		It("should return false when only Progressing condition exists", func() {
 			status := map[string]interface{}{
 				"conditions": []interface{}{
 					map[string]interface{}{
@@ -1330,7 +1370,7 @@ var _ = Describe("MLflow Configuration", func() {
 					},
 				},
 			}
-			Expect(isMlflowReady(status)).To(BeTrue())
+			Expect(isMlflowReady(status)).To(BeFalse())
 		})
 	})
 
