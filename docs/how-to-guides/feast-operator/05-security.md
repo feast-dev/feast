@@ -93,6 +93,15 @@ spec:
 
 ### Advanced OIDC options
 
+{% hint style="warning" %}
+Every option in this section requires `apiVersion: feast.dev/v1`. Under the deprecated
+`feast.dev/v1alpha1`, `authz.oidc` accepts only `secretRef`. The CRD has no conversion
+webhook, so a resource submitted as v1alpha1 is validated against the v1alpha1 schema and
+any other field is pruned without error rather than rejected. Applying the example below
+as v1alpha1 therefore leaves OIDC configured by Secret alone, with none of these settings
+taking effect and nothing in the output to say so. Use v1, which is the storage version.
+{% endhint %}
+
 ```yaml
 authz:
   oidc:
