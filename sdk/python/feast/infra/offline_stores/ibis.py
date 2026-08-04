@@ -32,6 +32,27 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 
+def read_mlflow_data_source(data_source: DataSource) -> Optional[Table]:
+    """Shared helper for ibis-based offline stores to read from MlflowDatasetSource.
+
+    Returns an ibis Table if ``data_source`` is an ``MlflowDatasetSource``,
+    otherwise returns ``None`` so the caller can fall through to other readers.
+    Gracefully returns ``None`` when the ``mlflow`` package is not installed.
+    """
+    try:
+        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+            MlflowDatasetSource,
+        )
+    except ImportError:
+        return None
+
+    if not isinstance(data_source, MlflowDatasetSource):
+        return None
+
+    arrow_table = data_source.to_arrow()
+    return ibis.memtable(arrow_table)
+
+
 def _get_entity_schema(entity_df: pd.DataFrame) -> Dict[str, np.dtype]:
     return dict(zip(entity_df.columns, entity_df.dtypes))
 

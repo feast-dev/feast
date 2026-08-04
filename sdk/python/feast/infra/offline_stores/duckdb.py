@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
     )
+    from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+        MlflowDatasetSource,
+    )
 
 import duckdb
 import ibis
@@ -56,6 +59,16 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
 
     if isinstance(data_source, IcebergSource):
         return _read_iceberg_catalog_source(data_source, repo_path)
+
+    try:
+        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+            MlflowDatasetSource,
+        )
+
+        if isinstance(data_source, MlflowDatasetSource):
+            return _read_mlflow_source(data_source)
+    except ImportError:
+        pass
 
     assert isinstance(data_source, FileSource)
 
@@ -170,6 +183,18 @@ def _write_iceberg_data_source(
         iceberg_table.overwrite(arrow_table)
     else:
         iceberg_table.append(arrow_table)
+
+
+def _read_mlflow_source(data_source: "MlflowDatasetSource") -> Table:
+    """Read tabular data from an MLflow-backed DataSource.
+
+    Delegates to ``data_source.to_arrow()`` which handles auth scoping,
+    caching, and mode dispatch internally.  The returned PyArrow Table
+    is eagerly materialized before being wrapped as an ibis memtable,
+    avoiding any lazy-read vs temp-file-cleanup race.
+    """
+    arrow_table = data_source.to_arrow()
+    return ibis.memtable(arrow_table)
 
 
 def _write_data_source(
