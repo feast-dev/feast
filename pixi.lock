@@ -2447,7 +2447,7 @@ packages:
   - prometheus-client>=0.20.0,<0.25.0
   - psutil
   - bigtree>=0.19.2
-  - pyjwt
+  - pyjwt>=2.13.0
   - aerospike>=19.0.0,<20.0.0 ; extra == 'aerospike'
   - boto3>=1.38.27 ; extra == 'aws'
   - fsspec>=2024.1.0 ; extra == 'aws'

@@ -75,6 +75,8 @@ class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
 
 
 class PostgreSQLOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -135,6 +137,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
@@ -222,6 +225,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     use_cte=use_cte,
                     start_date=start_date,
                     end_date=end_date,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -693,6 +697,7 @@ def build_point_in_time_query(
     use_cte: bool = False,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -723,6 +728,7 @@ def build_point_in_time_query(
         "use_cte": use_cte,
         "start_date": start_date,
         "end_date": end_date,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
     }
 
     query = template.render(template_context)
@@ -963,6 +969,10 @@ entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}
