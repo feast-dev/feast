@@ -10,7 +10,7 @@ import click
 
 @click.group(name="mlflow")
 def mlflow_cmd():
-    """MLflow integration utilities (dataset sync, trace export)."""
+    """MLflow integration utilities (trace export, assessment sync)."""
     pass
 
 
@@ -54,18 +54,6 @@ def _parse_tags(raw: str | None) -> dict[str, str] | None:
             k, v = pair.split("=", 1)
             tags[k.strip()] = v.strip()
     return tags or None
-
-
-def _print_sync_result(result) -> None:
-    click.echo("\nSync results:")
-    click.echo(f"  Records fetched:  {result.records_fetched}")
-    click.echo(f"  Records ingested: {result.records_ingested}")
-    click.echo(f"  New records:      {result.new_records}")
-    if result.errors:
-        click.echo(f"\n  Errors ({len(result.errors)}):")
-        for err in result.errors:
-            click.echo(f"    - {err}", err=True)
-        raise SystemExit(1)
 
 
 @mlflow_cmd.command("export-traces")
@@ -259,169 +247,6 @@ def export_traces_cmd(
             click.echo(f"Registered artifact in MLflow (run_id={run_id})")
         else:
             click.echo("Warning: failed to register artifact in MLflow.", err=True)
-
-
-@mlflow_cmd.command("sync-dataset")
-@click.option(
-    "--feature-view",
-    default=None,
-    help=(
-        "Target FeatureView/LabelView. When omitted, syncs all views whose "
-        "source is MlflowDatasetSource."
-    ),
-)
-@click.option(
-    "--source",
-    default=None,
-    help="MLflow GenAI dataset name override (defaults to MlflowDatasetSource).",
-)
-@click.option(
-    "--full-refresh/--incremental",
-    default=False,
-    help="Full refresh re-syncs all records; incremental only syncs new/updated.",
-)
-@click.option(
-    "--field-mapping",
-    default=None,
-    help="Path to a JSON file with field mapping overrides.",
-)
-@click.option(
-    "--batch-size",
-    default=None,
-    type=int,
-    help="Number of rows to write per batch.",
-)
-@click.option(
-    "--dry-run/--no-dry-run",
-    default=False,
-    help="Fetch and flatten without writing to stores.",
-)
-@click.pass_context
-def sync_dataset_cmd(
-    ctx, feature_view, source, full_refresh, field_mapping, batch_size, dry_run
-):
-    """Sync an MLflow GenAI Dataset into a Feast FeatureView/LabelView."""
-    _require_mlflow()
-    from feast.mlflow_integration.dataset_sync import (
-        sync_all_mlflow_dataset_sources,
-        sync_mlflow_dataset_to_feast,
-    )
-    from feast.repo_operations import create_feature_store
-
-    store = create_feature_store(ctx)
-    tracking_uri = _resolve_tracking_uri(store)
-
-    mapping = None
-    if field_mapping:
-        with open(field_mapping) as f:
-            mapping = json.load(f)
-
-    if tracking_uri:
-        click.echo(f"  MLflow tracking URI: {tracking_uri}")
-    if dry_run:
-        click.echo("  DRY RUN — no data will be written.")
-
-    if feature_view is None:
-        click.echo(
-            f"Syncing all MlflowDatasetSource views "
-            f"({'full refresh' if full_refresh else 'incremental'})"
-        )
-        results = sync_all_mlflow_dataset_sources(
-            store,
-            incremental=not full_refresh,
-            batch_size=batch_size,
-            dry_run=dry_run,
-        )
-        if not results:
-            click.echo("No FeatureViews/LabelViews with MlflowDatasetSource found.")
-            return
-        any_errors = False
-        for name, result in results.items():
-            click.echo(f"\n[{name}]")
-            click.echo(f"  Records fetched:  {result.records_fetched}")
-            click.echo(f"  Records ingested: {result.records_ingested}")
-            if result.errors:
-                any_errors = True
-                for err in result.errors:
-                    click.echo(f"    - {err}", err=True)
-        if any_errors:
-            raise SystemExit(1)
-        return
-
-    click.echo(
-        f"Syncing MLflow dataset → FeatureView '{feature_view}' "
-        f"({'full refresh' if full_refresh else 'incremental'})"
-    )
-    result = sync_mlflow_dataset_to_feast(
-        store=store,
-        feature_view_name=feature_view,
-        dataset_name=source,
-        field_mapping=mapping,
-        tracking_uri=tracking_uri,
-        incremental=not full_refresh,
-        batch_size=batch_size,
-        dry_run=dry_run,
-    )
-    _print_sync_result(result)
-
-
-@mlflow_cmd.command("preview-dataset")
-@click.option(
-    "--source",
-    required=True,
-    help="MLflow GenAI dataset name.",
-)
-@click.option(
-    "--limit",
-    default=5,
-    type=int,
-    help="Number of records to preview (default: 5).",
-)
-@click.option(
-    "--field-mapping",
-    default=None,
-    help="Path to a JSON file with field mapping overrides.",
-)
-@click.pass_context
-def preview_dataset_cmd(ctx, source, limit, field_mapping):
-    """Preview flattened records from an MLflow GenAI Dataset."""
-    _require_mlflow()
-    from feast.mlflow_integration.dataset_sync import (
-        _fetch_dataset_with_retry,
-        flatten_mlflow_dataset_df,
-    )
-    from feast.repo_operations import create_feature_store
-
-    store = create_feature_store(ctx)
-    tracking_uri = _resolve_tracking_uri(store)
-
-    if tracking_uri:
-        import mlflow
-
-        mlflow.set_tracking_uri(tracking_uri)
-
-    mapping = None
-    if field_mapping:
-        with open(field_mapping) as f:
-            mapping = json.load(f)
-
-    click.echo(f"Fetching dataset '{source}'...")
-    dataset = _fetch_dataset_with_retry(source)
-    if dataset is None:
-        raise click.ClickException(f"Failed to fetch MLflow dataset '{source}'.")
-
-    df = dataset.to_df()
-    click.echo(f"  Total records: {len(df)}")
-
-    if df.empty:
-        click.echo("  Dataset is empty.")
-        return
-
-    df = flatten_mlflow_dataset_df(df, field_mapping=mapping)
-    preview = df.head(limit)
-
-    click.echo(f"\nFlattened preview ({min(limit, len(df))} rows):")
-    click.echo(preview.to_string(index=False))
 
 
 @mlflow_cmd.command("sync-assessments")

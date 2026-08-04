@@ -27,7 +27,7 @@ Commands:
   init                     Create a new Feast repository
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
-  mlflow                   MLflow integration (dataset sync, trace export)
+  mlflow                   MLflow integration (trace export, assessment sync)
   permissions              Access permissions
   registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
@@ -499,15 +499,9 @@ This command only applies to SQL-based registries (`registry_type: sql`). It is 
 
 ## MLflow
 
-MLflow integration utilities for GenAI dataset sync and trace export. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+MLflow integration utilities for trace assessment sync and trace export. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
 
 ```bash
-# Sync MLflow GenAI EvaluationDataset → FeatureView (via MlflowDatasetSource)
-feast mlflow sync-dataset --feature-view mlflow_labels
-
-# Preview flattened dataset records
-feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
-
 # Sync trace assessments into a FeatureView/LabelView
 feast mlflow sync-assessments --experiment my_agent --feature-view agent_feedback --pivot
 
