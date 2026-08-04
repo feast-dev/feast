@@ -253,37 +253,28 @@ class LabelView(BaseFeatureView):
     def batch_source(self) -> Optional[DataSource]:
         """The batch data source for this label view.
 
-        If the source is a ``PushSource`` or ``MlflowDatasetSource``, returns
-        its underlying ``batch_source``. Otherwise returns the source
-        directly. This property enables compatibility with offline store
+        If the source is a ``PushSource``, returns its underlying
+        ``batch_source``. Otherwise returns the source directly.
+        This property enables compatibility with offline store
         ``get_historical_features`` implementations.
         """
         from feast.data_source import PushSource
-        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
-            MlflowDatasetSource,
-        )
 
         if self.source is None:
             return None
-        if isinstance(self.source, (PushSource, MlflowDatasetSource)):
+        if isinstance(self.source, PushSource):
             return self.source.batch_source
         return self.source
 
     @property
     def stream_source(self) -> Optional[DataSource]:
-        """The stream / pull-ingest data source for this label view.
+        """The stream data source for this label view.
 
-        Returns the source if it is a ``PushSource`` or
-        ``MlflowDatasetSource``, ``None`` otherwise.
+        Returns the source if it is a ``PushSource``, ``None`` otherwise.
         """
         from feast.data_source import PushSource
-        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
-            MlflowDatasetSource,
-        )
 
-        if self.source is not None and isinstance(
-            self.source, (PushSource, MlflowDatasetSource)
-        ):
+        if self.source is not None and isinstance(self.source, PushSource):
             return self.source
         return None
 
