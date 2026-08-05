@@ -165,11 +165,6 @@ func (authz *FeastAuthorization) setFeastClusterRole(clusterRole *rbacv1.Cluster
 			Verbs:     []string{verbCreate},
 		},
 		{
-			APIGroups: []string{rbacv1.GroupName},
-			Resources: []string{"subjectaccessreviews"},
-			Verbs:     []string{verbCreate},
-		},
-		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
 			Verbs:     []string{verbGet, verbList, verbWatch},
@@ -248,11 +243,6 @@ func (authz *FeastAuthorization) setFeastRole(role *rbacv1.Role) error {
 		{
 			APIGroups: []string{authenticationAPIGroup},
 			Resources: []string{resourceTokenReviews},
-			Verbs:     []string{verbCreate},
-		},
-		{
-			APIGroups: []string{rbacv1.GroupName},
-			Resources: []string{"subjectaccessreviews"},
 			Verbs:     []string{verbCreate},
 		},
 		{
