@@ -2516,13 +2516,13 @@ class FeatureStore:
         endpoint: str,
         payload: Dict[str, Any],
         force: bool = False,
-        run_async: bool = True,
+        run_async: bool = False,
     ) -> None:
         """POST materialize to the feature server.
 
-        When run_async=True (default), sends ?async=true and returns after 202.
-        When run_async=False, omits async and blocks until the server finishes
-        synchronous materialization (HTTP response).
+        When run_async=False (default), omits async and blocks until the server
+        finishes synchronous materialization (HTTP response).
+        When run_async=True, sends ?async=true and returns after 202.
         force=True is only valid with run_async=True (server force applies to async).
         """
         if force and not run_async:
@@ -2550,7 +2550,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         version: Optional[str] = None,
         force: bool = False,
-        run_async: bool = True,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2571,9 +2571,9 @@ class FeatureStore:
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
             force (bool): When using remote topology with run_async=True, pass force=true to
                 override stuck MATERIALIZING state on the feature server. Ignored for local topology.
-            run_async (bool): When using remote topology, if True (default) POST with ?async=true
-                and return after 202. If False, POST without async and block until the server
-                finishes sync materialization. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2794,7 +2794,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         version: Optional[str] = None,
         force: bool = False,
-        run_async: bool = True,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2815,9 +2815,9 @@ class FeatureStore:
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
             force (bool): When using remote topology with run_async=True, pass force=true to
                 override stuck MATERIALIZING state on the feature server. Ignored for local topology.
-            run_async (bool): When using remote topology, if True (default) POST with ?async=true
-                and return after 202. If False, POST without async and block until the server
-                finishes sync materialization. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Examples:
             Materialize all features into the online store over the interval
