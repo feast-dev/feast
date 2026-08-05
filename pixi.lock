@@ -2415,8 +2415,8 @@ packages:
   requires_python: '>=3.10'
 - pypi: ./
   name: feast
-  version: 0.65.1.dev42+ged6949d29.d20260731
-  sha256: 72b52d966189e5b58868efa432686071038a78155cc7490dfbd44061337ca95b
+  version: 0.65.1.dev49+g1e34d7c88.d20260805
+  sha256: 38e3fbc5e3f1e500ccb2e97a6ae2f818c5368fcaaa1a36d7f1d61cf25df2b41a
   requires_dist:
   - attrs
   - click>=7.0.0,<9.0.0
