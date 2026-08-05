@@ -212,22 +212,39 @@ var _ = Describe("Repo Config", func() {
 				string(OidcClientId):         clientIDValue,
 				string(OidcClientSecret):     "client-secret",
 				string(OidcUsername):         "username",
-				string(OidcPassword):         "password"})
+				string(OidcPassword):         "password",
+				string(OidcAudience):         "api://feast-feature-server",
+				string(OidcIssuer):           "https://login.example.com/realms/master"})
 			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
-			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(5))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveLen(7))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientId)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcAuthDiscoveryUrl)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcClientSecret)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcUsername)))
 			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKey(string(OidcPassword)))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcAudience), "api://feast-feature-server"))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcIssuer), "https://login.example.com/realms/master"))
 			Expect(repoConfig.OfflineStore).To(Equal(expectedOfflineConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(defaultOnlineStoreConfig(featureStore)))
 			Expect(repoConfig.Registry).To(Equal(defaultRegistryConfig(featureStore)))
 
 			repoConfig = getClientRepoConfig(featureStore, nil)
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
+
+			By("Coercing numeric audience and issuer Secret values to strings")
+			secretExtractionFunc = mockOidcConfigFromSecret(map[string]interface{}{
+				string(OidcAuthDiscoveryUrl): "discovery-url",
+				string(OidcClientId):         clientIDValue,
+				// Secret extraction YAML-parses values, so an all-digits
+				// audience/issuer reaches this code as an int.
+				string(OidcAudience): 1234567890,
+				string(OidcIssuer):   9876543210})
+			repoConfig, err = getServiceRepoConfig(featureStore, secretExtractionFunc, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcAudience), "1234567890"))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(string(OidcIssuer), "9876543210"))
 
 			By("Having oidc authorization with issuerUrl only (no Secret)")
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{

@@ -493,6 +493,8 @@ func expectedServerOidcAuthorizConfig() services.AuthzConfig {
 			string(services.OidcClientSecret):     "client-secret",
 			string(services.OidcUsername):         "username",
 			string(services.OidcPassword):         "password",
+			string(services.OidcAudience):         "api://feast-feature-server",
+			string(services.OidcIssuer):           "https://keycloak.example.com/realms/test",
 		},
 	}
 }
@@ -509,6 +511,8 @@ func validOidcSecretMap() map[string]string {
 		string(services.OidcClientSecret):     "client-secret",
 		string(services.OidcUsername):         "username",
 		string(services.OidcPassword):         "password",
+		string(services.OidcAudience):         "api://feast-feature-server",
+		string(services.OidcIssuer):           "https://keycloak.example.com/realms/test",
 	}
 }
 
