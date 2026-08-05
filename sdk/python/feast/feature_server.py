@@ -974,7 +974,7 @@ def get_app(
                             f"Async materialization failed for {fv_names}: {e}",
                             exc_info=True,
                         )
-                        _update_fv_state(store, fv_names, FeatureViewState.GENERATED)
+                        _reset_stuck_materializing_to_generated(store, fv_names)
 
                 loop = asyncio.get_running_loop()
                 loop.run_in_executor(None, _run_materialize)
@@ -1029,7 +1029,7 @@ def get_app(
                             f"Async materialize-incremental failed for {fv_names}: {e}",
                             exc_info=True,
                         )
-                        _update_fv_state(store, fv_names, FeatureViewState.GENERATED)
+                        _reset_stuck_materializing_to_generated(store, fv_names)
 
                 loop = asyncio.get_running_loop()
                 loop.run_in_executor(None, _run_materialize_incremental)
