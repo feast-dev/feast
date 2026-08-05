@@ -77,7 +77,7 @@ class OidcTokenParser(TokenParser):
             )
         return self._jwks_client
 
-    async def _validate_token(self, access_token: str):
+    async def _check_discovery_endpoints(self, access_token: str):
         """Check that the provider's discovery document exposes the OAuth2 endpoints.
 
         This does **not** verify *access_token*, despite taking it: the bearer
@@ -227,7 +227,7 @@ class OidcTokenParser(TokenParser):
 
         # Standard OIDC / Keycloak flow
         try:
-            await self._validate_token(access_token)
+            await self._check_discovery_endpoints(access_token)
             logger.debug("OIDC discovery document exposes the expected endpoints.")
         except Exception as e:
             if self._is_ssl_error(e):
