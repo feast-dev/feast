@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import logging
-import os
 import sys
 import tempfile
 import types
@@ -593,43 +592,39 @@ def test_list_feature_views_updated_since_naive_treated_as_utc(sqlite_registry):
 
 
 class TestSchemaMode:
-    def test_schema_mode_auto_creates_tables(self):
+    def test_schema_mode_auto_creates_tables(self, tmp_path):
         """Default schema_mode='auto' creates tables on init (existing behavior)."""
-        fd, path = tempfile.mkstemp()
-        os.close(fd)
+        db_file = tmp_path / "auto.db"
         config = SqlRegistryConfig(
             registry_type="sql",
-            path=f"sqlite:///{path}",
+            path=f"sqlite:///{db_file}",
             schema_mode="auto",
         )
         registry = SqlRegistry(config, "test_project", None)
         from sqlalchemy import create_engine, inspect
 
-        engine = create_engine(f"sqlite:///{path}")
+        engine = create_engine(f"sqlite:///{db_file}")
         tables = set(inspect(engine).get_table_names())
         expected = set(registry_metadata.tables.keys())
         assert expected.issubset(tables)
         engine.dispose()
         registry.teardown()
 
-    def test_schema_mode_verify_raises_when_tables_missing(self):
+    def test_schema_mode_verify_raises_when_tables_missing(self, tmp_path):
         """schema_mode='verify' raises FeastRegistrySchemaError on empty database."""
-        fd, path = tempfile.mkstemp()
-        os.close(fd)
+        db_file = tmp_path / "verify_empty.db"
         config = SqlRegistryConfig(
             registry_type="sql",
-            path=f"sqlite:///{path}",
+            path=f"sqlite:///{db_file}",
             schema_mode="verify",
         )
         with pytest.raises(FeastRegistrySchemaError, match="missing tables"):
             SqlRegistry(config, "test_project", None)
 
-    def test_schema_mode_verify_passes_when_tables_exist(self):
+    def test_schema_mode_verify_passes_when_tables_exist(self, tmp_path):
         """schema_mode='verify' succeeds when schema was pre-created."""
-        fd, path = tempfile.mkstemp()
-        os.close(fd)
-        db_url = f"sqlite:///{path}"
-        # Pre-create the schema
+        db_file = tmp_path / "verify_ok.db"
+        db_url = f"sqlite:///{db_file}"
         from sqlalchemy import create_engine
 
         engine = create_engine(db_url)
@@ -644,25 +639,30 @@ class TestSchemaMode:
         registry = SqlRegistry(config, "test_project", None)
         registry.teardown()
 
-    def test_schema_mode_skip_does_not_run_ddl(self):
-        """schema_mode='skip' skips DDL — tables must already exist."""
-        fd, path = tempfile.mkstemp()
-        os.close(fd)
-        db_url = f"sqlite:///{path}"
-        # Pre-create the schema externally
+    def test_schema_mode_skip_does_not_run_ddl(self, tmp_path):
+        """schema_mode='skip' calls neither create_all nor _verify_schema."""
+        from unittest.mock import patch
+
+        db_file = tmp_path / "skip.db"
+        db_url = f"sqlite:///{db_file}"
         from sqlalchemy import create_engine
 
         engine = create_engine(db_url)
         registry_metadata.create_all(engine)
         engine.dispose()
 
-        config = SqlRegistryConfig(
-            registry_type="sql",
-            path=db_url,
-            schema_mode="skip",
-        )
-        registry = SqlRegistry(config, "test_project", None)
-        registry.teardown()
+        with (
+            patch.object(registry_metadata, "create_all") as mock_create,
+            patch.object(SqlRegistry, "_verify_schema") as mock_verify,
+        ):
+            config = SqlRegistryConfig(
+                registry_type="sql",
+                path=db_url,
+                schema_mode="skip",
+            )
+            SqlRegistry(config, "test_project", None)
+            mock_create.assert_not_called()
+            mock_verify.assert_not_called()
 
     def test_schema_mode_invalid_value_rejected(self):
         """schema_mode only accepts 'auto', 'verify', 'skip'."""

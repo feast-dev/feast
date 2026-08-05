@@ -326,7 +326,7 @@ class SqlRegistryConfig(RegistryConfig):
 
 
 class FeastRegistrySchemaError(Exception):
-    def __init__(self, missing_tables: list[str]) -> None:
+    def __init__(self, missing_tables: List[str]) -> None:
         tables = ", ".join(missing_tables)
         super().__init__(
             f"SQL registry schema is incomplete — missing tables: {tables}. "
@@ -362,6 +362,8 @@ class SqlRegistry(CachingRegistry):
             metadata.create_all(self.write_engine)
         elif registry_config.schema_mode == "verify":
             self._verify_schema(self.write_engine)
+            if self.read_engine is not self.write_engine:
+                self._verify_schema(self.read_engine)
         self._warn_if_narrow_blob_columns(self.write_engine)
         if self.read_engine is not self.write_engine:
             # A read replica can be on a different schema version (e.g. mid

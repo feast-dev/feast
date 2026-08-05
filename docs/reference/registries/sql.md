@@ -94,7 +94,7 @@ registry:
 | Value | Behavior |
 |---|---|
 | `auto` (default) | Creates tables if they don't exist. Current behavior, no breaking change. |
-| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. |
+| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. Note: this is a table-level check only — it does not verify individual columns. A schema created by an older Feast version (missing newer columns) will pass verification but may fail at query time. |
 | `skip` | Skips both creation and verification. Use when schema is managed entirely outside Feast (e.g. by a migration tool). |
 
 ### Pre-creating the schema
@@ -109,7 +109,7 @@ This reads `feature_store.yaml`, connects to the configured database, and create
 
 There are some things to note about how the SQL registry works:
 - When `schema_mode` is `auto` (the default), the Registry ensures the tables needed to store data exist, and creates them if they do not.
-- Upon tearing down the feast project, the registry ensures that the tables are dropped from the database.
+- Upon tearing down the feast project, the registry deletes all rows from the registry tables (it does not drop the tables themselves). This runs regardless of `schema_mode` and requires only DML (`DELETE`) privileges, not DDL.
 - The schema for how data is laid out in tables can be found in the table definitions in [`sdk/python/feast/infra/registry/sql.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/registry/sql.py). It is intentionally simple, storing the serialized protobuf versions of each Feast object keyed by its name.
 
 ## MySQL: serialized-proto columns use `LONGBLOB`
