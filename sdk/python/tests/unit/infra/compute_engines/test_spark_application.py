@@ -25,6 +25,7 @@ def _make_repo_config(
 ):
     """Build a mock RepoConfig for testing."""
     config = MagicMock()
+    config.project = "test"
     config.online_store = MagicMock()
     config.online_store.type = online_store_type
     config.offline_store = MagicMock()
@@ -205,6 +206,30 @@ def test_cr_driver_env_passthrough():
     assert (
         spark_conf["spark.kubernetes.driverEnv.FEAST_CONFIGMAP_NAMESPACE"] == "default"
     )
+
+
+def test_cr_openlineage_job_name_is_stable():
+    """Each SparkApplication CR is unique, but OL job name is per-project."""
+    from feast.openlineage.identity import LineageParentContext
+
+    engine = _make_engine()
+    parent = LineageParentContext(
+        job_namespace="test",
+        job_name="materialize_test",
+        run_id="run-123",
+    )
+    cr_a = engine._build_spark_application_cr("abcd1234", lineage_parent=parent)
+    cr_b = engine._build_spark_application_cr("efgh5678", lineage_parent=parent)
+    conf_a = cr_a["spec"]["sparkConf"]
+    conf_b = cr_b["spec"]["sparkConf"]
+    assert cr_a["metadata"]["name"] == "feast-sa-abcd1234"
+    assert cr_b["metadata"]["name"] == "feast-sa-efgh5678"
+    assert conf_a["spark.app.name"] == "feast-sa-abcd1234"
+    assert conf_b["spark.app.name"] == "feast-sa-efgh5678"
+    assert conf_a["spark.openlineage.appName"] == "spark_compute_test"
+    assert conf_b["spark.openlineage.appName"] == "spark_compute_test"
+    assert conf_a["spark.openlineage.parentJobName"] == "materialize_test"
+    assert conf_a["spark.openlineage.parentRunId"] == "run-123"
 
 
 # ── Test 9: Status mapping covers all 14 states ──

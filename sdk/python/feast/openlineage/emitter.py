@@ -97,25 +97,44 @@ class FeastOpenLineageEmitter:
         """Get the default namespace."""
         return self._config.namespace
 
+    def namespace_for(self, project: str) -> str:
+        """Public OpenLineage namespace for a Feast project."""
+        from feast.openlineage.identity import resolve_namespace
+
+        return resolve_namespace(self._config.namespace, project)
+
     def _get_namespace(self, project: str) -> str:
+        """Backward-compatible alias for :meth:`namespace_for`."""
+        return self.namespace_for(project)
+
+    def _job_kind_facets(self, kind: str, project: str) -> Dict[str, Any]:
+        from feast.openlineage.facets import FeastJobKindFacet
+        from feast.openlineage.identity import FeastJobKind
+
+        kind_value = kind.value if isinstance(kind, FeastJobKind) else str(kind)
+        return {
+            "feast_jobKind": FeastJobKindFacet(
+                kind=kind_value,
+                feast_project=project,
+            )
+        }
+
+    def teardown_project(self, project: str) -> None:
+        """Purge consumer-store lineage for this project's namespace.
+
+        No-op when the OpenLineage consumer is disabled or has no connection.
         """
-        Get the OpenLineage namespace for a project.
+        consumer_cfg = getattr(self._config, "consumer", None)
+        if not consumer_cfg or not getattr(consumer_cfg, "enabled", False):
+            return
+        conn_str = getattr(consumer_cfg, "connection_string", None)
+        if not conn_str:
+            return
+        from feast.openlineage.store import OpenLineageStore
 
-        By default, uses the Feast project name as the namespace.
-        If an explicit namespace is configured (not the default "feast"),
-        it will be used as a prefix: {namespace}/{project}
-
-        Args:
-            project: Feast project name
-
-        Returns:
-            OpenLineage namespace string
-        """
-        # If namespace is default "feast", just use project name
-        if self._config.namespace == "feast":
-            return project
-        # If custom namespace is configured, use it as prefix
-        return f"{self._config.namespace}/{project}"
+        OpenLineageStore(connection_string=conn_str).purge_namespace(
+            self.namespace_for(project)
+        )
 
     def emit_registry_lineage(
         self,
@@ -474,6 +493,8 @@ class FeastOpenLineageEmitter:
         end_date: datetime,
         project: str,
         run_id: Optional[str] = None,
+        online_store_type: str = "online",
+        online_store: Any = None,
     ) -> Tuple[str, bool]:
         """
         Emit a START event for a materialization run.
@@ -484,6 +505,10 @@ class FeastOpenLineageEmitter:
             end_date: End of materialization window
             project: Project name
             run_id: Optional run ID (will be generated if not provided)
+            online_store_type: Backend type for the online store sink (redis, …)
+            online_store: Optional RepoConfig.online_store; when set, type is
+                resolved via :func:`resolve_online_store_type` and overrides
+                ``online_store_type``.
 
         Returns:
             Tuple of (run_id, success)
@@ -492,21 +517,38 @@ class FeastOpenLineageEmitter:
             return "", False
 
         from feast.openlineage.facets import FeastMaterializationFacet
+        from feast.openlineage.identity import (
+            FeastJobKind,
+            materialize_job_name,
+        )
         from feast.openlineage.mappers import (
             data_source_to_dataset,
+            feature_view_to_dataset,
             online_store_to_dataset,
+            resolve_online_store_type,
         )
+
+        if online_store is not None:
+            online_store_type = resolve_online_store_type(online_store)
 
         run_id = run_id or str(uuid.uuid4())
 
         try:
-            namespace = self._get_namespace(project)
+            namespace = self.namespace_for(project)
 
             # Build inputs (data sources) - include both batch and stream sources
             inputs = []
             seen_sources = set()  # Track source names to avoid duplicates
 
             for fv in feature_views:
+                # FeatureView as input — same dataset name as feast apply, with
+                # feast_featureView facet so mapping/metadata survive materialize.
+                if fv.name and fv.name not in seen_sources:
+                    seen_sources.add(fv.name)
+                    inputs.append(
+                        feature_view_to_dataset(fv, namespace=namespace, as_input=True)
+                    )
+
                 # Add batch source
                 if hasattr(fv, "batch_source") and fv.batch_source:
                     source_name = getattr(fv.batch_source, "name", None)
@@ -533,8 +575,10 @@ class FeastOpenLineageEmitter:
                             )
                         )
 
-                # Add entities as inputs (use direct name for consistency with emit_apply)
+                # Add entities as inputs with feast_entity facet for mapping
                 if hasattr(fv, "entities") and fv.entities:
+                    from feast.openlineage.facets import FeastEntityFacet
+
                     for entity_name in fv.entities:
                         if entity_name and entity_name != "__dummy":
                             if entity_name not in seen_sources:
@@ -543,13 +587,23 @@ class FeastOpenLineageEmitter:
                                     InputDataset(
                                         namespace=namespace,
                                         name=entity_name,
+                                        facets={
+                                            "feast_entity": FeastEntityFacet(
+                                                name=entity_name,
+                                                join_keys=[],
+                                                value_type="STRING",
+                                                description="",
+                                                owner="",
+                                                tags={},
+                                            )
+                                        },
                                     )
                                 )
 
-            # Build outputs (online store entries)
+            # Build outputs — physical online-store sinks (not FeatureView nodes)
             outputs = [
                 online_store_to_dataset(
-                    store_type="online_store",
+                    store_type=online_store_type,
                     feature_view_name=fv.name,
                     namespace=namespace,
                 )
@@ -563,15 +617,18 @@ class FeastOpenLineageEmitter:
                     start_date=start_date.isoformat() if start_date else None,
                     end_date=end_date.isoformat() if end_date else None,
                     project=project,
+                    online_store_type=online_store_type or "",
                 )
             }
+            job_facets = self._job_kind_facets(FeastJobKind.TRANSFORM, project)
 
             success = self._client.emit_run_event(
-                job_name=f"materialize_{project}",
+                job_name=materialize_job_name(project),
                 run_id=run_id,
                 event_type=RunState.START,
                 inputs=inputs,
                 outputs=outputs,
+                job_facets=job_facets,
                 run_facets=run_facets,
                 namespace=namespace,
             )
@@ -587,6 +644,8 @@ class FeastOpenLineageEmitter:
         feature_views: List["FeatureView"],
         project: str,
         rows_written: Optional[int] = None,
+        online_store_type: str = "online",
+        online_store: Any = None,
     ) -> bool:
         """
         Emit a COMPLETE event for a materialization run.
@@ -596,6 +655,8 @@ class FeastOpenLineageEmitter:
             feature_views: Feature views that were materialized
             project: Project name
             rows_written: Optional count of rows written
+            online_store_type: Backend type for the online store sink (redis, …)
+            online_store: Optional RepoConfig.online_store; overrides type when set.
 
         Returns:
             True if successful, False otherwise
@@ -604,14 +665,32 @@ class FeastOpenLineageEmitter:
             return False
 
         from feast.openlineage.facets import FeastMaterializationFacet
-        from feast.openlineage.mappers import online_store_to_dataset
+        from feast.openlineage.identity import (
+            FeastJobKind,
+            materialize_job_name,
+        )
+        from feast.openlineage.mappers import (
+            feature_view_to_dataset,
+            online_store_to_dataset,
+            resolve_online_store_type,
+        )
+
+        if online_store is not None:
+            online_store_type = resolve_online_store_type(online_store)
 
         try:
-            namespace = self._get_namespace(project)
+            namespace = self.namespace_for(project)
+
+            # Keep FeatureView as input on COMPLETE so edges stay consistent with START.
+            inputs = [
+                feature_view_to_dataset(fv, namespace=namespace, as_input=True)
+                for fv in feature_views
+                if fv.name
+            ]
 
             outputs = [
                 online_store_to_dataset(
-                    store_type="online_store",
+                    store_type=online_store_type,
                     feature_view_name=fv.name,
                     namespace=namespace,
                 )
@@ -623,14 +702,18 @@ class FeastOpenLineageEmitter:
                     feature_views=[fv.name for fv in feature_views],
                     project=project,
                     rows_written=rows_written,
+                    online_store_type=online_store_type or "",
                 )
             }
+            job_facets = self._job_kind_facets(FeastJobKind.TRANSFORM, project)
 
             return self._client.emit_run_event(
-                job_name=f"materialize_{project}",
+                job_name=materialize_job_name(project),
                 run_id=run_id,
                 event_type=RunState.COMPLETE,
+                inputs=inputs,
                 outputs=outputs,
+                job_facets=job_facets,
                 run_facets=run_facets,
                 namespace=namespace,
             )
@@ -661,18 +744,25 @@ class FeastOpenLineageEmitter:
         try:
             from openlineage.client.facet_v2 import error_message_run
 
-            namespace = self._get_namespace(project)
+            from feast.openlineage.identity import (
+                FeastJobKind,
+                materialize_job_name,
+            )
+
+            namespace = self.namespace_for(project)
             run_facets = {}
             if error_message:
                 run_facets["errorMessage"] = error_message_run.ErrorMessageRunFacet(
                     message=error_message,
                     programmingLanguage="python",
                 )
+            job_facets = self._job_kind_facets(FeastJobKind.TRANSFORM, project)
 
             return self._client.emit_run_event(
-                job_name=f"materialize_{project}",
+                job_name=materialize_job_name(project),
                 run_id=run_id,
                 event_type=RunState.FAIL,
+                job_facets=job_facets,
                 run_facets=run_facets,
                 namespace=namespace,
             )
@@ -891,14 +981,20 @@ class FeastOpenLineageEmitter:
                     )
 
                 # Emit Job 1: Feature Views job
+                from feast.openlineage.identity import (
+                    FeastJobKind,
+                    feature_views_job_name,
+                )
+
                 job_facets = {
                     "feast_project": FeastProjectFacet(
                         project_name=project,
-                    )
+                    ),
+                    **self._job_kind_facets(FeastJobKind.DEFINITION, project),
                 }
 
                 result1 = self._client.emit_run_event(
-                    job_name=f"feast_feature_views_{project}",
+                    job_name=feature_views_job_name(project),
                     run_id=str(uuid.uuid4()),
                     event_type=RunState.COMPLETE,
                     inputs=fv_inputs,
@@ -1007,14 +1103,20 @@ class FeastOpenLineageEmitter:
                 )
 
                 # Emit a job for this specific FeatureService
+                from feast.openlineage.identity import (
+                    FeastJobKind,
+                    feature_service_job_name,
+                )
+
                 job_facets = {
                     "feast_project": FeastProjectFacet(
                         project_name=project,
-                    )
+                    ),
+                    **self._job_kind_facets(FeastJobKind.DEFINITION, project),
                 }
 
                 result = self._client.emit_run_event(
-                    job_name=f"feature_service_{fs.name}",  # Prefix to avoid conflict with dataset
+                    job_name=feature_service_job_name(fs.name),
                     run_id=str(uuid.uuid4()),
                     event_type=RunState.COMPLETE,
                     inputs=fs_inputs,

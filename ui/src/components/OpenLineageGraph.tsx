@@ -41,24 +41,25 @@ const nodeHeight = 65;
 
 // ── Producer-based colors (generated dynamically) ──
 
-const normalizeProducer = (producer?: string | null): string => {
+/**
+ * Label for producer badges / filters.
+ * User-configured names are shown as-is. Long OpenLineage producer URLs
+ * (e.g. …/integration/spark) are shortened to the last path segment so the
+ * UI stays readable.
+ */
+const displayProducer = (producer?: string | null): string => {
   if (!producer) return "unknown";
-  const p = producer.toLowerCase().trim();
-
-  // Extract the last meaningful path segment from URLs like
-  // "https://github.com/OpenLineage/OpenLineage/tree/1.0.0/integration/airflow"
+  const trimmed = producer.trim();
   try {
-    const url = new URL(p);
+    const url = new URL(trimmed);
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments.length > 0) {
-      return segments[segments.length - 1].replace(/-/g, "_");
+      return segments[segments.length - 1];
     }
   } catch {
-    // not a URL
+    // not a URL — keep configured value unchanged
   }
-
-  // For plain names like "feast" or "my-custom-producer", just clean up
-  return p.replace(/-/g, "_").replace(/\s+/g, "_");
+  return trimmed;
 };
 
 const hashString = (str: string): number => {
@@ -82,7 +83,7 @@ const generateProducerColor = (
 const producerColorCache: Record<string, { main: string; light: string }> = {};
 
 const getProducerColors = (producer?: string | null) => {
-  const key = normalizeProducer(producer);
+  const key = displayProducer(producer);
   if (!producerColorCache[key]) {
     producerColorCache[key] = generateProducerColor(key);
   }
@@ -91,6 +92,179 @@ const getProducerColors = (producer?: string | null) => {
 
 const getNodeIcon = (type: string) => {
   return type === "job" ? "\u2699" : "\u2B21";
+};
+
+const nodeKey = (type: string, ns: string, name: string) =>
+  `${type}:${ns}:${name}`;
+
+/**
+ * Runtime transform jobs appear as pills on the Lineage graph.
+ * Prefer server-provided job_type (from feast_jobKind facet). Fall back to
+ * known Feast emit conventions for events emitted before jobKind existed.
+ */
+const isRuntimeTransformJob = (
+  name: string,
+  producer?: string | null,
+  jobType?: string | null,
+): boolean => {
+  const kind = (jobType || "").toLowerCase();
+  if (kind === "transform") return true;
+  if (kind === "definition") return false;
+
+  const n = (name || "").toLowerCase();
+  if (
+    n.startsWith("feature_service_") ||
+    n.startsWith("feast_feature_views_") ||
+    n.startsWith("feast_feature_services_")
+  ) {
+    return false;
+  }
+  if (n.startsWith("materialize_")) return true;
+  if (n.startsWith("spark_compute_")) return true;
+  if (n.startsWith("stream_")) return true;
+  if (n.startsWith("on_demand_feature_view_")) return true;
+  const p = (producer || "").toLowerCase();
+  if (p.includes("/integration/spark")) return true;
+  return false;
+};
+
+/**
+ * Lineage graph: datasets + runtime transform jobs (materialize, Spark, …).
+ * Definition relationships (source→FV, FV→FeatureService) stay as derived
+ * dataset edges. Derived shortcuts are omitted only when a *transform* job
+ * already connects the same pair.
+ */
+const buildLineageGraphSlice = (
+  olData: OpenLineageGraphData,
+): { nodes: OpenLineageNode[]; edges: OpenLineageGraphData["edges"] } => {
+  const makeId = (type: string, ns: string, name: string) =>
+    nodeKey(type, ns, name);
+
+  const jobById = new Map(
+    olData.nodes
+      .filter((n) => n.type === "job")
+      .map((n) => [makeId(n.type, n.namespace, n.name), n]),
+  );
+
+  const ioEdges = olData.edges.filter(
+    (e) => e.edge_type === "input" || e.edge_type === "output",
+  );
+  const parentEdges = olData.edges.filter((e) => e.edge_type === "parent");
+  const symlinkEdges = olData.edges.filter((e) => e.edge_type === "symlink");
+  const derivedEdges = olData.edges.filter((e) => e.edge_type === "derived");
+
+  const isTransformJobId = (id: string) => {
+    const job = jobById.get(id);
+    if (!job) return false;
+    return isRuntimeTransformJob(job.name, job.producer, job.job_type);
+  };
+
+  const jobsOnPath = new Set<string>();
+  for (const e of ioEdges) {
+    if (e.source_type === "job") {
+      const id = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (isTransformJobId(id)) jobsOnPath.add(id);
+    }
+    if (e.target_type === "job") {
+      const id = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (isTransformJobId(id)) jobsOnPath.add(id);
+    }
+  }
+
+  // Pull in parent/child compute jobs (e.g. materialize → Spark)
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of parentEdges) {
+      const src = makeId(e.source_type, e.source_namespace, e.source_name);
+      const tgt = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (
+        jobsOnPath.has(src) &&
+        !jobsOnPath.has(tgt) &&
+        isTransformJobId(tgt)
+      ) {
+        jobsOnPath.add(tgt);
+        grew = true;
+      }
+      if (
+        jobsOnPath.has(tgt) &&
+        !jobsOnPath.has(src) &&
+        isTransformJobId(src)
+      ) {
+        jobsOnPath.add(src);
+        grew = true;
+      }
+    }
+  }
+
+  const nodes = olData.nodes.filter(
+    (n) =>
+      n.type === "dataset" ||
+      (n.type === "job" && jobsOnPath.has(makeId(n.type, n.namespace, n.name))),
+  );
+  const nodeIds = new Set(
+    nodes.map((n) => makeId(n.type, n.namespace, n.name)),
+  );
+
+  // Only transform-job I/O suppresses derived dataset shortcuts
+  const mediatedPairs = new Set<string>();
+  const jobInputs = new Map<string, Set<string>>();
+  const jobOutputs = new Map<string, Set<string>>();
+  for (const e of ioEdges) {
+    if (e.edge_type === "input" && e.target_type === "job") {
+      const jid = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (!jobsOnPath.has(jid)) continue;
+      const did = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (!jobInputs.has(jid)) jobInputs.set(jid, new Set());
+      jobInputs.get(jid)!.add(did);
+    }
+    if (e.edge_type === "output" && e.source_type === "job") {
+      const jid = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (!jobsOnPath.has(jid)) continue;
+      const did = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (!jobOutputs.has(jid)) jobOutputs.set(jid, new Set());
+      jobOutputs.get(jid)!.add(did);
+    }
+  }
+  for (const jid of Array.from(jobInputs.keys())) {
+    const inputs = jobInputs.get(jid)!;
+    const outputs = jobOutputs.get(jid);
+    if (!outputs) continue;
+    Array.from(inputs).forEach((inn) => {
+      Array.from(outputs).forEach((out) => {
+        mediatedPairs.add(`${inn}=>${out}`);
+      });
+    });
+  }
+
+  const keepEdge = (e: OpenLineageGraphData["edges"][number]) => {
+    const src = makeId(e.source_type, e.source_namespace, e.source_name);
+    const tgt = makeId(e.target_type, e.target_namespace, e.target_name);
+    if (!nodeIds.has(src) || !nodeIds.has(tgt)) return false;
+    if (e.edge_type === "derived") {
+      return !mediatedPairs.has(`${src}=>${tgt}`);
+    }
+    // Drop I/O edges for definition jobs (those jobs are not on the graph)
+    if (e.edge_type === "input" || e.edge_type === "output") {
+      if (e.source_type === "job" && !jobsOnPath.has(src)) return false;
+      if (e.target_type === "job" && !jobsOnPath.has(tgt)) return false;
+    }
+    return (
+      e.edge_type === "input" ||
+      e.edge_type === "output" ||
+      e.edge_type === "parent" ||
+      e.edge_type === "symlink"
+    );
+  };
+
+  const edges = [
+    ...ioEdges,
+    ...parentEdges,
+    ...symlinkEdges,
+    ...derivedEdges,
+  ].filter(keepEdge);
+
+  return { nodes, edges };
 };
 
 // ── Custom Node ──
@@ -108,7 +282,8 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
   const [isHovered, setIsHovered] = useState(false);
   const colors = getProducerColors(data.producer);
   const icon = getNodeIcon(data.type);
-  const producerLabel = normalizeProducer(data.producer);
+  const producerLabel = displayProducer(data.producer);
+  const isJob = data.type === "job";
 
   const handleClick = () => {
     if (data.onNodeClick && data.nodeRef) {
@@ -120,10 +295,12 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
     <div
       style={{
         background: colors.light,
-        borderRadius: 8,
+        borderRadius: isJob ? 20 : 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: `2px solid ${colors.main}`,
+        border: isJob
+          ? `2px dashed ${colors.main}`
+          : `2px solid ${colors.main}`,
         display: "flex",
         alignItems: "stretch",
         position: "relative",
@@ -149,7 +326,7 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
           zIndex: 5,
         }}
       >
-        {producerLabel}
+        {isJob ? "transform" : producerLabel}
       </div>
 
       {data.namespace && isHovered && (
@@ -190,6 +367,7 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
         style={{
           flex: 1,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           padding: "0 10px",
@@ -198,7 +376,21 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
           color: "#333333",
         }}
       >
-        {data.label}
+        <div
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {data.label}
+        </div>
+        {isJob && (
+          <div style={{ fontSize: 10, color: "#666", fontWeight: 400 }}>
+            click for runs
+          </div>
+        )}
       </div>
       <Handle
         type="source"
@@ -539,6 +731,7 @@ const NodeDetailPanel: React.FC<{
   const sqlFacet = facets.sql;
   const dataSource = facets.dataSource;
   const ownership = facets.ownership;
+  const onlineStore = facets.feast_onlineStore;
 
   const knownFacetKeys = new Set([
     "schema",
@@ -546,6 +739,8 @@ const NodeDetailPanel: React.FC<{
     "feast_featureView",
     "feast_featureService",
     "feast_entity",
+    "feast_dataSource",
+    "feast_onlineStore",
     "dataQualityMetrics",
     "sql",
     "dataSource",
@@ -602,9 +797,7 @@ const NodeDetailPanel: React.FC<{
         </button>
       </div>
 
-      <EuiBadge color={colors.main}>
-        {normalizeProducer(node.producer)}
-      </EuiBadge>
+      <EuiBadge color={colors.main}>{displayProducer(node.producer)}</EuiBadge>
       {node.job_type && (
         <EuiBadge color="hollow" style={{ marginLeft: 4 }}>
           {node.job_type}
@@ -737,7 +930,11 @@ const NodeDetailPanel: React.FC<{
           </div>
           {node.feast_object_name && (
             <div>
-              <span style={{ color: "#888" }}>Name:</span>{" "}
+              <span style={{ color: "#888" }}>
+                {node.feast_object_type === "onlineStore"
+                  ? "Feature View:"
+                  : "Name:"}
+              </span>{" "}
               {node.feast_object_name}
             </div>
           )}
@@ -745,6 +942,24 @@ const NodeDetailPanel: React.FC<{
             <div>
               <span style={{ color: "#888" }}>Project:</span>{" "}
               {node.feast_project}
+            </div>
+          )}
+        </div>
+      )}
+
+      {onlineStore && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Online Store</div>
+          {onlineStore.store_type && (
+            <div>
+              <span style={{ color: "#888" }}>Backend:</span>{" "}
+              {onlineStore.store_type}
+            </div>
+          )}
+          {onlineStore.feature_view && (
+            <div>
+              <span style={{ color: "#888" }}>Feature View:</span>{" "}
+              {onlineStore.feature_view}
             </div>
           )}
         </div>
@@ -843,11 +1058,27 @@ const NodeDetailPanel: React.FC<{
       )}
 
       {node.type === "job" && (
-        <RunHistorySection
-          jobNamespace={node.namespace}
-          jobName={node.name}
-          isDarkMode={isDarkMode}
-        />
+        <>
+          <div
+            style={{
+              marginTop: 14,
+              padding: "8px 10px",
+              background: isDarkMode ? "#2a2b30" : "#f4f6f8",
+              borderRadius: 6,
+              fontSize: 12,
+              color: isDarkMode ? "#bbb" : "#555",
+            }}
+          >
+            Materialization / compute run. Select a run below for inputs,
+            outputs, and status. (FeatureService membership is not a transform —
+            that stays as dataset links.)
+          </div>
+          <RunHistorySection
+            jobNamespace={node.namespace}
+            jobName={node.name}
+            isDarkMode={isDarkMode}
+          />
+        </>
       )}
     </div>
   );
@@ -860,6 +1091,12 @@ interface LineageGraphProps {
   olLoading: boolean;
   olError: boolean;
   feastOnlyCheckbox?: React.ReactNode;
+  /**
+   * lineage — datasets + runtime transforms (materialize, Spark); default
+   * objects — datasets only
+   * all — every consumer node/edge
+   */
+  viewMode?: "lineage" | "objects" | "all";
 }
 
 const LineageGraph: React.FC<LineageGraphProps> = ({
@@ -867,6 +1104,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
   olLoading,
   olError,
   feastOnlyCheckbox,
+  viewMode = "lineage",
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -878,43 +1116,70 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     null,
   );
 
+  const objectsOnly = viewMode === "objects";
+  const showTypeFilter = viewMode !== "objects";
+
+  const { baseNodes, baseEdges } = useMemo(() => {
+    if (!olData) return { baseNodes: [] as OpenLineageNode[], baseEdges: [] };
+    if (viewMode === "all") {
+      return { baseNodes: olData.nodes, baseEdges: olData.edges };
+    }
+    if (viewMode === "objects") {
+      return {
+        baseNodes: olData.nodes.filter((n) => n.type === "dataset"),
+        baseEdges: olData.edges.filter(
+          (e) =>
+            e.source_type === "dataset" &&
+            e.target_type === "dataset" &&
+            e.edge_type !== "parent",
+        ),
+      };
+    }
+    const slice = buildLineageGraphSlice(olData);
+    return { baseNodes: slice.nodes, baseEdges: slice.edges };
+  }, [olData, viewMode]);
+
   const producers = useMemo(() => {
-    if (!olData) return [];
     const set = new Set<string>();
-    for (const n of olData.nodes) {
-      set.add(normalizeProducer(n.producer));
+    for (const n of baseNodes) {
+      set.add(displayProducer(n.producer));
     }
     return Array.from(set).sort();
-  }, [olData]);
+  }, [baseNodes]);
 
   const objectOptions = useMemo(() => {
-    if (!olData) return [];
-    return olData.nodes
+    return baseNodes
       .filter((n) => {
         if (filterType && n.type !== filterType) return false;
-        if (filterProducer && normalizeProducer(n.producer) !== filterProducer)
+        if (filterProducer && displayProducer(n.producer) !== filterProducer)
           return false;
         return true;
       })
       .map((n) => n.name)
       .filter((v, i, a) => a.indexOf(v) === i)
       .sort();
-  }, [olData, filterType, filterProducer]);
+  }, [baseNodes, filterType, filterProducer]);
 
   useEffect(() => {
     setFilterObject("");
   }, [filterType, filterProducer]);
 
   useEffect(() => {
+    if (objectsOnly && filterType === "job") {
+      setFilterType("");
+    }
+  }, [objectsOnly, filterType]);
+
+  useEffect(() => {
     if (!olData) return;
 
-    let filteredNodes = olData.nodes;
+    let filteredNodes = baseNodes;
     if (filterType) {
       filteredNodes = filteredNodes.filter((n) => n.type === filterType);
     }
     if (filterProducer) {
       filteredNodes = filteredNodes.filter(
-        (n) => normalizeProducer(n.producer) === filterProducer,
+        (n) => displayProducer(n.producer) === filterProducer,
       );
     }
 
@@ -929,7 +1194,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
       );
 
       const connectedIds = new Set<string>();
-      for (const e of olData.edges) {
+      for (const e of baseEdges) {
         const srcId = makeId(e.source_type, e.source_namespace, e.source_name);
         const tgtId = makeId(e.target_type, e.target_namespace, e.target_name);
         if (focusIds.has(srcId)) connectedIds.add(tgtId);
@@ -939,7 +1204,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
       const visibleIds = new Set(
         Array.from(focusIds).concat(Array.from(connectedIds)),
       );
-      filteredNodes = olData.nodes.filter((n) =>
+      filteredNodes = baseNodes.filter((n) =>
         visibleIds.has(makeId(n.type, n.namespace, n.name)),
       );
     }
@@ -962,34 +1227,43 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
       position: { x: 0, y: 0 },
     }));
 
-    const flowEdges: Edge[] = olData.edges
+    const flowEdges: Edge[] = baseEdges
       .filter((e) => {
         const srcId = makeId(e.source_type, e.source_namespace, e.source_name);
         const tgtId = makeId(e.target_type, e.target_namespace, e.target_name);
         return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
       })
       .map((e, i) => {
-        const isSymlink = e.edge_type === "symlink";
+        const edgeType = e.edge_type || "";
+        const isSymlink = edgeType === "symlink";
+        const isParent = edgeType === "parent";
+        const isDerived = edgeType === "derived";
         const color = isSymlink
           ? "#999999"
-          : e.edge_type === "derived"
-            ? "#3366cc"
-            : "#e67300";
+          : isParent
+            ? "#7a7a7a"
+            : isDerived
+              ? "#3366cc"
+              : "#e67300";
         return {
           id: `ol-edge-${i}`,
           source: makeId(e.source_type, e.source_namespace, e.source_name),
           sourceHandle: "source",
           target: makeId(e.target_type, e.target_namespace, e.target_name),
           targetHandle: "target",
-          animated: !isSymlink,
+          animated: !isSymlink && !isParent,
+          label: isParent ? "runs on" : undefined,
+          labelStyle: isParent ? { fontSize: 10, fill: "#666" } : undefined,
           style: {
-            strokeWidth: isSymlink ? 1 : 2,
+            strokeWidth: isSymlink || isParent ? 1.5 : 2,
             stroke: color,
             strokeDasharray: isSymlink
               ? "3 3"
-              : e.edge_type === "derived"
-                ? "5 3"
-                : "none",
+              : isParent
+                ? "2 4"
+                : isDerived
+                  ? "5 3"
+                  : "none",
           },
           type: "smoothstep",
           markerEnd: {
@@ -1004,7 +1278,16 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     const { nodes: ln, edges: le } = layoutGraph(flowNodes, flowEdges);
     setNodes(ln);
     setEdges(le);
-  }, [olData, filterType, filterProducer, filterObject, setNodes, setEdges]);
+  }, [
+    olData,
+    baseNodes,
+    baseEdges,
+    filterType,
+    filterProducer,
+    filterObject,
+    setNodes,
+    setEdges,
+  ]);
 
   if (olLoading) {
     return (
@@ -1034,17 +1317,19 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     );
   }
 
-  if (olData.nodes.length === 0) {
+  if (baseNodes.length === 0) {
     return (
       <EuiPanel>
         <EuiEmptyPrompt
           iconType="branch"
-          title={<h2>No Lineage Events</h2>}
+          title={
+            <h2>{objectsOnly ? "No Dataset Lineage" : "No Lineage Yet"}</h2>
+          }
           body={
             <p>
-              No OpenLineage events have been received yet. Configure your data
-              pipeline producers (Airflow, Spark, dbt, Feast) to send events to
-              this instance.
+              {objectsOnly
+                ? "No dataset lineage edges have been recorded yet. Materialize features or emit OpenLineage events that include datasets."
+                : "No OpenLineage events yet. Apply features and run materialization so datasets, jobs, and runs appear here."}
             </p>
           }
         />
@@ -1052,40 +1337,66 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     );
   }
 
+  const title =
+    viewMode === "objects"
+      ? "Dataset Lineage"
+      : viewMode === "lineage"
+        ? "Lineage"
+        : "OpenLineage Graph";
+
   return (
     <EuiPanel>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
+          gap: 16,
         }}
       >
-        <EuiTitle size="s">
-          <h2>OpenLineage Graph</h2>
-        </EuiTitle>
+        <div>
+          <EuiTitle size="s">
+            <h2>{title}</h2>
+          </EuiTitle>
+          {viewMode === "lineage" && (
+            <p
+              style={{
+                margin: "6px 0 0",
+                fontSize: 13,
+                color: "#69707D",
+                maxWidth: 640,
+              }}
+            >
+              Datasets link by definition (source → feature view → feature
+              service). Runtime transforms — materialize and compute engines
+              like Spark — appear as dashed pills; click them for run history.
+            </p>
+          )}
+        </div>
         {feastOnlyCheckbox && (
-          <div style={{ display: "flex", gap: "20px" }}>
+          <div style={{ display: "flex", gap: "20px", flexShrink: 0 }}>
             {feastOnlyCheckbox}
           </div>
         )}
       </div>
       <EuiSpacer size="m" />
       <EuiFlexGroup style={{ marginBottom: 16 }}>
-        <EuiFlexItem grow={false} style={{ width: 200 }}>
-          <EuiFormRow label="Filter by type">
-            <EuiSelect
-              options={[
-                { value: "", text: "All" },
-                { value: "job", text: "Job" },
-                { value: "dataset", text: "Dataset" },
-              ]}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              aria-label="Filter by type"
-            />
-          </EuiFormRow>
-        </EuiFlexItem>
+        {showTypeFilter && (
+          <EuiFlexItem grow={false} style={{ width: 200 }}>
+            <EuiFormRow label="Filter by type">
+              <EuiSelect
+                options={[
+                  { value: "", text: "All" },
+                  { value: "job", text: "Job" },
+                  { value: "dataset", text: "Dataset" },
+                ]}
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                aria-label="Filter by type"
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
+        )}
         <EuiFlexItem grow={false} style={{ width: 200 }}>
           <EuiFormRow label="Filter by producer">
             <EuiSelect
@@ -1103,7 +1414,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ width: 300 }}>
-          <EuiFormRow label="Select object">
+          <EuiFormRow label="Focus on">
             <EuiSelect
               options={[
                 { value: "", text: "All" },
@@ -1111,7 +1422,7 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
               ]}
               value={filterObject}
               onChange={(e) => setFilterObject(e.target.value)}
-              aria-label="Select object"
+              aria-label="Focus on object"
             />
           </EuiFormRow>
         </EuiFlexItem>

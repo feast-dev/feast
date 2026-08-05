@@ -165,6 +165,30 @@ class FeastDataSourceFacet(DatasetFacet):
 
 
 @attr.define(kw_only=True)
+class FeastOnlineStoreFacet(DatasetFacet):
+    """
+    Custom facet for a Feast online-store sink dataset.
+
+    Materialization writes FeatureView features into a physical online store
+    (Redis, DynamoDB, etc.). That sink is a separate lineage dataset from the
+    FeatureView definition itself.
+
+    Attributes:
+        feature_view: Feature view whose features are stored here
+        store_type: Online store backend type (redis, sqlite, dynamodb, ...)
+        description: Human-readable description
+    """
+
+    feature_view: str = attr.field()
+    store_type: str = attr.field()
+    description: str = attr.field(default="")
+
+    @staticmethod
+    def _get_schema() -> str:
+        return f"{FEAST_FACET_SCHEMA_BASE}/FeastOnlineStoreFacet.json"
+
+
+@attr.define(kw_only=True)
 class FeastEntityFacet(DatasetFacet):
     """
     Custom facet for Feast Entity metadata.
@@ -279,3 +303,21 @@ class FeastProjectFacet(JobFacet):
     @staticmethod
     def _get_schema() -> str:
         return f"{FEAST_FACET_SCHEMA_BASE}/FeastProjectFacet.json"
+
+
+@attr.define(kw_only=True)
+class FeastJobKindFacet(JobFacet):
+    """
+    Distinguishes Feast OpenLineage jobs by semantic role.
+
+    ``kind`` is ``definition`` (registry / apply topology) or ``transform``
+    (runtime materialize / compute). Consumers and UIs should filter on this
+    facet rather than job-name heuristics.
+    """
+
+    kind: str = attr.field()  # FeastJobKind value
+    feast_project: str = attr.field(default="")
+
+    @staticmethod
+    def _get_schema() -> str:
+        return f"{FEAST_FACET_SCHEMA_BASE}/FeastJobKindFacet.json"

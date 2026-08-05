@@ -89,7 +89,12 @@ class OpenLineageStore:
         now = int(time.time() * 1000)
         facets = job_data.get("facets", {})
         job_type = None
-        if "jobType" in facets:
+        # Prefer Feast semantic kind over generic OL jobType processingType.
+        if "feast_jobKind" in facets:
+            kind = facets["feast_jobKind"]
+            if isinstance(kind, dict):
+                job_type = kind.get("kind")
+        if not job_type and "jobType" in facets:
             jt = facets["jobType"]
             job_type = jt.get("processingType", jt.get("integration"))
 
@@ -171,20 +176,38 @@ class OpenLineageStore:
                 )
             ).first()
 
-            values = {
-                "source_type": source_type,
-                "description": description,
-                "schema_json": schema_json,
-                "facets_json": json.dumps(facets) if facets else None,
+            values: Dict[str, Any] = {
                 "updated_at": now,
             }
             if producer:
                 values["producer"] = producer
-            if feast_obj_type:
+
+            # Preserve richer metadata when a later event (e.g. materialize)
+            # re-touches the dataset without facets.
+            if facets:
+                values["facets_json"] = json.dumps(facets)
+                if source_type is not None:
+                    values["source_type"] = source_type
+                if description is not None:
+                    values["description"] = description
+                if schema_json is not None:
+                    values["schema_json"] = schema_json
+            elif not existing:
+                values["facets_json"] = None
+                values["source_type"] = source_type
+                values["description"] = description
+                values["schema_json"] = schema_json
+
+            if feast_obj_type and feast_obj_type != "unknown":
                 values["feast_object_type"] = feast_obj_type
-            if feast_obj_name:
+                if feast_obj_name:
+                    values["feast_object_name"] = feast_obj_name
+                if feast_project:
+                    values["feast_project"] = feast_project
+            elif not existing:
+                # First sighting with no resolvable Feast type
+                values["feast_object_type"] = feast_obj_type
                 values["feast_object_name"] = feast_obj_name
-            if feast_project:
                 values["feast_project"] = feast_project
 
             if existing:

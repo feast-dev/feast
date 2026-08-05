@@ -104,15 +104,34 @@ class OpenLineageProcessor:
         run_facets = run.get("facets", {})
         self._store.upsert_run(run_id, job_namespace, job_name, event_type, run_facets)
 
+        # Parent/child job link (e.g. Feast materialize → SparkApplication)
+        parent = run_facets.get("parent") or run_facets.get("parentRun")
+        if isinstance(parent, dict):
+            p_job = parent.get("job") or {}
+            p_ns = p_job.get("namespace") or ""
+            p_name = p_job.get("name") or ""
+            if p_ns and p_name and (p_ns != job_namespace or p_name != job_name):
+                self._store.upsert_lineage_edge(
+                    source_type="job",
+                    source_namespace=p_ns,
+                    source_name=p_name,
+                    target_type="job",
+                    target_namespace=job_namespace,
+                    target_name=job_name,
+                    edge_type="parent",
+                )
+
         inputs = event.get("inputs", [])
         outputs = event.get("outputs", [])
 
         for inp in inputs:
             ds_namespace = inp.get("namespace", job_namespace)
             ds_name = inp.get("name", "")
-            ds_facets = inp.get("facets", {})
+            ds_facets = inp.get("facets", {}) or {}
 
-            feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name)
+            feast_mapping = self._resolve_feast_mapping(
+                ds_namespace, ds_name, ds_facets
+            )
             self._store.upsert_dataset(
                 ds_namespace, ds_name, ds_facets, feast_mapping, producer=producer
             )
@@ -132,9 +151,11 @@ class OpenLineageProcessor:
         for out in outputs:
             ds_namespace = out.get("namespace", job_namespace)
             ds_name = out.get("name", "")
-            ds_facets = out.get("facets", {})
+            ds_facets = out.get("facets", {}) or {}
 
-            feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name)
+            feast_mapping = self._resolve_feast_mapping(
+                ds_namespace, ds_name, ds_facets
+            )
             self._store.upsert_dataset(
                 ds_namespace, ds_name, ds_facets, feast_mapping, producer=producer
             )
@@ -162,7 +183,7 @@ class OpenLineageProcessor:
 
         self._store.store_event(event_id, event)
 
-        feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name)
+        feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name, ds_facets)
         self._store.upsert_dataset(
             ds_namespace, ds_name, ds_facets, feast_mapping, producer=producer
         )
@@ -184,9 +205,11 @@ class OpenLineageProcessor:
         for inp in inputs:
             ds_namespace = inp.get("namespace", job_namespace)
             ds_name = inp.get("name", "")
-            ds_facets = inp.get("facets", {})
+            ds_facets = inp.get("facets", {}) or {}
 
-            feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name)
+            feast_mapping = self._resolve_feast_mapping(
+                ds_namespace, ds_name, ds_facets
+            )
             self._store.upsert_dataset(
                 ds_namespace, ds_name, ds_facets, feast_mapping, producer=producer
             )
@@ -205,9 +228,11 @@ class OpenLineageProcessor:
         for out in outputs:
             ds_namespace = out.get("namespace", job_namespace)
             ds_name = out.get("name", "")
-            ds_facets = out.get("facets", {})
+            ds_facets = out.get("facets", {}) or {}
 
-            feast_mapping = self._resolve_feast_mapping(ds_namespace, ds_name)
+            feast_mapping = self._resolve_feast_mapping(
+                ds_namespace, ds_name, ds_facets
+            )
             self._store.upsert_dataset(
                 ds_namespace, ds_name, ds_facets, feast_mapping, producer=producer
             )
@@ -348,23 +373,55 @@ class OpenLineageProcessor:
                     )
 
     def _resolve_feast_mapping(
-        self, namespace: str, dataset_name: str
+        self,
+        namespace: str,
+        dataset_name: str,
+        facets: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, str]]:
         """
         Attempt to map an OpenLineage dataset to a Feast registry object.
 
-        Mapping rules:
-        1. If the namespace matches a Feast project (directly or via namespace_mapping),
-           check if the dataset name matches a known Feast object naming pattern.
-        2. Feast apply emits datasets with names like the FeatureView/FeatureService name.
-        3. Feast materialize emits datasets named 'online_store_{fv_name}'.
+        Prefer Feast custom facets on the dataset (emitted on apply), then
+        fall back to known naming patterns (``online_store_*``,
+        ``request_source_*``).
         """
-        feast_project = self._namespace_mapping.get(namespace, namespace)
+        facets = facets or {}
+
+        # Namespace may be project or prefix/project; mapping keys are usually
+        # the logical OL namespace (e.g. customer_churn).
+        feast_project = self._namespace_mapping.get(namespace)
+        if feast_project is None and "/" in namespace:
+            for part in (namespace.split("/")[-1], namespace.split("/")[0]):
+                if part in self._namespace_mapping:
+                    feast_project = self._namespace_mapping[part]
+                    break
+        if feast_project is None:
+            feast_project = namespace.split("/")[-1] if "/" in namespace else namespace
+
+        facet_type_map = (
+            ("feast_onlineStore", "onlineStore"),
+            ("feast_featureView", "featureView"),
+            ("feast_featureService", "featureService"),
+            ("feast_entity", "entity"),
+            ("feast_dataSource", "dataSource"),
+        )
+        for facet_key, obj_type in facet_type_map:
+            if facet_key in facets:
+                facet = facets.get(facet_key) or {}
+                name = None
+                if isinstance(facet, dict):
+                    # Online store facet keys the related FV as feature_view
+                    name = facet.get("name") or facet.get("feature_view")
+                return {
+                    "type": obj_type,
+                    "name": name or dataset_name,
+                    "project": feast_project,
+                }
 
         if dataset_name.startswith("online_store_"):
             fv_name = dataset_name[len("online_store_") :]
             return {
-                "type": "featureView",
+                "type": "onlineStore",
                 "name": fv_name,
                 "project": feast_project,
             }
@@ -376,8 +433,6 @@ class OpenLineageProcessor:
                 "project": feast_project,
             }
 
-        return {
-            "type": "unknown",
-            "name": dataset_name,
-            "project": feast_project,
-        }
+        # Bare name with no Feast facet — leave untyped so upsert does not
+        # clobber a previously resolved mapping with "unknown".
+        return None

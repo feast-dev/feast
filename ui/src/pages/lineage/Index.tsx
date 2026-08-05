@@ -14,13 +14,15 @@ import RegistryPathContext from "../../contexts/RegistryPathContext";
 import RegistryVisualizationTab from "../../components/RegistryVisualizationTab";
 import { LineageGraph } from "../../components/OpenLineageGraph";
 import LineageEventsList from "../../components/LineageEventsList";
+import LineageJobsList from "../../components/LineageJobsList";
 import { useLoadOpenLineageGraph } from "../../queries/useLoadOpenLineageGraph";
 import { useParams } from "react-router-dom";
 
-type ActiveTab = "lineage" | "events";
+type ActiveTab = "lineage" | "jobs" | "events";
 
 const tabButtons = [
   { id: "lineage", label: "Lineage" },
+  { id: "jobs", label: "Jobs" },
   { id: "events", label: "Events" },
 ];
 
@@ -132,6 +134,7 @@ const LineagePage = () => {
                       />
                     ) : (
                       <LineageGraph
+                        viewMode="lineage"
                         olData={olGraphQuery.data}
                         olLoading={olGraphQuery.isLoading}
                         olError={olGraphQuery.isError}
@@ -151,6 +154,8 @@ const LineagePage = () => {
                     )}
                   </>
                 )}
+
+                {activeTab === "jobs" && <LineageJobsList />}
 
                 {activeTab === "events" && <LineageEventsList />}
               </>

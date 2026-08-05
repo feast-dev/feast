@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 import pyarrow as pa
 
@@ -18,6 +18,9 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
+
+if TYPE_CHECKING:
+    from feast.openlineage.identity import LineageParentContext
 
 
 class ComputeEngine(ABC):
@@ -104,10 +107,24 @@ class ComputeEngine(ABC):
         self,
         registry: BaseRegistry,
         tasks: Union[MaterializationTask, List[MaterializationTask]],
+        *,
+        lineage_parent: Optional["LineageParentContext"] = None,
         **kwargs,
     ) -> List[MaterializationJob]:
+        """Materialize features for the given tasks.
+
+        Args:
+            registry: Feature registry
+            tasks: One or more materialization tasks
+            lineage_parent: Optional OpenLineage parent run. Engines that emit
+                their own lineage (e.g. SparkApplication) should attach this as
+                a parentRun; others ignore it.
+            **kwargs: Engine-specific options
+        """
         if isinstance(tasks, MaterializationTask):
             tasks = [tasks]
+        if lineage_parent is not None:
+            kwargs["lineage_parent"] = lineage_parent
         return [self._materialize_one(registry, task, **kwargs) for task in tasks]
 
     def _materialize_one(

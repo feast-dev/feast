@@ -125,8 +125,36 @@ const useLoadRegistryLineage = (project?: string) => {
   );
 };
 
+export interface OpenLineageJob {
+  job_namespace: string;
+  job_name: string;
+  job_type?: string | null;
+  producer?: string | null;
+  description?: string | null;
+  latest_run_id?: string | null;
+  updated_at: number;
+  facets_json?: string | null;
+}
+
+const useLoadOpenLineageJobs = () => {
+  const registryUrl = useContext(RegistryPathContext);
+  const { fetchOptions } = useDataMode();
+
+  return useQuery<{ jobs: OpenLineageJob[] }>(
+    ["openlineage-jobs"],
+    () =>
+      restFetch<{ jobs: OpenLineageJob[] }>(
+        registryUrl,
+        "/lineage/openlineage/jobs",
+        fetchOptions,
+      ),
+    { enabled: !!registryUrl },
+  );
+};
+
 export {
   useLoadOpenLineageGraph,
   useLoadOpenLineageEvents,
+  useLoadOpenLineageJobs,
   useLoadRegistryLineage,
 };
