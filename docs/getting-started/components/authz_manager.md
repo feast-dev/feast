@@ -45,7 +45,7 @@ The server, in turn, uses the same OIDC server to validate the token and extract
 Some assumptions are made in the OIDC server configuration:
 * The OIDC token refers to a client with roles matching the RBAC roles of the configured `Permission`s (*)
 * The roles are exposed in the access token under `resource_access.<client_id>.roles` (Keycloak) or in the top-level `roles` claim (Entra ID app roles). Roles found in both are merged.
-* The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
+* The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements. The token's audience and issuer claims are **not** verified by default; both checks can be enabled with the `audience` and `issuer` options (see [Server-Side Configuration](#server-side-configuration)).
 * The username is read from the first of `preferred_username`, `upn`, `azp`, `appid`, `sub` present in the token. Entra ID client-credentials (app-only) tokens carry no user claim, so they authenticate as the calling application.
 * For `GroupBasedPolicy` support, the `groups` claim should be present in the access token (requires a "Group Membership" protocol mapper in Keycloak).
 * **Entra ID limitation**: Group claims use object IDs (GUIDs) instead of names, and are omitted entirely when a user exceeds the group overage threshold. GroupBasedPolicy must reference GUIDs and cannot be used for principals with large group memberships.
@@ -104,6 +104,36 @@ auth:
 {% hint style="warning" %}
 Setting `verify_ssl: false` disables TLS certificate verification for all OIDC provider communication (discovery, JWKS, token endpoint). Only use this in development or internal environments where you accept the security risk.
 {% endhint %}
+
+By default the server verifies only the token's signature and expiry: any validly-signed, unexpired token from the configured provider is accepted regardless of the audience it was minted for, and authorization (role matching) is the only remaining gate. For defense in depth, set `audience` and/or `issuer` to additionally require a matching `aud` / `iss` claim:
+
+```yaml
+auth:
+  type: oidc
+  client_id: _CLIENT_ID_
+  auth_discovery_url: https://login.example.com/.well-known/openid-configuration
+  audience: api://feast-feature-server
+  issuer: https://login.example.com/realms/master
+```
+
+A token whose `aud` (or `iss`) claim does not match is rejected at authentication. The two options are independent; leave one unset to skip that check.
+
+{% hint style="warning" %}
+Set these to the values your IdP puts **in the token itself**, which are not always the ones in the discovery document. For example, Microsoft Entra ID commonly issues v1.0 tokens (`iss: https://sts.windows.net/<tenant-id>/`, `aud: api://<app-id-uri>`) even when `auth_discovery_url` points at the v2.0 endpoint. That setup keeps working with these options unset, or set to the v1.0 values — but copying the v2.0 issuer from the discovery document would reject every v1.0 token.
+{% endhint %}
+
+To validate token signatures the server fetches the provider's JWKS document and caches it, refetching when the cache expires or when a token presents an unknown key id. Two options tune that behavior:
+
+```yaml
+auth:
+  type: oidc
+  client_id: _CLIENT_ID_
+  auth_discovery_url: https://login.example.com/.well-known/openid-configuration
+  jwks_cache_lifespan_seconds: 300   # default; how long the fetched key set is reused
+  jwks_request_timeout_seconds: 10   # default; network timeout for the JWKS fetch
+```
+
+`jwks_cache_lifespan_seconds` also bounds how long a key the provider has **revoked** continues to validate tokens, so lower it if your provider rotates or revokes aggressively; each reduction costs proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless of this setting, because an unknown key id triggers a refetch. `jwks_request_timeout_seconds` bounds how long an unresponsive provider can block request serving. Both must be greater than zero.
 
 #### Client-Side Configuration
 

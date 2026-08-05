@@ -138,6 +138,17 @@ func getBaseServiceRepoConfig(
 			}
 			for _, prop := range OidcOptionalSecretProperties {
 				if val, exists := secretProperties[string(prop)]; exists {
+					// Secret values are YAML-parsed on extraction, so an
+					// all-digits audience or issuer arrives as an int and
+					// would render unquoted, which the SDK's OidcAuthConfig
+					// rejects (Optional[str]). Coerce the claim keys back to
+					// strings; the five original keys keep their historical
+					// typing.
+					if prop == OidcAudience || prop == OidcIssuer {
+						if _, isString := val.(string); !isString {
+							val = fmt.Sprintf("%v", val)
+						}
+					}
 					oidcParameters[string(prop)] = val
 				}
 			}
