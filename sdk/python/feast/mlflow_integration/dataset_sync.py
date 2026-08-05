@@ -476,5 +476,3 @@ def _search_traces_for_assessments(mlflow: Any, search_kwargs: Dict[str, Any]) -
         except Exception:
             logger.warning("Failed to fetch trace %s", trace_id, exc_info=True)
     return traces
-
-
