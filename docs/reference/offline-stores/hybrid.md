@@ -18,7 +18,7 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 offline_store:
-  type: hybrid_offline_store.HybridOfflineStore
+  type: hybrid
   offline_stores:
     - type: spark
       conf:
