@@ -20,6 +20,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime
 from importlib import resources as importlib_resources
@@ -550,6 +551,22 @@ def get_app(
     else:
         logger.debug("Offline write batching is DISABLED")
 
+    # Dedicated pool for async materialize so long Spark/offline waits do not
+    # starve the default executor used by online serving and run_in_threadpool.
+    _mat_workers_raw = os.environ.get("FEAST_MATERIALIZE_MAX_WORKERS", "2")
+    try:
+        materialize_max_workers = max(1, int(_mat_workers_raw))
+    except ValueError:
+        logger.warning(
+            "Invalid FEAST_MATERIALIZE_MAX_WORKERS=%r; using default 2",
+            _mat_workers_raw,
+        )
+        materialize_max_workers = 2
+    materialize_executor = ThreadPoolExecutor(
+        max_workers=materialize_max_workers,
+        thread_name_prefix="feast-materialize",
+    )
+
     def stop_refresh():
         nonlocal shutting_down
         shutting_down = True
@@ -583,6 +600,9 @@ def get_app(
             stop_refresh()
             if offline_batcher is not None:
                 offline_batcher.shutdown()
+            # wait=False: do not block process exit on in-flight materialize
+            # (same fire-and-forget contract as returning 202 mid-job).
+            materialize_executor.shutdown(wait=False)
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
@@ -977,7 +997,7 @@ def get_app(
                         _reset_stuck_materializing_to_generated(store, fv_names)
 
                 loop = asyncio.get_running_loop()
-                loop.run_in_executor(None, _run_materialize)
+                loop.run_in_executor(materialize_executor, _run_materialize)
 
                 return JSONResponse(
                     status_code=202,
@@ -1032,7 +1052,7 @@ def get_app(
                         _reset_stuck_materializing_to_generated(store, fv_names)
 
                 loop = asyncio.get_running_loop()
-                loop.run_in_executor(None, _run_materialize_incremental)
+                loop.run_in_executor(materialize_executor, _run_materialize_incremental)
 
                 return JSONResponse(
                     status_code=202,

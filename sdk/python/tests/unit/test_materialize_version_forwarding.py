@@ -13,7 +13,7 @@
 # limitations under the License.
 """Server tests: version is forwarded on materialize sync and async paths."""
 
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from inspect import signature
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -118,6 +118,36 @@ def test_materialize_incremental_sync_forwards_version(_mock_perms):
     _, kwargs = fs.materialize_incremental.call_args
     assert kwargs.get("version") == "v2"
     assert fs.materialize_incremental.call_args.args[1] == ["driver_hourly_stats"]
+
+
+@patch("feast.feature_server.assert_permissions")
+def test_materialize_async_uses_dedicated_executor(_mock_perms):
+    """Async materialize must not use the shared default pool (executor=None)."""
+    fs = _mock_store_for_materialize()
+    seen: dict = {}
+
+    def capture_executor(loop, executor, func, *args):
+        seen["executor"] = executor
+        return _run_executor_inline(loop, executor, func, *args)
+
+    with patch(
+        "asyncio.BaseEventLoop.run_in_executor",
+        new=capture_executor,
+    ):
+        client = TestClient(get_app(fs))
+        response = client.post(
+            "/materialize?async=true",
+            json={
+                "start_ts": "2021-01-01T00:00:00",
+                "end_ts": "2021-01-02T00:00:00",
+                "feature_views": ["driver_hourly_stats"],
+            },
+        )
+
+    assert response.status_code == 202
+    assert seen.get("executor") is not None
+    assert isinstance(seen["executor"], ThreadPoolExecutor)
+    assert "feast-materialize" in seen["executor"]._thread_name_prefix
 
 
 @patch(
