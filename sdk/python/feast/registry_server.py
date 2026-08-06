@@ -204,6 +204,22 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         registry_proto = RegistryProto()
 
+        # The per-project list_* calls return objects that know their project
+        # contextually, but obj.to_proto() does not serialize it (the project is
+        # stamped only when the backing registry assembles a full proto). Stamp it
+        # back on here so this rebuilt proto matches proxied_registry.proto();
+        # otherwise consumers that look objects up by project — proto_registry_utils,
+        # and therefore RemoteRegistry's client-side cache — never find them
+        # (feast#6672). Most objects carry it at spec.project; DataSource and
+        # ValidationReference carry it as a top-level field.
+        def _spec_project(obj_proto, name):
+            obj_proto.spec.project = name
+            return obj_proto
+
+        def _project(obj_proto, name):
+            obj_proto.project = name
+            return obj_proto
+
         for project in describable(self.proxied_registry.list_projects()):
             registry_proto.projects.append(project.to_proto())
             project_name = project.name
@@ -211,58 +227,72 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             for entity in describable(
                 self.proxied_registry.list_entities(project=project_name)
             ):
-                registry_proto.entities.append(entity.to_proto())
+                registry_proto.entities.append(
+                    _spec_project(entity.to_proto(), project_name)
+                )
 
             for data_source in describable(
                 self.proxied_registry.list_data_sources(project=project_name)
             ):
-                registry_proto.data_sources.append(data_source.to_proto())
+                registry_proto.data_sources.append(
+                    _project(data_source.to_proto(), project_name)
+                )
 
             for feature_view in describable(
                 self.proxied_registry.list_feature_views(project=project_name)
             ):
-                registry_proto.feature_views.append(feature_view.to_proto())
+                registry_proto.feature_views.append(
+                    _spec_project(feature_view.to_proto(), project_name)
+                )
 
             for stream_feature_view in describable(
                 self.proxied_registry.list_stream_feature_views(project=project_name)
             ):
                 registry_proto.stream_feature_views.append(
-                    stream_feature_view.to_proto()
+                    _spec_project(stream_feature_view.to_proto(), project_name)
                 )
 
             for on_demand_feature_view in describable(
                 self.proxied_registry.list_on_demand_feature_views(project=project_name)
             ):
                 registry_proto.on_demand_feature_views.append(
-                    on_demand_feature_view.to_proto()
+                    _spec_project(on_demand_feature_view.to_proto(), project_name)
                 )
 
             for label_view in describable(
                 self.proxied_registry.list_label_views(project=project_name)
             ):
-                registry_proto.label_views.append(label_view.to_proto())
+                registry_proto.label_views.append(
+                    _spec_project(label_view.to_proto(), project_name)
+                )
 
             for feature_service in describable(
                 self.proxied_registry.list_feature_services(project=project_name)
             ):
-                registry_proto.feature_services.append(feature_service.to_proto())
+                registry_proto.feature_services.append(
+                    _spec_project(feature_service.to_proto(), project_name)
+                )
 
             for saved_dataset in describable(
                 self.proxied_registry.list_saved_datasets(project=project_name)
             ):
-                registry_proto.saved_datasets.append(saved_dataset.to_proto())
+                registry_proto.saved_datasets.append(
+                    _spec_project(saved_dataset.to_proto(), project_name)
+                )
 
             for validation_reference in describable(
                 self.proxied_registry.list_validation_references(project=project_name)
             ):
                 registry_proto.validation_references.append(
-                    validation_reference.to_proto()
+                    _project(validation_reference.to_proto(), project_name)
                 )
 
             for permission in describable(
                 self.proxied_registry.list_permissions(project=project_name)
             ):
-                registry_proto.permissions.append(permission.to_proto())
+                registry_proto.permissions.append(
+                    _spec_project(permission.to_proto(), project_name)
+                )
 
         # Carry the registry's real last_updated/version_id rather than stamping "now":
         # this proto is rebuilt from individual list calls (for RBAC filtering), but it must
