@@ -1,7 +1,38 @@
-{{- if .Values.ingress.http.enabled -}}
-{{ template "feast.ingress" (list . "serving" "http" .Values.ingress.http) }}
-{{- end }}
----
-{{ if .Values.ingress.grpc.enabled -}}
-{{ template "feast.ingress" (list . "serving" "grpc" .Values.ingress.grpc) }}
+{{- if .Values.ingress.http.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "feature-server.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "feature-server.labels" . | nindent 4 }}
+  {{- with .Values.ingress.http.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.http.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.http.ingressClassName }}
+  {{- end }}
+  rules:
+  {{- range $host := .Values.ingress.http.hosts }}
+  - host: {{ $host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "feature-server.fullname" $ }}
+            port:
+              name: http
+  {{- end }}
+  {{- if .Values.ingress.http.https.enabled }}
+  tls:
+  {{- range $host := .Values.ingress.http.hosts }}
+  - secretName: {{ index $.Values.ingress.http.https.secretNames $host | default (printf "%s-tls" (splitList "." $host | rest | join "-")) }}
+    hosts:
+    - {{ $host }}
+  {{- end }}
+  {{- end }}
 {{- end }}

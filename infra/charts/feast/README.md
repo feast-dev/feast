@@ -1,8 +1,8 @@
-# Feast Java Helm Charts (alpha)
+# Feast Helm Charts
 
-This repo contains Helm charts for Feast Java components that are being installed on Kubernetes:
+This repo contains Helm charts for Feast components that are being installed on Kubernetes:
 * Feast (root chart): The complete Helm chart containing all Feast components and dependencies. Most users will use this chart, but can selectively enable/disable subcharts using the values.yaml file.
-    * [Feature Server](charts/feature-server): High performant JVM-based implementation of feature server.
+    * [Feature Server](charts/feature-server): Python-based online feature serving service.
     * [Transformation Service](charts/transformation-service): Transformation server for calculating on-demand features
     * Redis: (Optional) One of possible options for an online store used by Feature Server
    
@@ -21,44 +21,38 @@ helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
 helm repo update
 ```
 
-Install Feast
+Install Feast (using an existing Secret — recommended for production):
 ```
-helm install feast-release feast-charts/feast
+kubectl create secret generic my-feast-config \
+  --from-literal=feature_store_yaml_base64=$(base64 < feature_store.yaml)
+
+helm install feast-release feast-charts/feast \
+  --set feature-server.existingSecret=my-feast-config
+```
+
+Or pass the config inline (the value will be stored in Helm release metadata):
+```
+helm install feast-release feast-charts/feast \
+  --set feature-server.feature_store_yaml_base64=$(base64 < feature_store.yaml)
 ```
 
 ## Customize your installation
 
 This Feast chart comes with a [values.yaml](values.yaml) that allows for configuration and customization of all sub-charts.
 
-In order to modify the default configuration of Feature Server, please use the `application-override.yaml` key in the `values.yaml` file in this chart. A code snippet example
-```
+The feature server requires a base64-encoded `feature_store.yaml`. You can either reference a pre-existing Kubernetes Secret or provide the value inline:
+
+```yaml
 feature-server:
-    application-override.yaml:
-        enabled: true
-        feast:
-            active_store: online
-            stores:
-            - name: online
-              type: REDIS
-              config:
-                host: localhost
-                port: 6379
-            entityKeySerializationVersion: 3
-
-global:
-  registry:
-    path: gs://[YOUR GCS BUCKET]/demo-repo/registry.db
-    cache_ttl_seconds: 60
-  project: feast_java_demo
-
+  # Option A: reference an existing Secret (recommended)
+  existingSecret: my-feast-config
+  # Option B: provide inline (stored in Helm release metadata)
+  feature_store_yaml_base64: <base64 encoded feature_store.yaml>
 ```
 
-For the default configuration, please see the [Feature Server Configuration](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml).
+> **Upgrading from the Java chart?** See the [feature-server migration guide](charts/feature-server/README.md#migration-from-java-chart) for details on removed gRPC and Java-specific values.
 
 For more details, please see: https://docs.feast.dev/how-to-guides/running-feast-in-production
-
-## Example
-See [here](https://github.com/feast-dev/feast/tree/master/examples/java-demo) for a sample tutorial on testing this helm chart with a demo feature repository and a local Redis instance.
 
 ## Requirements
 
