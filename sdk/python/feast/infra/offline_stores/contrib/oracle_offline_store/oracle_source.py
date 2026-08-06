@@ -2,6 +2,7 @@ import json
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -74,6 +75,7 @@ class OracleSource(DataSource):
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = None,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates an OracleSource object.
 
@@ -101,6 +103,7 @@ class OracleSource(DataSource):
             owner=owner,
             name=name,
             timestamp_field=event_timestamp_column,
+            connection_ref=connection_ref,
         )
 
     def __eq__(self, other):
@@ -142,6 +145,7 @@ class OracleSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         options = json.loads(data_source.custom_options.configuration)
+        tags = dict(data_source.tags)
         return OracleSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -149,6 +153,8 @@ class OracleSource(DataSource):
             event_timestamp_column=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            tags=tags,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
