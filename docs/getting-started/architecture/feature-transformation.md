@@ -3,6 +3,10 @@
 A *feature transformation* is a function that takes some set of input data and
 returns some set of output data. Feature transformations can happen on either raw data or derived data.
 
+{% hint style="info" %}
+**New in Feast**: Check out the [Unified Transformation Framework blog post](../../blog/transformation-framework.md) to learn about the latest enhancements to feature transformations, including support for multiple compute engines and a consistent API across different transformation modes.
+{% endhint %}
+
 ## Feature Transformation Engines
 Feature transformations can be executed by three types of "transformation engines":
 
@@ -63,6 +67,20 @@ feature_view = FeatureView(
     ...
 )
 ```
+
+### Available Transformation Modes
+
+The `TransformationMode` enum provides several options for executing transformations:
+
+- **`PYTHON`**: Simple row-level Python transformations, ideal for lightweight operations
+- **`PANDAS`**: DataFrame-based transformations using Pandas, great for local development
+- **`SPARK`**: Distributed Spark DataFrame transformations for large-scale processing
+- **`SPARK_SQL`**: SQL-based transformations executed in Spark
+- **`RAY`**: Distributed transformations using Ray for Python-native distributed computing
+- **`SQL`**: Database-native SQL transformations
+- **`SUBSTRAIT`**: Cross-platform transformations using the Substrait protocol
+
+Choose the mode that best fits your data scale, infrastructure, and team expertise.
 
 ### Aggregation
 Aggregation is builtin API for defining batch or streamable aggregations on data. It allows you to specify how to aggregate data over a time window, such as calculating the average or sum of a feature over a specified period. Examples include:
