@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import grpc
 
@@ -16,8 +17,9 @@ class GrpcClientAuthHeaderInterceptor(
     grpc.StreamUnaryClientInterceptor,
     grpc.StreamStreamClientInterceptor,
 ):
-    def __init__(self, auth_config: AuthConfig):
+    def __init__(self, auth_config: AuthConfig, timeout: Optional[int] = None):
         self._auth_config = auth_config
+        self._timeout = timeout
 
     def intercept_unary_unary(
         self, continuation, client_call_details, request_iterator
@@ -42,6 +44,10 @@ class GrpcClientAuthHeaderInterceptor(
     def _handle_call(self, continuation, client_call_details, request_iterator):
         if self._auth_config.type != AuthType.NONE.value:
             client_call_details = self._append_auth_header_metadata(client_call_details)
+        if self._timeout is not None and client_call_details.timeout is None:
+            client_call_details = client_call_details._replace(
+                timeout=float(self._timeout)
+            )
         result = continuation(client_call_details, request_iterator)
         if result.exception() is not None:
             mapped_error = FeastError.from_error_detail(result.exception().details())
