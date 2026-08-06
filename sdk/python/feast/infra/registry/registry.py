@@ -19,6 +19,7 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.message import Message
 
@@ -585,8 +586,6 @@ class Registry(BaseRegistry):
         # are falsy, so that check would silently drop the update exactly
         # when a user clears an existing ttl.
         if hasattr(existing_proto.spec, "ttl") and hasattr(updated_fv, "ttl"):
-            from google.protobuf.duration_pb2 import Duration
-
             if isinstance(updated_fv, FeatureView):
                 ttl_duration = updated_fv.get_ttl_duration()
                 existing_proto.spec.ttl.CopyFrom(
@@ -595,7 +594,12 @@ class Registry(BaseRegistry):
             elif isinstance(updated_fv, LabelView):
                 ttl_duration = Duration()
                 if updated_fv.ttl is not None:
-                    ttl_duration.FromTimedelta(updated_fv.ttl)
+                    try:
+                        ttl_duration.FromTimedelta(updated_fv.ttl)
+                    except (ValueError, OverflowError) as e:
+                        raise ValueError(
+                            f"Invalid TTL value: {updated_fv.ttl}"
+                        ) from e
                 existing_proto.spec.ttl.CopyFrom(ttl_duration)
         if hasattr(existing_proto.spec, "online") and hasattr(updated_fv, "online"):
             existing_proto.spec.online = getattr(updated_fv, "online")
