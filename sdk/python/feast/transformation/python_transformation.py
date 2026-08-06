@@ -170,6 +170,6 @@ class PythonTransformation(Transformation):
             preferred_name=user_defined_function_proto.name or None,
         )
         return PythonTransformation(
-            udf=udf,
+            udf=cast(FunctionType, udf),
             udf_string=udf_string,
         )
