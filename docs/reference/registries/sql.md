@@ -94,7 +94,7 @@ registry:
 | Value | Behavior |
 |---|---|
 | `auto` (default) | Creates tables if they don't exist. Current behavior, no breaking change. |
-| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. Note: this is a table-level check only — it does not verify individual columns. A schema created by an older Feast version (missing newer columns) will pass verification but may fail at query time. |
+| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. When a separate `read_path` is configured, the read replica is also verified — a lagging replica (e.g. mid-migration) will block startup. Note: this is a table-level check only — it does not verify individual columns. A schema created by an older Feast version (missing newer columns) will pass verification but may fail at query time. |
 | `skip` | Skips both creation and verification. Use when schema is managed entirely outside Feast (e.g. by a migration tool). |
 
 ### Pre-creating the schema
