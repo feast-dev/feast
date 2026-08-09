@@ -13,12 +13,13 @@
 # limitations under the License.
 
 import json
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import FeastType, Struct, from_value_type
 from feast.value_type import ValueType
 
@@ -39,6 +40,8 @@ class Field:
         vector_index: If set to True the field will be indexed for vector similarity search.
         vector_length: The length of the vector if the vector index is set to True.
         vector_search_metric: The metric used for vector similarity search.
+        default_value: Value substituted when the feature is missing or null at
+            retrieval time. None means no default is configured.
     """
 
     name: str
@@ -48,6 +51,7 @@ class Field:
     vector_index: bool
     vector_length: int
     vector_search_metric: Optional[str]
+    default_value: Any
 
     def __init__(
         self,
@@ -59,6 +63,7 @@ class Field:
         vector_index: bool = False,
         vector_length: int = 0,
         vector_search_metric: Optional[str] = None,
+        default_value: Any = None,
     ):
         """
         Creates a Field object.
@@ -70,6 +75,11 @@ class Field:
             tags (optional): User-defined metadata in dictionary form.
             vector_index (optional): If set to True the field will be indexed for vector similarity search.
             vector_search_metric (optional): The metric used for vector similarity search.
+            default_value (optional): Value substituted when the feature is missing or
+                null at retrieval time. Must be compatible with dtype.
+
+        Raises:
+            ValueError: If default_value cannot be represented as dtype.
         """
         self.name = name
         self.dtype = dtype
@@ -78,6 +88,50 @@ class Field:
         self.vector_index = vector_index
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
+        self.default_value = default_value
+
+        # Fail where the user wrote it, not at apply time or during serving.
+        if default_value is not None:
+            self._default_value_to_proto()
+
+    def _default_value_to_proto(self) -> ValueProto:
+        """Converts this field's default value to its proto representation.
+
+        Raises:
+            ValueError: If the default value cannot be represented as this field's dtype.
+        """
+        from feast.type_map import python_values_to_proto_values
+
+        value_type = self.dtype.to_value_type()
+        try:
+            proto_value = python_values_to_proto_values(
+                [self.default_value], value_type
+            )[0]
+        except Exception as e:
+            raise ValueError(
+                f"default_value {self.default_value!r} for field {self.name!r} is not "
+                f"compatible with dtype {self.dtype}: {e}"
+            ) from e
+
+        # An empty Value would read back as "no default configured".
+        if proto_value.WhichOneof("val") is None:
+            raise ValueError(
+                f"default_value {self.default_value!r} for field {self.name!r} is not "
+                f"compatible with dtype {self.dtype}."
+            )
+
+        # The conversion coerces, so Int64 would store 1.5 as 1. Comparing the
+        # round-trip rejects lossy defaults but still allows int -> Float64.
+        from feast.type_map import feast_value_type_to_python_type
+
+        stored = feast_value_type_to_python_type(proto_value)
+        if stored != self.default_value:
+            raise ValueError(
+                f"default_value {self.default_value!r} for field {self.name!r} cannot be "
+                f"represented as dtype {self.dtype} without loss (it would be stored as "
+                f"{stored!r})."
+            )
+        return proto_value
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -89,6 +143,7 @@ class Field:
             or self.description != other.description
             or self.tags != other.tags
             or self.vector_length != other.vector_length
+            or self.default_value != other.default_value
             # or self.vector_index != other.vector_index
             # or self.vector_search_metric != other.vector_search_metric
         ):
@@ -111,6 +166,7 @@ class Field:
             f"    vector_index={self.vector_index!r}\n"
             f"    vector_length={self.vector_length!r}\n"
             f"    vector_search_metric={self.vector_search_metric!r}\n"
+            f"    default_value={self.default_value!r}\n"
             f")"
         )
 
@@ -134,7 +190,7 @@ class Field:
             self.dtype.base_type, (Array, Set)
         ):
             tags[NESTED_COLLECTION_INNER_TYPE_TAG] = _feast_type_to_str(self.dtype)
-        return FieldProto(
+        field_proto = FieldProto(
             name=self.name,
             value_type=value_type.value,  # type: ignore[arg-type]
             description=self.description,
@@ -143,6 +199,10 @@ class Field:
             vector_length=self.vector_length,
             vector_search_metric=vector_search_metric,
         )
+        # Left unset when not configured, which is what keeps presence meaningful.
+        if self.default_value is not None:
+            field_proto.default_value.CopyFrom(self._default_value_to_proto())
+        return field_proto
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -180,6 +240,13 @@ class Field:
             dtype = from_value_type(value_type=value_type)
             user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
 
+        # Presence, not truthiness, so defaults of 0, False and "" survive.
+        default_value = None
+        if field_proto.HasField("default_value"):
+            from feast.type_map import feast_value_type_to_python_type
+
+            default_value = feast_value_type_to_python_type(field_proto.default_value)
+
         return cls(
             name=field_proto.name,
             dtype=dtype,
@@ -188,6 +255,7 @@ class Field:
             vector_index=vector_index,
             vector_length=vector_length,
             vector_search_metric=vector_search_metric,
+            default_value=default_value,
         )
 
     @classmethod
