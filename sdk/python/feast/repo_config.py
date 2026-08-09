@@ -197,10 +197,13 @@ class RegistryConfig(FeastBaseModel):
         only reset the project but not all the projects"""
 
     enable_online_feature_view_versioning: StrictBool = False
-    """ bool: Enable versioned online store tables and version-qualified reads
-        (e.g., 'fv@v2:feature'). When True, each schema version gets its own
-        online store table and can be queried independently. Version history
-        tracking in the registry is always active regardless of this setting. """
+    """ bool: Enable versioned resolution of version-qualified feature references
+        (e.g., 'fv@v2:feature'). Despite the 'online' in its name, this flag gates
+        both online and offline (get_historical_features) versioned reads, which
+        share the same resolution path; when True, each schema version also gets
+        its own online store table and can be queried independently. Version
+        history tracking in the registry is always active regardless of this
+        setting. """
 
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
