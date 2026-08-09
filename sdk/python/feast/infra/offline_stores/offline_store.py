@@ -140,11 +140,17 @@ def _apply_default_values(
             pyarrow.ArrowInvalid,
             pyarrow.ArrowTypeError,
             pyarrow.ArrowNotImplementedError,
-        ):
-            # The physical column type is decided by the offline store, so it need not
-            # match the declared dtype: an all-null column arrives as null, and a
-            # narrower type cannot hold every valid default. Retype the column from the
-            # default rather than failing the whole retrieval.
+        ) as e:
+            # An all-null column arrives typed as null, so there is nothing to preserve
+            # and retyping from the default is safe.
+            if not pyarrow.types.is_null(column.type):
+                # Retyping a column that holds real values would reinterpret them --
+                # an int64 epoch column cast to timestamp silently changes every row --
+                # so fail loudly instead.
+                raise ValueError(
+                    f"default_value {default_value!r} cannot be represented in column "
+                    f"{column_name!r} of type {column.type}."
+                ) from e
             scalar = pyarrow.scalar(default_value)
             column = column.cast(scalar.type)
             field = field.with_type(scalar.type)

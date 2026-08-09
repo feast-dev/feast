@@ -127,7 +127,7 @@ class ClickhouseOfflineStore(OfflineStore):
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
                     filter_by_created_timestamp=filter_by_created_timestamp,
-                    )
+                )
                 yield query
             finally:
                 if (

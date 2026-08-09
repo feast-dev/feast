@@ -1218,6 +1218,21 @@ class OnDemandFeatureView(BaseFeatureView):
         if specified_feature in inferred_features:
             return True
 
+        # Inference runs the transformation and cannot know about a declared default,
+        # so an otherwise identical field must still count as present.
+        if specified_feature.default_value is not None:
+            without_default = Field(
+                name=specified_feature.name,
+                dtype=specified_feature.dtype,
+                description=specified_feature.description,
+                tags=specified_feature.tags,
+                vector_index=specified_feature.vector_index,
+                vector_length=specified_feature.vector_length,
+                vector_search_metric=specified_feature.vector_search_metric,
+            )
+            if without_default in inferred_features:
+                return True
+
         # For array types, we need to check by name since array types
         # might have different representations between specified and inferred
         if self._is_array_type(specified_feature.dtype):

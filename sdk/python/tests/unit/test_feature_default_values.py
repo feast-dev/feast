@@ -130,22 +130,32 @@ def test_apply_default_values_ignores_unknown_and_undeclared_columns():
     ]
 
 
+def test_apply_default_values_retypes_an_all_null_column():
+    """An all-null column arrives typed as null; nothing real is at risk."""
+    table = pyarrow.table({"count": pyarrow.array([None, None], type=pyarrow.null())})
+
+    assert _apply_default_values(table, {"count": 0}).column("count").to_pylist() == [
+        0,
+        0,
+    ]
+
+
 @pytest.mark.parametrize(
-    "column,default_value,expected",
+    "column,default_value",
     [
-        # The offline store picks the physical type, so it need not match the dtype.
-        (pyarrow.array([None, None], type=pyarrow.null()), 0, [0, 0]),
-        (pyarrow.array([None, 5], type=pyarrow.int32()), 2**40, [2**40, 5]),
+        # Retyping these would reinterpret the values already present: an int64 epoch
+        # column cast to timestamp silently rewrites every row.
+        (pyarrow.array([None, 1], type=pyarrow.int64()), datetime(2025, 1, 1)),
+        (pyarrow.array([None, "x"], type=pyarrow.string()), [1]),
     ],
 )
-def test_apply_default_values_handles_mismatched_column_types(
-    column, default_value, expected
+def test_apply_default_values_refuses_to_retype_a_populated_column(
+    column, default_value
 ):
     table = pyarrow.table({"count": column})
 
-    filled = _apply_default_values(table, {"count": default_value})
-
-    assert filled.column("count").to_pylist() == expected
+    with pytest.raises(ValueError, match="cannot be represented"):
+        _apply_default_values(table, {"count": default_value})
 
 
 @pytest.mark.parametrize(
@@ -454,3 +464,13 @@ def test_odfv_field_default_survives_registry_round_trip():
 
     assert parsed[0].default_value == -1
     assert parsed[1].default_value is None
+
+
+def test_odfv_specified_field_with_default_counts_as_inferred():
+    """Inference cannot know a declared default, so apply must still accept the field."""
+    from feast.on_demand_feature_view import OnDemandFeatureView
+
+    specified = Field(name="x", dtype=Float64, default_value=-99.0)
+    inferred = [Field(name="x", dtype=Float64)]
+
+    assert OnDemandFeatureView._feature_exists_in_inferred(None, specified, inferred)

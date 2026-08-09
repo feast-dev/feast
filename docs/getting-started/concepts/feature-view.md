@@ -182,10 +182,9 @@ The default is applied during online retrieval and after the historical point-in
 Some details worth knowing:
 
 * Defaults are opt-in. A field without `default_value` behaves exactly as before, returning null.
-* The default must be representable as the field's `dtype`. An incompatible or lossy value, such as `1.5` for an `Int64`, is rejected when the `Field` is created rather than during serving.
+* The default must be representable as the field's `dtype`. A value the type cannot hold, and a float that an integer type would truncate such as `1.5` for an `Int64`, are rejected when the `Field` is created rather than during serving. Values the type *can* hold are coerced and stored in their converted form, so `Float32` with `0.1` reads back as `0.10000000149011612` and `Int64` with `"5"` reads back as `5`.
 * Feature statuses are not changed. A missing feature still reports `NOT_FOUND` even when a default is returned, so monitoring continues to reveal upstream data loss. If you need to distinguish "genuinely zero" from "missing" in a model, define a separate indicator feature.
 * Values outside the feature view's TTL keep their real value and `OUTSIDE_MAX_AGE` status. A default never replaces a stale value.
-* Retrieving historical features with `full_feature_names=False` from two feature views that expose the same feature name with different defaults raises an error, since the output column would otherwise be ambiguous. Use `full_feature_names=True` to disambiguate.
 
 Because older Feast runtimes ignore the field, upgrade your serving deployments before relying on a configured default.
 
