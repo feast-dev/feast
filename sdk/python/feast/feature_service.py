@@ -24,6 +24,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceSpec as FeatureServiceSpecProto,
 )
+from feast.version_utils import parse_version
 
 if TYPE_CHECKING:
     from feast.infra.registry.base_registry import BaseRegistry
@@ -96,7 +97,19 @@ class FeatureService:
         self.precompute_online = precompute_online
         for feature_grouping in self._features:
             if isinstance(feature_grouping, BaseFeatureView):
-                self.feature_view_projections.append(feature_grouping.projection)
+                projection = feature_grouping.projection
+                # If the source feature view is version-pinned (e.g.
+                # FeatureView(version="v2")), stamp that version onto the
+                # projection so name_to_use() renders "fv@v2" and retrieval
+                # resolves the pinned snapshot. The default version ("latest")
+                # leaves version_tag as None, preserving existing behavior for
+                # every unversioned feature service.
+                fv_version = getattr(feature_grouping, "version", None)
+                if projection.version_tag is None and fv_version:
+                    is_latest, version_num = parse_version(fv_version)
+                    if not is_latest:
+                        projection.version_tag = version_num
+                self.feature_view_projections.append(projection)
 
     def infer_features(
         self, fvs_to_update: Dict[str, Union[FeatureView, BaseFeatureView]]

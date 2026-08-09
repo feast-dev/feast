@@ -1261,7 +1261,7 @@ def _get_feature_views_to_use(
 
     if isinstance(features, FeatureService):
         feature_views = [
-            (projection.name, None, projection)
+            (projection.name, projection.version_tag, projection)
             for projection in features.feature_view_projections
         ]
     else:
