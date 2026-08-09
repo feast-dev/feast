@@ -49,6 +49,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.utils import (
     _get_requested_feature_views_to_features_dict,
+    _get_requested_on_demand_feature_views,
     compute_non_entity_date_range,
 )
 
@@ -197,7 +198,9 @@ class DaskOfflineStore(OfflineStore):
         ) = _get_requested_feature_views_to_features_dict(
             feature_refs,
             feature_views,
-            registry.list_on_demand_feature_views(config.project),
+            _get_requested_on_demand_feature_views(
+                feature_refs, config.project, registry
+            ),
         )
 
         entity_df_event_timestamp_range = (

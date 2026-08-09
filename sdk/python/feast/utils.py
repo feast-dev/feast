@@ -138,6 +138,67 @@ def _strip_version_from_ref(ref: str) -> str:
     return f"{fv_name}:{feature_name}"
 
 
+def _get_requested_on_demand_feature_views(
+    feature_refs: List[str],
+    project: str,
+    registry: "BaseRegistry",
+    allow_cache: bool = True,
+) -> List["OnDemandFeatureView"]:
+    """Resolve the ODFVs referenced by ``feature_refs``, honouring ``fv@vN`` pins.
+
+    Offline stores re-fetch ODFVs from the registry independently of the
+    already-resolved online path (``_get_feature_views_to_use``). This mirrors
+    that version-aware resolution so a pinned ODFV ref resolves to the pinned
+    snapshot; unversioned refs resolve to the promoted view (unchanged behavior).
+    """
+    from feast.on_demand_feature_view import OnDemandFeatureView
+
+    promoted_by_name = {
+        odfv.name: odfv
+        for odfv in registry.list_on_demand_feature_views(
+            project, allow_cache=allow_cache
+        )
+    }
+
+    # Dedupe refs by (name, version), preserving first-seen order.
+    requested: Dict[Tuple[str, Optional[int]], None] = {}
+    for ref in feature_refs:
+        fv_name, version_num, _ = _parse_feature_ref(ref)
+        requested[(fv_name, version_num)] = None
+
+    resolved: List["OnDemandFeatureView"] = []
+    seen: Set[Tuple[str, Optional[int]]] = set()
+    for fv_name, version_num in requested:
+        if version_num is not None:
+            try:
+                odfv = registry.get_feature_view_by_version(
+                    fv_name, project, version_num, allow_cache
+                )
+            except NotImplementedError:
+                # v0 fallback for registries without versioned lookup.
+                if version_num == 0:
+                    odfv = registry.get_any_feature_view(fv_name, project, allow_cache)
+                else:
+                    raise
+            if not isinstance(odfv, OnDemandFeatureView):
+                continue  # ref belongs to a regular FeatureView, not an ODFV
+            if odfv.projection is not None:
+                odfv.projection.version_tag = version_num
+        else:
+            promoted = promoted_by_name.get(fv_name)
+            if promoted is None:
+                continue
+            odfv = promoted
+
+        key = (odfv.name, version_num)
+        if key in seen:
+            continue
+        seen.add(key)
+        resolved.append(odfv)
+
+    return resolved
+
+
 def get_user_agent():
     return USER_AGENT
 
