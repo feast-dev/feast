@@ -1651,6 +1651,41 @@ def _get_entity_key_protos(
     return entity_key_protos
 
 
+def get_default_values_by_column(
+    fvs: List[Tuple[Union["FeatureView", "OnDemandFeatureView"], List[str]]],
+    full_feature_names: bool,
+) -> Dict[str, Any]:
+    """Maps historical output column names to the defaults their fields declare."""
+    defaults: Dict[str, Any] = {}
+    for view, feature_names in fvs:
+        requested = set(feature_names)
+        for field in view.projection.features:
+            if field.name not in requested or field.default_value is None:
+                continue
+            column = (
+                f"{view.projection.name_to_use()}__{field.name}"
+                if full_feature_names
+                else field.name
+            )
+            defaults[column] = field.default_value
+    return defaults
+
+
+def _get_default_value_protos(
+    table: "FeatureView", requested_features: List[str]
+) -> Dict[str, ValueProto]:
+    """Returns proto defaults for the requested features that declare one.
+
+    Read from the projection so aliased and subsetted views resolve correctly.
+    """
+    requested = set(requested_features)
+    defaults = {}
+    for field in table.projection.features:
+        if field.name in requested and field._default_value_proto is not None:
+            defaults[field.name] = field._default_value_proto
+    return defaults
+
+
 def _populate_response_from_feature_data(
     requested_features: List[str],
     read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
@@ -1735,6 +1770,18 @@ def _populate_response_from_feature_data(
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = PRESENT
+
+    # Statuses are deliberately left alone: NOT_FOUND still means the row was missing,
+    # which is what track_feature_statuses below reports. Only the value is swapped.
+    default_protos = _get_default_value_protos(table, requested_features)
+    for feat_name, default_proto in default_protos.items():
+        f_idx = feat_idx_map.get(feat_name)
+        if f_idx is None:
+            continue
+        values = feat_values[f_idx]
+        for out_idx in range(output_len):
+            if values[out_idx].WhichOneof("val") is None:
+                values[out_idx] = default_proto
 
     try:
         from feast.metrics import track_feature_statuses

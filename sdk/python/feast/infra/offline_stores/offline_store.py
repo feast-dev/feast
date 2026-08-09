@@ -31,6 +31,7 @@ from typing import (
 
 import pandas as pd
 import pyarrow
+import pyarrow.compute
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -89,8 +90,34 @@ def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     return [], 0
 
 
+def _apply_default_values(
+    table: pyarrow.Table, defaults: Dict[str, Any]
+) -> pyarrow.Table:
+    """Fills null cells in the named columns with their configured default."""
+    if not defaults:
+        return table
+
+    for column_name, default_value in defaults.items():
+        index = table.schema.get_field_index(column_name)
+        if index < 0:
+            continue
+        column = table.column(index)
+        if column.null_count == 0:
+            continue
+        filled = pyarrow.compute.fill_null(
+            column, pyarrow.scalar(default_value, type=column.type)
+        )
+        table = table.set_column(index, table.schema.field(index), filled)
+    return table
+
+
 class RetrievalJob(ABC):
     """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
+
+    # Output column name -> default, populated by FeatureStore.get_historical_features.
+    # Class level so no offline store constructor has to change; only ever replaced,
+    # never mutated in place.
+    _feature_default_values: Dict[str, Any] = {}
 
     def to_df(
         self,
@@ -215,6 +242,12 @@ class RetrievalJob(ABC):
                 logging.getLogger(__name__).debug(
                     "Failed to record offline store metrics", exc_info=True
                 )
+
+        # Before the ODFV loop, so a transformation sees the same source values online
+        # and offline. Without this an ODFV would receive null here but the default online.
+        features_table = _apply_default_values(
+            features_table, self._feature_default_values
+        )
 
         if self.on_demand_feature_views:
             # Build a mapping of ODFV name to requested feature names

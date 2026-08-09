@@ -89,12 +89,13 @@ class Field:
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
         self.default_value = default_value
+        # Converted once: an invalid default fails where the user wrote it, and online
+        # retrieval reuses this instead of re-converting on every request.
+        self._default_value_proto: Optional[ValueProto] = (
+            self._build_default_value_proto() if default_value is not None else None
+        )
 
-        # Fail where the user wrote it, not at apply time or during serving.
-        if default_value is not None:
-            self._default_value_to_proto()
-
-    def _default_value_to_proto(self) -> ValueProto:
+    def _build_default_value_proto(self) -> ValueProto:
         """Converts this field's default value to its proto representation.
 
         Raises:
@@ -200,8 +201,8 @@ class Field:
             vector_search_metric=vector_search_metric,
         )
         # Left unset when not configured, which is what keeps presence meaningful.
-        if self.default_value is not None:
-            field_proto.default_value.CopyFrom(self._default_value_to_proto())
+        if self._default_value_proto is not None:
+            field_proto.default_value.CopyFrom(self._default_value_proto)
         return field_proto
 
     @classmethod

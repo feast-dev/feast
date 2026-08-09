@@ -2105,6 +2105,10 @@ class FeatureStore:
             **kwargs,
         )
 
+        default_values = utils.get_default_values_by_column(fvs, full_feature_names)
+        if default_values:
+            job._feature_default_values = default_values
+
         # Auto-log to MLflow if configured
         try:
             if self.mlflow is not None and self.config.mlflow.auto_log:
