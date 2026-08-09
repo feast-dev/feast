@@ -1,8 +1,18 @@
+from datetime import datetime
+
 import pytest
 
 from feast.field import Feature, Field
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2
-from feast.types import Array, Bool, Float32, Float64, Int64, String
+from feast.types import (
+    Array,
+    Bool,
+    Float32,
+    Float64,
+    Int64,
+    String,
+    UnixTimestamp,
+)
 from feast.value_type import ValueType
 
 
@@ -97,9 +107,8 @@ def test_field_equality_detects_different_defaults():
         (Float64, "x"),
         (Array(Int64), 5),
         (Int64, [1, 2]),
-        # Coerced by the conversion, so these would silently store 1 and "123".
+        # Silently truncated by the conversion, so it would store 1.
         (Int64, 1.5),
-        (String, 123),
     ],
 )
 def test_field_rejects_incompatible_default_value(dtype, default_value):
@@ -107,8 +116,18 @@ def test_field_rejects_incompatible_default_value(dtype, default_value):
         Field(name="f", dtype=dtype, default_value=default_value)
 
 
-def test_field_default_value_allows_lossless_widening():
-    """int -> Float64 is exact, so it should not be treated as a lossy default."""
-    field = Field(name="f", dtype=Float64, default_value=1)
-
-    assert Field.from_proto(field.to_proto()).default_value == 1.0
+@pytest.mark.parametrize(
+    "dtype,default_value",
+    [
+        (Float64, 1),
+        # No float32 holds 0.1 exactly; that is not a reason to reject the default.
+        (Float32, 0.1),
+        (UnixTimestamp, datetime(2025, 1, 1)),
+    ],
+)
+def test_field_accepts_defaults_the_dtype_cannot_hold_exactly(dtype, default_value):
+    assert (
+        Field(name="f", dtype=dtype, default_value=default_value)
+        .to_proto()
+        .HasField("default_value")
+    )

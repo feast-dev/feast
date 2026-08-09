@@ -440,7 +440,7 @@ class AthenaRetrievalJob(RetrievalJob):
         self.to_athena(table_name=storage.athena_options.table)
 
     def to_athena(self, table_name: str) -> None:
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
 
             _upload_entity_df(

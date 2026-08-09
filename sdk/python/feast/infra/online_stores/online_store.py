@@ -729,6 +729,24 @@ class OnlineStore(ABC):
                         continue
                 feat_statuses[out_idx][row_idx] = PRESENT
 
+        # Same substitution as the regular read path; without it a precomputed
+        # feature service would serve nulls where historical retrieval serves defaults.
+        defaults_by_index = {}
+        name_to_index = {name: i for i, name in enumerate(expected_feature_names)}
+        for table, _ in grouped_refs:
+            view_name = table.projection.name_to_use()
+            for field in table.projection.features:
+                if field._default_value_proto is None:
+                    continue
+                out_name = (
+                    f"{view_name}__{field.name}" if full_feature_names else field.name
+                )
+                if out_name in name_to_index:
+                    defaults_by_index[name_to_index[out_name]] = (
+                        field._default_value_proto
+                    )
+        utils.apply_default_value_protos(feat_values, defaults_by_index)
+
         online_features_response.metadata.feature_names.val.extend(
             expected_feature_names
         )

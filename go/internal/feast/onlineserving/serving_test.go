@@ -374,8 +374,6 @@ func transposeSingle(t *testing.T, view *model.FeatureView, featureData2D [][]on
 	return vectors[0]
 }
 
-// A missing entity row yields the default while the status still reports NOT_FOUND,
-// so feature-status monitoring keeps seeing the missing source data.
 func TestTransposeSubstitutesDefaultForMissingRow(t *testing.T) {
 	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
 
@@ -413,7 +411,6 @@ func TestTransposeLeavesPresentValueUntouched(t *testing.T) {
 	assert.Equal(t, int64(3), vector.Values.(*array.Int64).Value(0))
 }
 
-// Without a declared default the value must stay null, matching current behaviour.
 func TestTransposeWithoutDefaultLeavesNull(t *testing.T) {
 	view := defaultValueTestView(nil)
 

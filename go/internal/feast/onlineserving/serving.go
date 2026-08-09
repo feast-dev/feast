@@ -347,8 +347,7 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 	return nil
 }
 
-// defaultValueForFeature returns the default configured for the feature at
-// featureIndex, or nil when it declares none.
+// defaultValueForFeature returns the feature's configured default, or nil.
 func defaultValueForFeature(
 	fvs map[string]*model.FeatureView,
 	groupRef *GroupedFeaturesPerEntitySet,
@@ -425,10 +424,10 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 					status = serving.FieldStatus_PRESENT
 				}
 			}
-			// Only the value is swapped. The status still reports NOT_FOUND so
-			// monitoring keeps seeing missing source data.
+			// Only the value is swapped; the status is left as computed above. An
+			// empty Value counts as missing, matching the Python paths.
 			outValue := value
-			if outValue == nil && defaultValue != nil {
+			if defaultValue != nil && (outValue == nil || outValue.Val == nil) {
 				outValue = defaultValue
 			}
 			for _, rowIndex := range outputIndexes {

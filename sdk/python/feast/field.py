@@ -26,6 +26,17 @@ from feast.value_type import ValueType
 STRUCT_SCHEMA_TAG = "feast:struct_schema"
 NESTED_COLLECTION_INNER_TYPE_TAG = "feast:nested_inner_type"
 
+_INTEGER_VALUE_TYPES = frozenset(
+    {
+        ValueType.INT32,
+        ValueType.INT64,
+        ValueType.INT32_LIST,
+        ValueType.INT64_LIST,
+        ValueType.INT32_SET,
+        ValueType.INT64_SET,
+    }
+)
+
 
 @typechecked
 class Field:
@@ -89,8 +100,7 @@ class Field:
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
         self.default_value = default_value
-        # Converted once: an invalid default fails where the user wrote it, and online
-        # retrieval reuses this instead of re-converting on every request.
+        # Converted once: fails where the user wrote it, and online reads reuse it.
         self._default_value_proto: Optional[ValueProto] = (
             self._build_default_value_proto() if default_value is not None else None
         )
@@ -104,6 +114,17 @@ class Field:
         from feast.type_map import python_values_to_proto_values
 
         value_type = self.dtype.to_value_type()
+
+        # The conversion truncates a float into an integer type, so 1.5 would be stored
+        # as 1. Nothing else is checked by value: comparing the round-trip would reject
+        # legitimate defaults such as 0.1 on Float32, which no float32 can hold exactly.
+        if value_type in _INTEGER_VALUE_TYPES and isinstance(self.default_value, float):
+            if not self.default_value.is_integer():
+                raise ValueError(
+                    f"default_value {self.default_value!r} for field {self.name!r} would "
+                    f"be truncated by dtype {self.dtype}."
+                )
+
         try:
             proto_value = python_values_to_proto_values(
                 [self.default_value], value_type
@@ -114,23 +135,12 @@ class Field:
                 f"compatible with dtype {self.dtype}: {e}"
             ) from e
 
-        # An empty Value would read back as "no default configured".
+        # An unrepresentable value converts to an empty Value, which would otherwise read
+        # back as "no default configured".
         if proto_value.WhichOneof("val") is None:
             raise ValueError(
                 f"default_value {self.default_value!r} for field {self.name!r} is not "
                 f"compatible with dtype {self.dtype}."
-            )
-
-        # The conversion coerces, so Int64 would store 1.5 as 1. Comparing the
-        # round-trip rejects lossy defaults but still allows int -> Float64.
-        from feast.type_map import feast_value_type_to_python_type
-
-        stored = feast_value_type_to_python_type(proto_value)
-        if stored != self.default_value:
-            raise ValueError(
-                f"default_value {self.default_value!r} for field {self.name!r} cannot be "
-                f"represented as dtype {self.dtype} without loss (it would be stored as "
-                f"{stored!r})."
             )
         return proto_value
 
@@ -191,7 +201,7 @@ class Field:
             self.dtype.base_type, (Array, Set)
         ):
             tags[NESTED_COLLECTION_INNER_TYPE_TAG] = _feast_type_to_str(self.dtype)
-        field_proto = FieldProto(
+        return FieldProto(
             name=self.name,
             value_type=value_type.value,  # type: ignore[arg-type]
             description=self.description,
@@ -199,11 +209,9 @@ class Field:
             vector_index=self.vector_index,
             vector_length=self.vector_length,
             vector_search_metric=vector_search_metric,
+            # None leaves the field unset, which is what keeps presence meaningful.
+            default_value=self._default_value_proto,
         )
-        # Left unset when not configured, which is what keeps presence meaningful.
-        if self._default_value_proto is not None:
-            field_proto.default_value.CopyFrom(self._default_value_proto)
-        return field_proto
 
     @classmethod
     def from_proto(cls, field_proto: FieldProto):
@@ -243,12 +251,14 @@ class Field:
 
         # Presence, not truthiness, so defaults of 0, False and "" survive.
         default_value = None
+        default_value_proto = None
         if field_proto.HasField("default_value"):
             from feast.type_map import feast_value_type_to_python_type
 
-            default_value = feast_value_type_to_python_type(field_proto.default_value)
+            default_value_proto = field_proto.default_value
+            default_value = feast_value_type_to_python_type(default_value_proto)
 
-        return cls(
+        field = cls(
             name=field_proto.name,
             dtype=dtype,
             tags=user_tags,
@@ -258,6 +268,11 @@ class Field:
             vector_search_metric=vector_search_metric,
             default_value=default_value,
         )
+        if default_value_proto is not None:
+            # Reuse what the registry already holds rather than re-deriving it; the
+            # value was validated when the Field was first written.
+            field._default_value_proto = default_value_proto
+        return field
 
     @classmethod
     def from_feature(cls, feature: Feature):

@@ -15,6 +15,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
+from feast.protos.feast.types.Value_pb2 import NULL as NULL_PROTO
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Float64, Int64
 
@@ -75,6 +76,17 @@ def test_online_null_value_on_existing_row_gets_default():
     assert response.results[0].values[0].int64_val == 0
 
 
+def test_online_explicit_null_val_gets_default():
+    """Remote and proto-JSON paths encode null as null_val, not as an unset Value."""
+    view = _feature_view([Field(name="count", dtype=Int64, default_value=0)])
+    row = (datetime(2025, 1, 1), {"count": ValueProto(null_val=NULL_PROTO)})
+
+    response = _populate(view, ["count"], [row])
+
+    assert response.results[0].values[0].WhichOneof("val") == "int64_val"
+    assert response.results[0].values[0].int64_val == 0
+
+
 def test_online_without_default_stays_null():
     view = _feature_view([Field(name="count", dtype=Int64)])
 
@@ -115,6 +127,24 @@ def test_apply_default_values_ignores_unknown_and_undeclared_columns():
     assert _apply_default_values(table, {"absent": 0}).column("count").to_pylist() == [
         None
     ]
+
+
+@pytest.mark.parametrize(
+    "column,default_value,expected",
+    [
+        # The offline store picks the physical type, so it need not match the dtype.
+        (pyarrow.array([None, None], type=pyarrow.null()), 0, [0, 0]),
+        (pyarrow.array([None, 5], type=pyarrow.int32()), 2**40, [2**40, 5]),
+    ],
+)
+def test_apply_default_values_handles_mismatched_column_types(
+    column, default_value, expected
+):
+    table = pyarrow.table({"count": column})
+
+    filled = _apply_default_values(table, {"count": default_value})
+
+    assert filled.column("count").to_pylist() == expected
 
 
 @pytest.mark.parametrize(

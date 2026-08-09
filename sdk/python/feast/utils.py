@@ -1671,6 +1671,28 @@ def get_default_values_by_column(
     return defaults
 
 
+def _is_null_proto_value(value: ValueProto) -> bool:
+    """An unset Value and an explicit null_val both mean "no value"."""
+    which = value.WhichOneof("val")
+    return which is None or which == "null_val"
+
+
+def apply_default_value_protos(
+    feat_values: List[List[ValueProto]],
+    defaults_by_index: Mapping[int, ValueProto],
+) -> None:
+    """Substitutes defaults for null values in place, leaving statuses untouched.
+
+    Shared by both online writers so the precomputed fast path cannot drift from the
+    regular read path.
+    """
+    for feature_index, default_proto in defaults_by_index.items():
+        values = feat_values[feature_index]
+        for row_index, value in enumerate(values):
+            if _is_null_proto_value(value):
+                values[row_index] = default_proto
+
+
 def _get_default_value_protos(
     table: "FeatureView", requested_features: List[str]
 ) -> Dict[str, ValueProto]:
@@ -1771,17 +1793,16 @@ def _populate_response_from_feature_data(
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = PRESENT
 
-    # Statuses are deliberately left alone: NOT_FOUND still means the row was missing,
-    # which is what track_feature_statuses below reports. Only the value is swapped.
-    default_protos = _get_default_value_protos(table, requested_features)
-    for feat_name, default_proto in default_protos.items():
-        f_idx = feat_idx_map.get(feat_name)
-        if f_idx is None:
-            continue
-        values = feat_values[f_idx]
-        for out_idx in range(output_len):
-            if values[out_idx].WhichOneof("val") is None:
-                values[out_idx] = default_proto
+    # Only the value is swapped; NOT_FOUND is what track_feature_statuses reports.
+    apply_default_value_protos(
+        feat_values,
+        {
+            feat_idx_map[name]: proto
+            for name, proto in _get_default_value_protos(
+                table, requested_features
+            ).items()
+        },
+    )
 
     try:
         from feast.metrics import track_feature_statuses

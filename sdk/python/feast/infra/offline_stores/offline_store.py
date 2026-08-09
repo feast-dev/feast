@@ -94,9 +94,6 @@ def _apply_default_values(
     table: pyarrow.Table, defaults: Dict[str, Any]
 ) -> pyarrow.Table:
     """Fills null cells in the named columns with their configured default."""
-    if not defaults:
-        return table
-
     for column_name, default_value in defaults.items():
         index = table.schema.get_field_index(column_name)
         if index < 0:
@@ -104,19 +101,33 @@ def _apply_default_values(
         column = table.column(index)
         if column.null_count == 0:
             continue
-        filled = pyarrow.compute.fill_null(
-            column, pyarrow.scalar(default_value, type=column.type)
-        )
-        table = table.set_column(index, table.schema.field(index), filled)
+
+        field = table.schema.field(index)
+        try:
+            scalar = pyarrow.scalar(default_value, type=column.type)
+        except (
+            pyarrow.ArrowInvalid,
+            pyarrow.ArrowTypeError,
+            pyarrow.ArrowNotImplementedError,
+        ):
+            # The physical column type is decided by the offline store, so it need not
+            # match the declared dtype: an all-null column arrives as null, and a
+            # narrower type cannot hold every valid default. Retype the column from the
+            # default rather than failing the whole retrieval.
+            scalar = pyarrow.scalar(default_value)
+            column = column.cast(scalar.type)
+            field = field.with_type(scalar.type)
+
+        filled = pyarrow.compute.fill_null(column, scalar)
+        table = table.set_column(index, field, filled)
     return table
 
 
 class RetrievalJob(ABC):
     """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
 
-    # Output column name -> default, populated by FeatureStore.get_historical_features.
-    # Class level so no offline store constructor has to change; only ever replaced,
-    # never mutated in place.
+    # Column name -> default, set by FeatureStore.get_historical_features. Class level
+    # so no offline store constructor changes; only ever replaced, never mutated.
     _feature_default_values: Dict[str, Any] = {}
 
     @property
@@ -252,8 +263,7 @@ class RetrievalJob(ABC):
                     "Failed to record offline store metrics", exc_info=True
                 )
 
-        # Before the ODFV loop, so a transformation sees the same source values online
-        # and offline. Without this an ODFV would receive null here but the default online.
+        # Before the ODFV loop, so transformations see the same values online and offline.
         features_table = _apply_default_values(
             features_table, self._feature_default_values
         )

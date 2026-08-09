@@ -8,8 +8,7 @@ import (
 type Field struct {
 	Name  string
 	Dtype types.ValueType_Enum
-	// Substituted when the feature is missing or null. Nil means no default is
-	// configured, which leaves the existing null behaviour untouched.
+	// Substituted when the feature is missing or null. Nil means no default.
 	DefaultValue *types.Value
 }
 
