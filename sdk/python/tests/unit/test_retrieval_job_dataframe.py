@@ -66,11 +66,13 @@ class TestRetrievalJobFeastDataFrame:
         # Create mock on-demand feature views
         mock_odfv1 = Mock()
         mock_odfv1.name = "odfv1"
+        mock_odfv1.projection.features = []
         # Mock transform_arrow to return an empty table (no new columns added)
         mock_odfv1.transform_arrow.return_value = pa.table({})
 
         mock_odfv2 = Mock()
         mock_odfv2.name = "odfv2"
+        mock_odfv2.projection.features = []
         # Mock transform_arrow to return an empty table (no new columns added)
         mock_odfv2.transform_arrow.return_value = pa.table({})
 

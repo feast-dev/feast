@@ -32,6 +32,7 @@ from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
+    _apply_default_values,
 )
 from feast.infra.offline_stores.offline_utils import (
     get_entity_df_timestamp_bounds,
@@ -1069,6 +1070,11 @@ class RayRetrievalJob(RetrievalJob):
         """
         return self._get_ray_dataset()
 
+    def _fill_defaults(self, table: pa.Table) -> pa.Table:
+        """The native Ray paths below bypass the base to_arrow, which is where
+        defaults are normally filled."""
+        return _apply_default_values(table, self._feature_default_values)
+
     def to_df(
         self,
         validation_reference: Optional[ValidationReference] = None,
@@ -1092,6 +1098,9 @@ class RayRetrievalJob(RetrievalJob):
                     else:
                         df = result.to_pandas()
                 self._cached_df = df
+
+        if self._feature_default_values:
+            df = self._fill_defaults(pa.Table.from_pandas(df)).to_pandas()
 
         if validation_reference:
             try:
@@ -1122,7 +1131,9 @@ class RayRetrievalJob(RetrievalJob):
                 import ray as _ray
 
                 ray_ds = self._get_ray_dataset()
-                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
+                return self._fill_defaults(
+                    pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
+                )
             except Exception:
                 df = self.to_df(
                     validation_reference=validation_reference, timeout=timeout
@@ -1131,10 +1142,10 @@ class RayRetrievalJob(RetrievalJob):
         else:
             result = self._resolve()
             if isinstance(result, pd.DataFrame):
-                return pa.Table.from_pandas(result)
+                return self._fill_defaults(pa.Table.from_pandas(result))
             else:
                 df = result.to_pandas()
-                return pa.Table.from_pandas(df)
+                return self._fill_defaults(pa.Table.from_pandas(df))
 
     def to_feast_df(
         self,

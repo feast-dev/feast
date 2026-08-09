@@ -203,6 +203,8 @@ def test_historical_defaults_are_applied_before_odfv_runs():
     seen = {}
 
     class _Projection:
+        features: list = []
+
         def name_to_use(self):
             return "derived"
 
@@ -380,3 +382,53 @@ def test_field_equals_its_own_round_trip(dtype, value):
     field = Field(name="f", dtype=dtype, default_value=value)
 
     assert Field.from_proto(field.to_proto()) == field
+
+
+def test_odfv_output_default_is_applied_historically():
+    """A transform returning null still yields the field's declared default."""
+
+    class _Projection:
+        def name_to_use(self):
+            return "derived"
+
+    class _NullReturningODFV:
+        name = "derived"
+        projection = _Projection()
+
+        def transform_arrow(self, table, full_feature_names):
+            return pyarrow.table(
+                {"derived_count": pyarrow.array([None, 5], type=pyarrow.int64())}
+            )
+
+    odfv = _NullReturningODFV()
+    odfv.projection.features = [
+        Field(name="derived_count", dtype=Int64, default_value=-1)
+    ]
+
+    table = pyarrow.table({"count": pyarrow.array([1, 2], type=pyarrow.int64())})
+    result = _FakeRetrievalJob(table, [odfv]).to_arrow()
+
+    assert result.column("derived_count").to_pylist() == [-1, 5]
+
+
+def test_odfv_output_without_default_stays_null():
+    class _Projection:
+        def name_to_use(self):
+            return "derived"
+
+    class _NullReturningODFV:
+        name = "derived"
+        projection = _Projection()
+
+        def transform_arrow(self, table, full_feature_names):
+            return pyarrow.table(
+                {"derived_count": pyarrow.array([None, 5], type=pyarrow.int64())}
+            )
+
+    odfv = _NullReturningODFV()
+    odfv.projection.features = [Field(name="derived_count", dtype=Int64)]
+
+    table = pyarrow.table({"count": pyarrow.array([1, 2], type=pyarrow.int64())})
+    result = _FakeRetrievalJob(table, [odfv]).to_arrow()
+
+    assert result.column("derived_count").to_pylist() == [None, 5]

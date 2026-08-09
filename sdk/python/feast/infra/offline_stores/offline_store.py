@@ -368,6 +368,21 @@ class RetrievalJob(ABC):
                             col, transformed_arrow[col]
                         )
 
+                # After the transform, since these are the ODFV's own outputs: a
+                # transformation that returns null still yields the declared default.
+                features_table = _apply_default_values(
+                    features_table,
+                    {
+                        (
+                            f"{odfv.projection.name_to_use()}__{field.name}"
+                            if self.full_feature_names
+                            else field.name
+                        ): field.default_value
+                        for field in odfv.projection.features
+                        if field.default_value is not None
+                    },
+                )
+
         if validation_reference:
             if not flags_helper.is_test():
                 warnings.warn(
