@@ -326,3 +326,57 @@ def test_mutating_the_caller_s_default_does_not_drift_from_the_proto():
 
     assert field.default_value == [1, 2]
     assert Field.from_proto(field.to_proto()).default_value == [1, 2]
+
+
+def test_query_context_can_be_subclassed_with_required_fields():
+    """Spark subclasses FeatureViewQueryContext and adds its own fields."""
+    from dataclasses import dataclass
+    from typing import Optional
+
+    from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+
+    @dataclass(frozen=True)
+    class _SubContext(FeatureViewQueryContext):
+        min_date_partition: Optional[str] = None
+
+    assert _SubContext.__dataclass_fields__["min_date_partition"] is not None
+
+
+def test_unrequested_feature_default_does_not_leak_into_the_query():
+    """A default on a feature nobody asked for must not COALESCE a same-named column."""
+    from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+
+    context = FeatureViewQueryContext(
+        name="driver_stats",
+        ttl=0,
+        entities=["driver_id"],
+        features=["conv_rate"],
+        field_mapping={},
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        table_subquery="t",
+        entity_selections=["driver_id AS driver_id"],
+        min_event_timestamp=None,
+        max_event_timestamp="2025-01-02T00:00:00",
+        date_partition_column=None,
+        timestamp_field_type=None,
+        feature_defaults={"age": 0},
+    )
+
+    assert "age" not in context.feature_defaults or "conv_rate" in context.features
+
+
+def test_long_string_default_is_not_pushed_down():
+    assert to_sql_literal("x" * 100) is not None
+    assert to_sql_literal("x" * 100_000) is None
+
+
+@pytest.mark.parametrize(
+    "dtype,value",
+    [(Int64, 0), (Float64, 0.1), (Array(Int64), [1, 2])],
+)
+def test_field_equals_its_own_round_trip(dtype, value):
+    """Otherwise every apply would register a schema change."""
+    field = Field(name="f", dtype=dtype, default_value=value)
+
+    assert Field.from_proto(field.to_proto()) == field

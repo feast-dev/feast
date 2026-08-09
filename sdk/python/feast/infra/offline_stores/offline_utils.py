@@ -191,9 +191,10 @@ def get_feature_view_query_context(
             date_partition_column=date_partition_column,
             timestamp_field_type=timestamp_field_type or None,
             feature_defaults={
-                field.name: field.default_value
+                reverse_field_mapping.get(field.name, field.name): field.default_value
                 for field in feature_view.projection.features
                 if field.default_value is not None
+                and reverse_field_mapping.get(field.name, field.name) in features
             },
         )
         query_context.append(context)

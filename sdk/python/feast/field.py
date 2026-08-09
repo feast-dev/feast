@@ -111,6 +111,16 @@ class Field:
         self._default_value_proto: Optional[ValueProto] = (
             self._build_default_value_proto() if default_value is not None else None
         )
+        if self._default_value_proto is not None:
+            # Store what the registry will actually hold. The conversion coerces, so
+            # String with 123 persists "123"; keeping 123 here would make a Field
+            # compare unequal to its own round trip and register as a schema change
+            # on every apply.
+            from feast.type_map import feast_value_type_to_python_type
+
+            self.default_value = feast_value_type_to_python_type(
+                self._default_value_proto
+            )
 
     @property
     def default_value_proto(self) -> Optional[ValueProto]:

@@ -91,6 +91,9 @@ def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     return [], 0
 
 
+_MAX_SQL_LITERAL_LENGTH = 4096
+
+
 def to_sql_literal(value: Any) -> Optional[str]:
     """Renders a default as a SQL literal, or None if it cannot be pushed into a query.
 
@@ -109,6 +112,10 @@ def to_sql_literal(value: Any) -> Optional[str]:
         # 'O''Brien' as two adjacent literals, while backslash escapes are literal in
         # Trino. A string needing either is left to the Python fill instead.
         if any(c in value for c in "'\"\\\n\r\t"):
+            return None
+        # Engines cap total query size; a large default is better filled in Python
+        # than pushed into every generated query.
+        if len(value) > _MAX_SQL_LITERAL_LENGTH:
             return None
         return f"'{value}'"
     return None
