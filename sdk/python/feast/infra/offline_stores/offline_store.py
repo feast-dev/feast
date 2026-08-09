@@ -105,8 +105,12 @@ def to_sql_literal(value: Any) -> Optional[str]:
     if isinstance(value, float):
         return repr(value) if math.isfinite(value) else None
     if isinstance(value, str):
-        escaped = value.replace("'", "''")
-        return f"'{escaped}'"
+        # No escaping is portable. BigQuery rejects the SQL-standard '' form, reading
+        # 'O''Brien' as two adjacent literals, while backslash escapes are literal in
+        # Trino. A string needing either is left to the Python fill instead.
+        if any(c in value for c in "'\"\\\n\r\t"):
+            return None
+        return f"'{value}'"
     return None
 
 

@@ -9,6 +9,7 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     _apply_default_values,
+    to_sql_literal,
 )
 from feast.infra.offline_stores.offline_utils import build_final_output_expressions
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -230,6 +231,31 @@ def test_historical_without_defaults_is_unchanged():
     result = _FakeRetrievalJob(table, []).to_arrow()
 
     assert result.column("count").to_pylist() == [None, 5]
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (0, "0"),
+        (-1, "-1"),
+        (3.5, "3.5"),
+        (True, "TRUE"),
+        (False, "FALSE"),
+        ("unknown", "'unknown'"),
+        # No escaping is portable. BigQuery rejects the SQL-standard '' form, reading
+        # 'O''Brien' as two adjacent literals, and backslashes are literal in Trino.
+        # Anything needing an escape is filled in Python rather than pushed down.
+        ("O'Brien", None),
+        ('say "hi"', None),
+        ("back\\slash", None),
+        ("two\nlines", None),
+        (float("nan"), None),
+        ([1, 2], None),
+        ({"a": 1}, None),
+    ],
+)
+def test_to_sql_literal(value, expected):
+    assert to_sql_literal(value) == expected
 
 
 def test_build_final_output_expressions_coalesces_only_defaulted_columns():
