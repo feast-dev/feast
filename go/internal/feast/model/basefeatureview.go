@@ -22,12 +22,18 @@ type BaseFeatureView struct {
 // this per feature per request, so the scan happens once rather than on every request.
 func (fv *BaseFeatureView) GetDefaultValue(featureName string) *types.Value {
 	fv.featureDefaultsOnce.Do(func() {
-		for _, feature := range fv.Features {
+		// Prefer the projection: a feature service can project a different set of
+		// fields than the base view carries, and Python resolves defaults the same way.
+		features := fv.Features
+		if fv.Projection != nil && len(fv.Projection.Features) > 0 {
+			features = fv.Projection.Features
+		}
+		for _, feature := range features {
 			if feature.DefaultValue == nil {
 				continue
 			}
 			if fv.featureDefaults == nil {
-				fv.featureDefaults = make(map[string]*types.Value, len(fv.Features))
+				fv.featureDefaults = make(map[string]*types.Value, len(features))
 			}
 			fv.featureDefaults[feature.Name] = feature.DefaultValue
 		}

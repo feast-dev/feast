@@ -858,6 +858,8 @@ class OnDemandFeatureView(BaseFeatureView):
     @classmethod
     def _parse_features_from_proto(cls, proto: OnDemandFeatureViewProto) -> List[Field]:
         """Parse features from the protobuf representation."""
+        from feast.type_map import feast_value_type_to_python_type
+
         return [
             Field(
                 name=feature.name,
@@ -865,6 +867,11 @@ class OnDemandFeatureView(BaseFeatureView):
                 vector_index=feature.vector_index,
                 vector_length=feature.vector_length,
                 vector_search_metric=feature.vector_search_metric,
+                default_value=(
+                    feast_value_type_to_python_type(feature.default_value)
+                    if feature.HasField("default_value")
+                    else None
+                ),
             )
             for feature in proto.spec.features
         ]

@@ -1041,6 +1041,19 @@ class RayRetrievalJob(RetrievalJob):
             result = self._dataset_or_callable()
         else:
             result = self._dataset_or_callable
+        # Filled here rather than in to_arrow: the Ray paths (to_ray_dataset,
+        # to_feast_df, to_remote_storage, persist) never reach the base class.
+        if self._feature_default_values:
+            defaults = self._feature_default_values
+            if is_ray_data(result):
+                result = result.map_batches(
+                    lambda batch: _apply_default_values(batch, defaults),
+                    batch_format="pyarrow",
+                )
+            elif isinstance(result, pd.DataFrame):
+                result = _apply_default_values(
+                    pa.Table.from_pandas(result), defaults
+                ).to_pandas()
         return result
 
     def _get_ray_dataset(self) -> Dataset:
@@ -1070,11 +1083,6 @@ class RayRetrievalJob(RetrievalJob):
         """
         return self._get_ray_dataset()
 
-    def _fill_defaults(self, table: pa.Table) -> pa.Table:
-        """The native Ray paths below bypass the base to_arrow, which is where
-        defaults are normally filled."""
-        return _apply_default_values(table, self._feature_default_values)
-
     def to_df(
         self,
         validation_reference: Optional[ValidationReference] = None,
@@ -1098,9 +1106,6 @@ class RayRetrievalJob(RetrievalJob):
                     else:
                         df = result.to_pandas()
                 self._cached_df = df
-
-        if self._feature_default_values:
-            df = self._fill_defaults(pa.Table.from_pandas(df)).to_pandas()
 
         if validation_reference:
             try:
@@ -1131,9 +1136,7 @@ class RayRetrievalJob(RetrievalJob):
                 import ray as _ray
 
                 ray_ds = self._get_ray_dataset()
-                return self._fill_defaults(
-                    pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
-                )
+                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
             except Exception:
                 df = self.to_df(
                     validation_reference=validation_reference, timeout=timeout
@@ -1142,10 +1145,10 @@ class RayRetrievalJob(RetrievalJob):
         else:
             result = self._resolve()
             if isinstance(result, pd.DataFrame):
-                return self._fill_defaults(pa.Table.from_pandas(result))
+                return pa.Table.from_pandas(result)
             else:
                 df = result.to_pandas()
-                return self._fill_defaults(pa.Table.from_pandas(df))
+                return pa.Table.from_pandas(df)
 
     def to_feast_df(
         self,

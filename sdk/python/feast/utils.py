@@ -919,7 +919,11 @@ def _augment_response_with_on_demand_transforms(
             # A transform returning null still yields the declared default. Statuses are
             # left as they are, matching how stored features are handled.
             odfv_defaults = {
-                field.name: field.default_value_proto
+                (
+                    f"{odfv.projection.name_to_use()}__{field.name}"
+                    if full_feature_names
+                    else field.name
+                ): field.default_value_proto
                 for field in odfv.schema
                 if field.default_value_proto is not None
             }

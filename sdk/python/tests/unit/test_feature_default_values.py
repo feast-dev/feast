@@ -432,3 +432,25 @@ def test_odfv_output_without_default_stays_null():
     result = _FakeRetrievalJob(table, [odfv]).to_arrow()
 
     assert result.column("derived_count").to_pylist() == [None, 5]
+
+
+def test_odfv_field_default_survives_registry_round_trip():
+    """Without this the ODFV output default silently vanishes on reload."""
+    from feast.on_demand_feature_view import OnDemandFeatureView
+    from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+        OnDemandFeatureView as OnDemandFeatureViewProto,
+    )
+    from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+        OnDemandFeatureViewSpec,
+    )
+
+    spec = OnDemandFeatureViewSpec(name="odfv", project="p")
+    spec.features.append(Field(name="a", dtype=Int64, default_value=-1).to_proto())
+    spec.features.append(Field(name="b", dtype=Int64).to_proto())
+
+    parsed = OnDemandFeatureView._parse_features_from_proto(
+        OnDemandFeatureViewProto(spec=spec)
+    )
+
+    assert parsed[0].default_value == -1
+    assert parsed[1].default_value is None
