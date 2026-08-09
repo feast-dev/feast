@@ -765,7 +765,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self, table_name: str, allow_overwrite: bool = False, temporary: bool = False
     ) -> None:
         """Save dataset as a new Snowflake table"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
 
             if allow_overwrite:

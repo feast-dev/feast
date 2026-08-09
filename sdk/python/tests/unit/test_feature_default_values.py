@@ -217,6 +217,21 @@ def test_online_and_historical_agree_on_missing_value():
     assert online == historical == 0
 
 
+def test_requires_python_post_processing_tracks_defaults_and_odfvs():
+    """Warehouse stores export server-side unless this says otherwise."""
+    table = pyarrow.table({"count": pyarrow.array([None], type=pyarrow.int64())})
+
+    plain = _FakeRetrievalJob(table, [])
+    assert plain._requires_python_post_processing is False
+
+    with_odfv = _FakeRetrievalJob(table, [object()])
+    assert with_odfv._requires_python_post_processing is True
+
+    with_default = _FakeRetrievalJob(table, [])
+    with_default._feature_default_values = {"count": 0}
+    assert with_default._requires_python_post_processing is True
+
+
 def test_historical_default_survives_to_df():
     table = pyarrow.table({"count": pyarrow.array([None, 5], type=pyarrow.int64())})
     job = _FakeRetrievalJob(table, [])

@@ -119,6 +119,15 @@ class RetrievalJob(ABC):
     # never mutated in place.
     _feature_default_values: Dict[str, Any] = {}
 
+    @property
+    def _requires_python_post_processing(self) -> bool:
+        """Whether results must pass through Python before being written out.
+
+        Stores that otherwise export server-side have to route through ``to_df()``,
+        or the written data will not match what ``to_arrow()`` returns.
+        """
+        return bool(self.on_demand_feature_views) or bool(self._feature_default_values)
+
     def to_df(
         self,
         validation_reference: Optional["ValidationReference"] = None,

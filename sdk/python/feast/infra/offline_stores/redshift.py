@@ -1054,7 +1054,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_s3(self) -> str:
         """Export dataset to S3 in Parquet format and return path"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_s3(self._s3_resource, self._s3_path, transformed_df)
             return self._s3_path
@@ -1074,7 +1074,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_redshift(self, table_name: str) -> None:
         """Save dataset as a new Redshift table"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_redshift(
                 self._redshift_client,

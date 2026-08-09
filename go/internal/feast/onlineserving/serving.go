@@ -347,6 +347,29 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 	return nil
 }
 
+// defaultValueForFeature returns the default configured for the feature at
+// featureIndex, or nil when it declares none.
+func defaultValueForFeature(
+	fvs map[string]*model.FeatureView,
+	groupRef *GroupedFeaturesPerEntitySet,
+	featureIndex int) *prototypes.Value {
+
+	if featureIndex >= len(groupRef.FeatureViewNames) || featureIndex >= len(groupRef.FeatureNames) {
+		return nil
+	}
+	fv, ok := fvs[groupRef.FeatureViewNames[featureIndex]]
+	if !ok || fv.Base == nil {
+		return nil
+	}
+	featureName := groupRef.FeatureNames[featureIndex]
+	for _, field := range fv.Base.Features {
+		if field.Name == featureName {
+			return field.DefaultValue
+		}
+	}
+	return nil
+}
+
 func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 	groupRef *GroupedFeaturesPerEntitySet,
 	requestedFeatureViews []*FeatureViewAndRefs,
@@ -377,6 +400,10 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 		vectors = append(vectors, currentVector)
 		protoValues := make([]*prototypes.Value, numRows)
 
+		// Resolved per feature rather than per row: a missing row carries no
+		// Reference to look the feature view up by.
+		defaultValue := defaultValueForFeature(fvs, groupRef, featureIndex)
+
 		for rowEntityIndex, outputIndexes := range groupRef.Indices {
 			if featureData2D[rowEntityIndex] == nil {
 				value = nil
@@ -398,8 +425,14 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 					status = serving.FieldStatus_PRESENT
 				}
 			}
+			// Only the value is swapped. The status still reports NOT_FOUND so
+			// monitoring keeps seeing missing source data.
+			outValue := value
+			if outValue == nil && defaultValue != nil {
+				outValue = defaultValue
+			}
 			for _, rowIndex := range outputIndexes {
-				protoValues[rowIndex] = value
+				protoValues[rowIndex] = outValue
 				currentVector.Statuses[rowIndex] = status
 				currentVector.Timestamps[rowIndex] = eventTimeStamp
 			}
