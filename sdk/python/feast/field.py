@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import json
 from typing import Any, Dict, Optional
 
@@ -99,11 +100,22 @@ class Field:
         self.vector_index = vector_index
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
-        self.default_value = default_value
+        # Copied so a later mutation of the caller's list or dict cannot drift from the
+        # proto cached below, which would make the offline and online paths disagree.
+        self.default_value = (
+            copy.deepcopy(default_value)
+            if isinstance(default_value, (list, dict, set))
+            else default_value
+        )
         # Converted once: fails where the user wrote it, and online reads reuse it.
         self._default_value_proto: Optional[ValueProto] = (
             self._build_default_value_proto() if default_value is not None else None
         )
+
+    @property
+    def default_value_proto(self) -> Optional[ValueProto]:
+        """The default as a proto, or None when the field configures no default."""
+        return self._default_value_proto
 
     def _build_default_value_proto(self) -> ValueProto:
         """Converts this field's default value to its proto representation.

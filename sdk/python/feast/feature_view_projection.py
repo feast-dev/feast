@@ -7,6 +7,7 @@ from feast.field import Field
 from feast.protos.feast.core.FeatureViewProjection_pb2 import (
     FeatureViewProjection as FeatureViewProjectionProto,
 )
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 if TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
@@ -155,6 +156,14 @@ class FeatureViewProjection:
                 features=base_feature_view.features,
                 desired_features=[],
             )
+
+    def default_value_protos(self) -> Dict[str, ValueProto]:
+        """Proto defaults for this projection's features that configure one."""
+        return {
+            field.name: field.default_value_proto
+            for field in self.features
+            if field.default_value_proto is not None
+        }
 
     def get_feature(self, feature_name: str) -> Field:
         try:

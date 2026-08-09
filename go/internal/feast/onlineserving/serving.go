@@ -347,7 +347,8 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 	return nil
 }
 
-// defaultValueForFeature returns the feature's configured default, or nil.
+// defaultValueForFeature returns the feature's configured default, or nil. The map
+// lookup on BaseFeatureView keeps this off the critical path when nothing declares one.
 func defaultValueForFeature(
 	fvs map[string]*model.FeatureView,
 	groupRef *GroupedFeaturesPerEntitySet,
@@ -360,13 +361,7 @@ func defaultValueForFeature(
 	if !ok || fv.Base == nil {
 		return nil
 	}
-	featureName := groupRef.FeatureNames[featureIndex]
-	for _, field := range fv.Base.Features {
-		if field.Name == featureName {
-			return field.DefaultValue
-		}
-	}
-	return nil
+	return fv.Base.GetDefaultValue(groupRef.FeatureNames[featureIndex])
 }
 
 func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,

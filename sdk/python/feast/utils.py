@@ -1667,6 +1667,15 @@ def get_default_values_by_column(
                 if full_feature_names
                 else field.name
             )
+            # Without full_feature_names two views can expose the same feature name.
+            # Silently keeping the last default would be wrong data, not a nuisance.
+            existing = defaults.get(column)
+            if existing is not None and existing != field.default_value:
+                raise ValueError(
+                    f"Conflicting default values for output column {column!r}: "
+                    f"{existing!r} and {field.default_value!r}. Retrieve with "
+                    f"full_feature_names=True to disambiguate."
+                )
             defaults[column] = field.default_value
     return defaults
 
@@ -1680,16 +1689,18 @@ def _is_null_proto_value(value: ValueProto) -> bool:
 def apply_default_value_protos(
     feat_values: List[List[ValueProto]],
     defaults_by_index: Mapping[int, ValueProto],
+    null_value: Optional[ValueProto] = None,
 ) -> None:
     """Substitutes defaults for null values in place, leaving statuses untouched.
 
     Shared by both online writers so the precomputed fast path cannot drift from the
-    regular read path.
+    regular read path. Callers pass the sentinel they pre-filled with: identity is far
+    cheaper than WhichOneof, and every position no row wrote still holds it.
     """
     for feature_index, default_proto in defaults_by_index.items():
         values = feat_values[feature_index]
         for row_index, value in enumerate(values):
-            if _is_null_proto_value(value):
+            if value is null_value or _is_null_proto_value(value):
                 values[row_index] = default_proto
 
 
@@ -1701,11 +1712,11 @@ def _get_default_value_protos(
     Read from the projection so aliased and subsetted views resolve correctly.
     """
     requested = set(requested_features)
-    defaults = {}
-    for field in table.projection.features:
-        if field.name in requested and field._default_value_proto is not None:
-            defaults[field.name] = field._default_value_proto
-    return defaults
+    return {
+        name: proto
+        for name, proto in table.projection.default_value_protos().items()
+        if name in requested
+    }
 
 
 def _populate_response_from_feature_data(
@@ -1802,6 +1813,7 @@ def _populate_response_from_feature_data(
                 table, requested_features
             ).items()
         },
+        null_value,
     )
 
     try:

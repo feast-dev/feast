@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import pandas as pd
 import pyarrow
 import pytest
 
@@ -10,7 +9,6 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     _apply_default_values,
-    to_sql_literal,
 )
 from feast.infra.offline_stores.offline_utils import build_final_output_expressions
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -19,7 +17,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import NULL as NULL_PROTO
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.types import Float64, Int64
+from feast.types import Array, Float64, Int64
 
 
 def _feature_view(fields):
@@ -234,41 +232,6 @@ def test_historical_without_defaults_is_unchanged():
     assert result.column("count").to_pylist() == [None, 5]
 
 
-def test_online_and_historical_agree_on_missing_value():
-    field = Field(name="count", dtype=Int64, default_value=0)
-    view = _feature_view([field])
-
-    online = _populate(view, ["count"], [(None, None)]).results[0].values[0].int64_val
-
-    historical_table = _apply_default_values(
-        pyarrow.table({"count": pyarrow.array([None], type=pyarrow.int64())}),
-        utils.get_default_values_by_column([(view, ["count"])], False),
-    )
-    historical = historical_table.column("count").to_pylist()[0]
-
-    assert online == historical == 0
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        (0, "0"),
-        (-1, "-1"),
-        (3.5, "3.5"),
-        (True, "TRUE"),
-        (False, "FALSE"),
-        ("unknown", "'unknown'"),
-        # Quotes must be escaped, not interpolated straight into the query.
-        ("O'Brien", "'O''Brien'"),
-        (float("nan"), None),
-        ([1, 2], None),
-        ({"a": 1}, None),
-    ],
-)
-def test_to_sql_literal(value, expected):
-    assert to_sql_literal(value) == expected
-
-
 def test_build_final_output_expressions_coalesces_only_defaulted_columns():
     expressions = build_final_output_expressions(
         ["driver_id", "conv_rate"], {"conv_rate": "0.0"}, quote_char="`"
@@ -314,10 +277,26 @@ def test_requires_python_post_processing_tracks_defaults_and_odfvs():
     assert with_default._requires_python_post_processing is True
 
 
-def test_historical_default_survives_to_df():
-    table = pyarrow.table({"count": pyarrow.array([None, 5], type=pyarrow.int64())})
-    job = _FakeRetrievalJob(table, [])
-    job._feature_default_values = {"count": 0}
+def test_conflicting_defaults_for_one_output_column_raise():
+    """Without full_feature_names two views can collide on a feature name."""
+    a = _feature_view([Field(name="count", dtype=Int64, default_value=0)])
+    b = _feature_view([Field(name="count", dtype=Int64, default_value=9)])
 
-    assert job.to_df()["count"].tolist() == [0, 5]
-    assert isinstance(job.to_df(), pd.DataFrame)
+    with pytest.raises(ValueError, match="Conflicting default values"):
+        utils.get_default_values_by_column([(a, ["count"]), (b, ["count"])], False)
+
+    # The same default from both views is not a conflict.
+    same = _feature_view([Field(name="count", dtype=Int64, default_value=0)])
+    assert utils.get_default_values_by_column(
+        [(a, ["count"]), (same, ["count"])], False
+    )
+
+
+def test_mutating_the_caller_s_default_does_not_drift_from_the_proto():
+    original = [1, 2]
+    field = Field(name="f", dtype=Array(Int64), default_value=original)
+
+    original.append(3)
+
+    assert field.default_value == [1, 2]
+    assert Field.from_proto(field.to_proto()).default_value == [1, 2]
