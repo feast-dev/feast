@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
@@ -49,7 +50,8 @@ class FeatureService:
     """
 
     name: str
-    _features: List[Union[FeatureView, OnDemandFeatureView, LabelView]]
+    _features: List[Union[FeatureView, OnDemandFeatureView, LabelView, str]]
+    _pending_feature_refs: List[str]
     feature_view_projections: List[FeatureViewProjection]
     description: str
     tags: Dict[str, str]
@@ -64,7 +66,7 @@ class FeatureService:
         self,
         *,
         name: str,
-        features: List[Union[FeatureView, OnDemandFeatureView, LabelView]],
+        features: List[Union[FeatureView, OnDemandFeatureView, LabelView, str]],
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -76,8 +78,18 @@ class FeatureService:
 
         Args:
             name: The unique name of the feature service.
-            features: A list containing feature views and feature view
-                projections, representing the features in the feature service.
+            features: A list containing feature views, feature view projections,
+                and/or string feature references, representing the features in
+                the feature service. A string entry uses the same
+                '<feature_view>[@<version>][:<feature>]' syntax accepted by
+                ``get_historical_features``/``get_online_features`` — e.g.
+                "driver_stats" (latest, all features), "driver_stats@v2"
+                (pinned version, all features), or "driver_stats@v2:trips_today"
+                (pinned version, single feature). String refs are resolved
+                against the registry when the feature service is applied
+                (``FeatureStore.apply``), so a historical version can be pinned
+                without importing or reconstructing the underlying FeatureView
+                object.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
@@ -87,6 +99,7 @@ class FeatureService:
         """
         self.name = name
         self._features = features
+        self._pending_feature_refs = []
         self.feature_view_projections = []
         self.description = description
         self.tags = tags or {}
@@ -96,7 +109,10 @@ class FeatureService:
         self.logging_config = logging_config
         self.precompute_online = precompute_online
         for feature_grouping in self._features:
-            if isinstance(feature_grouping, BaseFeatureView):
+            if isinstance(feature_grouping, str):
+                # No registry at construction time; resolved in resolve_pending_refs.
+                self._pending_feature_refs.append(feature_grouping)
+            elif isinstance(feature_grouping, BaseFeatureView):
                 projection = feature_grouping.projection
                 # If the source feature view is version-pinned (e.g.
                 # FeatureView(version="v2")), stamp that version onto the
@@ -110,6 +126,63 @@ class FeatureService:
                     if not is_latest:
                         projection.version_tag = version_num
                 self.feature_view_projections.append(projection)
+
+    def resolve_pending_refs(
+        self,
+        project: str,
+        registry: "BaseRegistry",
+        fvs_to_update: Optional[Dict[str, Union[FeatureView, BaseFeatureView]]] = None,
+    ) -> None:
+        """Resolve string feature refs (see ``__init__``) into projections.
+
+        Called automatically by ``FeatureStore.apply``/``plan`` so the pin is
+        baked into the applied service instead of re-resolved on every read.
+
+        A version-pinned ref (``"fv@v2"``) always resolves from the registry's
+        snapshot for that version, never from ``fvs_to_update`` (which only
+        holds the batch's "latest" objects). An unversioned ref resolves from
+        ``fvs_to_update`` first, else the promoted version.
+
+        Raises:
+            ValueError: If a ref names a feature not on the resolved view.
+        """
+        if not self._pending_feature_refs:
+            return
+
+        from feast.utils import _parse_feature_or_view_ref
+
+        fvs_to_update = fvs_to_update or {}
+        for ref in self._pending_feature_refs:
+            fv_name, version_num, feature_name = _parse_feature_or_view_ref(ref)
+
+            if version_num is not None:
+                feature_view = registry.get_feature_view_by_version(
+                    fv_name, project, version_num, allow_cache=False
+                )
+            elif fv_name in fvs_to_update:
+                feature_view = fvs_to_update[fv_name]
+            else:
+                feature_view = registry.get_any_feature_view(
+                    fv_name, project, allow_cache=False
+                )
+
+            # copy so we never mutate the source view's own projection.
+            projection = copy.copy(feature_view.projection)
+            if version_num is not None:
+                projection.version_tag = version_num
+
+            if feature_name is not None:
+                matches = [f for f in projection.features if f.name == feature_name]
+                if not matches:
+                    raise ValueError(
+                        f"Invalid feature reference '{ref}': feature "
+                        f"'{feature_name}' not found on feature view '{fv_name}'."
+                    )
+                projection.features = matches
+
+            self.feature_view_projections.append(projection)
+
+        self._pending_feature_refs = []
 
     def infer_features(
         self, fvs_to_update: Dict[str, Union[FeatureView, BaseFeatureView]]
@@ -126,6 +199,9 @@ class FeatureService:
                 contains all the feature views necessary to run inference.
         """
         for feature_grouping in self._features:
+            if isinstance(feature_grouping, str):
+                # Already resolved by resolve_pending_refs before inference.
+                continue
             if isinstance(feature_grouping, BaseFeatureView):
                 projection = feature_grouping.projection
 
@@ -226,7 +302,9 @@ class FeatureService:
             self.infer_features(fvs_to_update=fvs_to_update)
             return self
 
-        resolved_features: List[Union[FeatureView, OnDemandFeatureView, LabelView]] = []
+        resolved_features: List[
+            Union[FeatureView, OnDemandFeatureView, LabelView, str]
+        ] = []
         for projection in self.feature_view_projections:
             try:
                 feature_view = registry.get_any_feature_view(

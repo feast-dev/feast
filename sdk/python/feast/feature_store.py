@@ -1226,6 +1226,11 @@ class FeatureStore:
             ]
         }
         for feature_service in feature_services_to_update:
+            # Resolve string feature refs (e.g. "driver_stats@v2") before
+            # inference. No-op for object-only services.
+            feature_service.resolve_pending_refs(
+                self.project, self.registry, fvs_to_update=fvs_to_update_map
+            )
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
     def _validate_materialize_version(

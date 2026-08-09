@@ -63,26 +63,31 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
-def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
-    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
+    """Parse 'fv_name[@version][:feature]' into (fv_name, version_number, feature_name).
 
-    If no @version is present, version_number is None (meaning 'latest').
+    Unlike ``_parse_feature_ref``, the ':<feature>' suffix is optional, so this
+    also parses whole-view references (e.g. a FeatureService entry that pins a
+    version but selects all of the view's features). When no ':<feature>' is
+    present, feature_name is None. When no @version is present, version_number
+    is None (meaning 'latest').
+
     Examples:
-        'driver_stats:trips' -> ('driver_stats', None, 'trips')
-        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats:trips'        -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips'     -> ('driver_stats', 2, 'trips')
         'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats'              -> ('driver_stats', None, None)
+        'driver_stats@v2'           -> ('driver_stats', 2, None)
     """
     import re
 
     colon_idx = ref.find(":")
     if colon_idx < 0:
-        raise ValueError(
-            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
-            f"or '<feature_view>@<version>:<feature>'"
-        )
-
-    fv_part = ref[:colon_idx]
-    feature_name = ref[colon_idx + 1 :]
+        fv_part = ref
+        feature_name: Optional[str] = None
+    else:
+        fv_part = ref[:colon_idx]
+        feature_name = ref[colon_idx + 1 :]
 
     at_idx = fv_part.find("@")
     if at_idx < 0:
@@ -101,6 +106,27 @@ def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
         return (fv_part, None, feature_name)
 
     return (fv_name, int(match.group(1)), feature_name)
+
+
+def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
+    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+
+    The ':<feature>' suffix is required; use ``_parse_feature_or_view_ref`` when
+    a whole-view reference (no feature) should be accepted.
+
+    If no @version is present, version_number is None (meaning 'latest').
+    Examples:
+        'driver_stats:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+    """
+    fv_name, version_num, feature_name = _parse_feature_or_view_ref(ref)
+    if feature_name is None:
+        raise ValueError(
+            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
+            f"or '<feature_view>@<version>:<feature>'"
+        )
+    return (fv_name, version_num, feature_name)
 
 
 def _strip_version_from_ref(ref: str) -> str:
