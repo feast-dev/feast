@@ -974,6 +974,9 @@ def _redshift_sql_categorical_stats(
 
 
 class RedshiftRetrievalJob(RetrievalJob):
+    # Defaults are COALESCEd into the point-in-time query.
+    _defaults_applied_in_query = True
+
     def __init__(
         self,
         query: Union[str, Callable[[], ContextManager[str]]],
@@ -1390,7 +1393,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (

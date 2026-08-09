@@ -10,7 +10,9 @@ from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     _apply_default_values,
+    to_sql_literal,
 )
+from feast.infra.offline_stores.offline_utils import build_final_output_expressions
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -245,6 +247,56 @@ def test_online_and_historical_agree_on_missing_value():
     historical = historical_table.column("count").to_pylist()[0]
 
     assert online == historical == 0
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (0, "0"),
+        (-1, "-1"),
+        (3.5, "3.5"),
+        (True, "TRUE"),
+        (False, "FALSE"),
+        ("unknown", "'unknown'"),
+        # Quotes must be escaped, not interpolated straight into the query.
+        ("O'Brien", "'O''Brien'"),
+        (float("nan"), None),
+        ([1, 2], None),
+        ({"a": 1}, None),
+    ],
+)
+def test_to_sql_literal(value, expected):
+    assert to_sql_literal(value) == expected
+
+
+def test_build_final_output_expressions_coalesces_only_defaulted_columns():
+    expressions = build_final_output_expressions(
+        ["driver_id", "conv_rate"], {"conv_rate": "0.0"}, quote_char="`"
+    )
+
+    assert expressions == ["`driver_id`", "COALESCE(`conv_rate`, 0.0) AS `conv_rate`"]
+
+
+def test_build_final_output_expressions_without_defaults_is_just_quoting():
+    """The no-defaults query must stay exactly what it was before pushdown existed."""
+    assert build_final_output_expressions(["a", "b"], {}, quote_char='"') == [
+        '"a"',
+        '"b"',
+    ]
+    assert build_final_output_expressions(["a", "b"], {}) == ["a", "b"]
+
+
+def test_pushdown_store_skips_the_client_round_trip():
+    table = pyarrow.table({"count": pyarrow.array([None], type=pyarrow.int64())})
+
+    job = _FakeRetrievalJob(table, [])
+    job._defaults_applied_in_query = True
+    job._feature_default_values = {"count": 0}
+    assert job._requires_python_post_processing is False
+
+    # A default the query cannot express still has to be filled in Python.
+    job._feature_default_values = {"count": [1, 2]}
+    assert job._requires_python_post_processing is True
 
 
 def test_requires_python_post_processing_tracks_defaults_and_odfvs():

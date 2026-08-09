@@ -127,6 +127,7 @@ class ClickhouseOfflineStore(OfflineStore):
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
                     filter_by_created_timestamp=filter_by_created_timestamp,
+                    quote_char='"',
                 )
                 yield query
             finally:
@@ -615,7 +616,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT "{{ final_output_feature_names | join('", "')}}"
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (

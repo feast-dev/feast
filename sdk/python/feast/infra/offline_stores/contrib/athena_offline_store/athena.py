@@ -327,6 +327,9 @@ class AthenaOfflineStore(OfflineStore):
 
 
 class AthenaRetrievalJob(RetrievalJob):
+    # Defaults are COALESCEd into the point-in-time query.
+    _defaults_applied_in_query = True
+
     def __init__(
         self,
         query: Union[str, Callable[[], ContextManager[str]]],
@@ -732,7 +735,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe as entity_df
 {% for featureview in featureviews %}
 LEFT JOIN (

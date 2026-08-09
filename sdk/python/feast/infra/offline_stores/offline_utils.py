@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import uuid
 from dataclasses import asdict, dataclass
@@ -17,7 +18,7 @@ from feast.errors import (
 )
 from feast.feature_view import FeatureView
 from feast.importer import import_class
-from feast.infra.offline_stores.offline_store import OfflineStore
+from feast.infra.offline_stores.offline_store import OfflineStore, to_sql_literal
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
@@ -99,6 +100,8 @@ class FeatureViewQueryContext:
         str
     ]  # this attribute is added because partition pruning affects Athena's query performance.
     timestamp_field_type: Optional[str]
+    # Feature name -> declared default, for features whose Field configures one.
+    feature_defaults: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
 
 def get_feature_view_query_context(
@@ -187,10 +190,31 @@ def get_feature_view_query_context(
             max_event_timestamp=max_event_timestamp,
             date_partition_column=date_partition_column,
             timestamp_field_type=timestamp_field_type or None,
+            feature_defaults={
+                field.name: field.default_value
+                for field in feature_view.projection.features
+                if field.default_value is not None
+            },
         )
         query_context.append(context)
 
     return query_context
+
+
+def build_final_output_expressions(
+    final_output_feature_names: List[str],
+    default_literals: Dict[str, str],
+    quote_char: str = "",
+) -> List[str]:
+    """Quotes each output column, coalescing the ones that declare a default."""
+    expressions = []
+    for name in final_output_feature_names:
+        quoted = f"{quote_char}{name}{quote_char}"
+        literal = default_literals.get(name)
+        expressions.append(
+            f"COALESCE({quoted}, {literal}) AS {quoted}" if literal else quoted
+        )
+    return expressions
 
 
 def build_point_in_time_query(
@@ -201,6 +225,7 @@ def build_point_in_time_query(
     query_template: str,
     full_feature_names: bool = False,
     filter_by_created_timestamp: bool = False,
+    quote_char: str = "",
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -220,6 +245,19 @@ def build_point_in_time_query(
         ]
     )
 
+    # COALESCE in the query keeps the export server-side; without it a single declared
+    # default would drag the whole result through the client to be filled in pandas.
+    default_literals = {}
+    for fv in feature_view_query_contexts:
+        for feature, default_value in fv.feature_defaults.items():
+            literal = to_sql_literal(default_value)
+            if literal is None:
+                continue
+            column = fv.field_mapping.get(feature, feature)
+            default_literals[
+                f"{fv.name}__{column}" if full_feature_names else column
+            ] = literal
+
     # Add additional fields to dict
     template_context = {
         "left_table_query_string": left_table_query_string,
@@ -231,6 +269,9 @@ def build_point_in_time_query(
         "full_feature_names": full_feature_names,
         "filter_by_created_timestamp": filter_by_created_timestamp,
         "final_output_feature_names": final_output_feature_names,
+        "final_output_feature_expressions": build_final_output_expressions(
+            final_output_feature_names, default_literals, quote_char
+        ),
     }
 
     query = template.render(template_context)

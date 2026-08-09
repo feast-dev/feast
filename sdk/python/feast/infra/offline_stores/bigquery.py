@@ -392,6 +392,7 @@ class BigQueryOfflineStore(OfflineStore):
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
                 filter_by_created_timestamp=filter_by_created_timestamp,
+                quote_char="`",
             )
 
             try:
@@ -1236,6 +1237,9 @@ def _bq_compute_monitoring_metrics(
 
 
 class BigQueryRetrievalJob(RetrievalJob):
+    # Defaults are COALESCEd into the point-in-time query.
+    _defaults_applied_in_query = True
+
     def __init__(
         self,
         query: Union[str, Callable[[], ContextManager[str]]],
@@ -1813,7 +1817,7 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | backticks | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (

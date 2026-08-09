@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import math
 import time
 import warnings
 from abc import ABC
@@ -90,6 +91,25 @@ def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     return [], 0
 
 
+def to_sql_literal(value: Any) -> Optional[str]:
+    """Renders a default as a SQL literal, or None if it cannot be pushed into a query.
+
+    Deliberately limited to scalars, whose spelling is the same across every dialect
+    that templates a point-in-time join. Anything else falls back to filling the
+    values in Python after the query runs.
+    """
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value) if math.isfinite(value) else None
+    if isinstance(value, str):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return None
+
+
 def _apply_default_values(
     table: pyarrow.Table, defaults: Dict[str, Any]
 ) -> pyarrow.Table:
@@ -130,6 +150,10 @@ class RetrievalJob(ABC):
     # so no offline store constructor changes; only ever replaced, never mutated.
     _feature_default_values: Dict[str, Any] = {}
 
+    # Set by stores whose generated query already COALESCEs the defaults it can express
+    # as SQL literals, so they need not pull the result through Python to fill them.
+    _defaults_applied_in_query: bool = False
+
     @property
     def _requires_python_post_processing(self) -> bool:
         """Whether results must pass through Python before being written out.
@@ -137,7 +161,17 @@ class RetrievalJob(ABC):
         Stores that otherwise export server-side have to route through ``to_df()``,
         or the written data will not match what ``to_arrow()`` returns.
         """
-        return bool(self.on_demand_feature_views) or bool(self._feature_default_values)
+        if self.on_demand_feature_views:
+            return True
+        if not self._feature_default_values:
+            return False
+        if not self._defaults_applied_in_query:
+            return True
+        # A default the query could not express still has to be filled here.
+        return any(
+            to_sql_literal(value) is None
+            for value in self._feature_default_values.values()
+        )
 
     def to_df(
         self,
