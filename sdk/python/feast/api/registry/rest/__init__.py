@@ -25,6 +25,11 @@ _ol_config: Optional[Any] = None
 _ol_processor: Optional[Any] = None
 
 
+def get_ol_processor() -> Optional[Any]:
+    """Return the global OpenLineage processor, if initialized."""
+    return _ol_processor
+
+
 def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
     app.include_router(get_entity_router(grpc_handler))
     app.include_router(get_data_source_router(grpc_handler))
@@ -133,19 +138,67 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
 
         # Wire the local processor into Feast's own OL emitter so Feast events
         # are also stored in the consumer DB automatically.
+        # The emitter is lazy-initialized, so it may be None at startup.
+        # Two-pronged approach:
+        #   1. If already initialized, wire now.
+        #   2. Store processor globally so _init_openlineage_emitter() can
+        #      pick it up when the emitter is lazily created later.
         try:
-            if feast_store and hasattr(feast_store, "_openlineage_emitter"):
-                emitter = feast_store._openlineage_emitter
-                if emitter and hasattr(emitter, "_client") and emitter._client:
-                    emitter._client.set_local_processor(processor)
-                    logger.info("Feast OL emitter wired to local consumer processor")
+            emitter = getattr(feast_store, "_openlineage_emitter", None)
+            if emitter and hasattr(emitter, "_client") and emitter._client:
+                emitter._client.set_local_processor(processor)
+                logger.info(
+                    "Feast OL emitter wired to local consumer processor (eager)"
+                )
         except Exception as wire_err:
             logger.debug(f"Could not wire emitter to local processor: {wire_err}")
+
+        def _build_allowed_namespaces_fn(fs):
+            """Build a callback that derives OL namespace access from Feast RBAC.
+
+            Uses ``permitted_resources`` with ``DESCRIBE`` on all known projects.
+            The projects the current user may describe become the allowed OL
+            namespaces (mapped through ``resolve_namespace``).
+            """
+
+            def _get_allowed():
+                try:
+                    from feast.openlineage.identity import resolve_namespace
+                    from feast.permissions.action import AuthzedAction
+                    from feast.permissions.security_manager import (
+                        get_security_manager,
+                        permitted_resources,
+                    )
+
+                    sm = get_security_manager()
+                    if sm is None:
+                        return None
+
+                    all_projects = fs.registry.list_projects(allow_cache=True)
+                    if not all_projects:
+                        return None
+
+                    allowed_projects = permitted_resources(
+                        all_projects, AuthzedAction.DESCRIBE
+                    )
+
+                    ol_ns_config = getattr(ol_config, "namespace", "feast")
+                    namespaces = set()
+                    for p in allowed_projects:
+                        namespaces.add(resolve_namespace(ol_ns_config, p.name))
+                    return list(namespaces) if namespaces else None
+                except Exception:
+                    return None
+
+            return _get_allowed
+
+        get_allowed_namespaces = _build_allowed_namespaces_fn(feast_store)
 
         consumer_router = get_consumer_router(
             config=ol_config,
             store=ol_store,
             processor=processor,
+            get_allowed_namespaces=get_allowed_namespaces,
         )
 
         app.include_router(consumer_router)

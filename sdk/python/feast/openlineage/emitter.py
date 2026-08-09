@@ -107,6 +107,50 @@ class FeastOpenLineageEmitter:
         """Backward-compatible alias for :meth:`namespace_for`."""
         return self.namespace_for(project)
 
+    @staticmethod
+    def _match_storage_to_datasources(
+        saved_dataset: Any,
+        registered_data_sources: Optional[List[Any]],
+    ) -> List[str]:
+        """Match a SavedDataset's storage location against registered DataSources.
+
+        Compares the physical identifiers (URI, table, path) from the
+        SavedDataset's storage with those from each registered DataSource.
+
+        Returns:
+            List of matched DataSource names.
+        """
+        if not registered_data_sources or not hasattr(saved_dataset, "storage"):
+            return []
+
+        try:
+            storage_proto = saved_dataset.storage.to_proto()
+        except Exception:
+            return []
+
+        from feast.lineage.registry_lineage import (
+            _extract_datasource_identifiers,
+            _extract_storage_identifiers,
+        )
+
+        storage_ids = _extract_storage_identifiers(storage_proto)
+        if not storage_ids:
+            return []
+
+        matched: List[str] = []
+        seen: set = set()
+        for ds in registered_data_sources:
+            if not hasattr(ds, "name") or not ds.name or ds.name in seen:
+                continue
+            try:
+                ds_ids = _extract_datasource_identifiers(ds.to_proto())
+            except Exception:
+                continue
+            if storage_ids & ds_ids:
+                seen.add(ds.name)
+                matched.append(ds.name)
+        return matched
+
     def _job_kind_facets(self, kind: str, project: str) -> Dict[str, Any]:
         from feast.openlineage.facets import FeastJobKindFacet
         from feast.openlineage.identity import FeastJobKind
@@ -204,6 +248,28 @@ class FeastOpenLineageEmitter:
                 results.append(result)
         except Exception as e:
             logger.error(f"Error emitting feature service lineage: {e}")
+
+        # Emit events for saved datasets
+        try:
+            saved_datasets = registry.list_saved_datasets(
+                project=project, allow_cache=allow_cache
+            )
+            # Fetch registered data sources for storage-based matching
+            registered_data_sources = []
+            try:
+                registered_data_sources = registry.list_data_sources(
+                    project=project, allow_cache=allow_cache
+                )
+            except Exception:
+                pass
+
+            for sd in saved_datasets:
+                result = self.emit_saved_dataset_lineage(
+                    sd, project, registered_data_sources=registered_data_sources
+                )
+                results.append(result)
+        except Exception as e:
+            logger.error(f"Error emitting saved dataset lineage: {e}")
 
         logger.info(
             f"Emitted {sum(results)}/{len(results)} lineage events for registry"
@@ -483,6 +549,138 @@ class FeastOpenLineageEmitter:
         except Exception as e:
             logger.error(
                 f"Error emitting feature service lineage for {feature_service.name}: {e}"
+            )
+            return False
+
+    def emit_saved_dataset_lineage(
+        self,
+        saved_dataset: Any,
+        project: str,
+        registered_data_sources: Optional[List[Any]] = None,
+    ) -> bool:
+        """
+        Emit lineage for a saved dataset definition.
+
+        Creates a definition job with inputs derived from:
+        - FeatureService (when feature_service_name is set)
+        - FeatureViews (extracted from feature refs in the format "view:feat")
+        - DataSources (matched by comparing storage location against registered sources)
+
+        Args:
+            saved_dataset: The SavedDataset object
+            project: Project name
+            registered_data_sources: Optional list of registered DataSource objects
+                for storage-based matching
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.is_enabled:
+            return False
+
+        try:
+            from openlineage.client.facet_v2 import schema_dataset
+
+            from feast.openlineage.facets import (
+                FeastProjectFacet,
+                FeastSavedDatasetFacet,
+            )
+            from feast.openlineage.identity import FeastJobKind
+
+            namespace = self._get_namespace(project)
+
+            inputs = []
+            if saved_dataset.feature_service_name:
+                inputs.append(
+                    InputDataset(
+                        namespace=namespace,
+                        name=saved_dataset.feature_service_name,
+                    )
+                )
+
+            # FeatureView inputs from feature refs ("view_name:feature_name")
+            if saved_dataset.features:
+                from feast.utils import _parse_feature_ref
+
+                seen_views: set = set()
+                for feat_ref in saved_dataset.features:
+                    try:
+                        view_name, _, _ = _parse_feature_ref(feat_ref)
+                    except ValueError:
+                        continue
+                    if view_name and view_name not in seen_views:
+                        seen_views.add(view_name)
+                        inputs.append(
+                            InputDataset(
+                                namespace=namespace,
+                                name=view_name,
+                            )
+                        )
+
+            # DataSource inputs matched by storage location
+            matched_ds = self._match_storage_to_datasources(
+                saved_dataset, registered_data_sources
+            )
+            for ds_name in matched_ds:
+                inputs.append(
+                    InputDataset(
+                        namespace=namespace,
+                        name=ds_name,
+                    )
+                )
+
+            sd_facets: Dict[str, Any] = {
+                "feast_savedDataset": FeastSavedDatasetFacet(
+                    name=saved_dataset.name,
+                    features=list(saved_dataset.features)
+                    if saved_dataset.features
+                    else [],
+                    join_keys=list(saved_dataset.join_keys)
+                    if saved_dataset.join_keys
+                    else [],
+                    feature_service_name=saved_dataset.feature_service_name or "",
+                    full_feature_names=saved_dataset.full_feature_names,
+                    description=saved_dataset.description
+                    if hasattr(saved_dataset, "description")
+                    and saved_dataset.description
+                    else "",
+                    tags=saved_dataset.tags if saved_dataset.tags else {},
+                )
+            }
+
+            if saved_dataset.features:
+                sd_facets["schema"] = schema_dataset.SchemaDatasetFacet(
+                    fields=[
+                        schema_dataset.SchemaDatasetFacetFields(name=f, type="UNKNOWN")
+                        for f in saved_dataset.features
+                    ]
+                )
+
+            outputs = [
+                OutputDataset(
+                    namespace=namespace,
+                    name=saved_dataset.name,
+                    facets=sd_facets,
+                )
+            ]
+
+            job_facets = {
+                "feast_project": FeastProjectFacet(project_name=project),
+                **self._job_kind_facets(FeastJobKind.DEFINITION, project),
+            }
+
+            return self._client.emit_run_event(
+                job_name=f"saved_dataset_{saved_dataset.name}",
+                run_id=str(uuid.uuid4()),
+                event_type=RunState.COMPLETE,
+                inputs=inputs,
+                outputs=outputs,
+                job_facets=job_facets,
+                namespace=namespace,
+            )
+        except Exception as e:
+            logger.error(
+                f"Error emitting saved dataset lineage for {saved_dataset.name}: {e}"
             )
             return False
 
@@ -809,6 +1007,7 @@ class FeastOpenLineageEmitter:
             entity_to_dataset,
             feast_field_to_schema_field,
         )
+        from feast.saved_dataset import SavedDataset
         from feast.stream_feature_view import StreamFeatureView
 
         try:
@@ -823,6 +1022,7 @@ class FeastOpenLineageEmitter:
             feature_views: List[Union[FeatureView, OnDemandFeatureView]] = []
             on_demand_feature_views: List[OnDemandFeatureView] = []
             feature_services: List[FeatureService] = []
+            saved_datasets: List[SavedDataset] = []
 
             for obj in objects:
                 if isinstance(obj, StreamFeatureView):
@@ -838,6 +1038,8 @@ class FeastOpenLineageEmitter:
                 elif isinstance(obj, Entity):
                     if obj.name != "__dummy":
                         entities.append(obj)
+                elif isinstance(obj, SavedDataset):
+                    saved_datasets.append(obj)
 
             # ============================================================
             # Job 1: DataSources + Entities → FeatureViews
@@ -1122,6 +1324,101 @@ class FeastOpenLineageEmitter:
                     inputs=fs_inputs,
                     outputs=[fs_output],
                     job_facets=job_facets,
+                    namespace=namespace,
+                )
+                results.append(result)
+
+            # ============================================================
+            # SavedDatasets: FeatureService/FeatureView → SavedDataset
+            # ============================================================
+            for sd in saved_datasets:
+                from feast.openlineage.facets import FeastSavedDatasetFacet
+
+                sd_inputs = []
+                if sd.feature_service_name:
+                    sd_inputs.append(
+                        InputDataset(
+                            namespace=namespace,
+                            name=sd.feature_service_name,
+                        )
+                    )
+
+                # FeatureView inputs from feature refs ("view_name:feature_name")
+                if sd.features:
+                    from feast.utils import _parse_feature_ref
+
+                    seen_views: set = set()
+                    for feat_ref in sd.features:
+                        try:
+                            view_name, _, _ = _parse_feature_ref(feat_ref)
+                        except ValueError:
+                            continue
+                        if view_name and view_name not in seen_views:
+                            seen_views.add(view_name)
+                            sd_inputs.append(
+                                InputDataset(
+                                    namespace=namespace,
+                                    name=view_name,
+                                )
+                            )
+
+                # DataSource inputs matched by storage location
+                matched_ds = self._match_storage_to_datasources(sd, data_sources)
+                for ds_name in matched_ds:
+                    sd_inputs.append(
+                        InputDataset(
+                            namespace=namespace,
+                            name=ds_name,
+                        )
+                    )
+
+                sd_facets: Dict[str, Any] = {
+                    "feast_savedDataset": FeastSavedDatasetFacet(
+                        name=sd.name,
+                        features=list(sd.features) if sd.features else [],
+                        join_keys=list(sd.join_keys) if sd.join_keys else [],
+                        feature_service_name=sd.feature_service_name or "",
+                        full_feature_names=sd.full_feature_names,
+                        description=sd.description
+                        if hasattr(sd, "description") and sd.description
+                        else "",
+                        tags=sd.tags if sd.tags else {},
+                    )
+                }
+
+                if sd.features:
+                    sd_facets["schema"] = schema_dataset.SchemaDatasetFacet(
+                        fields=[
+                            schema_dataset.SchemaDatasetFacetFields(
+                                name=f, type="UNKNOWN"
+                            )
+                            for f in sd.features
+                        ]
+                    )
+
+                sd_output = OutputDataset(
+                    namespace=namespace,
+                    name=sd.name,
+                    facets=sd_facets,
+                )
+
+                from feast.openlineage.identity import (
+                    FeastJobKind,
+                )
+
+                sd_job_name = f"saved_dataset_{sd.name}"
+                sd_job_facets = {
+                    "feast_project": FeastProjectFacet(project_name=project),
+                    **self._job_kind_facets(FeastJobKind.DEFINITION, project),
+                }
+
+                result = self._client.emit_run_event(
+                    job_name=sd_job_name,
+                    run_id=str(uuid.uuid4()),
+                    event_type=RunState.COMPLETE,
+                    inputs=sd_inputs,
+                    outputs=[sd_output],
+                    job_facets=sd_job_facets,
                     namespace=namespace,
                 )
                 results.append(result)

@@ -82,6 +82,8 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#cc0000"; // Red
     case FEAST_FCO_TYPES.labelView:
       return "#e6570e"; // Deep orange for label views
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#8B5CF6"; // Purple for saved datasets
     case FEAST_FCO_TYPES.mlflowRun:
       return "#0194e2"; // MLflow brand blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -107,6 +109,8 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ffe6e6"; // Light red
     case FEAST_FCO_TYPES.labelView:
       return "#fde8dc"; // Light deep orange
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#EDE9FE"; // Light purple
     case FEAST_FCO_TYPES.mlflowRun:
       return "#e6f6fd"; // Light MLflow blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -132,6 +136,8 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "◆"; // Diamond for data source
     case FEAST_FCO_TYPES.labelView:
       return "◉"; // Bullseye for label view
+    case FEAST_FCO_TYPES.savedDataset:
+      return "⬟"; // Pentagon for saved dataset
     case FEAST_FCO_TYPES.mlflowRun:
       return "⬡"; // Hexagon for MLflow run
     case FEAST_FCO_TYPES.mlflowModel:
@@ -180,6 +186,9 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         break;
       case FEAST_FCO_TYPES.labelView:
         path = `/p/${projectName}/label-view/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.savedDataset:
+        path = `/p/${projectName}/data-set/${data.label}`;
         break;
       default:
         return;
@@ -444,6 +453,7 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
     [FEAST_FCO_TYPES.labelView]: [],
+    [FEAST_FCO_TYPES.savedDataset]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
     [FEAST_FCO_TYPES.mlflowModel]: [],
     [FEAST_FCO_TYPES.openlineageJob]: [],
@@ -505,6 +515,7 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.labelView, label: "Label View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+    { type: FEAST_FCO_TYPES.savedDataset, label: "Saved Dataset" },
     { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
     { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
@@ -752,6 +763,27 @@ const registryToFlow = (
     });
   });
 
+  (objects as any).savedDatasets?.forEach((sd: any) => {
+    const sdName = sd.spec?.name;
+    nodes.push({
+      id: `sd-${sdName}`,
+      type: "custom",
+      data: {
+        label: sdName,
+        type: FEAST_FCO_TYPES.savedDataset,
+        metadata: sd,
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.savedDataset,
+              sdName,
+            )
+          : [],
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
   const dataSources = new Set<string>();
 
   objects.featureViews?.forEach((fv) => {
@@ -938,6 +970,8 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "ds";
     case FEAST_FCO_TYPES.labelView:
       return "lv";
+    case FEAST_FCO_TYPES.savedDataset:
+      return "sd";
     case FEAST_FCO_TYPES.mlflowRun:
       return "mlflow";
     case FEAST_FCO_TYPES.mlflowModel:

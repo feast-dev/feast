@@ -376,6 +376,7 @@ class FeatureStore:
                 ol_config = self.config.openlineage.to_openlineage_config()
                 emitter = FeastOpenLineageEmitter(ol_config)
                 if emitter.is_enabled:
+                    self._wire_local_processor(emitter)
                     return emitter
         except ImportError:
             # OpenLineage not installed, silently skip
@@ -383,6 +384,21 @@ class FeatureStore:
         except Exception as e:
             warnings.warn(f"Failed to initialize OpenLineage emitter: {e}")
         return None
+
+    def _wire_local_processor(self, emitter: Any) -> None:
+        """Wire the local OL consumer processor into the emitter so
+        Feast-produced events are also stored in the consumer DB."""
+        try:
+            from feast.api.registry.rest import get_ol_processor
+
+            processor = get_ol_processor()
+            if processor and hasattr(emitter, "_client") and emitter._client:
+                emitter._client.set_local_processor(processor)
+                _logger.info(
+                    "Feast OL emitter wired to local consumer processor (lazy)"
+                )
+        except Exception as e:
+            _logger.debug(f"Could not wire emitter to local processor: {e}")
 
     def __repr__(self) -> str:
         # Show lazy loading status without triggering initialization

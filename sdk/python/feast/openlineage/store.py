@@ -60,17 +60,31 @@ class OpenLineageStore:
 
     def store_event(self, event_id: str, event_data: Dict[str, Any]):
         now = int(time.time() * 1000)
+
+        event_type = _classify_event_type(event_data)
+
         job = event_data.get("job", {})
         run = event_data.get("run", {})
+        dataset = event_data.get("dataset", {})
+
+        if job:
+            ns = job.get("namespace", "")
+            name = job.get("name", "")
+        elif dataset:
+            ns = dataset.get("namespace", "")
+            name = dataset.get("name", "")
+        else:
+            ns = ""
+            name = ""
 
         row = {
             "event_id": event_id,
-            "event_type": event_data.get("eventType", "UNKNOWN"),
+            "event_type": event_type,
             "event_time": _parse_timestamp(event_data.get("eventTime", "")),
             "producer": event_data.get("producer"),
-            "job_namespace": job.get("namespace", ""),
-            "job_name": job.get("name", ""),
-            "run_id": run.get("runId"),
+            "job_namespace": ns,
+            "job_name": name,
+            "run_id": run.get("runId") if run else None,
             "event_json": json.dumps(event_data),
             "created_at": now,
         }
@@ -786,6 +800,26 @@ class OpenLineageStore:
             run["facets"] = _safe_parse_json(run.pop("facets_json", None))
             return run
 
+    def get_all_namespaces(self) -> List[str]:
+        """Return all distinct namespaces present across jobs and datasets."""
+        tbl_jobs = OL_TABLES["jobs"]
+        tbl_ds = OL_TABLES["datasets"]
+        with self._engine.connect() as conn:
+            job_ns = conn.execute(
+                select(tbl_jobs.c.job_namespace).distinct()
+            ).fetchall()
+            ds_ns = conn.execute(
+                select(tbl_ds.c.dataset_namespace).distinct()
+            ).fetchall()
+        namespaces: set = set()
+        for row in job_ns:
+            if row[0]:
+                namespaces.add(row[0])
+        for row in ds_ns:
+            if row[0]:
+                namespaces.add(row[0])
+        return sorted(namespaces)
+
     def get_all_lineage_edges(
         self, namespaces: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
@@ -799,6 +833,21 @@ class OpenLineageStore:
         with self._engine.connect() as conn:
             rows = conn.execute(query).fetchall()
             return [dict(row._mapping) for row in rows]
+
+
+def _classify_event_type(event_data: Dict[str, Any]) -> str:
+    """Determine the OL event type for storage.
+
+    RunEvent has ``eventType`` (START/COMPLETE/FAIL/…).
+    DatasetEvent and JobEvent lack ``eventType``; classify by structure.
+    """
+    if "eventType" in event_data:
+        return event_data["eventType"]
+    if "dataset" in event_data and "run" not in event_data and "job" not in event_data:
+        return "DATASET"
+    if "job" in event_data and "run" not in event_data:
+        return "JOB"
+    return "UNKNOWN"
 
 
 def _safe_parse_json(val: Optional[str]) -> Optional[Any]:

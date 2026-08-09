@@ -257,21 +257,43 @@ def get_consumer_router(
         )
         return graph
 
+    @router.get("/lineage/openlineage/namespaces")
+    def list_namespaces():
+        """List all distinct namespaces known to the lineage store."""
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        all_ns = store.get_all_namespaces()
+        if ns_filter is not None:
+            all_ns = [ns for ns in all_ns if ns in ns_filter]
+        return {"namespaces": all_ns}
+
     @router.get("/lineage/openlineage/graph")
-    def get_full_lineage_graph():
+    def get_full_lineage_graph(
+        namespace: Optional[str] = Query(None),
+        limit: int = Query(0, ge=0, le=10000),
+        offset: int = Query(0, ge=0),
+    ):
         """
-        Get all lineage edges (RBAC-filtered by namespace).
+        Get all lineage nodes and edges (RBAC-filtered by namespace).
+
+        Optional query params:
+        - namespace: filter to a single namespace
+        - limit/offset: paginate nodes (0 = no limit)
 
         Includes symlink edges that connect datasets across producers
         when they reference the same physical data (via SymlinksDatasetFacet
         or matching dataSource URIs).
         """
         ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if namespace:
+            if ns_filter is not None and namespace not in ns_filter:
+                return {"nodes": [], "edges": [], "symlinks": []}
+            ns_filter = [namespace]
+
         edges = store.get_all_lineage_edges(namespaces=ns_filter)
         datasets = store.get_datasets(namespaces=ns_filter)
         jobs = store.get_jobs(namespaces=ns_filter)
 
-        nodes = []
+        nodes: list = []
         for ds in datasets:
             facets = _safe_parse_json(ds.get("facets_json"))
             schema = _safe_parse_json(ds.get("schema_json"))
@@ -305,8 +327,30 @@ def get_consumer_router(
             )
 
         symlinks = store.get_all_symlinks()
+        for sl in symlinks:
+            edges.append(
+                {
+                    "source_type": "dataset",
+                    "source_namespace": sl["dataset_namespace"],
+                    "source_name": sl["dataset_name"],
+                    "target_type": "dataset",
+                    "target_namespace": sl["linked_namespace"],
+                    "target_name": sl["linked_name"],
+                    "edge_type": "symlink",
+                    "updated_at": sl.get("updated_at"),
+                }
+            )
 
-        return {"nodes": nodes, "edges": edges, "symlinks": symlinks}
+        total_nodes = len(nodes)
+        if limit > 0:
+            nodes = nodes[offset : offset + limit]
+
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "symlinks": symlinks,
+            "total_nodes": total_nodes,
+        }
 
     # ── Run history endpoints ──
 

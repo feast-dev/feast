@@ -404,6 +404,7 @@ class OpenLineageProcessor:
             ("feast_featureService", "featureService"),
             ("feast_entity", "entity"),
             ("feast_dataSource", "dataSource"),
+            ("feast_savedDataset", "savedDataset"),
         )
         for facet_key, obj_type in facet_type_map:
             if facet_key in facets:

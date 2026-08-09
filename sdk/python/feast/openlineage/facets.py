@@ -306,6 +306,37 @@ class FeastProjectFacet(JobFacet):
 
 
 @attr.define(kw_only=True)
+class FeastSavedDatasetFacet(DatasetFacet):
+    """
+    Custom facet for Feast Saved Dataset metadata.
+
+    A SavedDataset is a materialized snapshot of features retrieved via a
+    FeatureService, typically used for training or validation.
+
+    Attributes:
+        name: Saved dataset name
+        features: List of feature names in the saved dataset
+        join_keys: List of join key column names
+        feature_service_name: Name of the FeatureService that produced this dataset
+        full_feature_names: Whether full feature names were used
+        description: Human-readable description
+        tags: Key-value tags
+    """
+
+    name: str = attr.field()
+    features: List[str] = attr.field(factory=list)
+    join_keys: List[str] = attr.field(factory=list)
+    feature_service_name: Optional[str] = attr.field(default=None)
+    full_feature_names: bool = attr.field(default=False)
+    description: str = attr.field(default="")
+    tags: Dict[str, str] = attr.field(factory=dict)
+
+    @staticmethod
+    def _get_schema() -> str:
+        return f"{FEAST_FACET_SCHEMA_BASE}/FeastSavedDatasetFacet.json"
+
+
+@attr.define(kw_only=True)
 class FeastJobKindFacet(JobFacet):
     """
     Distinguishes Feast OpenLineage jobs by semantic role.
