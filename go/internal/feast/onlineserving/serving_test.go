@@ -420,3 +420,34 @@ func TestTransposeWithoutDefaultLeavesNull(t *testing.T) {
 	// array.Null reports NullN rather than IsNull for this type.
 	assert.Equal(t, 1, vector.Values.NullN())
 }
+
+// A default whose type differs from the stored values must not be inserted: the Arrow
+// type comes from the first non-nil value, and a mismatch would serve real values as 0.
+func TestTransposeDoesNotRetypeColumnWithMismatchedDefault(t *testing.T) {
+	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
+	featureData2D := [][]onlinestore.FeatureData{
+		nil, // missing row first, so the default would set the column type
+		{{
+			Reference: serving.FeatureReferenceV2{FeatureViewName: "driver_stats", FeatureName: "conv_rate"},
+			Timestamp: timestamppb.Timestamp{Seconds: timestamppb.Now().Seconds},
+			Value:     types.Value{Val: &types.Value_DoubleVal{DoubleVal: 2.5}},
+		}},
+	}
+
+	vectors, err := TransposeFeatureRowsIntoColumns(
+		featureData2D,
+		&GroupedFeaturesPerEntitySet{
+			FeatureNames:        []string{"conv_rate"},
+			FeatureViewNames:    []string{"driver_stats"},
+			AliasedFeatureNames: []string{"driver_stats__conv_rate"},
+			Indices:             [][]int{{0}, {1}},
+		},
+		[]*FeatureViewAndRefs{{View: view, FeatureRefs: []string{"conv_rate"}}},
+		memory.NewGoAllocator(),
+		2,
+	)
+	assert.Nil(t, err)
+
+	// The stored double must survive rather than being read back as 0.
+	assert.Equal(t, 2.5, vectors[0].Values.(*array.Float64).Value(1))
+}

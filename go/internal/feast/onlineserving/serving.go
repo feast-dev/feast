@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -364,6 +365,32 @@ func defaultValueForFeature(
 	return fv.Base.GetDefaultValue(groupRef.FeatureNames[featureIndex])
 }
 
+// substituteDefaultValue fills missing entries with the feature's default, leaving
+// statuses untouched. It does nothing when the default's type differs from the type
+// already stored in the column: ProtoValuesToArrowArray derives the Arrow type from
+// the first non-nil value, and typed getters return the zero value for a mismatched
+// oneof, so inserting an Int64 default into a column holding doubles would serve every
+// real value as 0.
+func substituteDefaultValue(protoValues []*prototypes.Value, defaultValue *prototypes.Value) {
+	if defaultValue == nil {
+		return
+	}
+	defaultType := reflect.TypeOf(defaultValue.Val)
+	for _, value := range protoValues {
+		if value != nil && value.Val != nil {
+			if reflect.TypeOf(value.Val) != defaultType {
+				return
+			}
+			break
+		}
+	}
+	for index, value := range protoValues {
+		if value == nil || value.Val == nil {
+			protoValues[index] = defaultValue
+		}
+	}
+}
+
 func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 	groupRef *GroupedFeaturesPerEntitySet,
 	requestedFeatureViews []*FeatureViewAndRefs,
@@ -419,18 +446,17 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 					status = serving.FieldStatus_PRESENT
 				}
 			}
-			// Only the value is swapped; the status is left as computed above. An
-			// empty Value counts as missing, matching the Python paths.
-			outValue := value
-			if defaultValue != nil && (outValue == nil || outValue.Val == nil) {
-				outValue = defaultValue
-			}
 			for _, rowIndex := range outputIndexes {
-				protoValues[rowIndex] = outValue
+				protoValues[rowIndex] = value
 				currentVector.Statuses[rowIndex] = status
 				currentVector.Timestamps[rowIndex] = eventTimeStamp
 			}
 		}
+		// Substituted after the loop, not inside it: the Arrow type of the column is
+		// taken from the first non-nil value, so a default has to be checked against
+		// what is actually stored before it can be inserted.
+		substituteDefaultValue(protoValues, defaultValue)
+
 		arrowValues, err := types.ProtoValuesToArrowArray(protoValues, arrowAllocator, numRows)
 		if err != nil {
 			return nil, err

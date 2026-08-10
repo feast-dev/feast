@@ -474,3 +474,49 @@ def test_odfv_specified_field_with_default_counts_as_inferred():
     inferred = [Field(name="x", dtype=Float64)]
 
     assert OnDemandFeatureView._feature_exists_in_inferred(None, specified, inferred)
+
+
+def test_default_on_a_join_key_warns_that_it_is_ignored():
+    import warnings
+
+    from feast.entity import Entity
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        FeatureView(
+            name="v",
+            entities=[Entity(name="d", join_keys=["driver_id"])],
+            schema=[
+                Field(name="driver_id", dtype=Int64, default_value=-7),
+                Field(name="x", dtype=Int64, default_value=0),
+            ],
+            source=FileSource(path="d.parquet", timestamp_field="ts"),
+        )
+
+    assert any("join key" in str(c.message) for c in caught)
+
+
+def test_ibis_export_paths_coalesce_defaults():
+    """persist and to_remote_storage write the expression, not the arrow table."""
+    ibis = pytest.importorskip("ibis")
+    from feast.infra.offline_stores.ibis import IbisRetrievalJob
+
+    table = ibis.memtable({"driver_id": [1, 2], "conv_rate": [0.5, None]})
+    job = IbisRetrievalJob(
+        table, [], False, None, lambda *a, **k: None, None, None, "."
+    )
+    job._feature_default_values = {"conv_rate": -1.0}
+
+    assert job._table_with_defaults().execute()["conv_rate"].tolist() == [0.5, -1.0]
+
+
+def test_ibis_without_defaults_returns_the_original_expression():
+    ibis = pytest.importorskip("ibis")
+    from feast.infra.offline_stores.ibis import IbisRetrievalJob
+
+    table = ibis.memtable({"conv_rate": [0.5, None]})
+    job = IbisRetrievalJob(
+        table, [], False, None, lambda *a, **k: None, None, None, "."
+    )
+
+    assert job._table_with_defaults() is table

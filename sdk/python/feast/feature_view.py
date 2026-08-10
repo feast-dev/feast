@@ -288,6 +288,13 @@ class FeatureView(BaseFeatureView):
 
         for field in schema:
             if field.name in join_keys:
+                if field.default_value is not None:
+                    warnings.warn(
+                        f"default_value on field {field.name!r} is ignored because it is "
+                        f"a join key, not a feature.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
                 self.entity_columns.append(field)
 
                 # Confirm that the inferred type matches the specified entity type, if it exists.
