@@ -42,14 +42,14 @@ def filter_by_mlflow_dataset(
 
     mlflow.set_tracking_uri(tracking_uri)
     try:
-        dataset = get_dataset(name=dataset_name)
+        dataset = get_dataset(name=dataset_name)  # type: ignore[call-arg]
     except Exception as e:
         if "Multiple datasets" in str(e):
             client = mlflow.tracking.MlflowClient()
-            matches = [d for d in client.search_datasets() if d.name == dataset_name]
+            matches = [d for d in client.search_datasets() if d.name == dataset_name]  # type: ignore[attr-defined]
             if not matches:
                 raise
-            dataset = get_dataset(dataset_id=matches[0].dataset_id)
+            dataset = get_dataset(dataset_id=matches[0].dataset_id)  # type: ignore[call-arg]
             logger.info(
                 "Multiple datasets named '%s'; using most recent: %s",
                 dataset_name,

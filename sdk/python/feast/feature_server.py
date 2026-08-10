@@ -640,7 +640,7 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
         experiment = mlflow.get_experiment_by_name(store.config.project)
         if experiment:
             mlflow.tracing.set_destination(
-                MlflowExperimentLocation(experiment.experiment_id)
+                MlflowExperimentLocation(experiment.experiment_id)  # type: ignore[arg-type]
             )
             logger.info(
                 "MLflow trace destination set to experiment %s",
@@ -885,7 +885,6 @@ def get_app(
                 )
                 metrics_ctx.feature_view_count = fv_count
 
-
                 feast_metrics.track_online_features_entities(entity_count)
 
                 read_params = dict(
@@ -913,7 +912,11 @@ def get_app(
                     if feast_metrics._config.audit_logging:
                         audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
                         _emit_online_audit(
-                            request, features, entity_count, audit_status, audit_latency_ms
+                            request,
+                            features,
+                            entity_count,
+                            audit_status,
+                            audit_latency_ms,
                         )
 
                 response_dict = await run_in_threadpool(
