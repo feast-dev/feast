@@ -25,13 +25,39 @@ metadata:
   name: feast-batch-engine
 data:
   config: |
-    type: spark.engine
-    partitions: 10
+    type: spark
     spark_conf:
-      spark.master: local[*]
+      spark.master: k8s://https://kubernetes.default.svc
+      spark.kubernetes.namespace: feast
+      spark.kubernetes.container.image: ghcr.io/feast-dev/feast-spark:latest
+      spark.executor.instances: "2"
+      spark.executor.memory: 4g
+      spark.driver.memory: 2g
 ```
 
-For **Bring Your Own Spark** on Kubernetes (recommended for large batch materialization), use the SparkApplication engine. The Feast Operator auto-creates RBAC for this type. Build an image from the reference [Dockerfile](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/spark_application/Dockerfile) (or equivalent):
+Reference the ConfigMap from the CR:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-spark
+spec:
+  feastProject: my_project
+  batchEngine:
+    configMapRef:
+      name: feast-batch-engine     # ConfigMap name
+    configMapKey: config           # key inside the ConfigMap (default: "config")
+```
+
+### SparkApplication batch engine (optional)
+
+For Bring Your Own Spark on Kubernetes, use `spark_application` instead of in-process Spark.
+The Feast Operator auto-creates RBAC for this type. See
+[SparkApplication](../reference/compute-engine/spark_application.md) for the full config reference.
+Build an image from the reference
+[Dockerfile](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/spark_application/Dockerfile)
+(or equivalent):
 
 ```yaml
 apiVersion: v1
@@ -48,13 +74,11 @@ data:
     executor_memory: "2g"
 ```
 
-Reference the ConfigMap from the CR:
-
 ```yaml
 apiVersion: feast.dev/v1
 kind: FeatureStore
 metadata:
-  name: sample-spark
+  name: sample-spark-application
 spec:
   feastProject: my_project
   batchEngine:
@@ -71,15 +95,14 @@ spec:
 | `type` | Notes |
 |--------|-------|
 | `local` | Default; in-process Python, no extra infra |
-| `spark.engine` | In-process Apache Spark session inside the Feast process |
+| `spark` | Apache Spark; requires a Spark operator or standalone cluster |
 | `spark_application` | Kubeflow Spark Operator `SparkApplication` CRs; requires Spark Operator + custom image; operator auto-creates RBAC |
 | `ray` | Ray cluster; requires a Ray operator |
 | `bytewax` | Bytewax streaming engine |
 | `snowflake.engine` | Snowflake Snowpark compute |
 
-> For engine-specific YAML options (Spark conf, driver/executor sizing, etc.) see the
-> [Feast SDK — Compute Engine](../reference/compute-engine/) docs, especially
-> [SparkApplication](../reference/compute-engine/spark_application.md).
+> For engine-specific YAML options (Spark conf, Ray address, etc.) see the
+> [Feast SDK — Compute Engine](../reference/compute-engine/) docs.
 
 ---
 
