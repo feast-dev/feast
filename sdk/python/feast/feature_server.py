@@ -500,7 +500,7 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
         experiment = mlflow.get_experiment_by_name(store.config.project)
         if experiment:
             mlflow.tracing.set_destination(
-                MlflowExperimentLocation(experiment.experiment_id)
+                MlflowExperimentLocation(experiment.experiment_id)  # type: ignore[arg-type]
             )
             logger.info(
                 "MLflow trace destination set to experiment %s",
@@ -528,6 +528,8 @@ def _instrument_app_for_tracing(app: FastAPI, store: "feast.FeatureStore") -> No
             "cross-process trace linking disabled",
             exc_info=True,
         )
+
+
 def _authorize_materialize_views(
     store: "feast.FeatureStore",
     feature_view_names: Optional[List[str]],

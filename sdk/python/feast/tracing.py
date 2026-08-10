@@ -63,7 +63,7 @@ def _lazy_init(store: "FeatureStore") -> bool:
         return False
 
     try:
-        from mlflow.tracing import (  # noqa: F401
+        from mlflow.tracing import (  # type: ignore[attr-defined]  # noqa: F401
             set_tracing_context_from_http_request_headers,
         )
 
@@ -157,7 +157,7 @@ def traced_tool_span(
     try:
         parent_ctx: Any = contextlib.nullcontext()
         if has_traceparent:
-            from mlflow.tracing import (
+            from mlflow.tracing import (  # type: ignore[attr-defined]
                 set_tracing_context_from_http_request_headers,
             )
 
