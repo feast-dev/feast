@@ -1913,8 +1913,17 @@ class FeatureStore:
             _logger.debug("MLflow apply logging failed: %s", e)
 
     def _emit_openlineage_apply(self, objects: List[Any]):
-        """Emit OpenLineage events for applied objects."""
+        """Emit OpenLineage events for applied objects.
+
+        Skips when using a remote registry — the RegistryServer already
+        emits OL events in its Apply* handlers, so emitting here would
+        double-count every object.
+        """
         if self.openlineage_emitter is None:
+            return
+        from feast.infra.registry.remote import RemoteRegistry
+
+        if isinstance(self._registry, RemoteRegistry):
             return
         try:
             self.openlineage_emitter.emit_apply(objects, self.project)

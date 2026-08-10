@@ -445,15 +445,29 @@ class FeastOpenLineageEmitter:
                 )
 
             for source_name, req_source in odfv.source_request_sources.items():
+                req_name = getattr(req_source, "name", source_name)
                 inputs.append(
                     InputDataset(
                         namespace=namespace,
-                        name=f"request_source_{source_name}",
+                        name=req_name,
                     )
                 )
 
-            # Build output
-            output_facets = {}
+            # Build output with feast_featureView facet on the dataset
+            output_facets: Dict[str, Any] = {
+                "feast_featureView": FeastFeatureViewFacet(
+                    name=odfv.name,
+                    ttl_seconds=0,
+                    entities=[],
+                    features=[f.name for f in odfv.features] if odfv.features else [],
+                    online_enabled=True,
+                    offline_enabled=True,
+                    mode="ON_DEMAND",
+                    description=odfv.description if odfv.description else "",
+                    owner=odfv.owner if hasattr(odfv, "owner") and odfv.owner else "",
+                    tags=odfv.tags if odfv.tags else {},
+                ),
+            }
             if odfv.features:
                 output_facets["schema"] = schema_dataset.SchemaDatasetFacet(
                     fields=[feast_field_to_schema_field(f) for f in odfv.features]
@@ -467,20 +481,12 @@ class FeastOpenLineageEmitter:
                 )
             ]
 
-            # Build job facets
+            from feast.openlineage.facets import FeastProjectFacet
+            from feast.openlineage.identity import FeastJobKind
+
             job_facets = {
-                "feast_featureView": FeastFeatureViewFacet(
-                    name=odfv.name,
-                    ttl_seconds=0,
-                    entities=[],
-                    features=[f.name for f in odfv.features] if odfv.features else [],
-                    online_enabled=True,
-                    offline_enabled=True,
-                    mode="ON_DEMAND",
-                    description=odfv.description if odfv.description else "",
-                    owner=odfv.owner if hasattr(odfv, "owner") and odfv.owner else "",
-                    tags=odfv.tags if odfv.tags else {},
-                )
+                "feast_project": FeastProjectFacet(project_name=project),
+                **self._job_kind_facets(FeastJobKind.DEFINITION, project),
             }
 
             # Emit a RunEvent with COMPLETE state to create lineage connection

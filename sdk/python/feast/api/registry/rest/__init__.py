@@ -159,6 +159,14 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
             Uses ``permitted_resources`` with ``DESCRIBE`` on all known projects.
             The projects the current user may describe become the allowed OL
             namespaces (mapped through ``resolve_namespace``).
+
+            External producer namespaces (e.g. ``spark://ml-team``,
+            ``airflow://prod-cluster``) are included when
+            ``consumer.namespace_mapping`` maps them to a Feast project the
+            user is allowed to DESCRIBE.  This is the only purpose of
+            ``namespace_mapping`` — it is a **read-side RBAC bridge**, not a
+            routing or rewrite mechanism.  Ingest stores events as-is;
+            producers own their namespace.
             """
 
             def _get_allowed():
@@ -183,9 +191,20 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
                     )
 
                     ol_ns_config = getattr(ol_config, "namespace", "feast")
+                    allowed_project_names = {p.name for p in allowed_projects}
+
                     namespaces = set()
                     for p in allowed_projects:
                         namespaces.add(resolve_namespace(ol_ns_config, p.name))
+
+                    # Include external namespaces whose namespace_mapping
+                    # target is a project the user can DESCRIBE.
+                    consumer_cfg = getattr(ol_config, "consumer", None)
+                    ns_map = getattr(consumer_cfg, "namespace_mapping", None) or {}
+                    for ext_ns, mapped_project in ns_map.items():
+                        if mapped_project in allowed_project_names:
+                            namespaces.add(ext_ns)
+
                     return list(namespaces) if namespaces else None
                 except Exception:
                     return None
@@ -203,6 +222,36 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
 
         app.include_router(consumer_router)
         logger.info("OpenLineage consumer endpoints registered")
+
+        # Start background retention pruning if configured
+        retention_days = getattr(consumer_config, "retention_days", 30)
+        check_hours = getattr(consumer_config, "retention_check_interval_hours", 6)
+        if retention_days > 0:
+            import asyncio
+
+            async def _retention_loop():
+                interval_s = max(check_hours, 1) * 3600
+                await asyncio.sleep(30)
+                while True:
+                    try:
+                        ol_store.prune_expired(retention_days)
+                    except (ConnectionError, TimeoutError, OSError) as e:
+                        logger.warning(f"OL retention prune failed (retryable): {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"OL retention prune failed (unexpected): {e}",
+                            exc_info=True,
+                        )
+                    await asyncio.sleep(interval_s)
+
+            @app.on_event("startup")
+            async def _start_retention_task():
+                asyncio.create_task(_retention_loop())
+
+            logger.info(
+                f"OL retention pruning enabled: {retention_days}d, "
+                f"check every {check_hours}h"
+            )
 
     except ImportError as e:
         logger.debug(f"OpenLineage consumer not available: {e}")

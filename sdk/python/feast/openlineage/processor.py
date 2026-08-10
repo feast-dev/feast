@@ -20,8 +20,10 @@ extracts metadata, and builds the lineage graph in the store.
 """
 
 import logging
+import re
 import uuid
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse, urlunparse
 
 from feast.openlineage.store import OpenLineageStore
 
@@ -43,6 +45,55 @@ class OpenLineageProcessor:
     ):
         self._store = store
         self._namespace_mapping = namespace_mapping or {}
+
+    # ── credential sanitization ──
+
+    _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*://")
+    _KV_SECRET_RE = re.compile(
+        r"\b(password|passwd|pwd|secret|token|api_key)\s*=\s*\S+",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _sanitize_uri(cls, value: str) -> str:
+        """Strip credentials from a URI or connection string."""
+        if not value:
+            return value
+        if "=" in value and not cls._SCHEME_RE.match(value):
+            return cls._KV_SECRET_RE.sub(r"\1=***", value)
+        if cls._SCHEME_RE.match(value):
+            try:
+                parsed = urlparse(value)
+                if parsed.username or parsed.password:
+                    clean = parsed._replace(
+                        netloc=(parsed.hostname or "")
+                        + (f":{parsed.port}" if parsed.port else "")
+                    )
+                    return urlunparse(clean)
+            except Exception:
+                pass
+        return value
+
+    @classmethod
+    def _sanitize_facets(cls, facets: Dict[str, Any]) -> Dict[str, Any]:
+        """Scrub credentials from facet URIs/paths before persistence."""
+        if not facets:
+            return facets
+        ds = facets.get("dataSource")
+        if isinstance(ds, dict) and "uri" in ds:
+            ds["uri"] = cls._sanitize_uri(ds["uri"])
+        feast_ds = facets.get("feast_dataSource")
+        if isinstance(feast_ds, dict):
+            if "path" in feast_ds and feast_ds["path"]:
+                feast_ds["path"] = cls._sanitize_uri(feast_ds["path"])
+        return facets
+
+    def _sanitize_dataset(self, ds: Dict[str, Any]) -> Dict[str, Any]:
+        """Sanitize a single input/output dataset dict in-place."""
+        f = ds.get("facets")
+        if isinstance(f, dict):
+            ds["facets"] = self._sanitize_facets(f)
+        return ds
 
     def process_event(self, event: Dict[str, Any]) -> str:
         """
@@ -96,6 +147,12 @@ class OpenLineageProcessor:
         job_namespace = job.get("namespace", "")
         job_name = job.get("name", "")
         run_id = run.get("runId", "")
+
+        # Sanitize all dataset facets before persisting the raw event
+        for ds in event.get("inputs", []):
+            self._sanitize_dataset(ds)
+        for ds in event.get("outputs", []):
+            self._sanitize_dataset(ds)
 
         self._store.store_event(event_id, event)
 
@@ -178,7 +235,8 @@ class OpenLineageProcessor:
         dataset = event.get("dataset", {})
         ds_namespace = dataset.get("namespace", "")
         ds_name = dataset.get("name", "")
-        ds_facets = dataset.get("facets", {})
+        ds_facets = self._sanitize_facets(dataset.get("facets", {}) or {})
+        dataset["facets"] = ds_facets
         producer = event.get("producer")
 
         self._store.store_event(event_id, event)
@@ -194,6 +252,12 @@ class OpenLineageProcessor:
         job_namespace = job.get("namespace", "")
         job_name = job.get("name", "")
         producer = event.get("producer")
+
+        # Sanitize all dataset facets before persisting the raw event
+        for ds in event.get("inputs", []):
+            self._sanitize_dataset(ds)
+        for ds in event.get("outputs", []):
+            self._sanitize_dataset(ds)
 
         self._store.store_event(event_id, event)
 
@@ -387,16 +451,37 @@ class OpenLineageProcessor:
         """
         facets = facets or {}
 
-        # Namespace may be project or prefix/project; mapping keys are usually
-        # the logical OL namespace (e.g. customer_churn).
+        # Resolve OL namespace to a Feast project name.
+        #
+        # Priority:
+        #   1. Exact match in namespace_mapping (e.g. "spark://ml-team")
+        #   2. Authority/path match for scheme-prefixed namespaces
+        #      (e.g. "ml-team" from "spark://ml-team")
+        #   3. Last path segment for path-style namespaces
+        #      (e.g. "customer_churn" from "org/customer_churn")
+        #   4. Fallback: use the namespace as-is or its last segment
         feast_project = self._namespace_mapping.get(namespace)
-        if feast_project is None and "/" in namespace:
+        if feast_project is None and "://" in namespace:
+            authority_path = namespace.split("://", 1)[1]
+            for candidate in (authority_path, authority_path.split("/")[-1]):
+                if candidate in self._namespace_mapping:
+                    feast_project = self._namespace_mapping[candidate]
+                    break
+            if feast_project is None:
+                feast_project = (
+                    authority_path.split("/")[-1]
+                    if "/" in authority_path
+                    else authority_path
+                )
+        elif feast_project is None and "/" in namespace:
             for part in (namespace.split("/")[-1], namespace.split("/")[0]):
                 if part in self._namespace_mapping:
                     feast_project = self._namespace_mapping[part]
                     break
-        if feast_project is None:
-            feast_project = namespace.split("/")[-1] if "/" in namespace else namespace
+            if feast_project is None:
+                feast_project = namespace.split("/")[-1]
+        elif feast_project is None:
+            feast_project = namespace
 
         facet_type_map = (
             ("feast_onlineStore", "onlineStore"),

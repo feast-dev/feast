@@ -136,7 +136,7 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
       });
     });
 
-    // Data source relationships
+    // Source relationships — upstream feature views and request sources
     Object.values(fv.spec?.sources!).forEach(
       (input: { [key: string]: any }) => {
         if (input.requestDataSource) {
@@ -151,17 +151,10 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
             },
           });
         } else if (input.featureViewProjection?.featureViewName) {
-          const source_fv = objects.featureViews?.find(
-            (el) =>
-              el.spec?.name === input.featureViewProjection.featureViewName,
-          );
-          if (!source_fv) {
-            return;
-          }
           links.push({
             source: {
-              type: FEAST_FCO_TYPES["dataSource"],
-              name: source_fv.spec?.batchSource?.name || "",
+              type: FEAST_FCO_TYPES["featureView"],
+              name: input.featureViewProjection.featureViewName,
             },
             target: {
               type: FEAST_FCO_TYPES["featureView"],

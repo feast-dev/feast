@@ -43,7 +43,7 @@ const LineagePage = () => {
   );
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("lineage");
-  const [registryOnly, setRegistryOnly] = useState(false);
+  const [registryOnly, setRegistryOnly] = useState<boolean | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState("");
 
   const { data: nsData } = useLoadNamespaces();
@@ -55,6 +55,14 @@ const LineagePage = () => {
 
   const olConsumerAvailable =
     !olGraphQuery.isError && olGraphQuery.data !== undefined;
+
+  const olHasData =
+    olConsumerAvailable &&
+    olGraphQuery.data != null &&
+    (olGraphQuery.data.nodes?.length ?? 0) > 0;
+
+  const effectiveRegistryOnly =
+    registryOnly !== null ? registryOnly : !olHasData;
 
   if (projectName === "all") {
     return (
@@ -145,9 +153,7 @@ const LineagePage = () => {
                             })),
                           ]}
                           value={selectedNamespace}
-                          onChange={(e) =>
-                            setSelectedNamespace(e.target.value)
-                          }
+                          onChange={(e) => setSelectedNamespace(e.target.value)}
                           aria-label="Filter by namespace"
                         />
                       </EuiFormRow>
@@ -158,13 +164,13 @@ const LineagePage = () => {
 
                 {activeTab === "lineage" && (
                   <>
-                    {registryOnly ? (
+                    {effectiveRegistryOnly ? (
                       <RegistryVisualizationTab
                         feastOnlyCheckbox={
                           <label>
                             <input
                               type="checkbox"
-                              checked={registryOnly}
+                              checked={effectiveRegistryOnly}
                               onChange={(e) =>
                                 setRegistryOnly(e.target.checked)
                               }
@@ -183,7 +189,7 @@ const LineagePage = () => {
                           <label>
                             <input
                               type="checkbox"
-                              checked={registryOnly}
+                              checked={effectiveRegistryOnly}
                               onChange={(e) =>
                                 setRegistryOnly(e.target.checked)
                               }

@@ -19,21 +19,23 @@ These facets extend the standard OpenLineage facets to capture Feast-specific
 metadata about feature views, feature services, data sources, and entities.
 """
 
-from typing import Dict, List, Optional
+import logging
+import re
+from typing import ClassVar, Dict, List, Optional
+from urllib.parse import urlparse
 
 import attr
 
+logger = logging.getLogger(__name__)
+
+_CREDENTIAL_PATTERN = re.compile(r"://[^/@]+:[^/@]+@", re.IGNORECASE)
+
 try:
     from openlineage.client.generated.base import DatasetFacet, JobFacet, RunFacet
-    from openlineage.client.utils import RedactMixin
 
     OPENLINEAGE_AVAILABLE = True
 except ImportError:
-    # Provide stub classes when OpenLineage is not installed
     OPENLINEAGE_AVAILABLE = False
-
-    class RedactMixin:  # type: ignore[no-redef]
-        pass
 
     @attr.define
     class JobFacet:  # type: ignore[no-redef]
@@ -147,6 +149,9 @@ class FeastDataSourceFacet(DatasetFacet):
         timestamp_field: Name of the timestamp field
         created_timestamp_field: Name of the created timestamp field
         field_mapping: Mapping from source fields to feature names
+        path: File path (for file-based sources)
+        table: Table name (for database sources)
+        query: SQL query (for query-based sources)
         description: Human-readable description
         tags: Key-value tags
     """
@@ -156,8 +161,34 @@ class FeastDataSourceFacet(DatasetFacet):
     timestamp_field: Optional[str] = attr.field(default=None)
     created_timestamp_field: Optional[str] = attr.field(default=None)
     field_mapping: Dict[str, str] = attr.field(factory=dict)
+    path: Optional[str] = attr.field(default=None)
+    table: Optional[str] = attr.field(default=None)
+    query: Optional[str] = attr.field(default=None)
     description: str = attr.field(default="")
     tags: Dict[str, str] = attr.field(factory=dict)
+
+    _additional_skip_redact: ClassVar[List[str]] = [
+        "name",
+        "source_type",
+        "path",
+        "table",
+    ]
+
+    def __attrs_post_init__(self):
+        for field_name in ("path", "table", "query"):
+            value = getattr(self, field_name, None)
+            if value and _CREDENTIAL_PATTERN.search(value):
+                parsed = urlparse(value)
+                sanitized = parsed._replace(
+                    netloc=(parsed.hostname or "")
+                    + (f":{parsed.port}" if parsed.port else "")
+                ).geturl()
+                object.__setattr__(self, field_name, sanitized)
+                logger.warning(
+                    "FeastDataSourceFacet.%s contained credentials; "
+                    "auto-sanitized before storage",
+                    field_name,
+                )
 
     @staticmethod
     def _get_schema() -> str:

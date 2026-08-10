@@ -338,7 +338,8 @@ def test_build_per_fv_jobs_all_succeeded():
     task2.feature_view.name = "fv_2"
     task2.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1")
+    mock_job = MagicMock()
+    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1", mock_job)
 
     assert len(jobs) == 2
     assert all(isinstance(j, CompletedMaterializationJob) for j in jobs)
@@ -367,7 +368,10 @@ def test_build_per_fv_jobs_partial_failure():
     task_fail.feature_view.name = "fv_fail"
     task_fail.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task_ok, task_fail], "job1")
+    mock_job = MagicMock()
+    jobs = engine._build_per_fv_jobs(
+        mock_registry, [task_ok, task_fail], "job1", mock_job
+    )
 
     assert len(jobs) == 2
     assert isinstance(jobs[0], CompletedMaterializationJob)
@@ -399,12 +403,15 @@ def test_build_per_fv_jobs_single_task_succeeded():
     task.feature_view.name = "fv_1"
     task.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
+    mock_job = MagicMock()
+    mock_job.error.return_value = None
+    mock_job.status.return_value = MaterializationJobStatus.SUCCEEDED
+
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", mock_job)
 
     assert len(jobs) == 1
     assert isinstance(jobs[0], CompletedMaterializationJob)
     assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
-    mock_registry.get_feature_view.assert_called_once_with("fv_1", "test")
     # No live SparkApplication CR is queried (it is about to be deleted).
     engine.custom_api.get_namespaced_custom_object.assert_not_called()
 
@@ -425,9 +432,14 @@ def test_build_per_fv_jobs_single_task_failed():
     task.feature_view.name = "fv_1"
     task.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
+    mock_job = MagicMock()
+    mock_job.error.return_value = Exception("fv_1 failed to materialize")
+    mock_job.status.return_value = MaterializationJobStatus.ERROR
+
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", mock_job)
 
     assert len(jobs) == 1
+    assert jobs[0] is mock_job
     assert jobs[0].status() == MaterializationJobStatus.ERROR
     assert "fv_1" in str(jobs[0].error())
     engine.custom_api.get_namespaced_custom_object.assert_not_called()

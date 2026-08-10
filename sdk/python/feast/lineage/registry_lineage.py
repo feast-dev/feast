@@ -314,59 +314,38 @@ class RegistryLineageGenerator:
                     source_items = [(k, v) for k, v in enumerate(odfv.spec.sources)]
 
                 for source_name, source in source_items:
-                    if (
-                        hasattr(source, "request_data_source")
-                        and source.request_data_source
-                    ):
-                        if hasattr(source.request_data_source, "name"):
-                            relationships.append(
-                                EntityRelation(
-                                    source=EntityReference(
-                                        FeastObjectType.DATA_SOURCE,
-                                        source.request_data_source.name,
-                                    ),
-                                    target=EntityReference(
-                                        FeastObjectType.FEATURE_VIEW, odfv.spec.name
-                                    ),
-                                )
-                            )
-                    elif (
-                        hasattr(source, "feature_view_projection")
-                        and source.feature_view_projection
-                    ):
-                        # Find the source feature view's batch source
-                        if hasattr(source.feature_view_projection, "feature_view_name"):
-                            source_fv = next(
-                                (
-                                    fv
-                                    for fv in registry.feature_views
-                                    if hasattr(fv, "spec")
-                                    and fv.spec
-                                    and hasattr(fv.spec, "name")
-                                    and fv.spec.name
-                                    == source.feature_view_projection.feature_view_name
+                    has_req = hasattr(source, "HasField") and source.HasField(
+                        "request_data_source"
+                    )
+                    has_fvp = hasattr(source, "HasField") and source.HasField(
+                        "feature_view_projection"
+                    )
+
+                    if has_req and source.request_data_source.name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.DATA_SOURCE,
+                                    source.request_data_source.name,
                                 ),
-                                None,
+                                target=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW, odfv.spec.name
+                                ),
                             )
-                            if (
-                                source_fv
-                                and hasattr(source_fv, "spec")
-                                and source_fv.spec
-                                and hasattr(source_fv.spec, "batch_source")
-                                and source_fv.spec.batch_source
-                                and hasattr(source_fv.spec.batch_source, "name")
-                            ):
-                                relationships.append(
-                                    EntityRelation(
-                                        source=EntityReference(
-                                            FeastObjectType.DATA_SOURCE,
-                                            source_fv.spec.batch_source.name,
-                                        ),
-                                        target=EntityReference(
-                                            FeastObjectType.FEATURE_VIEW, odfv.spec.name
-                                        ),
-                                    )
-                                )
+                        )
+                    elif has_fvp and source.feature_view_projection.feature_view_name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW,
+                                    source.feature_view_projection.feature_view_name,
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW,
+                                    odfv.spec.name,
+                                ),
+                            )
+                        )
 
         # Stream FeatureView relationships
         for sfv in registry.stream_feature_views:

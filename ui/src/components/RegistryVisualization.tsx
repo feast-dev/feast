@@ -1,4 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ReactFlow,
@@ -681,7 +687,7 @@ const registryToFlow = (
   objects.onDemandFeatureViews?.forEach((odfv) => {
     const odfvName = odfv.spec?.name;
     nodes.push({
-      id: `odfv-${odfvName}`,
+      id: `fv-${odfvName}`,
       type: "custom",
       data: {
         label: odfvName,
@@ -704,7 +710,7 @@ const registryToFlow = (
   objects.streamFeatureViews?.forEach((sfv) => {
     const sfvName = sfv.spec?.name;
     nodes.push({
-      id: `sfv-${sfvName}`,
+      id: `fv-${sfvName}`,
       type: "custom",
       data: {
         label: sfvName,
@@ -798,6 +804,16 @@ const registryToFlow = (
     }
     if (sfv.spec?.streamSource?.name) {
       dataSources.add(sfv.spec.streamSource.name);
+    }
+  });
+
+  objects.onDemandFeatureViews?.forEach((odfv: any) => {
+    if (odfv.spec?.sources) {
+      Object.values(odfv.spec.sources).forEach((input: any) => {
+        if (input.requestDataSource?.name) {
+          dataSources.add(input.requestDataSource.name);
+        }
+      });
     }
   });
 
@@ -1014,6 +1030,47 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
 
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const edgesRef = useRef<Edge[]>([]);
+
+  const connectedIds = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const ids = new Set<string>([hoveredNodeId]);
+    const allEdges = edgesRef.current;
+
+    // Walk upstream (target → source)
+    const upQueue = [hoveredNodeId];
+    while (upQueue.length > 0) {
+      const cur = upQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.target === cur && !ids.has(e.source)) {
+          ids.add(e.source);
+          upQueue.push(e.source);
+        }
+      }
+    }
+
+    // Walk downstream (source → target)
+    const downQueue = [hoveredNodeId];
+    while (downQueue.length > 0) {
+      const cur = downQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.source === cur && !ids.has(e.target)) {
+          ids.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    }
+
+    return ids;
+  }, [hoveredNodeId]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id),
+    [],
+  );
+  const onNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
+
   useEffect(() => {
     if (registryData && relationships) {
       setLoading(true);
@@ -1092,6 +1149,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           showIsolatedNodes,
         );
 
+      edgesRef.current = layoutedEdges;
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
@@ -1108,6 +1166,31 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     setNodes,
     setEdges,
   ]);
+
+  const styledNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedIds.has(n.id) ? 1 : 0.15,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [nodes, connectedIds]);
+
+  const styledEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity:
+          connectedIds.has(e.source) && connectedIds.has(e.target) ? 1 : 0.08,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [edges, connectedIds]);
 
   return (
     <EuiPanel>
@@ -1159,8 +1242,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       ) : (
         <div style={{ height: 600, border: "1px solid #ddd" }}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -1168,6 +1251,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             fitView
             minZoom={0.1}
             maxZoom={8}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
           >
             <Background color="#f0f0f0" gap={16} />
             <Controls />

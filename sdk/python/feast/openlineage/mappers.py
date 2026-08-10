@@ -19,7 +19,9 @@ This module provides functions to map Feast entities like FeatureViews,
 FeatureServices, DataSources, and Entities to their OpenLineage equivalents.
 """
 
+import re
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from urllib.parse import urlparse, urlunparse
 
 if TYPE_CHECKING:
     from feast import Entity, FeatureService, FeatureView
@@ -53,6 +55,44 @@ def _check_openlineage_available():
             "OpenLineage is not installed. Please install it with: "
             "pip install openlineage-python"
         )
+
+
+_SCHEME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*://")
+
+
+def _sanitize_uri(value: str) -> str:
+    """Strip credentials from a URI or connection string.
+
+    Handles standard URLs with embedded userinfo (scheme://…@host),
+    key-value DSNs (``host=… password=…``), and plain paths.
+    Returns the value unchanged when no credentials are detected.
+    """
+    if not value:
+        return value
+
+    # Key-value DSN style (e.g. "host=localhost password=*** dbname=feast")
+    if "=" in value and not _SCHEME_PATTERN.match(value):
+        return re.sub(
+            r"\b(password|passwd|pwd|secret|token|api_key)\s*=\s*\S+",
+            r"\1=***",
+            value,
+            flags=re.IGNORECASE,
+        )
+
+    # URL-style: strip userinfo (user:password@)
+    if _SCHEME_PATTERN.match(value):
+        try:
+            parsed = urlparse(value)
+            if parsed.username or parsed.password:
+                clean = parsed._replace(
+                    netloc=(parsed.hostname or "")
+                    + (f":{parsed.port}" if parsed.port else "")
+                )
+                return urlunparse(clean)
+        except Exception:
+            pass
+
+    return value
 
 
 def feast_field_to_schema_field(
@@ -126,7 +166,10 @@ def data_source_to_dataset(
         uri=_get_data_source_uri(data_source),
     )
 
-    # Add Feast-specific facet
+    # Add Feast-specific facet (sanitize path to strip credentials)
+    raw_path = (
+        data_source.path if hasattr(data_source, "path") and data_source.path else None
+    )
     facets["feast_dataSource"] = FeastDataSourceFacet(
         name=source_name,
         source_type=source_type,
@@ -139,6 +182,13 @@ def data_source_to_dataset(
         field_mapping=data_source.field_mapping
         if hasattr(data_source, "field_mapping")
         else {},
+        path=_sanitize_uri(raw_path) if raw_path else None,
+        table=data_source.table
+        if hasattr(data_source, "table") and data_source.table
+        else None,
+        query=data_source.query
+        if hasattr(data_source, "query") and data_source.query
+        else None,
         description=data_source.description
         if hasattr(data_source, "description")
         else "",
@@ -187,16 +237,16 @@ def _get_data_source_namespace(
 
 def _get_data_source_uri(data_source: "DataSource") -> str:
     """
-    Get the URI for a data source.
+    Get the URI for a data source with credentials stripped.
 
     Args:
         data_source: Feast DataSource
 
     Returns:
-        URI string representing the data source location
+        Sanitized URI string representing the data source location
     """
     if hasattr(data_source, "path") and data_source.path:
-        return data_source.path
+        return _sanitize_uri(data_source.path)
     elif hasattr(data_source, "table") and data_source.table:
         return f"table://{data_source.table}"
     elif hasattr(data_source, "query") and data_source.query:
