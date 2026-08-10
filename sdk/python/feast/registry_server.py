@@ -12,7 +12,7 @@ from feast import FeatureService, FeatureStore
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeastPermissionError
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
 from feast.grpc_error_interceptor import ErrorInterceptor
@@ -24,6 +24,8 @@ from feast.permissions.permission import Permission
 from feast.permissions.security_manager import (
     assert_permissions,
     assert_permissions_to_update,
+    get_security_manager,
+    is_auth_necessary,
     permitted_resources,
 )
 from feast.permissions.server.grpc import AuthInterceptor
@@ -1603,16 +1605,37 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
     def Commit(self, request, context):
-        for project in self.proxied_registry.list_projects(allow_cache=True):
-            assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
+        # Per-object mutations are authorized in Apply*/Delete* RPCs.
+        # Requiring UPDATE on every project breaks shared-registry multi-tenant
+        # commits (remote feastRef with different feastProjects). Require CREATE
+        # or UPDATE on at least one project when auth is enabled instead.
+        projects = cast(
+            list[FeastObject],
+            list(self.proxied_registry.list_projects(allow_cache=True)),
+        )
+        if projects and is_auth_necessary(get_security_manager()):
+            can_update = permitted_resources(
+                resources=projects, actions=AuthzedAction.UPDATE
+            )
+            can_create = permitted_resources(
+                resources=projects, actions=AuthzedAction.CREATE
+            )
+            if not can_update and not can_create:
+                raise FeastPermissionError(
+                    "Not authorized to commit registry changes: "
+                    "CREATE or UPDATE permission required on at least one project"
+                )
         self.proxied_registry.commit()
         return Empty()
 
     def Refresh(self, request, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
+        # Use create-or-update authorization so first apply of a new project over
+        # a remote registry can refresh before the project exists yet.
+        assert_permissions_to_update(
+            resource=Project(name=request.project),
+            getter=self.proxied_registry.get_project,
+            project=request.project,
         )
-        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.refresh(request.project)
         return Empty()
 
