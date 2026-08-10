@@ -28,6 +28,7 @@ Commands:
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
   permissions              Access permissions
+  registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -500,6 +501,18 @@ feast mlflow validate-source eval_records
 # List all FeatureViews backed by MlflowDatasetSource
 feast mlflow list-sources
 ```
+
+## Registry
+
+### create-schema
+
+Pre-create the SQL registry schema so the application does not need DDL privileges at runtime. Use this with `schema_mode: verify` or `schema_mode: skip` in your `feature_store.yaml`.
+
+```text
+feast registry create-schema
+```
+
+This command only applies to SQL-based registries (`registry_type: sql`). It is safe to run multiple times — existing tables are not modified.
 
 ## Teardown
 
