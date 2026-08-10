@@ -157,7 +157,7 @@ def _read_mlflow_genai_dataset(
 
     with mlflow_token_scope(token):
         name = data_source.dataset_name or data_source.dataset_id
-        dataset = mlflow.genai.datasets.get_dataset(name=name)
+        dataset = mlflow.genai.datasets.get_dataset(name=name)  # type: ignore[call-arg]
         df = dataset.to_df()
 
     try:
