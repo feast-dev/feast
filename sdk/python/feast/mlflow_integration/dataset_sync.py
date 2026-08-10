@@ -368,8 +368,8 @@ def _fetch_dataset_with_retry(dataset_name: str, dataset_id: Optional[str] = Non
     for attempt in range(MAX_RETRIES):
         try:
             if dataset_id:
-                return mlflow.genai.datasets.get_dataset(dataset_id=dataset_id)
-            return mlflow.genai.datasets.get_dataset(name=dataset_name)
+                return mlflow.genai.datasets.get_dataset(dataset_id=dataset_id)  # type: ignore[call-arg]
+            return mlflow.genai.datasets.get_dataset(name=dataset_name)  # type: ignore[call-arg]
         except Exception as e:
             if attempt == MAX_RETRIES - 1:
                 logger.error(
@@ -415,7 +415,7 @@ def _set_last_sync_time(dataset, watermark_key: str = WATERMARK_TAG_KEY) -> None
 
         now = datetime.now(timezone.utc).isoformat()
         if hasattr(dataset, "dataset_id"):
-            mlflow.genai.datasets.set_dataset_tags(
+            mlflow.genai.datasets.set_dataset_tags(  # type: ignore[attr-defined]
                 dataset_id=dataset.dataset_id,
                 tags={watermark_key: now},
             )
