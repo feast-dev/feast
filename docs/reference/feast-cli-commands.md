@@ -29,6 +29,7 @@ Commands:
   materialize-incremental  Run an incremental materialization job to ingest...
   mlflow                   MLflow integration (trace export, assessment sync)
   permissions              Access permissions
+  registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -495,6 +496,18 @@ feast mlflow sync-assessments --experiment my_agent --feature-view agent_feedbac
 # Export traces to fine-tuning JSONL
 feast mlflow export-traces --experiment my_agent -o training.jsonl --labeled-only
 ```
+
+## Registry
+
+### create-schema
+
+Pre-create the SQL registry schema so the application does not need DDL privileges at runtime. Use this with `schema_mode: verify` or `schema_mode: skip` in your `feature_store.yaml`.
+
+```text
+feast registry create-schema
+```
+
+This command only applies to SQL-based registries (`registry_type: sql`). It is safe to run multiple times — existing tables are not modified.
 
 ## Teardown
 

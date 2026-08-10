@@ -80,9 +80,36 @@ docker build \
 If you are running Feast in Kubernetes, set the `image.repository` and
 `imagePullSecrets` Helm values accordingly to utilize your custom image.
 
+## Schema management (`schema_mode`)
+
+By default, the SQL registry creates its tables on every startup (`schema_mode: auto`). In production environments where the application should not have DDL privileges, you can pre-create the schema and configure the registry to only verify it:
+
+```yaml
+registry:
+    registry_type: sql
+    path: postgresql://db:5432/feast
+    schema_mode: verify   # or "skip"
+```
+
+| Value | Behavior |
+|---|---|
+| `auto` (default) | Creates tables if they don't exist. Current behavior, no breaking change. |
+| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. When a separate `read_path` is configured, the read replica is also verified — a lagging replica (e.g. mid-migration) will block startup. Note: this is a table-level check only — it does not verify individual columns. A schema created by an older Feast version (missing newer columns) will pass verification but may fail at query time. |
+| `skip` | Skips both creation and verification. Use when schema is managed entirely outside Feast (e.g. by a migration tool). |
+
+### Pre-creating the schema
+
+When using `verify` or `skip` mode, run the following CLI command with a user that has DDL privileges to create the schema before starting the application:
+
+```shell
+feast registry create-schema
+```
+
+This reads `feature_store.yaml`, connects to the configured database, and creates all required tables. It is safe to run multiple times — existing tables are not modified.
+
 There are some things to note about how the SQL registry works:
-- Once instantiated, the Registry ensures the tables needed to store data exist, and creates them if they do not.
-- Upon tearing down the feast project, the registry ensures that the tables are dropped from the database.
+- When `schema_mode` is `auto` (the default), the Registry ensures the tables needed to store data exist, and creates them if they do not.
+- Upon tearing down the feast project, the registry deletes all rows from the registry tables (it does not drop the tables themselves). This runs regardless of `schema_mode` and requires only DML (`DELETE`) privileges, not DDL.
 - The schema for how data is laid out in tables can be found in the table definitions in [`sdk/python/feast/infra/registry/sql.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/registry/sql.py). It is intentionally simple, storing the serialized protobuf versions of each Feast object keyed by its name.
 
 ## MySQL: serialized-proto columns use `LONGBLOB`
