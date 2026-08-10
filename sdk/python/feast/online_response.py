@@ -25,7 +25,6 @@ from feast.type_map import feast_value_type_to_python_type
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
-    import torch
     from torch import Tensor as TorchTensor
 else:
     TorchTensor = Any
