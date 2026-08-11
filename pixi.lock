@@ -2387,6 +2387,7 @@ packages:
   - grpcio>=1.56.2 ; extra == 'grpcio'
   - grpcio-reflection>=1.56.2 ; extra == 'grpcio'
   - grpcio-health-checking>=1.56.2 ; extra == 'grpcio'
+  - grpcio>=1.56.2 ; extra == 'remote'
   - hazelcast-python-client>=5.1 ; extra == 'hazelcast'
   - happybase>=1.2.0,<3 ; extra == 'hbase'
   - ibis-framework>=10.0.0 ; extra == 'ibis'
