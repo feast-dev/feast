@@ -133,13 +133,16 @@ class PandasTransformation(Transformation):
         if not isinstance(other, PandasTransformation):
             return False
 
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
-            return False
+        # udf_string is the canonical diff identity. Source-first from_proto
+        # rebuilds a new callable (strip+exec) whose bytecode differs from the
+        # live repo function even when the source is unchanged — do not require
+        # co_code equality when both sides have source text.
+        left = self.udf_string or ""
+        right = other.udf_string or ""
+        if left and right:
+            return left == right
 
-        return True
+        return self.udf.__code__.co_code == other.udf.__code__.co_code
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
