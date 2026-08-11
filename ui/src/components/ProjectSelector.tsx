@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useGeneratedHtmlId } from "@elastic/eui";
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
 
 const ProjectSelector = () => {
@@ -20,7 +21,7 @@ const ProjectSelector = () => {
     };
   });
 
-  const basicSelectId = React.useId();
+  const basicSelectId = useGeneratedHtmlId({ prefix: "projectSelector" });
   const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProjectId = e.target.value;
 
