@@ -408,8 +408,7 @@ type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
 	Registry     *Registry     `json:"registry,omitempty"`
-	// Creates a UI server container
-	UI                 *ServerConfigs             `json:"ui,omitempty"`
+	UI                 *UIServer                  `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
@@ -496,6 +495,12 @@ type PDBConfig struct {
 	// Mutually exclusive with minAvailable.
 	// +optional
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+}
+
+// UIServer configures the UI server service
+type UIServer struct {
+	// Creates a UI server container
+	Server *ServerConfigs `json:"server,omitempty"`
 }
 
 // OfflineStore configures the offline store service

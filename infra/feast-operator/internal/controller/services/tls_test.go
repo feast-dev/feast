@@ -201,8 +201,10 @@ var _ = Describe("TLS Config", func() {
 						TLS: &feastdevv1.TlsConfigs{},
 					},
 				},
-				UI: &feastdevv1.ServerConfigs{
-					TLS: &feastdevv1.TlsConfigs{},
+				UI: &feastdevv1.UIServer{
+					Server: &feastdevv1.ServerConfigs{
+						TLS: &feastdevv1.TlsConfigs{},
+					},
 				},
 				Registry: &feastdevv1.Registry{
 					Local: &feastdevv1.LocalRegistryConfig{
@@ -257,7 +259,7 @@ var _ = Describe("TLS Config", func() {
 					},
 				},
 			}
-			feast.Handler.FeatureStore.Spec.Services.UI.TLS = &feastdevv1.TlsConfigs{
+			feast.Handler.FeatureStore.Spec.Services.UI.Server.TLS = &feastdevv1.TlsConfigs{
 				Disable: &disable,
 			}
 			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1.Registry{

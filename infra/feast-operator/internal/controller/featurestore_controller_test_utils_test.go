@@ -135,16 +135,18 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 						},
 					},
 				},
-				UI: &feastdevv1.ServerConfigs{
-					ContainerConfigs: feastdevv1.ContainerConfigs{
-						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-							Image: &image,
-						},
-						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
-							Env:             envVars,
-							EnvFrom:         envFromVar,
-							ImagePullPolicy: &pullPolicy,
-							Resources:       &corev1.ResourceRequirements{},
+				UI: &feastdevv1.UIServer{
+					Server: &feastdevv1.ServerConfigs{
+						ContainerConfigs: feastdevv1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+								Image: &image,
+							},
+							OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+								Env:             envVars,
+								EnvFrom:         envFromVar,
+								ImagePullPolicy: &pullPolicy,
+								Resources:       &corev1.ResourceRequirements{},
+							},
 						},
 					},
 				},

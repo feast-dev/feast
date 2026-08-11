@@ -964,7 +964,9 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 			return &appliedServices.Registry.Local.Server.ServerConfigs
 		}
 	case UIFeastType:
-		return appliedServices.UI
+		if feast.isUiServer() {
+			return appliedServices.UI.Server
+		}
 	}
 	return nil
 }
@@ -1211,7 +1213,7 @@ func (feast *FeastServices) setServiceHostnames() error {
 	if feast.isUiServer() {
 		objMeta := feast.initFeastSvc(UIFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.UI = objMeta.Name + "." + objMeta.Namespace + domain +
-			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.TLS)
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.Server.TLS)
 	}
 	return nil
 }

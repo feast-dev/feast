@@ -267,7 +267,7 @@ _Appears in:_
 | `offlineStore` _[OfflineStore](#offlinestore)_ |  |
 | `onlineStore` _[OnlineStore](#onlinestore)_ |  |
 | `registry` _[Registry](#registry)_ |  |
-| `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
+| `ui` _[UIServer](#uiserver)_ |  |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
@@ -561,6 +561,20 @@ _Appears in:_
 | `enabled` _boolean_ | Enable offline push batching. |
 | `batchSize` _integer_ | Maximum number of rows per offline write batch. |
 | `batchIntervalSeconds` _integer_ | Seconds between batch flushes to the offline store. |
+
+
+#### UIServer
+
+
+
+UIServer configures the UI server service
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `server` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 
 
 #### OfflineStore
