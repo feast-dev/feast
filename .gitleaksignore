@@ -1,0 +1,5 @@
+# Gitleaks ignore file
+# Add false positive fingerprints below (one per line)
+# Format: commit:file:rule-id:line or file:rule-id:line
+#
+# For path-based exclusions, use .gitleaks.toml allowlist instead.

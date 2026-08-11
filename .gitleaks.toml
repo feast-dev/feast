@@ -1,0 +1,67 @@
+# Gitleaks configuration for opendatahub-io repos
+# Synced from security-config. Do not edit in target repos.
+#
+# Path allowlists use Go regex syntax.
+# Real credentials should NEVER be committed to any repository.
+
+[extend]
+  useDefault = true
+
+[allowlist]
+  description = "Exclude test fixtures, mock data, sample configs, and CI resources"
+  paths = [
+    # Go test files (commonly contain mock credentials)
+    '''.*_test\.go$''',
+
+    # JS/TS test files (.spec.ts, .test.tsx, etc.)
+    '''.*\.spec\.(ts|tsx|js|jsx)$''',
+    '''.*\.test\.(ts|tsx|js|jsx)$''',
+
+    # JS/TS test directories
+    '''__tests__/''',
+
+    # Go testdata directories
+    '''testdata/''',
+
+    # Python test data directories
+    '''test_data/''',
+
+    # Test fixtures
+    '''fixtures/''',
+
+    # JavaScript/TypeScript mocks
+    '''__mocks__/''',
+
+    # Go/Java/TS mock directories
+    '''mocks/''',
+    '''k8mocks/''',
+
+    # Sample and example configs with placeholder credentials
+    '''docs/samples/''',
+    '''config/samples/''',
+    '''config/overlays/test/''',
+
+    # CI/GitHub Actions test resources
+    '''\.github/resources/''',
+
+    # E2E test credentials
+    '''test/e2e/credentials/''',
+    '''tests/e2e/credentials/''',
+
+    # OpenShift CI sample resources
+    '''openshift-ci/resources/samples/''',
+
+    # Cypress test data
+    '''cypress/fixtures/''',
+    '''cypress/tests/mocked/''',
+
+    # Test certificate and key files
+    '''tests/data/.*\.(pem|crt|key)$''',
+  ]
+
+  # Known test/placeholder credentials used in documentation and tests
+  regexes = [
+    '''database-password\s*:\s*"?(The)?BlurstOfTimes"?''',
+    '''database-user\s*:\s*"?mlmduser"?''',
+    '''database-user\s*:\s*"?modelregistryuser"?''',
+  ]

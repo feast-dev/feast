@@ -1,0 +1,40 @@
+name: Semgrep TLS Rules
+on:
+  pull_request:
+    branches: [master, dev, stable, stable-2.x]
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep-tls:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep@sha256:525beaba156b9bd3f9847d6ec0eb8f308e11f407e0c0b2da641e7c8dd99c97d6 # 1.168.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch argus-observe-rules
+        run: |
+          git init /tmp/argus-observe-rules
+          git -C /tmp/argus-observe-rules fetch --depth 1 https://github.com/smith-xyz/argus-observe-rules.git d3c4bd04ac12ad43b831a93fddab7f2c865d8139
+          git -C /tmp/argus-observe-rules checkout FETCH_HEAD
+
+      - name: Semgrep TLS compliance scan
+        run: |
+          rm -f .semgrepignore
+          semgrep \
+            --config /tmp/argus-observe-rules/rules/languages/go/crypto/go-crypto-tls-version.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/crypto/go-crypto-cipher-suites.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/crypto/go-crypto-tls-cipher-suites.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-tls-version-override.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-tls-bypass.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-http-server-tls-override.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-http-client-tls-override.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-grpc-tls-credential-override.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-kubernetes-client-tls-override.yml \
+            --config /tmp/argus-observe-rules/rules/languages/go/runtime-security/go-certificate-validation-override.yml \
+            --no-git-ignore \
+            --exclude vendor --exclude node_modules --exclude '*_test.go' \
+            --error --severity WARNING --severity ERROR \
+            .

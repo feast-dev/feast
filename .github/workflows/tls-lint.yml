@@ -1,0 +1,26 @@
+name: TLS Config Lint
+on:
+  pull_request:
+    branches: [master, dev, stable, stable-2.x]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  tls-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: sebrandon1/tls-config-lint@88376f09d2f79693895634c8c4961d12c94a5970 # v1.1.9
+        id: lint
+        with:
+          severity-threshold: high
+          sarif-output: tls-lint.sarif
+          exclude-dirs: vendor,node_modules,test/fixtures
+
+      - uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        if: always()
+        with:
+          sarif_file: tls-lint.sarif
