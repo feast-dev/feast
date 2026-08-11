@@ -1376,10 +1376,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def UpdateInfra(self, request: RegistryServer_pb2.UpdateInfraRequest, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
+        # Create-or-update so first remote apply can write infra for a new project.
+        assert_permissions_to_update(
+            resource=Project(name=request.project),
+            getter=self.proxied_registry.get_project,
+            project=request.project,
         )
-        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.update_infra(
             infra=Infra.from_proto(request.infra),
             project=request.project,
@@ -1388,10 +1390,19 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def GetInfra(self, request: RegistryServer_pb2.GetInfraRequest, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
-        )
-        assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        # plan() calls get_infra before the project is created on a shared remote
+        # registry. Mirror ListProjectMetadata: authorize when present, and for a
+        # missing project require CREATE (or allow when auth is off).
+        try:
+            project = self.proxied_registry.get_project(
+                name=request.project, allow_cache=True
+            )
+            assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        except FeastObjectNotFoundException:
+            assert_permissions(
+                resource=Project(name=request.project),
+                actions=[AuthzedAction.CREATE],
+            )
         return self.proxied_registry.get_infra(
             project=request.project, allow_cache=request.allow_cache
         ).to_proto()
