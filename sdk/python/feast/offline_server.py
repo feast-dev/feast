@@ -18,6 +18,9 @@ _FIPS_CIPHER_SUITES = ":".join(
     ]
 )
 
+_SYSTEM_SSL_LIB = "/lib64/libssl.so.3"
+_SYSTEM_CRYPTO_LIB = "/lib64/libcrypto.so.3"
+
 
 def _is_fips_enabled() -> bool:
     try:
@@ -27,6 +30,29 @@ def _is_fips_enabled() -> bool:
         return False
 
 
+def _preload_system_openssl_for_fips() -> None:
+    """PyArrow bundles its own OpenSSL whose FIPS module MAC doesn't match the
+    system FIPS provider, leaving gRPC with zero usable ciphers.  Re-exec with
+    LD_PRELOAD so the dynamic linker uses the system OpenSSL instead."""
+    if not _is_fips_enabled():
+        return
+    if os.environ.get("_FEAST_FIPS_REEXEC"):
+        return
+    current_preload = os.environ.get("LD_PRELOAD", "")
+    preload_entries = current_preload.split()
+    if _SYSTEM_SSL_LIB in preload_entries and _SYSTEM_CRYPTO_LIB in preload_entries:
+        return
+    if not (os.path.exists(_SYSTEM_SSL_LIB) and os.path.exists(_SYSTEM_CRYPTO_LIB)):
+        return
+
+    preload = f"{_SYSTEM_SSL_LIB} {_SYSTEM_CRYPTO_LIB}"
+    if current_preload:
+        preload = f"{preload} {current_preload}"
+    os.environ["LD_PRELOAD"] = preload
+    os.environ["_FEAST_FIPS_REEXEC"] = "1"
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
 def _configure_grpc_fips() -> bool:
     if _is_fips_enabled() and "GRPC_SSL_CIPHER_SUITES" not in os.environ:
         os.environ["GRPC_SSL_CIPHER_SUITES"] = _FIPS_CIPHER_SUITES
@@ -34,9 +60,10 @@ def _configure_grpc_fips() -> bool:
     return False
 
 
-# On FIPS-enabled systems (notably IBM Power ppc64le), gRPC reads
-# GRPC_SSL_CIPHER_SUITES during shared-library initialization.  The env var
-# must be set before any gRPC-linked module (pyarrow.flight) is imported.
+# On FIPS-enabled systems, pyarrow's bundled OpenSSL cannot load the system
+# FIPS provider (integrity MAC mismatch).  Re-exec with LD_PRELOAD to use the
+# system OpenSSL, then set GRPC_SSL_CIPHER_SUITES before pyarrow.flight loads.
+_preload_system_openssl_for_fips()
 _fips_configured = _configure_grpc_fips()
 
 import click  # noqa: E402

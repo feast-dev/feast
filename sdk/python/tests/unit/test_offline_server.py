@@ -12,9 +12,12 @@ from feast.infra.offline_stores.remote import (
     _create_retrieval_metadata,
 )
 from feast.offline_server import (
+    _SYSTEM_CRYPTO_LIB,
+    _SYSTEM_SSL_LIB,
     OfflineServer,
     _configure_grpc_fips,
     _is_fips_enabled,
+    _preload_system_openssl_for_fips,
 )
 
 
@@ -140,6 +143,73 @@ def test_configure_grpc_fips_noop_without_fips():
         os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
         _configure_grpc_fips()
         assert "GRPC_SSL_CIPHER_SUITES" not in os.environ
+
+
+def test_preload_system_openssl_noop_without_fips():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=False),
+        patch.dict(os.environ, {}, clear=False),
+    ):
+        os.environ.pop("LD_PRELOAD", None)
+        _preload_system_openssl_for_fips()
+        assert "LD_PRELOAD" not in os.environ
+
+
+def test_preload_system_openssl_noop_when_already_reexeced():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {"_FEAST_FIPS_REEXEC": "1"}, clear=False),
+    ):
+        os.environ.pop("LD_PRELOAD", None)
+        _preload_system_openssl_for_fips()
+        assert "LD_PRELOAD" not in os.environ
+
+
+def test_preload_system_openssl_noop_when_already_preloaded():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(
+            os.environ,
+            {"LD_PRELOAD": f"{_SYSTEM_SSL_LIB} {_SYSTEM_CRYPTO_LIB}"},
+            clear=False,
+        ),
+    ):
+        os.environ.pop("_FEAST_FIPS_REEXEC", None)
+        _preload_system_openssl_for_fips()
+        assert os.environ["LD_PRELOAD"] == f"{_SYSTEM_SSL_LIB} {_SYSTEM_CRYPTO_LIB}"
+
+
+def test_preload_system_openssl_reexecs_when_only_ssl_preloaded():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {"LD_PRELOAD": _SYSTEM_SSL_LIB}, clear=False),
+        patch("os.path.exists", return_value=True),
+        patch("os.execv") as mock_execv,
+    ):
+        os.environ.pop("_FEAST_FIPS_REEXEC", None)
+        _preload_system_openssl_for_fips()
+        assert _SYSTEM_CRYPTO_LIB in os.environ["LD_PRELOAD"]
+        assert _SYSTEM_SSL_LIB in os.environ["LD_PRELOAD"]
+        mock_execv.assert_called_once()
+        del os.environ["LD_PRELOAD"]
+        del os.environ["_FEAST_FIPS_REEXEC"]
+
+
+def test_preload_system_openssl_reexecs_on_fips():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {}, clear=False),
+        patch("os.path.exists", return_value=True),
+        patch("os.execv") as mock_execv,
+    ):
+        os.environ.pop("LD_PRELOAD", None)
+        os.environ.pop("_FEAST_FIPS_REEXEC", None)
+        _preload_system_openssl_for_fips()
+        assert _SYSTEM_SSL_LIB in os.environ["LD_PRELOAD"]
+        assert os.environ["_FEAST_FIPS_REEXEC"] == "1"
+        mock_execv.assert_called_once()
+        del os.environ["LD_PRELOAD"]
+        del os.environ["_FEAST_FIPS_REEXEC"]
 
 
 def test_module_level_fips_sets_env_before_pyarrow_import():
