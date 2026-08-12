@@ -572,11 +572,23 @@ def init_worker_monitoring():
         t.start()
 
 
+def init_worker_freshness_monitoring(store: "FeatureStore"):
+    """Start feature-freshness monitoring inside a Gunicorn worker process.
+
+    Called from the ``post_worker_init`` hook so that each worker starts
+    its own freshness monitoring after the fork, not before.
+    """
+    if _config.freshness:
+        t = threading.Thread(target=monitor_freshness, args=(store, 30), daemon=True)
+        t.start()
+
+
 def start_metrics_server(
     store: "FeatureStore",
     port: int = 8000,
     metrics_config: Optional["_MetricsFlags"] = None,
     start_resource_monitoring: bool = True,
+    start_freshness_monitoring: bool = True,
 ):
     """
     Start the Prometheus metrics HTTP server and background monitoring threads.
@@ -593,6 +605,10 @@ def start_metrics_server(
             monitoring thread.  Set to ``False`` when Gunicorn will
             fork workers — the ``post_worker_init`` hook starts
             per-worker monitoring instead.
+        start_freshness_monitoring: Whether to start the feature-freshness
+            thread here.  Set to ``False`` when Gunicorn will fork
+            workers — the ``post_worker_init`` hook starts per-worker
+            freshness monitoring instead.
     """
     global _config
 
@@ -632,7 +648,7 @@ def start_metrics_server(
         )
         resource_thread.start()
 
-    if _config.freshness:
+    if _config.freshness and start_freshness_monitoring:
         freshness_thread = threading.Thread(
             target=monitor_freshness, args=(store, 30), daemon=True
         )

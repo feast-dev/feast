@@ -299,6 +299,8 @@ class SnowflakeOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        # supports_filter_by_created_timestamp stays False: the ASOF JOIN cannot
+        # express a created_timestamp cutoff.
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)

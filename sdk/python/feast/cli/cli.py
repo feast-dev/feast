@@ -40,6 +40,7 @@ from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
+from feast.cli.registry import registry_cmd
 from feast.cli.saved_datasets import saved_datasets_cmd
 from feast.cli.serve import (
     serve_command,
@@ -477,6 +478,7 @@ def materialize_incremental_command(
             "milvus",
             "ray",
             "ray_rag",
+            "rag",
             "pytorch_nlp",
             "recommendation",
         ],
@@ -644,6 +646,7 @@ cli.add_command(get_online_features)
 cli.add_command(on_demand_feature_views_cmd)
 cli.add_command(feast_permissions_cmd)
 cli.add_command(projects_cmd)
+cli.add_command(registry_cmd)
 cli.add_command(saved_datasets_cmd)
 cli.add_command(stream_feature_views_cmd)
 cli.add_command(label_views_cmd)

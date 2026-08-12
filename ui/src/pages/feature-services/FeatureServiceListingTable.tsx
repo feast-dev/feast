@@ -29,7 +29,6 @@ const FeatureServiceListingTable = ({
       name: "Name",
       field: "spec.name",
       render: (name: string, item: feast.core.IFeatureService) => {
-        // For "All Projects" view, link to the specific project
         const itemProject =
           item?.spec?.project || (item as any)?.project || projectName;
         return (
@@ -42,10 +41,12 @@ const FeatureServiceListingTable = ({
     {
       name: "# of Features",
       field: "spec.features",
-      render: (featureViews: feast.core.IFeatureViewProjection[]) => {
-        var numFeatures = 0;
-        featureViews.forEach((featureView) => {
-          numFeatures += featureView.featureColumns!.length;
+      render: (
+        featureViews: feast.core.IFeatureViewProjection[] | undefined,
+      ) => {
+        let numFeatures = 0;
+        (featureViews || []).forEach((featureView) => {
+          numFeatures += (featureView.featureColumns || []).length;
         });
         return numFeatures;
       },
@@ -59,7 +60,6 @@ const FeatureServiceListingTable = ({
     },
   ];
 
-  // Add Project column when viewing all projects
   if (projectName === "all") {
     columns.splice(1, 0, {
       name: "Project",

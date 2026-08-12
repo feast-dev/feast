@@ -39,7 +39,7 @@ to subjects using standard Kubernetes `ClusterRoleBinding` or `RoleBinding` reso
 > Kubernetes auth requires all services to be exposed as servers (the controller rejects
 > partial configurations where some services are local while RBAC is enabled).
 
-**SDK docs**: [Feast RBAC](../reference/auth/rbac.md)
+**SDK docs**: [Feast RBAC](../../getting-started/architecture/rbac.md)
 
 ---
 
@@ -62,7 +62,19 @@ stringData:
   client_secret: <your-client-secret>
   username: <service-account-username>     # used for client-credentials flow
   password: <service-account-password>
+  audience: <expected-aud-claim>           # optional: reject tokens whose aud claim differs
+  issuer: <expected-iss-claim>             # optional: reject tokens whose iss claim differs
 ```
+
+The optional `audience` and `issuer` keys enable audience and issuer claim verification on the standard OIDC/JWKS validation path; when omitted, the `aud` and `iss` claims are not checked. Set them to the values your IdP puts in the token itself, which are not always the ones in the discovery document (see [OIDC Authorization](../../getting-started/components/authz_manager.md#oidc-authorization)). The Secret key `issuer` is distinct from the CR's `issuerUrl`, which selects the discovery endpoint and plays no part in claim verification. Kubernetes ServiceAccount tokens (validated via TokenReview) and intra-server communication follow separate paths and are not subject to these checks.
+
+{% hint style="warning" %}
+Before enabling these, three operational caveats:
+
+* **Existing Secret keys take effect on operator upgrade.** Keys named `audience` or `issuer` already present in the referenced Secret were previously ignored; after upgrading they are forwarded to every Feast pod.
+* **Your IdP must mint matching tokens for Feast's own clients.** Feast's client-credentials flow requests no audience, so in multi-service topologies (e.g. a remote registry) and for the UI's browser tokens, the IdP must be configured to issue tokens carrying the expected claims (e.g. a Keycloak audience mapper), or inter-service calls will be rejected.
+* **Secret edits are not watched.** Changes to these keys apply on the next reconcile or pod restart, not immediately.
+{% endhint %}
 
 Reference the Secret from the CR:
 
@@ -92,7 +104,7 @@ authz:
     caCertConfigMap: oidc-ca-cert     # ConfigMap with CA cert for SSL verification
 ```
 
-**SDK docs**: [Feast OIDC Auth](../reference/auth/oidc.md)
+**SDK docs**: [Feast OIDC Auth](../../getting-started/components/authz_manager.md#oidc-authorization)
 
 ---
 

@@ -38,6 +38,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from feast.diff.apply_progress import ApplyProgressContext
+    from feast.embedder import EmbeddingProvider
 
 import pandas as pd
 import pyarrow as pa
@@ -72,10 +73,12 @@ from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import (
     DUMMY_ENTITY,
+    DUMMY_ENTITY_ID,
     DUMMY_ENTITY_NAME,
     FeatureView,
     FeatureViewState,
 )
+from feast.filter_models import ComparisonFilter, CompoundFilter, convert_dict_to_filter
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -107,7 +110,12 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
-from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
+from feast.utils import (
+    _distance_to_score,
+    _get_feature_view_vector_field_metadata,
+    _utc_now,
+)
+from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
 try:
@@ -170,6 +178,7 @@ class FeatureStore:
     _registry: Optional[BaseRegistry]
     _provider: Optional[Provider]
     _openlineage_emitter: Optional[Any] = None
+    _embedding_provider: Optional["EmbeddingProvider"]
     _feature_service_cache: Dict[str, List[str]]
 
     def __init__(
@@ -177,6 +186,7 @@ class FeatureStore:
         repo_path: Optional[str] = None,
         config: Optional[RepoConfig] = None,
         fs_yaml_file: Optional[Path] = None,
+        embedding_provider: Optional["EmbeddingProvider"] = None,
     ):
         """
         Creates a FeatureStore object.
@@ -186,6 +196,10 @@ class FeatureStore:
             config (optional): Configuration object used to configure the feature store.
             fs_yaml_file (optional): Path to the `feature_store.yaml` file used to configure the feature store.
                 At most one of 'fs_yaml_file' and 'config' can be set.
+            embedding_provider (optional): Custom embedding provider implementing
+                the :class:`~feast.embedder.EmbeddingProvider` protocol. When not
+                supplied, a :class:`~feast.embedder.SentenceTransformersEmbeddingProvider` is
+                created from ``embedding_model`` in ``feature_store.yaml``.
 
         Raises:
             ValueError: If both or neither of repo_path and config are specified.
@@ -218,6 +232,7 @@ class FeatureStore:
         self._current_project: ContextVar[Optional[str]] = ContextVar(
             "current_project", default=None
         )
+        self._embedding_provider = embedding_provider
 
         # Initialize feature service cache for performance optimization
         self._feature_service_cache = {}
@@ -383,6 +398,31 @@ class FeatureStore:
         )
 
     @property
+    def embedding_provider(self) -> "EmbeddingProvider":
+        """Return the active embedding provider, creating one from config if needed."""
+        if self._embedding_provider is None:
+            from feast.embedder import get_embedding_provider
+
+            embed_cfg = self.config.embedding_model
+            if embed_cfg is None:
+                raise ValueError(
+                    "No embedding provider set and embedding_model is not "
+                    "configured in feature_store.yaml. Either pass an "
+                    "embedding_provider to FeatureStore() or add an "
+                    "'embedding_model' section to feature_store.yaml.\n"
+                    "Example:\n"
+                    "  embedding_model:\n"
+                    "    provider: sentence_transformers\n"
+                    "    model: all-MiniLM-L6-v2"
+                )
+            self._embedding_provider = get_embedding_provider(embed_cfg)
+        return self._embedding_provider
+
+    @embedding_provider.setter
+    def embedding_provider(self, provider: "EmbeddingProvider") -> None:
+        self._embedding_provider = provider
+
+    @property
     def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
         if self._registry is None:
@@ -469,8 +509,15 @@ class FeatureStore:
         Transition a feature view to MATERIALIZING state.
 
         Rolls back all already-transitioned FVs if this one can't transition.
+        Already MATERIALIZING is a no-op (async server may have reserved the state
+        before returning 202); rollback target is GENERATED in that case.
         """
-        previous_state = getattr(feature_view, "state", None)
+        current = getattr(feature_view, "state", None)
+        if current == FeatureViewState.MATERIALIZING:
+            previous_states[feature_view.name] = FeatureViewState.GENERATED
+            return
+
+        previous_states[feature_view.name] = current
         if (
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
@@ -483,7 +530,6 @@ class FeatureStore:
                 )
             feature_view.state = FeatureViewState.MATERIALIZING
             self.registry.apply_feature_view(feature_view, self.project, commit=True)
-        previous_states[feature_view.name] = previous_state
 
     def _submit_and_process_materialization_jobs(
         self,
@@ -1844,6 +1890,21 @@ class FeatureStore:
 
     def teardown(self):
         """Tears down all local and cloud resources for the feature store."""
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        # Prevent teardown of protected projects
+        try:
+            current = self.registry.get_project(name=self.project, allow_cache=False)
+            if current and current.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Teardown is not allowed on protected project "{self.project}". '
+                    "Protected projects are managed externally and cannot be torn down via Feast."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
+
         tables: List[BaseFeatureView] = []
         tables.extend(self.list_feature_views())
         tables.extend(self.list_label_views())
@@ -1851,7 +1912,10 @@ class FeatureStore:
         entities = self.list_entities()
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
-        self.registry.teardown()
+
+        for project in self.list_projects():
+            self.registry.delete_project(project.name)
+
         self._teardown_openlineage()
 
     def _teardown_openlineage(self):
@@ -1882,6 +1946,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
@@ -1913,6 +1978,11 @@ class FeatureStore:
                 Required when entity_df is not provided.
             end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
                 Required when entity_df is not provided. By default, the current time is used.
+            filter_by_created_timestamp (bool): If True, exclude feature values whose created timestamp
+                (the batch source's ``created_timestamp_column``) is later than the entity row's event
+                timestamp, so retrieval only reflects what was known at the event time and backfilled
+                values cannot leak into training data. Feature views without a
+                ``created_timestamp_column`` are unaffected. Defaults to False.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -2014,11 +2084,13 @@ class FeatureStore:
         provider = self._get_provider()
 
         # Optional kwargs
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if start_date is not None:
             kwargs["start_date"] = start_date
         if end_date is not None:
             kwargs["end_date"] = end_date
+        if filter_by_created_timestamp:
+            kwargs["filter_by_created_timestamp"] = filter_by_created_timestamp
 
         _retrieval_start = time.monotonic()
 
@@ -2283,7 +2355,7 @@ class FeatureStore:
         }
 
         for source_fv in source_fvs:
-            all_join_keys.update(source_fv.entities)
+            all_join_keys.update(source_fv.join_keys)
             if source_fv.batch_source:
                 entity_timestamp_col_names.add(source_fv.batch_source.timestamp_field)
 
@@ -2323,7 +2395,7 @@ class FeatureStore:
             job = provider.offline_store.pull_latest_from_table_or_query(
                 config=self.config,
                 data_source=source_fv.batch_source,
-                join_key_columns=source_fv.entities,
+                join_key_columns=source_fv.join_keys,
                 feature_name_columns=[f.name for f in source_fv.features],
                 timestamp_field=source_fv.batch_source.timestamp_field,
                 created_timestamp_column=getattr(
@@ -2369,12 +2441,116 @@ class FeatureStore:
         )
         self.write_to_online_store(feature_view.name, df=transformed_df)
 
+    def _get_remote_materialize_url(self) -> str:
+        """Get the feature server URL from online_store.path for remote materialization."""
+        online_cfg = self.config.online_store
+        url = getattr(online_cfg, "path", None)
+        if not url:
+            raise ValueError(
+                "online_store.path must be set to use remote materialization. "
+                "Configure online_store with type: remote and a valid path."
+            )
+        return url.rstrip("/")
+
+    def _get_remote_http_session(self):
+        """Get an HTTP session with auth configured for the feature server."""
+        import requests
+
+        auth_config = getattr(self.config, "auth_config", None)
+        if auth_config and getattr(auth_config, "type", "no_auth") != "no_auth":
+            from feast.permissions.client.http_auth_requests_wrapper import (
+                get_http_auth_requests_session,
+            )
+
+            return get_http_auth_requests_session(auth_config)
+
+        return requests.Session()
+
+    def _is_remote_topology(self) -> bool:
+        """True when this client talks to a remote feature server for online ops."""
+        return getattr(self.config.online_store, "type", None) == "remote"
+
+    def _post_to_feature_server(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        query_params: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """POST JSON to the feature server; raise on 409 / 4xx / 5xx."""
+        url = f"{self._get_remote_materialize_url()}{endpoint}"
+        session = self._get_remote_http_session()
+        cert = getattr(self.config.online_store, "cert", "") or ""
+        verify: Any = cert if cert else True
+        try:
+            response = session.post(
+                url,
+                json=payload,
+                params=query_params or {},
+                verify=verify,
+            )
+            if response.status_code == 409:
+                try:
+                    detail = response.json()
+                    message = detail.get("error", response.text)
+                except Exception:
+                    message = response.text
+                raise RuntimeError(
+                    f"Remote materialization conflict (409): {message}"
+                ) from None
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Remote materialization failed "
+                    f"({response.status_code}): {response.text}"
+                )
+            if not response.content:
+                return {}
+            try:
+                return response.json()
+            except Exception:
+                return {"status": "accepted", "raw": response.text}
+        finally:
+            session.close()
+
+    def _delegate_remote_materialize(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        force: bool = False,
+        run_async: bool = False,
+    ) -> None:
+        """POST materialize to the feature server.
+
+        When run_async=False (default), omits async and blocks until the server
+        finishes synchronous materialization (HTTP response).
+        When run_async=True, sends ?async=true and returns after 202.
+        force=True is only valid with run_async=True (server force applies to async).
+        """
+        if force and not run_async:
+            raise ValueError(
+                "force=True requires run_async=True. "
+                "force only overrides stuck MATERIALIZING on the async path."
+            )
+
+        query_params: Dict[str, str] = {}
+        if run_async:
+            query_params["async"] = "true"
+        if force:
+            query_params["force"] = "true"
+
+        result = self._post_to_feature_server(endpoint, payload, query_params or None)
+        if run_async:
+            _logger.info("Remote materialization accepted (%s): %s", endpoint, result)
+        else:
+            _logger.info("Remote materialization completed (%s): %s", endpoint, result)
+
     def materialize_incremental(
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2393,6 +2569,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2408,6 +2589,22 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize(
+                "/materialize-incremental",
+                payload,
+                force=force,
+                run_async=run_async,
+            )
+            return
+
         parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views, version=parsed_version
@@ -2502,10 +2699,10 @@ class FeatureStore:
                 )
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
@@ -2535,7 +2732,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -2597,6 +2793,8 @@ class FeatureStore:
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2615,6 +2813,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -2629,6 +2832,21 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "start_ts": start_date.isoformat(),
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "disable_event_timestamp": disable_event_timestamp,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize(
+                "/materialize", payload, force=force, run_async=run_async
+            )
+            return
+
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -2694,10 +2912,10 @@ class FeatureStore:
                 )
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
@@ -2728,7 +2946,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -3943,6 +4160,7 @@ class FeatureStore:
         image_weight: float = 0.5,
         combine_strategy: str = "weighted_sum",
         include_feature_view_version_metadata: bool = False,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -4097,8 +4315,181 @@ class FeatureStore:
             top_k,
             distance_metric,
             query_string,
+            filters,
             include_feature_view_version_metadata,
         )
+
+    async def openai_search(
+        self,
+        vector_store_id: str,
+        query: Union[str, List[str]],
+        *,
+        vs_id: Optional[str] = None,
+        max_num_results: int = 10,
+        filters: Optional[
+            Union[ComparisonFilter, CompoundFilter, Dict[str, Any]]
+        ] = None,
+        ranking_options: Optional[Dict[str, Any]] = None,
+        rewrite_query: Optional[bool] = None,
+        features_to_retrieve: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        OpenAI-compatible vector store search.
+
+        Accepts a raw query string, embeds it via the configured embedding
+        provider (when ``embedding_model`` is configured in feature_store.yaml),
+        and returns results in OpenAI's ``vector_store.search_results.page``
+        format.
+
+        Args:
+            vector_store_id: Feature view name (maps to the OpenAI
+                ``vector_store_id`` path parameter).
+            query: Natural language query string, or list of strings.
+            max_num_results: Maximum number of results to return.
+            filters: OpenAI-compatible filters applied to the search.
+            ranking_options: OpenAI-compatible ranking options. Currently
+                unsupported; a ``ValueError`` is raised if
+                ``score_threshold`` or ``ranker`` are provided.
+            rewrite_query: Whether to rewrite the query. Currently
+                unsupported; ``False`` (the default/no-op) is accepted,
+                but ``True`` raises a ``ValueError``.
+            features_to_retrieve: Specific feature names to return.
+                If None, all features from the feature view are used.
+
+        Returns:
+            Dict matching the OpenAI ``vector_store.search_results.page``
+            schema.
+
+        Examples:
+            Keyword search (no embedding model configured)::
+
+                result = await store.openai_search(
+                    vector_store_id="city_embeddings",
+                    query="cities in California",
+                    max_num_results=5,
+                )
+
+            Vector search (embedding model configured in YAML)::
+
+                # feature_store.yaml has:
+                #   embedding_model:
+                #     model: text-embedding-3-small
+                result = await store.openai_search(
+                    vector_store_id="product_embeddings",
+                    query="wireless audio device",
+                    max_num_results=3,
+                    features_to_retrieve=["name", "description"],
+                )
+        """
+        unsupported: List[str] = []
+        if ranking_options:
+            if ranking_options.get("score_threshold") is not None:
+                unsupported.append("ranking_options.score_threshold")
+            if ranking_options.get("ranker") is not None:
+                unsupported.append("ranking_options.ranker")
+        if rewrite_query is True:
+            unsupported.append("rewrite_query")
+        if unsupported:
+            raise ValueError(
+                f"The following parameters are not yet supported: "
+                f"{', '.join(unsupported)}. Remove them from the request or "
+                f"wait for a future release that implements them."
+            )
+
+        feature_view = self.get_feature_view(vector_store_id)
+        display_id = vs_id or feature_view_to_vs_id(self.project, vector_store_id)
+
+        vector_field_metadata = _get_feature_view_vector_field_metadata(feature_view)
+        distance_metric: Optional[str] = None
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
+            distance_metric = vector_field_metadata.vector_search_metric
+
+        if features_to_retrieve:
+            feature_names = features_to_retrieve
+        else:
+            feature_names = [
+                f.name for f in feature_view.features if not f.vector_index
+            ]
+
+        features = [f"{feature_view.name}:{name}" for name in feature_names]
+        query_text = query if isinstance(query, str) else " ".join(query)
+
+        embeddings = await self.embedding_provider.aembed([query_text])
+        query_embedding = embeddings[0]
+
+        typed_filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+        if filters is not None:
+            if isinstance(filters, dict):
+                typed_filters = convert_dict_to_filter(filters)
+            else:
+                typed_filters = filters
+
+        response = await run_in_threadpool(
+            lambda: self.retrieve_online_documents_v2(
+                features=features,
+                query=query_embedding,
+                top_k=max_num_results,
+                filters=typed_filters,
+            )
+        )
+
+        response_dict = response.to_dict()
+
+        entity_key_names = {
+            col.name
+            for col in feature_view.entity_columns
+            if col.name != DUMMY_ENTITY_ID
+        }
+
+        result_data = []
+        if response_dict:
+            first_key = next(iter(response_dict))
+            num_rows = len(response_dict.get(first_key, []))
+            for i in range(num_rows):
+                score = 0.0
+                attributes: Dict[str, Any] = {}
+                content_parts: List[Dict[str, str]] = []
+
+                for key, values in response_dict.items():
+                    val = values[i] if i < len(values) else None
+                    if key == "distance":
+                        raw = float(val) if val is not None else 0.0
+                        score = _distance_to_score(raw, distance_metric)
+                    elif key not in entity_key_names:
+                        attributes[key] = val
+                        if isinstance(val, str):
+                            content_parts.append({"type": "text", "text": val})
+
+                if entity_key_names:
+                    key_parts = [
+                        str(response_dict[k][i])
+                        for k in sorted(entity_key_names)
+                        if k in response_dict and i < len(response_dict[k])
+                    ]
+                    file_id = f"{display_id}_{'_'.join(key_parts)}"
+                else:
+                    file_id = f"{display_id}_{i}"
+
+                result_data.append(
+                    {
+                        "file_id": file_id,
+                        "filename": display_id,
+                        "score": score,
+                        "attributes": attributes,
+                        "content": content_parts
+                        if content_parts
+                        else [{"type": "text", "text": str(attributes)}],
+                    }
+                )
+
+        search_query = query if isinstance(query, list) else [query]
+        return {
+            "object": "vector_store.search_results.page",
+            "search_query": search_query,
+            "data": result_data,
+            "has_more": False,
+            "next_page": None,
+        }
 
     def _retrieve_from_online_store(
         self,
@@ -4162,23 +4553,25 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
         """
         vector_field_metadata = _get_feature_view_vector_field_metadata(table)
-        if vector_field_metadata:
+        if vector_field_metadata and vector_field_metadata.vector_search_metric:
             distance_metric = vector_field_metadata.vector_search_metric
 
         documents = provider.retrieve_online_documents_v2(
             config=self.config,
             table=table,
             requested_features=requested_features,
-            query=query,
+            embedding=query,
             top_k=top_k,
             distance_metric=distance_metric,
             query_string=query_string,
+            filters=filters,
             include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
@@ -4516,6 +4909,9 @@ class FeatureStore:
         """
         Retrieves the list of projects from the registry.
 
+        Protected projects (feast.dev/protected-project=true) are automatically
+        excluded from the results.
+
         Args:
             allow_cache: Whether to allow returning projects from a cached registry.
             tags: Filter by tags.
@@ -4523,7 +4919,10 @@ class FeatureStore:
         Returns:
             A list of projects.
         """
-        return self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        projects = self.registry.list_projects(allow_cache=allow_cache, tags=tags)
+        return [p for p in projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"]
 
     def get_project(self, name: Optional[str]) -> Project:
         """
@@ -4550,11 +4949,29 @@ class FeatureStore:
 
         Raises:
             ProjectNotFoundException: The project could not be found.
+            ValueError: If the project is protected.
         """
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        try:
+            project = self.registry.get_project(name=name, allow_cache=False)
+            if project and project.tags.get(PROTECTED_PROJECT_TAG) == "true":
+                raise ValueError(
+                    f'Cannot delete protected project "{name}". '
+                    "Protected projects are managed externally."
+                )
+        except ValueError:
+            raise
+        except Exception:
+            pass
         return self.registry.delete_project(name, commit=commit)
 
     def list_saved_datasets(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves the list of saved datasets from the registry.
@@ -4562,12 +4979,18 @@ class FeatureStore:
         Args:
             allow_cache: Whether to allow returning saved datasets from a cached registry.
             tags: Filter by tags.
+            namespace: Filter by logical namespace grouping.
+            collection: Filter by collection sub-grouping within namespace.
 
         Returns:
             A list of saved datasets.
         """
         return self.registry.list_saved_datasets(
-            self.project, allow_cache=allow_cache, tags=tags
+            self.project,
+            allow_cache=allow_cache,
+            tags=tags,
+            namespace=namespace,
+            collection=collection,
         )
 
     async def initialize(self) -> None:

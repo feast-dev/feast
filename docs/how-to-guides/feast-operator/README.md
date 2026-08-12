@@ -23,7 +23,7 @@ look for store-specific YAML options in the Feast SDK docs.
 
 | # | Guide | Topic |
 |---|-------|-------|
-| 1 | [Project Provisioning](01-project-provisioning.md) | `feastProjectDir`: cloning a git repo vs `feast init` templates |
+| 1 | [Project Provisioning](01-project-provisioning.md) | `feastProjectDir`: git clone, `feast init`, or a repository packaged in an image |
 | 2 | [Persistence](02-persistence.md) | File (path + PVC) vs DB store for offline/online/registry; Secret format |
 | 3 | [Serving & Observability](03-serving-and-observability.md) | Feature server workers, log level, Prometheus metrics, offline push batching, MCP |
 | 4 | [Registry Topology](04-registry-topology.md) | Local vs remote registry, cross-namespace `feastRef`, remote TLS |

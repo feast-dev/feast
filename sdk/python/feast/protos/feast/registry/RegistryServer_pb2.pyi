@@ -1218,6 +1218,8 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
     TAGS_FIELD_NUMBER: builtins.int
     PAGINATION_FIELD_NUMBER: builtins.int
     SORTING_FIELD_NUMBER: builtins.int
+    NAMESPACE_FIELD_NUMBER: builtins.int
+    COLLECTION_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
@@ -1226,6 +1228,10 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
     def pagination(self) -> global___PaginationParams: ...
     @property
     def sorting(self) -> global___SortingParams: ...
+    namespace: builtins.str
+    """Optional logical namespace filter. Empty string means no filter."""
+    collection: builtins.str
+    """Optional collection filter. Empty string means no filter."""
     def __init__(
         self,
         *,
@@ -1234,9 +1240,11 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         pagination: global___PaginationParams | None = ...,
         sorting: global___SortingParams | None = ...,
+        namespace: builtins.str = ...,
+        collection: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "collection", b"collection", "namespace", b"namespace", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListSavedDatasetsRequest = ListSavedDatasetsRequest
 

@@ -13,12 +13,14 @@
 # limitations under the License.
 
 import asyncio
+import functools
 import os
 import sys
 import threading
 import time
 import traceback
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime
 from importlib import resources as importlib_resources
@@ -30,6 +32,7 @@ from dateutil import parser
 from fastapi import (
     Depends,
     FastAPI,
+    Query,
     Request,
     Response,
     WebSocket,
@@ -40,7 +43,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 import feast
 from feast import metrics as feast_metrics
@@ -49,10 +52,13 @@ from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
+    FeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
 from feast.feature_server_utils import convert_response_to_dict
+from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -66,6 +72,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.vector_store_utils import VectorStoreRegistry, build_vector_store_object
 
 
 # TODO: deprecate this in favor of push features
@@ -90,12 +97,26 @@ class MaterializeRequest(BaseModel):
     feature_views: Optional[List[str]] = None
     disable_event_timestamp: bool = False
     full_feature_names: bool = False
+    version: Optional[str] = Field(
+        None,
+        description=(
+            "Optional version to materialize (e.g. 'v2'). Requires feature_views "
+            "with exactly one entry and registry.enable_online_feature_view_versioning."
+        ),
+    )
 
 
 class MaterializeIncrementalRequest(BaseModel):
     end_ts: str
     feature_views: Optional[List[str]] = None
     full_feature_names: bool = False
+    version: Optional[str] = Field(
+        None,
+        description=(
+            "Optional version to materialize (e.g. 'v2'). Requires feature_views "
+            "with exactly one entry and registry.enable_online_feature_view_versioning."
+        ),
+    )
 
 
 class GetOnlineFeaturesRequest(BaseModel):
@@ -114,7 +135,36 @@ class GetOnlineDocumentsRequest(BaseModel):
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
     query_string: Optional[str] = None
+    distance_metric: Optional[str] = None
     api_version: Optional[int] = 1
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+
+
+class OpenAISearchMetadata(BaseModel):
+    features_to_retrieve: Optional[List[str]] = None
+    content_field: Optional[str] = None
+
+
+class OpenAIRankingOptions(BaseModel):
+    ranker: Optional[str] = None
+    score_threshold: Optional[float] = None
+
+
+class OpenAISearchRequest(BaseModel):
+    query: Union[str, List[str]]
+    filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None
+    max_num_results: Optional[int] = 10
+    ranking_options: Optional[OpenAIRankingOptions] = None
+    rewrite_query: Optional[bool] = None
+    metadata: Optional[OpenAISearchMetadata] = None
+
+
+class OpenAIVectorStoreObject(BaseModel):
+    id: str
+    object: str = "vector_store"
+    name: str
+    status: str = "completed"
+    created_at: int = 0
 
 
 class FeatureVectorResponse(BaseModel):
@@ -300,6 +350,128 @@ async def load_static_artifacts(app: FastAPI, store):
         logger.warning(f"Failed to load static artifacts: {e}")
 
 
+def _authorize_materialize_views(
+    store: "feast.FeatureStore",
+    feature_view_names: Optional[List[str]],
+    version: Optional[str] = None,
+) -> List[str]:
+    """Resolve + authorize feature views for materialization.
+
+    Returns the resolved list of FV names (all eligible FVs when
+    feature_view_names is None).
+    """
+    parsed_version = store._validate_materialize_version(version, feature_view_names)
+    feature_views_to_materialize = store._get_feature_views_to_materialize(
+        feature_view_names, version=parsed_version
+    )
+    for fv in feature_views_to_materialize:
+        assert_permissions(
+            resource=fv,
+            actions=[AuthzedAction.WRITE_ONLINE],
+        )
+    return [fv.name for fv in feature_views_to_materialize]
+
+
+def _check_already_materializing(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+) -> Optional[JSONResponse]:
+    """Return a 409 JSONResponse if any requested FV is already MATERIALIZING."""
+    conflicting: List[str] = []
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
+                conflicting.append(fv_name)
+        except (FeatureViewNotFoundException, KeyError):
+            pass
+        except Exception as e:
+            logger.warning(
+                f"Unexpected error checking MATERIALIZING state for {fv_name}: {e}"
+            )
+    if conflicting:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": (
+                    f"Cannot start async materialization — the following feature "
+                    f"views are already in MATERIALIZING state: {conflicting}. "
+                    f"Use ?force=true to override."
+                ),
+                "feature_views": conflicting,
+            },
+        )
+    return None
+
+
+def _update_fv_state(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+    state: FeatureViewState,
+) -> None:
+    """Set FV state in the registry for each named feature view."""
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            fv.state = state
+            store.registry.apply_feature_view(fv, store.project)
+        except (FeatureViewNotFoundException, KeyError):
+            logger.warning(f"Feature view {fv_name} not found; skip state={state}")
+        except Exception as e:
+            logger.warning(f"Failed to set state={state} for {fv_name}: {e}")
+
+
+def _reset_stuck_materializing_to_generated(
+    store: "feast.FeatureStore",
+    fv_names: List[str],
+) -> None:
+    """Reset FVs currently in MATERIALIZING to GENERATED (force override)."""
+    stuck: List[str] = []
+    for fv_name in fv_names:
+        try:
+            fv = store.registry.get_feature_view(
+                fv_name, store.project, allow_cache=False
+            )
+            if getattr(fv, "state", None) == FeatureViewState.MATERIALIZING:
+                stuck.append(fv_name)
+        except (FeatureViewNotFoundException, KeyError):
+            pass
+        except Exception as e:
+            logger.warning(f"Unexpected error while force-resetting {fv_name}: {e}")
+    if stuck:
+        _update_fv_state(store, stuck, FeatureViewState.GENERATED)
+        logger.info(
+            "Force reset MATERIALIZING → GENERATED for feature views: %s", stuck
+        )
+
+
+def _parse_materialize_timestamps(
+    request: "MaterializeRequest",
+) -> tuple:
+    """Parse and validate start/end timestamps from a MaterializeRequest."""
+    if request.disable_event_timestamp:
+        now = datetime.now()
+        return datetime(1970, 1, 1), now
+
+    if not request.start_ts or not request.end_ts:
+        raise ValueError(
+            "start_ts and end_ts are required when disable_event_timestamp is False"
+        )
+    try:
+        start_date = utils.make_tzaware(parser.parse(request.start_ts))
+        end_date = utils.make_tzaware(parser.parse(request.end_ts))
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid timestamp format: {e}") from e
+
+    if start_date >= end_date:
+        raise ValueError(f"start_ts ({start_date}) must be before end_ts ({end_date})")
+    return start_date, end_date
+
+
 def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
@@ -324,7 +496,11 @@ def get_app(
 
     The app provides the following endpoints:
     - `/get-online-features`: Get online features
-    - `/retrieve-online-documents`: Retrieve online documents
+    - `/search`: Vector similarity search (RAG)
+    - `/retrieve-online-documents`: Deprecated alias for `/search`
+    - `/v1/vector_stores`: List vector stores (GET)
+    - `/v1/vector_stores/{vector_store_id}`: Get a vector store (GET)
+    - `/v1/vector_stores/{vector_store_id}/search`: OpenAI-compatible vector search
     - `/push`: Push features to the feature store
     - `/write-to-online-store`: Write to the online store
     - `/health`: Health check
@@ -375,17 +551,36 @@ def get_app(
     else:
         logger.debug("Offline write batching is DISABLED")
 
+    # Dedicated pool for async materialize so long Spark/offline waits do not
+    # starve the default executor used by online serving and run_in_threadpool.
+    _mat_workers_raw = os.environ.get("FEAST_MATERIALIZE_MAX_WORKERS", "2")
+    try:
+        materialize_max_workers = max(1, int(_mat_workers_raw))
+    except ValueError:
+        logger.warning(
+            "Invalid FEAST_MATERIALIZE_MAX_WORKERS=%r; using default 2",
+            _mat_workers_raw,
+        )
+        materialize_max_workers = 2
+    materialize_executor = ThreadPoolExecutor(
+        max_workers=materialize_max_workers,
+        thread_name_prefix="feast-materialize",
+    )
+
     def stop_refresh():
         nonlocal shutting_down
         shutting_down = True
         if active_timer:
             active_timer.cancel()
 
+    vs_registry = VectorStoreRegistry(store)
+
     def async_refresh():
         if shutting_down:
             return
 
         store.refresh_registry()
+        vs_registry.refresh()
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -405,6 +600,9 @@ def get_app(
             stop_refresh()
             if offline_batcher is not None:
                 offline_batcher.shutdown()
+            # wait=False: do not block process exit on in-flight materialize
+            # (same fire-and-forget contract as returning 202 mid-job).
+            materialize_executor.shutdown(wait=False)
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
@@ -456,18 +654,12 @@ def get_app(
             )
             return JSONResponse(content=response_dict)
 
-    @app.post(
-        "/retrieve-online-documents",
-        dependencies=[Depends(inject_user_details)],
-        response_model=OnlineFeaturesResponse,
-    )
-    async def retrieve_online_documents(
+    async def _search_online_documents(
         request: GetOnlineDocumentsRequest,
-    ) -> Any:
-        with feast_metrics.track_request_latency("/retrieve-online-documents"):
-            logger.warning(
-                "This endpoint is in alpha and will be moved to /get-online-features when stable."
-            )
+        *,
+        metrics_path: str,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency(metrics_path):
             features = await _get_features(request, store)
 
             read_params = dict(
@@ -477,6 +669,10 @@ def get_app(
             )
             if request.api_version == 2 and request.query_string is not None:
                 read_params["query_string"] = request.query_string
+            if request.api_version == 2 and request.distance_metric is not None:
+                read_params["distance_metric"] = request.distance_metric
+            if request.api_version == 2 and request.filters is not None:
+                read_params["filters"] = request.filters
 
             if request.api_version == 2:
                 read_params["include_feature_view_version_metadata"] = (
@@ -494,6 +690,124 @@ def get_app(
                 convert_response_to_dict, response.proto
             )
             return JSONResponse(content=response_dict)
+
+    @app.post(
+        "/search",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+    )
+    async def search(request: GetOnlineDocumentsRequest) -> JSONResponse:
+        """Vector similarity search against online document embeddings."""
+        return await _search_online_documents(request, metrics_path="/search")
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+        response_model=OnlineFeaturesResponse,
+        include_in_schema=False,
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineDocumentsRequest,
+    ) -> JSONResponse:
+        logger.warning(
+            "POST /retrieve-online-documents is deprecated; use POST /search instead."
+        )
+        return await _search_online_documents(
+            request, metrics_path="/retrieve-online-documents"
+        )
+
+    @app.get(
+        "/v1/vector_stores",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def list_vector_stores() -> JSONResponse:
+        permitted: list = []
+        for obj in vs_registry.list_vector_stores():
+            fv = vs_registry.resolve(obj["id"])
+            try:
+                assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+                permitted.append(obj)
+            except Exception:
+                pass
+        return JSONResponse(content={"object": "list", "data": permitted})
+
+    @app.get(
+        "/v1/vector_stores/{vector_store_id}",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def get_vector_store(vector_store_id: str) -> JSONResponse:
+        try:
+            fv = vs_registry.resolve(vector_store_id)
+            assert_permissions(resource=fv, actions=[AuthzedAction.DESCRIBE])
+        except FeatureViewNotFoundException:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "message": f"No vector store found with id '{vector_store_id}'",
+                        "type": "not_found_error",
+                    }
+                },
+            )
+        return JSONResponse(content=build_vector_store_object(store.project, fv))
+
+    @app.post(
+        "/v1/vector_stores/{vector_store_id}/search",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def vector_store_search(
+        vector_store_id: str,
+        request: OpenAISearchRequest,
+    ) -> JSONResponse:
+        with feast_metrics.track_request_latency(
+            "/v1/vector_stores/{vector_store_id}/search"
+        ):
+            try:
+                feature_view = vs_registry.resolve(vector_store_id)
+                assert_permissions(
+                    resource=feature_view,
+                    actions=[AuthzedAction.READ_ONLINE],
+                )
+
+                result = await store.openai_search(
+                    vector_store_id=feature_view.name,
+                    query=request.query,
+                    vs_id=vector_store_id,
+                    max_num_results=request.max_num_results or 10,
+                    filters=request.filters,
+                    ranking_options=(
+                        request.ranking_options.model_dump()
+                        if request.ranking_options
+                        else None
+                    ),
+                    rewrite_query=request.rewrite_query,
+                    features_to_retrieve=(
+                        request.metadata.features_to_retrieve
+                        if request.metadata
+                        else None
+                    ),
+                )
+            except FeatureViewNotFoundException:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "error": {
+                            "message": f"No vector store found with id '{vector_store_id}'",
+                            "type": "not_found_error",
+                        }
+                    },
+                )
+            except ValueError as e:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "error": {
+                            "message": str(e),
+                            "type": "invalid_request_error",
+                        }
+                    },
+                )
+            return JSONResponse(content=result)
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> Response:
@@ -642,70 +956,115 @@ def get_app(
         return Response(content=content, media_type="text/html")
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
-    async def materialize(request: MaterializeRequest) -> None:
+    async def materialize(
+        request: MaterializeRequest,
+        async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
+    ):
         with feast_metrics.track_request_latency("/materialize"):
-            if request.feature_views:
-                for feature_view in request.feature_views:
-                    resource = await _get_feast_object(feature_view, True)
-                    assert_permissions(
-                        resource=resource,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
-            else:
-                feature_views_to_materialize = store._get_feature_views_to_materialize(
-                    None
-                )
-                for fv in feature_views_to_materialize:
-                    assert_permissions(
-                        resource=fv,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
+            fv_names = _authorize_materialize_views(
+                store, request.feature_views, version=request.version
+            )
+            start_date, end_date = _parse_materialize_timestamps(request)
 
-            if request.disable_event_timestamp:
-                now = datetime.now()
-                start_date = datetime(1970, 1, 1)
-                end_date = now
-            else:
-                if not request.start_ts or not request.end_ts:
-                    raise ValueError(
-                        "start_ts and end_ts are required when disable_event_timestamp is False"
-                    )
-                start_date = utils.make_tzaware(parser.parse(request.start_ts))
-                end_date = utils.make_tzaware(parser.parse(request.end_ts))
+            if async_mode:
+                if force:
+                    _reset_stuck_materializing_to_generated(store, fv_names)
+                else:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
+
+                # Reserve MATERIALIZING before 202 so concurrent requests hit 409.
+                # store.materialize() treats already-MATERIALIZING as a no-op.
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
+                def _run_materialize():
+                    try:
+                        store.materialize(
+                            start_date,
+                            end_date,
+                            fv_names,
+                            disable_event_timestamp=request.disable_event_timestamp,
+                            full_feature_names=request.full_feature_names,
+                            version=request.version,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Async materialization failed for {fv_names}: {e}",
+                            exc_info=True,
+                        )
+                        _reset_stuck_materializing_to_generated(store, fv_names)
+
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(materialize_executor, _run_materialize)
+
+                return JSONResponse(
+                    status_code=202,
+                    content={"status": "accepted", "feature_views": fv_names},
+                )
 
             await run_in_threadpool(
                 store.materialize,
                 start_date,
                 end_date,
-                request.feature_views,
+                fv_names,
                 disable_event_timestamp=request.disable_event_timestamp,
                 full_feature_names=request.full_feature_names,
+                version=request.version,
             )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
-    async def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
+    async def materialize_incremental(
+        request: MaterializeIncrementalRequest,
+        async_mode: bool = Query(False, alias="async"),
+        force: bool = Query(False),
+    ):
         with feast_metrics.track_request_latency("/materialize-incremental"):
-            if request.feature_views:
-                for feature_view in request.feature_views:
-                    resource = await _get_feast_object(feature_view, True)
-                    assert_permissions(
-                        resource=resource,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
-            else:
-                feature_views_to_materialize = store._get_feature_views_to_materialize(
-                    None
+            fv_names = _authorize_materialize_views(
+                store, request.feature_views, version=request.version
+            )
+            end_date = utils.make_tzaware(parser.parse(request.end_ts))
+
+            if async_mode:
+                if force:
+                    _reset_stuck_materializing_to_generated(store, fv_names)
+                else:
+                    conflict = _check_already_materializing(store, fv_names)
+                    if conflict:
+                        return conflict
+
+                _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
+
+                def _run_materialize_incremental():
+                    try:
+                        store.materialize_incremental(
+                            end_date,
+                            fv_names,
+                            full_feature_names=request.full_feature_names,
+                            version=request.version,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Async materialize-incremental failed for {fv_names}: {e}",
+                            exc_info=True,
+                        )
+                        _reset_stuck_materializing_to_generated(store, fv_names)
+
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(materialize_executor, _run_materialize_incremental)
+
+                return JSONResponse(
+                    status_code=202,
+                    content={"status": "accepted", "feature_views": fv_names},
                 )
-                for fv in feature_views_to_materialize:
-                    assert_permissions(
-                        resource=fv,
-                        actions=[AuthzedAction.WRITE_ONLINE],
-                    )
+
             await run_in_threadpool(
                 store.materialize_incremental,
-                utils.make_tzaware(parser.parse(request.end_ts)),
-                request.feature_views,
+                end_date,
+                fv_names,
                 full_feature_names=request.full_feature_names,
+                version=request.version,
             )
 
     @app.exception_handler(Exception)
@@ -849,6 +1208,7 @@ if sys.platform != "win32":
                 store=store,
                 registry_ttl_sec=options["registry_ttl_sec"],
             )
+            self._store = store
             self._options = options
             self._metrics_enabled = metrics_enabled
             super().__init__()
@@ -860,15 +1220,19 @@ if sys.platform != "win32":
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
             if self._metrics_enabled:
-                self.cfg.set("post_worker_init", _gunicorn_post_worker_init)
+                self.cfg.set(
+                    "post_worker_init",
+                    functools.partial(_gunicorn_post_worker_init, self._store),
+                )
                 self.cfg.set("child_exit", _gunicorn_child_exit)
 
         def load(self):
             return self._app
 
-    def _gunicorn_post_worker_init(worker):
-        """Start per-worker resource monitoring after Gunicorn forks."""
+    def _gunicorn_post_worker_init(store: "feast.FeatureStore", worker):
+        """Start per-worker resource and freshness monitoring after Gunicorn forks."""
         feast_metrics.init_worker_monitoring()
+        feast_metrics.init_worker_freshness_monitoring(store)
 
     def _gunicorn_child_exit(server, worker):
         """Clean up Prometheus metric files for a dead worker."""
@@ -906,6 +1270,7 @@ def start_server(
             store,
             metrics_config=flags,
             start_resource_monitoring=not uses_gunicorn,
+            start_freshness_monitoring=not uses_gunicorn,
         )
 
     logger.debug("start_server called")

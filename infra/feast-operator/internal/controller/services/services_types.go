@@ -26,6 +26,8 @@ import (
 
 const (
 	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
+	packagedFeatureRepoEnvVar = "FEAST_PACKAGED_FEATURE_REPO_PATH"
+	stagedFeatureRepoEnvVar   = "FEAST_STAGED_FEATURE_REPO_PATH"
 	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
 	cronJobImageVar           = "RELATED_IMAGE_CRON_JOB"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
@@ -39,6 +41,14 @@ const (
 	NamespaceRegistryConfigMapName = "feast-configs-registry"
 	NamespaceRegistryDataKey       = "namespaces"
 	DefaultKubernetesNamespace     = "feast-operator-system"
+
+	// ProtectedProjectAnnotation is the annotation key on a FeatureStore CR
+	// that marks its project as protected. Protected projects are excluded
+	// from project listings and shielded from teardown by other instances.
+	// When this annotation is "true", the operator sets FEAST_PROTECTED_PROJECT=true
+	// on the server pods, which causes the server to tag the project in the
+	// shared registry on startup.
+	ProtectedProjectAnnotation = "feast.dev/protected-project"
 
 	HttpPort              = 80
 	HttpsPort             = 443
@@ -103,6 +113,8 @@ const (
 	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
 	OidcVerifySsl        OidcPropertyType = "verify_ssl"
 	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
+	OidcAudience         OidcPropertyType = "audience"
+	OidcIssuer           OidcPropertyType = "issuer"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 
@@ -266,7 +278,7 @@ var (
 		},
 	}
 
-	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword, OidcAudience, OidcIssuer}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.

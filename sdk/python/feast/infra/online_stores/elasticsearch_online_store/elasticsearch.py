@@ -5,11 +5,18 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from elasticsearch import Elasticsearch, helpers
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.filter_models import (
+    ComparisonFilter,
+    CompoundFilter,
+    FilterTranslator,
+    FilterType,
+    filters_contain_numeric_comparison,
+)
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     get_list_val_str,
@@ -45,10 +52,106 @@ class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
 
     # The number of rows to write in a single batch
     write_batch_size: Optional[int] = 40
+    enable_openai_compatible_store: Optional[bool] = False
+
+
+logger = logging.getLogger(__name__)
+
+
+class ElasticsearchFilterTranslator(FilterTranslator):
+    """Translates Feast filters into Elasticsearch Query DSL clauses."""
+
+    def __init__(self, has_value_num: bool = False):
+        self.has_value_num = has_value_num
+
+    def translate(self, filters: FilterType) -> List[Dict[str, Any]]:
+        if filters is None:
+            return []
+        return [self._dispatch(filters)]
+
+    def translate_comparison(self, f: ComparisonFilter) -> Dict[str, Any]:
+        is_numeric = isinstance(f.value, (int, float)) and not isinstance(f.value, bool)
+        is_numeric_list = (
+            isinstance(f.value, list)
+            and f.value
+            and isinstance(f.value[0], (int, float))
+            and not isinstance(f.value[0], bool)
+        )
+
+        if self.has_value_num and (is_numeric or is_numeric_list):
+            field = f"{f.key}.value_num"
+            exact_field = field
+            fmt_val = f.value
+            fmt_list = f.value if is_numeric_list else None
+        else:
+            exact_field = f"{f.key}.value_text.keyword"
+            field = f"{f.key}.value_text"
+            fmt_val = str(f.value)
+            fmt_list = [str(v) for v in f.value] if isinstance(f.value, list) else None
+
+        if f.type == "eq":
+            return {"term": {exact_field: fmt_val}}
+        elif f.type == "ne":
+            return {"bool": {"must_not": [{"term": {exact_field: fmt_val}}]}}
+        elif f.type in ("gt", "gte", "lt", "lte"):
+            return {"range": {field: {f.type: fmt_val}}}
+        elif f.type == "in":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(f.value)}"
+                )
+            return {"terms": {exact_field: fmt_list}}
+        elif f.type == "nin":
+            if not isinstance(f.value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(f.value)}"
+                )
+            return {"bool": {"must_not": [{"terms": {exact_field: fmt_list}}]}}
+        raise ValueError(f"Unsupported comparison operator: {f.type}")
+
+    def translate_compound(self, f: CompoundFilter) -> Dict[str, Any]:
+        clauses = [self._dispatch(sub) for sub in f.filters]
+        if f.type == "and":
+            return {"bool": {"must": clauses}}
+        else:
+            return {"bool": {"should": clauses, "minimum_should_match": 1}}
 
 
 class ElasticSearchOnlineStore(OnlineStore):
     _client: Optional[Elasticsearch] = None
+    _index_value_num_cache: Optional[Dict[str, bool]] = None
+
+    def _index_has_value_num(self, config: RepoConfig, index_name: str) -> bool:
+        """Check the actual ES index mapping for the value_num field.
+
+        Caches the result per index so we only hit ES once.
+        """
+        if self._index_value_num_cache is None:
+            self._index_value_num_cache = {}
+        if index_name in self._index_value_num_cache:
+            return self._index_value_num_cache[index_name]
+        try:
+            mapping = self._get_client(config).indices.get_mapping(index=index_name)
+            templates = (
+                mapping.get(index_name, {})
+                .get("mappings", {})
+                .get("dynamic_templates", [])
+            )
+            for tmpl in templates:
+                for _, tmpl_body in tmpl.items():
+                    props = tmpl_body.get("mapping", {}).get("properties", {})
+                    if "value_num" in props:
+                        self._index_value_num_cache[index_name] = True
+                        return True
+        except Exception as e:
+            logging.warning(
+                "Failed to check index mapping for value_num on '%s': %s: %s",
+                index_name,
+                type(e).__name__,
+                e,
+            )
+        self._index_value_num_cache[index_name] = False
+        return False
 
     def _get_client(self, config: RepoConfig) -> Elasticsearch:
         online_store_config = config.online_store
@@ -94,6 +197,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         insert_values = []
+        include_value_num = self._index_has_value_num(config, table.name)
         grouped_docs: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "features": {},
@@ -115,7 +219,7 @@ class ElasticSearchOnlineStore(OnlineStore):
             doc_key = f"{encoded_entity_key}_{timestamp}"
 
             for feature_name, value in values.items():
-                doc = _encode_feature_value(value)
+                doc = _encode_feature_value(value, include_value_num=include_value_num)
                 grouped_docs[doc_key]["features"][feature_name] = doc
                 grouped_docs[doc_key]["timestamp"] = timestamp
                 grouped_docs[doc_key]["created_ts"] = created_ts
@@ -209,6 +313,23 @@ class ElasticSearchOnlineStore(OnlineStore):
             _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
+        feature_properties: Dict[str, Any] = {
+            "feature_value": {"type": "binary"},
+            "value_text": {
+                "type": "text",
+                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+            },
+            "vector_value": {
+                "type": "dense_vector",
+                "dims": vector_field_length,
+                "index": True,
+                "similarity": config.online_store.similarity,
+            },
+        }
+
+        if getattr(config.online_store, "enable_openai_compatible_store", False):
+            feature_properties["value_num"] = {"type": "double"}
+
         index_mapping = {
             "dynamic_templates": [
                 {
@@ -217,16 +338,7 @@ class ElasticSearchOnlineStore(OnlineStore):
                         "match": "*",
                         "mapping": {
                             "type": "object",
-                            "properties": {
-                                "feature_value": {"type": "binary"},
-                                "value_text": {"type": "text"},
-                                "vector_value": {
-                                    "type": "dense_vector",
-                                    "dims": vector_field_length,
-                                    "index": True,
-                                    "similarity": config.online_store.similarity,
-                                },
-                            },
+                            "properties": feature_properties,
                         },
                     }
                 }
@@ -348,6 +460,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -383,6 +496,27 @@ class ElasticSearchOnlineStore(OnlineStore):
         source_fields += composite_key_name
         body["_source"] = source_fields
 
+        has_value_num = self._index_has_value_num(config, es_index)
+
+        if (
+            filters
+            and filters_contain_numeric_comparison(filters)
+            and not has_value_num
+        ):
+            logger.warning(
+                "Numeric comparison filters (gt, gte, lt, lte) are being used "
+                "but this index does not have a 'value_num' field. Numeric "
+                "fields are stored as text, which causes lexicographic "
+                "comparison instead of numeric comparison (e.g. '9' > '100'). "
+                "To fix this, set 'enable_openai_compatible_store: true' in "
+                "your online_store config, then teardown and re-apply your "
+                "feature store to recreate indices with the value_num field."
+            )
+
+        metadata_filters = ElasticsearchFilterTranslator(has_value_num).translate(
+            filters
+        )
+
         if embedding:
             similarity = (distance_metric or config.online_store.similarity).lower()
             vector_field_path = (
@@ -399,37 +533,47 @@ class ElasticSearchOnlineStore(OnlineStore):
                     f"Unsupported similarity/distance_metric: {similarity}"
                 )
 
-        # Hybrid search
         if embedding and query_string:
+            bool_clause: Dict[str, Any] = {
+                "must": [
+                    {"query_string": {"query": f'"{query_string}"'}},
+                    {"exists": {"field": vector_field_path}},
+                ]
+            }
+            if metadata_filters:
+                bool_clause["filter"] = metadata_filters
             body["query"] = {
                 "script_score": {
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"query_string": {"query": f'"{query_string}"'}},
-                                {"exists": {"field": vector_field_path}},
-                            ]
-                        }
-                    },
+                    "query": {"bool": bool_clause},
                     "script": {
                         "source": script,
                         "params": {"query_vector": embedding},
                     },
                 }
             }
-        # Vector search only
         elif embedding:
+            filter_clauses: List[Dict[str, Any]] = [
+                {"exists": {"field": vector_field_path}}
+            ]
+            filter_clauses.extend(metadata_filters)
             body["query"] = {
                 "script_score": {
-                    "query": {
-                        "bool": {"filter": [{"exists": {"field": vector_field_path}}]}
-                    },
+                    "query": {"bool": {"filter": filter_clauses}},
                     "script": {"source": script, "params": {"query_vector": embedding}},
                 }
             }
-        # Keyword search only
         elif query_string:
-            body["query"] = {"query_string": {"query": f'"{query_string}"'}}
+            if metadata_filters:
+                body["query"] = {
+                    "bool": {
+                        "must": [
+                            {"query_string": {"query": f'"{query_string}"'}},
+                        ],
+                        "filter": metadata_filters,
+                    }
+                }
+            else:
+                body["query"] = {"query_string": {"query": f'"{query_string}"'}}
 
         response = self._get_client(config).search(index=es_index, body=body)
 
@@ -443,7 +587,6 @@ class ElasticSearchOnlineStore(OnlineStore):
             timestamp = row["_source"]["timestamp"]
             timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
 
-            # Create feature dict with all requested features
             feature_dict = {"distance": _to_value_proto(float(row["_score"]))}
             if query_string is not None:
                 feature_dict["text_rank"] = _to_value_proto(float(row["_score"]))
@@ -468,14 +611,14 @@ def _to_value_proto(value: Any) -> ValueProto:
     val_proto = ValueProto()
     if isinstance(value, ValueProto):
         return value
-    if isinstance(value, float):
+    if isinstance(value, bool):
+        val_proto.bool_val = value
+    elif isinstance(value, float):
         val_proto.float_val = value
     elif isinstance(value, str):
         val_proto.string_val = value
     elif isinstance(value, int):
         val_proto.int64_val = value
-    elif isinstance(value, bool):
-        val_proto.bool_val = value
     elif isinstance(value, list) and all(isinstance(v, float) for v in value):
         val_proto.float_list_val.val.extend(value)
     elif isinstance(value, dict) and "feature_value" in value:
@@ -489,12 +632,15 @@ def _to_value_proto(value: Any) -> ValueProto:
     return val_proto
 
 
-def _encode_feature_value(value: ValueProto) -> Dict[str, Any]:
+def _encode_feature_value(
+    value: ValueProto,
+    include_value_num: bool = False,
+) -> Dict[str, Any]:
     """
     Encode a ValueProto into a dictionary for Elasticsearch storage.
     """
     encoded_value = base64.b64encode(value.SerializeToString()).decode("utf-8")
-    result = {"feature_value": encoded_value}
+    result: Dict[str, Any] = {"feature_value": encoded_value}
     vector_val = get_list_val_str(value)
 
     if vector_val:
@@ -505,8 +651,24 @@ def _encode_feature_value(value: ValueProto) -> Dict[str, Any]:
         result["value_text"] = value.bytes_val.decode("utf-8")
     elif value.HasField("int64_val"):
         result["value_text"] = str(value.int64_val)
+        if include_value_num:
+            result["value_num"] = value.int64_val
+    elif value.HasField("int32_val"):
+        result["value_text"] = str(value.int32_val)
+        if include_value_num:
+            result["value_num"] = value.int32_val
     elif value.HasField("double_val"):
         result["value_text"] = str(value.double_val)
+        if include_value_num:
+            result["value_num"] = value.double_val
+    elif value.HasField("float_val"):
+        result["value_text"] = str(value.float_val)
+        if include_value_num:
+            result["value_num"] = value.float_val
+    elif value.HasField("bool_val"):
+        result["value_text"] = str(value.bool_val)
+        if include_value_num:
+            result["value_num"] = 1.0 if value.bool_val else 0.0
     return result
 
 

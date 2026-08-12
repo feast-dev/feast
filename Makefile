@@ -151,9 +151,10 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
 			--no-emit-package milvus-lite \
 			--no-emit-package pymilvus \
+			--no-emit-package faiss-cpu \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 && \
+			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 typing_extensions && \
 			pybuild-deps compile --generate-hashes \
 			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
 			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
@@ -730,10 +731,16 @@ push-feast-operator-docker: ## Push Feast Operator Docker image
 	$(MAKE) docker-push
 
 build-feast-operator-docker: ## Build Feast Operator Docker image
-	cd infra/feast-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-build
+	@if [ -n "$(DOCKER_PLATFORMS)" ]; then \
+		cd infra/feast-operator && \
+		docker buildx build --push --platform=$(DOCKER_PLATFORMS) \
+			--tag $(REGISTRY)/feast-operator:$(VERSION) -f Dockerfile .; \
+	else \
+		cd infra/feast-operator && \
+		IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+		VERSION=$(VERSION) \
+		$(MAKE) docker-build; \
+	fi
 
 build-feast-operator-docker-on-mac: ## Build Feast Operator Docker image on Mac
 	cd infra/feast-operator && \

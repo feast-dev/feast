@@ -205,19 +205,33 @@ class RegistryConfig(FeastBaseModel):
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 
+    @staticmethod
+    def _normalize_postgres_scheme(value: str, field_name: str) -> str:
+        """Rewrite a bare ``postgresql://`` URL to the psycopg3 driver, with a warning.
+
+        SQLAlchemy resolves a bare ``postgresql://`` to the psycopg2 driver, while
+        feast standardizes on psycopg3 (``postgresql+psycopg``). Pass an explicit
+        ``postgresql+psycopg2`` to keep psycopg2. Shared by the ``path`` and
+        ``read_path`` validators so both endpoints normalize identically.
+        """
+        if value.startswith("postgresql://"):
+            _logger.warning(
+                f"The `{field_name}` of the `RegistryConfig` starts with a plain "
+                "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitly "
+                f"to `{field_name}`. To silence this warning, pass `postgresql+psycopg` "
+                f"explicitly to `{field_name}`."
+            )
+            # Rewrite only the leading scheme, not any later occurrence (e.g.
+            # inside credentials or a query string).
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
-            if path.startswith("postgresql://"):
-                _logger.warning(
-                    "The `path` of the `RegistryConfig` starts with a plain "
-                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
-                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
-                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
-                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
-                    "explicitely to `path`."
-                )
-                return path.replace("postgresql://", "postgresql+psycopg://")
+            return cls._normalize_postgres_scheme(path, "path")
         return path
 
 
@@ -337,6 +351,39 @@ class OpenLineageConfig(FeastBaseModel):
         )
 
 
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the query-time embedding model used by the feature server.
+
+    Required when using ``openai_search`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    **Sentence Transformers** (default) — runs locally, no API key required.
+    Ideal for air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers   # default; can be omitted
+          model: all-MiniLM-L6-v2
+
+    Custom providers can be plugged in by implementing the
+    :class:`~feast.embedder.EmbeddingProvider` protocol and passing an
+    instance to :class:`~feast.feature_store.FeatureStore`.
+    """
+
+    provider: str = "sentence_transformers"
+    """Embedding backend to use.  Supported values:
+    ``'sentence_transformers'`` (default)."""
+
+    model: str
+    """Model identifier.
+
+    Any HuggingFace model name compatible with ``SentenceTransformer``,
+    e.g. ``'all-MiniLM-L6-v2'``, ``'BAAI/bge-small-en-v1.5'``.
+    """
+
+
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
@@ -375,6 +422,13 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: Embedding model configuration.
+    Required when using openai_search or the
+    OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """

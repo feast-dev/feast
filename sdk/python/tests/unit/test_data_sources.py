@@ -306,3 +306,30 @@ def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
     )
 
     assert redshift_source.redshift_options.fully_qualified_table_name == expected_name
+
+
+def test_data_source_eq_cross_type_returns_false():
+    """A DataSource compared to a different type returns ``False``, never ``TypeError``.
+
+    Regression: ``__eq__`` used to ``raise TypeError("Comparisons should only involve
+    <X> class objects.")`` on a cross-type comparison, so changing a feature view's
+    source type and re-``apply()``-ing over an existing registry crashed. Comparing
+    objects of different types must return ``False``, matching ``PushSource.__eq__``.
+    """
+    file_source = FileSource(name="src", path="/tmp/x.parquet", timestamp_field="ts")
+    snowflake_source = SnowflakeSource(
+        name="src", database="D", schema="S", table="T", timestamp_field="ts"
+    )
+
+    # Cross-type comparison is False in both directions, not a raise.
+    assert (file_source == snowflake_source) is False
+    assert (snowflake_source == file_source) is False
+
+    # Comparison against a non-DataSource operand is also False, not a raise.
+    assert (file_source == "not a data source") is False
+    assert (file_source == 42) is False
+
+    # Same-type equality still holds for two independently-built equal instances.
+    assert file_source == FileSource(
+        name="src", path="/tmp/x.parquet", timestamp_field="ts"
+    )

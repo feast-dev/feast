@@ -27,10 +27,11 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.63.1
+          pixi-version: v0.75.0
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (local)
@@ -58,6 +59,7 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
           persist-credentials: false
+          allow-unsafe-pr-checkout: true  # Security: gated by label check above
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v2'
         with:
@@ -80,9 +82,9 @@ jobs:
       - name: Install Hadoop dependencies
         run: make install-hadoop-dependencies-ci
       - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.63.1
+          pixi-version: v0.75.0
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (CI)

@@ -175,10 +175,22 @@ type FeatureStoreSpec struct {
 }
 
 // FeastProjectDir defines how to create the feast project directory.
-// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init), has(self.packaged)].exists_one(c, c)",message="One selection required between init, git, or packaged."
 type FeastProjectDir struct {
-	Git  *GitCloneOptions  `json:"git,omitempty"`
-	Init *FeastInitOptions `json:"init,omitempty"`
+	Git      *GitCloneOptions      `json:"git,omitempty"`
+	Init     *FeastInitOptions     `json:"init,omitempty"`
+	Packaged *FeastPackagedOptions `json:"packaged,omitempty"`
+}
+
+// FeastPackagedOptions describes a feature repository packaged in a feature server image.
+// +kubebuilder:validation:XValidation:rule="self.featureRepoPath.startsWith('/') && self.featureRepoPath != '/' && !self.featureRepoPath.contains('//') && !self.featureRepoPath.endsWith('/') && !self.featureRepoPath.contains('/./') && !self.featureRepoPath.endsWith('/.') && !self.featureRepoPath.contains('/../') && !self.featureRepoPath.endsWith('/..')",message="FeatureRepoPath must be a canonical absolute, non-root path without dot segments or repeated separators."
+type FeastPackagedOptions struct {
+	// Image containing the packaged feature repository. When set, this image is used by the
+	// repository initialization and feast apply containers and as the default service image.
+	// When omitted, the operator's configured feature server image is used.
+	Image string `json:"image,omitempty"`
+	// FeatureRepoPath is the canonical absolute path to the feature repository in the image.
+	FeatureRepoPath string `json:"featureRepoPath"`
 }
 
 // GitCloneOptions describes how a clone should be performed.
@@ -407,6 +419,10 @@ type FeatureStoreServices struct {
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// InitImage overrides the image for init containers (feast-init, feast-apply).
+	// Resolution order: InitImage → FeastProjectDir.Packaged.Image → RELATED_IMAGE_FEATURE_SERVER → DefaultImage.
+	// +optional
+	InitImage *string `json:"initImage,omitempty"`
 	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
@@ -544,6 +560,11 @@ type OnlineStore struct {
 	// Controls metrics granularity, offline push batching, and MCP.
 	// +optional
 	Serving *ServingConfig `json:"serving,omitempty"`
+	// Disabled skips deploying the online store service entirely, including its
+	// serving pod and persistence. Omitting the online store block, or setting
+	// this to false, deploys the online store with defaults as before.
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // ServingConfig configures the feature_server section of the generated feature_store.yaml.
