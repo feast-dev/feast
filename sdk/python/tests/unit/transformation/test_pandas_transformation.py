@@ -20,12 +20,12 @@ def test_init_pandas_transformation():
     assert transformed_df["output2"].values[1] == 3
 
 
-_UDF_SOURCE = '''def pandas_udf(features_df):
+_UDF_SOURCE = """def pandas_udf(features_df):
     df = __import__("pandas").DataFrame()
     df["output1"] = features_df["feature1"]
     df["output2"] = features_df["feature2"]
     return df
-'''
+"""
 
 
 def test_pandas_transformation_eq_uses_udf_string_not_bytecode():
