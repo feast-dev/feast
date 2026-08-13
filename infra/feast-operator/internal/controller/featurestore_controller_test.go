@@ -745,7 +745,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			saList := corev1.ServiceAccountList{}
 			err = k8sClient.List(ctx, &saList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(saList.Items).To(HaveLen(1))
+			Expect(saList.Items).To(HaveLen(2))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
