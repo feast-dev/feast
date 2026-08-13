@@ -620,7 +620,11 @@ func getRepoConfig(featureStore *feastdevv1.FeatureStore) RepoConfig {
 	status := featureStore.Status
 	repoConfig := initRepoConfig(status.Applied.FeastProject)
 	if status.Applied.AuthzConfig != nil {
-		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+		if status.Applied.AuthzConfig.NoAuth != nil && *status.Applied.AuthzConfig.NoAuth {
+			repoConfig.AuthzConfig = AuthzConfig{
+				Type: NoAuthAuthType,
+			}
+		} else if status.Applied.AuthzConfig.KubernetesAuthz != nil {
 			repoConfig.AuthzConfig = AuthzConfig{
 				Type: KubernetesAuthType,
 			}

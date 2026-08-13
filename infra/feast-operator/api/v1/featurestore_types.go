@@ -889,10 +889,15 @@ type OptionalCtrConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
-// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc), has(self.noAuth)].exists_one(c, c)",message="One selection required between kubernetes, oidc, or noAuth."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
+	// NoAuth explicitly disables authentication and authorization.
+	// When set to true, Feast services run without any auth checks.
+	// Use only for development or testing environments.
+	// +optional
+	NoAuth *bool `json:"noAuth,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.

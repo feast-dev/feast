@@ -608,7 +608,7 @@ var _ = Describe("FeatureStore API", func() {
 	Context("When configuring the AuthzConfig", func() {
 		ctx, featurestore := initContext()
 		It("should fail when both kubernetes and oidc settings are given", func() {
-			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes or oidc")
+			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes, oidc, or noAuth")
 		})
 	})
 
