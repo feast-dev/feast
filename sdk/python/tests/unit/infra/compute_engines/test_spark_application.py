@@ -313,8 +313,7 @@ def test_build_per_fv_jobs_all_succeeded():
     task2.feature_view.name = "fv_2"
     task2.project = "test"
 
-    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
-    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1", parent_job)
+    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1")
 
     assert len(jobs) == 2
     assert all(isinstance(j, CompletedMaterializationJob) for j in jobs)
@@ -343,10 +342,7 @@ def test_build_per_fv_jobs_partial_failure():
     task_fail.feature_view.name = "fv_fail"
     task_fail.project = "test"
 
-    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
-    jobs = engine._build_per_fv_jobs(
-        mock_registry, [task_ok, task_fail], "job1", parent_job
-    )
+    jobs = engine._build_per_fv_jobs(mock_registry, [task_ok, task_fail], "job1")
 
     assert len(jobs) == 2
     assert isinstance(jobs[0], CompletedMaterializationJob)
@@ -355,22 +351,61 @@ def test_build_per_fv_jobs_partial_failure():
     assert "fv_fail" in str(jobs[1].error())
 
 
-# ── Test 15: _build_per_fv_jobs — single task returns parent job directly ──
+# ── Test 15: _build_per_fv_jobs — single succeeded task resolves from registry ──
 
 
-def test_build_per_fv_jobs_single_task():
+def test_build_per_fv_jobs_single_task_succeeded():
+    """Regression for #6673.
+
+    A single successful FV must resolve to a CompletedMaterializationJob from
+    registry state, not to the live polling job. materialize() deletes the CR
+    right after this returns, so a live job would 404 on FeatureStore's follow-up
+    status() check and report a false failure. CompletedMaterializationJob needs
+    no Kubernetes call.
+    """
     engine = _make_engine()
     mock_registry = MagicMock()
+    fv = MagicMock()
+    fv.name = "fv_1"
+    fv.state = FeatureViewState.AVAILABLE_ONLINE
+    mock_registry.get_feature_view.return_value = fv
+
     task = MagicMock()
     task.feature_view.name = "fv_1"
     task.project = "test"
 
-    parent_job = SparkApplicationMaterializationJob("job1", "default", MagicMock())
-    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", parent_job)
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
 
     assert len(jobs) == 1
-    assert jobs[0] is parent_job
-    mock_registry.get_feature_view.assert_not_called()
+    assert isinstance(jobs[0], CompletedMaterializationJob)
+    assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
+    mock_registry.get_feature_view.assert_called_once_with("fv_1", "test")
+    # No live SparkApplication CR is queried (it is about to be deleted).
+    engine.custom_api.get_namespaced_custom_object.assert_not_called()
+
+
+# ── Test 15b: _build_per_fv_jobs — single failed task reports error, no CR query ──
+
+
+def test_build_per_fv_jobs_single_task_failed():
+    """A single unmaterialized FV reports ERROR without querying the (deleted) CR."""
+    engine = _make_engine()
+    mock_registry = MagicMock()
+    fv = MagicMock()
+    fv.name = "fv_1"
+    fv.state = FeatureViewState.MATERIALIZING
+    mock_registry.get_feature_view.return_value = fv
+
+    task = MagicMock()
+    task.feature_view.name = "fv_1"
+    task.project = "test"
+
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
+
+    assert len(jobs) == 1
+    assert jobs[0].status() == MaterializationJobStatus.ERROR
+    assert "fv_1" in str(jobs[0].error())
+    engine.custom_api.get_namespaced_custom_object.assert_not_called()
 
 
 # ── Test 16: CompletedMaterializationJob is always SUCCEEDED ──
