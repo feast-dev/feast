@@ -92,6 +92,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
+	applyDefaultAuthzConfig(applied)
 	if applied.FeastProjectDir == nil {
 		applied.FeastProjectDir = &feastdevv1.FeastProjectDir{
 			Init: &feastdevv1.FeastInitOptions{},
@@ -200,6 +201,14 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}
 	setDefaultCronJobConfigs(applied.CronJob)
+}
+
+func applyDefaultAuthzConfig(applied *feastdevv1.FeatureStoreSpec) {
+	if applied.AuthzConfig == nil {
+		applied.AuthzConfig = &feastdevv1.AuthzConfig{
+			KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+		}
+	}
 }
 
 func setDefaultCtrConfigs(defaultConfigs *feastdevv1.DefaultCtrConfigs, defaultImage string) {
