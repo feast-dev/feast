@@ -163,6 +163,12 @@ func getBaseServiceRepoConfig(
 		if oidcAuthz.VerifySSL != nil {
 			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
 		}
+		if oidcAuthz.JwksCacheLifespanSeconds != nil {
+			oidcParameters[string(OidcJwksCacheLifespanSeconds)] = *oidcAuthz.JwksCacheLifespanSeconds
+		}
+		if oidcAuthz.JwksRequestTimeoutSeconds != nil {
+			oidcParameters[string(OidcJwksRequestTimeoutSeconds)] = *oidcAuthz.JwksRequestTimeoutSeconds
+		}
 		if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
 			oidcParameters[string(OidcCaCertPath)] = caCertPath
 		}

@@ -81,6 +81,18 @@ spec:
                           to derive the discovery endpoint.
                         pattern: ^https://\S+$
                         type: string
+                      jwksCacheLifespanSeconds:
+                        description: Seconds the servers reuse the provider's fetched
+                          JWK set before refetching. Defaults to 300.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      jwksRequestTimeoutSeconds:
+                        description: Seconds before a JWKS fetch times out. Defaults
+                          to 10.
+                        format: int32
+                        minimum: 1
+                        type: integer
                       secretKeyName:
                         description: Key in the Secret containing all OIDC properties
                           as a YAML value. If unset, each key is a property.
@@ -6390,6 +6402,18 @@ spec:
                               to derive the discovery endpoint.
                             pattern: ^https://\S+$
                             type: string
+                          jwksCacheLifespanSeconds:
+                            description: Seconds the servers reuse the provider's
+                              fetched JWK set before refetching. Defaults to 300.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          jwksRequestTimeoutSeconds:
+                            description: Seconds before a JWKS fetch times out. Defaults
+                              to 10.
+                            format: int32
+                            minimum: 1
+                            type: integer
                           secretKeyName:
                             description: Key in the Secret containing all OIDC properties
                               as a YAML value. If unset, each key is a property.
