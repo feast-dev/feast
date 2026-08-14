@@ -401,13 +401,15 @@ var _ = Describe("Registry Service", func() {
 			uiNodeSelector := map[string]string{
 				"node-type": "ui",
 			}
-			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
-				ContainerConfigs: feastdevv1.ContainerConfigs{
-					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr.To("test-image"),
-					},
-					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
-						NodeSelector: &uiNodeSelector,
+			featureStore.Spec.Services.UI = &feastdevv1.UIServer{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+							NodeSelector: &uiNodeSelector,
+						},
 					},
 				},
 			}
@@ -466,13 +468,15 @@ var _ = Describe("Registry Service", func() {
 				"node-type": "ui",
 				"zone":      "us-east-1",
 			}
-			featureStore.Spec.Services.UI = &feastdevv1.ServerConfigs{
-				ContainerConfigs: feastdevv1.ContainerConfigs{
-					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
-						Image: ptr.To("test-image"),
-					},
-					OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
-						NodeSelector: &uiNodeSelector,
+			featureStore.Spec.Services.UI = &feastdevv1.UIServer{
+				Server: &feastdevv1.ServerConfigs{
+					ContainerConfigs: feastdevv1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+							Image: ptr.To("test-image"),
+						},
+						OptionalCtrConfigs: feastdevv1.OptionalCtrConfigs{
+							NodeSelector: &uiNodeSelector,
+						},
 					},
 				},
 			}

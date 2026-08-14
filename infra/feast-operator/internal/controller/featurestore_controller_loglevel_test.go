@@ -78,8 +78,10 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 									LogLevel: strPtr("info"),
 								},
 							},
-							UI: &feastdevv1.ServerConfigs{
-								LogLevel: strPtr("info"),
+							UI: &feastdevv1.UIServer{
+								Server: &feastdevv1.ServerConfigs{
+									LogLevel: strPtr("info"),
+								},
 							},
 						},
 					},
@@ -204,7 +206,7 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 					},
 				},
 				OfflineStore: &feastdevv1.OfflineStore{},
-				UI:           &feastdevv1.ServerConfigs{},
+				UI:           &feastdevv1.UIServer{},
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 

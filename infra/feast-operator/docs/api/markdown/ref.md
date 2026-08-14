@@ -267,7 +267,7 @@ _Appears in:_
 | `offlineStore` _[OfflineStore](#offlinestore)_ |  |
 | `onlineStore` _[OnlineStore](#onlinestore)_ |  |
 | `registry` _[Registry](#registry)_ |  |
-| `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
+| `ui` _[UIServer](#uiserver)_ |  |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
@@ -1024,10 +1024,10 @@ _Appears in:_
 ServerConfigs creates a server for the feast service, with specified container configurations.
 
 _Appears in:_
-- [FeatureStoreServices](#featurestoreservices)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [RegistryServerConfigs](#registryserverconfigs)
+- [UIServer](#uiserver)
 
 | Field | Description |
 | --- | --- |
@@ -1135,6 +1135,20 @@ _Appears in:_
 | --- | --- |
 | `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | references the local k8s configmap where the TLS cert resides |
 | `certName` _string_ | defines the configmap key name for the client TLS cert. |
+
+
+#### UIServer
+
+
+
+UIServer configures the UI server service
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `server` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 
 
 #### WorkerConfigs

@@ -292,11 +292,10 @@ type JobSpec struct {
 
 // FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
 type FeatureStoreServices struct {
-	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
-	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
-	Registry     *Registry     `json:"registry,omitempty"`
-	// Creates a UI server container
-	UI                 *ServerConfigs             `json:"ui,omitempty"`
+	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
+	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
+	Registry           *Registry                  `json:"registry,omitempty"`
+	UI                 *UIServer                  `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
@@ -305,6 +304,12 @@ type FeatureStoreServices struct {
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+}
+
+// UIServer configures the UI server service
+type UIServer struct {
+	// Creates a UI server container
+	Server *ServerConfigs `json:"server,omitempty"`
 }
 
 // OfflineStore configures the offline store service

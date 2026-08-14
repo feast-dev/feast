@@ -834,7 +834,9 @@ func minimalFeatureStoreWithAllServers() *feastdevv1.FeatureStore {
 				Server: &feastdevv1.RegistryServerConfigs{},
 			},
 		},
-		UI: &feastdevv1.ServerConfigs{},
+		UI: &feastdevv1.UIServer{
+			Server: &feastdevv1.ServerConfigs{},
+		},
 	}
 	return feast
 }
@@ -954,11 +956,13 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									},
 								},
 							},
-							UI: &feastdevv1.ServerConfigs{
-								TLS: &feastdevv1.TlsConfigs{
-									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
-									SecretKeyNames: feastdevv1.SecretKeyNames{
-										TlsCrt: "tls.crt",
+							UI: &feastdevv1.UIServer{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
 									},
 								},
 							},
@@ -1023,11 +1027,13 @@ var _ = Describe("TLS Certificate Path Configuration", func() {
 									},
 								},
 							},
-							UI: &feastdevv1.ServerConfigs{
-								TLS: &feastdevv1.TlsConfigs{
-									SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
-									SecretKeyNames: feastdevv1.SecretKeyNames{
-										TlsCrt: "tls.crt",
+							UI: &feastdevv1.UIServer{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: &feastdevv1.TlsConfigs{
+										SecretRef: &corev1.LocalObjectReference{Name: "ui-tls"},
+										SecretKeyNames: feastdevv1.SecretKeyNames{
+											TlsCrt: "tls.crt",
+										},
 									},
 								},
 							},

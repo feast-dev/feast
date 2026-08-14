@@ -89,8 +89,10 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 									},
 								},
 							},
-							UI: &feastdevv1.ServerConfigs{
-								TLS: tlsConfigs,
+							UI: &feastdevv1.UIServer{
+								Server: &feastdevv1.ServerConfigs{
+									TLS: tlsConfigs,
+								},
 							},
 						},
 					},
@@ -486,7 +488,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 				Registry:     &feastdevv1.Registry{Local: &feastdevv1.LocalRegistryConfig{Server: &feastdevv1.RegistryServerConfigs{ServerConfigs: feastdevv1.ServerConfigs{}}}},
 				OnlineStore:  &feastdevv1.OnlineStore{Server: &feastdevv1.ServerConfigs{}},
 				OfflineStore: &feastdevv1.OfflineStore{Server: &feastdevv1.ServerConfigs{}},
-				UI:           &feastdevv1.ServerConfigs{},
+				UI:           &feastdevv1.UIServer{},
 			},
 		},
 	}

@@ -16,4 +16,5 @@ spec:
         server:
           logLevel: debug
     ui:
-      logLevel: debug
+      server:
+        logLevel: debug

@@ -42,7 +42,7 @@ func (feast *FeastServices) setTlsDefaults() error {
 		tlsDefaults(appliedServices.Registry.Local.Server.TLS)
 	}
 	if feast.isUiServer() {
-		tlsDefaults(appliedServices.UI.TLS)
+		tlsDefaults(appliedServices.UI.Server.TLS)
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		}
 	}
 	if feast.uiOpenshiftTls() {
-		appliedServices.UI.TLS = &feastdevv1.TlsConfigs{
+		appliedServices.UI.Server.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(UIFeastType).Name + tlsNameSuffix,
 			},
@@ -161,7 +161,11 @@ func (feast *FeastServices) onlineOpenshiftTls() bool {
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) uiOpenshiftTls() bool {
 	return isOpenShift &&
-		feast.isUiServer() && feast.Handler.FeatureStore.Spec.Services.UI.TLS == nil
+		feast.isUiServer() &&
+		(feast.Handler.FeatureStore.Spec.Services == nil ||
+			feast.Handler.FeatureStore.Spec.Services.UI == nil ||
+			feast.Handler.FeatureStore.Spec.Services.UI.Server == nil ||
+			feast.Handler.FeatureStore.Spec.Services.UI.Server.TLS == nil)
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec

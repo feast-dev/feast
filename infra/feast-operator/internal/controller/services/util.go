@@ -191,14 +191,21 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
 	}
 
-	if services.UI != nil {
-		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
-	}
+	setUIDefaults(services, defaultFeatureServerImage)
 
 	if applied.CronJob == nil {
 		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}
 	setDefaultCronJobConfigs(applied.CronJob)
+}
+
+func setUIDefaults(services *feastdevv1.FeatureStoreServices, defaultImage string) {
+	if services.UI != nil {
+		if services.UI.Server == nil {
+			services.UI.Server = &feastdevv1.ServerConfigs{}
+		}
+		setDefaultCtrConfigs(&services.UI.Server.ContainerConfigs.DefaultCtrConfigs, defaultImage)
+	}
 }
 
 func setDefaultCtrConfigs(defaultConfigs *feastdevv1.DefaultCtrConfigs, defaultImage string) {
