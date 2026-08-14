@@ -116,6 +116,9 @@ const (
 	OidcAudience         OidcPropertyType = "audience"
 	OidcIssuer           OidcPropertyType = "issuer"
 
+	OidcJwksCacheLifespanSeconds  OidcPropertyType = "jwks_cache_lifespan_seconds"
+	OidcJwksRequestTimeoutSeconds OidcPropertyType = "jwks_request_timeout_seconds"
+
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 
 	// Common string constants
