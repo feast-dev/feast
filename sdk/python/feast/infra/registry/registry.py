@@ -597,9 +597,7 @@ class Registry(BaseRegistry):
                     try:
                         ttl_duration.FromTimedelta(updated_fv.ttl)
                     except (ValueError, OverflowError) as e:
-                        raise ValueError(
-                            f"Invalid TTL value: {updated_fv.ttl}"
-                        ) from e
+                        raise ValueError(f"Invalid TTL value: {updated_fv.ttl}") from e
                 existing_proto.spec.ttl.CopyFrom(ttl_duration)
         if hasattr(existing_proto.spec, "online") and hasattr(updated_fv, "online"):
             existing_proto.spec.online = getattr(updated_fv, "online")
