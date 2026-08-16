@@ -86,6 +86,7 @@ grpcio = [
     "grpcio-reflection>=1.56.2",
     "grpcio-health-checking>=1.56.2",
 ]
+remote = ["grpcio>=1.56.2"]
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
