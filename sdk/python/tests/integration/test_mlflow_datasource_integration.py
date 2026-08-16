@@ -1,12 +1,13 @@
 """Integration test for MlflowDatasetSource with get_historical_features.
 
 Uses mocked MLflow calls and a real DuckDB offline store to exercise
-the full DataSource → _read_mlflow_source → get_historical_features path.
+the full DataSource → to_arrow → ibis memtable → get_historical_features path.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pandas as pd
 import pyarrow as pa
@@ -62,13 +63,18 @@ def tmp_feast_repo(tmp_path):
 
 
 class TestArtifactModeGetHistoricalFeatures:
-    """Test artifact-mode MlflowDatasetSource end-to-end."""
+    """Test artifact-mode MlflowDatasetSource end-to-end with DuckDB."""
 
-    @pytest.fixture
-    def artifact_parquet(self, tmp_path):
-        """Create a Parquet file mimicking an MLflow artifact."""
+    def test_get_historical_features_artifact_mode(self, tmp_feast_repo):
+        """Verify that get_historical_features works with an artifact-mode source.
+
+        Mocks MlflowDatasetSource.to_arrow() to return a known PyArrow table,
+        exercising the full DuckDB ibis path without needing a real MLflow server.
+        """
+        tmp_path, feature_path, _, _, entity_df = tmp_feast_repo
+
         now = datetime.now(tz=timezone.utc)
-        df = pd.DataFrame(
+        expected_data = pa.table(
             {
                 "record_id": ["r1", "r2", "r3"],
                 "score": [0.9, 0.8, 0.95],
@@ -80,16 +86,6 @@ class TestArtifactModeGetHistoricalFeatures:
                 ],
             }
         )
-        path = str(tmp_path / "artifact.parquet")
-        pq.write_table(pa.Table.from_pandas(df), path)
-        return path, df
-
-    def test_get_historical_features_artifact_mode(
-        self, tmp_feast_repo, artifact_parquet
-    ):
-        """Verify that get_historical_features works with an artifact-mode source."""
-        tmp_path, feature_path, entity_path, _, entity_df = tmp_feast_repo
-        artifact_path_str, expected_df = artifact_parquet
 
         batch_source = FileSource(path=feature_path, timestamp_field="event_timestamp")
         mlflow_src = MlflowDatasetSource(
@@ -117,9 +113,7 @@ class TestArtifactModeGetHistoricalFeatures:
             ttl=timedelta(days=1),
         )
 
-        # The FeatureView's batch_source should be the MlflowDatasetSource itself
         assert isinstance(fv.batch_source, MlflowDatasetSource)
-        assert fv.batch_source is mlflow_src
 
         config = RepoConfig(
             project="test_project",
@@ -131,34 +125,87 @@ class TestArtifactModeGetHistoricalFeatures:
         )
 
         store = FeatureStore(config=config)
-
         store.apply([entity, fv])
 
-        # Mock the MLflow download to return our test Parquet file
-        try:
-            import unittest.mock
-
-            with unittest.mock.patch(
-                "feast.infra.offline_stores.duckdb.mlflow"
-            ) as mock_mlflow_mod:
-                mock_mlflow_mod.artifacts.download_artifacts.return_value = (
-                    artifact_path_str
-                )
-
-                result = store.get_historical_features(
-                    entity_df=entity_df,
-                    features=["artifact_features:score", "artifact_features:category"],
-                )
-                result_df = result.to_df()
-
-                assert len(result_df) == 3
-                assert "score" in result_df.columns
-                assert "category" in result_df.columns
-        except Exception:
-            pytest.skip(
-                "DuckDB integration with mocked MLflow requires "
-                "specific internal structure"
+        with patch.object(MlflowDatasetSource, "to_arrow", return_value=expected_data):
+            result = store.get_historical_features(
+                entity_df=entity_df,
+                features=["artifact_features:score", "artifact_features:category"],
             )
+            result_df = result.to_df()
+
+        assert len(result_df) == 3
+        assert "score" in result_df.columns
+        assert "category" in result_df.columns
+        assert set(result_df["record_id"]) == {"r1", "r2", "r3"}
+        assert all(result_df["score"].notna())
+
+    def test_get_historical_features_genai_mode(self, tmp_feast_repo):
+        """Verify GenAI-mode source also works through get_historical_features."""
+        tmp_path, feature_path, _, _, entity_df = tmp_feast_repo
+
+        now = datetime.now(tz=timezone.utc)
+        expected_data = pa.table(
+            {
+                "record_id": ["r1", "r2", "r3"],
+                "score": [0.7, 0.85, 0.9],
+                "category": ["B", "A", "A"],
+                "event_timestamp": [
+                    now - timedelta(hours=3),
+                    now - timedelta(hours=2),
+                    now - timedelta(hours=1),
+                ],
+            }
+        )
+
+        batch_source = FileSource(path=feature_path, timestamp_field="event_timestamp")
+        mlflow_src = MlflowDatasetSource(
+            name="genai_src",
+            dataset_name="eval_dataset",
+            batch_source=batch_source,
+            timestamp_field="event_timestamp",
+        )
+
+        entity = Entity(
+            name="record_id",
+            join_keys=["record_id"],
+            value_type=ValueType.STRING,
+        )
+        fv = FeatureView(
+            name="genai_features",
+            entities=[entity],
+            schema=[
+                Field(name="score", dtype=Float64),
+                Field(name="category", dtype=String),
+            ],
+            source=mlflow_src,
+            ttl=timedelta(days=1),
+        )
+
+        config = RepoConfig(
+            project="test_project",
+            registry=str(tmp_path / "registry_genai.db"),
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(
+                path=str(tmp_path / "online_genai.db")
+            ),
+            offline_store="duckdb",
+            entity_key_serialization_version=3,
+        )
+
+        store = FeatureStore(config=config)
+        store.apply([entity, fv])
+
+        with patch.object(MlflowDatasetSource, "to_arrow", return_value=expected_data):
+            result = store.get_historical_features(
+                entity_df=entity_df,
+                features=["genai_features:score", "genai_features:category"],
+            )
+            result_df = result.to_df()
+
+        assert len(result_df) == 3
+        assert "score" in result_df.columns
+        assert "category" in result_df.columns
 
 
 class TestProtoRoundTripIntegration:
@@ -203,7 +250,6 @@ class TestProtoRoundTripIntegration:
         store = FeatureStore(config=config)
         store.apply([entity, fv])
 
-        # Retrieve the FeatureView from the registry
         retrieved_fv = store.get_feature_view("genai_features")
         assert isinstance(retrieved_fv.batch_source, MlflowDatasetSource)
 

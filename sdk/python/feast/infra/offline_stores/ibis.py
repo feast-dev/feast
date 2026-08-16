@@ -38,6 +38,12 @@ def read_mlflow_data_source(data_source: DataSource) -> Optional[Table]:
     Returns an ibis Table if ``data_source`` is an ``MlflowDatasetSource``,
     otherwise returns ``None`` so the caller can fall through to other readers.
     Gracefully returns ``None`` when the ``mlflow`` package is not installed.
+
+    Delegates fully to ``data_source.to_arrow()`` which handles:
+      - Auth (token resolution + ContextVar scoping)
+      - Tracking URI (thread-safe global mutation)
+      - Mode dispatch (GenAI vs Artifact)
+      - Short-lived TTL caching
     """
     try:
         from feast.infra.data_sources.mlflow.mlflow_dataset_source import (

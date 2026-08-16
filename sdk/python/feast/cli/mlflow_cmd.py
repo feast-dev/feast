@@ -169,6 +169,10 @@ def sync_dataset_cmd(
 def preview_dataset_cmd(ctx, source, limit, field_mapping):
     """Preview flattened records from an MLflow GenAI Dataset."""
     _require_mlflow()
+    from feast.infra.data_sources.mlflow.auth import (
+        mlflow_request_scope,
+        resolve_mlflow_token,
+    )
     from feast.mlflow_integration.dataset_sync import (
         _fetch_dataset_with_retry,
         flatten_mlflow_dataset_df,
@@ -178,22 +182,21 @@ def preview_dataset_cmd(ctx, source, limit, field_mapping):
     store = create_feature_store(ctx)
     tracking_uri = _resolve_tracking_uri(store)
 
-    if tracking_uri:
-        import mlflow
-
-        mlflow.set_tracking_uri(tracking_uri)
-
     mapping = None
     if field_mapping:
         with open(field_mapping) as f:
             mapping = json.load(f)
 
-    click.echo(f"Fetching dataset '{source}'...")
-    dataset = _fetch_dataset_with_retry(source)
-    if dataset is None:
-        raise click.ClickException(f"Failed to fetch MLflow dataset '{source}'.")
+    token = resolve_mlflow_token()
 
-    df = dataset.to_df()
+    click.echo(f"Fetching dataset '{source}'...")
+    with mlflow_request_scope(token, tracking_uri):
+        dataset = _fetch_dataset_with_retry(source)
+        if dataset is None:
+            raise click.ClickException(f"Failed to fetch MLflow dataset '{source}'.")
+
+        df = dataset.to_df()
+
     click.echo(f"  Total records: {len(df)}")
 
     if df.empty:
