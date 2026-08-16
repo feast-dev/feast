@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pyarrow as pa
+import pytest
 
 from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
@@ -15,10 +16,17 @@ from feast.infra.compute_engines.local.nodes import (
     LocalOutputNode,
     LocalTransformationNode,
 )
+from feast.infra.data_sources.contrib.iceberg_catalog import IcebergSource
 from feast.repo_config import MaterializationConfig
 
 backend = PandasBackend()
 now = pd.Timestamp.utcnow()
+default_column_info = ColumnInfo(
+    join_keys=["entity_id"],
+    feature_cols=["value"],
+    ts_col="event_timestamp",
+    created_ts_col=None,
+)
 
 sample_df = pd.DataFrame(
     {
@@ -328,7 +336,7 @@ def test_local_output_node():
     context = create_context(
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
     )
-    node = LocalOutputNode("output", MagicMock())
+    node = LocalOutputNode("output", MagicMock(), default_column_info)
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
     result = node.execute(context)
@@ -349,7 +357,7 @@ def test_local_output_node_online_write_default_batch():
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
     )
 
-    node = LocalOutputNode("output", feature_view)
+    node = LocalOutputNode("output", feature_view, default_column_info)
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
 
@@ -375,7 +383,7 @@ def test_local_output_node_online_write_batched():
         online_write_batch_size=2
     )
 
-    node = LocalOutputNode("output", feature_view)
+    node = LocalOutputNode("output", feature_view, default_column_info)
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
 
@@ -383,3 +391,154 @@ def test_local_output_node_online_write_batched():
 
     # Verify online_write_batch was called twice (4 rows / batch_size 2 = 2 batches)
     assert context.online_store.online_write_batch.call_count == 2
+
+
+def _iceberg_sink_feature_view() -> tuple[MagicMock, IcebergSource]:
+    sink = IcebergSource(
+        catalog_type="sql",
+        warehouse="file:///tmp/warehouse",
+        namespace="features",
+        table="driver_stats",
+        timestamp_field="event_timestamp",
+    )
+    sink.write_materialized_table = MagicMock()
+    feature_view = MagicMock()
+    feature_view.name = "driver_stats"
+    feature_view.online = False
+    feature_view.offline = False
+    feature_view.entity_columns = []
+    feature_view.source_views = [MagicMock()]
+    feature_view.sink_source = sink
+    return feature_view, sink
+
+
+def test_local_output_node_writes_mapped_keys_to_iceberg():
+    feature_view, sink = _iceberg_sink_feature_view()
+    table = pa.Table.from_pandas(sample_df.rename(columns={"entity_id": "driver_id"}))
+    context = create_context(node_outputs={"source": ArrowTableValue(table)})
+    column_info = ColumnInfo(
+        join_keys=["ENTITY_ID"],
+        feature_cols=["value"],
+        ts_col="EVENT_TIMESTAMP",
+        created_ts_col=None,
+        field_mapping={
+            "ENTITY_ID": "driver_id",
+            "EVENT_TIMESTAMP": "event_timestamp",
+        },
+    )
+    node = LocalOutputNode("output", feature_view, column_info=column_info)
+    node.add_input(MagicMock(name="source"))
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    sink.write_materialized_table.assert_called_once_with(
+        table,
+        join_cols=["driver_id", "event_timestamp"],
+        snapshot_properties={
+            "feast.project": "test_proj",
+            "feast.feature_view": "driver_stats",
+        },
+    )
+
+
+def test_local_output_node_uses_timestamp_only_key_for_entityless_view():
+    feature_view, sink = _iceberg_sink_feature_view()
+    table = pa.Table.from_pandas(sample_df.drop(columns=["entity_id"]))
+    context = create_context(node_outputs={"source": ArrowTableValue(table)})
+    column_info = ColumnInfo(
+        join_keys=[],
+        feature_cols=["value"],
+        ts_col="event_timestamp",
+        created_ts_col=None,
+    )
+    node = LocalOutputNode("output", feature_view, column_info=column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    assert sink.write_materialized_table.call_args.kwargs["join_cols"] == [
+        "event_timestamp"
+    ]
+
+
+def test_local_output_node_skips_all_writes_for_empty_input():
+    feature_view, sink = _iceberg_sink_feature_view()
+    feature_view.online = True
+    feature_view.offline = True
+    empty = pa.Table.from_pandas(sample_df.iloc[:0])
+    context = create_context(node_outputs={"source": ArrowTableValue(empty)})
+    column_info = ColumnInfo(
+        join_keys=["entity_id"],
+        feature_cols=["value"],
+        ts_col="event_timestamp",
+        created_ts_col=None,
+    )
+    node = LocalOutputNode("output", feature_view, column_info=column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    sink.write_materialized_table.assert_not_called()
+    context.online_store.online_write_batch.assert_not_called()
+    context.offline_store.offline_write_batch.assert_not_called()
+
+
+def test_local_output_node_propagates_iceberg_failure():
+    feature_view, sink = _iceberg_sink_feature_view()
+    sink.write_materialized_table.side_effect = RuntimeError("commit conflict")
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+    column_info = ColumnInfo(
+        join_keys=["entity_id"],
+        feature_cols=["value"],
+        ts_col="event_timestamp",
+        created_ts_col=None,
+    )
+    node = LocalOutputNode("output", feature_view, column_info=column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    with pytest.raises(RuntimeError, match="commit conflict"):
+        node.execute(context)
+
+
+def test_local_output_node_rejects_missing_iceberg_timestamp():
+    feature_view, sink = _iceberg_sink_feature_view()
+    table = pa.Table.from_pandas(sample_df.drop(columns=["event_timestamp"]))
+    context = create_context(node_outputs={"source": ArrowTableValue(table)})
+    column_info = ColumnInfo(
+        join_keys=["entity_id"],
+        feature_cols=["value"],
+        ts_col="event_timestamp",
+        created_ts_col=None,
+    )
+    node = LocalOutputNode("output", feature_view, column_info=column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    with pytest.raises(ValueError, match="timestamp column is missing"):
+        node.execute(context)
+
+    sink.write_materialized_table.assert_not_called()
+
+
+def test_local_output_node_runs_online_offline_and_iceberg_writes():
+    feature_view, sink = _iceberg_sink_feature_view()
+    feature_view.online = True
+    feature_view.offline = True
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+    node = LocalOutputNode("output", feature_view, default_column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    context.online_store.online_write_batch.assert_called_once()
+    context.offline_store.offline_write_batch.assert_called_once()
+    sink.write_materialized_table.assert_called_once()
