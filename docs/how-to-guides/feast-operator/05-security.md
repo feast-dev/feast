@@ -93,6 +93,15 @@ spec:
 
 ### Advanced OIDC options
 
+{% hint style="warning" %}
+Every option in this section requires `apiVersion: feast.dev/v1`. Under the deprecated
+`feast.dev/v1alpha1`, `authz.oidc` accepts only `secretRef`. The CRD has no conversion
+webhook, so a resource submitted as v1alpha1 is validated against the v1alpha1 schema and
+any other field is pruned without error rather than rejected. Applying the example below
+as v1alpha1 therefore leaves OIDC configured by Secret alone, with none of these settings
+taking effect and nothing in the output to say so. Use v1, which is the storage version.
+{% endhint %}
+
 ```yaml
 authz:
   oidc:
@@ -101,8 +110,17 @@ authz:
     secretKeyName: client_id          # override the default Secret key name
     tokenEnvVar: FEAST_TOKEN          # env var from which servers read the Bearer token
     verifySSL: false                  # disable SSL verification (dev only)
-    caCertConfigMap: oidc-ca-cert     # ConfigMap with CA cert for SSL verification
+    caCertConfigMap:                  # ConfigMap with CA cert for SSL verification
+      name: oidc-ca-cert
+    jwksCacheLifespanSeconds: 300     # how long servers reuse the fetched JWK set
+    jwksRequestTimeoutSeconds: 10     # network timeout for the JWKS fetch
 ```
+
+`jwksCacheLifespanSeconds` is not only a performance setting: it also bounds how long a key the provider has **revoked** continues to validate tokens. Lower it if your provider rotates or revokes aggressively, at the cost of proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless, because an unknown key id forces a refetch. `jwksRequestTimeoutSeconds` bounds how long an unresponsive provider can block request serving. Both must be at least 1. When unset, neither key is written to the generated configuration and the feature server applies its own defaults (300 and 10 seconds respectively).
+
+{% hint style="warning" %}
+These two options require a feature server image that recognizes them. The operator deploys a matching image by default, so this only applies if you pin an older one explicitly, through a container `image` override or the operator's `RELATED_IMAGE_FEATURE_SERVER` setting. An image that predates these options rejects its configuration at startup, so leave them unset until the pinned image is updated.
+{% endhint %}
 
 **SDK docs**: [Feast OIDC Auth](../../getting-started/components/authz_manager.md#oidc-authorization)
 
