@@ -20,8 +20,11 @@ from __future__ import annotations
 import json
 import logging
 import tempfile
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+import threading
+import time
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+import pyarrow as pa
 from typeguard import typechecked
 
 from feast.data_source import DataSource
@@ -37,6 +40,36 @@ _DATA_SOURCE_CLASS_TYPE = (
 )
 
 _SUPPORTED_ARTIFACT_FORMATS = ("parquet", "csv")
+
+_SCHEMA_CACHE_TTL_SECONDS = 300
+_ARROW_CACHE_TTL_SECONDS = 60
+
+
+class _CacheEntry:
+    """Thread-safe TTL cache entry for MLflow data."""
+
+    __slots__ = ("_data", "_timestamp", "_ttl", "_lock")
+
+    def __init__(self, ttl: float):
+        self._data: Any = None
+        self._timestamp: float = 0.0
+        self._ttl = ttl
+        self._lock = threading.Lock()
+
+    def get(self) -> Optional[Any]:
+        if self._data is not None and (time.monotonic() - self._timestamp) < self._ttl:
+            return self._data
+        return None
+
+    def set(self, data: Any) -> None:
+        with self._lock:
+            self._data = data
+            self._timestamp = time.monotonic()
+
+    def invalidate(self) -> None:
+        with self._lock:
+            self._data = None
+            self._timestamp = 0.0
 
 
 @typechecked
@@ -146,6 +179,9 @@ class MlflowDatasetSource(DataSource):
         self.tracking_uri = tracking_uri
         self.batch_source = batch_source
 
+        self._schema_cache = _CacheEntry(ttl=_SCHEMA_CACHE_TTL_SECONDS)
+        self._arrow_cache = _CacheEntry(ttl=_ARROW_CACHE_TTL_SECONDS)
+
     @property
     def is_genai_mode(self) -> bool:
         """True when this source reads from an MLflow GenAI Dataset."""
@@ -161,6 +197,15 @@ class MlflowDatasetSource(DataSource):
         from feast.mlflow_integration.config import resolve_tracking_uri
 
         return resolve_tracking_uri(self.tracking_uri)
+
+    def invalidate_cache(self) -> None:
+        """Explicitly invalidate cached schema and data.
+
+        Call after sync operations or when the underlying MLflow dataset
+        has been updated.
+        """
+        self._schema_cache.invalidate()
+        self._arrow_cache.invalidate()
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MlflowDatasetSource):
@@ -204,68 +249,63 @@ class MlflowDatasetSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        """Return column names and types.
+        """Return column names and types without fetching the full dataset.
 
-        In GenAI mode, fetches the dataset and reads the DataFrame schema.
+        In GenAI mode, uses MLflow's ``dataset.schema`` metadata property
+        which is resolved without loading records. Falls back to a minimal
+        record fetch if schema metadata is unavailable.
+
         In artifact mode, delegates to the batch_source for schema info.
-        Falls back to batch_source on any MLflow error.
         """
-        if self.is_genai_mode:
-            try:
-                df = self._fetch_genai_dataframe()
-                return [(str(col), str(df[col].dtype)) for col in df.columns]
-            except Exception:
-                logger.debug(
-                    "Failed to fetch GenAI dataset schema for '%s', "
-                    "falling back to batch_source",
-                    self.name,
-                    exc_info=True,
-                )
-        return self.batch_source.get_table_column_names_and_types(config)
-
-    def get_table_query_string(self) -> str:
-        return self.batch_source.get_table_query_string()
-
-    @staticmethod
-    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
-        from feast import type_map
-
-        return type_map.pa_to_feast_value_type
-
-    def to_arrow(self):
-        """Read MLflow data and return as a PyArrow Table.
-
-        This is the generic fallback for offline stores that don't have
-        native ibis integration.  Any store can call
-        ``source.to_arrow()`` to materialize data from MLflow.
-        """
-        import pyarrow as pa
-
-        from feast.infra.data_sources.mlflow.auth import (
-            mlflow_token_scope,
-            resolve_mlflow_token,
-        )
-
-        tracking_uri = self.get_effective_tracking_uri()
-        token = resolve_mlflow_token()
+        cached = self._schema_cache.get()
+        if cached is not None:
+            return cached
 
         if self.is_genai_mode:
-            try:
-                import mlflow
-                import mlflow.genai.datasets
-            except ImportError as e:
-                raise ImportError(
-                    "Install feast[mlflow] to use MlflowDatasetSource "
-                    "in GenAI Dataset mode."
-                ) from e
+            result = self._introspect_genai_schema()
+            if result is not None:
+                self._schema_cache.set(result)
+                return result
 
-            if tracking_uri:
-                mlflow.set_tracking_uri(tracking_uri)
+        result = list(self.batch_source.get_table_column_names_and_types(config))
+        self._schema_cache.set(result)
+        return result
 
-            with mlflow_token_scope(token):
+    def _introspect_genai_schema(self) -> Optional[List[Tuple[str, str]]]:
+        """Get schema from GenAI dataset metadata without full data fetch."""
+        try:
+            import mlflow.genai.datasets
+        except ImportError:
+            return None
+
+        try:
+            from feast.infra.data_sources.mlflow.auth import (
+                mlflow_request_scope,
+                resolve_mlflow_token,
+            )
+
+            tracking_uri = self.get_effective_tracking_uri()
+            token = resolve_mlflow_token()
+
+            with mlflow_request_scope(token, tracking_uri):
                 name = self.dataset_name or self.dataset_id
                 dataset = mlflow.genai.datasets.get_dataset(name=name)
-                df = dataset.to_df()
+
+                schema_json = dataset.schema
+                if schema_json:
+                    schema_data = json.loads(schema_json)
+                    if isinstance(schema_data, list):
+                        return [
+                            (col.get("name", ""), col.get("type", "object"))
+                            for col in schema_data
+                            if "name" in col
+                        ]
+                    elif isinstance(schema_data, dict):
+                        return [
+                            (col_name, dtype) for col_name, dtype in schema_data.items()
+                        ]
+
+                df = dataset.to_df().head(1)
 
             try:
                 from feast.mlflow_integration.dataset_sync import (
@@ -278,40 +318,60 @@ class MlflowDatasetSource(DataSource):
             except ImportError:
                 pass
 
-            return pa.Table.from_pandas(df)
+            return [(str(col), str(df[col].dtype)) for col in df.columns]
+        except Exception:
+            logger.debug(
+                "Failed to fetch GenAI dataset schema for '%s', "
+                "falling back to batch_source",
+                self.name,
+                exc_info=True,
+            )
+            return None
+
+    def get_table_query_string(self) -> str:
+        return self.batch_source.get_table_query_string()
+
+    @staticmethod
+    def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
+        from feast import type_map
+
+        return type_map.pa_to_feast_value_type
+
+    def to_arrow(self, use_cache: bool = True) -> pa.Table:
+        """Read MLflow data and return as a PyArrow Table.
+
+        Uses a short-lived TTL cache to avoid redundant downloads within
+        the same request cycle.  Pass ``use_cache=False`` to force a fresh
+        fetch.
+
+        This is the generic interface for offline stores to materialize
+        data from MLflow.
+        """
+        if use_cache:
+            cached = self._arrow_cache.get()
+            if cached is not None:
+                return cached
+
+        table = self._fetch_arrow()
+        self._arrow_cache.set(table)
+        return table
+
+    def _fetch_arrow(self) -> pa.Table:
+        """Internal: download data from MLflow and return as PyArrow Table."""
+        from feast.infra.data_sources.mlflow.auth import resolve_mlflow_token
+
+        tracking_uri = self.get_effective_tracking_uri()
+        token = resolve_mlflow_token()
+
+        if self.is_genai_mode:
+            return self._fetch_genai_arrow(token, tracking_uri)
         else:
-            try:
-                import mlflow
-            except ImportError as e:
-                raise ImportError(
-                    "Install feast[mlflow] to use MlflowDatasetSource in artifact mode."
-                ) from e
+            return self._fetch_artifact_arrow(token, tracking_uri)
 
-            if tracking_uri:
-                mlflow.set_tracking_uri(tracking_uri)
-
-            with mlflow_token_scope(token):
-                with tempfile.TemporaryDirectory(prefix="feast_mlflow_") as tmpdir:
-                    local_path = mlflow.artifacts.download_artifacts(
-                        run_id=self.run_id,
-                        artifact_path=self.artifact_path,
-                        dst_path=tmpdir,
-                    )
-                    if self.artifact_format == "parquet":
-                        import pyarrow.parquet as pq
-
-                        return pq.read_table(local_path)
-                    elif self.artifact_format == "csv":
-                        import pyarrow.csv as csv
-
-                        return csv.read_csv(local_path)
-                    else:
-                        raise ValueError(
-                            f"Unsupported artifact format: {self.artifact_format}"
-                        )
-
-    def _fetch_genai_dataframe(self):
-        """Fetch GenAI dataset as a pandas DataFrame."""
+    def _fetch_genai_arrow(
+        self, token: Optional[str], tracking_uri: Optional[str]
+    ) -> pa.Table:
+        """Fetch GenAI dataset and return as materialized PyArrow Table."""
         try:
             import mlflow.genai.datasets
         except ImportError as e:
@@ -320,15 +380,55 @@ class MlflowDatasetSource(DataSource):
                 "in GenAI Dataset mode."
             ) from e
 
-        tracking_uri = self.get_effective_tracking_uri()
-        if tracking_uri:
+        from feast.infra.data_sources.mlflow.auth import mlflow_request_scope
+
+        with mlflow_request_scope(token, tracking_uri):
+            name = self.dataset_name or self.dataset_id
+            dataset = mlflow.genai.datasets.get_dataset(name=name)
+            df = dataset.to_df()
+
+        try:
+            from feast.mlflow_integration.dataset_sync import (
+                flatten_mlflow_dataset_df,
+            )
+
+            df = flatten_mlflow_dataset_df(df, field_mapping=self.field_mapping or None)
+        except ImportError:
+            pass
+
+        return pa.Table.from_pandas(df)
+
+    def _fetch_artifact_arrow(
+        self, token: Optional[str], tracking_uri: Optional[str]
+    ) -> pa.Table:
+        """Download artifact and read into a materialized PyArrow Table."""
+        try:
             import mlflow
+        except ImportError as e:
+            raise ImportError(
+                "Install feast[mlflow] to use MlflowDatasetSource in artifact mode."
+            ) from e
 
-            mlflow.set_tracking_uri(tracking_uri)
+        import pyarrow.csv as pa_csv
+        import pyarrow.parquet as pq
 
-        name = self.dataset_name or self.dataset_id
-        dataset = mlflow.genai.datasets.get_dataset(name=name)
-        return dataset.to_df()
+        from feast.infra.data_sources.mlflow.auth import mlflow_request_scope
+
+        with mlflow_request_scope(token, tracking_uri):
+            with tempfile.TemporaryDirectory(prefix="feast_mlflow_") as tmpdir:
+                local_path = mlflow.artifacts.download_artifacts(
+                    run_id=self.run_id,
+                    artifact_path=self.artifact_path,
+                    dst_path=tmpdir,
+                )
+                if self.artifact_format == "parquet":
+                    return pq.read_table(local_path)
+                elif self.artifact_format == "csv":
+                    return pa_csv.read_csv(local_path)
+                else:
+                    raise ValueError(
+                        f"Unsupported artifact format: {self.artifact_format}"
+                    )
 
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> "MlflowDatasetSource":
