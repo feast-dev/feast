@@ -265,9 +265,7 @@ class TestFeatureViewBatchSource:
             schema=[Field(name="feature_col", dtype=String)],
             source=src,
         )
-        # MlflowDatasetSource should be the batch_source (not unwrapped)
         assert fv.batch_source is src
-        # It should NOT be treated as a stream source
         assert fv.stream_source is None
 
 
@@ -340,35 +338,78 @@ class TestAuthTokenResolution:
 
 
 # ---------------------------------------------------------------------------
-# Schema introspection (GenAI mode with mock)
+# Schema introspection
 # ---------------------------------------------------------------------------
 
 
 class TestSchemaIntrospection:
-    def test_genai_schema_from_mock_dataset(self):
+    def test_genai_schema_from_mlflow_metadata(self):
+        """Schema resolved via dataset.schema (no full data fetch)."""
         src = MlflowDatasetSource(
             name="eval_src",
             dataset_name="eval_ds",
             batch_source=_batch_source(),
         )
-        mock_df = pd.DataFrame({"col_a": ["hello"], "col_b": [42], "col_c": [1.5]})
-        with patch.object(src, "_fetch_genai_dataframe", return_value=mock_df):
-            cols = list(src.get_table_column_names_and_types(MagicMock()))
-            assert len(cols) == 3
-            col_names = [c[0] for c in cols]
-            assert "col_a" in col_names
-            assert "col_b" in col_names
-            assert "col_c" in col_names
+        mock_dataset = MagicMock()
+        mock_dataset.schema = (
+            '{"col_a": "object", "col_b": "int64", "col_c": "float64"}'
+        )
+
+        with patch(
+            "feast.infra.data_sources.mlflow.auth.resolve_mlflow_token",
+            return_value=None,
+        ):
+            with patch("mlflow.genai.datasets.get_dataset", return_value=mock_dataset):
+                cols = list(src.get_table_column_names_and_types(MagicMock()))
+                assert len(cols) == 3
+                col_names = [c[0] for c in cols]
+                assert "col_a" in col_names
+                assert "col_b" in col_names
+                assert "col_c" in col_names
+                col_types = {c[0]: c[1] for c in cols}
+                assert col_types["col_b"] == "int64"
+
+    def test_genai_schema_fallback_to_head_fetch(self):
+        """When dataset.schema is None, falls back to .to_df().head(1)."""
+        src = MlflowDatasetSource(
+            name="eval_src",
+            dataset_name="eval_ds",
+            batch_source=_batch_source(),
+        )
+        mock_df = pd.DataFrame(
+            {
+                "inputs": [{"question": "Q1"}],
+                "expectations": [{"answer": "A1"}],
+                "last_update_time": ["2026-06-15T12:00:00Z"],
+                "dataset_record_id": ["rec-1"],
+            }
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.schema = None
+        mock_dataset.to_df.return_value = mock_df
+
+        with patch(
+            "feast.infra.data_sources.mlflow.auth.resolve_mlflow_token",
+            return_value=None,
+        ):
+            with patch("mlflow.genai.datasets.get_dataset", return_value=mock_dataset):
+                cols = list(src.get_table_column_names_and_types(MagicMock()))
+                col_names = [c[0] for c in cols]
+                assert "dataset_record_id" in col_names
+                assert "input_question" in col_names
+                assert "event_timestamp" in col_names
 
     def test_falls_back_to_batch_source_on_error(self):
+        """MLflow failures fall back to batch_source schema."""
         batch = _batch_source()
         src = MlflowDatasetSource(
             name="eval_src",
             dataset_name="eval_ds",
             batch_source=batch,
         )
-        with patch.object(
-            src, "_fetch_genai_dataframe", side_effect=Exception("MLflow down")
+        with patch(
+            "mlflow.genai.datasets.get_dataset",
+            side_effect=Exception("MLflow down"),
         ):
             with patch.object(
                 batch,
@@ -379,6 +420,7 @@ class TestSchemaIntrospection:
                 assert cols == [("x", "string")]
 
     def test_artifact_mode_uses_batch_source_schema(self):
+        """Artifact mode delegates directly to batch_source."""
         batch = _batch_source()
         src = MlflowDatasetSource(
             name="art_src",
@@ -394,9 +436,98 @@ class TestSchemaIntrospection:
             cols = list(src.get_table_column_names_and_types(MagicMock()))
             assert cols == [("y", "float64")]
 
+    def test_schema_cache_avoids_repeated_calls(self):
+        """Second call returns cached result without hitting MLflow."""
+        src = MlflowDatasetSource(
+            name="eval_src",
+            dataset_name="eval_ds",
+            batch_source=_batch_source(),
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.schema = '{"col_a": "object"}'
+
+        with patch(
+            "feast.infra.data_sources.mlflow.auth.resolve_mlflow_token",
+            return_value=None,
+        ):
+            with patch(
+                "mlflow.genai.datasets.get_dataset", return_value=mock_dataset
+            ) as mock_get:
+                src.get_table_column_names_and_types(MagicMock())
+                src.get_table_column_names_and_types(MagicMock())
+                assert mock_get.call_count == 1
+
+    def test_invalidate_cache_forces_refetch(self):
+        """invalidate_cache() causes next call to hit MLflow again."""
+        src = MlflowDatasetSource(
+            name="eval_src",
+            dataset_name="eval_ds",
+            batch_source=_batch_source(),
+        )
+        mock_dataset = MagicMock()
+        mock_dataset.schema = '{"col_a": "object"}'
+
+        with patch(
+            "feast.infra.data_sources.mlflow.auth.resolve_mlflow_token",
+            return_value=None,
+        ):
+            with patch(
+                "mlflow.genai.datasets.get_dataset", return_value=mock_dataset
+            ) as mock_get:
+                src.get_table_column_names_and_types(MagicMock())
+                src.invalidate_cache()
+                src.get_table_column_names_and_types(MagicMock())
+                assert mock_get.call_count == 2
+
 
 # ---------------------------------------------------------------------------
-# Dataset sync from MlflowDatasetSource (from PR #6405, kept for flywheel)
+# to_arrow caching
+# ---------------------------------------------------------------------------
+
+
+class TestToArrowCache:
+    def test_arrow_cache_avoids_repeated_downloads(self):
+        """Second to_arrow() call returns cached PyArrow Table."""
+        import pyarrow as pa
+
+        src = MlflowDatasetSource(
+            name="art_src",
+            run_id="run1",
+            artifact_path="data.parquet",
+            batch_source=_batch_source(),
+        )
+        expected_table = pa.table({"x": [1, 2, 3]})
+
+        with patch.object(
+            src, "_fetch_arrow", return_value=expected_table
+        ) as mock_fetch:
+            result1 = src.to_arrow()
+            result2 = src.to_arrow()
+            assert result1 is result2
+            assert mock_fetch.call_count == 1
+
+    def test_use_cache_false_forces_refetch(self):
+        """to_arrow(use_cache=False) bypasses cache."""
+        import pyarrow as pa
+
+        src = MlflowDatasetSource(
+            name="art_src",
+            run_id="run1",
+            artifact_path="data.parquet",
+            batch_source=_batch_source(),
+        )
+        expected_table = pa.table({"x": [1, 2, 3]})
+
+        with patch.object(
+            src, "_fetch_arrow", return_value=expected_table
+        ) as mock_fetch:
+            src.to_arrow()
+            src.to_arrow(use_cache=False)
+            assert mock_fetch.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# Dataset sync from MlflowDatasetSource
 # ---------------------------------------------------------------------------
 
 
@@ -465,8 +596,103 @@ class TestSyncFromMlflowDatasetSource:
 
         assert result.records_fetched == 1
         assert result.records_ingested == 1
+        assert not result.errors
         mock_fetch.assert_called()
         store.write_to_offline_store.assert_called_once()
         store.push.assert_not_called()
         written = store.write_to_online_store.call_args[0][1]
         assert "corrected_response" in written.columns
+
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri",
+        return_value="http://mlflow:5000",
+    )
+    def test_offline_write_error_blocks_watermark(self, mock_uri, mock_fetch):
+        """Offline write failures must prevent watermark advancement."""
+        from feast.mlflow_integration.dataset_sync import sync_mlflow_dataset_to_feast
+
+        batch = _batch_source()
+        src = MlflowDatasetSource(
+            name="eval_src",
+            dataset_name="ds",
+            batch_source=batch,
+            timestamp_field="event_timestamp",
+        )
+        entity = Entity(
+            name="dataset_record_id",
+            join_keys=["dataset_record_id"],
+            value_type=ValueType.STRING,
+        )
+        fv = FeatureView(
+            name="eval_fv",
+            entities=[entity],
+            schema=[Field(name="question", dtype=String)],
+            source=src,
+        )
+
+        records = [
+            {
+                "dataset_record_id": "rec-1",
+                "inputs": {"question": "Q1"},
+                "expectations": {},
+                "source": {},
+                "tags": {},
+                "last_update_time": "2026-06-15T12:00:00Z",
+            }
+        ]
+        mock_fetch.return_value = self._make_mock_dataset(records)
+
+        store = MagicMock()
+        store.config = MagicMock()
+        store.config.mlflow = None
+        store.get_feature_view.return_value = fv
+        store.get_label_view.side_effect = Exception("not a label view")
+        store.write_to_offline_store.side_effect = RuntimeError("disk full")
+
+        result = sync_mlflow_dataset_to_feast(
+            store=store,
+            feature_view_name="eval_fv",
+            incremental=False,
+        )
+
+        assert len(result.errors) > 0
+        assert "Offline write failed" in result.errors[0]
+
+    @patch("feast.mlflow_integration.dataset_sync._set_last_sync_time")
+    @patch("feast.mlflow_integration.dataset_sync._fetch_dataset_with_retry")
+    @patch(
+        "feast.mlflow_integration.dataset_sync._resolve_tracking_uri",
+        return_value="http://mlflow:5000",
+    )
+    def test_sync_finds_source_via_batch_source_attr(
+        self, mock_uri, mock_fetch, mock_set_sync
+    ):
+        """Verify _get_mlflow_dataset_source finds MlflowDatasetSource on batch_source."""
+        from feast.mlflow_integration.dataset_sync import _get_mlflow_dataset_source
+
+        batch = _batch_source()
+        src = MlflowDatasetSource(
+            name="eval_src",
+            dataset_name="eval_ds",
+            batch_source=batch,
+            timestamp_field="event_timestamp",
+        )
+        entity = Entity(
+            name="record_id",
+            join_keys=["record_id"],
+            value_type=ValueType.STRING,
+        )
+        fv = FeatureView(
+            name="test_fv",
+            entities=[entity],
+            schema=[Field(name="col", dtype=String)],
+            source=src,
+        )
+
+        store = MagicMock()
+        store.get_feature_view.return_value = fv
+        store.get_label_view.side_effect = Exception("nope")
+
+        result = _get_mlflow_dataset_source(store, "test_fv")
+        assert result is src

@@ -1,15 +1,10 @@
-"""Token resolution for MLflow API calls from Feast DataSources.
+"""Thread-safe token resolution for MLflow API calls from Feast DataSources.
 
-Fallback chain (first non-empty wins):
+Token resolution chain (first non-empty wins):
   1. ``SecurityManager.current_request_token`` — user-initiated request token
   2. ``MLFLOW_TRACKING_TOKEN`` env var — explicit token override
   3. ServiceAccount token at ``/var/run/secrets/kubernetes.io/serviceaccount/token``
   4. ``None`` — no auth (local dev, anonymous access)
-
-MLflow does not support per-request auth tokens on ``MlflowClient``.
-Auth is configured via the ``MLFLOW_TRACKING_TOKEN`` environment variable.
-The :func:`mlflow_token_scope` context manager sets and restores this env
-var to provide request-scoped token forwarding.
 """
 
 from __future__ import annotations
@@ -17,12 +12,20 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
+import threading
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Dict, Iterator, Optional
 
 logger = logging.getLogger(__name__)
 
 _SA_TOKEN_PATH = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
+
+_current_mlflow_token: ContextVar[Optional[str]] = ContextVar(
+    "feast_mlflow_token", default=None
+)
+
+_tracking_uri_lock = threading.RLock()
 
 
 def resolve_mlflow_token() -> Optional[str]:
@@ -88,20 +91,83 @@ def _from_service_account() -> Optional[str]:
 
 @contextlib.contextmanager
 def mlflow_token_scope(token: Optional[str]) -> Iterator[None]:
-    """Temporarily set ``MLFLOW_TRACKING_TOKEN`` for the duration of a block.
+    """Activate *token* for the current async/thread context.
 
-    Restores the previous value (or removes the var) when the block exits.
-    This is the recommended way to forward per-request tokens since MLflow
-    does not support per-client auth tokens.
+    The ``FeastMLflowHeaderProvider`` (registered via entry-point) reads
+    this ``ContextVar`` and injects the ``Authorization`` header into every
+    outgoing MLflow REST request — no ``os.environ`` mutation required.
     """
-    env_key = "MLFLOW_TRACKING_TOKEN"
-    prev = os.environ.get(env_key)
+    reset = _current_mlflow_token.set(token)
     try:
-        if token:
-            os.environ[env_key] = token
         yield
     finally:
-        if prev is not None:
-            os.environ[env_key] = prev
-        elif env_key in os.environ:
-            del os.environ[env_key]
+        _current_mlflow_token.reset(reset)
+
+
+@contextlib.contextmanager
+def mlflow_tracking_scope(tracking_uri: Optional[str]) -> Iterator[None]:
+    """Thread-safe scope for ``mlflow.set_tracking_uri()``.
+
+    ``mlflow.set_tracking_uri()`` mutates process-global state, so
+    concurrent calls with different URIs would race.  This context manager
+    serialises access behind an RLock, restoring the previous URI on exit.
+
+    Fast paths (no lock acquired):
+      - *tracking_uri* is ``None``
+      - *tracking_uri* matches the current global URI
+    """
+    if tracking_uri is None:
+        yield
+        return
+
+    import mlflow
+
+    current = mlflow.get_tracking_uri()
+    if tracking_uri == current:
+        yield
+        return
+
+    with _tracking_uri_lock:
+        prev = mlflow.get_tracking_uri()
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            yield
+        finally:
+            mlflow.set_tracking_uri(prev)
+
+
+@contextlib.contextmanager
+def mlflow_request_scope(
+    token: Optional[str], tracking_uri: Optional[str]
+) -> Iterator[None]:
+    """Combined scope: token (via ContextVar) + tracking URI (via lock).
+
+    Nests both scopes so callers get a single context manager for the
+    full auth + routing setup.
+    """
+    with mlflow_token_scope(token), mlflow_tracking_scope(tracking_uri):
+        yield
+
+
+def get_current_mlflow_token() -> Optional[str]:
+    """Return the MLflow token active in the current context, if any."""
+    return _current_mlflow_token.get()
+
+
+class FeastMLflowHeaderProvider:
+    """Inject Feast-resolved auth tokens into MLflow REST requests.
+
+    Registered as an ``mlflow.request_header_provider`` entry-point plugin.
+    MLflow calls ``in_context()`` on every outgoing request; when ``True``,
+    it merges the dict returned by ``request_headers()`` into the HTTP
+    headers.
+    """
+
+    def in_context(self) -> bool:
+        return _current_mlflow_token.get() is not None
+
+    def request_headers(self) -> Dict[str, str]:
+        token = _current_mlflow_token.get()
+        if token:
+            return {"Authorization": f"Bearer {token}"}
+        return {}

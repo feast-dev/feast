@@ -16,32 +16,38 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import builtins
-import collections.abc
-import feast.core.DataSource_pb2
-import feast.core.Feature_pb2
-import google.protobuf.descriptor
-import google.protobuf.duration_pb2
-import google.protobuf.internal.containers
-import google.protobuf.internal.enum_type_wrapper
-import google.protobuf.message
-import google.protobuf.timestamp_pb2
+
+from collections import abc as _abc
+from feast.core import DataSource_pb2 as _DataSource_pb2
+from feast.core import Feature_pb2 as _Feature_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import duration_pb2 as _duration_pb2
+from google.protobuf import message as _message
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
 import sys
-import typing
+import typing as _typing
 
-if sys.version_info >= (3, 10):
-    import typing as typing_extensions
+if sys.version_info >= (3, 11):
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    import typing_extensions
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
-DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+if sys.version_info >= (3, 13):
+    from warnings import deprecated as _deprecated
+else:
+    from typing_extensions import deprecated as _deprecated
+
+DESCRIPTOR: _descriptor.FileDescriptor
 
 class _ConflictResolutionPolicy:
-    ValueType = typing.NewType("ValueType", builtins.int)
-    V: typing_extensions.TypeAlias = ValueType
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
 
-class _ConflictResolutionPolicyEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_ConflictResolutionPolicy.ValueType], builtins.type):  # noqa: F821
-    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+class _ConflictResolutionPolicyEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ConflictResolutionPolicy.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
     LAST_WRITE_WINS: _ConflictResolutionPolicy.ValueType  # 0
     LABELER_PRIORITY: _ConflictResolutionPolicy.ValueType  # 1
     MAJORITY_VOTE: _ConflictResolutionPolicy.ValueType  # 2
@@ -51,145 +57,180 @@ class ConflictResolutionPolicy(_ConflictResolutionPolicy, metaclass=_ConflictRes
 LAST_WRITE_WINS: ConflictResolutionPolicy.ValueType  # 0
 LABELER_PRIORITY: ConflictResolutionPolicy.ValueType  # 1
 MAJORITY_VOTE: ConflictResolutionPolicy.ValueType  # 2
-global___ConflictResolutionPolicy = ConflictResolutionPolicy
+Global___ConflictResolutionPolicy: _TypeAlias = ConflictResolutionPolicy  # noqa: Y015
 
-class LabelView(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class LabelView(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    SPEC_FIELD_NUMBER: builtins.int
-    META_FIELD_NUMBER: builtins.int
-    @property
-    def spec(self) -> global___LabelViewSpec: ...
-    @property
-    def meta(self) -> global___LabelViewMeta: ...
+    SPEC_FIELD_NUMBER: _builtins.int
+    META_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def spec(self) -> Global___LabelViewSpec: ...
+    @_builtins.property
+    def meta(self) -> Global___LabelViewMeta: ...
     def __init__(
         self,
         *,
-        spec: global___LabelViewSpec | None = ...,
-        meta: global___LabelViewMeta | None = ...,
+        spec: Global___LabelViewSpec | None = ...,
+        meta: Global___LabelViewMeta | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["meta", b"meta", "spec", b"spec"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["meta", b"meta", "spec", b"spec"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-global___LabelView = LabelView
+Global___LabelView: _TypeAlias = LabelView  # noqa: Y015
 
-class LabelViewSpec(google.protobuf.message.Message):
+@_typing.final
+class LabelViewSpec(_message.Message):
     """Next available id: 16"""
 
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    DESCRIPTOR: _descriptor.Descriptor
 
-    class TagsEntry(google.protobuf.message.Message):
-        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+    @_typing.final
+    class TagsEntry(_message.Message):
+        DESCRIPTOR: _descriptor.Descriptor
 
-        KEY_FIELD_NUMBER: builtins.int
-        VALUE_FIELD_NUMBER: builtins.int
-        key: builtins.str
-        value: builtins.str
+        KEY_FIELD_NUMBER: _builtins.int
+        VALUE_FIELD_NUMBER: _builtins.int
+        key: _builtins.str
+        value: _builtins.str
         def __init__(
             self,
             *,
-            key: builtins.str = ...,
-            value: builtins.str = ...,
+            key: _builtins.str = ...,
+            value: _builtins.str = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+        _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+        def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+        _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "value", b"value"]  # noqa: Y015
+        def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+        def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-    NAME_FIELD_NUMBER: builtins.int
-    PROJECT_FIELD_NUMBER: builtins.int
-    ENTITIES_FIELD_NUMBER: builtins.int
-    FEATURES_FIELD_NUMBER: builtins.int
-    TAGS_FIELD_NUMBER: builtins.int
-    TTL_FIELD_NUMBER: builtins.int
-    SOURCE_FIELD_NUMBER: builtins.int
-    ONLINE_FIELD_NUMBER: builtins.int
-    DESCRIPTION_FIELD_NUMBER: builtins.int
-    OWNER_FIELD_NUMBER: builtins.int
-    ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
-    LABELER_FIELD_FIELD_NUMBER: builtins.int
-    CONFLICT_POLICY_FIELD_NUMBER: builtins.int
-    RETAIN_HISTORY_FIELD_NUMBER: builtins.int
-    REFERENCE_FEATURE_VIEW_FIELD_NUMBER: builtins.int
-    name: builtins.str
+    NAME_FIELD_NUMBER: _builtins.int
+    PROJECT_FIELD_NUMBER: _builtins.int
+    ENTITIES_FIELD_NUMBER: _builtins.int
+    FEATURES_FIELD_NUMBER: _builtins.int
+    TAGS_FIELD_NUMBER: _builtins.int
+    TTL_FIELD_NUMBER: _builtins.int
+    SOURCE_FIELD_NUMBER: _builtins.int
+    ONLINE_FIELD_NUMBER: _builtins.int
+    DESCRIPTION_FIELD_NUMBER: _builtins.int
+    OWNER_FIELD_NUMBER: _builtins.int
+    ENTITY_COLUMNS_FIELD_NUMBER: _builtins.int
+    LABELER_FIELD_FIELD_NUMBER: _builtins.int
+    CONFLICT_POLICY_FIELD_NUMBER: _builtins.int
+    RETAIN_HISTORY_FIELD_NUMBER: _builtins.int
+    REFERENCE_FEATURE_VIEW_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
     """Name of the label view. Must be unique. Not updated."""
-    project: builtins.str
+    project: _builtins.str
     """Name of Feast project that this label view belongs to."""
-    @property
-    def entities(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-        """List of names of entities associated with this label view."""
-    @property
-    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
-        """List of specifications for each label field defined as part of this label view."""
-    @property
-    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """User defined metadata."""
-    @property
-    def ttl(self) -> google.protobuf.duration_pb2.Duration:
-        """Labels older than ttl will be excluded from online serving."""
-    @property
-    def source(self) -> feast.core.DataSource_pb2.DataSource:
-        """DataSource (typically a PushSource) that feeds label data into this view."""
-    online: builtins.bool
+    online: _builtins.bool
     """Whether labels should be served from the online store."""
-    description: builtins.str
+    description: _builtins.str
     """Description of the label view."""
-    owner: builtins.str
+    owner: _builtins.str
     """Owner of the label view."""
-    @property
-    def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
-        """List of specifications for each entity column."""
-    labeler_field: builtins.str
+    labeler_field: _builtins.str
     """The schema field that identifies the labeler (e.g. "labeler")."""
-    conflict_policy: global___ConflictResolutionPolicy.ValueType
+    conflict_policy: Global___ConflictResolutionPolicy.ValueType
     """How conflicting labels from different labelers are resolved.
     Enforced for offline store reads; online store uses LAST_WRITE_WINS.
     """
-    retain_history: builtins.bool
-    """DEPRECATED: retain_history is always true (offline store always appends).
-    Field kept for backwards wire compatibility; ignored by the SDK.
-    """
-    reference_feature_view: builtins.str
+    @_builtins.property
+    @_deprecated("""This field has been marked as deprecated using proto field options.""")
+    def retain_history(self) -> _builtins.bool:
+        """DEPRECATED: retain_history is always true (offline store always appends).
+        Field kept for backwards wire compatibility; ignored by the SDK.
+        """
+
+    @retain_history.setter
+    @_deprecated("""This field has been marked as deprecated using proto field options.""")
+    def retain_history(self, value: _builtins.bool) -> None:
+        """DEPRECATED: retain_history is always true (offline store always appends).
+        Field kept for backwards wire compatibility; ignored by the SDK.
+        """
+
+    reference_feature_view: _builtins.str
     """Optional name of the FeatureView whose entities this label view annotates."""
+    @_builtins.property
+    def entities(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """List of names of entities associated with this label view."""
+
+    @_builtins.property
+    def features(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+        """List of specifications for each label field defined as part of this label view."""
+
+    @_builtins.property
+    def tags(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+        """User defined metadata."""
+
+    @_builtins.property
+    def ttl(self) -> _duration_pb2.Duration:
+        """Labels older than ttl will be excluded from online serving."""
+
+    @_builtins.property
+    def source(self) -> _DataSource_pb2.DataSource:
+        """DataSource (typically a PushSource) that feeds label data into this view."""
+
+    @_builtins.property
+    def entity_columns(self) -> _containers.RepeatedCompositeFieldContainer[_Feature_pb2.FeatureSpecV2]:
+        """List of specifications for each entity column."""
+
     def __init__(
         self,
         *,
-        name: builtins.str = ...,
-        project: builtins.str = ...,
-        entities: collections.abc.Iterable[builtins.str] | None = ...,
-        features: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
-        ttl: google.protobuf.duration_pb2.Duration | None = ...,
-        source: feast.core.DataSource_pb2.DataSource | None = ...,
-        online: builtins.bool = ...,
-        description: builtins.str = ...,
-        owner: builtins.str = ...,
-        entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
-        labeler_field: builtins.str = ...,
-        conflict_policy: global___ConflictResolutionPolicy.ValueType = ...,
-        retain_history: builtins.bool = ...,
-        reference_feature_view: builtins.str = ...,
+        name: _builtins.str = ...,
+        project: _builtins.str = ...,
+        entities: _abc.Iterable[_builtins.str] | None = ...,
+        features: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
+        tags: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        ttl: _duration_pb2.Duration | None = ...,
+        source: _DataSource_pb2.DataSource | None = ...,
+        online: _builtins.bool = ...,
+        description: _builtins.str = ...,
+        owner: _builtins.str = ...,
+        entity_columns: _abc.Iterable[_Feature_pb2.FeatureSpecV2] | None = ...,
+        labeler_field: _builtins.str = ...,
+        conflict_policy: Global___ConflictResolutionPolicy.ValueType = ...,
+        retain_history: _builtins.bool = ...,
+        reference_feature_view: _builtins.str = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["source", b"source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["conflict_policy", b"conflict_policy", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "labeler_field", b"labeler_field", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "reference_feature_view", b"reference_feature_view", "retain_history", b"retain_history", "source", b"source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["source", b"source", "ttl", b"ttl"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["conflict_policy", b"conflict_policy", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "labeler_field", b"labeler_field", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "reference_feature_view", b"reference_feature_view", "retain_history", b"retain_history", "source", b"source", "tags", b"tags", "ttl", b"ttl"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-global___LabelViewSpec = LabelViewSpec
+Global___LabelViewSpec: _TypeAlias = LabelViewSpec  # noqa: Y015
 
-class LabelViewMeta(google.protobuf.message.Message):
-    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+@_typing.final
+class LabelViewMeta(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
 
-    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
-    @property
-    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+    CREATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def created_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when this Label View was created."""
-    @property
-    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
+
+    @_builtins.property
+    def last_updated_timestamp(self) -> _timestamp_pb2.Timestamp:
         """Time when this Label View was last updated."""
+
     def __init__(
         self,
         *,
-        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        created_timestamp: _timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: _timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
 
-global___LabelViewMeta = LabelViewMeta
+Global___LabelViewMeta: _TypeAlias = LabelViewMeta  # noqa: Y015

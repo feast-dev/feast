@@ -77,7 +77,7 @@ def sync_mlflow_dataset_to_feast(
        ``push(..., OFFLINE)`` for legacy PushSource targets
     """
     try:
-        import mlflow
+        import mlflow  # noqa: F401
     except ImportError as e:
         raise ImportError(
             "The 'mlflow' package is required for dataset sync. "
@@ -110,79 +110,84 @@ def sync_mlflow_dataset_to_feast(
         )
         return result
 
-    effective_uri = _resolve_tracking_uri(store, tracking_uri or source_uri)
-    if effective_uri:
-        mlflow.set_tracking_uri(effective_uri)
-
-    dataset = _fetch_dataset_with_retry(
-        effective_dataset_name or "", effective_dataset_id
+    from feast.infra.data_sources.mlflow.auth import (
+        mlflow_request_scope,
+        resolve_mlflow_token,
     )
-    if dataset is None:
-        label = effective_dataset_name or effective_dataset_id
-        result.errors.append(f"Failed to fetch MLflow dataset '{label}'")
-        return result
 
-    df = dataset.to_df()
-    result.records_fetched = len(df)
+    effective_uri = _resolve_tracking_uri(store, tracking_uri or source_uri)
+    token = resolve_mlflow_token()
 
-    if df.empty:
-        logger.info(
-            "MLflow dataset '%s' has no records.",
-            effective_dataset_name or effective_dataset_id,
+    with mlflow_request_scope(token, effective_uri):
+        dataset = _fetch_dataset_with_retry(
+            effective_dataset_name or "", effective_dataset_id
         )
-        return result
+        if dataset is None:
+            label = effective_dataset_name or effective_dataset_id
+            result.errors.append(f"Failed to fetch MLflow dataset '{label}'")
+            return result
 
-    df = flatten_mlflow_dataset_df(df, field_mapping=effective_mapping or None)
+        df = dataset.to_df()
+        result.records_fetched = len(df)
 
-    if incremental:
-        last_sync = _get_last_sync_time(dataset, watermark_key=watermark_key)
-        if last_sync is not None:
-            before_count = len(df)
-            df = df[df["event_timestamp"] > last_sync]
-            result.new_records = len(df)
+        if df.empty:
             logger.info(
-                "Incremental filter: %d → %d records (since %s)",
-                before_count,
-                len(df),
-                last_sync.isoformat(),
+                "MLflow dataset '%s' has no records.",
+                effective_dataset_name or effective_dataset_id,
             )
+            return result
+
+        df = flatten_mlflow_dataset_df(df, field_mapping=effective_mapping or None)
+
+        if incremental:
+            last_sync = _get_last_sync_time(dataset, watermark_key=watermark_key)
+            if last_sync is not None:
+                before_count = len(df)
+                df = df[df["event_timestamp"] > last_sync]
+                result.new_records = len(df)
+                logger.info(
+                    "Incremental filter: %d → %d records (since %s)",
+                    before_count,
+                    len(df),
+                    last_sync.isoformat(),
+                )
+            else:
+                result.new_records = len(df)
         else:
             result.new_records = len(df)
-    else:
-        result.new_records = len(df)
 
-    if df.empty:
-        logger.info("No new records to sync.")
-        return result
+        if df.empty:
+            logger.info("No new records to sync.")
+            return result
 
-    if dry_run:
-        logger.info("Dry run: would ingest %d records.", len(df))
-        result.records_ingested = 0
-        return result
+        if dry_run:
+            logger.info("Dry run: would ingest %d records.", len(df))
+            result.records_ingested = 0
+            return result
 
-    df = _align_df_to_feature_view(store, feature_view_name, df)
+        df = _align_df_to_feature_view(store, feature_view_name, df)
 
-    for start in range(0, len(df), effective_batch):
-        batch = df.iloc[start : start + effective_batch]
-        try:
-            store.write_to_online_store(feature_view_name, batch)
-        except Exception as e:
-            result.errors.append(f"Online write error at offset {start}: {e}")
-            logger.error("Failed to write batch to online store: %s", e)
-            continue
+        for start in range(0, len(df), effective_batch):
+            batch = df.iloc[start : start + effective_batch]
+            try:
+                store.write_to_online_store(feature_view_name, batch)
+            except Exception as e:
+                result.errors.append(f"Online write error at offset {start}: {e}")
+                logger.error("Failed to write batch to online store: %s", e)
+                continue
 
-        _write_offline_batch(store, feature_view_name, batch, result, start)
-        result.records_ingested += len(batch)
+            _write_offline_batch(store, feature_view_name, batch, result, start)
+            result.records_ingested += len(batch)
 
-    if not result.errors:
-        _set_last_sync_time(dataset, watermark_key=watermark_key)
-    else:
-        logger.warning(
-            "Skipping watermark update due to %d sync error(s); "
-            "failed records will be retried on the next incremental sync.",
-            len(result.errors),
-        )
-    result.updated_records = result.records_ingested
+        if not result.errors:
+            _set_last_sync_time(dataset, watermark_key=watermark_key)
+        else:
+            logger.warning(
+                "Skipping watermark update due to %d sync error(s); "
+                "failed records will be retried on the next incremental sync.",
+                len(result.errors),
+            )
+        result.updated_records = result.records_ingested
 
     logger.info(
         "Sync complete: fetched=%d, ingested=%d",
@@ -488,7 +493,11 @@ def _get_view(store: "FeatureStore", feature_view_name: str) -> Any:
 
 
 def _get_mlflow_dataset_source(store: "FeatureStore", feature_view_name: str) -> Any:
-    """Return MlflowDatasetSource from a view, if present."""
+    """Return MlflowDatasetSource from a view, if present.
+
+    Checks all attributes where a DataSource may be stored on a FeatureView:
+    ``batch_source``, ``stream_source``, ``source``, and ``data_source``.
+    """
     from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
         MlflowDatasetSource,
     )
@@ -497,7 +506,7 @@ def _get_mlflow_dataset_source(store: "FeatureStore", feature_view_name: str) ->
     if view is None:
         return None
 
-    for attr in ("stream_source", "source", "data_source"):
+    for attr in ("batch_source", "stream_source", "source", "data_source"):
         src = getattr(view, attr, None)
         if isinstance(src, MlflowDatasetSource):
             return src
@@ -514,7 +523,7 @@ def _list_mlflow_dataset_view_names(store: "FeatureStore") -> List[str]:
     for view in list(store.list_feature_views()) + list(
         store.list_label_views() if hasattr(store, "list_label_views") else []
     ):
-        for attr in ("stream_source", "source", "data_source"):
+        for attr in ("batch_source", "stream_source", "source", "data_source"):
             src = getattr(view, attr, None)
             if isinstance(src, MlflowDatasetSource):
                 names.append(view.name)
@@ -551,17 +560,19 @@ def _write_offline_batch(
     result: SyncResult,
     start: int,
 ) -> None:
-    """Write a batch to the offline store via batch_source or PushSource."""
+    """Write a batch to the offline store via batch_source or PushSource.
+
+    Errors are recorded in ``result.errors`` so the watermark will NOT
+    advance, ensuring failed records are retried on the next incremental sync.
+    """
     mlflow_source = _get_mlflow_dataset_source(store, feature_view_name)
     if mlflow_source is not None:
         try:
             store.write_to_offline_store(feature_view_name, batch)
         except Exception as e:
-            logger.warning(
-                "Offline write failed at offset %d: %s (continuing)",
-                start,
-                e,
-            )
+            msg = f"Offline write failed at offset {start}: {e}"
+            result.errors.append(msg)
+            logger.error(msg)
         return
 
     push_source_name = _resolve_push_source_name(store, feature_view_name)
@@ -569,8 +580,6 @@ def _write_offline_batch(
         try:
             store.push(push_source_name, batch, to=PushMode.OFFLINE)
         except Exception as e:
-            logger.warning(
-                "Push to offline store failed at offset %d: %s (continuing)",
-                start,
-                e,
-            )
+            msg = f"Push to offline store failed at offset {start}: {e}"
+            result.errors.append(msg)
+            logger.error(msg)

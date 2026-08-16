@@ -116,97 +116,13 @@ def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -
 def _read_mlflow_source(data_source: "MlflowDatasetSource") -> Table:
     """Read tabular data from an MLflow-backed DataSource.
 
-    Dispatches by mode:
-    - GenAI Dataset: ``get_dataset().to_df()`` → ibis memtable
-    - Artifact: ``download_artifacts()`` → Parquet/CSV → ibis memtable
+    Delegates to ``data_source.to_arrow()`` which handles auth scoping,
+    caching, and mode dispatch internally.  The returned PyArrow Table
+    is eagerly materialized before being wrapped as an ibis memtable,
+    avoiding any lazy-read vs temp-file-cleanup race.
     """
-    from feast.infra.data_sources.mlflow.auth import resolve_mlflow_token
-    from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
-        MlflowDatasetSource,
-    )
-
-    assert isinstance(data_source, MlflowDatasetSource)
-
-    tracking_uri = data_source.get_effective_tracking_uri()
-    token = resolve_mlflow_token()
-
-    if data_source.is_genai_mode:
-        return _read_mlflow_genai_dataset(data_source, tracking_uri, token)
-    else:
-        return _read_mlflow_artifact(data_source, tracking_uri, token)
-
-
-def _read_mlflow_genai_dataset(
-    data_source: "MlflowDatasetSource",
-    tracking_uri: Optional[str],
-    token: Optional[str],
-) -> Table:
-    """Fetch a GenAI EvaluationDataset and flatten into an ibis memtable."""
-    try:
-        import mlflow
-        import mlflow.genai.datasets
-    except ImportError as e:
-        raise ImportError(
-            "Install feast[mlflow] to use MlflowDatasetSource in GenAI Dataset mode."
-        ) from e
-
-    from feast.infra.data_sources.mlflow.auth import mlflow_token_scope
-
-    if tracking_uri:
-        mlflow.set_tracking_uri(tracking_uri)
-
-    with mlflow_token_scope(token):
-        name = data_source.dataset_name or data_source.dataset_id
-        dataset = mlflow.genai.datasets.get_dataset(name=name)  # type: ignore[call-arg]
-        df = dataset.to_df()
-
-    try:
-        from feast.mlflow_integration.dataset_sync import flatten_mlflow_dataset_df
-
-        df = flatten_mlflow_dataset_df(
-            df, field_mapping=data_source.field_mapping or None
-        )
-    except ImportError:
-        pass
-
-    return ibis.memtable(df)
-
-
-def _read_mlflow_artifact(
-    data_source: "MlflowDatasetSource",
-    tracking_uri: Optional[str],
-    token: Optional[str],
-) -> Table:
-    """Download an MLflow run artifact and read as Parquet/CSV."""
-    import tempfile
-
-    try:
-        import mlflow
-    except ImportError as e:
-        raise ImportError(
-            "Install feast[mlflow] to use MlflowDatasetSource in artifact mode."
-        ) from e
-
-    from feast.infra.data_sources.mlflow.auth import mlflow_token_scope
-
-    if tracking_uri:
-        mlflow.set_tracking_uri(tracking_uri)
-
-    with mlflow_token_scope(token):
-        with tempfile.TemporaryDirectory(prefix="feast_mlflow_") as tmpdir:
-            local_path = mlflow.artifacts.download_artifacts(
-                run_id=data_source.run_id,
-                artifact_path=data_source.artifact_path,
-                dst_path=tmpdir,
-            )
-            if data_source.artifact_format == "parquet":
-                return ibis.read_parquet(local_path)
-            elif data_source.artifact_format == "csv":
-                return ibis.read_csv(local_path)
-            else:
-                raise ValueError(
-                    f"Unsupported artifact format: {data_source.artifact_format}"
-                )
+    arrow_table = data_source.to_arrow()
+    return ibis.memtable(arrow_table)
 
 
 def _write_data_source(
