@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import weakref
 from datetime import datetime
@@ -16,7 +17,7 @@ from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
-from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.caching_registry import CachingRegistry
 from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
@@ -31,6 +32,8 @@ from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_g
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+
+logger = logging.getLogger(__name__)
 
 
 def extract_base_feature_view(
@@ -94,7 +97,7 @@ class RemoteRegistryConfig(RegistryConfig):
     e.g. when connecting through a tunnel or proxy for local development. """
 
 
-class RemoteRegistry(BaseRegistry):
+class RemoteRegistry(CachingRegistry):
     def __init__(
         self,
         registry_config: Union[RegistryConfig, RemoteRegistryConfig],
@@ -110,6 +113,17 @@ class RemoteRegistry(BaseRegistry):
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
+
+        # Maintain a client-side cache like every other registry implementation.
+        # CachingRegistry serves allow_cache=True reads from cached_registry_proto
+        # (populated by proto(), the server's Proto RPC), so allow_cache stops
+        # meaning "one RPC per read" for the remote registry and acquires the same
+        # meaning it already has for the SQL/file/Snowflake registries.
+        super().__init__(
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
+        )
 
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
@@ -161,34 +175,48 @@ class RemoteRegistry(BaseRegistry):
         if self.channel:
             self.channel.close()
 
+    def _refresh_cache_after_mutation(self, commit: bool = True):
+        # Now that RemoteRegistry caches the registry proto client-side, a
+        # mutation issued over gRPC would otherwise leave the local cache stale
+        # until the TTL expires -- so a subsequent allow_cache read on the same
+        # client (e.g. apply_feature_view() then get_feature_view(...,
+        # allow_cache=True)) would return the pre-mutation object. Mirror
+        # SqlRegistry and reload the client-side cache after the change lands.
+        #
+        # Only refresh once the write is committed on the server. Uncommitted
+        # (commit=False) writes -- e.g. the batched applies in
+        # FeatureStore.apply() -- are flushed by the trailing commit(), which
+        # refreshes then, so we avoid a full Proto() round-trip per object.
+        # In "thread" cache mode the background refresh thread owns freshness,
+        # matching the SqlRegistry contract.
+        if commit and self.cache_mode == "sync":
+            self.refresh()
+
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(
             entity=entity.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyEntity(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteEntityRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteEntity(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
-        request = RegistryServer_pb2.GetEntityRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_entity(self, name: str, project: str) -> Entity:
+        request = RegistryServer_pb2.GetEntityRequest(name=name, project=project)
         response = self.stub.GetEntity(request)
         return Entity.from_proto(response)
 
-    def list_entities(
+    def _list_entities(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[Entity]:
-        request = RegistryServer_pb2.ListEntitiesRequest(
-            project=project, allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListEntitiesRequest(project=project, tags=tags)
         response = self.stub.ListEntities(request)
         return [Entity.from_proto(entity) for entity in response.entities]
 
@@ -199,31 +227,26 @@ class RemoteRegistry(BaseRegistry):
             data_source=data_source.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyDataSource(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteDataSourceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteDataSource(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_data_source(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> DataSource:
-        request = RegistryServer_pb2.GetDataSourceRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_data_source(self, name: str, project: str) -> DataSource:
+        request = RegistryServer_pb2.GetDataSourceRequest(name=name, project=project)
         response = self.stub.GetDataSource(request)
         return DataSource.from_proto(response)
 
-    def list_data_sources(
+    def _list_data_sources(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
-        request = RegistryServer_pb2.ListDataSourcesRequest(
-            project=project, allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListDataSourcesRequest(project=project, tags=tags)
         response = self.stub.ListDataSources(request)
         return [
             DataSource.from_proto(data_source) for data_source in response.data_sources
@@ -236,30 +259,29 @@ class RemoteRegistry(BaseRegistry):
             feature_service=feature_service.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureServiceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_feature_service(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureService:
+    def _get_feature_service(self, name: str, project: str) -> FeatureService:
         request = RegistryServer_pb2.GetFeatureServiceRequest(
-            name=name, project=project, allow_cache=allow_cache
+            name=name, project=project
         )
         response = self.stub.GetFeatureService(request)
         return FeatureService.from_proto(response)
 
-    def list_feature_services(
+    def _list_feature_services(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         request = RegistryServer_pb2.ListFeatureServicesRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project, tags=tags
         )
         response = self.stub.ListFeatureServices(request)
         return [
@@ -303,31 +325,30 @@ class RemoteRegistry(BaseRegistry):
         )
 
         self.stub.ApplyFeatureView(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteFeatureViewRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteFeatureView(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_stream_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> StreamFeatureView:
+    def _get_stream_feature_view(self, name: str, project: str) -> StreamFeatureView:
         request = RegistryServer_pb2.GetStreamFeatureViewRequest(
-            name=name, project=project, allow_cache=allow_cache
+            name=name, project=project
         )
         response = self.stub.GetStreamFeatureView(request)
         return StreamFeatureView.from_proto(response)
 
-    def list_stream_feature_views(
+    def _list_stream_feature_views(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_udf: bool = False,
+        **kwargs: Any,
     ) -> List[StreamFeatureView]:
         request = RegistryServer_pb2.ListStreamFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project, tags=tags
         )
         response = self.stub.ListStreamFeatureViews(request)
         return [
@@ -335,24 +356,23 @@ class RemoteRegistry(BaseRegistry):
             for stream_feature_view in response.stream_feature_views
         ]
 
-    def get_on_demand_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
+    def _get_on_demand_feature_view(
+        self, name: str, project: str
     ) -> OnDemandFeatureView:
         request = RegistryServer_pb2.GetOnDemandFeatureViewRequest(
-            name=name, project=project, allow_cache=allow_cache
+            name=name, project=project
         )
         response = self.stub.GetOnDemandFeatureView(request)
         return OnDemandFeatureView.from_proto(response)
 
-    def list_on_demand_feature_views(
+    def _list_on_demand_feature_views(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_udf: bool = False,
+        **kwargs: Any,
     ) -> List[OnDemandFeatureView]:
         request = RegistryServer_pb2.ListOnDemandFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project, tags=tags
         )
         response = self.stub.ListOnDemandFeatureViews(request)
         return [
@@ -360,35 +380,27 @@ class RemoteRegistry(BaseRegistry):
             for on_demand_feature_view in response.on_demand_feature_views
         ]
 
-    def get_label_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> LabelView:
-        request = RegistryServer_pb2.GetLabelViewRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_label_view(self, name: str, project: str) -> LabelView:
+        request = RegistryServer_pb2.GetLabelViewRequest(name=name, project=project)
         response = self.stub.GetLabelView(request)
         return LabelView.from_proto(response)
 
-    def list_label_views(
+    def _list_label_views(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        **kwargs: Any,
     ) -> List[LabelView]:
-        request = RegistryServer_pb2.ListLabelViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListLabelViewsRequest(project=project, tags=tags)
         response = self.stub.ListLabelViews(request)
         return [LabelView.from_proto(label_view) for label_view in response.label_views]
 
     def delete_label_view(self, name: str, project: str, commit: bool = True):
         self.delete_feature_view(name, project, commit)
 
-    def get_any_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> BaseFeatureView:
+    def _get_any_feature_view(self, name: str, project: str) -> BaseFeatureView:
         request = RegistryServer_pb2.GetAnyFeatureViewRequest(
-            name=name, project=project, allow_cache=allow_cache
+            name=name, project=project
         )
 
         response: RegistryServer_pb2.GetAnyFeatureViewResponse = (
@@ -397,13 +409,12 @@ class RemoteRegistry(BaseRegistry):
         any_feature_view = response.any_feature_view
         return extract_base_feature_view(any_feature_view)
 
-    def list_all_feature_views(
+    def _list_all_feature_views(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_udf: bool = False,
         updated_since: Optional[datetime] = None,
+        **kwargs: Any,
     ) -> List[BaseFeatureView]:
         updated_since_proto = None
         if updated_since is not None:
@@ -412,7 +423,6 @@ class RemoteRegistry(BaseRegistry):
             updated_since_proto = ts
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
             project=project,
-            allow_cache=allow_cache,
             tags=tags,
             updated_since=updated_since_proto,
         )
@@ -425,25 +435,18 @@ class RemoteRegistry(BaseRegistry):
             for any_feature_view in response.feature_views
         ]
 
-    def get_feature_view(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> FeatureView:
-        request = RegistryServer_pb2.GetFeatureViewRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_feature_view(self, name: str, project: str) -> FeatureView:
+        request = RegistryServer_pb2.GetFeatureViewRequest(name=name, project=project)
         response = self.stub.GetFeatureView(request)
         return FeatureView.from_proto(response)
 
-    def list_feature_views(
+    def _list_feature_views(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
-        skip_udf: bool = False,
+        **kwargs: Any,
     ) -> List[FeatureView]:
-        request = RegistryServer_pb2.ListFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListFeatureViewsRequest(project=project, tags=tags)
         response = self.stub.ListFeatureViews(request)
 
         return [
@@ -479,6 +482,7 @@ class RemoteRegistry(BaseRegistry):
             commit=commit,
         )
         self.stub.ApplyMaterialization(request)
+        self._refresh_cache_after_mutation(commit)
 
     def apply_saved_dataset(
         self,
@@ -490,33 +494,29 @@ class RemoteRegistry(BaseRegistry):
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
         self.stub.ApplyFeatureService(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteSavedDataset(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_saved_dataset(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> SavedDataset:
-        request = RegistryServer_pb2.GetSavedDatasetRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_saved_dataset(self, name: str, project: str) -> SavedDataset:
+        request = RegistryServer_pb2.GetSavedDatasetRequest(name=name, project=project)
         response = self.stub.GetSavedDataset(request)
         return SavedDataset.from_proto(response)
 
-    def list_saved_datasets(
+    def _list_saved_datasets(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         namespace: Optional[str] = None,
         collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         request = RegistryServer_pb2.ListSavedDatasetsRequest(
             project=project,
-            allow_cache=allow_cache,
             tags=tags,
             namespace=namespace or "",
             collection=collection or "",
@@ -539,30 +539,29 @@ class RemoteRegistry(BaseRegistry):
             commit=commit,
         )
         self.stub.ApplyValidationReference(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteValidationReferenceRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeleteValidationReference(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_validation_reference(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> ValidationReference:
+    def _get_validation_reference(self, name: str, project: str) -> ValidationReference:
         request = RegistryServer_pb2.GetValidationReferenceRequest(
-            name=name, project=project, allow_cache=allow_cache
+            name=name, project=project
         )
         response = self.stub.GetValidationReference(request)
         return ValidationReference.from_proto(response)
 
-    def list_validation_references(
+    def _list_validation_references(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         request = RegistryServer_pb2.ListValidationReferencesRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project, tags=tags
         )
         response = self.stub.ListValidationReferences(request)
         return [
@@ -570,12 +569,8 @@ class RemoteRegistry(BaseRegistry):
             for validation_reference in response.validation_references
         ]
 
-    def list_project_metadata(
-        self, project: str, allow_cache: bool = False
-    ) -> List[ProjectMetadata]:
-        request = RegistryServer_pb2.ListProjectMetadataRequest(
-            project=project, allow_cache=allow_cache
-        )
+    def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
+        request = RegistryServer_pb2.ListProjectMetadataRequest(project=project)
         response = self.stub.ListProjectMetadata(request)
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
 
@@ -584,11 +579,10 @@ class RemoteRegistry(BaseRegistry):
             infra=infra.to_proto(), project=project, commit=commit
         )
         self.stub.UpdateInfra(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
-        request = RegistryServer_pb2.GetInfraRequest(
-            project=project, allow_cache=allow_cache
-        )
+    def _get_infra(self, project: str) -> Infra:
+        request = RegistryServer_pb2.GetInfraRequest(project=project)
         response = self.stub.GetInfra(request)
         return Infra.from_proto(response)
 
@@ -615,32 +609,27 @@ class RemoteRegistry(BaseRegistry):
             permission=permission_proto, project=project, commit=commit
         )
         self.stub.ApplyPermission(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeletePermissionRequest(
             name=name, project=project, commit=commit
         )
         self.stub.DeletePermission(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_permission(
-        self, name: str, project: str, allow_cache: bool = False
-    ) -> Permission:
-        request = RegistryServer_pb2.GetPermissionRequest(
-            name=name, project=project, allow_cache=allow_cache
-        )
+    def _get_permission(self, name: str, project: str) -> Permission:
+        request = RegistryServer_pb2.GetPermissionRequest(name=name, project=project)
         response = self.stub.GetPermission(request)
 
         return Permission.from_proto(response)
 
-    def list_permissions(
+    def _list_permissions(
         self,
         project: str,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[Permission]:
-        request = RegistryServer_pb2.ListPermissionsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListPermissionsRequest(project=project, tags=tags)
         response = self.stub.ListPermissions(request)
         return [
             Permission.from_proto(permission) for permission in response.permissions
@@ -657,6 +646,7 @@ class RemoteRegistry(BaseRegistry):
             project=project_proto, commit=commit
         )
         self.stub.ApplyProject(request)
+        self._refresh_cache_after_mutation(commit)
 
     def delete_project(
         self,
@@ -665,27 +655,22 @@ class RemoteRegistry(BaseRegistry):
     ):
         request = RegistryServer_pb2.DeleteProjectRequest(name=name, commit=commit)
         self.stub.DeleteProject(request)
+        self._refresh_cache_after_mutation(commit)
 
-    def get_project(
+    def _get_project(
         self,
         name: str,
-        allow_cache: bool = False,
     ) -> Project:
-        request = RegistryServer_pb2.GetProjectRequest(
-            name=name, allow_cache=allow_cache
-        )
+        request = RegistryServer_pb2.GetProjectRequest(name=name)
         response = self.stub.GetProject(request)
 
         return Project.from_proto(response)
 
-    def list_projects(
+    def _list_projects(
         self,
-        allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
     ) -> List[Project]:
-        request = RegistryServer_pb2.ListProjectsRequest(
-            allow_cache=allow_cache, tags=tags
-        )
+        request = RegistryServer_pb2.ListProjectsRequest(tags=tags)
         response = self.stub.ListProjects(request)
         return [Project.from_proto(project) for project in response.projects]
 
@@ -708,10 +693,28 @@ class RemoteRegistry(BaseRegistry):
 
     def commit(self):
         self.stub.Commit(Empty())
+        # commit() flushes writes staged with commit=False (e.g. the batch in
+        # FeatureStore.apply()), so refresh the client-side cache here too.
+        self._refresh_cache_after_mutation(commit=True)
 
     def refresh(self, project: Optional[str] = None):
-        request = RegistryServer_pb2.RefreshRequest(project=str(project))
-        self.stub.Refresh(request)
+        # Reload our client-side cache from the server; this is what makes
+        # allow_cache reads correct. The server rebuilds its Proto response from
+        # fresh reads, so no server-side refresh is required for the client to
+        # see current data.
+        super().refresh(project)
+        # On an explicit, project-scoped refresh, also ask the server to refresh
+        # its own cache, preserving the historical RemoteRegistry.refresh() side
+        # effect for other consumers. Internal TTL refreshes pass no project and
+        # skip this to avoid an extra RPC per cache cycle; a failure here must not
+        # invalidate the client-cache reload above.
+        if project is not None:
+            try:
+                self.stub.Refresh(RegistryServer_pb2.RefreshRequest(project=project))
+            except Exception as e:
+                logger.debug(
+                    f"Remote registry server-side refresh failed: {e}", exc_info=True
+                )
 
     # Lineage operations
     def get_registry_lineage(
