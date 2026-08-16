@@ -109,8 +109,9 @@ class IcebergSource(DataSource):
                 credential_vending=self.credential_vending,
             )
 
-        from pyiceberg.catalog import load_catalog
+        return self.get_pyiceberg_catalog()
 
+    def _pyiceberg_catalog_config(self) -> Dict[str, str]:
         config = {
             "type": self.catalog_type,
             **self.catalog_properties,
@@ -123,7 +124,17 @@ class IcebergSource(DataSource):
             token = os.environ.get(self.token_env_var, "")
             if token:
                 config.setdefault("token", token)
-        return load_catalog(self.catalog_name, **config)
+        return config
+
+    def get_pyiceberg_catalog(self) -> Any:
+        """Load a PyIceberg catalog for mutation-capable operations."""
+        try:
+            from pyiceberg.catalog import load_catalog
+        except ImportError as exc:
+            raise ImportError(
+                "Iceberg materialization requires PyIceberg; install feast[iceberg]."
+            ) from exc
+        return load_catalog(self.catalog_name, **self._pyiceberg_catalog_config())
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.BATCH_ICEBERG

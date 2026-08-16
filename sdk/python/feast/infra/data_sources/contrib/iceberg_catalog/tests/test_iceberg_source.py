@@ -1,6 +1,7 @@
 """Unit tests for IcebergSource, UnityCatalogSource, and IcebergRestClient."""
 
 import json
+import sys
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -81,6 +82,56 @@ class TestIcebergSource:
         )
         assert source.catalog_type == "glue"
         assert source.catalog_properties == {"region_name": "us-east-1"}
+
+    @patch.dict("os.environ", {"ICEBERG_TOKEN": "secret"})
+    def test_get_pyiceberg_catalog_for_rest(self):
+        mock_load_catalog = MagicMock()
+        mock_catalog_module = MagicMock(load_catalog=mock_load_catalog)
+        source = IcebergSource(
+            catalog_type="rest",
+            endpoint="http://catalog.test",
+            warehouse="warehouse",
+            namespace="features",
+            table="driver_stats",
+            token_env_var="ICEBERG_TOKEN",
+            catalog_properties={"prefix": "tenant"},
+        )
+
+        with patch.dict(sys.modules, {"pyiceberg.catalog": mock_catalog_module}):
+            source.get_pyiceberg_catalog()
+
+        mock_load_catalog.assert_called_once_with(
+            "feast_iceberg",
+            type="rest",
+            prefix="tenant",
+            uri="http://catalog.test",
+            warehouse="warehouse",
+            token="secret",
+        )
+
+    def test_get_pyiceberg_catalog_for_non_rest(self):
+        mock_load_catalog = MagicMock()
+        mock_catalog_module = MagicMock(load_catalog=mock_load_catalog)
+        source = IcebergSource(
+            catalog_type="sql",
+            endpoint="sqlite:////tmp/catalog.db",
+            warehouse="file:///tmp/warehouse",
+            namespace="features",
+            table="driver_stats",
+            catalog_name="local",
+            catalog_properties={"echo": "false"},
+        )
+
+        with patch.dict(sys.modules, {"pyiceberg.catalog": mock_catalog_module}):
+            source.get_pyiceberg_catalog()
+
+        mock_load_catalog.assert_called_once_with(
+            "local",
+            type="sql",
+            echo="false",
+            uri="sqlite:////tmp/catalog.db",
+            warehouse="file:///tmp/warehouse",
+        )
 
     def test_proto_roundtrip(self):
         source = IcebergSource(
