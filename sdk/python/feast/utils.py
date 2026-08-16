@@ -1282,7 +1282,10 @@ def _get_features(
         feature_service_from_registry = registry.get_feature_service(
             _features.name, project, allow_cache
         )
-        if feature_service_from_registry != _features:
+        # Unresolved string-ref services have no projections yet, so skip the
+        # inconsistency check; we resolve from the registry regardless.
+        is_unresolved = bool(getattr(_features, "_pending_feature_refs", None))
+        if not is_unresolved and feature_service_from_registry != _features:
             warnings.warn(
                 "The FeatureService object that has been passed in as an argument is "
                 "inconsistent with the version from the registry. Potentially a newer version "
@@ -1347,6 +1350,13 @@ def _get_feature_views_to_use(
     from feast.on_demand_feature_view import OnDemandFeatureView
 
     if isinstance(features, FeatureService):
+        # An unresolved string-ref service has no projections until applied, so
+        # resolve it from the registry (matching _get_features). Never applied ->
+        # get_feature_service raises FeatureServiceNotFoundException.
+        if getattr(features, "_pending_feature_refs", None):
+            features = registry.get_feature_service(
+                features.name, project, allow_cache=allow_cache
+            )
         feature_views = [
             (projection.name, projection.version_tag, projection)
             for projection in features.feature_view_projections
