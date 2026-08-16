@@ -16,6 +16,8 @@ import json
 import os
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
+import pyarrow as pa
+
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -135,6 +137,35 @@ class IcebergSource(DataSource):
                 "Iceberg materialization requires PyIceberg; install feast[iceberg]."
             ) from exc
         return load_catalog(self.catalog_name, **self._pyiceberg_catalog_config())
+
+    def write_materialized_table(
+        self,
+        table: pa.Table,
+        join_cols: list[str],
+        snapshot_properties: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Create or upsert a materialized Arrow table through PyIceberg."""
+        _validate_upsert_keys(table, join_cols)
+
+        from pyiceberg.exceptions import NoSuchTableError
+
+        catalog = self.get_pyiceberg_catalog()
+        identifier = f"{self.namespace}.{self.iceberg_table}"
+        try:
+            iceberg_table = catalog.load_table(identifier)
+        except NoSuchTableError:
+            iceberg_table = catalog.create_table(identifier, schema=table.schema)
+        else:
+            table = _validate_and_reorder_schema(table, iceberg_table.schema())
+
+        if snapshot_properties is None:
+            iceberg_table.upsert(table, join_cols=join_cols)
+        else:
+            iceberg_table.upsert(
+                table,
+                join_cols=join_cols,
+                snapshot_properties=snapshot_properties,
+            )
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.BATCH_ICEBERG
@@ -294,6 +325,58 @@ class IcebergSource(DataSource):
                 self.iceberg_table,
             )
         )
+
+
+def _validate_upsert_keys(table: pa.Table, join_cols: list[str]) -> None:
+    if not join_cols:
+        raise ValueError("Iceberg upsert requires at least one key column.")
+
+    missing = sorted(set(join_cols) - set(table.column_names))
+    if missing:
+        raise ValueError(f"Iceberg upsert key columns are missing: {missing}")
+
+    null_columns = [name for name in join_cols if table[name].null_count]
+    if null_columns:
+        raise ValueError(f"Iceberg upsert keys contain null values: {null_columns}")
+
+    keys = zip(*(table[name].to_pylist() for name in join_cols))
+    seen = set()
+    duplicate_count = 0
+    for key in keys:
+        if key in seen:
+            duplicate_count += 1
+        else:
+            seen.add(key)
+    if duplicate_count:
+        raise ValueError(
+            f"Iceberg upsert contains {duplicate_count} duplicate key row(s) "
+            f"for columns {join_cols}."
+        )
+
+
+def _validate_and_reorder_schema(table: pa.Table, iceberg_schema: Any) -> pa.Table:
+    from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+    target_schema = schema_to_pyarrow(iceberg_schema)
+    incoming_by_name = {field.name: field for field in table.schema}
+    target_by_name = {field.name: field for field in target_schema}
+
+    missing = sorted(set(target_by_name) - set(incoming_by_name))
+    unexpected = sorted(set(incoming_by_name) - set(target_by_name))
+    incompatible = sorted(
+        name
+        for name in set(incoming_by_name) & set(target_by_name)
+        if incoming_by_name[name].type != target_by_name[name].type
+        or incoming_by_name[name].nullable != target_by_name[name].nullable
+    )
+    if missing or unexpected or incompatible:
+        raise ValueError(
+            "Iceberg materialization schema mismatch: "
+            f"missing={missing}, unexpected={unexpected}, "
+            f"incompatible={incompatible}."
+        )
+
+    return table.select(target_schema.names)
 
 
 def _iceberg_type_to_feast_value_type(iceberg_type: str) -> ValueType:
