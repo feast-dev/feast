@@ -169,6 +169,13 @@ class TestIcebergSource:
             warehouse="file:///tmp/warehouse",
         )
 
+    def test_get_pyiceberg_catalog_missing_dependency_has_install_guidance(self):
+        source = self._materialization_source()
+
+        with patch.dict(sys.modules, {"pyiceberg": None, "pyiceberg.catalog": None}):
+            with pytest.raises(ImportError, match=r"install feast\[iceberg\]"):
+                source.get_pyiceberg_catalog()
+
     def test_write_materialized_table_rejects_missing_key_before_catalog_access(self):
         source = self._materialization_source()
         source.get_pyiceberg_catalog = MagicMock()
@@ -227,7 +234,6 @@ class TestIcebergSource:
         source.write_materialized_table(
             incoming,
             join_cols=["driver_id", "event_timestamp"],
-            snapshot_properties={"feast.project": "demo"},
         )
 
         catalog.load_table.assert_called_once_with("features.driver_stats")
@@ -235,7 +241,6 @@ class TestIcebergSource:
         iceberg_table.upsert.assert_called_once_with(
             incoming,
             join_cols=["driver_id", "event_timestamp"],
-            snapshot_properties={"feast.project": "demo"},
         )
 
     def test_write_materialized_table_creates_missing_table(self):
@@ -318,6 +323,51 @@ class TestIcebergSource:
         source.write_materialized_table(incoming, join_cols=["event_timestamp"])
 
         iceberg_table.upsert.assert_called_once()
+
+    def test_write_materialized_table_wraps_catalog_error_with_sanitized_context(self):
+        token_value = "sensitive-value"
+        source = IcebergSource(
+            catalog_type="rest",
+            endpoint="https://catalog.test/api",
+            warehouse="warehouse",
+            namespace="features",
+            table="driver_stats",
+            token_env_var="ICEBERG_TEST_TOKEN",
+        )
+        source.get_pyiceberg_catalog = MagicMock(
+            side_effect=RuntimeError(f"unauthorized: {token_value}")
+        )
+
+        with patch.dict("os.environ", {"ICEBERG_TEST_TOKEN": token_value}):
+            with pytest.raises(RuntimeError) as exc_info:
+                source.write_materialized_table(
+                    self._materialization_table(),
+                    join_cols=["driver_id", "event_timestamp"],
+                )
+
+        message = str(exc_info.value)
+        assert "features.driver_stats" in message
+        assert "https://catalog.test/api" in message
+        assert token_value not in message
+
+    def test_write_materialized_table_wraps_commit_error_with_table_context(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table()
+        iceberg_table = MagicMock()
+        iceberg_table.schema.return_value = self._materialization_schema()
+        iceberg_table.upsert.side_effect = RuntimeError("commit conflict")
+        catalog = MagicMock()
+        catalog.load_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            source.write_materialized_table(
+                incoming, join_cols=["driver_id", "event_timestamp"]
+            )
+
+        message = str(exc_info.value)
+        assert "features.driver_stats" in message
+        assert "commit conflict" in message
 
     def test_proto_roundtrip(self):
         source = IcebergSource(

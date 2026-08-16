@@ -1,10 +1,12 @@
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pyarrow as pa
 import pytest
 
+from feast import FeatureView, Field, FileSource
 from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
@@ -18,6 +20,7 @@ from feast.infra.compute_engines.local.nodes import (
 )
 from feast.infra.data_sources.contrib.iceberg_catalog import IcebergSource
 from feast.repo_config import MaterializationConfig
+from feast.types import Float64
 
 backend = PandasBackend()
 now = pd.Timestamp.utcnow()
@@ -393,7 +396,7 @@ def test_local_output_node_online_write_batched():
     assert context.online_store.online_write_batch.call_count == 2
 
 
-def _iceberg_sink_feature_view() -> tuple[MagicMock, IcebergSource]:
+def _iceberg_sink_feature_view() -> tuple[SimpleNamespace, IcebergSource]:
     sink = IcebergSource(
         catalog_type="sql",
         warehouse="file:///tmp/warehouse",
@@ -402,13 +405,15 @@ def _iceberg_sink_feature_view() -> tuple[MagicMock, IcebergSource]:
         timestamp_field="event_timestamp",
     )
     sink.write_materialized_table = MagicMock()
-    feature_view = MagicMock()
-    feature_view.name = "driver_stats"
-    feature_view.online = False
-    feature_view.offline = False
-    feature_view.entity_columns = []
-    feature_view.source_views = [MagicMock()]
-    feature_view.sink_source = sink
+    feature_view = SimpleNamespace(
+        name="driver_stats",
+        online=False,
+        offline=False,
+        entity_columns=[],
+        features=[],
+        source_views=[MagicMock()],
+        batch_source=sink,
+    )
     return feature_view, sink
 
 
@@ -435,10 +440,6 @@ def test_local_output_node_writes_mapped_keys_to_iceberg():
     sink.write_materialized_table.assert_called_once_with(
         table,
         join_cols=["driver_id", "event_timestamp"],
-        snapshot_properties={
-            "feast.project": "test_proj",
-            "feast.feature_view": "driver_stats",
-        },
     )
 
 
@@ -541,4 +542,41 @@ def test_local_output_node_runs_online_offline_and_iceberg_writes():
 
     context.online_store.online_write_batch.assert_called_once()
     context.offline_store.offline_write_batch.assert_called_once()
+    sink.write_materialized_table.assert_called_once()
+
+
+def test_local_output_node_routes_real_derived_feature_view_batch_source():
+    parent = FeatureView(
+        name="parent",
+        entities=[],
+        schema=[Field(name="value", dtype=Float64)],
+        source=FileSource(path="parent.parquet", timestamp_field="event_timestamp"),
+    )
+    sink = IcebergSource(
+        catalog_type="sql",
+        warehouse="file:///tmp/warehouse",
+        namespace="features",
+        table="derived",
+        timestamp_field="event_timestamp",
+    )
+    sink.write_materialized_table = MagicMock()
+    derived = FeatureView(
+        name="derived",
+        entities=[],
+        schema=[Field(name="value", dtype=Float64)],
+        source=parent,
+        sink_source=sink,
+        online=False,
+        offline=False,
+    )
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+    node = LocalOutputNode("output", derived, default_column_info)
+    node.add_input(MagicMock())
+    node.inputs[0].name = "source"
+
+    node.execute(context)
+
+    assert derived.batch_source is sink
     sink.write_materialized_table.assert_called_once()

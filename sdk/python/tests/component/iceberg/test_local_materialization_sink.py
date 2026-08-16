@@ -33,6 +33,7 @@ def test_local_iceberg_materialization_is_idempotent(tmp_path):
                 type=pa.timestamp("us"),
             ),
             "value": [1.0, 2.0],
+            "label": pa.array(["one", "two"], type=pa.string()),
         }
     )
     join_cols = ["driver_id", "event_timestamp"]

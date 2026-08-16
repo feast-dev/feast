@@ -410,7 +410,7 @@ class LocalOutputNode(LocalNode):
                 progress=lambda x: None,
             )
 
-        sink_source = getattr(self.feature_view, "sink_source", None)
+        sink_source = getattr(self.feature_view, "batch_source", None)
         if self.feature_view.source_views and isinstance(sink_source, IcebergSource):
             timestamp_column = self.column_info.timestamp_column
             if timestamp_column not in input_table.column_names:
@@ -424,10 +424,6 @@ class LocalOutputNode(LocalNode):
             sink_source.write_materialized_table(
                 input_table,
                 join_cols=join_cols,
-                snapshot_properties={
-                    "feast.project": context.project,
-                    "feast.feature_view": self.feature_view.name,
-                },
             )
 
         return output
