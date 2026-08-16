@@ -1416,3 +1416,132 @@ class TestFeatureViewNameValidation:
         )
         with pytest.raises(ValueError, match="must not contain ':'"):
             registry.apply_feature_view(fv, "test_project", commit=True)
+
+
+class TestStringRefFeatureServiceRetrieval:
+    """A string-ref FeatureService reconstructed in a fresh process (registry
+    only, no applied in-memory object) must resolve for both online and
+    historical retrieval, so _get_features and _get_feature_views_to_use agree."""
+
+    PROJECT = "test_project"
+    REFS = ["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"]
+
+    def _make_store(self, tmpdir):
+        return FeatureStore(
+            config=RepoConfig(
+                project=self.PROJECT,
+                registry=os.path.join(tmpdir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(tmpdir, "online.db")
+                ),
+            )
+        )
+
+    def _apply_and_write(self, tmpdir):
+        """Apply the FV + string-ref service and populate the online store."""
+        from datetime import datetime
+
+        from feast import FileSource
+        from feast.driver_test_data import create_driver_hourly_stats_df
+
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+        driver_df = create_driver_hourly_stats_df(
+            [1001, 1002, 1003], start_date, end_date
+        )
+        parquet_path = os.path.join(tmpdir, "driver_stats.parquet")
+        driver_df.to_parquet(path=parquet_path, allow_truncated_timestamps=True)
+
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
+        source = FileSource(
+            name="driver_hourly_stats_source",
+            path=parquet_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+        fv = FeatureView(
+            name="driver_hourly_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int64),
+            ],
+            online=True,
+            source=source,
+        )
+        service = FeatureService(name="driver_service", features=self.REFS)
+
+        store = self._make_store(tmpdir)
+        store.apply([driver, source, fv, service])
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
+        return end_date
+
+    def _fresh_store_and_service(self, tmpdir):
+        """New store + freshly reconstructed (unresolved) string-ref service."""
+        store = self._make_store(tmpdir)
+        service = FeatureService(name="driver_service", features=self.REFS)
+        # No projections until applied; this is the state the fix must handle.
+        assert service.feature_view_projections == []
+        assert service._pending_feature_refs == self.REFS
+        return store, service
+
+    def test_online_retrieval_with_reconstructed_string_ref_service(self, tmp_path):
+        tmpdir = str(tmp_path)
+        self._apply_and_write(tmpdir)
+        store, service = self._fresh_store_and_service(tmpdir)
+
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=service,
+        ).to_dict()
+
+        assert set(response.keys()) == {"driver_id", "conv_rate", "acc_rate"}
+        assert response["driver_id"] == [1001]
+        assert response["conv_rate"][0] is not None
+        assert response["acc_rate"][0] is not None
+
+    def test_historical_retrieval_with_reconstructed_string_ref_service(self, tmp_path):
+        import pandas as pd
+
+        tmpdir = str(tmp_path)
+        end_date = self._apply_and_write(tmpdir)
+        store, service = self._fresh_store_and_service(tmpdir)
+
+        entity_df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "event_timestamp": [end_date - timedelta(hours=1)] * 2,
+            }
+        )
+        result = store.get_historical_features(
+            entity_df=entity_df, features=service
+        ).to_df()
+
+        assert "conv_rate" in result.columns
+        assert "acc_rate" in result.columns
+        assert sorted(result["driver_id"].tolist()) == [1001, 1002]
+        assert result["conv_rate"].notna().all()
+        assert result["acc_rate"].notna().all()
+
+    def test_both_paths_agree_with_explicit_string_refs(self, tmp_path):
+        tmpdir = str(tmp_path)
+        self._apply_and_write(tmpdir)
+        store, service = self._fresh_store_and_service(tmpdir)
+
+        from_service = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}], features=service
+        ).to_dict()
+        from_refs = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}], features=self.REFS
+        ).to_dict()
+
+        assert from_service["conv_rate"] == from_refs["conv_rate"]
+        assert from_service["acc_rate"] == from_refs["acc_rate"]
