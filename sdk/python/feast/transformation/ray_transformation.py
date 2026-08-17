@@ -272,13 +272,14 @@ class RayTransformation(Transformation):
         if not isinstance(other, RayTransformation):
             return False
 
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
-            return False
+        # Match Pandas/Python: udf_string is the canonical diff identity so a
+        # future source-first from_proto does not break no-op feast apply.
+        left = self.udf_string or ""
+        right = other.udf_string or ""
+        if left and right:
+            return left == right
 
-        return True
+        return self.udf.__code__.co_code == other.udf.__code__.co_code
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
