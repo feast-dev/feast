@@ -2905,14 +2905,12 @@ matplotlib-inline==0.2.2 \
     # via
     #   ipykernel
     #   ipython
-mcp==2.0.0 \
-    --hash=sha256:0f440e735c13ece8bb19bc62cf0b86f4313448432fbb77d35e14034f4e050728 \
-    --hash=sha256:1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6
-    # via fastapi-mcp
-mcp-types==2.0.0 \
-    --hash=sha256:6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0 \
-    --hash=sha256:d7d939b9285c9961ae8866ba75ef85da34d12bafe276efbf4eb6a131786d8379
-    # via mcp
+mcp==1.29.0 \
+    --hash=sha256:52d01f334de1868cc3bb2d6604931126a67631f99a6c5d3b82ba47290315ec36 \
+    --hash=sha256:f5a075bb611f23d6f4d080c6a1699fa62772eebc562ba9e66b306ddde1c755f7
+    # via
+    #   feast (pyproject.toml)
+    #   fastapi-mcp
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
@@ -7779,3 +7777,8 @@ zstandard==0.25.0 \
     # via
     #   pyiceberg
     #   trino
+
+httpx-sse==0.4.0 \
+    --hash=sha256:1e81a3a3070ce322add1d3529ed42eb5f70817f45ed6ec915ab753f961139721 \
+    --hash=sha256:f329af6eae57eaa2bdfd962b42524764af68075ea87370a2de920af5341e318f
+    # via mcp

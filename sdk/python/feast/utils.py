@@ -1568,6 +1568,13 @@ def _prepare_entities_to_read_from_online_store(
         entityless_case,
     ) = _get_cached_request_context(registry, project, features, full_feature_names)
 
+    # Online stores may append internal fields to the requested feature lists.
+    # Keep those request-local so the cached resolution result remains unchanged.
+    grouped_refs = [
+        (feature_view, list(requested_features))
+        for feature_view, requested_features in grouped_refs
+    ]
+
     # Mutable copy — downstream code adds join keys to this set.
     requested_result_row_names = set(requested_result_row_names_frozen)
 
