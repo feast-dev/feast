@@ -613,19 +613,22 @@ class SparkTransformationNode(DAGNode):
         super().__init__(name, inputs)
         self.udf = udf
         self.udf_string = udf_string or ""
+        self._resolved_udf: Optional[Callable] = None
 
     def _resolve_udf(self) -> Callable:
         """Prefer source reconstruction over dill callables.
 
         Dill-deserialized functions that call DataFrame.withColumn / __getitem__
         can segfault (exit 139) on Spark 4.0.1. Re-executing ``udf_string``
-        yields a healthy callable.
+        yields a healthy callable. Result is cached for the lifetime of the node.
         """
-        return resolve_udf(
-            udf_string=self.udf_string,
-            fallback_udf=self.udf,
-            preferred_name=self.name,
-        )
+        if self._resolved_udf is None:
+            self._resolved_udf = resolve_udf(
+                udf_string=self.udf_string,
+                fallback_udf=self.udf,
+                preferred_name=self.name,
+            )
+        return self._resolved_udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         input_values = self.get_input_values(context)

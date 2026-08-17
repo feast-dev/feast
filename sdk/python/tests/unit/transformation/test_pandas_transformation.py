@@ -47,3 +47,13 @@ def test_python_transformation_eq_uses_udf_string_not_bytecode():
     right = PythonTransformation(udf=rehydrated, udf_string=_UDF_SOURCE)
     assert left == right
     assert left != PythonTransformation(udf=rehydrated, udf_string="other")
+
+
+def test_ray_transformation_eq_uses_udf_string_not_bytecode():
+    from feast.transformation.ray_transformation import RayTransformation
+
+    rehydrated = resolve_udf(udf_string=_UDF_SOURCE, preferred_name="pandas_udf")
+    left = RayTransformation(udf=pandas_udf, udf_string=_UDF_SOURCE)
+    right = RayTransformation(udf=rehydrated, udf_string=_UDF_SOURCE)
+    assert left == right
+    assert left != RayTransformation(udf=rehydrated, udf_string="other")
