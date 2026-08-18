@@ -8,6 +8,7 @@ import (
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -16,6 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+func isRetriableClusterResourceError(err error) bool {
+	return apierrors.IsConflict(err) || apierrors.IsAlreadyExists(err)
+}
 
 const (
 	authenticationAPIGroup = "authentication.k8s.io"
@@ -146,7 +151,7 @@ func (authz *FeastAuthorization) createFeastRole() error {
 
 func (authz *FeastAuthorization) createFeastClusterRole() error {
 	logger := log.FromContext(authz.Handler.Context)
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.OnError(retry.DefaultRetry, isRetriableClusterResourceError, func() error {
 		clusterRole := authz.initFeastClusterRole()
 		if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, clusterRole, controllerutil.MutateFn(func() error {
 			return authz.setFeastClusterRole(clusterRole)
@@ -228,7 +233,7 @@ func (authz *FeastAuthorization) setFeastClusterRoleBinding(clusterRoleBinding *
 // Create ClusterRoleBinding
 func (authz *FeastAuthorization) createFeastClusterRoleBinding() error {
 	logger := log.FromContext(authz.Handler.Context)
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.OnError(retry.DefaultRetry, isRetriableClusterResourceError, func() error {
 		clusterRoleBinding := authz.initFeastClusterRoleBinding()
 		if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, clusterRoleBinding, controllerutil.MutateFn(func() error {
 			return authz.setFeastClusterRoleBinding(clusterRoleBinding)
