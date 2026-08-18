@@ -27,6 +27,7 @@ Commands:
   init                     Create a new Feast repository
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
+  mlflow                   MLflow integration (trace export, assessment sync)
   permissions              Access permissions
   registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
@@ -483,6 +484,18 @@ reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ...
 ```
 
+
+## MLflow
+
+MLflow integration utilities for trace assessment sync and trace export. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+
+```bash
+# Sync trace assessments into a FeatureView/LabelView
+feast mlflow sync-assessments --experiment my_agent --feature-view agent_feedback --pivot
+
+# Export traces to fine-tuning JSONL
+feast mlflow export-traces --experiment my_agent -o training.jsonl --labeled-only
+```
 
 ## Registry
 
