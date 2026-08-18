@@ -176,6 +176,27 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	return nil
 }
 
+// validates if a CronJob exists using the kubectl CLI.
+func checkIfCronJobExists(namespace, cronJobName string) error {
+	cmd := exec.Command("kubectl", "get", "cronjob", cronJobName, "-n", namespace)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to find CronJob %s in namespace %s. Error: %v. Stderr: %s",
+			cronJobName, namespace, err, stderr.String())
+	}
+
+	if !strings.Contains(out.String(), cronJobName) {
+		return fmt.Errorf("CronJob %s not found in namespace %s", cronJobName, namespace)
+	}
+
+	return nil
+}
+
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
 	timeout := 5 * time.Minute
 	interval := time.Second * 2 // Poll every 2 seconds
@@ -287,6 +308,14 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		))
 		fmt.Printf("kubernetes service %s is available\n", serviceName)
 	}
+
+	By(fmt.Sprintf("validate the feast CronJob: %s exists.", feastResourceName))
+	err = checkIfCronJobExists(namespace, feastResourceName)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
+		"CronJob %s does not exist in namespace %s. Error: %v",
+		feastResourceName, namespace, err,
+	))
+	fmt.Printf("CronJob %s exists in namespace %s\n", feastResourceName, namespace)
 
 	By(fmt.Sprintf("Checking FeatureStore customer resource: %s is in Ready Status.", featureStoreName))
 	err = checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namespace)

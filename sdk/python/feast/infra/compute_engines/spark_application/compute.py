@@ -223,7 +223,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
         )
         try:
             self._wait_for_completion(job)
-            return self._build_per_fv_jobs(registry, tasks, job_id, job)
+            return self._build_per_fv_jobs(registry, tasks, job_id)
         finally:
             self._cleanup(job_id)
 
@@ -252,7 +252,6 @@ class SparkApplicationComputeEngine(ComputeEngine):
         registry: BaseRegistry,
         tasks: List[MaterializationTask],
         job_id: str,
-        job: SparkApplicationMaterializationJob,
     ) -> List[MaterializationJob]:
         """Build one independent job object per FV from registry state.
 
@@ -262,10 +261,15 @@ class SparkApplicationComputeEngine(ComputeEngine):
 
         Each returned job is an independent object so that a failed
         SparkApplication does not pollute the status of succeeded FVs.
-        """
-        if len(tasks) <= 1:
-            return [job for _ in tasks]
 
+        The per-FV outcome is resolved from registry state — never from the live
+        polling job — for every task count. ``materialize()`` deletes the
+        SparkApplication CR in its ``finally`` immediately after this returns, and
+        ``FeatureStore`` then re-checks ``status()``; a job that re-queried the
+        now-deleted CR would 404 and report a false failure for a materialization
+        that actually succeeded (#6673). ``CompletedMaterializationJob`` reports
+        SUCCEEDED without any Kubernetes call, so it is safe after cleanup.
+        """
         jobs: List[MaterializationJob] = []
         for task in tasks:
             fv = registry.get_feature_view(task.feature_view.name, task.project)

@@ -188,6 +188,7 @@
   * [Snowflake](reference/compute-engine/snowflake.md)
   * [AWS Lambda (alpha)](reference/compute-engine/lambda.md)
   * [Spark (contrib)](reference/compute-engine/spark.md)
+  * [SparkApplication](reference/compute-engine/spark_application.md)
   * [Apache Flink](reference/compute-engine/flink.md)
   * [Ray (contrib)](reference/compute-engine/ray.md)
 * [Feature repository](reference/feature-repository/README.md)

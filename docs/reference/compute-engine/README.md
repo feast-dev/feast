@@ -57,6 +57,14 @@ An example of built output from FeatureBuilder:
 - Supports point-in-time joins and large-scale materialization
 - Integrates with `SparkOfflineStore` and `SparkMaterializationJob`
 
+### ☸️ SparkApplicationComputeEngine
+
+{% page-ref page="spark_application.md" %}
+
+- Batch materialization via Kubeflow Spark Operator `SparkApplication` CRs
+- One SparkApplication per materialize call (multi–feature-view batching)
+- Requires network-accessible online/offline/registry stores (no file-based backends)
+
 ### 🌊 FlinkComputeEngine
 
 {% page-ref page="flink.md" %}

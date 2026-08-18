@@ -642,6 +642,11 @@ _Appears in:_
 | `tokenEnvVar` _string_ | Env var name for client pods to read an OIDC token from. Sets token_env_var in client config. |
 | `verifySSL` _boolean_ | Verify SSL certificates for the OIDC provider. Defaults to true. |
 | `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH. |
+| `jwksCacheLifespanSeconds` _integer_ | Seconds the servers reuse the provider's fetched JWK set before refetching. Defaults to 300.
+Also bounds how long a key the provider revoked keeps validating tokens, so lower it if the
+provider rotates or revokes aggressively, at the cost of more JWKS fetches. |
+| `jwksRequestTimeoutSeconds` _integer_ | Seconds before a JWKS fetch times out. Defaults to 10. The fetch happens inline on the request
+path, so an unresponsive provider blocks serving for at most this long. |
 
 
 #### OidcCACertConfigMap
