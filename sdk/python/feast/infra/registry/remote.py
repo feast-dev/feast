@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Union
 import grpc
 from google.protobuf.empty_pb2 import Empty
 from google.protobuf.timestamp_pb2 import Timestamp
-from pydantic import StrictStr
+from pydantic import StrictStr, field_validator
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -93,6 +93,22 @@ class RemoteRegistryConfig(RegistryConfig):
     Required when the connection address differs from the service hostname,
     e.g. when connecting through a tunnel or proxy for local development. """
 
+    timeout: Optional[int] = None
+    """ int: Timeout in seconds for registry gRPC calls. Must be strictly positive. """
+
+    keepalive_time_ms: Optional[int] = None
+    """ int: Period in milliseconds after which a keepalive ping is sent on the transport. Must be strictly positive. """
+
+    keepalive_timeout_ms: Optional[int] = None
+    """ int: Timeout in milliseconds for keepalive ping acknowledgement. Must be strictly positive. """
+
+    @field_validator("timeout", "keepalive_time_ms", "keepalive_timeout_ms")
+    @classmethod
+    def validate_positive_values(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v <= 0:
+            raise ValueError("value must be strictly positive (> 0)")
+        return v
+
 
 class RemoteRegistry(BaseRegistry):
     def __init__(
@@ -107,12 +123,27 @@ class RemoteRegistry(BaseRegistry):
         self.channel = self._create_grpc_channel(registry_config)
         weakref.finalize(self, self.channel.close)
 
-        auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
+        auth_header_interceptor = GrpcClientAuthHeaderInterceptor(
+            auth_config, timeout=registry_config.timeout
+        )
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
 
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
+
+        options = []
+        if registry_config.authority:
+            options.append(("grpc.default_authority", registry_config.authority))
+        if registry_config.keepalive_time_ms is not None:
+            options.append(
+                ("grpc.keepalive_time_ms", registry_config.keepalive_time_ms)
+            )
+        if registry_config.keepalive_timeout_ms is not None:
+            options.append(
+                ("grpc.keepalive_timeout_ms", registry_config.keepalive_timeout_ms)
+            )
+
         if registry_config.cert or registry_config.is_tls:
             cafile = (
                 registry_config.cert
@@ -146,16 +177,12 @@ class RemoteRegistry(BaseRegistry):
                 certificate_chain=certificate_chain,
             )
 
-            options = []
-            if registry_config.authority:
-                options.append(("grpc.default_authority", registry_config.authority))
-
             return grpc.secure_channel(
                 registry_config.path, tls_credentials, options=options
             )
         else:
             # Create an insecure gRPC channel
-            return grpc.insecure_channel(registry_config.path)
+            return grpc.insecure_channel(registry_config.path, options=options)
 
     def close(self):
         if self.channel:

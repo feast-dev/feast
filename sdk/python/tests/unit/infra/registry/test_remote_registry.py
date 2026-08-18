@@ -83,3 +83,89 @@ def test_updated_since_none(remote_registry):
         remote_registry.stub.ListAllFeatureViews.call_args[0][0]
     )
     assert not request.HasField("updated_since")
+
+
+@patch("feast.infra.registry.remote.grpc.insecure_channel")
+def test_remote_registry_channel_options(mock_insecure_channel):
+    from feast.infra.registry.remote import RemoteRegistryConfig
+
+    config = RemoteRegistryConfig(
+        path="localhost:50051",
+        keepalive_time_ms=10000,
+        keepalive_timeout_ms=5000,
+    )
+    # We patch grpc.intercept_channel to avoid auth interceptor type checks during test
+    with patch("feast.infra.registry.remote.grpc.intercept_channel"):
+        RemoteRegistry(config, project="test", repo_path=None)
+
+    mock_insecure_channel.assert_called_once()
+    args, kwargs = mock_insecure_channel.call_args
+    assert args[0] == "localhost:50051"
+    options = kwargs.get("options", [])
+    assert ("grpc.keepalive_time_ms", 10000) in options
+    assert ("grpc.keepalive_timeout_ms", 5000) in options
+
+
+def test_remote_registry_client_timeout_interceptor():
+    from feast.permissions.auth_model import AuthConfig
+    from feast.permissions.client.grpc_client_auth_interceptor import (
+        GrpcClientAuthHeaderInterceptor,
+    )
+
+    # Setup interceptor with a default timeout of 10 seconds
+    interceptor = GrpcClientAuthHeaderInterceptor(
+        AuthConfig(type="no_auth"), timeout=10
+    )
+
+    # Mock continuation function
+    mock_continuation = MagicMock()
+
+    # Mock ClientCallDetails
+    class MockClientCallDetails:
+        def __init__(self, timeout=None):
+            self.timeout = timeout
+
+        def _replace(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            return self
+
+    call_details = MockClientCallDetails(timeout=None)
+
+    # Call handle_call
+    interceptor._handle_call(mock_continuation, call_details, None)
+
+    # Verify continuation was called with modified call_details carrying the default float timeout
+    mock_continuation.assert_called_once()
+    passed_details = mock_continuation.call_args[0][0]
+    assert passed_details.timeout == 10.0
+
+    # If call details already had a timeout, it should NOT be overridden
+    mock_continuation.reset_mock()
+    call_details_with_timeout = MockClientCallDetails(timeout=5.0)
+    interceptor._handle_call(mock_continuation, call_details_with_timeout, None)
+    passed_details_with_timeout = mock_continuation.call_args[0][0]
+    assert passed_details_with_timeout.timeout == 5.0
+
+
+def test_remote_registry_validation_positive_values():
+    from pydantic import ValidationError
+
+    from feast.infra.registry.remote import RemoteRegistryConfig
+
+    # Valid configurations should work
+    config = RemoteRegistryConfig(
+        path="localhost:50051",
+        timeout=5,
+        keepalive_time_ms=1000,
+        keepalive_timeout_ms=500,
+    )
+    assert config.timeout == 5
+    assert config.keepalive_time_ms == 1000
+    assert config.keepalive_timeout_ms == 500
+
+    # Invalid values should throw ValidationError
+    for field in ["timeout", "keepalive_time_ms", "keepalive_timeout_ms"]:
+        for bad_val in [0, -1]:
+            with pytest.raises(ValidationError):
+                RemoteRegistryConfig(path="localhost:50051", **{field: bad_val})
