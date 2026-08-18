@@ -41,9 +41,16 @@ from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
+from feast.infra.offline_stores.contrib.spark_offline_store.iceberg_source import (
+    IcebergRestCatalogSource,
+    UnityCatalogSource,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
     SparkSource,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.utils import (
+    get_databricks_connect_session,
 )
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
@@ -106,11 +113,10 @@ class SparkOfflineStore(OfflineStore):
         start_date: datetime,
         end_date: datetime,
     ) -> RetrievalJob:
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            config.offline_store
+        assert isinstance(data_source, (SparkSource, IcebergRestCatalogSource)), (
+            f"SparkOfflineStore requires SparkSource or IcebergRestCatalogSource, got {type(data_source)}"
         )
-        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(data_source, SparkSource)
+        spark_session = _resolve_spark_session_for_source(data_source, config)
 
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -177,10 +183,9 @@ class SparkOfflineStore(OfflineStore):
         filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
-        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         date_partition_column_formats = []
         for fv in feature_views:
-            if isinstance(fv.batch_source, SparkSource):
+            if isinstance(fv.batch_source, (SparkSource, IcebergRestCatalogSource)):
                 date_partition_column_formats.append(
                     fv.batch_source.date_partition_column_format
                 )
@@ -193,7 +198,7 @@ class SparkOfflineStore(OfflineStore):
                     date_partition_column_formats.append(None)
                 else:
                     raise ValueError(
-                        f"SparkOfflineStore requires SparkSource or IcebergSource, "
+                        f"SparkOfflineStore requires SparkSource, IcebergRestCatalogSource or IcebergSource, "
                         f"got {type(fv.batch_source)}"
                     )
 
@@ -203,9 +208,10 @@ class SparkOfflineStore(OfflineStore):
             RuntimeWarning,
         )
 
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
-        )
+        batch_source = feature_views[0].batch_source
+        if batch_source is None:
+            raise ValueError("batch_source is required for the Spark offline store")
+        spark_session = _resolve_spark_session_for_source(batch_source, config)
 
         # Pre-register IcebergSource feature views as temp views
         from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
@@ -361,8 +367,11 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
-        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(feature_view.batch_source, SparkSource)
+        assert isinstance(
+            feature_view.batch_source, (SparkSource, IcebergRestCatalogSource)
+        ), (
+            f"SparkOfflineStore requires SparkSource or IcebergRestCatalogSource batch sources, got {type(feature_view.batch_source)}"
+        )
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source
@@ -373,8 +382,8 @@ class SparkOfflineStore(OfflineStore):
                 f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
             )
 
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
+        spark_session = _resolve_spark_session_for_source(
+            feature_view.batch_source, config
         )
 
         if feature_view.batch_source.path:
@@ -429,9 +438,7 @@ class SparkOfflineStore(OfflineStore):
             RuntimeWarning,
         )
 
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
-        )
+        spark_session = _resolve_spark_session_for_source(data_source, config)
 
         from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
             IcebergSource,
@@ -450,7 +457,7 @@ class SparkOfflineStore(OfflineStore):
                 config=config,
             )
 
-        assert isinstance(data_source, SparkSource)
+        assert isinstance(data_source, (SparkSource, IcebergRestCatalogSource))
 
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
@@ -497,12 +504,11 @@ class SparkOfflineStore(OfflineStore):
         histogram_bins: int = 20,
         top_n: int = 10,
     ) -> List[Dict[str, Any]]:
-        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(data_source, SparkSource)
-
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
+        assert isinstance(data_source, (SparkSource, IcebergRestCatalogSource)), (
+            f"SparkOfflineStore requires SparkSource or IcebergRestCatalogSource, got {type(data_source)}"
         )
+
+        spark_session = _resolve_spark_session_for_source(data_source, config)
         from_expression = data_source.get_table_query_string()
         ts_filter = get_timestamp_filter_sql(
             start_date,
@@ -547,12 +553,11 @@ class SparkOfflineStore(OfflineStore):
         data_source: DataSource,
         timestamp_field: str,
     ) -> Optional[datetime]:
-        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(data_source, SparkSource)
-
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
+        assert isinstance(data_source, (SparkSource, IcebergRestCatalogSource)), (
+            f"SparkOfflineStore requires SparkSource or IcebergRestCatalogSource, got {type(data_source)}"
         )
+
+        spark_session = _resolve_spark_session_for_source(data_source, config)
         from_expression = data_source.get_table_query_string()
         q_ts = f"`{timestamp_field}`"
         sql = f"SELECT MAX({q_ts}) AS max_ts FROM {from_expression} AS _src"
@@ -1319,6 +1324,30 @@ def get_spark_session_or_start_new_with_repoconfig(
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
     return spark_session
+
+
+def _resolve_spark_session_for_source(
+    data_source: DataSource,
+    config: RepoConfig,
+) -> SparkSession:
+    if isinstance(data_source, UnityCatalogSource):
+        import os
+
+        token = os.environ.get(data_source.token_env_var, "")
+        spark_conf = (
+            config.offline_store.spark_conf
+            if hasattr(config.offline_store, "spark_conf")
+            else None
+        )
+        return get_databricks_connect_session(
+            host=data_source.endpoint,
+            token=token,
+            cluster_id=data_source.cluster_id,
+            catalog=data_source.warehouse,
+            schema=data_source.namespace,
+            spark_conf=spark_conf,
+        )
+    return get_spark_session_or_start_new_with_repoconfig(config.offline_store)
 
 
 def _gather_all_entities(
