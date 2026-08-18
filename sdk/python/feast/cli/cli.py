@@ -52,7 +52,7 @@ from feast.cli.stream_feature_views import stream_feature_views_cmd
 from feast.cli.ui import ui
 from feast.cli.validation_references import validation_references_cmd
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
-from feast.errors import FeastProviderLoginError
+from feast.errors import FeastError, FeastProviderLoginError
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -261,6 +261,8 @@ def plan_command(
         plan(repo_config, repo, skip_source_validation, skip_feature_view_validation)
     except FeastProviderLoginError as e:
         print(str(e))
+    except FeastError as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)
@@ -319,6 +321,8 @@ def apply_total_command(
         )
     except FeastProviderLoginError as e:
         print(str(e))
+    except FeastError as e:
+        raise click.ClickException(str(e))
 
 
 @cli.command("teardown", cls=NoOptionDefaultFormat)

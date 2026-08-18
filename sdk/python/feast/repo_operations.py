@@ -22,7 +22,11 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_store import FeatureStore
+from feast.feature_store import (
+    FeatureStore,
+    _validate_data_sources,
+    _validate_feature_views,
+)
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
@@ -238,6 +242,20 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 res.projects.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
+
+    # Fail fast on duplicate feature view / data source names, before any
+    # heavy dependencies (FeatureStore, Dask, PySpark) are initialized. See
+    # https://github.com/feast-dev/feast/issues/6417 - detecting this later,
+    # inside store.plan()/store.apply(), risks the error being masked by a
+    # slow subprocess/atexit shutdown timing out before it can be reported.
+    _validate_feature_views(
+        res.feature_views
+        + res.on_demand_feature_views
+        + res.stream_feature_views
+        + res.label_views
+    )
+    _validate_data_sources(res.data_sources)
+
     return res
 
 
