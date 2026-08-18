@@ -17,6 +17,7 @@ from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -105,8 +106,7 @@ class CouchbaseOnlineStore(OnlineStore):
             RuntimeWarning,
         )
         project = config.project
-        scope_name = f"{project}_{table.name}_scope"
-        collection_name = f"{project}_{table.name}_collection"
+        scope_name, collection_name = _scope_and_collection(config, table)
         collection = self._get_conn(config, scope_name, collection_name)
 
         for entity_key, values, timestamp, created_ts in data:
@@ -171,9 +171,7 @@ class CouchbaseOnlineStore(OnlineStore):
             RuntimeWarning,
         )
         project = config.project
-
-        scope_name = f"{project}_{table.name}_scope"
-        collection_name = f"{project}_{table.name}_collection"
+        scope_name, collection_name = _scope_and_collection(config, table)
 
         collection = self._get_conn(config, scope_name, collection_name)
 
@@ -239,11 +237,8 @@ class CouchbaseOnlineStore(OnlineStore):
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
-        project = config.project
-
         for table in tables_to_keep:
-            scope_name = f"{project}_{table.name}_scope"
-            collection_name = f"{project}_{table.name}_collection"
+            scope_name, collection_name = _scope_and_collection(config, table)
             self._get_conn(config, scope_name, collection_name)
             cm = self.bucket.collections()
 
@@ -288,11 +283,8 @@ class CouchbaseOnlineStore(OnlineStore):
             "Some functionality may still be unstable so functionality can change in the future.",
             RuntimeWarning,
         )
-        project = config.project
-
         for table in tables:
-            scope_name = f"{project}_{table.name}_scope"
-            collection_name = f"{project}_{table.name}_collection"
+            scope_name, collection_name = _scope_and_collection(config, table)
             self._get_conn(config, scope_name, collection_name)
             cm = self.bucket.collections()
             try:
@@ -300,6 +292,21 @@ class CouchbaseOnlineStore(OnlineStore):
                 cm.drop_scope(scope_name)
             except Exception as e:
                 logger.error(f"Error removing collection or scope: {e}")
+
+
+def _scope_and_collection(config: RepoConfig, table: FeatureView) -> Tuple[str, str]:
+    """Couchbase scope and collection backing a feature view.
+
+    Built on ``compute_table_id``, so with
+    ``registry.enable_online_feature_view_versioning`` enabled each version gets its
+    own scope and collection (``{project}_{name}_v2_scope``). Document ids stay
+    unversioned: a collection is already a namespace, so partitioning at the
+    collection level is enough to keep versions from colliding.
+    """
+    base = compute_table_id(
+        config.project, table, config.registry.enable_online_feature_view_versioning
+    )
+    return f"{base}_scope", f"{base}_collection"
 
 
 def _document_id(

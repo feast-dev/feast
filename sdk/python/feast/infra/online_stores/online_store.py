@@ -315,6 +315,10 @@ class OnlineStore(ABC):
                 "feast.infra.online_stores.milvus_online_store.milvus",
                 "MilvusOnlineStore",
             ),
+            (
+                "feast.infra.online_stores.couchbase_online_store.couchbase",
+                "CouchbaseOnlineStore",
+            ),
         ):
             try:
                 import importlib
