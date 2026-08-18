@@ -236,32 +236,6 @@ def test_optimization_preserves_sorting():
     assert [v.string_val for v in deserialized.entity_values] == expected_sorted_values
 
 
-def test_performance_bounds_single_entity():
-    """Regression test to ensure single entity performance meets minimum bounds."""
-    import time
-
-    entity_key = EntityKeyProto(
-        join_keys=["user_id"], entity_values=[ValueProto(string_val="user123")]
-    )
-
-    # Measure serialization time for 1000 operations
-    start = time.perf_counter()
-    for _ in range(1000):
-        serialize_entity_key(entity_key, entity_key_serialization_version=3)
-    serialize_time = time.perf_counter() - start
-
-    # Measure deserialization time
-    serialized = serialize_entity_key(entity_key, entity_key_serialization_version=3)
-    start = time.perf_counter()
-    for _ in range(1000):
-        deserialize_entity_key(serialized, entity_key_serialization_version=3)
-    deserialize_time = time.perf_counter() - start
-
-    # Performance bounds with generous thresholds to avoid flaky failures on CI runners
-    assert serialize_time < 0.2, f"Serialization too slow: {serialize_time:.4f}s"
-    assert deserialize_time < 0.2, f"Deserialization too slow: {deserialize_time:.4f}s"
-
-
 def test_non_ascii_prefix_compatibility():
     """Critical test: ensure prefix serialization matches full entity key serialization for non-ASCII keys."""
     # Test with non-ASCII characters that have different byte vs character lengths

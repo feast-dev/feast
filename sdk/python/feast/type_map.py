@@ -2291,10 +2291,14 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
         "int16": "smallint",
         "int32": "int",
         "int64": "bigint",
-        "uint8": "tinyint",
-        "uint16": "tinyint",
-        "uint32": "tinyint",
-        "uint64": "tinyint",
+        # Athena integer types are signed, so unsigned Arrow types must be
+        # widened to the next-larger signed type to avoid overflow in the
+        # generated DDL (e.g. uint32 exceeds signed int's max). This mirrors
+        # the widening already done in arrow_to_pg_type for Postgres.
+        "uint8": "smallint",
+        "uint16": "int",
+        "uint32": "bigint",
+        "uint64": "bigint",
         "float": "float",
         "double": "double",
         "binary": "binary",

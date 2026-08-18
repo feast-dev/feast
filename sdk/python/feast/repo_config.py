@@ -108,6 +108,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
