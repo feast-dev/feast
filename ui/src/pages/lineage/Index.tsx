@@ -10,6 +10,7 @@ import {
   EuiFlexItem,
   EuiSelect,
   EuiFormRow,
+  EuiSwitch,
 } from "@elastic/eui";
 
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -127,84 +128,83 @@ const LineagePage = () => {
             {olConsumerAvailable ? (
               <>
                 <EuiFlexGroup
-                  alignItems="flexEnd"
+                  alignItems="center"
+                  justifyContent="spaceBetween"
                   gutterSize="l"
                   responsive={false}
                 >
                   <EuiFlexItem grow={false}>
-                    <EuiButtonGroup
-                      legend="Select lineage tab"
-                      options={tabButtons}
-                      idSelected={activeTab}
-                      onChange={(id) => setActiveTab(id as ActiveTab)}
-                      buttonSize="m"
-                      isFullWidth={false}
+                    {!effectiveRegistryOnly && (
+                      <EuiFlexGroup
+                        alignItems="center"
+                        gutterSize="l"
+                        responsive={false}
+                      >
+                        <EuiFlexItem grow={false}>
+                          <EuiButtonGroup
+                            legend="Select lineage tab"
+                            options={tabButtons}
+                            idSelected={activeTab}
+                            onChange={(id) => setActiveTab(id as ActiveTab)}
+                            buttonSize="m"
+                            isFullWidth={false}
+                          />
+                        </EuiFlexItem>
+                        {namespaces.length > 1 && (
+                          <EuiFlexItem grow={false} style={{ width: 240 }}>
+                            <EuiFormRow
+                              label="Namespace"
+                              display="columnCompressed"
+                            >
+                              <EuiSelect
+                                options={[
+                                  { value: "", text: "All namespaces" },
+                                  ...namespaces.map((ns) => ({
+                                    value: ns,
+                                    text: ns,
+                                  })),
+                                ]}
+                                value={selectedNamespace}
+                                onChange={(e) =>
+                                  setSelectedNamespace(e.target.value)
+                                }
+                                aria-label="Filter by namespace"
+                              />
+                            </EuiFormRow>
+                          </EuiFlexItem>
+                        )}
+                      </EuiFlexGroup>
+                    )}
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiSwitch
+                      label="Feast registry lineage"
+                      checked={effectiveRegistryOnly}
+                      onChange={(e) => setRegistryOnly(e.target.checked)}
+                      compressed
                     />
                   </EuiFlexItem>
-                  {namespaces.length > 1 && (
-                    <EuiFlexItem grow={false} style={{ width: 240 }}>
-                      <EuiFormRow label="Namespace">
-                        <EuiSelect
-                          options={[
-                            { value: "", text: "All namespaces" },
-                            ...namespaces.map((ns) => ({
-                              value: ns,
-                              text: ns,
-                            })),
-                          ]}
-                          value={selectedNamespace}
-                          onChange={(e) => setSelectedNamespace(e.target.value)}
-                          aria-label="Filter by namespace"
-                        />
-                      </EuiFormRow>
-                    </EuiFlexItem>
-                  )}
                 </EuiFlexGroup>
                 <EuiSpacer size="l" />
 
-                {activeTab === "lineage" && (
+                {effectiveRegistryOnly ? (
+                  <RegistryVisualizationTab />
+                ) : (
                   <>
-                    {effectiveRegistryOnly ? (
-                      <RegistryVisualizationTab
-                        feastOnlyCheckbox={
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={effectiveRegistryOnly}
-                              onChange={(e) =>
-                                setRegistryOnly(e.target.checked)
-                              }
-                            />
-                            {" Feast Only Lineage"}
-                          </label>
-                        }
-                      />
-                    ) : (
+                    {activeTab === "lineage" && (
                       <LineageGraph
                         viewMode="lineage"
                         olData={olGraphQuery.data}
                         olLoading={olGraphQuery.isLoading}
                         olError={olGraphQuery.isError}
-                        feastOnlyCheckbox={
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={effectiveRegistryOnly}
-                              onChange={(e) =>
-                                setRegistryOnly(e.target.checked)
-                              }
-                            />
-                            {" Feast Only Lineage"}
-                          </label>
-                        }
                       />
                     )}
+
+                    {activeTab === "jobs" && <LineageJobsList />}
+
+                    {activeTab === "events" && <LineageEventsList />}
                   </>
                 )}
-
-                {activeTab === "jobs" && <LineageJobsList />}
-
-                {activeTab === "events" && <LineageEventsList />}
               </>
             ) : (
               <RegistryVisualizationTab />

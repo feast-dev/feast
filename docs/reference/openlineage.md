@@ -1,6 +1,6 @@
 # OpenLineage Integration
 
-Feast provides **native integration** with [OpenLineage](https://openlineage.io/), enabling automatic data lineage tracking for ML feature engineering workflows. Feast can act as both a **producer** (emitting lineage events) and a **consumer** (receiving and displaying lineage from any OpenLineage-compatible system).
+Feast provides **native integration** with [OpenLineage](https://openlineage.io/), enabling automated data lineage tracking across ML feature engineering workflows. Feast supports both **producer** and **consumer** roles — emitting lineage events for its own operations and receiving lineage from any OpenLineage-compatible system for unified visualization.
 
 ## Quick Start
 
@@ -38,9 +38,10 @@ openlineage:
 ```bash
 feast apply        # emits lineage events automatically
 feast ui           # starts the UI with lineage visualization
+feast serve_lineage  # starts standalone lineage server (optional)
 ```
 
-Open http://localhost:8888 and navigate to the **Lineage** tab. You will see the full lineage graph — both the Feast registry view and the OpenLineage view.
+Open http://localhost:8888 and navigate to the **Lineage** tab to view the full lineage graph, including both the Feast registry view and the OpenLineage view.
 
 ## Overview
 
@@ -49,11 +50,11 @@ When enabled, the integration **automatically** emits OpenLineage events for:
 - **Registry changes** — events when feature views, on-demand feature views, feature services, entities, data sources, and saved datasets are applied
 - **Feature materialization** — START, COMPLETE, and FAIL events when features are materialized
 
-**No code changes required** — just enable OpenLineage in your `feature_store.yaml`.
+**No code changes required** — enable OpenLineage in your `feature_store.yaml` to begin tracking lineage automatically.
 
 ## Prerequisites
 
-- **SQL registry required for consumer**: The OpenLineage consumer stores lineage data in SQL tables. If you enable the consumer, your Feast registry must use `registry_type: sql` (SQLite, PostgreSQL, MySQL). File-based registries are not supported for the consumer. The producer works with any registry type.
+- **SQL registry required for consumer**: The OpenLineage consumer stores lineage data in SQL tables. Enabling the consumer requires the Feast registry to use `registry_type: sql` (SQLite, PostgreSQL, or MySQL). File-based registries are not supported for the consumer. The producer operates with any registry type.
 
 ## Producer Configuration
 
@@ -63,7 +64,7 @@ Add the `openlineage` section to your `feature_store.yaml`:
 openlineage:
   enabled: true
   transport_type: http
-  transport_url: http://localhost:5000
+  transport_url: http://localhost:6580
   transport_endpoint: api/v1/lineage
   namespace: my_project
   emit_on_apply: true
@@ -77,7 +78,7 @@ You can also configure via environment variables:
 ```bash
 export FEAST_OPENLINEAGE_ENABLED=true
 export FEAST_OPENLINEAGE_TRANSPORT_TYPE=http
-export FEAST_OPENLINEAGE_URL=http://localhost:5000
+export FEAST_OPENLINEAGE_URL=http://localhost:6580
 export FEAST_OPENLINEAGE_ENDPOINT=api/v1/lineage
 export FEAST_OPENLINEAGE_NAMESPACE=my_project
 ```
@@ -311,7 +312,7 @@ Captures feature retrieval metadata:
 openlineage:
   enabled: true
   transport_type: http
-  transport_url: http://marquez:5000
+  transport_url: http://feast-example-lineage:6580
   transport_endpoint: api/v1/lineage
   api_key: your-api-key
 ```
@@ -324,7 +325,7 @@ openlineage:
   transport_type: console
 ```
 
-Events are printed to stdout — useful for debugging.
+Events are printed to stdout. This transport is recommended for development and troubleshooting purposes.
 
 ### File Transport
 
@@ -376,7 +377,7 @@ Access the Marquez UI at http://localhost:3000.
 
 ## OpenLineage Consumer
 
-Feast can act as an **OpenLineage consumer**, receiving lineage events from any OpenLineage-compatible producer and displaying them in the Feast UI. This eliminates the need for a separate Marquez deployment.
+Feast can act as an **OpenLineage consumer**, receiving lineage events from any OpenLineage-compatible producer and displaying them in the Feast UI. This provides a unified lineage experience without requiring a separate metadata platform such as Marquez.
 
 ### Consumer Architecture
 
@@ -445,19 +446,20 @@ export FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING='{"spark://ml-team": "my_pro
 |--------|---------|-------------|
 | `consumer.enabled` | `false` | Enable the OpenLineage consumer |
 | `consumer.store_type` | `sql` | Storage backend type. Currently only `sql` is supported |
-| `consumer.connection_string` | — | Optional separate database connection string. If omitted, reuses the SQL registry database |
-| `consumer.api_key` | — | API key that producers must provide when sending events |
+| `consumer.connection_string` | — | Separate database connection string for lineage storage. If omitted, the SQL registry database is used |
+| `consumer.api_key` | — | API key required by producers when submitting events |
 | `consumer.namespace_mapping` | `{}` | Maps external OpenLineage namespaces to Feast project names for RBAC scoping (see [Namespace Mapping](#namespace-mapping)) |
-| `consumer.retention_days` | `30` | Number of days to retain events and runs. Set to `0` to disable pruning |
-| `consumer.retention_check_interval_hours` | `6` | How often the background pruning task runs (hours) |
+| `consumer.retention_days` | `30` | Number of days to retain events and runs. Set to `0` to disable automatic pruning |
+| `consumer.retention_check_interval_hours` | `6` | Interval (in hours) between background pruning cycles |
+| `consumer.standalone_server` | `false` | When `true`, the retention background task is delegated to the standalone lineage server. All consumer API endpoints remain available on both servers |
 
 ### Event Retention
 
-The consumer automatically prunes old events and runs to prevent unbounded storage growth. By default, data older than **30 days** is deleted every **6 hours**.
+The consumer includes an automatic retention policy that prunes expired events and runs to prevent unbounded storage growth. By default, data older than **30 days** is removed every **6 hours**.
 
-**What gets pruned:** Events (`openlineage_events`) and runs (`openlineage_runs`, `openlineage_run_io`).
+**Pruned data:** Events (`openlineage_events`) and runs (`openlineage_runs`, `openlineage_run_io`) exceeding the configured retention period.
 
-**What is preserved:** The current-state graph (jobs, datasets, edges, symlinks) is never pruned. These tables represent the latest lineage topology, not historical data.
+**Preserved data:** The current-state graph (jobs, datasets, edges, symlinks) is never pruned. These tables represent the latest lineage topology and are independent of historical event data.
 
 ```yaml
 openlineage:
@@ -467,7 +469,7 @@ openlineage:
     retention_check_interval_hours: 1   # Check every hour
 ```
 
-To disable automatic pruning entirely:
+To disable automatic pruning:
 
 ```yaml
 openlineage:
@@ -489,23 +491,23 @@ openlineage:
 
 ### Running the Server
 
-The `feast ui` command starts a single server that handles everything:
+The `feast ui` command starts a unified server that provides:
 
-- Serves the React UI with lineage visualization
-- Exposes the OpenLineage consumer endpoints (both ingestion and query)
-- Reads from the Feast registry
+- The Feast UI with integrated lineage visualization
+- OpenLineage consumer endpoints for both event ingestion and lineage queries
+- Access to the Feast registry
 
 ```bash
 feast ui --port 8888
 ```
 
-When both producer and consumer are enabled, Feast's own events (from `feast apply`, materialization) are **automatically ingested** into the local consumer store via an in-process wiring — no HTTP transport configuration is needed for self-reporting.
+When both producer and consumer are enabled, Feast events generated by `feast apply` and materialization operations are **automatically ingested** into the local consumer store through an internal event pipeline. No additional HTTP transport configuration is required for self-reporting.
 
 ```yaml
 # Minimal config for producer + consumer (self-contained)
 openlineage:
   enabled: true
-  transport_type: console   # still prints to stdout for debugging
+  transport_type: console   # optional: also prints events to stdout for verification
   namespace: my_project
   consumer:
     enabled: true
@@ -555,7 +557,7 @@ Both endpoints accept the `X-API-Key` header (or `Authorization: Bearer <key>`) 
 
 ### Configuring External Producers
 
-Configure any OpenLineage producer to send events to Feast. The ingestion endpoint is `POST /api/v1/lineage`.
+Any OpenLineage-compatible producer can be configured to send events to the Feast consumer. The standard ingestion endpoint is `POST /api/v1/lineage`.
 
 #### Airflow
 
@@ -587,7 +589,7 @@ OPENLINEAGE_API_KEY: "change-me"                                        # pragma
 
 #### Feast (Self-reporting)
 
-When both the OpenLineage producer and consumer are enabled in the same `feature_store.yaml`, Feast's own events (from `feast apply`, materialization) are automatically ingested into the local consumer store via an in-process wiring — no HTTP transport is needed.
+When both the OpenLineage producer and consumer are enabled in the same `feature_store.yaml`, Feast events generated by `feast apply` and materialization operations are automatically ingested into the local consumer store through an internal event pipeline. No additional HTTP transport configuration is required.
 
 ```yaml
 openlineage:
@@ -597,6 +599,151 @@ openlineage:
     enabled: true
     api_key: change-me                                                  # pragma: allowlist secret
 ```
+
+### Producer Discovery (Kubernetes)
+
+In a Kubernetes cluster with multiple OpenLineage producers (Spark, Airflow, dbt, and others),
+each producer requires the consumer endpoint URL. The Feast Operator automates this by
+creating a centralized **discovery ConfigMap** that producers can mount or reference.
+
+#### Automatic Discovery ConfigMap
+
+When a `FeatureStore` CR has an enabled OpenLineage consumer, the operator creates a
+ConfigMap named `feast-openlineage-config` in the **controller namespace**
+(e.g., `feast-operator-system` on plain Kubernetes, or the operator's namespace on
+OpenShift). This ConfigMap is readable by all authenticated users via a Role + RoleBinding.
+
+The ConfigMap contains three data keys:
+
+| Key               | Format | Description |
+|-------------------|--------|-------------|
+| `openlineage.yml` | YAML   | Ready-to-mount OpenLineage client config with transport URL and endpoint |
+| `url`             | String | Plain consumer base URL for simple env-var injection |
+| `endpoints`       | JSON   | Registry of all Feast instances with enabled consumers (for multi-consumer clusters) |
+
+**Example ConfigMap content:**
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-openlineage-config
+  namespace: feast-operator-system
+data:
+  openlineage.yml: |
+    transport:
+      type: http
+      url: http://feast-sample-lineage.feast-ns.svc.cluster.local:6580
+      endpoint: api/v1/lineage
+  url: http://feast-sample-lineage.feast-ns.svc.cluster.local:6580
+  endpoints: '{"consumers":{"feast-ns/feast-sample":{"url":"http://feast-sample-lineage.feast-ns.svc.cluster.local:6580","endpoint":"api/v1/lineage","tls":false}}}'
+```
+
+#### Method 1: Mount as `openlineage.yml` (Recommended)
+
+Mount the ConfigMap as a file and set the `OPENLINEAGE_CONFIG` environment variable.
+This works with all OpenLineage producers (Python, Java, Spark, Airflow, dbt):
+
+```yaml
+# In producer Pod spec
+spec:
+  containers:
+    - name: spark-driver
+      env:
+        - name: OPENLINEAGE_CONFIG
+          value: /etc/openlineage/openlineage.yml
+      volumeMounts:
+        - name: ol-config
+          mountPath: /etc/openlineage
+          readOnly: true
+  volumes:
+    - name: ol-config
+      configMap:
+        name: feast-openlineage-config
+        items:
+          - key: openlineage.yml
+            path: openlineage.yml
+```
+
+#### Method 2: Environment Variable Injection
+
+For simpler setups, inject the URL directly from the ConfigMap:
+
+```yaml
+# In producer Pod spec
+env:
+  - name: OPENLINEAGE_URL
+    valueFrom:
+      configMapKeyRef:
+        name: feast-openlineage-config
+        key: url
+        optional: true
+```
+
+If API key authentication is enabled, also inject:
+
+```yaml
+  - name: OPENLINEAGE_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: my-openlineage-api-key
+        key: api_key
+```
+
+#### Method 3: FeatureStore CR Status
+
+The lineage server hostname is exposed in the `FeatureStore` CR status:
+
+```bash
+kubectl get featurestore my-feast -o jsonpath='{.status.serviceHostnames.lineage}'
+# feast-my-feast-lineage.feast-ns.svc.cluster.local:80
+```
+
+This approach is suitable for scripts and automation workflows that interact with the Kubernetes API.
+
+#### Multi-Consumer Clusters
+
+When multiple Feast instances have OpenLineage consumers enabled, the `endpoints` key in the
+ConfigMap contains a registry of all available consumers. Producers can parse this JSON
+to select the appropriate consumer based on the Feast instance namespace or name:
+
+```json
+{
+  "consumers": {
+    "team-a/feast-a": {
+      "url": "http://feast-feast-a-lineage.team-a.svc.cluster.local:6580",
+      "endpoint": "api/v1/lineage",
+      "tls": false
+    },
+    "team-b/feast-b": {
+      "url": "https://feast-feast-b-lineage.team-b.svc.cluster.local:443",
+      "endpoint": "api/v1/lineage",
+      "tls": true
+    }
+  }
+}
+```
+
+The `openlineage.yml` and `url` keys default to the most recently registered consumer.
+In multi-consumer environments, producers should reference the `endpoints` key for explicit
+consumer targeting.
+
+#### Cross-Namespace Access
+
+The discovery ConfigMap is created in the controller namespace. Producers in other
+namespaces reference it by specifying the namespace:
+
+```yaml
+volumes:
+  - name: ol-config
+    configMap:
+      name: feast-openlineage-config
+      namespace: feast-operator-system  # controller namespace
+```
+
+> **Note:** Cross-namespace ConfigMap references in volume mounts require the Pod's
+> ServiceAccount to have `get` access to the ConfigMap. The operator creates a Role
+> and RoleBinding granting `system:authenticated` read access to the discovery ConfigMap.
 
 ### Feast UI Lineage Views
 
@@ -619,7 +766,7 @@ When the consumer is enabled, the lineage page in the Feast UI provides two view
 
 The consumer automatically links datasets across different producers when they refer to the same physical data:
 
-1. **Shared namespace + name** — if Airflow writes to `s3://bucket/path` and Spark reads from the same `s3://bucket/path`, the graph connects them
+1. **Shared namespace + name** — when Airflow writes to `s3://bucket/path` and Spark reads from the same `s3://bucket/path`, the consumer automatically links them in the graph
 2. **SymlinksDatasetFacet** — producers can declare aliases (e.g., Feast declaring its `driver_hourly_stats` is a symlink to `s3://bucket/features/driver_hourly_stats/`)
 3. **dataSource URI matching** — datasets with matching `dataSource.uri` facets are linked even if their namespace or name differ
 
@@ -705,8 +852,8 @@ export FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING='{"spark://ml-team": "ml_tea
                   filtered by RBAC)
 ```
 
-A user who can `DESCRIBE` the `ml_team` Feast project sees lineage from **all four
-producers** in a single unified graph.
+A user with `DESCRIBE` permission on the `ml_team` Feast project can view lineage
+from **all four producers** in a single unified graph.
 
 #### Namespace Resolution for Feast Object Mapping
 
@@ -770,9 +917,222 @@ When you run `feast teardown`, Feast automatically cleans up OpenLineage data fo
 feast teardown
 ```
 
+### Separate Lineage Server Deployment
+
+For production environments requiring independent scaling of the lineage subsystem,
+the OpenLineage consumer can be deployed as a **dedicated server**, separate from the
+Feast registry and UI services.
+
+#### When to Use Standalone vs Embedded
+
+| Consideration | Embedded (default) | Standalone (`lineageServer`) |
+|---------------|-------------------|------------------------------|
+| **Deployment simplicity** | Single process, no extra resources | Separate Deployment + Service |
+| **Lineage ingestion volume** | Low-to-moderate (< 100 events/min) | High-volume multi-producer environments |
+| **Resource isolation** | Shares CPU/memory with registry | Independent scaling and resource limits |
+| **Registry impact** | Heavy ingestion may affect registry latency | No impact on core Feast operations |
+| **Retention pruning** | Runs in registry process | Runs exclusively in standalone server |
+| **Recommended for** | Development, single-team setups | Production, multi-team or cross-platform lineage |
+
+**Performance note:** In embedded mode, the lineage consumer shares database connections
+and compute resources with the Feast registry. If multiple external producers (Spark,
+Airflow, dbt) submit high-volume lineage events concurrently, this may increase registry
+response times. For such environments, use the standalone deployment to isolate lineage
+processing from core Feast operations.
+
+#### Standalone CLI
+
+Run the lineage consumer as a standalone process:
+
+```bash
+feast serve_lineage --host 0.0.0.0 --port 6580
+```
+
+This starts a dedicated server with only the OpenLineage consumer endpoints, independent
+of the registry and UI services. It reads `feature_store.yaml` for the `openlineage.consumer`
+configuration and optionally connects to the registry for RBAC enforcement when authorization
+is configured.
+
+#### Operator CRD
+
+When deploying with the Feast Operator, add `lineageServer` to the consumer config
+to create a separate Kubernetes Deployment:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feast
+spec:
+  feastProject: my_project
+  services:
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: registry-db-secret
+  openlineage:
+    enabled: true
+    consumer:
+      enabled: true
+      storeType: sql
+      lineageServer:
+        replicas: 2
+        server:
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+```
+
+When `lineageServer` is configured:
+
+1. **Separate Deployment**: The operator creates a `feast-<name>-lineage` Deployment
+   running `feast serve_lineage`, with its own Service on port 6580.
+2. **Auto-transport**: The producer `transport_url` on the main Feast Deployment is
+   automatically configured to point to the lineage Service
+   (`http://feast-<name>-lineage.<namespace>.svc.cluster.local:6580`).
+3. **Full API on both**: Both the UI/registry server and the lineage server expose
+   the complete consumer API (read and write). They share the same SQL database,
+   so there is no conflict. The retention background task runs only on the
+   standalone lineage server.
+4. **Database**: The lineage server uses the consumer's `connectionStringSecretRef`
+   if provided, otherwise falls back to the SQL registry database.
+5. **RBAC**: When authz is configured in the CR, the lineage server connects to the
+   registry Service as a remote client for permission checks.
+
+#### Manual configuration
+
+For non-operator deployments, set `standalone_server: true` in the consumer configuration
+to delegate the retention background task to the standalone lineage server:
+
+```yaml
+# Main server feature_store.yaml
+openlineage:
+  enabled: true
+  transport_type: http
+  transport_url: http://lineage-server:6580
+  transport_endpoint: api/v1/lineage
+  consumer:
+    enabled: true
+    standalone_server: true  # delegates retention task to standalone server
+```
+
+```yaml
+# Lineage server feature_store.yaml
+project: my_project
+openlineage:
+  enabled: true
+  consumer:
+    enabled: true
+    connection_string: postgresql://host/lineage_db
+```
+
+### API Contract
+
+The Feast OpenLineage consumer exposes two categories of API endpoints:
+
+1. **OpenLineage-standard ingest endpoints** — compliant with the [OpenLineage HTTP API spec (v2.0.2)](https://openlineage.io/apidocs/openapi/)
+2. **Feast-specific query and admin endpoints** — for lineage visualization, retention management, and data administration
+
+#### OpenLineage-Standard Endpoints (Ingest)
+
+These endpoints are fully compatible with any OpenLineage producer (Spark, Airflow, dbt, Flink, etc.) using the standard HTTP transport.
+
+| Method | Path | Description | Spec Reference |
+|--------|------|-------------|----------------|
+| `POST` | `/api/v1/lineage` | Receive a single `RunEvent`, `DatasetEvent`, or `JobEvent` | [OpenLineage spec `POST /lineage`](https://openlineage.io/apidocs/openapi/) |
+| `POST` | `/api/v1/lineage/batch` | Receive an array of events in a single request | [OpenLineage spec `POST /lineage/batch`](https://openlineage.io/apidocs/openapi/) |
+
+**Authentication:** API key via `X-API-Key` header or `Authorization: Bearer <key>` header.
+- **Required** for: ingest endpoints (`POST /lineage`, `POST /lineage/batch`), admin endpoints (`POST .../retention/prune`, `DELETE .../reset`)
+- **Not required** for: read-only query endpoints (graph, catalog, events, runs)
+- When `consumer.api_key` is not configured, all endpoints are open.
+
+Matches the OpenLineage Python client's `api_key` auth type.
+
+**Request body:** `application/json` — accepts the standard OpenLineage event schema including all facets.
+
+**Response codes:**
+
+| Code | Meaning |
+|------|---------|
+| `201` | Single event accepted |
+| `200` | Batch processed with summary (`{status, summary: {received, successful, failed}}`) |
+| `204` | Batch processed silently (all events succeeded) |
+| `207` | Batch partially succeeded (summary includes failure count) |
+| `400` | Invalid JSON or unexpected body format |
+| `401` | API key required but missing or invalid |
+
+**Producer configuration example** (any OpenLineage producer):
+
+```yaml
+# OpenLineage Python client / Spark / Airflow config
+transport:
+  type: http
+  url: http://feast-server:8888
+  endpoint: api/v1/lineage
+  auth:
+    type: api_key
+    apiKey: your-consumer-api-key
+```
+
+#### Feast-Specific Endpoints (Query & Admin)
+
+These endpoints power the Feast lineage UI and are available for custom integrations.
+They are not part of the OpenLineage spec — every consumer (Marquez, DataHub, Atlan)
+defines its own query API.
+
+**Lineage Graph:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/lineage/openlineage/graph` | Full lineage graph (nodes + edges + symlinks), with optional `?namespace=` and `?limit=`/`?offset=` |
+| `GET` | `/api/v1/lineage/openlineage/graph/{node_type}/{namespace}/{name}` | Subgraph around a specific node, with `?depth=` and `?direction=` (upstream/downstream/both) |
+
+**Catalog:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/lineage/openlineage/namespaces` | List all known namespaces |
+| `GET` | `/api/v1/lineage/openlineage/jobs` | List all jobs across producers |
+| `GET` | `/api/v1/lineage/openlineage/datasets` | List all datasets across producers |
+
+**Events & Runs:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/lineage/openlineage/events` | List events with `?namespace=`, `?job_name=`, `?limit=`, `?offset=` |
+| `GET` | `/api/v1/lineage/openlineage/runs` | List runs with `?job_namespace=`, `?job_name=`, `?limit=`, `?offset=` |
+| `GET` | `/api/v1/lineage/openlineage/runs/{run_id}` | Single run detail with input/output datasets |
+
+**Retention & Admin:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/lineage/openlineage/retention` | Current retention config and storage stats |
+| `POST` | `/api/v1/lineage/openlineage/retention/prune` | Manually trigger retention pruning (requires API key) |
+| `DELETE` | `/api/v1/lineage/openlineage/reset` | Purge all or namespace-specific lineage data (requires API key) |
+
+**RBAC filtering:** All query endpoints automatically filter results by the calling user's
+permitted namespaces when Feast authz is configured. The `namespace_mapping` config maps
+external producer namespaces to Feast projects for access control.
+
+#### API Availability in Deployment Modes
+
+| Deployment Mode | Ingest Endpoints | Query Endpoints | Retention Task |
+|-----------------|-----------------|-----------------|----------------|
+| **Embedded** (consumer in UI/registry server) | Available | Available | Runs here |
+| **Standalone** (separate lineage server) | Available on both servers | Available on both servers | Runs on lineage server only |
+
+Both servers share the same SQL database, so all endpoints are fully functional on either server.
+The standalone lineage server exclusively owns the background retention pruning task to avoid duplicate work.
+
 ### Database Schema
 
-The consumer creates the following tables automatically on first startup:
+The consumer creates the following tables automatically during initial startup:
 
 | Table | Purpose |
 |-------|---------|

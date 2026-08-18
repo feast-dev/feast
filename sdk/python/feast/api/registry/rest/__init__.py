@@ -100,6 +100,8 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
         if consumer_config is None or not consumer_config.enabled:
             return
 
+        is_standalone = getattr(consumer_config, "standalone_server", False)
+
         from feast.openlineage.consumer import get_consumer_router
         from feast.openlineage.processor import OpenLineageProcessor
         from feast.openlineage.store import OpenLineageStore
@@ -138,20 +140,17 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
 
         # Wire the local processor into Feast's own OL emitter so Feast events
         # are also stored in the consumer DB automatically.
-        # The emitter is lazy-initialized, so it may be None at startup.
-        # Two-pronged approach:
-        #   1. If already initialized, wire now.
-        #   2. Store processor globally so _init_openlineage_emitter() can
-        #      pick it up when the emitter is lazily created later.
-        try:
-            emitter = getattr(feast_store, "_openlineage_emitter", None)
-            if emitter and hasattr(emitter, "_client") and emitter._client:
-                emitter._client.set_local_processor(processor)
-                logger.info(
-                    "Feast OL emitter wired to local consumer processor (eager)"
-                )
-        except Exception as wire_err:
-            logger.debug(f"Could not wire emitter to local processor: {wire_err}")
+        # Skip when standalone — events will be sent via HTTP transport instead.
+        if not is_standalone:
+            try:
+                emitter = getattr(feast_store, "_openlineage_emitter", None)
+                if emitter and hasattr(emitter, "_client") and emitter._client:
+                    emitter._client.set_local_processor(processor)
+                    logger.info(
+                        "Feast OL emitter wired to local consumer processor (eager)"
+                    )
+            except Exception as wire_err:
+                logger.debug(f"Could not wire emitter to local processor: {wire_err}")
 
         def _build_allowed_namespaces_fn(fs):
             """Build a callback that derives OL namespace access from Feast RBAC.
@@ -159,7 +158,6 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
             Uses ``permitted_resources`` with ``DESCRIBE`` on all known projects.
             The projects the current user may describe become the allowed OL
             namespaces (mapped through ``resolve_namespace``).
-
             External producer namespaces (e.g. ``spark://ml-team``,
             ``airflow://prod-cluster``) are included when
             ``consumer.namespace_mapping`` maps them to a Feast project the
@@ -221,12 +219,32 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
         )
 
         app.include_router(consumer_router)
-        logger.info("OpenLineage consumer endpoints registered")
 
-        # Start background retention pruning if configured
         retention_days = getattr(consumer_config, "retention_days", 30)
         check_hours = getattr(consumer_config, "retention_check_interval_hours", 6)
-        if retention_days > 0:
+
+        mode = "standalone" if is_standalone else "embedded"
+        logger.info("OpenLineage consumer endpoints registered (mode=%s)", mode)
+        if not is_standalone:
+            logger.info(
+                "OpenLineage consumer accepting events at POST <this-server>/api/v1/lineage"
+            )
+        if is_standalone:
+            logger.info(
+                "OpenLineage retention task deferred to standalone lineage server"
+            )
+        elif retention_days > 0:
+            logger.info(
+                "OpenLineage retention pruning enabled: %dd, check every %dh",
+                retention_days,
+                check_hours,
+            )
+        else:
+            logger.info("OpenLineage retention pruning disabled")
+
+        # Start background retention pruning only when NOT standalone
+        # (the standalone lineage server owns the retention task)
+        if retention_days > 0 and not is_standalone:
             import asyncio
 
             async def _retention_loop():
@@ -247,11 +265,6 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
             @app.on_event("startup")
             async def _start_retention_task():
                 asyncio.create_task(_retention_loop())
-
-            logger.info(
-                f"OL retention pruning enabled: {retention_days}d, "
-                f"check every {check_hours}h"
-            )
 
     except ImportError as e:
         logger.debug(f"OpenLineage consumer not available: {e}")

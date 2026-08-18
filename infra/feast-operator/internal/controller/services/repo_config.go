@@ -51,6 +51,66 @@ func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
 	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret, feast.extractConfigFromConfigMap, odhCaBundleExists)
 }
 
+func (feast *FeastServices) getLineageFeatureStoreYamlBase64() (string, error) {
+	repoConfig, err := feast.getLineageRepoConfig()
+	if err != nil {
+		return "", err
+	}
+	yamlBytes, err := yaml.Marshal(repoConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(yamlBytes), nil
+}
+
+func (feast *FeastServices) getLineageRepoConfig() (RepoConfig, error) {
+	cr := feast.Handler.FeatureStore
+	applied := cr.Status.Applied
+
+	repoConfig := RepoConfig{
+		Project:  applied.FeastProject,
+		Provider: LocalProviderType,
+	}
+
+	// Lineage server needs the OL consumer block
+	if applied.OpenLineage != nil {
+		if err := setRepoConfigOpenLineage(applied.OpenLineage, feast.extractConfigFromSecret, &repoConfig); err != nil {
+			return repoConfig, err
+		}
+		// Force standalone_server=true in the consumer config
+		if repoConfig.OpenLineage != nil && repoConfig.OpenLineage.Consumer != nil {
+			standalone := true
+			repoConfig.OpenLineage.Consumer.StandaloneServer = &standalone
+		}
+	}
+
+	// Set registry to remote so the lineage server can reach the registry
+	// for RBAC permission checks (authz) or general registry access.
+	if applied.Services != nil && applied.Services.Registry != nil {
+		if applied.Services.Registry.Remote != nil {
+			// Remote registry (hostname or feastRef): use the already-resolved hostname
+			registryHostname := cr.Status.ServiceHostnames.Registry
+			if len(registryHostname) > 0 {
+				repoConfig.Registry = RegistryConfig{
+					RegistryType: RegistryRemoteConfigType,
+					Path:         registryHostname,
+				}
+			}
+		} else if applied.AuthzConfig != nil && applied.Services.Registry.Local != nil {
+			// Local registry with authz: point to the local registry gRPC service
+			registrySvcName := GetFeastServiceName(cr, RegistryFeastType)
+			registryUrl := fmt.Sprintf("%s.%s.svc.cluster.local", registrySvcName, cr.Namespace)
+			grpcPort := FeastServiceConstants[RegistryFeastType].TargetHttpPort
+			repoConfig.Registry = RegistryConfig{
+				RegistryType: RegistryRemoteConfigType,
+				Path:         fmt.Sprintf("%s:%d", registryUrl, grpcPort),
+			}
+		}
+	}
+
+	return repoConfig, nil
+}
+
 func getServiceRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
@@ -104,6 +164,7 @@ func getServiceRepoConfig(
 		if err := setRepoConfigOpenLineage(appliedSpec.OpenLineage, secretExtractionFunc, &repoConfig); err != nil {
 			return repoConfig, err
 		}
+		setOpenLineageAutoTransport(featureStore, &repoConfig)
 	}
 
 	if appliedSpec.Mlflow != nil && appliedSpec.Mlflow.Enabled {
@@ -496,9 +557,11 @@ func setRepoConfigOpenLineage(
 
 	if ol.Consumer != nil {
 		consumerCfg := &OpenLineageConsumerYamlConfig{
-			Enabled:          ol.Consumer.Enabled,
-			StoreType:        ol.Consumer.StoreType,
-			NamespaceMapping: ol.Consumer.NamespaceMapping,
+			Enabled:                     ol.Consumer.Enabled,
+			StoreType:                   ol.Consumer.StoreType,
+			NamespaceMapping:            ol.Consumer.NamespaceMapping,
+			RetentionDays:               ol.Consumer.RetentionDays,
+			RetentionCheckIntervalHours: ol.Consumer.RetentionCheckIntervalHours,
 		}
 
 		if ol.Consumer.ConnectionStringSecretRef != nil {
@@ -539,11 +602,47 @@ func setRepoConfigOpenLineage(
 			consumerCfg.ApiKey = &apiKeyStr
 		}
 
+		// When lineage server is separate, mark embedded consumer as standalone
+		// so it skips mounting the consumer router in the main app.
+		if ol.Consumer.LineageServer != nil {
+			standalone := true
+			consumerCfg.StandaloneServer = &standalone
+		}
+
 		yamlCfg.Consumer = consumerCfg
 	}
 
 	repoConfig.OpenLineage = yamlCfg
 	return nil
+}
+
+// setOpenLineageAutoTransport auto-configures the producer transport_url
+// when a separate lineage server is enabled. Called after setRepoConfigOpenLineage
+// for the main deployment's YAML only.
+func setOpenLineageAutoTransport(
+	featureStore *feastdevv1.FeatureStore,
+	repoConfig *RepoConfig,
+) {
+	applied := featureStore.Status.Applied
+	if applied.OpenLineage == nil || applied.OpenLineage.Consumer == nil {
+		return
+	}
+	if applied.OpenLineage.Consumer.LineageServer == nil {
+		return
+	}
+	if repoConfig.OpenLineage == nil {
+		return
+	}
+
+	lineageSvcName := GetFeastServiceName(featureStore, LineageFeastType)
+	transportUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
+		lineageSvcName, featureStore.Namespace, HttpPort)
+	endpoint := "api/v1/lineage"
+	httpType := "http"
+
+	repoConfig.OpenLineage.TransportType = &httpType
+	repoConfig.OpenLineage.TransportUrl = &transportUrl
+	repoConfig.OpenLineage.TransportEndpoint = &endpoint
 }
 
 // coerceStringToYamlType converts "true"/"false" strings to native Go booleans
