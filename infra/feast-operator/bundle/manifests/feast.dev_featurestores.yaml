@@ -1964,6 +1964,7 @@ spec:
                                 - clickhouse
                                 - ray
                                 - oracle
+                                - hybrid
                                 type: string
                             required:
                             - secretRef
@@ -8377,6 +8378,7 @@ spec:
                                     - clickhouse
                                     - ray
                                     - oracle
+                                    - hybrid
                                     type: string
                                 required:
                                 - secretRef
@@ -13937,6 +13939,7 @@ spec:
                                 - couchbase.offline
                                 - clickhouse
                                 - ray
+                                - hybrid
                                 type: string
                             required:
                             - secretRef
@@ -18458,6 +18461,7 @@ spec:
                                     - couchbase.offline
                                     - clickhouse
                                     - ray
+                                    - hybrid
                                     type: string
                                 required:
                                 - secretRef

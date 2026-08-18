@@ -171,10 +171,35 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - clusterroles
+  verbs:
+  - create
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - feast-discover-namespaces
+  - feast-oidc-token-review
+  - feast-token-review-cluster-role
+  resources:
+  - clusterroles
+  verbs:
+  - delete
+  - get
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - rolebindings
   - roles
-  - subjectaccessreviews
   verbs:
   - create
   - delete
