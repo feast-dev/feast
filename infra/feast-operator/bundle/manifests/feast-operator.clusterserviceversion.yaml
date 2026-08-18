@@ -147,8 +147,8 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-07-20T13:27:58Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.41.0
+    createdAt: "2026-08-18T07:08:56Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.65.0
   namespace: placeholder
@@ -179,6 +179,28 @@ spec:
           - ""
           resources:
           - configmaps
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - persistentvolumeclaims
           - services
           verbs:
@@ -188,15 +210,6 @@ spec:
           - get
           - list
           - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          - secrets
-          verbs:
-          - get
-          - list
           - watch
         - apiGroups:
           - ""
@@ -224,6 +237,14 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - serviceaccounts
           verbs:
           - create
@@ -232,6 +253,13 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - apiextensions.k8s.io
+          resources:
+          - customresourcedefinitions
+          verbs:
+          - get
+          - list
         - apiGroups:
           - apps
           resources:
@@ -307,6 +335,14 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - kubeflow.org
+          resources:
+          - notebooks
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
