@@ -443,16 +443,30 @@ def test_apply_permissions(test_feature_store):
     test_feature_store.teardown()
 
 
-@pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
-)
-def test_apply_delete_feature_view(test_feature_store):
-    """Test that a feature view can be deleted using objects_to_delete with partial=False."""
-    assert isinstance(test_feature_store, FeatureStore)
+def _apply_feature_view_to_delete(test_feature_store, file_source):
+    """Register an entity and a feature view, and return the feature view."""
+    entity = Entity(
+        name="driver_entity", join_keys=["test_key"], value_type=ValueType.INT64
+    )
+    driver_fv = FeatureView(
+        name="driver_fv_to_delete",
+        entities=[entity],
+        schema=[Field(name="test_key", dtype=Int64)],
+        source=file_source,
+    )
+    test_feature_store.apply([entity, driver_fv])
 
+    fvs = test_feature_store.list_batch_feature_views()
+    assert len(fvs) == 1
+    assert fvs[0].name == driver_fv.name
+
+    return driver_fv
+
+
+def _deletion_source_dataframe():
+    """Build the small source frame both deletion tests register against."""
     now = pd.Timestamp.utcnow().round("ms")
-    dataframe_source = pd.DataFrame(
+    return pd.DataFrame(
         {
             "test_key": [1, 2, 1, 3, 3],
             "feature_value": [0.1, 0.2, 0.3, 4.0, 5.0],
@@ -466,24 +480,68 @@ def test_apply_delete_feature_view(test_feature_store):
         }
     )
 
-    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
-        entity = Entity(
-            name="driver_entity", join_keys=["test_key"], value_type=ValueType.INT64
-        )
-        driver_fv = FeatureView(
-            name="driver_fv_to_delete",
-            entities=[entity],
-            schema=[Field(name="test_key", dtype=Int64)],
-            source=file_source,
-        )
 
-        # Register entity and feature view
-        test_feature_store.apply([entity, driver_fv])
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_delete_feature_view(test_feature_store):
+    """Test the delete_feature_view lifecycle documented in registry.md.
 
-        # Verify feature view exists
-        fvs = test_feature_store.list_batch_feature_views()
-        assert len(fvs) == 1
-        assert fvs[0].name == driver_fv.name
+    Mirrors the end-to-end snippet in docs/getting-started/components/registry.md:
+    list the object, delete it by name, list again to confirm it is gone, and
+    check that fetching it afterwards raises FeatureViewNotFoundException.
+    """
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with prep_file_source(
+        df=_deletion_source_dataframe(), timestamp_field="ts_1"
+    ) as file_source:
+        driver_fv = _apply_feature_view_to_delete(test_feature_store, file_source)
+
+        # Delete the feature view by name
+        test_feature_store.delete_feature_view(driver_fv.name)
+
+        # Verify feature view is deleted
+        assert len(test_feature_store.list_batch_feature_views()) == 0
+
+        # Verify get_feature_view raises FeatureViewNotFoundException
+        with pytest.raises(FeatureViewNotFoundException):
+            test_feature_store.get_feature_view(driver_fv.name)
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_delete_feature_view_raises_when_missing(test_feature_store):
+    """Deleting a feature view that was never registered raises, as documented."""
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with pytest.raises(FeatureViewNotFoundException):
+        test_feature_store.delete_feature_view("feature_view_that_does_not_exist")
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_delete_feature_view(test_feature_store):
+    """Test that a feature view can be deleted using objects_to_delete with partial=False.
+
+    This is the `feast apply` path called out in the hint block in registry.md,
+    and is distinct from the delete_feature_view path covered above.
+    """
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with prep_file_source(
+        df=_deletion_source_dataframe(), timestamp_field="ts_1"
+    ) as file_source:
+        driver_fv = _apply_feature_view_to_delete(test_feature_store, file_source)
 
         # Delete the feature view using objects_to_delete
         test_feature_store.apply(
@@ -491,8 +549,7 @@ def test_apply_delete_feature_view(test_feature_store):
         )
 
         # Verify feature view is deleted
-        fvs = test_feature_store.list_batch_feature_views()
-        assert len(fvs) == 0
+        assert len(test_feature_store.list_batch_feature_views()) == 0
 
         # Verify get_feature_view raises FeatureViewNotFoundException
         with pytest.raises(FeatureViewNotFoundException):
