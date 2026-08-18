@@ -239,6 +239,9 @@ name = "Feast"
 [project.scripts]
 feast = "feast.cli.cli:cli"
 
+[project.entry-points."mlflow.request_header_provider"]
+unused = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
+
 [build-system]
 requires = [
   "pybindgen==0.22.0",
