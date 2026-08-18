@@ -11,6 +11,7 @@ import {
   Node,
   Edge,
   Controls,
+  ControlButton,
   Background,
   useNodesState,
   useEdgesState,
@@ -1032,6 +1033,23 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const edgesRef = useRef<Edge[]>([]);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!graphContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current.requestFullscreen();
+    }
+  }, []);
 
   const connectedIds = useMemo(() => {
     if (!hoveredNodeId) return null;
@@ -1240,7 +1258,14 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           <EuiLoadingSpinner size="xl" />
         </div>
       ) : (
-        <div style={{ height: 600, border: "1px solid #ddd" }}>
+        <div
+          ref={graphContainerRef}
+          style={{
+            height: isFullscreen ? "100vh" : 600,
+            border: "1px solid #ddd",
+            background: "#fff",
+          }}
+        >
           <ReactFlow
             nodes={styledNodes}
             edges={styledEdges}
@@ -1255,7 +1280,14 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             onNodeMouseLeave={onNodeMouseLeave}
           >
             <Background color="#f0f0f0" gap={16} />
-            <Controls />
+            <Controls>
+              <ControlButton
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? "⊡" : "⛶"}
+              </ControlButton>
+            </Controls>
             <Legend />
           </ReactFlow>
         </div>

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_lineage_router(grpc_handler) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(tags=["Lineage"])
 
     @router.get("/lineage/registry")
     def get_registry_lineage(

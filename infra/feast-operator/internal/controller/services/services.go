@@ -18,6 +18,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -135,6 +136,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.applyOrDeletePDB(); err != nil {
 		return err
 	}
+	if err := feast.reconcileLineageDeployment(); err != nil {
+		return err
+	}
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
@@ -145,6 +149,9 @@ func (feast *FeastServices) Deploy() error {
 		return err
 	}
 	if err := feast.deployNamespaceRegistry(); err != nil {
+		return err
+	}
+	if err := feast.deployOpenLineageDiscovery(); err != nil {
 		return err
 	}
 	if err := feast.deployCronJob(); err != nil {
@@ -213,6 +220,19 @@ func (feast *FeastServices) reconcileServices() error {
 			return err
 		}
 		if err := feast.removeRoute(UIFeastType); err != nil {
+			return err
+		}
+	}
+
+	if feast.isLineageServer() {
+		if err := feast.validateLineageServerConfig(); err != nil {
+			return feast.setFeastServiceCondition(err, LineageFeastType)
+		}
+		if err := feast.createService(LineageFeastType); err != nil {
+			return feast.setFeastServiceCondition(err, LineageFeastType)
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(LineageFeastType); err != nil {
 			return err
 		}
 	}
@@ -912,7 +932,11 @@ func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, is
 }
 
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
-	svc.Labels = feast.getFeastTypeLabels(feastType)
+	if feastType == LineageFeastType {
+		svc.Labels = feast.getLineageLabels()
+	} else {
+		svc.Labels = feast.getFeastTypeLabels(feastType)
+	}
 	if feast.isOpenShiftTls(feastType) {
 		if len(svc.Annotations) == 0 {
 			svc.Annotations = map[string]string{}
@@ -967,8 +991,12 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		targetPort = getTargetPort(feastType, tls)
 	}
 
+	svcSelector := feast.getSelectorLabels()
+	if feastType == LineageFeastType {
+		svcSelector = feast.getLineageLabels()
+	}
 	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getSelectorLabels(),
+		Selector: svcSelector,
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
@@ -1247,6 +1275,17 @@ func (feast *FeastServices) getFeastTypeLabels(feastType FeastServiceType) map[s
 	return labels
 }
 
+// getLineageLabels returns labels for the lineage deployment whose NameLabelKey
+// is set to "<cr-name>-lineage" so lineage pods do NOT match the main
+// deployment's immutable selector (which uses NameLabelKey = "<cr-name>").
+func (feast *FeastServices) getLineageLabels() map[string]string {
+	return map[string]string{
+		NameLabelKey:        feast.Handler.FeatureStore.Name + "-" + string(LineageFeastType),
+		ManagedByLabelKey:   ManagedByLabelValue,
+		ServiceTypeLabelKey: string(LineageFeastType),
+	}
+}
+
 // getSelectorLabels returns the minimal label set used for immutable selectors
 // (Deployment spec.selector, Service spec.selector, TopologySpreadConstraints, PodAffinity).
 // This must NOT change after initial resource creation.
@@ -1295,6 +1334,15 @@ func (feast *FeastServices) setServiceHostnames() error {
 		objMeta := feast.initFeastSvc(UIFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.UI = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.TLS)
+	}
+	if feast.isLineageServer() {
+		objMeta := feast.initFeastSvc(LineageFeastType)
+		var tls *feastdevv1.TlsConfigs
+		if svr := feast.Handler.FeatureStore.Status.Applied.OpenLineage.Consumer.LineageServer.Server; svr != nil {
+			tls = svr.TLS
+		}
+		feast.Handler.FeatureStore.Status.ServiceHostnames.Lineage = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(tls)
 	}
 	return nil
 }
@@ -1414,6 +1462,154 @@ func (feast *FeastServices) noLocalCoreServerConfigured() bool {
 func (feast *FeastServices) isUiServer() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.UI != nil
+}
+
+func (feast *FeastServices) validateLineageServerConfig() error {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	consumer := applied.OpenLineage.Consumer
+
+	hasConsumerDB := consumer.ConnectionStringSecretRef != nil //nolint:gosec // pragma: allowlist secret
+
+	hasRegistrySqlDB := false
+	if applied.Services != nil && applied.Services.Registry != nil &&
+		applied.Services.Registry.Local != nil &&
+		applied.Services.Registry.Local.Persistence != nil &&
+		applied.Services.Registry.Local.Persistence.DBPersistence != nil {
+		hasRegistrySqlDB = true
+	}
+
+	if !hasConsumerDB && !hasRegistrySqlDB {
+		return errors.New(
+			"lineageServer requires a SQL database. Either set " +
+				"consumer.connectionStringSecretRef or configure " +
+				"registry.local.persistence.store (SQL registry)")
+	}
+
+	if applied.AuthzConfig != nil {
+		hasLocalRegistry := applied.Services != nil && applied.Services.Registry != nil &&
+			applied.Services.Registry.Local != nil
+		hasRemoteRegistry := applied.Services != nil && applied.Services.Registry != nil &&
+			applied.Services.Registry.Remote != nil
+		if !hasLocalRegistry && !hasRemoteRegistry {
+			return errors.New(
+				"lineageServer with authz requires a registry (local or remote) " +
+					"so the lineage server can connect for RBAC checks")
+		}
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) isLineageServer() bool {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	ol := applied.OpenLineage
+	return ol != nil && ol.Consumer != nil && ol.Consumer.LineageServer != nil
+}
+
+func (feast *FeastServices) reconcileLineageDeployment() error {
+	logger := log.FromContext(feast.Handler.Context)
+	lineageDeploy := &appsv1.Deployment{
+		ObjectMeta: feast.GetObjectMetaType(LineageFeastType),
+	}
+	lineageDeploy.SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
+
+	if !feast.isLineageServer() {
+		if err := feast.Handler.DeleteOwnedFeastObj(lineageDeploy); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, lineageDeploy, controllerutil.MutateFn(func() error {
+		return feast.setLineageDeployment(lineageDeploy)
+	})); err != nil {
+		return feast.setFeastServiceCondition(err, LineageFeastType)
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "Deployment", lineageDeploy.Name, "operation", op)
+	}
+
+	return feast.setFeastServiceCondition(nil, LineageFeastType)
+}
+
+func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) error {
+	cr := feast.Handler.FeatureStore
+	lineageSvr := cr.Status.Applied.OpenLineage.Consumer.LineageServer
+
+	var replicas *int32
+	if lineageSvr.Replicas != nil {
+		replicas = lineageSvr.Replicas
+	} else {
+		one := int32(1)
+		replicas = &one
+	}
+
+	lineageLabels := feast.getLineageLabels()
+	deploy.Labels = lineageLabels
+	deploy.Spec = appsv1.DeploymentSpec{
+		Replicas: replicas,
+		Selector: metav1.SetAsLabelSelector(lineageLabels),
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: lineageLabels,
+			},
+		},
+	}
+
+	svcConsts := FeastServiceConstants[LineageFeastType]
+	port := svcConsts.TargetHttpPort
+
+	serverConfigs := lineageSvr.Server
+	var image string
+	if serverConfigs != nil && serverConfigs.Image != nil && len(*serverConfigs.Image) > 0 {
+		image = *serverConfigs.Image
+	} else {
+		image = getInitContainerImage(&cr.Status.Applied)
+	}
+
+	container := corev1.Container{
+		Name:    string(LineageFeastType),
+		Image:   image,
+		Command: append([]string{feastCommand}, svcConsts.Args...),
+		Args:    []string{"-p", fmt.Sprintf("%d", port)},
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          "http",
+				ContainerPort: port,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
+		ReadinessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt32(port),
+				},
+			},
+			InitialDelaySeconds: 10,
+			PeriodSeconds:       10,
+		},
+	}
+
+	if serverConfigs != nil {
+		if serverConfigs.Resources != nil {
+			container.Resources = *serverConfigs.Resources
+		}
+		if serverConfigs.Env != nil && len(*serverConfigs.Env) > 0 {
+			container.Env = append(container.Env, *serverConfigs.Env...)
+		}
+	}
+
+	fsYamlB64, err := feast.getLineageFeatureStoreYamlBase64()
+	if err != nil {
+		return err
+	}
+	container.Env = append(container.Env, corev1.EnvVar{
+		Name:  "FEATURE_STORE_YAML_BASE64",
+		Value: fsYamlB64,
+	})
+
+	deploy.Spec.Template.Spec.Containers = []corev1.Container{container}
+
+	return controllerutil.SetControllerReference(cr, deploy, feast.Handler.Scheme)
 }
 
 func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {

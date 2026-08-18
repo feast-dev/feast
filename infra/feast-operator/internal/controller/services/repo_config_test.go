@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
@@ -726,6 +727,228 @@ var _ = Describe("Repo Config", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("api_key"))
 			Expect(err.Error()).To(ContainSubstring(lineageSecretName))
+		})
+
+		It("should set consumer retention fields", func() {
+			featureStore := minimalFeatureStore()
+			retDays := int32(7)
+			retHours := int32(2)
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled:                     true,
+					RetentionDays:               &retDays,
+					RetentionCheckIntervalHours: &retHours,
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer.RetentionDays).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.Consumer.RetentionDays).To(Equal(int32(7)))
+			Expect(repoConfig.OpenLineage.Consumer.RetentionCheckIntervalHours).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.Consumer.RetentionCheckIntervalHours).To(Equal(int32(2)))
+		})
+
+		It("should omit retention fields when not set", func() {
+			featureStore := minimalFeatureStore()
+
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer.RetentionDays).To(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer.RetentionCheckIntervalHours).To(BeNil())
+		})
+
+		It("should set standalone_server and auto-transport when lineageServer is configured", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](2),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer.StandaloneServer).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.Consumer.StandaloneServer).To(BeTrue())
+
+			Expect(repoConfig.OpenLineage.TransportType).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.TransportType).To(Equal("http"))
+			Expect(repoConfig.OpenLineage.TransportUrl).NotTo(BeNil())
+			lineageSvcName := GetFeastServiceName(featureStore, LineageFeastType)
+			expectedUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
+				lineageSvcName, featureStore.Namespace, HttpPort)
+			Expect(*repoConfig.OpenLineage.TransportUrl).To(Equal(expectedUrl))
+			Expect(repoConfig.OpenLineage.TransportEndpoint).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.TransportEndpoint).To(Equal("api/v1/lineage"))
+		})
+
+		It("should not set standalone_server when lineageServer is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			repoConfig, err := getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret, emptyMockExtractConfigFromConfigMap, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer.StandaloneServer).To(BeNil())
+		})
+
+		It("should generate lineage repo config with remote registry hostname", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
+			Expect(repoConfig.Registry.Path).To(Equal(remoteHost))
+			Expect(repoConfig.OpenLineage).NotTo(BeNil())
+			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
+			Expect(*repoConfig.OpenLineage.Consumer.StandaloneServer).To(BeTrue())
+		})
+
+		It("should generate lineage repo config with feastRef remote registry", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						FeastRef: &feastdevv1.FeatureStoreRef{
+							Name:      "banking",
+							Namespace: "feast",
+						},
+					},
+				},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			resolvedHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Status.ServiceHostnames.Registry = resolvedHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
+			Expect(repoConfig.Registry.Path).To(Equal(resolvedHost))
+		})
+
+		It("should validate lineageServer accepts remote registry with authz", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					ConnectionStringSecretRef: &corev1.LocalObjectReference{
+						Name: "ol-db-secret",
+					},
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			err := feast.validateLineageServerConfig()
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should reject lineageServer without any registry when authz is set", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					ConnectionStringSecretRef: &corev1.LocalObjectReference{
+						Name: "ol-db-secret",
+					},
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			// Manually clear registry to simulate no registry available
+			featureStore.Status.Applied.Services.Registry = nil
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			err := feast.validateLineageServerConfig()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("requires a registry"))
 		})
 
 		It("should not set feature_server block when serving is nil", func() {

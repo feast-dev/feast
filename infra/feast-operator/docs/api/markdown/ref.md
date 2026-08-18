@@ -501,6 +501,21 @@ This configuration option is only providing a way to automate this procedure.
 Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions. |
 
 
+#### LineageServerConfig
+
+
+
+LineageServerConfig defines the separate lineage server Deployment.
+
+_Appears in:_
+- [OpenLineageConsumerConfig](#openlineageconsumerconfig)
+
+| Field | Description |
+| --- | --- |
+| `server` _[ServerConfigs](#serverconfigs)_ | Server configuration (image, resources, env, TLS, etc.). |
+| `replicas` _integer_ | Replicas for the lineage Deployment. Default 1. |
+
+
 #### LocalRegistryConfig
 
 
@@ -792,7 +807,7 @@ _Appears in:_
 | --- | --- |
 | `enabled` _boolean_ | Enable OpenLineage integration. |
 | `transportType` _string_ | Transport type for lineage events. |
-| `transportUrl` _string_ | URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http". |
+| `transportUrl` _string_ | URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http". |
 | `transportEndpoint` _string_ | API endpoint path appended to transportUrl. Defaults to "api/v1/lineage". |
 | `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" for lineage server authentication. |
 | `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional OpenLineage key-value settings written inline into
@@ -827,6 +842,13 @@ lineage database. If omitted, the SQL registry database is reused. |
 provide in the X-API-Key header when sending events. |
 | `namespaceMapping` _object (keys:string, values:string)_ | NamespaceMapping maps OpenLineage namespaces to Feast projects for
 RBAC-based filtering of lineage data in the UI. |
+| `retentionDays` _integer_ | RetentionDays is the number of days to retain OpenLineage events and runs.
+Events older than this are automatically pruned. Set to 0 to disable pruning. |
+| `retentionCheckIntervalHours` _integer_ | RetentionCheckIntervalHours is how often the background pruning task runs, in hours. |
+| `lineageServer` _[LineageServerConfig](#lineageserverconfig)_ | LineageServer enables a separate Deployment for the OpenLineage consumer.
+When set, the consumer is removed from the UI/registry Pod and runs
+independently with its own scaling. The Feast producer transport is
+auto-configured to send events to the lineage Service. |
 
 
 #### OptionalCtrConfigs
@@ -1078,6 +1100,7 @@ ServerConfigs creates a server for the feast service, with specified container c
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
+- [LineageServerConfig](#lineageserverconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [RegistryServerConfigs](#registryserverconfigs)
@@ -1118,6 +1141,7 @@ _Appears in:_
 | `registry` _string_ |  |
 | `registryRest` _string_ |  |
 | `ui` _string_ |  |
+| `lineage` _string_ |  |
 
 
 #### ServingConfig

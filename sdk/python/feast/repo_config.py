@@ -284,6 +284,11 @@ class OpenLineageConsumerConfig(FeastBaseModel):
     retention_check_interval_hours: int = 6
     """ int: How often the background pruning task runs, in hours. Default: 6. """
 
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
+
 
 class OpenLineageConfig(FeastBaseModel):
     """Configuration for OpenLineage integration.
@@ -347,6 +352,7 @@ class OpenLineageConfig(FeastBaseModel):
                 namespace_mapping=self.consumer.namespace_mapping or {},
                 retention_days=self.consumer.retention_days,
                 retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
             )
 
         return OLConfig(

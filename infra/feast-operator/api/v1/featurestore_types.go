@@ -37,6 +37,7 @@ const (
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
 	UIReadyType            = "UI"
+	LineageReadyType       = "Lineage"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 	CronJobReadyType       = "CronJob"
@@ -49,6 +50,7 @@ const (
 	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
 	RegistryFailedReason         = "RegistryDeploymentFailed"
 	UIFailedReason               = "UIDeploymentFailed"
+	LineageFailedReason          = "LineageDeploymentFailed"
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
@@ -60,6 +62,7 @@ const (
 	OnlineStoreReadyMessage       = "Online Store installation complete"
 	RegistryReadyMessage          = "Registry installation complete"
 	UIReadyMessage                = "UI installation complete"
+	LineageReadyMessage           = "Lineage server installation complete"
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
@@ -93,7 +96,7 @@ type OpenLineageConfig struct {
 	// +kubebuilder:validation:Enum=http;console;file;kafka
 	// +optional
 	TransportType *string `json:"transportType,omitempty"`
-	// URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http".
+	// URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http".
 	// +optional
 	TransportUrl *string `json:"transportUrl,omitempty"`
 	// API endpoint path appended to transportUrl. Defaults to "api/v1/lineage".
@@ -140,6 +143,35 @@ type OpenLineageConsumerConfig struct {
 	// RBAC-based filtering of lineage data in the UI.
 	// +optional
 	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
+	// RetentionDays is the number of days to retain OpenLineage events and runs.
+	// Events older than this are automatically pruned. Set to 0 to disable pruning.
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RetentionDays *int32 `json:"retentionDays,omitempty"`
+	// RetentionCheckIntervalHours is how often the background pruning task runs, in hours.
+	// +kubebuilder:default=6
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	RetentionCheckIntervalHours *int32 `json:"retentionCheckIntervalHours,omitempty"`
+	// LineageServer enables a separate Deployment for the OpenLineage consumer.
+	// When set, the consumer is removed from the UI/registry Pod and runs
+	// independently with its own scaling. The Feast producer transport is
+	// auto-configured to send events to the lineage Service.
+	// +optional
+	LineageServer *LineageServerConfig `json:"lineageServer,omitempty"`
+}
+
+// LineageServerConfig defines the separate lineage server Deployment.
+type LineageServerConfig struct {
+	// Server configuration (image, resources, env, TLS, etc.).
+	// +optional
+	Server *ServerConfigs `json:"server,omitempty"`
+	// Replicas for the lineage Deployment. Default 1.
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // MlflowConfig enables MLflow experiment tracking integration for Feast.
@@ -1090,6 +1122,7 @@ type ServiceHostnames struct {
 	Registry     string `json:"registry,omitempty"`
 	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
+	Lineage      string `json:"lineage,omitempty"`
 }
 
 // +kubebuilder:object:root=true

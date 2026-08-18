@@ -259,7 +259,7 @@ materialization:
 openlineage:
   enabled: true
   transport_type: http  # http, console, file, kafka (omit to use OpenLineage SDK defaults)
-  transport_url: http://marquez:5000
+  transport_url: http://feast-example-lineage:6580
   transport_endpoint: api/v1/lineage
   namespace: feast
   emit_on_apply: true
