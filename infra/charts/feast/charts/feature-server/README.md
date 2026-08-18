@@ -6,47 +6,103 @@ Feast Feature Server: Online feature serving service for Feast
 
 **Homepage:** <https://github.com/feast-dev/feast>
 
+## Migration from Java chart
+
+This chart now deploys the Python-based feature server instead of the Java-based one.
+
+### Removed values (no equivalent)
+
+These Java-specific values have been removed. Delete them from your values files:
+
+| Removed value | Reason |
+|---|---|
+| `javaOpts` | Python server, no JVM |
+| `logType`, `logLevel` | Java logging config, not applicable |
+| `transformationService.*` | Use the separate `transformation-service` subchart |
+| `application.yaml`, `application-generated.yaml` | Java Spring config, not applicable |
+| `application-override.yaml` | Replaced by `feature_store_yaml_base64` or `existingSecret` |
+| `application-secret.yaml` | Replaced by `feature_store_yaml_base64` or `existingSecret` |
+
+### Changed values
+
+| Old value | New value | Notes |
+|---|---|---|
+| `service.grpc.port` | `service.port` | Protocol changed from gRPC to HTTP |
+| `service.grpc.targetPort` | (removed) | `targetPort` now uses the named port `http` |
+| `service.grpc.nodePort` | `service.nodePort` | Flat key |
+| `ingress.grpc.*` | (removed) | Python server is HTTP-only |
+| `ingress.http.class` | (removed) | Use `ingress.http.ingressClassName` or `annotations` |
+| `ingress.http.auth.*` | (removed) | Use `ingress.http.annotations` for controller-specific auth |
+| `ingress.http.whitelist` | (removed) | Use `ingress.http.annotations` for controller-specific whitelist |
+| `image.repository` | `image.repository` | Changed from `feature-server-java` to `feature-server` |
+
+### New values
+
+| Value | Purpose |
+|---|---|
+| `feature_store_yaml_base64` | Base64-encoded `feature_store.yaml`, stored in a K8s Secret |
+| `existingSecret` | Reference a pre-created Secret instead of providing inline config |
+| `ingress.http.ingressClassName` | Support for `networking.k8s.io/v1` IngressClass |
+
+### What still works
+
+- `ingress.http.*` — same value structure, now uses `networking.k8s.io/v1`
+- `secrets` — volume mounts for additional Kubernetes secrets
+- `envOverrides` — extra environment variables
+- `service.type`, `service.loadBalancerIP`, `service.loadBalancerSourceRanges`
+- All probe settings (`livenessProbe.*`, `readinessProbe.*`)
+
+## Installation
+
+### Option A: Using an existing Secret (recommended)
+
+Create the Secret outside of Helm so that credentials never pass through Helm values or release metadata:
+
+```bash
+kubectl create secret generic my-feast-config \
+  --from-literal=feature_store_yaml_base64=$(base64 < feature_store.yaml)
+```
+
+Then reference it during install:
+```bash
+helm install feast-feature-server . --set existingSecret=my-feast-config
+```
+
+This is the recommended approach when `feature_store.yaml` contains registry or online-store credentials.
+
+### Option B: Using inline config
+
+```bash
+helm install feast-feature-server . --set feature_store_yaml_base64=$(base64 < feature_store.yaml)
+```
+
+> **Note:** When using `--set`, the base64-encoded config is stored in Helm release metadata and is retrievable via `helm get values`. Use Option A or an external secrets operator (e.g. SealedSecrets, ExternalSecrets) for production deployments with sensitive credentials.
+
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration. Please set `application-override.yaml` to override this configuration. |
-| "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
-| "application-secret.yaml" | object | `{"enabled":false}` | Configuration to override the default [application.yaml](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
-| "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/feast-dev/feast/blob/master/java/serving/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
 | envOverrides | object | `{}` | Extra environment variables to set |
+| existingSecret | string | `""` | Name of an existing Secret containing key `feature_store_yaml_base64` with base64-encoded config |
+| feature_store_yaml_base64 | string | `""` | [required] a base64 encoded version of feature_store.yaml (stored in a K8s Secret) |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"quay.io/feastdev/feature-server-java"` | Docker image for Feature Server repository |
+| image.repository | string | `"quay.io/feastdev/feature-server"` | Docker image for Feature Server repository |
 | image.tag | string | `"0.65.0"` | Image tag |
-| ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
-| ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
-| ingress.grpc.class | string | `"nginx"` | Which ingress controller to use |
-| ingress.grpc.enabled | bool | `false` | Flag to create an ingress resource for the service |
-| ingress.grpc.hosts | list | `[]` | List of hostnames to match when routing requests |
-| ingress.grpc.https.enabled | bool | `true` | Flag to enable HTTPS |
-| ingress.grpc.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
-| ingress.grpc.whitelist | string | `""` | Allowed client IP source ranges |
-| ingress.http.annotations | object | `{}` | Extra annotations for the ingress |
-| ingress.http.auth.authUrl | string | `"http://auth-server.auth-ns.svc.cluster.local/auth"` | URL to an existing authentication service |
-| ingress.http.auth.enabled | bool | `false` | Flag to enable auth |
-| ingress.http.class | string | `"nginx"` | Which ingress controller to use |
+| ingress.http.annotations | object | `{}` | Extra annotations for the ingress (use for controller-specific settings) |
 | ingress.http.enabled | bool | `false` | Flag to create an ingress resource for the service |
 | ingress.http.hosts | list | `[]` | List of hostnames to match when routing requests |
 | ingress.http.https.enabled | bool | `true` | Flag to enable HTTPS |
 | ingress.http.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
-| ingress.http.whitelist | string | `""` | Allowed client IP source ranges |
-| javaOpts | string | `nil` | [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m` |
+| ingress.http.ingressClassName | string | `nil` | IngressClass resource name |
 | livenessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | livenessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | livenessProbe.initialDelaySeconds | int | `60` | Delay before the probe is initiated |
 | livenessProbe.periodSeconds | int | `10` | How often to perform the probe |
 | livenessProbe.successThreshold | int | `1` | Min consecutive success for the probe to be considered successful |
 | livenessProbe.timeoutSeconds | int | `5` | When the probe times out |
-| logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
-| logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
-| podAnnotations | object | `{}` | Annotations to be added to Feast Serving pods |
-| podLabels | object | `{}` | Labels to be added to Feast Serving pods |
+| podAnnotations | object | `{}` | Annotations to be added to Feature Server pods |
+| podLabels | object | `{}` | Labels to be added to Feature Server pods |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | readinessProbe.initialDelaySeconds | int | `15` | Delay before the probe is initiated |
@@ -55,13 +111,12 @@ Feast Feature Server: Online feature serving service for Feast
 | readinessProbe.timeoutSeconds | int | `10` | When the probe times out |
 | replicaCount | int | `1` | Number of pods that will be created |
 | resources | object | `{}` | CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container) |
-| secrets | list | `[]` | List of Kubernetes secrets to be mounted. These secrets will be mounted on /etc/secrets/<secret name>. |
-| service.grpc.nodePort | string | `nil` | Port number that each cluster node will listen to |
-| service.grpc.port | int | `6566` | Service port for GRPC requests |
-| service.grpc.targetPort | int | `6566` | Container port serving GRPC requests |
+| secrets | list | `[]` | List of Kubernetes secrets to be mounted on /etc/secrets/\<secret name\> |
+| service.loadBalancerIP | string | `nil` | Specify a load balancer IP if service type is LoadBalancer |
+| service.loadBalancerSourceRanges | list | `[]` | Optionally restrict load balancer traffic to specified IPs |
+| service.nodePort | string | `nil` | Port number that each cluster node will listen to |
+| service.port | int | `6566` | Service port |
 | service.type | string | `"ClusterIP"` | Kubernetes service type |
-| transformationService.host | string | `""` |  |
-| transformationService.port | int | `6566` |  |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
