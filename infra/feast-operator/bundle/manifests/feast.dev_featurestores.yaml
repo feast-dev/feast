@@ -59,8 +59,6 @@ spec:
                     type: object
                   noAuth:
                     description: NoAuth explicitly disables authentication and authorization.
-                      When set to true, Feast services run without any auth checks.
-                      Use only for development or testing environments.
                     type: boolean
                   oidc:
                     description: |-
@@ -6458,8 +6456,7 @@ spec:
                         type: object
                       noAuth:
                         description: NoAuth explicitly disables authentication and
-                          authorization. When set to true, Feast services run without
-                          any auth checks. Use only for development or testing environments.
+                          authorization.
                         type: boolean
                       oidc:
                         description: |-
@@ -13065,8 +13062,6 @@ spec:
                     type: object
                   noAuth:
                     description: NoAuth explicitly disables authentication and authorization.
-                      When set to true, Feast services run without any auth checks.
-                      Use only for development or testing environments.
                     type: boolean
                   oidc:
                     description: |-
@@ -17581,8 +17576,7 @@ spec:
                         type: object
                       noAuth:
                         description: NoAuth explicitly disables authentication and
-                          authorization. When set to true, Feast services run without
-                          any auth checks. Use only for development or testing environments.
+                          authorization.
                         type: boolean
                       oidc:
                         description: |-
