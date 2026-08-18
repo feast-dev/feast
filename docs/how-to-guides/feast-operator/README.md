@@ -30,6 +30,7 @@ look for store-specific YAML options in the Feast SDK docs.
 | 5 | [Security](05-security.md) | Kubernetes RBAC roles vs OIDC auth; TLS for all servers |
 | 6 | [Batch Jobs](06-batch-and-jobs.md) | `batchEngine` ConfigMap contract, `cronJob` for scheduled materialization |
 | 7 | [OpenLineage & Materialization](07-openlineage-and-materialization.md) | Lineage transports, API key Secret, materialization batch size |
+| 8 | [MLflow Integration](08-mlflow-integration.md) | Auto-discovery, experiment tracking, auth, Feast UI lineage |
 
 ---
 
@@ -42,6 +43,7 @@ look for store-specific YAML options in the Feast SDK docs.
 - **"How do I enable Kubernetes RBAC or OIDC auth?"** → [Guide 5](05-security.md)
 - **"How do I schedule nightly materialization?"** → [Guide 6](06-batch-and-jobs.md)
 - **"How do I send lineage events to Marquez?"** → [Guide 7](07-openlineage-and-materialization.md)
+- **"How do I connect Feast to MLflow for experiment tracking?"** → [Guide 8](08-mlflow-integration.md)
 - **"What are all valid fields on `ServingConfig`?"** → [API ref](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#servingconfig)
 
 ---
