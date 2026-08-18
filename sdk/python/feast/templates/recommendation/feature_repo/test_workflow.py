@@ -1,20 +1,15 @@
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 from feast import FeatureStore
 
 
-def run_demo():
-    store = FeatureStore(repo_path=".")
-
-    print("\n--- Run feast apply ---")
-    subprocess.run(["feast", "apply"])
-
-    print("\n--- Load features into online store ---")
-    store.materialize_incremental(end_date=datetime.now())
-
-    print("\n--- Product Recommendation Search ---")
+def run_demo() -> None:
     try:
         from sentence_transformers import SentenceTransformer
     except ImportError:
@@ -22,14 +17,30 @@ def run_demo():
         sys.exit(1)
 
     model = SentenceTransformer("all-MiniLM-L6-v2")
+    products_path = Path("data/products.parquet")
+    products = pd.read_parquet(products_path)
+    descriptions = (products["product_name"] + ". " + products["description"]).tolist()
+    embeddings = model.encode(descriptions, normalize_embeddings=True)
+    products["embedding"] = [
+        embedding.astype(np.float32).tolist() for embedding in embeddings
+    ]
+    products.to_parquet(products_path, allow_truncated_timestamps=True)
+
+    print("\nApplying feature definitions")
+    subprocess.run(["feast", "apply"], check=True)
+
+    print("\nLoading features into the online store")
+    store = FeatureStore(repo_path=".")
+    store.materialize_incremental(end_date=datetime.now())
 
     query = "gaming laptop accessories"
-    print(f"\n  Query: '{query}'")
+    print(f"\nSearching for: {query}")
     query_embedding = model.encode([query], normalize_embeddings=True)[0].tolist()
 
     results = store.retrieve_online_documents_v2(
         features=[
             "product_embeddings:embedding",
+            "product_embeddings:product_id",
             "product_embeddings:product_name",
             "product_embeddings:category",
             "product_embeddings:price",
@@ -51,8 +62,8 @@ def run_demo():
     else:
         print("  No results found.")
 
-    print("\n--- Run feast teardown ---")
-    subprocess.run(["feast", "teardown"])
+    print("\nTearing down the feature store")
+    subprocess.run(["feast", "teardown"], check=True)
 
 
 if __name__ == "__main__":

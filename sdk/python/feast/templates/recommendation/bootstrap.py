@@ -1,22 +1,12 @@
 from feast.file_utils import replace_str_in_file
 
 
-def bootstrap():
-    # Called automatically by init_repo() during `feast init`
-
+def bootstrap() -> None:
     import pathlib
     from datetime import datetime, timedelta
 
     import numpy as np
     import pandas as pd
-
-    try:
-        from sentence_transformers import SentenceTransformer
-    except ImportError:
-        raise SystemExit(
-            "sentence-transformers is required for this template: "
-            "pip install sentence-transformers"
-        )
 
     repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
     project_name = pathlib.Path(__file__).parent.absolute().name
@@ -122,9 +112,9 @@ def bootstrap():
         ),
     ]
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    descriptions = [f"{name}. {desc}" for _, name, desc, _, _, _ in products]
-    embeddings = model.encode(descriptions, normalize_embeddings=True)
+    embedding_dim = 384
+    embeddings = np.zeros((len(products), embedding_dim), dtype=np.float32)
+    embeddings[np.arange(len(products)), np.arange(len(products))] = 1.0
 
     end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
     start_date = end_date - timedelta(days=15)
@@ -141,7 +131,7 @@ def bootstrap():
     df = pd.DataFrame(products, columns=columns)
     df["price"] = df["price"].astype(np.float32)
     df["rating"] = df["rating"].astype(np.float32)
-    df["embedding"] = [emb.tolist() for emb in embeddings]
+    df["embedding"] = [embedding.tolist() for embedding in embeddings]
     df["event_timestamp"] = timestamps
     df["created"] = end_date
 
