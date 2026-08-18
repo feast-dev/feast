@@ -11,6 +11,62 @@ interface EntityRelation {
   target: EntityReference;
 }
 
+/**
+ * Extract physical location identifiers (URIs, tables, paths) from a
+ * SavedDatasetStorage JSON object (protobuf-JSON camelCase format).
+ */
+const extractStorageIdentifiers = (storage: any): Set<string> => {
+  const ids = new Set<string>();
+  if (!storage) return ids;
+  if (storage.fileStorage?.uri) ids.add(storage.fileStorage.uri);
+  if (storage.bigqueryStorage?.table) ids.add(storage.bigqueryStorage.table);
+  if (storage.redshiftStorage?.table) ids.add(storage.redshiftStorage.table);
+  if (storage.snowflakeStorage?.table) ids.add(storage.snowflakeStorage.table);
+  if (storage.sparkStorage?.path) ids.add(storage.sparkStorage.path);
+  if (storage.sparkStorage?.table) ids.add(storage.sparkStorage.table);
+  if (storage.trinoStorage?.table) ids.add(storage.trinoStorage.table);
+  if (storage.athenaStorage?.table) ids.add(storage.athenaStorage.table);
+  return ids;
+};
+
+/**
+ * Extract physical location identifiers from a DataSource JSON object.
+ */
+const extractDataSourceIdentifiers = (ds: any): Set<string> => {
+  const ids = new Set<string>();
+  if (!ds) return ids;
+  if (ds.fileOptions?.uri) ids.add(ds.fileOptions.uri);
+  if (ds.bigqueryOptions?.table) ids.add(ds.bigqueryOptions.table);
+  if (ds.redshiftOptions?.table) ids.add(ds.redshiftOptions.table);
+  if (ds.snowflakeOptions?.table) ids.add(ds.snowflakeOptions.table);
+  if (ds.sparkOptions?.path) ids.add(ds.sparkOptions.path);
+  if (ds.sparkOptions?.table) ids.add(ds.sparkOptions.table);
+  if (ds.trinoOptions?.table) ids.add(ds.trinoOptions.table);
+  if (ds.athenaOptions?.table) ids.add(ds.athenaOptions.table);
+  // Embedded batch source
+  if (ds.batchSource) {
+    extractDataSourceIdentifiers(ds.batchSource).forEach((id) => ids.add(id));
+  }
+  return ids;
+};
+
+/**
+ * Build a reverse index from physical location identifier → DataSource name.
+ */
+const buildDataSourceLocationIndex = (
+  dataSources: any[],
+): Map<string, string> => {
+  const index = new Map<string, string>();
+  dataSources?.forEach((ds: any) => {
+    const name = ds.spec?.name || ds.name;
+    if (!name) return;
+    extractDataSourceIdentifiers(ds.spec || ds).forEach((id) => {
+      index.set(id, name);
+    });
+  });
+  return index;
+};
+
 const parseEntityRelationships = (objects: feast.core.Registry) => {
   const links: EntityRelation[] = [];
 
@@ -80,7 +136,7 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
       });
     });
 
-    // Data source relationships
+    // Source relationships — upstream feature views and request sources
     Object.values(fv.spec?.sources!).forEach(
       (input: { [key: string]: any }) => {
         if (input.requestDataSource) {
@@ -95,17 +151,10 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
             },
           });
         } else if (input.featureViewProjection?.featureViewName) {
-          const source_fv = objects.featureViews?.find(
-            (el) =>
-              el.spec?.name === input.featureViewProjection.featureViewName,
-          );
-          if (!source_fv) {
-            return;
-          }
           links.push({
             source: {
-              type: FEAST_FCO_TYPES["dataSource"],
-              name: source_fv.spec?.batchSource?.name || "",
+              type: FEAST_FCO_TYPES["featureView"],
+              name: input.featureViewProjection.featureViewName,
             },
             target: {
               type: FEAST_FCO_TYPES["featureView"],
@@ -193,6 +242,73 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
         },
       });
     }
+  });
+
+  // Build data source location index for storage-based matching
+  const allDataSources = [
+    ...((objects as any).dataSources || []),
+    ...(objects.featureViews || [])
+      .map((fv: any) => fv.spec?.batchSource)
+      .filter(Boolean),
+    ...(objects.streamFeatureViews || [])
+      .flatMap((sfv: any) => [sfv.spec?.batchSource, sfv.spec?.streamSource])
+      .filter(Boolean),
+  ];
+  const dsLocationIndex = buildDataSourceLocationIndex(allDataSources);
+
+  (objects as any).savedDatasets?.forEach((sd: any) => {
+    if (sd.spec?.featureServiceName) {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["featureService"],
+          name: sd.spec.featureServiceName,
+        },
+        target: {
+          type: FEAST_FCO_TYPES["savedDataset"],
+          name: sd.spec?.name!,
+        },
+      });
+    }
+
+    // FeatureView -> SavedDataset (derived from feature refs "view:feat")
+    const seenViews = new Set<string>();
+    sd.spec?.features?.forEach((featRef: string) => {
+      const parts = featRef.split(":");
+      const viewName = parts.length >= 2 ? parts[0] : featRef;
+      if (viewName && !seenViews.has(viewName)) {
+        seenViews.add(viewName);
+        links.push({
+          source: {
+            type: FEAST_FCO_TYPES["featureView"],
+            name: viewName,
+          },
+          target: {
+            type: FEAST_FCO_TYPES["savedDataset"],
+            name: sd.spec?.name!,
+          },
+        });
+      }
+    });
+
+    // DataSource -> SavedDataset (matched by storage location)
+    const storageIds = extractStorageIdentifiers(sd.spec?.storage);
+    const matchedDsNames = new Set<string>();
+    storageIds.forEach((locId) => {
+      const dsName = dsLocationIndex.get(locId);
+      if (dsName && !matchedDsNames.has(dsName)) {
+        matchedDsNames.add(dsName);
+        links.push({
+          source: {
+            type: FEAST_FCO_TYPES["dataSource"],
+            name: dsName,
+          },
+          target: {
+            type: FEAST_FCO_TYPES["savedDataset"],
+            name: sd.spec?.name!,
+          },
+        });
+      }
+    });
   });
 
   return links;
