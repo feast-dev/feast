@@ -1,4 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ReactFlow,
@@ -82,6 +88,8 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#cc0000"; // Red
     case FEAST_FCO_TYPES.labelView:
       return "#e6570e"; // Deep orange for label views
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#8B5CF6"; // Purple for saved datasets
     case FEAST_FCO_TYPES.mlflowRun:
       return "#0194e2"; // MLflow brand blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -107,6 +115,8 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ffe6e6"; // Light red
     case FEAST_FCO_TYPES.labelView:
       return "#fde8dc"; // Light deep orange
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#EDE9FE"; // Light purple
     case FEAST_FCO_TYPES.mlflowRun:
       return "#e6f6fd"; // Light MLflow blue
     case FEAST_FCO_TYPES.mlflowModel:
@@ -132,6 +142,8 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "◆"; // Diamond for data source
     case FEAST_FCO_TYPES.labelView:
       return "◉"; // Bullseye for label view
+    case FEAST_FCO_TYPES.savedDataset:
+      return "⬟"; // Pentagon for saved dataset
     case FEAST_FCO_TYPES.mlflowRun:
       return "⬡"; // Hexagon for MLflow run
     case FEAST_FCO_TYPES.mlflowModel:
@@ -180,6 +192,9 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         break;
       case FEAST_FCO_TYPES.labelView:
         path = `/p/${projectName}/label-view/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.savedDataset:
+        path = `/p/${projectName}/data-set/${data.label}`;
         break;
       default:
         return;
@@ -444,6 +459,7 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
     [FEAST_FCO_TYPES.labelView]: [],
+    [FEAST_FCO_TYPES.savedDataset]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
     [FEAST_FCO_TYPES.mlflowModel]: [],
     [FEAST_FCO_TYPES.openlineageJob]: [],
@@ -505,6 +521,7 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.labelView, label: "Label View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+    { type: FEAST_FCO_TYPES.savedDataset, label: "Saved Dataset" },
     { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
     { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
@@ -670,7 +687,7 @@ const registryToFlow = (
   objects.onDemandFeatureViews?.forEach((odfv) => {
     const odfvName = odfv.spec?.name;
     nodes.push({
-      id: `odfv-${odfvName}`,
+      id: `fv-${odfvName}`,
       type: "custom",
       data: {
         label: odfvName,
@@ -693,7 +710,7 @@ const registryToFlow = (
   objects.streamFeatureViews?.forEach((sfv) => {
     const sfvName = sfv.spec?.name;
     nodes.push({
-      id: `sfv-${sfvName}`,
+      id: `fv-${sfvName}`,
       type: "custom",
       data: {
         label: sfvName,
@@ -752,6 +769,27 @@ const registryToFlow = (
     });
   });
 
+  (objects as any).savedDatasets?.forEach((sd: any) => {
+    const sdName = sd.spec?.name;
+    nodes.push({
+      id: `sd-${sdName}`,
+      type: "custom",
+      data: {
+        label: sdName,
+        type: FEAST_FCO_TYPES.savedDataset,
+        metadata: sd,
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.savedDataset,
+              sdName,
+            )
+          : [],
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
   const dataSources = new Set<string>();
 
   objects.featureViews?.forEach((fv) => {
@@ -766,6 +804,16 @@ const registryToFlow = (
     }
     if (sfv.spec?.streamSource?.name) {
       dataSources.add(sfv.spec.streamSource.name);
+    }
+  });
+
+  objects.onDemandFeatureViews?.forEach((odfv: any) => {
+    if (odfv.spec?.sources) {
+      Object.values(odfv.spec.sources).forEach((input: any) => {
+        if (input.requestDataSource?.name) {
+          dataSources.add(input.requestDataSource.name);
+        }
+      });
     }
   });
 
@@ -938,6 +986,8 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "ds";
     case FEAST_FCO_TYPES.labelView:
       return "lv";
+    case FEAST_FCO_TYPES.savedDataset:
+      return "sd";
     case FEAST_FCO_TYPES.mlflowRun:
       return "mlflow";
     case FEAST_FCO_TYPES.mlflowModel:
@@ -979,6 +1029,47 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     useState(false);
   const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
+
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const edgesRef = useRef<Edge[]>([]);
+
+  const connectedIds = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const ids = new Set<string>([hoveredNodeId]);
+    const allEdges = edgesRef.current;
+
+    // Walk upstream (target → source)
+    const upQueue = [hoveredNodeId];
+    while (upQueue.length > 0) {
+      const cur = upQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.target === cur && !ids.has(e.source)) {
+          ids.add(e.source);
+          upQueue.push(e.source);
+        }
+      }
+    }
+
+    // Walk downstream (source → target)
+    const downQueue = [hoveredNodeId];
+    while (downQueue.length > 0) {
+      const cur = downQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.source === cur && !ids.has(e.target)) {
+          ids.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    }
+
+    return ids;
+  }, [hoveredNodeId]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id),
+    [],
+  );
+  const onNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
 
   useEffect(() => {
     if (registryData && relationships) {
@@ -1058,6 +1149,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           showIsolatedNodes,
         );
 
+      edgesRef.current = layoutedEdges;
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
@@ -1074,6 +1166,31 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     setNodes,
     setEdges,
   ]);
+
+  const styledNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedIds.has(n.id) ? 1 : 0.15,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [nodes, connectedIds]);
+
+  const styledEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity:
+          connectedIds.has(e.source) && connectedIds.has(e.target) ? 1 : 0.08,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [edges, connectedIds]);
 
   return (
     <EuiPanel>
@@ -1125,8 +1242,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       ) : (
         <div style={{ height: 600, border: "1px solid #ddd" }}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -1134,6 +1251,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             fitView
             minZoom={0.1}
             maxZoom={8}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
           >
             <Background color="#f0f0f0" gap={16} />
             <Controls />

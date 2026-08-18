@@ -2,15 +2,100 @@
 Registry lineage generation for Feast objects.
 
 This module provides functionality to generate relationship graphs between
-Feast objects (entities, feature views, data sources, feature services)
-for lineage visualization.
+Feast objects (entities, feature views, data sources, feature services,
+saved datasets) for lineage visualization.
 """
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from feast.protos.feast.core.Registry_pb2 import Registry
+
+
+def _extract_storage_identifiers(storage) -> Set[str]:
+    """Extract physical location identifiers from a SavedDatasetStorage proto.
+
+    Returns a set of non-empty strings (URIs, table names, paths) that can
+    be matched against DataSource options.
+    """
+    ids: Set[str] = set()
+    if hasattr(storage, "file_storage") and storage.HasField("file_storage"):
+        if storage.file_storage.uri:
+            ids.add(storage.file_storage.uri)
+    if hasattr(storage, "bigquery_storage") and storage.HasField("bigquery_storage"):
+        if storage.bigquery_storage.table:
+            ids.add(storage.bigquery_storage.table)
+    if hasattr(storage, "redshift_storage") and storage.HasField("redshift_storage"):
+        if storage.redshift_storage.table:
+            ids.add(storage.redshift_storage.table)
+    if hasattr(storage, "snowflake_storage") and storage.HasField("snowflake_storage"):
+        if storage.snowflake_storage.table:
+            ids.add(storage.snowflake_storage.table)
+    if hasattr(storage, "spark_storage") and storage.HasField("spark_storage"):
+        if storage.spark_storage.path:
+            ids.add(storage.spark_storage.path)
+        if storage.spark_storage.table:
+            ids.add(storage.spark_storage.table)
+    if hasattr(storage, "trino_storage") and storage.HasField("trino_storage"):
+        if storage.trino_storage.table:
+            ids.add(storage.trino_storage.table)
+    if hasattr(storage, "athena_storage") and storage.HasField("athena_storage"):
+        if storage.athena_storage.table:
+            ids.add(storage.athena_storage.table)
+    return ids
+
+
+def _extract_datasource_identifiers(data_source) -> Set[str]:
+    """Extract physical location identifiers from a DataSource proto.
+
+    Returns a set of non-empty strings (URIs, table names, paths) that can
+    be compared against SavedDatasetStorage identifiers.
+    """
+    ids: Set[str] = set()
+    opts = (
+        data_source.WhichOneof("options")
+        if hasattr(data_source, "WhichOneof")
+        else None
+    )
+    if opts == "file_options" and data_source.file_options.uri:
+        ids.add(data_source.file_options.uri)
+    elif opts == "bigquery_options" and data_source.bigquery_options.table:
+        ids.add(data_source.bigquery_options.table)
+    elif opts == "redshift_options" and data_source.redshift_options.table:
+        ids.add(data_source.redshift_options.table)
+    elif opts == "snowflake_options" and data_source.snowflake_options.table:
+        ids.add(data_source.snowflake_options.table)
+    elif opts == "spark_options":
+        if data_source.spark_options.path:
+            ids.add(data_source.spark_options.path)
+        if data_source.spark_options.table:
+            ids.add(data_source.spark_options.table)
+    elif opts == "trino_options" and data_source.trino_options.table:
+        ids.add(data_source.trino_options.table)
+    elif opts == "athena_options" and data_source.athena_options.table:
+        ids.add(data_source.athena_options.table)
+
+    # Also check batch_source if present (FeatureView's embedded source)
+    if hasattr(data_source, "batch_source") and data_source.HasField("batch_source"):
+        ids.update(_extract_datasource_identifiers(data_source.batch_source))
+
+    return ids
+
+
+def _build_datasource_location_index(registry: Registry) -> Dict[str, str]:
+    """Build a reverse index: physical location → DataSource name.
+
+    Scans all DataSources in the registry and maps each physical identifier
+    (URI, table, path) to the DataSource's name.
+    """
+    location_to_name: Dict[str, str] = {}
+    for ds in registry.data_sources:
+        if not (hasattr(ds, "name") and ds.name):
+            continue
+        for loc_id in _extract_datasource_identifiers(ds):
+            location_to_name[loc_id] = ds.name
+    return location_to_name
 
 
 class FeastObjectType(Enum):
@@ -20,6 +105,7 @@ class FeastObjectType(Enum):
     LABEL_VIEW = "labelView"
     FEATURE_SERVICE = "featureService"
     FEATURE = "feature"
+    SAVED_DATASET = "savedDataset"
 
 
 @dataclass
@@ -228,59 +314,38 @@ class RegistryLineageGenerator:
                     source_items = [(k, v) for k, v in enumerate(odfv.spec.sources)]
 
                 for source_name, source in source_items:
-                    if (
-                        hasattr(source, "request_data_source")
-                        and source.request_data_source
-                    ):
-                        if hasattr(source.request_data_source, "name"):
-                            relationships.append(
-                                EntityRelation(
-                                    source=EntityReference(
-                                        FeastObjectType.DATA_SOURCE,
-                                        source.request_data_source.name,
-                                    ),
-                                    target=EntityReference(
-                                        FeastObjectType.FEATURE_VIEW, odfv.spec.name
-                                    ),
-                                )
-                            )
-                    elif (
-                        hasattr(source, "feature_view_projection")
-                        and source.feature_view_projection
-                    ):
-                        # Find the source feature view's batch source
-                        if hasattr(source.feature_view_projection, "feature_view_name"):
-                            source_fv = next(
-                                (
-                                    fv
-                                    for fv in registry.feature_views
-                                    if hasattr(fv, "spec")
-                                    and fv.spec
-                                    and hasattr(fv.spec, "name")
-                                    and fv.spec.name
-                                    == source.feature_view_projection.feature_view_name
+                    has_req = hasattr(source, "HasField") and source.HasField(
+                        "request_data_source"
+                    )
+                    has_fvp = hasattr(source, "HasField") and source.HasField(
+                        "feature_view_projection"
+                    )
+
+                    if has_req and source.request_data_source.name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.DATA_SOURCE,
+                                    source.request_data_source.name,
                                 ),
-                                None,
+                                target=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW, odfv.spec.name
+                                ),
                             )
-                            if (
-                                source_fv
-                                and hasattr(source_fv, "spec")
-                                and source_fv.spec
-                                and hasattr(source_fv.spec, "batch_source")
-                                and source_fv.spec.batch_source
-                                and hasattr(source_fv.spec.batch_source, "name")
-                            ):
-                                relationships.append(
-                                    EntityRelation(
-                                        source=EntityReference(
-                                            FeastObjectType.DATA_SOURCE,
-                                            source_fv.spec.batch_source.name,
-                                        ),
-                                        target=EntityReference(
-                                            FeastObjectType.FEATURE_VIEW, odfv.spec.name
-                                        ),
-                                    )
-                                )
+                        )
+                    elif has_fvp and source.feature_view_projection.feature_view_name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW,
+                                    source.feature_view_projection.feature_view_name,
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW,
+                                    odfv.spec.name,
+                                ),
+                            )
+                        )
 
         # Stream FeatureView relationships
         for sfv in registry.stream_feature_views:
@@ -389,6 +454,83 @@ class RegistryLineageGenerator:
                             ),
                         )
                     )
+
+        # SavedDataset relationships
+        ds_location_index = _build_datasource_location_index(registry)
+
+        for saved_dataset in registry.saved_datasets:
+            if hasattr(saved_dataset, "spec") and saved_dataset.spec:
+                # FeatureService -> SavedDataset (when created via a feature service)
+                if (
+                    hasattr(saved_dataset.spec, "feature_service_name")
+                    and saved_dataset.spec.feature_service_name
+                ):
+                    relationships.append(
+                        EntityRelation(
+                            source=EntityReference(
+                                FeastObjectType.FEATURE_SERVICE,
+                                saved_dataset.spec.feature_service_name,
+                            ),
+                            target=EntityReference(
+                                FeastObjectType.SAVED_DATASET,
+                                saved_dataset.spec.name,
+                            ),
+                        )
+                    )
+
+                # FeatureView -> SavedDataset (derived from feature refs "view:feat")
+                if (
+                    hasattr(saved_dataset.spec, "features")
+                    and saved_dataset.spec.features
+                ):
+                    from feast.utils import _parse_feature_ref
+
+                    seen_views: set = set()
+                    for feat_ref in saved_dataset.spec.features:
+                        try:
+                            view_name, _, _ = _parse_feature_ref(feat_ref)
+                        except ValueError:
+                            continue
+                        if view_name and view_name not in seen_views:
+                            seen_views.add(view_name)
+                            relationships.append(
+                                EntityRelation(
+                                    source=EntityReference(
+                                        FeastObjectType.FEATURE_VIEW,
+                                        view_name,
+                                    ),
+                                    target=EntityReference(
+                                        FeastObjectType.SAVED_DATASET,
+                                        saved_dataset.spec.name,
+                                    ),
+                                )
+                            )
+
+                # DataSource -> SavedDataset (matched via storage location)
+                if (
+                    hasattr(saved_dataset.spec, "storage")
+                    and saved_dataset.spec.storage
+                ):
+                    storage_ids = _extract_storage_identifiers(
+                        saved_dataset.spec.storage
+                    )
+                    matched_ds_names: set = set()
+                    for loc_id in storage_ids:
+                        ds_name = ds_location_index.get(loc_id)
+                        if ds_name and ds_name not in matched_ds_names:
+                            matched_ds_names.add(ds_name)
+                            relationships.append(
+                                EntityRelation(
+                                    source=EntityReference(
+                                        FeastObjectType.DATA_SOURCE,
+                                        ds_name,
+                                    ),
+                                    target=EntityReference(
+                                        FeastObjectType.SAVED_DATASET,
+                                        saved_dataset.spec.name,
+                                    ),
+                                )
+                            )
 
         return relationships
 
