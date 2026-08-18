@@ -16,8 +16,9 @@ class BigtableOnlineStoreCreator(OnlineStoreCreator):
     port = "8086"
     bt_instance = "test-instance"
 
-    def __init__(self, project_name: str, **kwargs):
+    def __init__(self, project_name: str, app_profile_id: str = None, **kwargs):
         super().__init__(project_name)
+        self.app_profile_id = app_profile_id
         self.container = (
             DockerContainer(
                 "gcr.io/google.com/cloudsdktool/cloud-sdk:380.0.0-emulators"
@@ -36,11 +37,14 @@ class BigtableOnlineStoreCreator(OnlineStoreCreator):
         )
         exposed_port = self.container.get_exposed_port(self.port)
         os.environ[bigtable.client.BIGTABLE_EMULATOR] = f"{self.host}:{exposed_port}"
-        return {
+        config = {
             "type": "bigtable",
             "project_id": self.gcp_project,
             "instance": self.bt_instance,
         }
+        if self.app_profile_id:
+            config["app_profile_id"] = self.app_profile_id
+        return config
 
     def teardown(self):
         del os.environ[bigtable.client.BIGTABLE_EMULATOR]

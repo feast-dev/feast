@@ -46,6 +46,9 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
     instance: StrictStr
     """The Bigtable instance's ID"""
 
+    app_profile_id: Optional[StrictStr] = None
+    """(optional) Bigtable app profile ID to route requests through. Defaults to the instance's default app profile when unset."""
+
     max_versions: int = 2
     """The number of historical versions of data that will be kept around."""
 
@@ -71,7 +74,9 @@ class BigtableOnlineStore(OnlineStore):
 
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
-        bt_table = bt_instance.table(bt_table_name)
+        bt_table = bt_instance.table(
+            bt_table_name, app_profile_id=config.online_store.app_profile_id
+        )
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
@@ -119,7 +124,9 @@ class BigtableOnlineStore(OnlineStore):
         client = self._get_client_async(online_config=config.online_store)
 
         async with client.get_table(
-            instance_id=config.online_store.instance, table_id=bt_table_name
+            instance_id=config.online_store.instance,
+            table_id=bt_table_name,
+            app_profile_id=config.online_store.app_profile_id,
         ) as bt_table:
             row_keys = [
                 self._compute_row_key(
@@ -220,6 +227,7 @@ class BigtableOnlineStore(OnlineStore):
         request = ReadRowsRequest(
             {
                 "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}",
+                "app_profile_id": config.online_store.app_profile_id or "",
                 "rows": query._row_set,
                 "filter": RowFilter(
                     column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()
@@ -301,7 +309,9 @@ class BigtableOnlineStore(OnlineStore):
 
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
-        bt_table = bt_instance.table(bt_table_name)
+        bt_table = bt_instance.table(
+            bt_table_name, app_profile_id=config.online_store.app_profile_id
+        )
 
         # `columns_per_row` is used to calculate the number of rows we are allowed to
         # mutate in one request.
