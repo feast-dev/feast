@@ -277,6 +277,11 @@ class FeatureService:
         """
         from feast.types import Invalid
 
+        # Resolve string refs first; otherwise all([]) below treats an
+        # unresolved service as fully resolved and serializes it empty.
+        if self._pending_feature_refs:
+            self.resolve_pending_refs(project, registry)
+
         if self._features and all(p.features for p in self.feature_view_projections):
             return self
 
@@ -447,6 +452,14 @@ class FeatureService:
         Returns:
             A FeatureServiceProto protobuf.
         """
+        # Reject unresolved string refs so we never serialize an empty service.
+        if self._pending_feature_refs:
+            raise ValueError(
+                f"FeatureService '{self.name}' has unresolved feature refs "
+                f"{self._pending_feature_refs}. Apply it via FeatureStore.apply "
+                f"(or call resolve_pending_refs) before serializing."
+            )
+
         meta = FeatureServiceMetaProto()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
