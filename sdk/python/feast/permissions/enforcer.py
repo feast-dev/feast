@@ -23,7 +23,7 @@ def enforce_policy(
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
 
-    If no permissions are defined, the result is to deny the execution.
+    If no permissions are defined, all authenticated users are granted full access.
 
     Args:
         permissions: The configured set of `Permission`.
@@ -40,12 +40,17 @@ def enforce_policy(
         FeastPermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
     if not permissions:
-        # If no permissions are defined, deny access to all resources
-        # This is a security measure to prevent unauthorized access
-        logger.warning("No permissions defined - denying access to all resources")
-        raise FeastPermissionError(
-            "Permissions are not defined - access denied for all resources"
+        if not user.username:
+            raise FeastPermissionError(
+                "No permissions defined and no authenticated user context. "
+                "Access denied."
+            )
+        logger.warning(
+            "No permissions defined in registry. All authenticated users are "
+            "granted full access. Define permissions via permissions.py and "
+            "'feast apply' to enforce fine-grained authorization."
         )
+        return resources
 
     _permitted_resources: list[FeastObject] = []
     for resource in resources:

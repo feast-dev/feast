@@ -40,6 +40,8 @@ look for store-specific YAML options in the Feast SDK docs.
 - **"How do I wire Postgres/Redis/DuckDB as my store?"** → [Guide 2](02-persistence.md)
 - **"How do I enable Prometheus scraping for the feature server?"** → [Guide 3](03-serving-and-observability.md)
 - **"How do I make all services share a remote registry?"** → [Guide 4](04-registry-topology.md)
+- **"How do I get the client `feature_store.yaml` for connecting to my Feast services?"** → [Guide 4 — Client ConfigMap](04-registry-topology.md#client-side-configuration-auto-generated-configmap)
+- **"How do I use a contrib offline store like Trino or Iceberg?"** → [Guide 2 — Custom Image](02-persistence.md#building-a-custom-feature-server-image)
 - **"How do I enable Kubernetes RBAC or OIDC auth?"** → [Guide 5](05-security.md)
 - **"How do I schedule nightly materialization?"** → [Guide 6](06-batch-and-jobs.md)
 - **"How do I send lineage events to Marquez?"** → [Guide 7](07-openlineage-and-materialization.md)
