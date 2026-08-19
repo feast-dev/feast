@@ -1545,3 +1545,139 @@ class TestStringRefFeatureServiceRetrieval:
 
         assert from_service["conv_rate"] == from_refs["conv_rate"]
         assert from_service["acc_rate"] == from_refs["acc_rate"]
+
+
+class TestVersionPinnedStringRefRetrieval:
+    """A string-ref FeatureService pinning "@v0" vs a later "@v1" must retrieve
+    each version's own online snapshot, not just the latest. Online versioning
+    writes each version to its own table, so pinning routes reads correctly."""
+
+    PROJECT = "test_project"
+    V0_CONV_RATE = 0.11
+    V1_CONV_RATE = 0.99
+
+    def _make_store(self, tmpdir):
+        return FeatureStore(
+            config=RepoConfig(
+                project=self.PROJECT,
+                registry=RegistryConfig(
+                    path=os.path.join(tmpdir, "registry.db"),
+                    enable_online_feature_view_versioning=True,
+                ),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(tmpdir, "online.db")
+                ),
+            )
+        )
+
+    def _driver_df(self, conv_rate):
+        from datetime import datetime
+
+        from feast.driver_test_data import create_driver_hourly_stats_df
+
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+        df = create_driver_hourly_stats_df([1001], start_date, end_date)
+        # Constant value so each version's snapshot is unambiguous on read.
+        df["conv_rate"] = conv_rate
+        return df
+
+    def _apply_and_write(self, tmpdir):
+        """Apply v0, write its snapshot, then apply a schema-changed v1 and
+        write a different snapshot to v1's own online table."""
+        from feast import FileSource
+
+        parquet_path = os.path.join(tmpdir, "driver_stats.parquet")
+        self._driver_df(self.V0_CONV_RATE).to_parquet(
+            path=parquet_path, allow_truncated_timestamps=True
+        )
+
+        driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
+        source = FileSource(
+            name="driver_hourly_stats_source",
+            path=parquet_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+        store = self._make_store(tmpdir)
+
+        # v0: conv_rate + acc_rate
+        fv_v0 = FeatureView(
+            name="driver_hourly_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+            ],
+            online=True,
+            source=source,
+        )
+        store.apply([driver, source, fv_v0])
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats",
+            df=self._driver_df(self.V0_CONV_RATE),
+        )
+
+        # v1: schema change (adds avg_daily_trips) -> promotes to v1, whose
+        # online writes land in a separate versioned table.
+        fv_v1 = FeatureView(
+            name="driver_hourly_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int64),
+            ],
+            online=True,
+            source=source,
+        )
+        store.apply([driver, source, fv_v1])
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats",
+            df=self._driver_df(self.V1_CONV_RATE),
+        )
+
+        # Register a pinned string-ref service per version so a fresh process
+        # can reconstruct and retrieve it.
+        for version in ("v0", "v1"):
+            store.apply(
+                [
+                    FeatureService(
+                        name=f"driver_service_{version}",
+                        features=[f"driver_hourly_stats@{version}:conv_rate"],
+                    )
+                ]
+            )
+
+    def _pinned_conv_rate(self, tmpdir, version):
+        """Reconstruct a fresh store + string-ref service pinned to a version
+        and return the retrieved conv_rate."""
+        store = self._make_store(tmpdir)
+        service = FeatureService(
+            name=f"driver_service_{version}",
+            features=[f"driver_hourly_stats@{version}:conv_rate"],
+        )
+        # Unresolved until retrieval resolves the pinned snapshot.
+        assert service.feature_view_projections == []
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}], features=service
+        ).to_dict()
+        return response["conv_rate"][0]
+
+    def test_pinned_v0_and_v1_retrieve_their_own_snapshots(self, tmp_path):
+        tmpdir = str(tmp_path)
+        self._apply_and_write(tmpdir)
+
+        v0_conv_rate = self._pinned_conv_rate(tmpdir, "v0")
+        v1_conv_rate = self._pinned_conv_rate(tmpdir, "v1")
+
+        assert v0_conv_rate == pytest.approx(self.V0_CONV_RATE, abs=1e-4)
+        assert v1_conv_rate == pytest.approx(self.V1_CONV_RATE, abs=1e-4)
+        # The pins must resolve to different snapshots, not both the latest.
+        assert v0_conv_rate != pytest.approx(v1_conv_rate, abs=1e-4)
