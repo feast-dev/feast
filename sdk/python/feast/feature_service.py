@@ -113,7 +113,8 @@ class FeatureService:
                 # No registry at construction time; resolved in resolve_pending_refs.
                 self._pending_feature_refs.append(feature_grouping)
             elif isinstance(feature_grouping, BaseFeatureView):
-                projection = feature_grouping.projection
+                # copy so we never mutate the source view's own projection.
+                projection = copy.copy(feature_grouping.projection)
                 # If the source feature view is version-pinned (e.g.
                 # FeatureView(version="v2")), stamp that version onto the
                 # projection so name_to_use() renders "fv@v2" and retrieval
