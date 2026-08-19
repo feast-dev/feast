@@ -1225,11 +1225,22 @@ class FeatureStore:
                 *lvs_to_update,
             ]
         }
+        # Includes all ODFVs (not just write-enabled) so string refs can
+        # resolve any ODFV created in the same apply.
+        fvs_to_resolve_map = {
+            view.name: view
+            for view in [
+                *views_to_update,
+                *sfvs_to_update,
+                *odfvs_to_update,
+                *lvs_to_update,
+            ]
+        }
         for feature_service in feature_services_to_update:
             # Resolve string feature refs (e.g. "driver_stats@v2") before
             # inference. No-op for object-only services.
             feature_service.resolve_pending_refs(
-                self.project, self.registry, fvs_to_update=fvs_to_update_map
+                self.project, self.registry, fvs_to_update=fvs_to_resolve_map
             )
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
