@@ -83,6 +83,29 @@ class WriteToFeatureStoreRequest(BaseModel):
     transform_on_write: bool = True
 
 
+class UpdateInfraRequest(BaseModel):
+    """Objects to provision, sent by RemoteOnlineStore.update().
+
+    Each entry is `{"type": <class name>, "proto": <base64 proto>}`. They are
+    carried in the body rather than looked up in the registry because
+    `FeatureStore.apply()` runs `update_infra()` before `registry.commit()`,
+    so the server cannot see them yet.
+    """
+
+    tables_to_delete: List[Dict[str, str]] = []
+    tables_to_keep: List[Dict[str, str]] = []
+    entities_to_delete: List[Dict[str, str]] = []
+    entities_to_keep: List[Dict[str, str]] = []
+    partial: bool = False
+
+
+class TeardownInfraRequest(BaseModel):
+    """Objects to tear down, sent by RemoteOnlineStore.teardown()."""
+
+    tables: List[Dict[str, str]] = []
+    entities: List[Dict[str, str]] = []
+
+
 class PushFeaturesRequest(BaseModel):
     push_source_name: str
     df: dict
@@ -930,6 +953,60 @@ def get_app(
             df=df,
             allow_registry_cache=allow_registry_cache,
             transform_on_write=request.transform_on_write,
+        )
+
+    @app.post("/update-infra", dependencies=[Depends(inject_user_details)])
+    async def update_infra(request: UpdateInfraRequest) -> None:
+        """Provision online store infrastructure on behalf of a remote client.
+
+        `feast apply` against `online_store: type: remote` cannot create tables
+        itself -- the concrete online store lives here. Without this the feature
+        view is registered but its table never exists (#6693).
+        """
+        # Imported here, not at module scope: feast.infra.online_stores.remote
+        # imports from `feast`, which is still initializing when this module loads.
+        from feast.infra.online_stores.remote import decode_infra_object
+
+        tables_to_keep = [decode_infra_object(o) for o in request.tables_to_keep]
+        tables_to_delete = [decode_infra_object(o) for o in request.tables_to_delete]
+        entities_to_keep = [decode_infra_object(o) for o in request.entities_to_keep]
+        entities_to_delete = [
+            decode_infra_object(o) for o in request.entities_to_delete
+        ]
+
+        for table in tables_to_keep:
+            assert_permissions(resource=table, actions=[AuthzedAction.CREATE])
+        for table in tables_to_delete:
+            assert_permissions(resource=table, actions=[AuthzedAction.DELETE])
+
+        await run_in_threadpool(
+            store._get_provider().update_infra,
+            project=store.project,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_delete=entities_to_delete,
+            entities_to_keep=entities_to_keep,
+            partial=request.partial,
+        )
+
+    @app.post("/teardown-infra", dependencies=[Depends(inject_user_details)])
+    async def teardown_infra(request: TeardownInfraRequest) -> None:
+        """Drop online store infrastructure on behalf of a remote client."""
+        # Imported here, not at module scope: feast.infra.online_stores.remote
+        # imports from `feast`, which is still initializing when this module loads.
+        from feast.infra.online_stores.remote import decode_infra_object
+
+        tables = [decode_infra_object(o) for o in request.tables]
+        entities = [decode_infra_object(o) for o in request.entities]
+
+        for table in tables:
+            assert_permissions(resource=table, actions=[AuthzedAction.DELETE])
+
+        await run_in_threadpool(
+            store._get_provider().teardown_infra,
+            project=store.project,
+            tables=tables,
+            entities=entities,
         )
 
     @app.get("/health")
