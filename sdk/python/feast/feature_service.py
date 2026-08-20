@@ -199,12 +199,18 @@ class FeatureService:
             fvs_to_update: A mapping of feature view names to corresponding feature views that
                 contains all the feature views necessary to run inference.
         """
+        # Mutate the stored projection, not feature_grouping.projection (decoupled
+        # from it by copy in __init__), so inference lands on the serialized object.
+        # Object groupings are appended in _features order (string refs added last),
+        # so the k-th BaseFeatureView maps to the k-th stored projection.
+        projection_index = 0
         for feature_grouping in self._features:
             if isinstance(feature_grouping, str):
                 # Already resolved by resolve_pending_refs before inference.
                 continue
             if isinstance(feature_grouping, BaseFeatureView):
-                projection = feature_grouping.projection
+                projection = self.feature_view_projections[projection_index]
+                projection_index += 1
 
                 if projection.desired_features:
                     # The projection wants to select a specific set of inferred features.
