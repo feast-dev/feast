@@ -37,7 +37,7 @@ Feast supports a range of online stores through a common interface, so using Aer
 
 A basic configuration consists of the store type and a namespace:
 
-```
+```yaml
 online_store:
   type: aerospike
   namespace: feast_ssd
@@ -45,7 +45,7 @@ online_store:
 
 HMA is the default and is the right choice for most feature views. If a small number of feature views are especially latency-sensitive, you can route them to a memory-backed namespace:
 
-```
+```yaml
 online_store:
   type: aerospike
   namespace: feast_ssd

@@ -11,7 +11,7 @@ authors: ["Valentyn Kahamlyk", "Francisco Javier Arceo"]
 
 We recently [launched an integration between Aerospike and Feast](/blog/aerospike-feast-now-available), giving teams a straightforward way to use Aerospike as the online store behind Feast's real-time feature serving. As part of that work, we wanted to understand how Aerospike performs under the workloads that matter for Feast users.
 
-We benchmarked Aerospike as a Feast online store using  [Feast’s benchmark harness](https://github.com/feast-dev/feast-benchmarks) and compared the results with the Redis and DynamoDB results published in the same repository. The tests varied the number of entities per request, the number of features per request, and the request rate.
+We benchmarked Aerospike as a Feast online store using [Feast’s benchmark harness](https://github.com/feast-dev/feast-benchmarks) and compared the results with the Redis and DynamoDB results published in the same repository. The tests varied the number of entities per request, the number of features per request, and the request rate.
 
 ## Benchmark methodology
 
@@ -23,9 +23,9 @@ We tested three dimensions of the workload:
 2. **Features per request.** More features represent a richer model and a larger amount of data that must be retrieved for each prediction.  
 3. **Request rate.** Increasing the request rate tests how each online store behaves as concurrency and load increase.
 
-Sweeping these axes separately allows us to observe how a store behaves under specific workload shapes rather than relying on a single latency number. 
+Sweeping these axes separately allows us to observe how a store behaves under specific workload shapes rather than relying on a single latency number.
 
-### A note on methodology and reproducibility 
+### A note on methodology and reproducibility
 
 Teams can use the publicly available [harness](https://github.com/feast-dev/feast-benchmarks) to run the tests on their own hardware and workloads. The repository publishes results for several online stores. We reviewed all of them and compared Aerospike against [Redis](https://aerospike.com/compare/redis-vs-aerospike/) and [DynamoDB](https://aerospike.com/compare/dynamodb-vs-aerospike/), setting Datastore aside because its data is several years old and the service has since been rebuilt as Firestore in Datastore mode.
 
@@ -67,7 +67,7 @@ As the request gets wider, Aerospike stays in the same low range as the in-memor
 
 ## Holding performance under load
 
-The third sweep increases the request rate, which is driven by traffic, not by the model. An ad-bidding or fraud-scoring service, at peak, fields thousands of decisions per second, and each decision can be one of these multi-entity reads, so entity-batch size and request rate rise together rather than independently. 
+The third sweep increases the request rate, which is driven by traffic, not by the model. An ad-bidding or fraud-scoring service, at peak, fields thousands of decisions per second, and each decision can be one of these multi-entity reads, so entity-batch size and request rate rise together rather than independently.
 
 The harness includes running 100 entities and 50 features per request at increasing requests per second (RPS).
 
@@ -79,8 +79,7 @@ The failures under load are different. Throttling and timeouts represent the beh
 
 ![Success rate with growing requests per second: Aerospike, Redis, and DynamoDB](/images/blog/aerospike-benchmark-success-rate-rps.png)
 
-**Chart 3: Aerospike successfully completes all runs up to the max 100 RPS**
-
+**Chart 3: Aerospike successfully completes all runs up to the max 100 RPS**  
 *Note: Entities \= 100, Features \= 50 for all runs*
 
 Aerospike keeps serving successfully as both request size and request rate increase, while the other stores stop completing requests.
@@ -93,8 +92,7 @@ That result marks the practical ceiling of the complete serving stack under this
 
 ![Success rate with growing requests per second at 100 entities by 250 features](/images/blog/aerospike-benchmark-success-rate-rps-wide-requests.png)
 
-**Chart 4: Redis and DynamoDB are unable to complete these runs. Aerospike succeeds up to 30 RPS**
-
+**Chart 4: Redis and DynamoDB are unable to complete these runs. Aerospike succeeds up to 30 RPS**  
 *Note: Entities \= 100, Features \= 250 for all runs*
 
 This test is useful for a different reason than the smaller requests. It shows what happens when the amount of data required for each request becomes large enough that the serving stack itself becomes the limiting factor.
@@ -130,7 +128,7 @@ The advantage comes from how much memory each design needs:
 | **Redis** (RAM) | \~120 GB | None |
 | **Aerospike**  (index RAM, data SSD) |    \~6 GB | 120 GB |
 
-Redis holds the entire footprint in RAM. Aerospike keeps only the index there and puts the feature data on SSD. Because RAM costs more than fifty times as much per gigabyte as SSD, moving the bulk of the footprint off memory cuts the RAM you have to provision by roughly 20 times, and the total infrastructure cost by an order of magnitude. 
+Redis holds the entire footprint in RAM. Aerospike keeps only the index there and puts the feature data on SSD. Because RAM costs more than fifty times as much per gigabyte as SSD, moving the bulk of the footprint off memory cuts the RAM you have to provision by roughly 20 times, and the total infrastructure cost by an order of magnitude.
 
 ![Infrastructure cost with increasing scale: Aerospike versus Redis](/images/blog/aerospike-benchmark-infrastructure-cost.png)
 
@@ -148,4 +146,4 @@ For teams using Feast, Aerospike provides an alternative that combines the perfo
 
 For production planning, use your own entity counts, feature widths, request rates, and latency targets. The right online store depends on the shape of your specific workload as well as the total size of your dataset.
 
-Get started with the Aerospike online store for [Feast here](https://github.com/feast-dev/feast/blob/master/docs/reference/online-stores/aerospike.md). 
+Get started with the Aerospike online store for [Feast here](https://github.com/feast-dev/feast/blob/master/docs/reference/online-stores/aerospike.md).
