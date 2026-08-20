@@ -1,8 +1,15 @@
-# Fast like a cache, priced like storage: Benchmarking Aerospike on Feast
+---
+title: "Fast like a cache, priced like storage: Benchmarking Aerospike on Feast"
+description: "We ran Feast's benchmark harness against Aerospike and compared it with the published Redis and DynamoDB results, sweeping entities per request, features per request, and request rate."
+date: 2026-08-20
+authors: ["Valentyn Kahamlyk", "Francisco Javier Arceo"]
+---
 
-*Aug 20, 2026* | *Valentyn Kahamlyk & Francisco Javier Arceo*
+<div class="hero-image">
+  <img src="/images/blog/aerospike-benchmark-p99-latency-entity-growth.png" alt="P99 latency with entity growth: Aerospike, Redis, and DynamoDB" loading="lazy">
+</div>
 
-We recently [launched an integration between Aerospike and Feast](?tab=t.okycygut6hlv), giving teams a straightforward way to use Aerospike as the online store behind Feast's real-time feature serving. As part of that work, we wanted to understand how Aerospike performs under the workloads that matter for Feast users.
+We recently [launched an integration between Aerospike and Feast](/blog/aerospike-feast-now-available), giving teams a straightforward way to use Aerospike as the online store behind Feast's real-time feature serving. As part of that work, we wanted to understand how Aerospike performs under the workloads that matter for Feast users.
 
 We benchmarked Aerospike as a Feast online store using  [Feast’s benchmark harness](https://github.com/feast-dev/feast-benchmarks) and compared the results with the Redis and DynamoDB results published in the same repository. The tests varied the number of entities per request, the number of features per request, and the request rate.
 
@@ -26,7 +33,7 @@ The Aerospike tests used a c2-standard-16 GCP VM. Redis and Aerospike were co-lo
 
 Because competitor results were collected on different hardware and at different times, we focus on workload behavior rather than precise latency multiples. These results should be read as workload comparisons rather than universal performance claims.
 
-Measuring latency across request sizes
+## Measuring latency across request sizes
 
 The first set of tests increases the number of entities requested at once.
 
@@ -36,7 +43,7 @@ Aerospike tracks the in-memory store closely on these ordinary reads. On single-
 
 DynamoDB is several times higher in these tests.
 
-![P99 latency with entity growth: Aerospike, Redis, and DynamoDB](../assets/aerospike-benchmark-p99-latency-entity-growth.png)
+![P99 latency with entity growth: Aerospike, Redis, and DynamoDB](/images/blog/aerospike-benchmark-p99-latency-entity-growth.png)
 
 **Chart 1: Aerospike P99 latency stays relatively low as more entities are added**   
 *Note: Features \= 50, RPS \= 10 for all runs*
@@ -51,7 +58,7 @@ The second sweep increases the number of features retrieved for each entity.
 
 As the feature count increases, each request contains more data and places more work on the online store. Feature counts climb as teams add signals to a model: a mature fraud model may pull a wide set of velocity, history, and device features about a single entity, which is why the widest requests are realistic and not a stress-test artifact.
 
-![P99 latency with feature growth: Aerospike, Redis, and DynamoDB](../assets/aerospike-benchmark-p99-latency-feature-growth.png)
+![P99 latency with feature growth: Aerospike, Redis, and DynamoDB](/images/blog/aerospike-benchmark-p99-latency-feature-growth.png)
 
 **Chart 2: Aerospike P99 latency remains low as more features are added**  
 *Note: Entities \= 1, RPS \= 10 for all runs*
@@ -70,7 +77,7 @@ The harness includes running 100 entities and 50 features per request at increas
 
 The failures under load are different. Throttling and timeouts represent the behavior of the stores under the tested workloads and do not depend on the same topology effect.
 
-![Success rate with growing requests per second: Aerospike, Redis, and DynamoDB](../assets/aerospike-benchmark-success-rate-rps.png)
+![Success rate with growing requests per second: Aerospike, Redis, and DynamoDB](/images/blog/aerospike-benchmark-success-rate-rps.png)
 
 **Chart 3: Aerospike successfully completes all runs up to the max 100 RPS**
 
@@ -84,7 +91,7 @@ We also tested a request shape of 100 entities by 250 features. At this workload
 
 That result marks the practical ceiling of the complete serving stack under this test configuration rather than the maximum capability of any individual database. The feature server, network, client, and load generator all contribute to the result.
 
-![Success rate with growing requests per second at 100 entities by 250 features](../assets/aerospike-benchmark-success-rate-rps-wide-requests.png)
+![Success rate with growing requests per second at 100 entities by 250 features](/images/blog/aerospike-benchmark-success-rate-rps-wide-requests.png)
 
 **Chart 4: Redis and DynamoDB are unable to complete these runs. Aerospike succeeds up to 30 RPS**
 
@@ -125,7 +132,7 @@ The advantage comes from how much memory each design needs:
 
 Redis holds the entire footprint in RAM. Aerospike keeps only the index there and puts the feature data on SSD. Because RAM costs more than fifty times as much per gigabyte as SSD, moving the bulk of the footprint off memory cuts the RAM you have to provision by roughly 20 times, and the total infrastructure cost by an order of magnitude. 
 
-![Infrastructure cost with increasing scale: Aerospike versus Redis](../assets/aerospike-benchmark-infrastructure-cost.png)
+![Infrastructure cost with increasing scale: Aerospike versus Redis](/images/blog/aerospike-benchmark-infrastructure-cost.png)
 
 **Chart 5: Costs dramatically rise with entity count for an all-RAM architecture**
 

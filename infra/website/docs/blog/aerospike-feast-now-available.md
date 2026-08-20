@@ -1,6 +1,9 @@
-# Aerospike now available as a Feast online store
-
-*Aug 20, 2026* | *Valentyn Kahamlyk & Francisco Javier Arceo*
+---
+title: "Aerospike now available as a Feast online store"
+description: "Feast now supports Aerospike as an online store, so teams can serve features with low, predictable latency while keeping feature data on SSD instead of RAM."
+date: 2026-08-20
+authors: ["Valentyn Kahamlyk", "Francisco Javier Arceo"]
+---
 
 Feast, a popular open-source [feature store](https://aerospike.com/blog/feature-store), now supports Aerospike as an online store, giving ML teams a way to serve features with low, predictable latency as their feature sets and workloads grow.
 
@@ -26,7 +29,7 @@ We ran Feast's `feast-benchmarks` harness end to end, from the load generator th
 2. **As load increased, Aerospike continued serving successfully** on demanding request shapes where the in-memory store began to degrade.  
 3. **Aerospike delivered that performance while storing feature data on SSD**, rather than requiring the entire feature set to remain in RAM.
 
-Full methodology and per-workload results are in \[Scaling Feast with Aerospike: benchmark results\].
+Full methodology and per-workload results are in [Fast like a cache, priced like storage: Benchmarking Aerospike on Feast](/blog/aerospike-feast-benchmark-harness-results).
 
 ## Out of the box: Configuring Aerospike with Feast
 
@@ -61,9 +64,9 @@ To keep read times low, group feature views that are commonly read together on t
 
 See the [Online server performance tuning guide](https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/online-server-performance-tuning.md) and [Aerospike online store reference](https://github.com/feast-dev/feast/blob/master/docs/reference/online-stores/aerospike.md) for the configuration details, including TTL, timeouts, set overrides, and prewriting hooks.
 
-## Get started with Feast and Aerospike {#get-started-with-feast-and-aerospike}
+## Get started with Feast and Aerospike
 
-The fastest way to start running the integration is directly through [Feast here](https://www.google.com/url?q=https://github.com/feast-dev/feast/blob/master/docs/reference/online-stores/aerospike.md&sa=D&source=docs&ust=1787086138537759&usg=AOvVaw28uVca1ZSB6JvrCaR_wu_5). Pin your Feast version and test failover, TTL, and namespace placement in a staging cluster before moving to production.
+The fastest way to start running the integration is directly through [Feast here](https://github.com/feast-dev/feast/blob/master/docs/reference/online-stores/aerospike.md). Pin your Feast version and test failover, TTL, and namespace placement in a staging cluster before moving to production.
 
 There are also several tutorials on using Aerospike as an online store:
 
