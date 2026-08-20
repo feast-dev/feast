@@ -369,7 +369,7 @@ class TestLabelViewFeatureStoreIntegration:
         assert not isinstance(lv, ODFV)
 
     def test_validate_feature_views_catches_name_conflict(self):
-        from feast.feature_store import _validate_feature_views
+        from feast.feature_store import validate_feature_views
 
         entity = Entity(name="item", join_keys=["item_id"], value_type=ValueType.STRING)
         lv1 = LabelView(
@@ -391,7 +391,7 @@ class TestLabelViewFeatureStoreIntegration:
         from feast.errors import ConflictingFeatureViewNames
 
         with pytest.raises(ConflictingFeatureViewNames):
-            _validate_feature_views([lv1, lv2])
+            validate_feature_views([lv1, lv2])
 
     def test_materialization_task_accepts_label_view(self):
         from datetime import datetime
