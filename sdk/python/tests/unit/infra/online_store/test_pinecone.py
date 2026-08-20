@@ -487,6 +487,60 @@ class TestPineconeRetrieveDocumentsV2:
         assert "distance" in features
         assert features["distance"].float_val == pytest.approx(0.95)
         assert "sentence_chunks" in features
+        assert "vector" in features
+        assert list(features["vector"].float_list_val.val) == pytest.approx(
+            [0.1, 0.2, 0.3]
+        )
+
+    @patch(
+        "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
+    )
+    def test_retrieve_uses_match_values_not_query_embedding(self, mock_get_index):
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        mock_match = MagicMock()
+        mock_match.metadata = {
+            "event_ts": int(datetime(2024, 1, 1, 12, 0, 0).timestamp() * 1e6),
+            "sentence_chunks": "doc",
+        }
+        mock_match.values = [9.0, 8.0, 7.0]
+        mock_match.score = 0.5
+        mock_response = MagicMock()
+        mock_response.matches = [mock_match]
+        mock_index.query.return_value = mock_response
+
+        store = PineconeOnlineStore()
+        results = store.retrieve_online_documents_v2(
+            config=_make_config(),
+            table=_make_vector_feature_view(),
+            requested_features=["vector"],
+            embedding=[0.1, 0.2, 0.3],
+            top_k=1,
+        )
+        _, _, features = results[0]
+        assert features is not None
+        assert list(features["vector"].float_list_val.val) == pytest.approx(
+            [9.0, 8.0, 7.0]
+        )
+
+    @patch(
+        "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
+    )
+    def test_retrieve_query_error_returns_empty(self, mock_get_index):
+        mock_index = MagicMock()
+        mock_index.query.side_effect = RuntimeError("query failed")
+        mock_get_index.return_value = mock_index
+
+        store = PineconeOnlineStore()
+        results = store.retrieve_online_documents_v2(
+            config=_make_config(),
+            table=_make_vector_feature_view(),
+            requested_features=["vector"],
+            embedding=[0.1, 0.2, 0.3],
+            top_k=1,
+        )
+        assert results == []
 
     @patch(
         "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
@@ -780,6 +834,54 @@ class TestPineconeWriteReadEdgeCases:
     @patch(
         "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
     )
+    def test_write_batch_upsert_error_reraises(self, mock_get_index):
+        mock_index = MagicMock()
+        mock_index.upsert.side_effect = RuntimeError("upsert failed")
+        mock_get_index.return_value = mock_index
+
+        store = PineconeOnlineStore()
+        with pytest.raises(RuntimeError, match="upsert failed"):
+            store.online_write_batch(
+                _make_config(),
+                _make_feature_view(),
+                [
+                    (
+                        _make_entity_key(1),
+                        {"trips_today": ValueProto(float_val=1.0)},
+                        datetime(2024, 1, 1, 12, 0, 0),
+                        None,
+                    )
+                ],
+                progress=None,
+            )
+
+    @patch(
+        "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
+    )
+    def test_write_batch_skips_oversized_metadata(self, mock_get_index):
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        store = PineconeOnlineStore()
+        huge = ValueProto(string_val="x" * 50_000)
+        store.online_write_batch(
+            _make_config(),
+            _make_feature_view(),
+            [
+                (
+                    _make_entity_key(1),
+                    {"driver_name": huge},
+                    datetime(2024, 1, 1, 12, 0, 0),
+                    None,
+                )
+            ],
+            progress=None,
+        )
+        mock_index.upsert.assert_not_called()
+
+    @patch(
+        "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore._get_index"
+    )
     def test_online_read_fetch_error(self, mock_get_index):
         mock_index = MagicMock()
         mock_index.fetch.side_effect = RuntimeError("boom")
@@ -890,7 +992,8 @@ class TestPineconeWriteReadEdgeCases:
         mock_client.describe_index.return_value = MagicMock(status={"ready": False})
         # Force dict-status path with ready=False
         mock_client.describe_index.return_value.status = {"ready": False}
-        PineconeOnlineStore._wait_for_index_ready(mock_client, "idx")
+        with pytest.raises(TimeoutError, match="did not become ready"):
+            PineconeOnlineStore._wait_for_index_ready(mock_client, "idx")
         mock_client.describe_index.assert_called()
 
 
@@ -948,6 +1051,11 @@ class TestProtoConversionsExtended:
 
         float_list = _metadata_to_proto_value([1.0, 2.0], Array(Float32))
         assert list(float_list.float_list_val.val) == [1.0, 2.0]
+
+    def test_metadata_to_proto_value_typed_conversion_fallback(self):
+        # Invalid base64 for Bytes should fall through to generic string handling
+        result = _metadata_to_proto_value("!!!not-base64!!!", Bytes)
+        assert result.string_val == "!!!not-base64!!!"
 
     def test_metadata_to_proto_value_fallback_list_and_other(self):
         non_numeric = _metadata_to_proto_value(["a", "b"], None)
