@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -40,6 +41,7 @@ class BigQuerySource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
@@ -64,6 +66,7 @@ class BigQuerySource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
+            connection_ref (optional): Connection reference for credential resolution.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -89,6 +92,7 @@ class BigQuerySource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -97,9 +101,7 @@ class BigQuerySource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
-            raise TypeError(
-                "Comparisons should only involve BigQuerySource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -119,6 +121,7 @@ class BigQuerySource(DataSource):
     def from_proto(data_source: DataSourceProto):
         assert data_source.HasField("bigquery_options")
 
+        tags = dict(data_source.tags)
         return BigQuerySource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -129,8 +132,9 @@ class BigQuerySource(DataSource):
             timestamp_field_type=data_source.timestamp_field_type or None,
             query=data_source.bigquery_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:

@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -38,6 +39,7 @@ class SnowflakeSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a SnowflakeSource object.
@@ -61,6 +63,7 @@ class SnowflakeSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the snowflake source, typically the email of the primary
                 maintainer.
+            connection_ref (optional): Connection reference for credential resolution.
         """
 
         if warehouse:
@@ -99,6 +102,7 @@ class SnowflakeSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     @staticmethod
@@ -112,6 +116,7 @@ class SnowflakeSource(DataSource):
         Returns:
             A SnowflakeSource object based on the data_source protobuf.
         """
+        tags = dict(data_source.tags)
         return SnowflakeSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
@@ -122,8 +127,9 @@ class SnowflakeSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             query=data_source.snowflake_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -132,9 +138,7 @@ class SnowflakeSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, SnowflakeSource):
-            raise TypeError(
-                "Comparisons should only involve SnowflakeSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)

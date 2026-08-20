@@ -14,6 +14,7 @@ from feast.type_map import (
     arrow_to_pg_type,
     feast_value_type_to_pa,
     feast_value_type_to_python_type,
+    pa_to_athena_value_type,
     pa_to_feast_value_type,
     pa_to_redshift_value_type,
     pg_type_to_feast_value_type,
@@ -531,6 +532,25 @@ class TestMapArrowTypeSupport:
         assert arrow_to_pg_type("map<string, string>") == "jsonb"
         assert arrow_to_pg_type("map<string, int64>") == "jsonb"
 
+    def test_pa_to_athena_value_type_unsigned_ints_widen(self):
+        """Unsigned Arrow ints must widen to a signed Athena type that can
+        hold their full range. Athena has no unsigned integer types, so
+        mapping every uintN to tinyint (signed -128..127) overflows for any
+        value above 127 in the generated CREATE TABLE DDL. Each uintN must map
+        to the next-larger signed type, matching arrow_to_pg_type's widening.
+        """
+        assert pa_to_athena_value_type(pyarrow.uint8()) == "smallint"
+        assert pa_to_athena_value_type(pyarrow.uint16()) == "int"
+        assert pa_to_athena_value_type(pyarrow.uint32()) == "bigint"
+        assert pa_to_athena_value_type(pyarrow.uint64()) == "bigint"
+
+    def test_pa_to_athena_value_type_signed_ints_unchanged(self):
+        """Signed Arrow ints keep their same-width Athena type (no regression)."""
+        assert pa_to_athena_value_type(pyarrow.int8()) == "tinyint"
+        assert pa_to_athena_value_type(pyarrow.int16()) == "smallint"
+        assert pa_to_athena_value_type(pyarrow.int32()) == "int"
+        assert pa_to_athena_value_type(pyarrow.int64()) == "bigint"
+
     def test_pg_type_to_feast_value_type_json(self):
         """Test that Postgres json/jsonb types convert to ValueType.MAP."""
         assert pg_type_to_feast_value_type("json") == ValueType.MAP
@@ -540,6 +560,11 @@ class TestMapArrowTypeSupport:
         """Test that Postgres json[]/jsonb[] types convert to ValueType.MAP_LIST."""
         assert pg_type_to_feast_value_type("json[]") == ValueType.MAP_LIST
         assert pg_type_to_feast_value_type("jsonb[]") == ValueType.MAP_LIST
+
+    def test_pg_type_to_feast_value_type_real(self):
+        """Postgres real is single-precision (float4), so it maps to FLOAT, not DOUBLE."""
+        assert pg_type_to_feast_value_type("real") == ValueType.FLOAT
+        assert pg_type_to_feast_value_type("real[]") == ValueType.FLOAT_LIST
 
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""

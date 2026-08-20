@@ -1,7 +1,7 @@
 import logging
 import time
 import uuid
-from typing import List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import pyarrow as pa
 import yaml
@@ -173,6 +173,11 @@ class SparkApplicationComputeEngine(ComputeEngine):
             tasks = [tasks]
 
         job_id = uuid.uuid4().hex[:8]
+        from feast.openlineage.identity import coerce_lineage_parent
+
+        lineage_parent = coerce_lineage_parent(
+            kwargs.get("lineage_parent") or kwargs.get("openlineage_parent")
+        )
 
         try:
             self._create_with_retry(
@@ -193,7 +198,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
             return [job for _ in tasks]
 
         try:
-            cr = self._build_spark_application_cr(job_id)
+            cr = self._build_spark_application_cr(job_id, lineage_parent=lineage_parent)
             self._create_with_retry(
                 lambda: self.custom_api.create_namespaced_custom_object(
                     group="sparkoperator.k8s.io",
@@ -223,6 +228,13 @@ class SparkApplicationComputeEngine(ComputeEngine):
         )
         try:
             self._wait_for_completion(job)
+            # Freeze success before finally-cleanup deletes the CR; otherwise
+            # FeatureStore's later job.status() poll gets 404 → false FAIL.
+            if (
+                job.error() is None
+                and job.status() == MaterializationJobStatus.SUCCEEDED
+            ):
+                job.mark_succeeded()
             return self._build_per_fv_jobs(registry, tasks, job_id, job)
         finally:
             self._cleanup(job_id)
@@ -262,9 +274,22 @@ class SparkApplicationComputeEngine(ComputeEngine):
 
         Each returned job is an independent object so that a failed
         SparkApplication does not pollute the status of succeeded FVs.
+
+        The per-FV outcome is resolved from registry state — never from the live
+        polling job — for every task count. ``materialize()`` deletes the
+        SparkApplication CR in its ``finally`` immediately after this returns, and
+        ``FeatureStore`` then re-checks ``status()``; a job that re-queried the
+        now-deleted CR would 404 and report a false failure for a materialization
+        that actually succeeded (#6673). ``CompletedMaterializationJob`` reports
+        SUCCEEDED without any Kubernetes call, so it is safe after cleanup.
         """
         if len(tasks) <= 1:
-            return [job for _ in tasks]
+            if (
+                job.error() is None
+                and job.status() == MaterializationJobStatus.SUCCEEDED
+            ):
+                return [CompletedMaterializationJob(job_id)]
+            return [job]
 
         jobs: List[MaterializationJob] = []
         for task in tasks:
@@ -320,7 +345,9 @@ class SparkApplicationComputeEngine(ComputeEngine):
             namespace=self.config.namespace, body=manifest
         )
 
-    def _build_spark_application_cr(self, job_id: str) -> dict:
+    def _build_spark_application_cr(
+        self, job_id: str, lineage_parent: Optional[Any] = None
+    ) -> dict:
         driver_env_conf = {
             "spark.kubernetes.driverEnv.FEAST_CONFIGMAP_NAME": f"feast-sa-{job_id}",
             "spark.kubernetes.driverEnv.FEAST_CONFIGMAP_NAMESPACE": self.config.namespace,
@@ -331,6 +358,22 @@ class SparkApplicationComputeEngine(ComputeEngine):
                 driver_env_conf[f"spark.kubernetes.driverEnv.{name}"] = str(
                     entry["value"]
                 )
+
+        from feast.openlineage.identity import (
+            coerce_lineage_parent,
+            spark_compute_job_name,
+        )
+
+        # K8s names stay unique per run; OL job identity is stable.
+        k8s_app_name = f"feast-sa-{job_id}"
+        project = getattr(self.repo_config, "project", None) or "feast"
+        parent_conf: Dict[str, str] = {
+            "spark.app.name": k8s_app_name,
+            "spark.openlineage.appName": spark_compute_job_name(project),
+        }
+        parent = coerce_lineage_parent(lineage_parent)
+        if parent:
+            parent_conf.update(parent.to_spark_openlineage_conf())
 
         spec = {
             "type": "Python",
@@ -343,6 +386,7 @@ class SparkApplicationComputeEngine(ComputeEngine):
             "sparkConf": {
                 "spark.scheduler.mode": "FAIR",
                 **(self.config.spark_conf or {}),
+                **parent_conf,
                 **driver_env_conf,
             },
             "restartPolicy": {

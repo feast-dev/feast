@@ -26,6 +26,8 @@ import (
 
 const (
 	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
+	packagedFeatureRepoEnvVar = "FEAST_PACKAGED_FEATURE_REPO_PATH"
+	stagedFeatureRepoEnvVar   = "FEAST_STAGED_FEATURE_REPO_PATH"
 	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
 	cronJobImageVar           = "RELATED_IMAGE_CRON_JOB"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
@@ -39,6 +41,12 @@ const (
 	NamespaceRegistryConfigMapName = "feast-configs-registry"
 	NamespaceRegistryDataKey       = "namespaces"
 	DefaultKubernetesNamespace     = "feast-operator-system"
+
+	// OpenLineage discovery ConfigMap constants
+	OpenLineageDiscoveryConfigMapName = "feast-openlineage-config"
+	OpenLineageDiscoveryEndpointsKey  = "endpoints"
+	OpenLineageDiscoveryYamlKey       = "openlineage.yml"
+	OpenLineageDiscoveryUrlKey        = "url"
 
 	// ProtectedProjectAnnotation is the annotation key on a FeatureStore CR
 	// that marks its project as protected. Protected projects are excluded
@@ -78,6 +86,7 @@ const (
 	OnlineFeastType   FeastServiceType = "online"
 	RegistryFeastType FeastServiceType = "registry"
 	UIFeastType       FeastServiceType = "ui"
+	LineageFeastType  FeastServiceType = "lineage"
 	ClientFeastType   FeastServiceType = "client"
 	ClientCaFeastType FeastServiceType = "client-ca"
 	CronJobFeastType  FeastServiceType = "cronjob"
@@ -111,6 +120,11 @@ const (
 	OidcTokenEnvVar      OidcPropertyType = "token_env_var"
 	OidcVerifySsl        OidcPropertyType = "verify_ssl"
 	OidcCaCertPath       OidcPropertyType = "ca_cert_path"
+	OidcAudience         OidcPropertyType = "audience"
+	OidcIssuer           OidcPropertyType = "issuer"
+
+	OidcJwksCacheLifespanSeconds  OidcPropertyType = "jwks_cache_lifespan_seconds"
+	OidcJwksRequestTimeoutSeconds OidcPropertyType = "jwks_request_timeout_seconds"
 
 	OidcMissingSecretError string = "missing OIDC secret: %s"
 
@@ -191,6 +205,11 @@ var (
 			TargetHttpPort:  8888,
 			TargetHttpsPort: 8443,
 		},
+		LineageFeastType: {
+			Args:            []string{"serve_lineage", "-h", "0.0.0.0"},
+			TargetHttpPort:  6580,
+			TargetHttpsPort: 6581,
+		},
 	}
 
 	FeastServiceConditions = map[FeastServiceType]map[metav1.ConditionStatus]metav1.Condition{
@@ -246,6 +265,19 @@ var (
 				Reason: feastdevv1.UIFailedReason,
 			},
 		},
+		LineageFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1.LineageReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.LineageReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1.LineageReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1.LineageFailedReason,
+			},
+		},
 		ClientFeastType: {
 			metav1.ConditionTrue: {
 				Type:    feastdevv1.ClientReadyType,
@@ -274,7 +306,7 @@ var (
 		},
 	}
 
-	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword}
+	OidcOptionalSecretProperties = []OidcPropertyType{OidcAuthDiscoveryUrl, OidcClientId, OidcClientSecret, OidcUsername, OidcPassword, OidcAudience, OidcIssuer}
 )
 
 // Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
@@ -324,6 +356,7 @@ type RepoConfig struct {
 	FeatureServer                 *FeatureServerYamlConfig         `yaml:"feature_server,omitempty"`
 	Materialization               *MaterializationYamlConfig       `yaml:"materialization,omitempty"`
 	OpenLineage                   *OpenLineageYamlConfig           `yaml:"openlineage,omitempty"`
+	Mlflow                        *MlflowYamlConfig                `yaml:"mlflow,omitempty"`
 	DataQualityMonitoring         *DataQualityMonitoringYamlConfig `yaml:"data_quality_monitoring,omitempty"`
 }
 
@@ -381,11 +414,29 @@ type OpenLineageYamlConfig struct {
 
 // OpenLineageConsumerYamlConfig maps to the openlineage.consumer section of feature_store.yaml.
 type OpenLineageConsumerYamlConfig struct {
-	Enabled          bool              `yaml:"enabled"`
-	StoreType        *string           `yaml:"store_type,omitempty"`
-	ConnectionString *string           `yaml:"connection_string,omitempty"`
-	ApiKey           *string           `yaml:"api_key,omitempty"`
-	NamespaceMapping map[string]string `yaml:"namespace_mapping,omitempty"`
+	Enabled                     bool              `yaml:"enabled"`
+	StoreType                   *string           `yaml:"store_type,omitempty"`
+	ConnectionString            *string           `yaml:"connection_string,omitempty"`
+	ApiKey                      *string           `yaml:"api_key,omitempty"`
+	NamespaceMapping            map[string]string `yaml:"namespace_mapping,omitempty"`
+	RetentionDays               *int32            `yaml:"retention_days,omitempty"`
+	RetentionCheckIntervalHours *int32            `yaml:"retention_check_interval_hours,omitempty"`
+	StandaloneServer            *bool             `yaml:"standalone_server,omitempty"`
+}
+
+// MlflowYamlConfig maps to the mlflow section of feature_store.yaml.
+// ExtraConfig is merged inline so additional key-value pairs appear at the same
+// YAML level as the typed fields.
+type MlflowYamlConfig struct {
+	Enabled             bool                   `yaml:"enabled"`
+	TrackingUri         *string                `yaml:"tracking_uri,omitempty"`
+	UiUrl               *string                `yaml:"ui_url,omitempty"`
+	AutoLog             *bool                  `yaml:"auto_log,omitempty"`
+	AutoLogEntityDf     *bool                  `yaml:"auto_log_entity_df,omitempty"`
+	EntityDfMaxRows     *int32                 `yaml:"entity_df_max_rows,omitempty"`
+	LogOperations       *bool                  `yaml:"log_operations,omitempty"`
+	OpsExperimentSuffix *string                `yaml:"ops_experiment_suffix,omitempty"`
+	ExtraConfig         map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.

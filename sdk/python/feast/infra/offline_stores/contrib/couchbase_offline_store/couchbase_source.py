@@ -7,6 +7,7 @@ from couchbase_columnar.credential import Credential
 from couchbase_columnar.options import ClusterOptions, QueryOptions, TimeoutOptions
 from typeguard import typechecked
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, ZeroColumnQueryResult
 from feast.feature_logging import LoggingDestination
@@ -43,6 +44,7 @@ class CouchbaseColumnarSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a CouchbaseColumnarSource object.
 
@@ -86,6 +88,7 @@ class CouchbaseColumnarSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     def __hash__(self):
@@ -93,9 +96,7 @@ class CouchbaseColumnarSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, CouchbaseColumnarSource):
-            raise TypeError(
-                "Comparisons should only involve CouchbaseColumnarSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -111,6 +112,7 @@ class CouchbaseColumnarSource(DataSource):
 
         couchbase_options = json.loads(data_source.custom_options.configuration)
 
+        tags = dict(data_source.tags)
         return CouchbaseColumnarSource(
             name=couchbase_options["name"],
             query=couchbase_options["query"],
@@ -121,8 +123,9 @@ class CouchbaseColumnarSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:

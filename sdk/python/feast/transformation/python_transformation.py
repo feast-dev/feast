@@ -1,7 +1,6 @@
 from types import FunctionType
 from typing import Any, Dict, Optional, cast
 
-import dill
 import pyarrow
 
 from feast.field import Field, from_value_type
@@ -143,17 +142,18 @@ class PythonTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
-            raise TypeError(
-                "Comparisons should only involve PythonTransformation class objects."
-            )
-
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
             return False
 
-        return True
+        # udf_string is the canonical diff identity. Source-first from_proto
+        # rebuilds a new callable (strip+exec) whose bytecode differs from the
+        # live repo function even when the source is unchanged — do not require
+        # co_code equality when both sides have source text.
+        left = self.udf_string or ""
+        right = other.udf_string or ""
+        if left and right:
+            return left == right
+
+        return self.udf.__code__.co_code == other.udf.__code__.co_code
 
     def __reduce__(self):
         """Support for pickle/dill serialization."""
@@ -164,7 +164,15 @@ class PythonTransformation(Transformation):
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
         return PythonTransformation(
-            udf=dill.loads(user_defined_function_proto.body),
-            udf_string=user_defined_function_proto.body_text,
+            udf=cast(FunctionType, udf),
+            udf_string=udf_string,
         )

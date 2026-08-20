@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from feast.api.registry.rest.rest_utils import (
     get_pagination_params,
@@ -48,5 +48,21 @@ def get_project_router(grpc_handler) -> APIRouter:
             "projects": projects,
             "pagination": pagination,
         }
+
+    return router
+
+
+def get_registry_router(store) -> APIRouter:
+    router = APIRouter()
+
+    @router.post("/registry/refresh")
+    def refresh_registry():
+        from feast.permissions.action import AuthzedAction
+        from feast.permissions.security_manager import assert_permissions
+
+        project = store.registry.get_project(name=store.project, allow_cache=True)
+        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
+        store.refresh_registry()
+        return Response(status_code=status.HTTP_200_OK)
 
     return router

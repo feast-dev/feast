@@ -23,13 +23,14 @@ look for store-specific YAML options in the Feast SDK docs.
 
 | # | Guide | Topic |
 |---|-------|-------|
-| 1 | [Project Provisioning](01-project-provisioning.md) | `feastProjectDir`: cloning a git repo vs `feast init` templates |
+| 1 | [Project Provisioning](01-project-provisioning.md) | `feastProjectDir`: git clone, `feast init`, or a repository packaged in an image |
 | 2 | [Persistence](02-persistence.md) | File (path + PVC) vs DB store for offline/online/registry; Secret format |
 | 3 | [Serving & Observability](03-serving-and-observability.md) | Feature server workers, log level, Prometheus metrics, offline push batching, MCP |
 | 4 | [Registry Topology](04-registry-topology.md) | Local vs remote registry, cross-namespace `feastRef`, remote TLS |
 | 5 | [Security](05-security.md) | Kubernetes RBAC roles vs OIDC auth; TLS for all servers |
 | 6 | [Batch Jobs](06-batch-and-jobs.md) | `batchEngine` ConfigMap contract, `cronJob` for scheduled materialization |
 | 7 | [OpenLineage & Materialization](07-openlineage-and-materialization.md) | Lineage transports, API key Secret, materialization batch size |
+| 8 | [MLflow Integration](08-mlflow-integration.md) | Auto-discovery, experiment tracking, auth, Feast UI lineage |
 
 ---
 
@@ -39,9 +40,12 @@ look for store-specific YAML options in the Feast SDK docs.
 - **"How do I wire Postgres/Redis/DuckDB as my store?"** → [Guide 2](02-persistence.md)
 - **"How do I enable Prometheus scraping for the feature server?"** → [Guide 3](03-serving-and-observability.md)
 - **"How do I make all services share a remote registry?"** → [Guide 4](04-registry-topology.md)
+- **"How do I get the client `feature_store.yaml` for connecting to my Feast services?"** → [Guide 4 — Client ConfigMap](04-registry-topology.md#client-side-configuration-auto-generated-configmap)
+- **"How do I use a contrib offline store like Trino or Iceberg?"** → [Guide 2 — Custom Image](02-persistence.md#building-a-custom-feature-server-image)
 - **"How do I enable Kubernetes RBAC or OIDC auth?"** → [Guide 5](05-security.md)
 - **"How do I schedule nightly materialization?"** → [Guide 6](06-batch-and-jobs.md)
 - **"How do I send lineage events to Marquez?"** → [Guide 7](07-openlineage-and-materialization.md)
+- **"How do I connect Feast to MLflow for experiment tracking?"** → [Guide 8](08-mlflow-integration.md)
 - **"What are all valid fields on `ServingConfig`?"** → [API ref](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#servingconfig)
 
 ---

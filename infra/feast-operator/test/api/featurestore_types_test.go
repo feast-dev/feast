@@ -296,6 +296,13 @@ func authzConfigWithOidc(featureStore *feastdevv1.FeatureStore) *feastdevv1.Feat
 	return fsCopy
 }
 
+func authzConfigWithOidcJwksTunables(jwksCacheLifespanSeconds *int32, jwksRequestTimeoutSeconds *int32, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
+	fsCopy := authzConfigWithOidc(featureStore)
+	fsCopy.Spec.AuthzConfig.OidcAuthz.JwksCacheLifespanSeconds = jwksCacheLifespanSeconds
+	fsCopy.Spec.AuthzConfig.OidcAuthz.JwksRequestTimeoutSeconds = jwksRequestTimeoutSeconds
+	return fsCopy
+}
+
 func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
 	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
@@ -599,16 +606,25 @@ var _ = Describe("FeatureStore API", func() {
 	})
 	Context("When omitting the AuthzConfig PvcConfig", func() {
 		_, featurestore := initContext()
-		It("should keep an empty AuthzConfig", func() {
+		It("should default to Kubernetes AuthzConfig", func() {
 			resource := featurestore
 			services.ApplyDefaultsToStatus(resource)
-			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
+			Expect(resource.Status.Applied.AuthzConfig).NotTo(BeNil())
+			Expect(resource.Status.Applied.AuthzConfig.KubernetesAuthz).NotTo(BeNil())
 		})
 	})
 	Context("When configuring the AuthzConfig", func() {
 		ctx, featurestore := initContext()
 		It("should fail when both kubernetes and oidc settings are given", func() {
-			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes or oidc")
+			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes, oidc, or noAuth")
+		})
+		It("should fail when the oidc JWKS cache lifespan is below one second", func() {
+			zero := int32(0)
+			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidcJwksTunables(&zero, nil, featurestore), "should be greater than or equal to 1")
+		})
+		It("should fail when the oidc JWKS request timeout is below one second", func() {
+			zero := int32(0)
+			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidcJwksTunables(nil, &zero, featurestore), "should be greater than or equal to 1")
 		})
 	})
 

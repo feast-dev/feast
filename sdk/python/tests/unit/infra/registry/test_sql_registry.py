@@ -29,10 +29,14 @@ from feast.errors import ConflictingFeatureViewNames
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.sql import (
+    FeastRegistrySchemaError,
     ProtoBytes,
     SqlRegistry,
     SqlRegistryConfig,
     feature_views,
+)
+from feast.infra.registry.sql import (
+    metadata as registry_metadata,
 )
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2,
@@ -63,6 +67,72 @@ def shared_sqlite_db_path():
     """Return a shared SQLite DB path for cross-project tests."""
     fd, path = tempfile.mkstemp()
     yield path
+
+
+def test_read_path_normalizes_bare_postgresql_scheme(caplog):
+    """A bare `postgresql://` read_path is rewritten to the psycopg3 driver, the
+    same way `path` is, and logs a migration warning. Without this, read_path
+    silently falls back to psycopg2 while path uses psycopg3."""
+    with caplog.at_level(logging.WARNING):
+        config = SqlRegistryConfig(
+            registry_type="sql",
+            path="postgresql://localhost:5432/db",
+            read_path="postgresql://localhost:5432/replica",
+        )
+    assert config.path == "postgresql+psycopg://localhost:5432/db"
+    assert config.read_path == "postgresql+psycopg://localhost:5432/replica"
+    # The migration warning names the read_path field specifically.
+    assert "`read_path` of the `RegistryConfig`" in caplog.text
+
+
+def test_read_path_normalized_when_registry_type_defaulted():
+    """read_path normalization must still fire when registry_type is left to its
+    default ('sql') rather than passed explicitly — the common real-world config."""
+    config = SqlRegistryConfig(
+        path="postgresql://localhost/db",
+        read_path="postgresql://localhost/replica",
+    )
+    assert config.registry_type == "sql"
+    assert config.read_path == "postgresql+psycopg://localhost/replica"
+
+
+@pytest.mark.parametrize(
+    "read_path",
+    [
+        "postgresql+psycopg2://localhost/replica",  # explicit psycopg2 preserved
+        "postgresql+psycopg://localhost/replica",  # already psycopg3
+        "mysql://localhost/replica",  # non-postgres left untouched
+    ],
+)
+def test_read_path_leaves_explicit_scheme_untouched(read_path):
+    config = SqlRegistryConfig(
+        registry_type="sql",
+        path="sqlite:///unused.db",
+        read_path=read_path,
+    )
+    assert config.read_path == read_path
+
+
+def test_read_path_none_stays_none():
+    config = SqlRegistryConfig(registry_type="sql", path="sqlite:///unused.db")
+    assert config.read_path is None
+
+
+@pytest.mark.parametrize("field_name", ["path", "read_path"])
+def test_postgres_normalization_only_rewrites_leading_scheme(field_name):
+    raw_url = "postgresql://localhost/db?target=postgresql://replica"
+    config_values = {
+        "registry_type": "sql",
+        "path": "sqlite:///unused.db",
+    }
+    config_values[field_name] = raw_url
+
+    config = SqlRegistryConfig(**config_values)
+
+    assert (
+        getattr(config, field_name)
+        == "postgresql+psycopg://localhost/db?target=postgresql://replica"
+    )
 
 
 def test_proto_columns_use_longblob_on_mysql():
@@ -519,3 +589,88 @@ def test_list_feature_views_updated_since_naive_treated_as_utc(sqlite_registry):
         "test_project", tags=None, updated_since=past_aware
     )
     assert len(result) == len(result_aware)
+
+
+class TestSchemaMode:
+    def test_schema_mode_auto_creates_tables(self, tmp_path):
+        """Default schema_mode='auto' creates tables on init (existing behavior)."""
+        db_file = tmp_path / "auto.db"
+        config = SqlRegistryConfig(
+            registry_type="sql",
+            path=f"sqlite:///{db_file}",
+            schema_mode="auto",
+        )
+        registry = SqlRegistry(config, "test_project", None)
+        from sqlalchemy import create_engine, inspect
+
+        engine = create_engine(f"sqlite:///{db_file}")
+        tables = set(inspect(engine).get_table_names())
+        expected = set(registry_metadata.tables.keys())
+        assert expected.issubset(tables)
+        engine.dispose()
+        registry.teardown()
+
+    def test_schema_mode_verify_raises_when_tables_missing(self, tmp_path):
+        """schema_mode='verify' raises FeastRegistrySchemaError on empty database."""
+        db_file = tmp_path / "verify_empty.db"
+        config = SqlRegistryConfig(
+            registry_type="sql",
+            path=f"sqlite:///{db_file}",
+            schema_mode="verify",
+        )
+        with pytest.raises(FeastRegistrySchemaError, match="missing tables"):
+            SqlRegistry(config, "test_project", None)
+
+    def test_schema_mode_verify_passes_when_tables_exist(self, tmp_path):
+        """schema_mode='verify' succeeds when schema was pre-created."""
+        db_file = tmp_path / "verify_ok.db"
+        db_url = f"sqlite:///{db_file}"
+        from sqlalchemy import create_engine
+
+        engine = create_engine(db_url)
+        registry_metadata.create_all(engine)
+        engine.dispose()
+
+        config = SqlRegistryConfig(
+            registry_type="sql",
+            path=db_url,
+            schema_mode="verify",
+        )
+        registry = SqlRegistry(config, "test_project", None)
+        registry.teardown()
+
+    def test_schema_mode_skip_does_not_run_ddl(self, tmp_path):
+        """schema_mode='skip' calls neither create_all nor _verify_schema."""
+        from unittest.mock import patch
+
+        db_file = tmp_path / "skip.db"
+        db_url = f"sqlite:///{db_file}"
+        from sqlalchemy import create_engine
+
+        engine = create_engine(db_url)
+        registry_metadata.create_all(engine)
+        engine.dispose()
+
+        with (
+            patch.object(registry_metadata, "create_all") as mock_create,
+            patch.object(SqlRegistry, "_verify_schema") as mock_verify,
+        ):
+            config = SqlRegistryConfig(
+                registry_type="sql",
+                path=db_url,
+                schema_mode="skip",
+            )
+            SqlRegistry(config, "test_project", None)
+            mock_create.assert_not_called()
+            mock_verify.assert_not_called()
+
+    def test_schema_mode_invalid_value_rejected(self):
+        """schema_mode only accepts 'auto', 'verify', 'skip'."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            SqlRegistryConfig(
+                registry_type="sql",
+                path="sqlite:///dummy.db",
+                schema_mode="bogus",
+            )

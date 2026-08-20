@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -85,6 +86,7 @@ class RaySource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a RaySource object.
 
@@ -113,6 +115,7 @@ class RaySource(DataSource):
                 maintainer.
             timestamp_field: Event timestamp field used for point-in-time joins of
                 feature values.
+            connection_ref: Connection reference for credential resolution.
         """
         if reader_type not in SUPPORTED_READER_TYPES:
             raise ValueError(
@@ -128,6 +131,7 @@ class RaySource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
         self.ray_source_options = RaySourceOptions(
@@ -163,6 +167,7 @@ class RaySource(DataSource):
         """
         assert data_source.type == DataSourceProto.CUSTOM_SOURCE
         config = json.loads(data_source.custom_options.configuration)
+        tags = dict(data_source.tags)
         return RaySource(
             name=data_source.name,
             reader_type=config["reader_type"],
@@ -172,8 +177,9 @@ class RaySource(DataSource):
             timestamp_field=data_source.timestamp_field or None,
             created_timestamp_column=data_source.created_timestamp_column or None,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -228,7 +234,7 @@ class RaySource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, RaySource):
-            raise TypeError("Comparisons should only involve RaySource class objects.")
+            return False
         base_eq = super().__eq__(other)
         if not base_eq:
             return False
