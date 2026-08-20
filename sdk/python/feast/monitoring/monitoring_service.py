@@ -29,6 +29,37 @@ GRANULARITY_WINDOWS = {
     "quarterly": timedelta(days=90),
 }
 
+
+def _as_utc_datetime(val: Any) -> Optional[datetime]:
+    """Parse a timestamp-like value to a timezone-aware UTC datetime."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+    if isinstance(val, date):
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+    if isinstance(val, str):
+        parsed = datetime.fromisoformat(val.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return None
+
+
+def _newest_event_in_window(
+    max_ts: Optional[datetime],
+    start_dt: datetime,
+    end_dt: datetime,
+) -> Optional[datetime]:
+    """Newest source event that falls inside ``[start_dt, end_dt]``.
+
+    ``max_ts`` is MAX(event_timestamp) over the whole source. If that
+    timestamp is after the window, the window end is used as an upper bound.
+    """
+    aware_max = _as_utc_datetime(max_ts)
+    if aware_max is None or aware_max < start_dt:
+        return None
+    return min(aware_max, end_dt)
+
+
 _FLOAT_FIELDS = frozenset(
     {
         "null_rate",
@@ -146,6 +177,7 @@ class MonitoringService:
                             granularity="baseline",
                             set_baseline=True,
                             now=now,
+                            max_event_timestamp=max_ts,
                         )
                         baseline_features += len(bl_metrics)
 
@@ -165,6 +197,7 @@ class MonitoringService:
                         granularity=granularity,
                         set_baseline=False,
                         now=now,
+                        max_event_timestamp=max_ts,
                     )
                     self._compute_feature_service_metrics(
                         project=project,
@@ -251,6 +284,11 @@ class MonitoringService:
             granularity=granularity,
             set_baseline=set_baseline,
             now=now,
+            max_event_timestamp=_newest_event_in_window(
+                self._get_max_timestamp_for_source(data_source, ts_field),
+                start_dt,
+                end_dt,
+            ),
         )
 
         duration_ms = int((time.time() - start_time) * 1000)
@@ -324,6 +362,7 @@ class MonitoringService:
                         granularity=gran,
                         set_baseline=False,
                         now=now,
+                        max_event_timestamp=max_ts,
                     )
                     total_features += len(metrics_list)
                     granularities_computed.add(gran)
@@ -402,6 +441,7 @@ class MonitoringService:
                     granularity="baseline",
                     set_baseline=True,
                     now=now,
+                    max_event_timestamp=self._get_max_timestamp(fv),
                 )
 
                 total_features += len(metrics_list)
@@ -834,6 +874,7 @@ class MonitoringService:
         granularity: str,
         set_baseline: bool,
         now: datetime,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> None:
         if not metrics_list:
             return
@@ -855,6 +896,7 @@ class MonitoringService:
             m["granularity"] = granularity
             m["data_source_type"] = "batch"
             m["computed_at"] = now
+            m["max_event_timestamp"] = max_event_timestamp
             m["is_baseline"] = set_baseline
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
@@ -866,6 +908,7 @@ class MonitoringService:
             "granularity": granularity,
             "data_source_type": "batch",
             "computed_at": now,
+            "max_event_timestamp": max_event_timestamp,
             "is_baseline": set_baseline,
             **build_view_aggregate(metrics_list),
         }
@@ -950,6 +993,11 @@ class MonitoringService:
             granularity=granularity,
             set_baseline=set_baseline,
             now=now,
+            max_event_timestamp=_newest_event_in_window(
+                self._get_max_timestamp(feature_view),
+                start_dt,
+                end_dt,
+            ),
         )
 
         return {"feature_count": len(metrics_list), "dates": {metric_date}}
@@ -1119,6 +1167,7 @@ class MonitoringService:
         granularity: str,
         set_baseline: bool,
         now: datetime,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> None:
         """Save log-sourced metrics tagged with data_source_type='log'.
 
@@ -1145,6 +1194,7 @@ class MonitoringService:
             m["granularity"] = granularity
             m["data_source_type"] = "log"
             m["computed_at"] = now
+            m["max_event_timestamp"] = max_event_timestamp
             m["is_baseline"] = set_baseline
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
@@ -1162,6 +1212,7 @@ class MonitoringService:
                 "granularity": granularity,
                 "data_source_type": "log",
                 "computed_at": now,
+                "max_event_timestamp": max_event_timestamp,
                 "is_baseline": set_baseline,
                 **build_view_aggregate(vmetrics),
             }
@@ -1178,6 +1229,7 @@ class MonitoringService:
             "granularity": granularity,
             "data_source_type": "log",
             "computed_at": now,
+            "max_event_timestamp": max_event_timestamp,
             "is_baseline": set_baseline,
             "total_feature_views": len(by_view),
             "total_features": svc_agg["total_features"],
@@ -1252,6 +1304,15 @@ class MonitoringService:
                         if m.get("avg_null_rate") is not None
                     ]
 
+                    newest_events = [
+                        ts
+                        for ts in (
+                            _as_utc_datetime(m.get("max_event_timestamp"))
+                            for m in relevant
+                        )
+                        if ts is not None
+                    ]
+
                     service_metric = {
                         "project_id": project,
                         "feature_service_name": fs.name,
@@ -1261,6 +1322,9 @@ class MonitoringService:
                         "granularity": granularity,
                         "data_source_type": "batch",
                         "computed_at": now,
+                        "max_event_timestamp": max(newest_events)
+                        if newest_events
+                        else None,
                         "is_baseline": set_baseline,
                         "total_feature_views": len(relevant),
                         "total_features": sum(

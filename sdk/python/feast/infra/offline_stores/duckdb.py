@@ -39,6 +39,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
     MONITORING_DIR,
     MONITORING_PARQUET_FILES,
+    MONITORING_TIMESTAMP_FIELDS,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_parquet_meta,
@@ -487,7 +488,7 @@ def _duckdb_parquet_query(
     for _, row in df.iterrows():
         record = {c: row.get(c) for c in columns}
         normalize_monitoring_row(record)
-        for key in ("metric_date", "computed_at"):
+        for key in MONITORING_TIMESTAMP_FIELDS:
             val = record.get(key)
             if (
                 val is not None
