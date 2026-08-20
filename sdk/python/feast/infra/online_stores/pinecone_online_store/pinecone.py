@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 import time
@@ -155,8 +156,8 @@ class PineconeOnlineStore(OnlineStore):
         api_key = online_config.api_key or os.environ.get("PINECONE_API_KEY")
         if not api_key:
             raise ValueError(
-                "Pinecone API key is required. Set it in feature_store.yaml "
-                "(online_store.api_key) or via the PINECONE_API_KEY env var."
+                "Pinecone API key is required. Set it in the configuration "
+                "or via the PINECONE_API_KEY environment variable."
             )
         return api_key
 
@@ -181,6 +182,7 @@ class PineconeOnlineStore(OnlineStore):
         return self._index
 
     def _get_namespace(self, config: RepoConfig, table: FeatureView) -> str:
+        """Get the Pinecone namespace for a given feature view."""
         online_config = config.online_store
         assert isinstance(online_config, PineconeOnlineStoreConfig)
         if online_config.namespace:
@@ -258,6 +260,18 @@ class PineconeOnlineStore(OnlineStore):
                 else:
                     metadata[feature_name] = _proto_value_to_metadata(value_proto)
 
+            metadata_size = len(json.dumps(metadata, default=str).encode("utf-8"))
+            if metadata_size > _MAX_METADATA_BYTES:
+                logger.warning(
+                    "Skipping entity %s: metadata size %s exceeds Pinecone limit %s",
+                    entity_key_str,
+                    metadata_size,
+                    _MAX_METADATA_BYTES,
+                )
+                if progress:
+                    progress(1)
+                continue
+
             if embedding is None:
                 embedding = [0.0] * (online_config.embedding_dim or 128)
 
@@ -275,7 +289,11 @@ class PineconeOnlineStore(OnlineStore):
         batch_size = online_config.batch_size or _UPSERT_BATCH_SIZE
         for i in range(0, len(vectors_to_upsert), batch_size):
             batch = vectors_to_upsert[i : i + batch_size]
-            index.upsert(vectors=batch, namespace=namespace)
+            try:
+                index.upsert(vectors=batch, namespace=namespace)
+            except Exception:
+                logger.exception("Failed to upsert Pinecone batch starting at %s", i)
+                raise
 
     def online_read(
         self,
@@ -471,14 +489,18 @@ class PineconeOnlineStore(OnlineStore):
         else:
             pinecone_filter = {"$and": filter_parts}
 
-        query_response = index.query(
-            vector=embedding,
-            top_k=top_k,
-            namespace=namespace,
-            include_metadata=True,
-            include_values=True,
-            filter=pinecone_filter,
-        )
+        try:
+            query_response = index.query(
+                vector=embedding,
+                top_k=top_k,
+                namespace=namespace,
+                include_metadata=True,
+                include_values=True,
+                filter=pinecone_filter,
+            )
+        except Exception:
+            logger.exception("Error querying Pinecone for vector search")
+            return []
 
         matches = query_response.get("matches", [])
         if hasattr(query_response, "matches"):
@@ -518,7 +540,7 @@ class PineconeOnlineStore(OnlineStore):
             res: Dict[str, ValueProto] = {}
             for feature_name in requested_features:
                 if feature_name in vector_fields and values:
-                    val = _serialize_vector_to_float_list(embedding)
+                    val = _serialize_vector_to_float_list(values)
                     res[feature_name] = val
                 elif feature_name in entity_name_type_map:
                     from feast.types import PrimitiveFeastType
@@ -572,10 +594,9 @@ class PineconeOnlineStore(OnlineStore):
             if ready:
                 return
             time.sleep(2)
-        logger.warning(
-            "Pinecone index '%s' did not become ready within %ds",
-            index_name,
-            _INDEX_READY_TIMEOUT,
+        raise TimeoutError(
+            f"Pinecone index '{index_name}' did not become ready within "
+            f"{_INDEX_READY_TIMEOUT}s"
         )
 
 
@@ -638,33 +659,41 @@ def _metadata_to_proto_value(metadata_value: Any, feast_type: Any) -> ValueProto
         proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(value_type)
 
         if proto_attr:
-            if proto_attr in ("int32_val", "int64_val"):
-                setattr(val, proto_attr, int(metadata_value))
-                return val
-            elif proto_attr in ("float_val", "double_val"):
-                setattr(val, proto_attr, float(metadata_value))
-                return val
-            elif proto_attr == "bool_val":
-                setattr(val, proto_attr, bool(metadata_value))
-                return val
-            elif proto_attr == "string_val":
-                setattr(val, proto_attr, str(metadata_value))
-                return val
-            elif proto_attr == "bytes_val":
-                if isinstance(metadata_value, str):
-                    setattr(val, proto_attr, base64.b64decode(metadata_value))
-                else:
-                    setattr(val, proto_attr, metadata_value)
-                return val
-            elif proto_attr in (
-                "float_list_val",
-                "double_list_val",
-                "int32_list_val",
-                "int64_list_val",
-            ):
-                if isinstance(metadata_value, list):
-                    getattr(val, proto_attr).val.extend(metadata_value)
+            try:
+                if proto_attr in ("int32_val", "int64_val"):
+                    setattr(val, proto_attr, int(metadata_value))
                     return val
+                elif proto_attr in ("float_val", "double_val"):
+                    setattr(val, proto_attr, float(metadata_value))
+                    return val
+                elif proto_attr == "bool_val":
+                    setattr(val, proto_attr, bool(metadata_value))
+                    return val
+                elif proto_attr == "string_val":
+                    setattr(val, proto_attr, str(metadata_value))
+                    return val
+                elif proto_attr == "bytes_val":
+                    if isinstance(metadata_value, str):
+                        setattr(val, proto_attr, base64.b64decode(metadata_value))
+                    else:
+                        setattr(val, proto_attr, metadata_value)
+                    return val
+                elif proto_attr in (
+                    "float_list_val",
+                    "double_list_val",
+                    "int32_list_val",
+                    "int64_list_val",
+                ):
+                    if isinstance(metadata_value, list):
+                        getattr(val, proto_attr).val.extend(metadata_value)
+                        return val
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    "Failed to convert metadata value %r to %s: %s",
+                    metadata_value,
+                    proto_attr,
+                    e,
+                )
 
     if isinstance(metadata_value, bool):
         val.bool_val = metadata_value

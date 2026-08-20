@@ -2416,7 +2416,7 @@ packages:
   - psycopg[c,pool]>=3.2.5 ; extra == 'postgres-c'
   - torch>=2.7.0 ; extra == 'pytorch'
   - torchvision>=0.22.1 ; extra == 'pytorch'
-  - pinecone>=5.0 ; extra == 'pinecone'
+  - pinecone>=5.0,<6.0 ; extra == 'pinecone'
   - qdrant-client>=1.12.0 ; extra == 'qdrant'
   - transformers>=4.36.0 ; extra == 'rag'
   - datasets>=3.6.0 ; extra == 'rag'
