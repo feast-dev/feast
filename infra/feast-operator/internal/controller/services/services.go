@@ -516,6 +516,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountEmptyDirVolumes(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec)
+	feast.applyTolerations(podSpec)
 	feast.applyTopologySpread(podSpec)
 	feast.applyAffinity(podSpec)
 	feast.applyResourceClaims(podSpec)
@@ -1142,8 +1143,18 @@ func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *
 }
 
 func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
-	// Merge node selectors from all services
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	// Start with the pod-level node selector configured on the FeatureStore
+	// services, then overlay per-service container config node selectors
+	// (per-service selectors win on key conflicts).
 	mergedNodeSelector := make(map[string]string)
+	if services != nil && len(services.NodeSelector) > 0 {
+		for k, v := range services.NodeSelector {
+			mergedNodeSelector[k] = v
+		}
+	}
 
 	// Check all service types for node selector configuration
 	allServiceTypes := append(feastServerTypes, UIFeastType)
@@ -1164,6 +1175,14 @@ func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
 	// This preserves pre-existing selectors while adding operator requirements
 	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
 	podSpec.NodeSelector = finalNodeSelector
+}
+
+func (feast *FeastServices) applyTolerations(podSpec *corev1.PodSpec) {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+
+	if services != nil && services.Tolerations != nil {
+		podSpec.Tolerations = services.Tolerations
+	}
 }
 
 func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {

@@ -2257,6 +2257,13 @@ spec:
                     description: InitImage overrides the image for init containers
                       (feast-init, feast-apply).
                     type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      NodeSelector is a selector which must be true for the FeatureStore deployment
+                      pods to fit on a node.
+                    type: object
                   offlineStore:
                     description: OfflineStore configures the offline store service
                     properties:
@@ -4857,6 +4864,40 @@ spec:
                             type: string
                         type: object
                     type: object
+                  tolerations:
+                    description: |-
+                      Tolerations are applied to the FeatureStore deployment pods, allowing them to
+                      be scheduled onto nodes with matching...
+                    items:
+                      description: |-
+                        The pod this Toleration is attached to tolerates any taint that matches
+                        the triple <key,value,effect> using the...
+                      properties:
+                        effect:
+                          description: Effect indicates the taint effect to match.
+                            Empty means match all taint effects.
+                          type: string
+                        key:
+                          description: Key is the taint key that the toleration applies
+                            to. Empty means match all taint keys.
+                          type: string
+                        operator:
+                          description: |-
+                            Operator represents a key's relationship to the value.
+                            Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                          type: string
+                        tolerationSeconds:
+                          description: |-
+                            TolerationSeconds represents the period of time the toleration (which must be
+                            of effect NoExecute, otherwise this field...
+                          format: int64
+                          type: integer
+                        value:
+                          description: Value is the taint value the toleration matches
+                            to.
+                          type: string
+                      type: object
+                    type: array
                   topologySpreadConstraints:
                     description: TopologySpreadConstraints defines how pods are spread
                       across topology domains.
@@ -9102,6 +9143,13 @@ spec:
                         description: InitImage overrides the image for init containers
                           (feast-init, feast-apply).
                         type: string
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          NodeSelector is a selector which must be true for the FeatureStore deployment
+                          pods to fit on a node.
+                        type: object
                       offlineStore:
                         description: OfflineStore configures the offline store service
                         properties:
@@ -11743,6 +11791,40 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      tolerations:
+                        description: |-
+                          Tolerations are applied to the FeatureStore deployment pods, allowing them to
+                          be scheduled onto nodes with matching...
+                        items:
+                          description: |-
+                            The pod this Toleration is attached to tolerates any taint that matches
+                            the triple <key,value,effect> using the...
+                          properties:
+                            effect:
+                              description: Effect indicates the taint effect to match.
+                                Empty means match all taint effects.
+                              type: string
+                            key:
+                              description: Key is the taint key that the toleration
+                                applies to. Empty means match all taint keys.
+                              type: string
+                            operator:
+                              description: |-
+                                Operator represents a key's relationship to the value.
+                                Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                              type: string
+                            tolerationSeconds:
+                              description: |-
+                                TolerationSeconds represents the period of time the toleration (which must be
+                                of effect NoExecute, otherwise this field...
+                              format: int64
+                              type: integer
+                            value:
+                              description: Value is the taint value the toleration
+                                matches to.
+                              type: string
+                          type: object
+                        type: array
                       topologySpreadConstraints:
                         description: TopologySpreadConstraints defines how pods are
                           spread across topology domains.
@@ -14673,6 +14755,13 @@ spec:
                   disableInitContainers:
                     description: Disable the 'feast repo initialization' initContainer
                     type: boolean
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      NodeSelector is a selector which must be true for the FeatureStore deployment
+                      pods to fit on a node.
+                    type: object
                   offlineStore:
                     description: OfflineStore configures the offline store service
                     properties:
@@ -16527,6 +16616,40 @@ spec:
                             type: string
                         type: object
                     type: object
+                  tolerations:
+                    description: |-
+                      Tolerations are applied to the FeatureStore deployment pods, allowing them to
+                      be scheduled onto nodes with matching...
+                    items:
+                      description: |-
+                        The pod this Toleration is attached to tolerates any taint that matches
+                        the triple <key,value,effect> using the...
+                      properties:
+                        effect:
+                          description: Effect indicates the taint effect to match.
+                            Empty means match all taint effects.
+                          type: string
+                        key:
+                          description: Key is the taint key that the toleration applies
+                            to. Empty means match all taint keys.
+                          type: string
+                        operator:
+                          description: |-
+                            Operator represents a key's relationship to the value.
+                            Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                          type: string
+                        tolerationSeconds:
+                          description: |-
+                            TolerationSeconds represents the period of time the toleration (which must be
+                            of effect NoExecute, otherwise this field...
+                          format: int64
+                          type: integer
+                        value:
+                          description: Value is the taint value the toleration matches
+                            to.
+                          type: string
+                      type: object
+                    type: array
                   ui:
                     description: Creates a UI server container
                     properties:
@@ -19199,6 +19322,13 @@ spec:
                       disableInitContainers:
                         description: Disable the 'feast repo initialization' initContainer
                         type: boolean
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          NodeSelector is a selector which must be true for the FeatureStore deployment
+                          pods to fit on a node.
+                        type: object
                       offlineStore:
                         description: OfflineStore configures the offline store service
                         properties:
@@ -21089,6 +21219,40 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      tolerations:
+                        description: |-
+                          Tolerations are applied to the FeatureStore deployment pods, allowing them to
+                          be scheduled onto nodes with matching...
+                        items:
+                          description: |-
+                            The pod this Toleration is attached to tolerates any taint that matches
+                            the triple <key,value,effect> using the...
+                          properties:
+                            effect:
+                              description: Effect indicates the taint effect to match.
+                                Empty means match all taint effects.
+                              type: string
+                            key:
+                              description: Key is the taint key that the toleration
+                                applies to. Empty means match all taint keys.
+                              type: string
+                            operator:
+                              description: |-
+                                Operator represents a key's relationship to the value.
+                                Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                              type: string
+                            tolerationSeconds:
+                              description: |-
+                                TolerationSeconds represents the period of time the toleration (which must be
+                                of effect NoExecute, otherwise this field...
+                              format: int64
+                              type: integer
+                            value:
+                              description: Value is the taint value the toleration
+                                matches to.
+                              type: string
+                          type: object
+                        type: array
                       ui:
                         description: Creates a UI server container
                         properties:
