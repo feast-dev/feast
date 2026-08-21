@@ -493,6 +493,7 @@ class MonitoringService:
 
         for fv in feature_views:
             try:
+                max_ts = self._get_max_timestamp(fv)
                 fv_metrics = self._compute_for_feature_view(
                     project=project,
                     feature_view=fv,
@@ -501,6 +502,7 @@ class MonitoringService:
                     end_dt=end_dt,
                     granularity=granularity,
                     set_baseline=set_baseline,
+                    max_event_timestamp=max_ts,
                 )
                 total_features += fv_metrics["feature_count"]
                 total_views += 1
@@ -968,6 +970,7 @@ class MonitoringService:
         end_dt: datetime,
         granularity: str,
         set_baseline: bool,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         feature_fields = self._classify_fields(
             feature_view, feature_names=feature_names
@@ -994,7 +997,7 @@ class MonitoringService:
             set_baseline=set_baseline,
             now=now,
             max_event_timestamp=_newest_event_in_window(
-                self._get_max_timestamp(feature_view),
+                max_event_timestamp,
                 start_dt,
                 end_dt,
             ),
