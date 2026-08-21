@@ -127,7 +127,11 @@ class AuthConfig(FeastConfigBaseModel):
 
         model_cls = CLASSES_BY_AUTH_TYPE[auth_type]["auth_model"]
         model = model_cls(**self.config)
-        return trino_auth_cls(**model.model_dump())
+        kwargs = {
+            field: value.get_secret_value() if isinstance(value, SecretStr) else value
+            for field, value in model.model_dump().items()
+        }
+        return trino_auth_cls(**kwargs)
 
 
 class TrinoOfflineStoreConfig(FeastConfigBaseModel):
