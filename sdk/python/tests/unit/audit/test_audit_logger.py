@@ -177,6 +177,29 @@ class TestAuditLogger(unittest.TestCase):
         )
         self.assertEqual(len(sink.events), 1)
 
+    def test_log_successful_mcp_read_suppressed(self):
+        """MCP tool-call events for read tools are suppressed when
+        log_successful_reads=False, even without resource.actions."""
+        sink = InMemorySink()
+        al = AuditLogger(sink, log_successful_reads=False)
+        al.log_mcp_call(
+            request_id="r-mcp",
+            tool_name="get_online_features",
+            outcome="success",
+        )
+        self.assertEqual(len(sink.events), 0)
+
+    def test_log_successful_mcp_write_not_suppressed(self):
+        """MCP tool-call events for non-read tools are always logged."""
+        sink = InMemorySink()
+        al = AuditLogger(sink, log_successful_reads=False)
+        al.log_mcp_call(
+            request_id="r-mcp-w",
+            tool_name="push",
+            outcome="success",
+        )
+        self.assertEqual(len(sink.events), 1)
+
     def test_log_failed_reads_not_suppressed(self):
         sink = InMemorySink()
         al = AuditLogger(sink, log_successful_reads=False)
@@ -387,6 +410,14 @@ class TestAuditLoggingConfig(unittest.TestCase):
         )
         self.assertIsNotNone(cfg.audit_logging)
         self.assertTrue(cfg.audit_logging.enabled)
+
+    def test_invalid_sink_rejected(self):
+        from pydantic import ValidationError
+
+        from feast.infra.feature_servers.base_config import AuditLoggingConfig
+
+        with self.assertRaises(ValidationError):
+            AuditLoggingConfig(enabled=True, sink="kafka")
 
     def test_mcp_config_includes_audit_logging(self):
         from feast.infra.feature_servers.base_config import AuditLoggingConfig
