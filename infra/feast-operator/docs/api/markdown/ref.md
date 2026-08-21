@@ -292,6 +292,11 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | Tolerations are applied to the FeatureStore deployment pods, allowing them to
+be scheduled onto nodes with matching taints. |
+| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector is a selector which must be true for the FeatureStore deployment
+pods to fit on a node. This selector must match a node's labels for the pod to
+be scheduled on that node. |
 | `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
 and reserved before the Pod is allowed to start. The resources
 will be made available to those containers which consume them
