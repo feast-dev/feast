@@ -134,13 +134,20 @@ class TestWrapCallToolHandler(unittest.TestCase):
         self.assertIn("tool exploded", event.detail)
 
     def test_isError_result_logs_mcp_error(self):
+        from mcp.types import CallToolResult, ServerResult, TextContent
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
         mcp = _make_real_mcp()
 
         async def error_handler(req):
-            return SimpleNamespace(isError=True)
+            return ServerResult(
+                root=CallToolResult(
+                    content=[TextContent(type="text", text="validation failed")],
+                    isError=True,
+                )
+            )
 
         mcp.server.request_handlers[_handler_key()] = error_handler
         _wrap_call_tool_handler(mcp, audit)
@@ -187,13 +194,15 @@ class TestWrapCallToolHandler(unittest.TestCase):
 
     def test_params_none_uses_empty_tool_name(self):
         """When req.params is None the tool name defaults to empty string."""
+        from mcp.types import CallToolResult, ServerResult
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
         mcp = _make_real_mcp()
 
         async def handler(req):
-            return SimpleNamespace(isError=False)
+            return ServerResult(root=CallToolResult(content=[]))
 
         mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
@@ -223,6 +232,8 @@ class TestWrapCallToolHandler(unittest.TestCase):
     def test_contextvar_propagates_request_id(self):
         """The wrapper sets mcp_audit_request_id so that AuditLoggingMiddleware
         on the internal REST call can reuse the same request_id."""
+        from mcp.types import CallToolResult, ServerResult
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
         captured_ids: list[str | None] = []
@@ -231,7 +242,7 @@ class TestWrapCallToolHandler(unittest.TestCase):
 
         async def handler(req):
             captured_ids.append(mcp_audit_request_id.get())
-            return SimpleNamespace(isError=False)
+            return ServerResult(root=CallToolResult(content=[]))
 
         mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
@@ -245,13 +256,15 @@ class TestWrapCallToolHandler(unittest.TestCase):
 
     def test_contextvar_reset_after_call(self):
         """The ContextVar is cleaned up after the handler completes."""
+        from mcp.types import CallToolResult, ServerResult
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
         mcp = _make_real_mcp()
 
         async def handler(req):
-            return SimpleNamespace(isError=False)
+            return ServerResult(root=CallToolResult(content=[]))
 
         mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
@@ -266,6 +279,8 @@ class TestWrapCallToolHandler(unittest.TestCase):
     def test_mcp_and_rest_events_share_request_id(self):
         """End-to-end: both mcp.tools.call and http.request events emitted
         during a single tool invocation share the same request_id."""
+        from mcp.types import CallToolResult, ServerResult
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
@@ -279,7 +294,7 @@ class TestWrapCallToolHandler(unittest.TestCase):
                 path="/get-online-features",
                 status_code=200,
             )
-            return SimpleNamespace(isError=False)
+            return ServerResult(root=CallToolResult(content=[]))
 
         mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)
@@ -294,13 +309,15 @@ class TestWrapCallToolHandler(unittest.TestCase):
 
     def test_jsonrpc_id_from_request_context(self):
         """When request_context is available, jsonrpc_id is captured."""
+        from mcp.types import CallToolResult, ServerResult
+
         sink = InMemorySink()
         audit = AuditLogger(sink)
 
         mcp = _make_real_mcp()
 
         async def handler(req):
-            return SimpleNamespace(isError=False)
+            return ServerResult(root=CallToolResult(content=[]))
 
         mcp.server.request_handlers[_handler_key()] = handler
         _wrap_call_tool_handler(mcp, audit)

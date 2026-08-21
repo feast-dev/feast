@@ -27,7 +27,10 @@ import sys
 import threading
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from feast.infra.feature_servers.base_config import AuditLoggingConfig
 
 from pydantic import BaseModel, Field
 
@@ -192,6 +195,33 @@ class AuditLogger:
         except Exception:
             pass
 
+    # MCP tool names and REST paths that correspond to read operations.
+    _READ_TOOL_NAMES = frozenset(
+        {
+            "get_online_features",
+            "retrieve_online_documents",
+            "get_historical_features",
+        }
+    )
+    _READ_ACTIONS = frozenset({"READ_ONLINE", "READ_OFFLINE"})
+
+    @classmethod
+    def _is_read_event(cls, event: AuditEvent) -> bool:
+        """Return ``True`` when *event* represents a successful read.
+
+        Checks both ``resource.actions`` (populated by REST middleware) and
+        ``action.mcp_tool`` (populated by the MCP handler wrapper) so that
+        suppression via ``log_successful_reads=False`` works for both layers.
+        """
+        if event.event_type not in {"mcp.tools.call", "http.request"}:
+            return False
+        resource_actions = set(event.resource.actions)
+        if resource_actions and resource_actions.issubset(cls._READ_ACTIONS):
+            return True
+        if event.action.mcp_tool in cls._READ_TOOL_NAMES:
+            return True
+        return False
+
     # -- public API --------------------------------------------------------
 
     def log(self, event: AuditEvent) -> None:
@@ -203,12 +233,8 @@ class AuditLogger:
         self._inject_otel_context(event)
 
         if event.outcome == "success" and not self._log_successful_reads:
-            read_events = {"mcp.tools.call", "http.request"}
-            if event.event_type in read_events:
-                read_actions = {"READ_ONLINE", "READ_OFFLINE"}
-                resource_actions = set(event.resource.actions)
-                if resource_actions and resource_actions.issubset(read_actions):
-                    return
+            if self._is_read_event(event):
+                return
 
         try:
             with self._lock:
@@ -327,7 +353,7 @@ _SINK_FACTORIES = {
 
 
 def create_audit_logger_from_config(
-    audit_cfg: Any,
+    audit_cfg: Optional["AuditLoggingConfig"],
 ) -> Optional[AuditLogger]:
     """Build an ``AuditLogger`` from an ``AuditLoggingConfig`` pydantic model.
 

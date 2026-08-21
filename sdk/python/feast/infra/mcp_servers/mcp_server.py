@@ -259,7 +259,10 @@ def _wrap_call_tool_handler(mcp: "FastApiMCP", audit: Any) -> None:
         error_detail = ""
         try:
             result = await original(req)
-            if hasattr(result, "isError") and result.isError:
+            # The MCP SDK returns ServerResult(root=CallToolResult(...));
+            # isError lives on the inner CallToolResult, not the wrapper.
+            inner = getattr(result, "root", result)
+            if getattr(inner, "isError", False):
                 outcome = "mcp_error"
             return result
         except Exception as exc:
