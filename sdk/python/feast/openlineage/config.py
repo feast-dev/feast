@@ -43,6 +43,10 @@ class OpenLineageConsumerConfig:
             pruning (keep everything). Default: 30 days.
         retention_check_interval_hours: How often the background pruning runs,
             in hours. Default: 6 hours.
+        standalone_server: When true, the retention background task is
+            delegated to the standalone lineage server (feast serve_lineage).
+            All consumer API endpoints remain available on both servers.
+            Set automatically by the operator when lineageServer is configured.
     """
 
     enabled: bool = False
@@ -52,6 +56,7 @@ class OpenLineageConsumerConfig:
     namespace_mapping: Dict[str, str] = field(default_factory=dict)
     retention_days: int = 30
     retention_check_interval_hours: int = 6
+    standalone_server: bool = False
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenLineageConsumerConfig":
@@ -65,6 +70,7 @@ class OpenLineageConsumerConfig:
             retention_check_interval_hours=int(
                 config_dict.get("retention_check_interval_hours", 6)
             ),
+            standalone_server=config_dict.get("standalone_server", False),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,6 +82,7 @@ class OpenLineageConsumerConfig:
             "namespace_mapping": self.namespace_mapping,
             "retention_days": self.retention_days,
             "retention_check_interval_hours": self.retention_check_interval_hours,
+            "standalone_server": self.standalone_server,
         }
 
 

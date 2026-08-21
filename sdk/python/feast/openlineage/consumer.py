@@ -75,6 +75,10 @@ def get_consumer_router(
     """
     Create FastAPI router for the OpenLineage consumer endpoints.
 
+    All endpoints (read and write) are always mounted. When deployed
+    alongside a standalone lineage server, both servers share the same
+    SQL database so full API parity is safe.
+
     Args:
         config: OpenLineage configuration with consumer settings
         store: The lineage store instance
@@ -82,7 +86,7 @@ def get_consumer_router(
         get_allowed_namespaces: Optional callable that returns allowed namespaces
             for the current user (for RBAC filtering). If None, all namespaces visible.
     """
-    router = APIRouter()
+    router = APIRouter(tags=["OpenLineage"])
 
     # ── Producer-facing: receive events ──
 

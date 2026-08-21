@@ -104,15 +104,18 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if r.Metrics != nil {
 				r.Metrics.DeleteFeatureStore(req.NamespacedName.Namespace, req.NamespacedName.Name)
 			}
-			// Clean up namespace registry entry even if the CR is not found
-			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
+			// Clean up namespace registry and OpenLineage discovery entries
+			deletedCR := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      req.NamespacedName.Name,
 					Namespace: req.NamespacedName.Namespace,
 				},
-			}); err != nil {
+			}
+			if err := r.cleanupNamespaceRegistry(ctx, deletedCR); err != nil {
 				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
-				// Don't return error here as the CR is already deleted
+			}
+			if err := r.cleanupOpenLineageDiscovery(ctx, deletedCR); err != nil {
+				logger.Error(err, "Failed to clean up OpenLineage discovery entry for deleted FeatureStore")
 			}
 			return ctrl.Result{}, nil
 		}
@@ -121,14 +124,18 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	currentStatus := cr.Status.DeepCopy()
 
-	// Handle deletion - clean up namespace registry entry
+	// Handle deletion - clean up namespace registry and OpenLineage discovery entries
 	if cr.DeletionTimestamp != nil {
-		logger.Info("FeatureStore is being deleted, cleaning up namespace registry entry")
+		logger.Info("FeatureStore is being deleted, cleaning up registry entries")
 		if r.Metrics != nil {
 			r.Metrics.DeleteFeatureStore(cr.Namespace, cr.Name)
 		}
 		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
 			logger.Error(err, "Failed to clean up namespace registry entry")
+			return ctrl.Result{}, err
+		}
+		if err := r.cleanupOpenLineageDiscovery(ctx, cr); err != nil {
+			logger.Error(err, "Failed to clean up OpenLineage discovery entry")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -153,7 +160,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// Add to namespace registry if deployment was successful and not being deleted
+	// Add to namespace registry and OpenLineage discovery if deployment was successful
 	if recErr == nil && cr.DeletionTimestamp == nil {
 		feast := services.FeastServices{
 			Handler: feasthandler.FeastHandler{
@@ -165,7 +172,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		if err := feast.AddToNamespaceRegistry(); err != nil {
 			logger.Error(err, "Failed to add FeatureStore to namespace registry")
-			// Don't return error here as the FeatureStore is already deployed successfully
+		}
+		if err := feast.AddToOpenLineageDiscovery(); err != nil {
+			logger.Error(err, "Failed to add FeatureStore to OpenLineage discovery")
 		}
 	}
 
@@ -351,6 +360,20 @@ func (r *FeatureStoreReconciler) mapMlflowToFeastRequests(ctx context.Context, _
 		})
 	}
 	return requests
+}
+
+// cleanupOpenLineageDiscovery removes the feature store instance from the OpenLineage discovery ConfigMap
+func (r *FeatureStoreReconciler) cleanupOpenLineageDiscovery(ctx context.Context, cr *feastdevv1.FeatureStore) error {
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+
+	return feast.RemoveFromOpenLineageDiscovery()
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

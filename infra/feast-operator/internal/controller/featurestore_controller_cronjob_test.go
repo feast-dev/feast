@@ -143,6 +143,7 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			// verify restricted pod security context
 			Expect(podSpec.SecurityContext).NotTo(BeNil())
 			Expect(*podSpec.SecurityContext.RunAsNonRoot).To(BeTrue())
+			Expect(podSpec.SecurityContext.RunAsUser).NotTo(BeNil())
 			Expect(*podSpec.SecurityContext.RunAsUser).To(Equal(int64(1001)))
 			Expect(podSpec.SecurityContext.SeccompProfile).NotTo(BeNil())
 			Expect(podSpec.SecurityContext.SeccompProfile.Type).To(Equal(corev1.SeccompProfileTypeRuntimeDefault))

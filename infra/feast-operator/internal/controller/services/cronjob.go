@@ -148,16 +148,23 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 }
 
 func (feast *FeastServices) getCronJobPodSpec() corev1.PodSpec {
+	podSecCtx := &corev1.PodSecurityContext{
+		RunAsNonRoot: boolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	// On vanilla Kubernetes (e.g. Kind) we must set an explicit non-root UID
+	// because the default CronJob image (origin-cli) runs as root.
+	// On OpenShift the restricted-v2 SCC auto-assigns a UID from the
+	// namespace's allowed range, so we must NOT set RunAsUser.
+	if !IsOpenShift() {
+		podSecCtx.RunAsUser = int64Ptr(1001)
+	}
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: feast.initCronJobSA().Name,
 		RestartPolicy:      corev1.RestartPolicyNever,
-		SecurityContext: &corev1.PodSecurityContext{
-			RunAsNonRoot: boolPtr(true),
-			RunAsUser:    int64Ptr(1001),
-			SeccompProfile: &corev1.SeccompProfile{
-				Type: corev1.SeccompProfileTypeRuntimeDefault,
-			},
-		},
+		SecurityContext:    podSecCtx,
 	}
 	feast.setCronJobContainers(&podSpec)
 	return podSpec

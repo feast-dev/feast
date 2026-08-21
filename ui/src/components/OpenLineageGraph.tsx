@@ -10,6 +10,7 @@ import {
   Node,
   Edge,
   Controls,
+  ControlButton,
   Background,
   useNodesState,
   useEdgesState,
@@ -1376,6 +1377,23 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
   );
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const edgesRef = useRef<Edge[]>([]);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!graphContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current.requestFullscreen();
+    }
+  }, []);
 
   const connectedIds = useMemo(() => {
     if (!hoveredNodeId) return null;
@@ -1846,7 +1864,15 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
           </EuiFormRow>
         </EuiFlexItem>
       </EuiFlexGroup>
-      <div style={{ display: "flex", height: 600, border: "1px solid #ddd" }}>
+      <div
+        ref={graphContainerRef}
+        style={{
+          display: "flex",
+          height: isFullscreen ? "100vh" : 600,
+          border: "1px solid #ddd",
+          background: "#fff",
+        }}
+      >
         <div style={{ flex: 1, position: "relative" }}>
           <ReactFlow
             nodes={styledNodes}
@@ -1863,7 +1889,14 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
             onPaneClick={() => setSelectedNode(null)}
           >
             <Background color="#f0f0f0" gap={16} />
-            <Controls />
+            <Controls>
+              <ControlButton
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? "⊡" : "⛶"}
+              </ControlButton>
+            </Controls>
             <ProducerLegend producers={producers} />
           </ReactFlow>
         </div>
