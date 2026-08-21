@@ -3,6 +3,9 @@ from datetime import timedelta
 from pathlib import Path
 from textwrap import dedent
 
+import pandas as pd
+
+from feast.repo_operations import init_repo
 from feast.utils import _utc_now
 from tests.utils.cli_repo_creator import CliRunner
 
@@ -81,3 +84,32 @@ def test_postgres_template_registry_path_is_parameterized() -> None:
     contents = template_fs_yaml.read_text(encoding="utf-8")
     expected = "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME"
     assert expected in contents
+
+
+def test_recommendation_template_init(tmp_path: Path) -> None:
+    repo_path = tmp_path / "recommendation_project"
+
+    init_repo(
+        "recommendation_project",
+        template="recommendation",
+        repo_path=str(repo_path),
+    )
+
+    feature_repo = repo_path / "feature_repo"
+    config = (feature_repo / "feature_store.yaml").read_text(encoding="utf-8")
+    assert "project: recommendation_project" in config
+    assert "type: sqlite" in config
+    assert "vector_enabled: true" in config
+
+    definitions = (feature_repo / "feature_definitions.py").read_text(encoding="utf-8")
+    assert "vector_index=True" in definitions
+    assert "vector_length=384" in definitions
+    assert 'name="recommendation_project"' in definitions
+    assert 'path="data/products.parquet"' in definitions
+
+    products_path = feature_repo / "data" / "products.parquet"
+    assert products_path.is_file()
+    products = pd.read_parquet(products_path)
+    assert len(products) == 12
+    assert all(len(embedding) == 384 for embedding in products["embedding"])
+    assert not (repo_path / "bootstrap.py").exists()
