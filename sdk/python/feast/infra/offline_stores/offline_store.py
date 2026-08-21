@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import math
 import time
 import warnings
 from abc import ABC
@@ -31,6 +32,7 @@ from typing import (
 
 import pandas as pd
 import pyarrow
+import pyarrow.compute
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -89,8 +91,104 @@ def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     return [], 0
 
 
+_MAX_SQL_LITERAL_LENGTH = 4096
+
+
+def to_sql_literal(value: Any) -> Optional[str]:
+    """Renders a default as a SQL literal, or None if it cannot be pushed into a query.
+
+    Deliberately limited to scalars, whose spelling is the same across every dialect
+    that templates a point-in-time join. Anything else falls back to filling the
+    values in Python after the query runs.
+    """
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value) if math.isfinite(value) else None
+    if isinstance(value, str):
+        # No escaping is portable. BigQuery rejects the SQL-standard '' form, reading
+        # 'O''Brien' as two adjacent literals, while backslash escapes are literal in
+        # Trino. A string needing either is left to the Python fill instead.
+        if any(c in value for c in "'\"\\\n\r\t"):
+            return None
+        # Engines cap total query size; a large default is better filled in Python
+        # than pushed into every generated query.
+        if len(value) > _MAX_SQL_LITERAL_LENGTH:
+            return None
+        return f"'{value}'"
+    return None
+
+
+def _apply_default_values(
+    table: pyarrow.Table, defaults: Dict[str, Any]
+) -> pyarrow.Table:
+    """Fills null cells in the named columns with their configured default."""
+    for column_name, default_value in defaults.items():
+        index = table.schema.get_field_index(column_name)
+        if index < 0:
+            continue
+        column = table.column(index)
+        if column.null_count == 0:
+            continue
+
+        field = table.schema.field(index)
+        try:
+            scalar = pyarrow.scalar(default_value, type=column.type)
+        except (
+            pyarrow.ArrowInvalid,
+            pyarrow.ArrowTypeError,
+            pyarrow.ArrowNotImplementedError,
+        ) as e:
+            # An all-null column arrives typed as null, so there is nothing to preserve
+            # and retyping from the default is safe.
+            if not pyarrow.types.is_null(column.type):
+                # Retyping a column that holds real values would reinterpret them --
+                # an int64 epoch column cast to timestamp silently changes every row --
+                # so fail loudly instead.
+                raise ValueError(
+                    f"default_value {default_value!r} cannot be represented in column "
+                    f"{column_name!r} of type {column.type}."
+                ) from e
+            scalar = pyarrow.scalar(default_value)
+            column = column.cast(scalar.type)
+            field = field.with_type(scalar.type)
+
+        filled = pyarrow.compute.fill_null(column, scalar)
+        table = table.set_column(index, field, filled)
+    return table
+
+
 class RetrievalJob(ABC):
     """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
+
+    # Column name -> default, set by FeatureStore.get_historical_features. Class level
+    # so no offline store constructor changes; only ever replaced, never mutated.
+    _feature_default_values: Dict[str, Any] = {}
+
+    # Set by stores whose generated query already COALESCEs the defaults it can express
+    # as SQL literals, so they need not pull the result through Python to fill them.
+    _defaults_applied_in_query: bool = False
+
+    @property
+    def _requires_python_post_processing(self) -> bool:
+        """Whether results must pass through Python before being written out.
+
+        Stores that otherwise export server-side have to route through ``to_df()``,
+        or the written data will not match what ``to_arrow()`` returns.
+        """
+        if self.on_demand_feature_views:
+            return True
+        if not self._feature_default_values:
+            return False
+        if not self._defaults_applied_in_query:
+            return True
+        # A default the query could not express still has to be filled here.
+        return any(
+            to_sql_literal(value) is None
+            for value in self._feature_default_values.values()
+        )
 
     def to_df(
         self,
@@ -216,6 +314,11 @@ class RetrievalJob(ABC):
                     "Failed to record offline store metrics", exc_info=True
                 )
 
+        # Before the ODFV loop, so transformations see the same values online and offline.
+        features_table = _apply_default_values(
+            features_table, self._feature_default_values
+        )
+
         if self.on_demand_feature_views:
             # Build a mapping of ODFV name to requested feature names
             # This ensures we only return the features that were explicitly requested
@@ -270,6 +373,21 @@ class RetrievalJob(ABC):
                         features_table = features_table.append_column(
                             col, transformed_arrow[col]
                         )
+
+                # After the transform, since these are the ODFV's own outputs: a
+                # transformation that returns null still yields the declared default.
+                features_table = _apply_default_values(
+                    features_table,
+                    {
+                        (
+                            f"{odfv.projection.name_to_use()}__{field.name}"
+                            if self.full_feature_names
+                            else field.name
+                        ): field.default_value
+                        for field in odfv.projection.features
+                        if field.default_value is not None
+                    },
+                )
 
         if validation_reference:
             if not flags_helper.is_test():

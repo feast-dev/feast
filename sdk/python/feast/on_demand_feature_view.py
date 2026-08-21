@@ -858,6 +858,8 @@ class OnDemandFeatureView(BaseFeatureView):
     @classmethod
     def _parse_features_from_proto(cls, proto: OnDemandFeatureViewProto) -> List[Field]:
         """Parse features from the protobuf representation."""
+        from feast.type_map import feast_value_type_to_python_type
+
         return [
             Field(
                 name=feature.name,
@@ -865,6 +867,11 @@ class OnDemandFeatureView(BaseFeatureView):
                 vector_index=feature.vector_index,
                 vector_length=feature.vector_length,
                 vector_search_metric=feature.vector_search_metric,
+                default_value=(
+                    feast_value_type_to_python_type(feature.default_value)
+                    if feature.HasField("default_value")
+                    else None
+                ),
             )
             for feature in proto.spec.features
         ]
@@ -1210,6 +1217,21 @@ class OnDemandFeatureView(BaseFeatureView):
         # Check for exact feature match first
         if specified_feature in inferred_features:
             return True
+
+        # Inference runs the transformation and cannot know about a declared default,
+        # so an otherwise identical field must still count as present.
+        if specified_feature.default_value is not None:
+            without_default = Field(
+                name=specified_feature.name,
+                dtype=specified_feature.dtype,
+                description=specified_feature.description,
+                tags=specified_feature.tags,
+                vector_index=specified_feature.vector_index,
+                vector_length=specified_feature.vector_length,
+                vector_search_metric=specified_feature.vector_search_metric,
+            )
+            if without_default in inferred_features:
+                return True
 
         # For array types, we need to check by name since array types
         # might have different representations between specified and inferred

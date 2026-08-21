@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -347,6 +348,49 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 	return nil
 }
 
+// defaultValueForFeature returns the feature's configured default, or nil. The map
+// lookup on BaseFeatureView keeps this off the critical path when nothing declares one.
+func defaultValueForFeature(
+	fvs map[string]*model.FeatureView,
+	groupRef *GroupedFeaturesPerEntitySet,
+	featureIndex int) *prototypes.Value {
+
+	if featureIndex >= len(groupRef.FeatureViewNames) || featureIndex >= len(groupRef.FeatureNames) {
+		return nil
+	}
+	fv, ok := fvs[groupRef.FeatureViewNames[featureIndex]]
+	if !ok || fv.Base == nil {
+		return nil
+	}
+	return fv.Base.GetDefaultValue(groupRef.FeatureNames[featureIndex])
+}
+
+// substituteDefaultValue fills missing entries with the feature's default, leaving
+// statuses untouched. It does nothing when the default's type differs from the type
+// already stored in the column: ProtoValuesToArrowArray derives the Arrow type from
+// the first non-nil value, and typed getters return the zero value for a mismatched
+// oneof, so inserting an Int64 default into a column holding doubles would serve every
+// real value as 0.
+func substituteDefaultValue(protoValues []*prototypes.Value, defaultValue *prototypes.Value) {
+	if defaultValue == nil {
+		return
+	}
+	defaultType := reflect.TypeOf(defaultValue.Val)
+	for _, value := range protoValues {
+		if value != nil && value.Val != nil {
+			if reflect.TypeOf(value.Val) != defaultType {
+				return
+			}
+			break
+		}
+	}
+	for index, value := range protoValues {
+		if value == nil || value.Val == nil {
+			protoValues[index] = defaultValue
+		}
+	}
+}
+
 func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 	groupRef *GroupedFeaturesPerEntitySet,
 	requestedFeatureViews []*FeatureViewAndRefs,
@@ -377,6 +421,10 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 		vectors = append(vectors, currentVector)
 		protoValues := make([]*prototypes.Value, numRows)
 
+		// Resolved per feature rather than per row: a missing row carries no
+		// Reference to look the feature view up by.
+		defaultValue := defaultValueForFeature(fvs, groupRef, featureIndex)
+
 		for rowEntityIndex, outputIndexes := range groupRef.Indices {
 			if featureData2D[rowEntityIndex] == nil {
 				value = nil
@@ -404,6 +452,11 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 				currentVector.Timestamps[rowIndex] = eventTimeStamp
 			}
 		}
+		// Substituted after the loop, not inside it: the Arrow type of the column is
+		// taken from the first non-nil value, so a default has to be checked against
+		// what is actually stored before it can be inserted.
+		substituteDefaultValue(protoValues, defaultValue)
+
 		arrowValues, err := types.ProtoValuesToArrowArray(protoValues, arrowAllocator, numRows)
 		if err != nil {
 			return nil, err

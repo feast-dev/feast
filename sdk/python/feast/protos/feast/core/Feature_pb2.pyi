@@ -56,6 +56,7 @@ class FeatureSpecV2(google.protobuf.message.Message):
     VECTOR_INDEX_FIELD_NUMBER: builtins.int
     VECTOR_SEARCH_METRIC_FIELD_NUMBER: builtins.int
     VECTOR_LENGTH_FIELD_NUMBER: builtins.int
+    DEFAULT_VALUE_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature. Not updatable."""
     value_type: feast.types.Value_pb2.ValueType.Enum.ValueType
@@ -71,6 +72,13 @@ class FeatureSpecV2(google.protobuf.message.Message):
     """Metric used for vector similarity search."""
     vector_length: builtins.int
     """Field indicating the vector length"""
+    @property
+    def default_value(self) -> feast.types.Value_pb2.Value:
+        """Value substituted when this feature is missing or null at retrieval time.
+        Unset means no default is configured, which leaves the existing null
+        behaviour untouched. Message presence is what distinguishes "no default"
+        from a configured zero-like default such as 0, 0.0, false or "".
+        """
     def __init__(
         self,
         *,
@@ -81,7 +89,9 @@ class FeatureSpecV2(google.protobuf.message.Message):
         vector_index: builtins.bool = ...,
         vector_search_metric: builtins.str = ...,
         vector_length: builtins.int = ...,
+        default_value: feast.types.Value_pb2.Value | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["default_value", b"default_value"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["default_value", b"default_value", "description", b"description", "name", b"name", "tags", b"tags", "value_type", b"value_type", "vector_index", b"vector_index", "vector_length", b"vector_length", "vector_search_metric", b"vector_search_metric"]) -> None: ...
 
 global___FeatureSpecV2 = FeatureSpecV2

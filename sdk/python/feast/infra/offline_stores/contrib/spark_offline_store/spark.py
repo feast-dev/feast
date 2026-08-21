@@ -88,8 +88,10 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 @dataclass(frozen=True)
 class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
-    min_date_partition: Optional[str]
-    max_date_partition: Optional[str]
+    # Defaulted because the base class now has a defaulted field, and a dataclass
+    # cannot declare a required field after one with a default.
+    min_date_partition: Optional[str] = None
+    max_date_partition: Optional[str] = None
 
 
 class SparkOfflineStore(OfflineStore):
@@ -1887,7 +1889,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
