@@ -9,7 +9,11 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast.infra.common.serde import SerializedArtifacts
-from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
+from feast.utils import (
+    _convert_arrow_to_proto,
+    _run_pyarrow_field_mapping,
+    get_user_agent,
+)
 
 try:
     import boto3
@@ -88,6 +92,7 @@ def _ensure_s3a_event_log_dir(spark_config: Dict[str, str]) -> None:
             config=BotoConfig(
                 signature_version="s3v4",
                 s3={"addressing_style": addressing_style},
+                user_agent_extra=get_user_agent(),
             ),
         )
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1)
