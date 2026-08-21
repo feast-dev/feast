@@ -693,7 +693,7 @@ def _bq_scalar_param_type(column: str) -> str:
         return "BOOL"
     if column == "metric_date":
         return "DATE"
-    if column == "computed_at":
+    if column in ("computed_at", "max_event_timestamp"):
         return "TIMESTAMP"
     if column in {
         "row_count",
@@ -889,6 +889,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   feature_type STRING NOT NULL,
   row_count INT64,
@@ -915,6 +916,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_row_count INT64,
   total_features INT64,
@@ -932,6 +934,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_feature_views INT64,
   total_features INT64,
@@ -958,6 +961,11 @@ PRIMARY KEY (job_id) NOT ENFORCED
 """
     for ddl in (feature_ddl, view_ddl, service_ddl, job_ddl):
         client.query(ddl).result()
+    for tbl in (MON_TABLE_FEATURE, MON_TABLE_FEATURE_VIEW, MON_TABLE_FEATURE_SERVICE):
+        client.query(
+            f"ALTER TABLE `{proj}.{ds}.{tbl}` "
+            "ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMP"
+        ).result()
 
 
 def _bq_get_monitoring_max_timestamp(
