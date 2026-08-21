@@ -139,21 +139,28 @@ class HybridOnlineStore(OnlineStore):
         """
         Prepare a RepoConfig for the selected online store backend.
 
+        The caller's RepoConfig is left untouched: the returned mapping is built
+        from a copy. Mutating it in place replaced the caller's HybridOnlineStore
+        config with the selected backend's config, so every later lookup of
+        ``routing_tag`` fell back to the "tribe" default.
+
         Args:
             config: The original Feast RepoConfig.
             online_store_type: The type of the online store backend to use.
         Returns:
             A dictionary representing the updated RepoConfig for the selected backend.
         """
-        rconfig = config
+        online_config = config.online_config
         for online_store in config.online_store.online_stores:
             if online_store.type.split(".")[-1].lower() == online_store_type.lower():
-                rconfig.online_config = online_store.conf
-                rconfig.online_config["type"] = online_store.type
-        data = rconfig.__dict__
+                # New dict rather than a mutated one: ``conf`` belongs to the
+                # caller's config and is read again on the next lookup.
+                online_config = {**online_store.conf, "type": online_store.type}
+        data = dict(config.__dict__)
         data["registry"] = data["registry_config"]
         data["offline_store"] = data["offline_config"]
-        data["online_store"] = data["online_config"]
+        data["online_config"] = online_config
+        data["online_store"] = online_config
         return data
 
     def _get_routing_tag_value(self, table: FeatureView, config: RepoConfig):
@@ -275,9 +282,12 @@ class HybridOnlineStore(OnlineStore):
                 )
             online_store = self._get_online_store(tribe, config)
             if online_store:
-                config = RepoConfig(**self._prepare_repo_conf(config, tribe))
+                # Local name: rebinding `config` here would feed the next
+                # iteration the selected backend's config instead of the hybrid
+                # one, losing `routing_tag` from the second FeatureView on.
+                store_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
                 online_store.update(
-                    config,
+                    store_config,
                     tables_to_delete,
                     tables_to_keep,
                     entities_to_delete,
@@ -323,5 +333,7 @@ class HybridOnlineStore(OnlineStore):
                 if tribe.lower() == store_type.split(".")[-1].lower():
                     online_store = self._get_online_store(tribe, config)
                     if online_store:
-                        config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-                        online_store.teardown(config, tables, entities)
+                        store_config = RepoConfig(
+                            **self._prepare_repo_conf(config, tribe)
+                        )
+                        online_store.teardown(store_config, tables, entities)
