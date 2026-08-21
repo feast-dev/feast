@@ -124,6 +124,12 @@ The job is safe to rerun. It reuses matching branches and spaces, but it will no
 maintenance branch that points somewhere other than the released tag. It also leaves the previous
 documentation version as the public default until the new branch has imported successfully.
 
+To publish documentation independently of a release, run the `release` workflow from `master` and
+set `publish_docs_version` to an existing release such as `0.66.0`. When this input is set, the
+release jobs are skipped and only the versioned documentation job runs. Keep `dry_run` enabled for
+the first run, then disable it to create or verify the maintenance branch and publish its GitBook
+space. The standalone job does not move `stable` or create a release.
+
 #### 4b: Adding a high level summary in the GitHub release notes
 By default, Semantic Release will pull in messages from commits (features vs fixes, etc). But this is hard to digest,
 so it helps to have a high level overview. See https://github.com/feast-dev/feast/releases for the releases.
