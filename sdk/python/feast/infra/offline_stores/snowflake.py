@@ -564,6 +564,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp" TIMESTAMP_TZ,
                 "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
                 "feature_type"      VARCHAR(50)  NOT NULL,
                 "row_count"         BIGINT,
@@ -591,6 +592,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp" TIMESTAMP_TZ,
                 "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
                 "total_row_count"   BIGINT,
                 "total_features"    INTEGER,
@@ -609,6 +611,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"          VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"     VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"          TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp"  TIMESTAMP_TZ,
                 "is_baseline"          BOOLEAN      NOT NULL DEFAULT FALSE,
                 "total_feature_views"  INTEGER,
                 "total_features"       INTEGER,
@@ -642,6 +645,11 @@ class SnowflakeOfflineStore(OfflineStore):
             execute_snowflake_statement(conn, ddl_view)
             execute_snowflake_statement(conn, ddl_service)
             execute_snowflake_statement(conn, ddl_job)
+            for fq in (fq_feature, fq_view, fq_service):
+                execute_snowflake_statement(
+                    conn,
+                    f'ALTER TABLE {fq} ADD COLUMN IF NOT EXISTS "max_event_timestamp" TIMESTAMP_TZ',
+                )
 
     @staticmethod
     def save_monitoring_metrics(
