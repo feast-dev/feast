@@ -574,6 +574,18 @@ class SparkOfflineStore(OfflineStore):
         )
         for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
             spark_session.sql(stmt)
+        from pyspark.sql.utils import AnalysisException
+
+        for stmt in (
+            f"ALTER TABLE {MON_TABLE_FEATURE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+        ):
+            try:
+                spark_session.sql(stmt)
+            except AnalysisException:
+                # Column already exists on newly created tables.
+                pass
 
     @staticmethod
     def save_monitoring_metrics(
@@ -678,6 +690,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     feature_type      STRING NOT NULL,
     row_count         BIGINT,
@@ -703,6 +716,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     total_row_count   BIGINT,
     total_features    INT,
@@ -719,6 +733,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     granularity          STRING NOT NULL,
     data_source_type     STRING NOT NULL,
     computed_at          TIMESTAMP NOT NULL,
+    max_event_timestamp  TIMESTAMP,
     is_baseline          BOOLEAN NOT NULL,
     total_feature_views  INT,
     total_features       INT,

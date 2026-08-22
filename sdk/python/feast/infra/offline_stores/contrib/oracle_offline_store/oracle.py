@@ -715,6 +715,7 @@ class OracleOfflineStore(OfflineStore):
               granularity        VARCHAR2(20) DEFAULT 'daily' NOT NULL,
               data_source_type   VARCHAR2(50) DEFAULT 'batch' NOT NULL,
               computed_at        TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
+              max_event_timestamp TIMESTAMP WITH TIME ZONE,
               is_baseline        NUMBER(1) DEFAULT 0 NOT NULL,
               feature_type       VARCHAR2(50) NOT NULL,
               row_count          NUMBER,
@@ -746,6 +747,7 @@ class OracleOfflineStore(OfflineStore):
               granularity        VARCHAR2(20) DEFAULT 'daily' NOT NULL,
               data_source_type   VARCHAR2(50) DEFAULT 'batch' NOT NULL,
               computed_at        TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
+              max_event_timestamp TIMESTAMP WITH TIME ZONE,
               is_baseline        NUMBER(1) DEFAULT 0 NOT NULL,
               total_row_count    NUMBER,
               total_features     NUMBER,
@@ -768,6 +770,7 @@ class OracleOfflineStore(OfflineStore):
               granularity          VARCHAR2(20) DEFAULT 'daily' NOT NULL,
               data_source_type     VARCHAR2(50) DEFAULT 'batch' NOT NULL,
               computed_at          TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
+              max_event_timestamp  TIMESTAMP WITH TIME ZONE,
               is_baseline          NUMBER(1) DEFAULT 0 NOT NULL,
               total_feature_views  NUMBER,
               total_features       NUMBER,
@@ -777,6 +780,19 @@ class OracleOfflineStore(OfflineStore):
                 metric_date, granularity, data_source_type)
             )
             """,
+        )
+
+        _oracle_try_execute_ddl(
+            con,
+            f"ALTER TABLE {MON_TABLE_FEATURE} ADD (max_event_timestamp TIMESTAMP WITH TIME ZONE)",
+        )
+        _oracle_try_execute_ddl(
+            con,
+            f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD (max_event_timestamp TIMESTAMP WITH TIME ZONE)",
+        )
+        _oracle_try_execute_ddl(
+            con,
+            f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD (max_event_timestamp TIMESTAMP WITH TIME ZONE)",
         )
 
         _oracle_try_execute_ddl(
