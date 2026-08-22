@@ -489,7 +489,7 @@ class RemoteRegistry(BaseRegistry):
         request = RegistryServer_pb2.ApplySavedDatasetRequest(
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
-        self.stub.ApplyFeatureService(request)
+        self.stub.ApplySavedDataset(request)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(

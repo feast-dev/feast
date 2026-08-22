@@ -137,6 +137,14 @@ rules:
   - patch
   - update
 - apiGroups:
+  - mlflow.opendatahub.io
+  resources:
+  - mlflows
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - monitoring.coreos.com
   resources:
   - servicemonitors
@@ -175,6 +183,8 @@ rules:
   - clusterroles
   verbs:
   - create
+  - get
+  - list
 - apiGroups:
   - rbac.authorization.k8s.io
   resourceNames:
@@ -185,7 +195,6 @@ rules:
   - clusterroles
   verbs:
   - delete
-  - get
   - update
 - apiGroups:
   - rbac.authorization.k8s.io

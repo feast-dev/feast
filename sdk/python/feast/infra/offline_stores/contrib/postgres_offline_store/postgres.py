@@ -429,6 +429,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
                     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
                     feature_type      VARCHAR(50)  NOT NULL,
                     row_count         BIGINT,
@@ -468,6 +469,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
                     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
                     total_row_count   BIGINT,
                     total_features    INTEGER,
@@ -487,6 +489,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity          VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type     VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp  TIMESTAMPTZ,
                     is_baseline          BOOLEAN      NOT NULL DEFAULT FALSE,
                     total_feature_views  INTEGER,
                     total_features       INTEGER,
@@ -495,6 +498,15 @@ class PostgreSQLOfflineStore(OfflineStore):
                     PRIMARY KEY (project_id, feature_service_name, metric_date,
                                  granularity, data_source_type)
                 );
+            """)
+
+            cur.execute(f"""
+                ALTER TABLE {MON_TABLE_FEATURE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_VIEW}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_SERVICE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
             """)
 
             cur.execute(f"""

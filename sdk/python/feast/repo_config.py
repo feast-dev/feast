@@ -108,6 +108,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -275,7 +276,21 @@ class OpenLineageConsumerConfig(FeastBaseModel):
     """ str: API key for authenticating producers sending events. """
 
     namespace_mapping: Optional[Dict[str, str]] = None
-    """ dict: Map of OL namespace -> Feast project for RBAC scoping. """
+    """ dict: Read-side RBAC bridge mapping external OL namespaces to Feast project
+    names. Users who can DESCRIBE a project also see lineage from mapped namespaces.
+    Example: {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"} """
+
+    retention_days: int = 30
+    """ int: Number of days to retain OpenLineage events and runs. Set to 0 to
+    disable automatic pruning. Default: 30 days. """
+
+    retention_check_interval_hours: int = 6
+    """ int: How often the background pruning task runs, in hours. Default: 6. """
+
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
 
 
 class OpenLineageConfig(FeastBaseModel):
@@ -338,6 +353,9 @@ class OpenLineageConfig(FeastBaseModel):
                 connection_string=self.consumer.connection_string,
                 api_key=self.consumer.api_key,
                 namespace_mapping=self.consumer.namespace_mapping or {},
+                retention_days=self.consumer.retention_days,
+                retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
             )
 
         return OLConfig(

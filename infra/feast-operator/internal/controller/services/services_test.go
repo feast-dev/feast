@@ -495,6 +495,56 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
+		It("should apply top-level NodeSelector to pod spec when configured", func() {
+			featureStore.Spec.Services.NodeSelector = map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			expectedNodeSelector := map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should let per-service NodeSelector override top-level NodeSelector on conflicting keys", func() {
+			featureStore.Spec.Services.NodeSelector = map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			registryNodeSelector := map[string]string{
+				nodeTypeLabel: "registry",
+				zoneLabel:     "us-west-1a",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify merged NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			expectedNodeSelector := map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     "registry",
+				zoneLabel:         "us-west-1a",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
 		It("should enable metrics on the online service when configured", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
 				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true)},
@@ -554,6 +604,45 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify no NodeSelector is applied (empty selector)
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
+		})
+	})
+
+	Describe("Tolerations Configuration", func() {
+		It("should apply Tolerations to pod spec when configured", func() {
+			tolerations := []corev1.Toleration{
+				{
+					Key:      "dedicated",
+					Operator: corev1.TolerationOpEqual,
+					Value:    "feast",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			}
+			featureStore.Spec.Services.Tolerations = tolerations
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify Tolerations are applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.Tolerations).To(Equal(tolerations))
+		})
+
+		It("should leave Tolerations empty when not configured", func() {
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify no Tolerations are applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.Tolerations).To(BeEmpty())
 		})
 	})
 

@@ -26,6 +26,9 @@ _Appears in:_
 | --- | --- |
 | `kubernetes` _[KubernetesAuthz](#kubernetesauthz)_ |  |
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
+| `noAuth` _boolean_ | NoAuth explicitly disables authentication and authorization.
+When set to true, Feast services run without any auth checks.
+Use only for development or testing environments. |
 
 
 #### AutoscalingConfig
@@ -289,6 +292,11 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | Tolerations are applied to the FeatureStore deployment pods, allowing them to
+be scheduled onto nodes with matching taints. |
+| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector is a selector which must be true for the FeatureStore deployment
+pods to fit on a node. This selector must match a node's labels for the pod to
+be scheduled on that node. |
 | `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
 and reserved before the Pod is allowed to start. The resources
 will be made available to those containers which consume them
@@ -320,6 +328,10 @@ Mutually exclusive with services.scaling.autoscaling. |
 Written into feature_store.yaml for all service pods. |
 | `openlineage` _[OpenLineageConfig](#openlineageconfig)_ | OpenLineage enables OpenLineage data lineage tracking for Feast operations.
 Written into feature_store.yaml for all service pods. |
+| `mlflow` _[MlflowConfig](#mlflowconfig)_ | Mlflow enables MLflow experiment tracking integration for Feast.
+Written into feature_store.yaml for all service pods and the client ConfigMap.
+When omitted and a cluster MLflow instance is detected, defaults to enabled
+with the discovered tracking URI. |
 
 
 #### FeatureStoreStatus
@@ -494,6 +506,21 @@ This configuration option is only providing a way to automate this procedure.
 Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions. |
 
 
+#### LineageServerConfig
+
+
+
+LineageServerConfig defines the separate lineage server Deployment.
+
+_Appears in:_
+- [OpenLineageConsumerConfig](#openlineageconsumerconfig)
+
+| Field | Description |
+| --- | --- |
+| `server` _[ServerConfigs](#serverconfigs)_ | Server configuration (image, resources, env, TLS, etc.). |
+| `replicas` _integer_ | Replicas for the lineage Deployment. Default 1. |
+
+
 #### LocalRegistryConfig
 
 
@@ -544,6 +571,47 @@ _Appears in:_
 | `serverName` _string_ | MCP server name for identification. Defaults to "feast-mcp-server". |
 | `serverVersion` _string_ | MCP server version string. Defaults to "1.0.0". |
 | `transport` _string_ | MCP transport protocol. |
+
+
+#### MlflowConfig
+
+
+
+MlflowConfig enables MLflow experiment tracking integration for Feast.
+When enabled, feature retrieval metadata is automatically logged to MLflow runs
+and the Feast UI displays lineage from feature views to registered models.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable MLflow integration. |
+| `trackingUri` _string_ | MLflow tracking server URI. When omitted, the operator auto-discovers
+from the cluster MLflow CR (status.address.url). Falls back to
+MLFLOW_TRACKING_URI env var on pods. |
+| `uiUrl` _string_ | Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+When omitted, the operator auto-discovers from the MLflow CR status.url
+(the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+to trackingUri. Only needed when the tracking URI is cluster-internal. |
+| `autoLog` _boolean_ | Automatically log feature metadata on every retrieval inside an active MLflow run.
+Defaults to true when enabled. |
+| `autoLogEntityDf` _boolean_ | Save entity DataFrame as MLflow artifact on historical retrieval.
+Defaults to false. |
+| `entityDfMaxRows` _integer_ | Maximum number of entity DataFrame rows to save as an MLflow artifact.
+DataFrames exceeding this limit are skipped. Defaults to 100000. |
+| `logOperations` _boolean_ | Log feast apply and materialize operations to a separate MLflow experiment.
+Defaults to false. |
+| `opsExperimentSuffix` _string_ | Suffix appended to the project name for the operations experiment.
+Defaults to "-feast-ops". |
+| `trackingAuth` _string_ | Authentication method used by Feast pods when calling the MLflow tracking
+server. Common values: "kubernetes-namespaced" (token-based, default on
+OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+Defaults to "kubernetes-namespaced". |
+| `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional MLflow key-value settings written inline into
+the mlflow block of feature_store.yaml. Boolean and integer string values
+are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+YAML field names. |
 
 
 #### OfflinePushBatchingConfig
@@ -744,7 +812,7 @@ _Appears in:_
 | --- | --- |
 | `enabled` _boolean_ | Enable OpenLineage integration. |
 | `transportType` _string_ | Transport type for lineage events. |
-| `transportUrl` _string_ | URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http". |
+| `transportUrl` _string_ | URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http". |
 | `transportEndpoint` _string_ | API endpoint path appended to transportUrl. Defaults to "api/v1/lineage". |
 | `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" for lineage server authentication. |
 | `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional OpenLineage key-value settings written inline into
@@ -779,6 +847,13 @@ lineage database. If omitted, the SQL registry database is reused. |
 provide in the X-API-Key header when sending events. |
 | `namespaceMapping` _object (keys:string, values:string)_ | NamespaceMapping maps OpenLineage namespaces to Feast projects for
 RBAC-based filtering of lineage data in the UI. |
+| `retentionDays` _integer_ | RetentionDays is the number of days to retain OpenLineage events and runs.
+Events older than this are automatically pruned. Set to 0 to disable pruning. |
+| `retentionCheckIntervalHours` _integer_ | RetentionCheckIntervalHours is how often the background pruning task runs, in hours. |
+| `lineageServer` _[LineageServerConfig](#lineageserverconfig)_ | LineageServer enables a separate Deployment for the OpenLineage consumer.
+When set, the consumer is removed from the UI/registry Pod and runs
+independently with its own scaling. The Feast producer transport is
+auto-configured to send events to the lineage Service. |
 
 
 #### OptionalCtrConfigs
@@ -1030,6 +1105,7 @@ ServerConfigs creates a server for the feast service, with specified container c
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
+- [LineageServerConfig](#lineageserverconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [RegistryServerConfigs](#registryserverconfigs)
@@ -1070,6 +1146,7 @@ _Appears in:_
 | `registry` _string_ |  |
 | `registryRest` _string_ |  |
 | `ui` _string_ |  |
+| `lineage` _string_ |  |
 
 
 #### ServingConfig

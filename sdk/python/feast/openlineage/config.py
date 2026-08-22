@@ -16,6 +16,7 @@
 Configuration classes for Feast OpenLineage integration.
 """
 
+import json
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
@@ -31,7 +32,21 @@ class OpenLineageConsumerConfig:
         store_type: Storage backend type ('sql' uses the SQL registry DB)
         connection_string: Optional separate DB connection string
         api_key: API key for authenticating producers sending events
-        namespace_mapping: Map of OL namespace -> Feast project for RBAC scoping
+        namespace_mapping: Read-side RBAC bridge mapping external OpenLineage
+            namespaces to Feast project names. When a user can DESCRIBE a Feast
+            project, they also see lineage from any external namespace mapped to
+            that project. Also used during ingest to resolve incoming datasets to
+            Feast registry objects. Example:
+            {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"}
+        retention_days: Number of days to retain OpenLineage events and runs.
+            Events older than this are automatically pruned. Set to 0 to disable
+            pruning (keep everything). Default: 30 days.
+        retention_check_interval_hours: How often the background pruning runs,
+            in hours. Default: 6 hours.
+        standalone_server: When true, the retention background task is
+            delegated to the standalone lineage server (feast serve_lineage).
+            All consumer API endpoints remain available on both servers.
+            Set automatically by the operator when lineageServer is configured.
     """
 
     enabled: bool = False
@@ -39,6 +54,9 @@ class OpenLineageConsumerConfig:
     connection_string: Optional[str] = None
     api_key: Optional[str] = None
     namespace_mapping: Dict[str, str] = field(default_factory=dict)
+    retention_days: int = 30
+    retention_check_interval_hours: int = 6
+    standalone_server: bool = False
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenLineageConsumerConfig":
@@ -48,6 +66,11 @@ class OpenLineageConsumerConfig:
             connection_string=config_dict.get("connection_string"),
             api_key=config_dict.get("api_key"),
             namespace_mapping=config_dict.get("namespace_mapping", {}),
+            retention_days=int(config_dict.get("retention_days", 30)),
+            retention_check_interval_hours=int(
+                config_dict.get("retention_check_interval_hours", 6)
+            ),
+            standalone_server=config_dict.get("standalone_server", False),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -57,6 +80,9 @@ class OpenLineageConsumerConfig:
             "connection_string": self.connection_string,
             "api_key": self.api_key,
             "namespace_mapping": self.namespace_mapping,
+            "retention_days": self.retention_days,
+            "retention_check_interval_hours": self.retention_check_interval_hours,
+            "standalone_server": self.standalone_server,
         }
 
 
@@ -139,16 +165,36 @@ class OpenLineageConfig:
             FEAST_OPENLINEAGE_API_KEY: API key for authentication
             FEAST_OPENLINEAGE_NAMESPACE: Default namespace (default: feast)
             FEAST_OPENLINEAGE_PRODUCER: Producer identifier
+            FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING: JSON object mapping external
+                OL namespaces to Feast project names for RBAC scoping.
+                Example: '{"spark://ml-team": "ml_team", "airflow://prod-cluster": "prod"}'
 
         Returns:
             OpenLineageConfig instance
         """
+        ns_mapping_raw = os.getenv("FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING", "")
+        ns_mapping: Dict[str, str] = {}
+        if ns_mapping_raw:
+            try:
+                ns_mapping = json.loads(ns_mapping_raw)
+            except json.JSONDecodeError:
+                pass
+
         consumer = OpenLineageConsumerConfig(
             enabled=os.getenv("FEAST_OPENLINEAGE_CONSUMER_ENABLED", "false").lower()
             == "true",
             store_type=os.getenv("FEAST_OPENLINEAGE_CONSUMER_STORE_TYPE", "sql"),
             connection_string=os.getenv("FEAST_OPENLINEAGE_CONSUMER_CONNECTION_STRING"),
             api_key=os.getenv("FEAST_OPENLINEAGE_CONSUMER_API_KEY"),
+            namespace_mapping=ns_mapping,
+            retention_days=int(
+                os.getenv("FEAST_OPENLINEAGE_CONSUMER_RETENTION_DAYS", "30")
+            ),
+            retention_check_interval_hours=int(
+                os.getenv(
+                    "FEAST_OPENLINEAGE_CONSUMER_RETENTION_CHECK_INTERVAL_HOURS", "6"
+                )
+            ),
         )
 
         return cls(

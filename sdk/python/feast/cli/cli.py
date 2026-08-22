@@ -44,6 +44,7 @@ from feast.cli.registry import registry_cmd
 from feast.cli.saved_datasets import saved_datasets_cmd
 from feast.cli.serve import (
     serve_command,
+    serve_lineage_command,
     serve_offline_command,
     serve_registry_command,
     serve_transformations_command,
@@ -654,6 +655,7 @@ cli.add_command(ui)
 cli.add_command(serve_command)
 cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
+cli.add_command(serve_lineage_command)
 cli.add_command(serve_transformations_command)
 cli.add_command(dbt_cmd)
 cli.add_command(monitor_cmd)
