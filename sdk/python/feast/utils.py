@@ -63,26 +63,31 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
-def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
-    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
+    """Parse 'fv_name[@version][:feature]' into (fv_name, version_number, feature_name).
 
-    If no @version is present, version_number is None (meaning 'latest').
+    Unlike ``_parse_feature_ref``, the ':<feature>' suffix is optional, so this
+    also parses whole-view references (e.g. a FeatureService entry that pins a
+    version but selects all of the view's features). When no ':<feature>' is
+    present, feature_name is None. When no @version is present, version_number
+    is None (meaning 'latest').
+
     Examples:
-        'driver_stats:trips' -> ('driver_stats', None, 'trips')
-        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats:trips'        -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips'     -> ('driver_stats', 2, 'trips')
         'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats'              -> ('driver_stats', None, None)
+        'driver_stats@v2'           -> ('driver_stats', 2, None)
     """
     import re
 
     colon_idx = ref.find(":")
     if colon_idx < 0:
-        raise ValueError(
-            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
-            f"or '<feature_view>@<version>:<feature>'"
-        )
-
-    fv_part = ref[:colon_idx]
-    feature_name = ref[colon_idx + 1 :]
+        fv_part = ref
+        feature_name: Optional[str] = None
+    else:
+        fv_part = ref[:colon_idx]
+        feature_name = ref[colon_idx + 1 :]
 
     at_idx = fv_part.find("@")
     if at_idx < 0:
@@ -103,6 +108,27 @@ def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
     return (fv_name, int(match.group(1)), feature_name)
 
 
+def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
+    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+
+    The ':<feature>' suffix is required; use ``_parse_feature_or_view_ref`` when
+    a whole-view reference (no feature) should be accepted.
+
+    If no @version is present, version_number is None (meaning 'latest').
+    Examples:
+        'driver_stats:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+    """
+    fv_name, version_num, feature_name = _parse_feature_or_view_ref(ref)
+    if feature_name is None:
+        raise ValueError(
+            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
+            f"or '<feature_view>@<version>:<feature>'"
+        )
+    return (fv_name, version_num, feature_name)
+
+
 def _strip_version_from_ref(ref: str) -> str:
     """Strip @version from a feature reference, returning 'fv_name:feature'.
 
@@ -110,6 +136,67 @@ def _strip_version_from_ref(ref: str) -> str:
     """
     fv_name, _, feature_name = _parse_feature_ref(ref)
     return f"{fv_name}:{feature_name}"
+
+
+def _get_requested_on_demand_feature_views(
+    feature_refs: List[str],
+    project: str,
+    registry: "BaseRegistry",
+    allow_cache: bool = True,
+) -> List["OnDemandFeatureView"]:
+    """Resolve the ODFVs referenced by ``feature_refs``, honouring ``fv@vN`` pins.
+
+    Offline stores re-fetch ODFVs from the registry independently of the
+    already-resolved online path (``_get_feature_views_to_use``). This mirrors
+    that version-aware resolution so a pinned ODFV ref resolves to the pinned
+    snapshot; unversioned refs resolve to the promoted view (unchanged behavior).
+    """
+    from feast.on_demand_feature_view import OnDemandFeatureView
+
+    promoted_by_name = {
+        odfv.name: odfv
+        for odfv in registry.list_on_demand_feature_views(
+            project, allow_cache=allow_cache
+        )
+    }
+
+    # Dedupe refs by (name, version), preserving first-seen order.
+    requested: Dict[Tuple[str, Optional[int]], None] = {}
+    for ref in feature_refs:
+        fv_name, version_num, _ = _parse_feature_ref(ref)
+        requested[(fv_name, version_num)] = None
+
+    resolved: List["OnDemandFeatureView"] = []
+    seen: Set[Tuple[str, Optional[int]]] = set()
+    for fv_name, version_num in requested:
+        if version_num is not None:
+            try:
+                odfv = registry.get_feature_view_by_version(
+                    fv_name, project, version_num, allow_cache
+                )
+            except NotImplementedError:
+                # v0 fallback for registries without versioned lookup.
+                if version_num == 0:
+                    odfv = registry.get_any_feature_view(fv_name, project, allow_cache)
+                else:
+                    raise
+            if not isinstance(odfv, OnDemandFeatureView):
+                continue  # ref belongs to a regular FeatureView, not an ODFV
+            if odfv.projection is not None:
+                odfv.projection.version_tag = version_num
+        else:
+            promoted = promoted_by_name.get(fv_name)
+            if promoted is None:
+                continue
+            odfv = promoted
+
+        key = (odfv.name, version_num)
+        if key in seen:
+            continue
+        seen.add(key)
+        resolved.append(odfv)
+
+    return resolved
 
 
 def get_user_agent():
@@ -1195,7 +1282,10 @@ def _get_features(
         feature_service_from_registry = registry.get_feature_service(
             _features.name, project, allow_cache
         )
-        if feature_service_from_registry != _features:
+        # Unresolved string-ref services have no projections yet, so skip the
+        # inconsistency check; we resolve from the registry regardless.
+        is_unresolved = bool(getattr(_features, "_pending_feature_refs", None))
+        if not is_unresolved and feature_service_from_registry != _features:
             warnings.warn(
                 "The FeatureService object that has been passed in as an argument is "
                 "inconsistent with the version from the registry. Potentially a newer version "
@@ -1260,8 +1350,15 @@ def _get_feature_views_to_use(
     from feast.on_demand_feature_view import OnDemandFeatureView
 
     if isinstance(features, FeatureService):
+        # An unresolved string-ref service has no projections until applied, so
+        # resolve it from the registry (matching _get_features). Never applied ->
+        # get_feature_service raises FeatureServiceNotFoundException.
+        if getattr(features, "_pending_feature_refs", None):
+            features = registry.get_feature_service(
+                features.name, project, allow_cache=allow_cache
+            )
         feature_views = [
-            (projection.name, None, projection)
+            (projection.name, projection.version_tag, projection)
             for projection in features.feature_view_projections
         ]
     else:
