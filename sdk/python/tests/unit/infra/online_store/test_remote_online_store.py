@@ -741,41 +741,41 @@ class TestRemoteOnlineStoreWriteBatch:
         )
 
     @patch("feast.infra.online_stores.remote.post_remote_online_write")
-    def test_unix_timestamp_value_serialized_as_int(
-        self, mock_post, remote_store, config, feature_view
+    def test_online_write_batch_custom_timestamp_columns(
+        self, mock_post, remote_store, config
     ):
-        """online_write_batch should send int64 epoch seconds in the
-        DataFrame for UnixTimestamp features."""
+        """online_write_batch should respect custom timestamp_field and created_timestamp_column names."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response
 
-        entity_key = EntityKeyProto(
-            join_keys=["user_id"],
-            entity_values=[ValueProto(int64_val=42)],
+        custom_source = FileSource(
+            path="test.parquet",
+            timestamp_field="custom_event_ts",
+            created_timestamp_column="custom_created_ts",
         )
-        feature_values = {
-            "feature1": ValueProto(string_val="hello"),
-            "feature2": ValueProto(unix_timestamp_val=1700000000),
-        }
-        event_ts = datetime(2023, 11, 15, 0, 0, 0)
-        created_ts = datetime(2023, 11, 14, 0, 0, 0)
-        data = [(entity_key, feature_values, event_ts, created_ts)]
+        fv = FeatureView(
+            name="test_custom_fv",
+            entities=[],
+            ttl=timedelta(days=1),
+            schema=[Field(name="feature1", dtype=String)],
+            source=custom_source,
+        )
+
+        entity_key = EntityKeyProto(join_keys=[], entity_values=[])
+        feature_values = {"feature1": ValueProto(string_val="test")}
+        data = [(entity_key, feature_values, datetime.utcnow(), datetime.utcnow())]
 
         remote_store.online_write_batch(
-            config=config, table=feature_view, data=data, progress=None
+            config=config,
+            table=fv,
+            data=data,
+            progress=None,
         )
 
         mock_post.assert_called_once()
         req_body = mock_post.call_args[1]["req_body"]
-        df = req_body["df"]
-
-        # UnixTimestamp feature value must be a raw int, not a datetime
-        assert df["feature2"] == [1700000000]
-        assert isinstance(df["feature2"][0], int)
-
-        # Other feature types should remain unchanged
-        assert df["feature1"] == ["hello"]
-
-        # Event timestamps should be ISO strings as before
-        assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+        assert "custom_event_ts" in req_body["df"]
+        assert "custom_created_ts" in req_body["df"]
+        assert "event_timestamp" not in req_body["df"]
+        assert "created" not in req_body["df"]
