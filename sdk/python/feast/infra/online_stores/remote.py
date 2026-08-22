@@ -17,6 +17,7 @@ import logging
 import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
+from functools import lru_cache
 from typing import (
     Any,
     Callable,
@@ -61,11 +62,14 @@ from feast.value_type import ValueType
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=1)
 def _infra_object_types() -> Dict[str, Tuple[Any, Any]]:
     """Map type name -> (feast class, proto class) for objects sent to /update-infra.
 
     Imported lazily: these modules import from `feast` at module scope, and
     pulling them in at the top of this file would create an import cycle.
+    Cached because `update()` calls this once per object in four lists, and
+    re-running the imports each time is pure overhead.
     """
     from feast.labeling.label_view import LabelView
     from feast.on_demand_feature_view import OnDemandFeatureView
@@ -96,11 +100,12 @@ def encode_infra_object(obj: Any) -> Dict[str, str]:
     `update_infra()` *before* `registry.commit()`, so the server cannot yet see
     these objects. They travel in the request body instead.
     """
+    types = _infra_object_types()
     type_name = type(obj).__name__
-    if type_name not in _infra_object_types():
+    if type_name not in types:
         raise ValueError(
             f"Cannot send {type_name} to the remote online store; "
-            f"expected one of {sorted(_infra_object_types())}"
+            f"expected one of {sorted(types)}"
         )
     return {
         "type": type_name,

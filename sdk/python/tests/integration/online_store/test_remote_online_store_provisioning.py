@@ -20,12 +20,15 @@ feature view the server has never seen.
 """
 
 import os
+import shutil
 import socket
+import sqlite3
 import subprocess
 import tempfile
 import time
 from datetime import timedelta
 from textwrap import dedent
+from typing import Iterator, List
 
 import pandas as pd
 import pytest
@@ -55,6 +58,27 @@ def _port_open(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1.0)
         return s.connect_ex((host, port)) == 0
+
+
+def _server_online_tables(repo_path: str) -> List[str]:
+    """Table names in the server's own SQLite online store.
+
+    Read directly rather than through any Feast API: the point of this test is
+    that the table physically exists server-side, so asking Feast about it
+    would beg the question. Opened read-only -- the server process has the
+    file open too.
+    """
+    db_path = os.path.join(repo_path, "data", "online_store.db")
+    # SqliteOnlineStore.teardown() unlinks the whole file rather than dropping
+    # tables one by one, so a missing file means "nothing left", not an error.
+    if not os.path.exists(db_path):
+        return []
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        return [r[0] for r in rows]
+    finally:
+        con.close()
 
 
 @pytest.fixture(scope="module")
@@ -113,16 +137,20 @@ def remote_server():
     yield {
         "url": f"http://127.0.0.1:{port}",
         "registry_path": registry_path,
+        "repo_path": repo_path,
         "server_log": _server_log,
     }
 
     proc.kill()
     proc.wait(timeout=30)
     log_file.close()
+    # ignore_errors: on Windows the just-killed server can still hold a handle
+    # to the SQLite files for a moment.
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 @pytest.fixture(scope="module")
-def client_store(remote_server) -> FeatureStore:
+def client_store(remote_server) -> Iterator[FeatureStore]:
     """A client whose online store is the remote feature server."""
     tmp = tempfile.mkdtemp(prefix="feast_6693_client_")
     with open(os.path.join(tmp, "feature_store.yaml"), "w") as f:
@@ -141,7 +169,9 @@ def client_store(remote_server) -> FeatureStore:
                 """
             ).strip()
         )
-    return FeatureStore(repo_path=tmp)
+    yield FeatureStore(repo_path=tmp)
+
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _new_feature_view(data_path: str) -> tuple:
@@ -165,13 +195,16 @@ def _new_feature_view(data_path: str) -> tuple:
 
 
 @pytest.mark.integration
-def test_apply_through_remote_online_store_provisions_the_table(
+def test_remote_apply_provisions_the_table_and_teardown_drops_it(
     client_store, remote_server
 ):
-    """A feature view applied through a remote online store must be writable.
+    """The full remote lifecycle: apply provisions the table, teardown drops it.
 
-    Fails before the fix with HTTP 500 / `no such table`, because
+    Apply fails before the fix with HTTP 500 / `no such table`, because
     RemoteOnlineStore.update() is a no-op and nothing provisions server-side.
+    Teardown is the mirror: without RemoteOnlineStore.teardown() the table is
+    left behind. Both halves are asserted against the server's own SQLite file,
+    so this covers /update-infra and /teardown-infra end to end.
     """
     # A real parquet file, so nothing fails for want of a source on disk.
     data_dir = os.path.join(client_store.repo_path, "data")
@@ -215,3 +248,18 @@ def test_apply_through_remote_online_store_provisions_the_table(
 
     assert features["avg_daily_trips"] == [42]
     assert round(features["conv_rate"][0], 2) == 0.75
+
+    # The table is physically there in the server's store, not just implied by
+    # the write having succeeded.
+    tables = _server_online_tables(remote_server["repo_path"])
+    assert any(NEW_FV_NAME in t for t in tables), (
+        f"{NEW_FV_NAME} was never provisioned server-side; tables={tables}"
+    )
+
+    # And the mirror image: teardown must drop it again.
+    client_store.teardown()
+
+    tables = _server_online_tables(remote_server["repo_path"])
+    assert not any(NEW_FV_NAME in t for t in tables), (
+        f"{NEW_FV_NAME} survived teardown; tables={tables}"
+    )

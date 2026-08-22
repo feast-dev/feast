@@ -978,6 +978,10 @@ def get_app(
             assert_permissions(resource=table, actions=[AuthzedAction.CREATE])
         for table in tables_to_delete:
             assert_permissions(resource=table, actions=[AuthzedAction.DELETE])
+        for entity in entities_to_keep:
+            assert_permissions(resource=entity, actions=[AuthzedAction.CREATE])
+        for entity in entities_to_delete:
+            assert_permissions(resource=entity, actions=[AuthzedAction.DELETE])
 
         await run_in_threadpool(
             store._get_provider().update_infra,
@@ -1001,6 +1005,8 @@ def get_app(
 
         for table in tables:
             assert_permissions(resource=table, actions=[AuthzedAction.DELETE])
+        for entity in entities:
+            assert_permissions(resource=entity, actions=[AuthzedAction.DELETE])
 
         await run_in_threadpool(
             store._get_provider().teardown_infra,
