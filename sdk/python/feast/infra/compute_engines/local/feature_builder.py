@@ -65,7 +65,8 @@ class LocalFeatureBuilder(FeatureBuilder):
                 "Time window aggregation is not supported in the local compute engine."
             ),
         )
-        group_by_keys = view.entities
+        column_info = self.get_column_info(view)
+        group_by_keys = column_info.join_keys
         node = LocalAggregationNode(
             "agg", self.backend, group_by_keys, agg_ops, inputs=[input_node]
         )
