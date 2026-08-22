@@ -23,7 +23,7 @@ from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.errors import ConflictingFeatureViewNames
-from feast.feature_store import FeatureStore, _validate_feature_views
+from feast.feature_store import FeatureStore, validate_feature_views
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -88,7 +88,7 @@ def feature_store_with_local_registry():
 @pytest.mark.integration
 def test_validate_feature_views_cross_type_conflict():
     """
-    Test that _validate_feature_views() catches cross-type name conflicts.
+    Test that validate_feature_views() catches cross-type name conflicts.
 
     This is a unit test for the validation that happens during feast plan/apply.
     The validation must catch conflicts across FeatureView, StreamFeatureView,
@@ -129,7 +129,7 @@ def test_validate_feature_views_cross_type_conflict():
 
     # Validate should raise ConflictingFeatureViewNames
     with pytest.raises(ConflictingFeatureViewNames) as exc_info:
-        _validate_feature_views([feature_view, stream_feature_view])
+        validate_feature_views([feature_view, stream_feature_view])
 
     # Verify error message contains type information
     error_message = str(exc_info.value)
@@ -140,7 +140,7 @@ def test_validate_feature_views_cross_type_conflict():
 
 def test_validate_feature_views_same_type_conflict():
     """
-    Test that _validate_feature_views() also catches same-type name conflicts
+    Test that validate_feature_views() also catches same-type name conflicts
     with a proper error message indicating duplicate FeatureViews.
     """
     # Create a simple entity
@@ -163,7 +163,7 @@ def test_validate_feature_views_same_type_conflict():
 
     # Validate should raise ConflictingFeatureViewNames
     with pytest.raises(ConflictingFeatureViewNames) as exc_info:
-        _validate_feature_views([fv1, fv2])
+        validate_feature_views([fv1, fv2])
 
     # Verify error message indicates same-type duplicate
     error_message = str(exc_info.value)
@@ -174,7 +174,7 @@ def test_validate_feature_views_same_type_conflict():
 
 def test_validate_feature_views_case_insensitive():
     """
-    Test that _validate_feature_views() catches case-insensitive conflicts.
+    Test that validate_feature_views() catches case-insensitive conflicts.
     """
     entity = Entity(name="driver_entity", join_keys=["test_key"])
     file_source = FileSource(name="my_file_source", path="test.parquet")
@@ -194,12 +194,12 @@ def test_validate_feature_views_case_insensitive():
 
     # Validate should raise ConflictingFeatureViewNames (case-insensitive)
     with pytest.raises(ConflictingFeatureViewNames):
-        _validate_feature_views([fv1, fv2])
+        validate_feature_views([fv1, fv2])
 
 
 def test_validate_feature_views_odfv_conflict():
     """
-    Test that _validate_feature_views() catches OnDemandFeatureView name conflicts.
+    Test that validate_feature_views() catches OnDemandFeatureView name conflicts.
     """
     entity = Entity(name="driver_entity", join_keys=["test_key"])
     file_source = FileSource(name="my_file_source", path="test.parquet")
@@ -220,7 +220,7 @@ def test_validate_feature_views_odfv_conflict():
 
     # Validate should raise ConflictingFeatureViewNames
     with pytest.raises(ConflictingFeatureViewNames) as exc_info:
-        _validate_feature_views([fv, shared_name])
+        validate_feature_views([fv, shared_name])
 
     error_message = str(exc_info.value)
     assert "shared_name" in error_message

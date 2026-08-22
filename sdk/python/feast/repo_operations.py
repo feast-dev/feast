@@ -22,7 +22,11 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
 from feast.feature_service import FeatureService
-from feast.feature_store import FeatureStore
+from feast.feature_store import (
+    FeatureStore,
+    validate_data_sources,
+    validate_feature_views,
+)
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
@@ -238,6 +242,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 res.projects.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
+
     return res
 
 
@@ -248,7 +253,12 @@ def plan(
     skip_feature_view_validation: bool = False,
 ):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
+    repo = _get_repo_contents(
+        repo_path,
+        repo_config.project,
+        repo_config,
+        skip_feature_view_validation=skip_feature_view_validation,
+    )
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
@@ -273,9 +283,27 @@ def _get_repo_contents(
     repo_path,
     project_name: Optional[str] = None,
     repo_config: Optional[RepoConfig] = None,
+    skip_feature_view_validation: bool = False,
 ):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
+
+    # Fail fast on duplicate feature view / data source names, before any
+    # heavy dependencies (FeatureStore, Dask, PySpark) are initialized. See
+    # https://github.com/feast-dev/feast/issues/6417 - detecting this later,
+    # inside store.plan()/store.apply(), risks the error being masked by a
+    # slow subprocess/atexit shutdown timing out before it can be reported.
+    # This mirrors the skip_feature_view_validation flag honored later in
+    # store.plan()/store.apply(), so users who pass
+    # --skip-feature-view-validation aren't blocked here either.
+    if not skip_feature_view_validation:
+        validate_feature_views(
+            repo.feature_views
+            + repo.on_demand_feature_views
+            + repo.stream_feature_views
+            + repo.label_views
+        )
+        validate_data_sources(repo.data_sources)
 
     if len(repo.projects) < 1:
         if project_name:
@@ -513,7 +541,12 @@ def apply_total(
     no_promote: bool = False,
 ):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
+    repo = _get_repo_contents(
+        repo_path,
+        repo_config.project,
+        repo_config,
+        skip_feature_view_validation=skip_feature_view_validation,
+    )
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
