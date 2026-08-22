@@ -227,7 +227,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				feastRole)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(feastRole.Rules).ToNot(BeEmpty())
-			Expect(feastRole.Rules).To(HaveLen(6))
+			Expect(feastRole.Rules).To(HaveLen(5))
 			Expect(feastRole.Rules[0].APIGroups).To(HaveLen(1))
 			Expect(feastRole.Rules[0].APIGroups[0]).To(Equal(rbacv1.GroupName))
 			Expect(feastRole.Rules[0].Resources).To(HaveLen(2))
@@ -308,7 +308,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
-			By("Clearing the kubernetes authorization and reconciling")
+			By("Clearing the kubernetes authorization and reconciling (defaults to Kubernetes auth)")
 			resourceNew = resource.DeepCopy()
 			resourceNew.Spec.AuthzConfig = nil
 			err = k8sClient.Update(ctx, resourceNew)
@@ -323,7 +323,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
 
-			// check no Roles
+			// custom roles should be cleaned up
 			for _, roleName := range roles {
 				role := &rbacv1.Role{}
 				err = k8sClient.Get(ctx, types.NamespacedName{
@@ -334,15 +334,14 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			}
-			// check no RoleBinding
+			// RoleBinding should still exist since nil AuthzConfig defaults to Kubernetes auth
 			roleBinding = &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
-			Expect(err).To(HaveOccurred())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {

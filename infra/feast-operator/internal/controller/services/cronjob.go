@@ -16,6 +16,9 @@ import (
 )
 
 func (feast *FeastServices) deployCronJob() error {
+	if err := feast.createCronJobServiceAccount(); err != nil {
+		return feast.setFeastServiceCondition(err, CronJobFeastType)
+	}
 	if err := feast.createCronJobRole(); err != nil {
 		return feast.setFeastServiceCondition(err, CronJobFeastType)
 	}
@@ -145,9 +148,23 @@ func (feast *FeastServices) setCronJob(cronJob *batchv1.CronJob) error {
 }
 
 func (feast *FeastServices) getCronJobPodSpec() corev1.PodSpec {
+	podSecCtx := &corev1.PodSecurityContext{
+		RunAsNonRoot: boolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	// On vanilla Kubernetes (e.g. Kind) we must set an explicit non-root UID
+	// because the default CronJob image (origin-cli) runs as root.
+	// On OpenShift the restricted-v2 SCC auto-assigns a UID from the
+	// namespace's allowed range, so we must NOT set RunAsUser.
+	if !IsOpenShift() {
+		podSecCtx.RunAsUser = int64Ptr(1001)
+	}
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: feast.initFeastSA().Name,
+		ServiceAccountName: feast.initCronJobSA().Name,
 		RestartPolicy:      corev1.RestartPolicyNever,
+		SecurityContext:    podSecCtx,
 	}
 	feast.setCronJobContainers(&podSpec)
 	return podSpec
@@ -167,7 +184,7 @@ func (feast *FeastServices) setCronJobContainers(podSpec *corev1.PodSpec) {
 }
 
 func (feast *FeastServices) getCronJobContainer(containerName, cronJobCmd string) corev1.Container {
-	return *getContainer(
+	container := getContainer(
 		containerName,
 		"",
 		[]string{
@@ -178,6 +195,42 @@ func (feast *FeastServices) getCronJobContainer(containerName, cronJobCmd string
 		feast.Handler.FeatureStore.Status.Applied.CronJob.ContainerConfigs.ContainerConfigs,
 		"",
 	)
+	container.SecurityContext = &corev1.SecurityContext{
+		AllowPrivilegeEscalation: boolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
+		},
+	}
+	return *container
+}
+
+func (feast *FeastServices) createCronJobServiceAccount() error {
+	logger := log.FromContext(feast.Handler.Context)
+	sa := feast.initCronJobSA()
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, sa, controllerutil.MutateFn(func() error {
+		return feast.setCronJobServiceAccount(sa)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ServiceAccount", sa.Name, "operation", op)
+	}
+	return nil
+}
+
+func (feast *FeastServices) initCronJobSA() *corev1.ServiceAccount {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      feast.getCronJobRoleName(),
+			Namespace: feast.Handler.FeatureStore.Namespace,
+		},
+	}
+	sa.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ServiceAccount"))
+	return sa
+}
+
+func (feast *FeastServices) setCronJobServiceAccount(sa *corev1.ServiceAccount) error {
+	sa.Labels = feast.getFeastTypeLabels(CronJobFeastType)
+	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, sa, feast.Handler.Scheme)
 }
 
 func (feast *FeastServices) createCronJobRole() error {
@@ -254,7 +307,7 @@ func (feast *FeastServices) setCronJobRoleBinding(roleBinding *rbacv1.RoleBindin
 	roleBinding.Labels = feast.getFeastTypeLabels(CronJobFeastType)
 	roleBinding.Subjects = []rbacv1.Subject{{
 		Kind:      rbacv1.ServiceAccountKind,
-		Name:      feast.initFeastSA().Name,
+		Name:      feast.initCronJobSA().Name,
 		Namespace: feast.Handler.FeatureStore.Namespace,
 	}}
 	roleBinding.RoleRef = rbacv1.RoleRef{

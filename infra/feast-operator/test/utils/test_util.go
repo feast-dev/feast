@@ -110,6 +110,32 @@ func CheckIfDeploymentExistsAndAvailable(namespace string, deploymentName string
 	}
 }
 
+// checkFeatureStoreReconcileError checks the FeatureStore CR status for reconciliation errors.
+// Returns an error with the failure reason if the CR is in a failed state, nil otherwise.
+func checkFeatureStoreReconcileError(namespace, featureStoreName string) error {
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil
+	}
+
+	var resource feastdevv1.FeatureStore
+	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
+		return nil
+	}
+
+	for _, condition := range resource.Status.Conditions {
+		if condition.Status == "False" {
+			return fmt.Errorf("FeatureStore %s has failed condition: type=%s reason=%s message=%s",
+				featureStoreName, condition.Type, condition.Reason, condition.Message)
+		}
+	}
+	return nil
+}
+
 // validates if a service account exists using the kubectl CLI.
 func checkIfServiceAccountExists(namespace, saName string) error {
 	cmd := exec.Command("kubectl", "get", "sa", saName, "-n", namespace)
@@ -264,6 +290,12 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		"Error occurred while checking FeatureStore %s is having remote registry or not. \nError: %v\n",
 		featureStoreName, err))
 
+	By("Checking FeatureStore reconciliation status for early failures")
+	time.Sleep(15 * time.Second)
+	if reconcileErr := checkFeatureStoreReconcileError(namespace, featureStoreName); reconcileErr != nil {
+		Fail(fmt.Sprintf("FeatureStore reconciliation failed before deployment check: %v", reconcileErr))
+	}
+
 	k8sResourceNames := []string{feastResourceName}
 
 	if !hasRemoteRegistry {
@@ -273,6 +305,14 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 	for _, deploymentName := range k8sResourceNames {
 		By(fmt.Sprintf("validate the feast deployment: %s is up and in availability state.", deploymentName))
 		err = CheckIfDeploymentExistsAndAvailable(namespace, deploymentName, timeout)
+		if err != nil {
+			if reconcileErr := checkFeatureStoreReconcileError(namespace, featureStoreName); reconcileErr != nil {
+				Fail(fmt.Sprintf(
+					"Deployment %s not available due to FeatureStore reconciliation error: %v",
+					deploymentName, reconcileErr,
+				))
+			}
+		}
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
 			"Deployment %s is not available but expected to be available. \nError: %v\n",
 			deploymentName, err,
