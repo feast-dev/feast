@@ -643,6 +643,8 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
 | /materialize-incremental   | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
+| /update-infra              | FeatureView                     | Create, Delete                                        | Provision online store infrastructure for a remote `feast apply` |
+| /teardown-infra            | FeatureView                     | Delete                                                | Drop online store infrastructure for a remote `feast teardown`   |
 
 ## How to configure Authentication and Authorization ?
 

@@ -8,7 +8,12 @@ import pytest
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.feature_service import FeatureService
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.remote import RemoteOnlineStore, RemoteOnlineStoreConfig
+from feast.infra.online_stores.remote import (
+    RemoteOnlineStore,
+    RemoteOnlineStoreConfig,
+    decode_infra_object,
+    encode_infra_object,
+)
 from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -779,3 +784,135 @@ class TestRemoteOnlineStoreWriteBatch:
 
         # Event timestamps should be ISO strings as before
         assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+
+
+class TestRemoteOnlineStoreUpdateInfra:
+    """Tests for RemoteOnlineStore.update / teardown.
+
+    Both were no-ops, so `feast apply` and `feast teardown` in remote mode never
+    provisioned or dropped anything server-side (#6693).
+    """
+
+    @pytest.fixture
+    def remote_store(self):
+        return RemoteOnlineStore()
+
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            online_store=RemoteOnlineStoreConfig(
+                type="remote", path="http://localhost:6566"
+            ),
+            registry="dummy_registry",
+        )
+
+    @pytest.fixture
+    def entity(self):
+        return Entity(name="user_id", value_type=ValueType.INT64)
+
+    @pytest.fixture
+    def feature_view(self, entity):
+        return FeatureView(
+            name="test_feature_view",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="user_id", dtype=Int64),
+                Field(name="feature1", dtype=String),
+            ],
+            source=FileSource(path="test.parquet", timestamp_field="event_timestamp"),
+        )
+
+    def test_infra_object_round_trip(self, feature_view, entity):
+        """Objects must survive the base64 proto hop to the feature server."""
+        for original in (feature_view, entity):
+            decoded = decode_infra_object(encode_infra_object(original))
+            assert type(decoded) is type(original)
+            assert decoded.name == original.name
+
+    def test_encode_rejects_unsupported_type(self):
+        with pytest.raises(ValueError, match="Cannot send"):
+            encode_infra_object(object())
+
+    def test_decode_rejects_unknown_type(self):
+        with pytest.raises(ValueError, match="Unknown object type"):
+            decode_infra_object({"type": "NotAFeastObject", "proto": ""})
+
+    @patch("feast.infra.online_stores.remote.post_remote_update_infra")
+    def test_update_posts_tables_to_the_feature_server(
+        self, mock_post, remote_store, config, feature_view, entity
+    ):
+        """update() must send the objects, not silently do nothing."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        remote_store.update(
+            config=config,
+            tables_to_delete=[],
+            tables_to_keep=[feature_view],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+        mock_post.assert_called_once()
+        req_body = mock_post.call_args[1]["req_body"]
+
+        assert [t["type"] for t in req_body["tables_to_keep"]] == ["FeatureView"]
+        assert [e["type"] for e in req_body["entities_to_keep"]] == ["Entity"]
+        assert req_body["tables_to_delete"] == []
+        assert req_body["partial"] is False
+
+        # The payload must be decodable back into the same feature view.
+        assert (
+            decode_infra_object(req_body["tables_to_keep"][0]).name == feature_view.name
+        )
+
+    @patch("feast.infra.online_stores.remote.post_remote_update_infra")
+    def test_update_raises_on_error_response(
+        self, mock_post, remote_store, config, feature_view
+    ):
+        """A failed provisioning call must not pass silently -- that is the bug."""
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = "boom"
+        mock_post.return_value = mock_response
+
+        with pytest.raises(RuntimeError, match="Unable to update online store"):
+            remote_store.update(
+                config=config,
+                tables_to_delete=[],
+                tables_to_keep=[feature_view],
+                entities_to_delete=[],
+                entities_to_keep=[],
+                partial=False,
+            )
+
+    @patch("feast.infra.online_stores.remote.post_remote_teardown_infra")
+    def test_teardown_posts_tables_to_the_feature_server(
+        self, mock_post, remote_store, config, feature_view, entity
+    ):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        remote_store.teardown(config=config, tables=[feature_view], entities=[entity])
+
+        mock_post.assert_called_once()
+        req_body = mock_post.call_args[1]["req_body"]
+        assert [t["type"] for t in req_body["tables"]] == ["FeatureView"]
+        assert [e["type"] for e in req_body["entities"]] == ["Entity"]
+
+    @patch("feast.infra.online_stores.remote.post_remote_teardown_infra")
+    def test_teardown_raises_on_error_response(
+        self, mock_post, remote_store, config, feature_view
+    ):
+        mock_response = Mock()
+        mock_response.status_code = 503
+        mock_response.text = "unavailable"
+        mock_post.return_value = mock_response
+
+        with pytest.raises(RuntimeError, match="Unable to teardown online store"):
+            remote_store.teardown(config=config, tables=[feature_view], entities=[])
