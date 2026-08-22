@@ -42,6 +42,7 @@ export interface OpenLineageGraphData {
   nodes: OpenLineageNode[];
   edges: OpenLineageEdge[];
   symlinks?: OpenLineageSymlink[];
+  total_nodes?: number;
 }
 
 export interface OpenLineageEvent {
@@ -68,16 +69,40 @@ export interface RegistryLineageData {
   indirect_relationships: RegistryRelationship[];
 }
 
-const useLoadOpenLineageGraph = () => {
+const useLoadOpenLineageGraph = (options?: {
+  namespace?: string;
+  limit?: number;
+  offset?: number;
+}) => {
   const registryUrl = useContext(RegistryPathContext);
   const { fetchOptions } = useDataMode();
 
+  const params = new URLSearchParams();
+  if (options?.namespace) params.set("namespace", options.namespace);
+  if (options?.limit) params.set("limit", options.limit.toString());
+  if (options?.offset) params.set("offset", options.offset.toString());
+  const qs = params.toString();
+  const path = qs
+    ? `/lineage/openlineage/graph?${qs}`
+    : "/lineage/openlineage/graph";
+
   return useQuery<OpenLineageGraphData>(
-    ["openlineage-graph"],
+    ["openlineage-graph", options?.namespace, options?.limit, options?.offset],
+    () => restFetch<OpenLineageGraphData>(registryUrl, path, fetchOptions),
+    { enabled: !!registryUrl },
+  );
+};
+
+const useLoadNamespaces = () => {
+  const registryUrl = useContext(RegistryPathContext);
+  const { fetchOptions } = useDataMode();
+
+  return useQuery<{ namespaces: string[] }>(
+    ["openlineage-namespaces"],
     () =>
-      restFetch<OpenLineageGraphData>(
+      restFetch<{ namespaces: string[] }>(
         registryUrl,
-        "/lineage/openlineage/graph",
+        "/lineage/openlineage/namespaces",
         fetchOptions,
       ),
     { enabled: !!registryUrl },
@@ -125,8 +150,37 @@ const useLoadRegistryLineage = (project?: string) => {
   );
 };
 
+export interface OpenLineageJob {
+  job_namespace: string;
+  job_name: string;
+  job_type?: string | null;
+  producer?: string | null;
+  description?: string | null;
+  latest_run_id?: string | null;
+  updated_at: number;
+  facets_json?: string | null;
+}
+
+const useLoadOpenLineageJobs = () => {
+  const registryUrl = useContext(RegistryPathContext);
+  const { fetchOptions } = useDataMode();
+
+  return useQuery<{ jobs: OpenLineageJob[] }>(
+    ["openlineage-jobs"],
+    () =>
+      restFetch<{ jobs: OpenLineageJob[] }>(
+        registryUrl,
+        "/lineage/openlineage/jobs",
+        fetchOptions,
+      ),
+    { enabled: !!registryUrl },
+  );
+};
+
 export {
   useLoadOpenLineageGraph,
   useLoadOpenLineageEvents,
+  useLoadOpenLineageJobs,
   useLoadRegistryLineage,
+  useLoadNamespaces,
 };

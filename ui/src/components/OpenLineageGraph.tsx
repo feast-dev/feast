@@ -1,9 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ReactFlow,
   Node,
   Edge,
   Controls,
+  ControlButton,
   Background,
   useNodesState,
   useEdgesState,
@@ -41,24 +48,25 @@ const nodeHeight = 65;
 
 // ── Producer-based colors (generated dynamically) ──
 
-const normalizeProducer = (producer?: string | null): string => {
+/**
+ * Label for producer badges / filters.
+ * User-configured names are shown as-is. Long OpenLineage producer URLs
+ * (e.g. …/integration/spark) are shortened to the last path segment so the
+ * UI stays readable.
+ */
+const displayProducer = (producer?: string | null): string => {
   if (!producer) return "unknown";
-  const p = producer.toLowerCase().trim();
-
-  // Extract the last meaningful path segment from URLs like
-  // "https://github.com/OpenLineage/OpenLineage/tree/1.0.0/integration/airflow"
+  const trimmed = producer.trim();
   try {
-    const url = new URL(p);
+    const url = new URL(trimmed);
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments.length > 0) {
-      return segments[segments.length - 1].replace(/-/g, "_");
+      return segments[segments.length - 1];
     }
   } catch {
-    // not a URL
+    // not a URL — keep configured value unchanged
   }
-
-  // For plain names like "feast" or "my-custom-producer", just clean up
-  return p.replace(/-/g, "_").replace(/\s+/g, "_");
+  return trimmed;
 };
 
 const hashString = (str: string): number => {
@@ -82,7 +90,7 @@ const generateProducerColor = (
 const producerColorCache: Record<string, { main: string; light: string }> = {};
 
 const getProducerColors = (producer?: string | null) => {
-  const key = normalizeProducer(producer);
+  const key = displayProducer(producer);
   if (!producerColorCache[key]) {
     producerColorCache[key] = generateProducerColor(key);
   }
@@ -91,6 +99,179 @@ const getProducerColors = (producer?: string | null) => {
 
 const getNodeIcon = (type: string) => {
   return type === "job" ? "\u2699" : "\u2B21";
+};
+
+const nodeKey = (type: string, ns: string, name: string) =>
+  `${type}:${ns}:${name}`;
+
+/**
+ * Runtime transform jobs appear as pills on the Lineage graph.
+ * Prefer server-provided job_type (from feast_jobKind facet). Fall back to
+ * known Feast emit conventions for events emitted before jobKind existed.
+ */
+const isRuntimeTransformJob = (
+  name: string,
+  producer?: string | null,
+  jobType?: string | null,
+): boolean => {
+  const kind = (jobType || "").toLowerCase();
+  if (kind === "transform") return true;
+  if (kind === "definition") return false;
+
+  const n = (name || "").toLowerCase();
+  if (
+    n.startsWith("feature_service_") ||
+    n.startsWith("feast_feature_views_") ||
+    n.startsWith("feast_feature_services_")
+  ) {
+    return false;
+  }
+  if (n.startsWith("materialize_")) return true;
+  if (n.startsWith("spark_compute_")) return true;
+  if (n.startsWith("stream_")) return true;
+  if (n.startsWith("on_demand_feature_view_")) return true;
+  const p = (producer || "").toLowerCase();
+  if (p.includes("/integration/spark")) return true;
+  return false;
+};
+
+/**
+ * Lineage graph: datasets + runtime transform jobs (materialize, Spark, …).
+ * Definition relationships (source→FV, FV→FeatureService) stay as derived
+ * dataset edges. Derived shortcuts are omitted only when a *transform* job
+ * already connects the same pair.
+ */
+const buildLineageGraphSlice = (
+  olData: OpenLineageGraphData,
+): { nodes: OpenLineageNode[]; edges: OpenLineageGraphData["edges"] } => {
+  const makeId = (type: string, ns: string, name: string) =>
+    nodeKey(type, ns, name);
+
+  const jobById = new Map(
+    olData.nodes
+      .filter((n) => n.type === "job")
+      .map((n) => [makeId(n.type, n.namespace, n.name), n]),
+  );
+
+  const ioEdges = olData.edges.filter(
+    (e) => e.edge_type === "input" || e.edge_type === "output",
+  );
+  const parentEdges = olData.edges.filter((e) => e.edge_type === "parent");
+  const symlinkEdges = olData.edges.filter((e) => e.edge_type === "symlink");
+  const derivedEdges = olData.edges.filter((e) => e.edge_type === "derived");
+
+  const isTransformJobId = (id: string) => {
+    const job = jobById.get(id);
+    if (!job) return false;
+    return isRuntimeTransformJob(job.name, job.producer, job.job_type);
+  };
+
+  const jobsOnPath = new Set<string>();
+  for (const e of ioEdges) {
+    if (e.source_type === "job") {
+      const id = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (isTransformJobId(id)) jobsOnPath.add(id);
+    }
+    if (e.target_type === "job") {
+      const id = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (isTransformJobId(id)) jobsOnPath.add(id);
+    }
+  }
+
+  // Pull in parent/child compute jobs (e.g. materialize → Spark)
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of parentEdges) {
+      const src = makeId(e.source_type, e.source_namespace, e.source_name);
+      const tgt = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (
+        jobsOnPath.has(src) &&
+        !jobsOnPath.has(tgt) &&
+        isTransformJobId(tgt)
+      ) {
+        jobsOnPath.add(tgt);
+        grew = true;
+      }
+      if (
+        jobsOnPath.has(tgt) &&
+        !jobsOnPath.has(src) &&
+        isTransformJobId(src)
+      ) {
+        jobsOnPath.add(src);
+        grew = true;
+      }
+    }
+  }
+
+  const nodes = olData.nodes.filter(
+    (n) =>
+      n.type === "dataset" ||
+      (n.type === "job" && jobsOnPath.has(makeId(n.type, n.namespace, n.name))),
+  );
+  const nodeIds = new Set(
+    nodes.map((n) => makeId(n.type, n.namespace, n.name)),
+  );
+
+  // Only transform-job I/O suppresses derived dataset shortcuts
+  const mediatedPairs = new Set<string>();
+  const jobInputs = new Map<string, Set<string>>();
+  const jobOutputs = new Map<string, Set<string>>();
+  for (const e of ioEdges) {
+    if (e.edge_type === "input" && e.target_type === "job") {
+      const jid = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (!jobsOnPath.has(jid)) continue;
+      const did = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (!jobInputs.has(jid)) jobInputs.set(jid, new Set());
+      jobInputs.get(jid)!.add(did);
+    }
+    if (e.edge_type === "output" && e.source_type === "job") {
+      const jid = makeId(e.source_type, e.source_namespace, e.source_name);
+      if (!jobsOnPath.has(jid)) continue;
+      const did = makeId(e.target_type, e.target_namespace, e.target_name);
+      if (!jobOutputs.has(jid)) jobOutputs.set(jid, new Set());
+      jobOutputs.get(jid)!.add(did);
+    }
+  }
+  for (const jid of Array.from(jobInputs.keys())) {
+    const inputs = jobInputs.get(jid)!;
+    const outputs = jobOutputs.get(jid);
+    if (!outputs) continue;
+    Array.from(inputs).forEach((inn) => {
+      Array.from(outputs).forEach((out) => {
+        mediatedPairs.add(`${inn}=>${out}`);
+      });
+    });
+  }
+
+  const keepEdge = (e: OpenLineageGraphData["edges"][number]) => {
+    const src = makeId(e.source_type, e.source_namespace, e.source_name);
+    const tgt = makeId(e.target_type, e.target_namespace, e.target_name);
+    if (!nodeIds.has(src) || !nodeIds.has(tgt)) return false;
+    if (e.edge_type === "derived") {
+      return !mediatedPairs.has(`${src}=>${tgt}`);
+    }
+    // Drop I/O edges for definition jobs (those jobs are not on the graph)
+    if (e.edge_type === "input" || e.edge_type === "output") {
+      if (e.source_type === "job" && !jobsOnPath.has(src)) return false;
+      if (e.target_type === "job" && !jobsOnPath.has(tgt)) return false;
+    }
+    return (
+      e.edge_type === "input" ||
+      e.edge_type === "output" ||
+      e.edge_type === "parent" ||
+      e.edge_type === "symlink"
+    );
+  };
+
+  const edges = [
+    ...ioEdges,
+    ...parentEdges,
+    ...symlinkEdges,
+    ...derivedEdges,
+  ].filter(keepEdge);
+
+  return { nodes, edges };
 };
 
 // ── Custom Node ──
@@ -108,7 +289,19 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
   const [isHovered, setIsHovered] = useState(false);
   const colors = getProducerColors(data.producer);
   const icon = getNodeIcon(data.type);
-  const producerLabel = normalizeProducer(data.producer);
+  const producerLabel = displayProducer(data.producer);
+  const isJob = data.type === "job";
+
+  const nodeRef = data.nodeRef;
+  const feastObjType = nodeRef?.feast_object_type;
+  const feastDsFacet = nodeRef?.facets?.feast_dataSource;
+  const subtitle = isJob
+    ? "click for runs"
+    : feastObjType === "dataSource" && feastDsFacet?.source_type
+      ? feastDsFacet.source_type
+      : feastObjType && feastObjType !== "unknown"
+        ? feastObjType
+        : undefined;
 
   const handleClick = () => {
     if (data.onNodeClick && data.nodeRef) {
@@ -120,10 +313,12 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
     <div
       style={{
         background: colors.light,
-        borderRadius: 8,
+        borderRadius: isJob ? 20 : 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: `2px solid ${colors.main}`,
+        border: isJob
+          ? `2px dashed ${colors.main}`
+          : `2px solid ${colors.main}`,
         display: "flex",
         alignItems: "stretch",
         position: "relative",
@@ -149,7 +344,7 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
           zIndex: 5,
         }}
       >
-        {producerLabel}
+        {isJob ? "transform" : producerLabel}
       </div>
 
       {data.namespace && isHovered && (
@@ -190,6 +385,7 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
         style={{
           flex: 1,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           padding: "0 10px",
@@ -198,7 +394,21 @@ const LineageCustomNode = ({ data }: { data: LineageNodeData }) => {
           color: "#333333",
         }}
       >
-        {data.label}
+        <div
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: "100%",
+          }}
+        >
+          {data.label}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: 10, color: "#666", fontWeight: 400 }}>
+            {subtitle}
+          </div>
+        )}
       </div>
       <Handle
         type="source"
@@ -214,6 +424,40 @@ const lineageNodeTypes = { lineageCustom: LineageCustomNode };
 
 // ── Dagre layout ──
 
+/**
+ * Derive a rank key from a ReactFlow node's data so that nodes of the
+ * same semantic type are placed on the same horizontal column (LR) or
+ * vertical row (TB).
+ *
+ * Priority: feast_object_type > OL type (job / dataset).
+ * The returned key is used to group nodes into dagre rank-groups.
+ */
+const rankKeyForNode = (node: Node): string => {
+  const ref = (node.data as LineageNodeData | undefined)?.nodeRef;
+  const feastType = ref?.feast_object_type;
+  if (feastType && feastType !== "unknown") return `feast:${feastType}`;
+  const olType = (node.data as LineageNodeData | undefined)?.type;
+  return olType === "job" ? "ol:job" : "ol:dataset";
+};
+
+/**
+ * Ordered rank tiers – earlier entries are placed further left (LR) or
+ * further up (TB).  Keys not listed here are appended automatically so
+ * external / unknown types still get a stable position.
+ */
+const RANK_ORDER: string[] = [
+  "feast:dataSource",
+  "feast:entity",
+  "ol:dataset",
+  "feast:featureView",
+  "feast:onDemandFeatureView",
+  "feast:streamFeatureView",
+  "ol:job",
+  "feast:featureService",
+  "feast:savedDataset",
+  "feast:onlineStore",
+];
+
 const layoutGraph = (nodes: Node[], edges: Edge[], direction = "LR") => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -225,7 +469,12 @@ const layoutGraph = (nodes: Node[], edges: Edge[], direction = "LR") => {
     marginy: 50,
   });
 
+  // Group nodes by rank key so we can assign same-rank constraints.
+  const rankGroups = new Map<string, string[]>();
   nodes.forEach((node) => {
+    const key = rankKeyForNode(node);
+    if (!rankGroups.has(key)) rankGroups.set(key, []);
+    rankGroups.get(key)!.push(node.id);
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
@@ -235,7 +484,57 @@ const layoutGraph = (nodes: Node[], edges: Edge[], direction = "LR") => {
     }
   });
 
+  // Assign explicit rank to each group via invisible chain edges so dagre
+  // aligns every node of the same type on the same column.
+  // We pick one representative node per group and chain them in the
+  // canonical order, then mark all other nodes in a group as same-rank
+  // by adding zero-weight edges to the representative.
+  const orderedKeys = [...RANK_ORDER];
+  Array.from(rankGroups.keys()).forEach((key) => {
+    if (!orderedKeys.includes(key)) orderedKeys.push(key);
+  });
+  const activeKeys = orderedKeys.filter((k) => rankGroups.has(k));
+
+  // Chain representatives to enforce ordering between groups
+  for (let i = 0; i < activeKeys.length - 1; i++) {
+    const repA = rankGroups.get(activeKeys[i])![0];
+    const repB = rankGroups.get(activeKeys[i + 1])![0];
+    dagreGraph.setEdge(repA, repB, {
+      minlen: 1,
+      weight: 0,
+      style: "invis",
+      _rank_edge: true,
+    });
+  }
+
+  // Pull same-group nodes to the same rank as their representative
+  Array.from(rankGroups.values()).forEach((ids) => {
+    if (ids.length <= 1) return;
+    const rep = ids[0];
+    for (let i = 1; i < ids.length; i++) {
+      dagreGraph.setEdge(rep, ids[i], {
+        minlen: 0,
+        weight: 2,
+        style: "invis",
+        _rank_edge: true,
+      });
+      dagreGraph.setEdge(ids[i], rep, {
+        minlen: 0,
+        weight: 2,
+        style: "invis",
+        _rank_edge: true,
+      });
+    }
+  });
+
   dagre.layout(dagreGraph);
+
+  // Collect the invisible rank-edge ids so we can strip them from output
+  const rankEdgeSet = new Set<string>();
+  dagreGraph.edges().forEach((e) => {
+    const label = dagreGraph.edge(e);
+    if (label?._rank_edge) rankEdgeSet.add(`${e.v}->${e.w}`);
+  });
 
   return {
     nodes: nodes.map((node) => {
@@ -512,6 +811,16 @@ const NodeDetailPanel: React.FC<{
   const fields = schema?.fields || [];
   const facets = node.facets || {};
 
+  const featureViews: string[] =
+    facets.feast_featureService?.feature_views || [];
+  const dqMetrics = facets.dataQualityMetrics;
+  const sqlFacet = facets.sql;
+  const dataSource = facets.dataSource;
+  const feastDataSource = facets.feast_dataSource;
+  const ownership = facets.ownership;
+  const onlineStore = facets.feast_onlineStore;
+  const savedDataset = facets.feast_savedDataset;
+
   const tags: string[] = [];
   if (facets.feast_featureView?.tags) {
     Object.entries(facets.feast_featureView.tags).forEach(([k, v]) =>
@@ -523,22 +832,28 @@ const NodeDetailPanel: React.FC<{
       tags.push(`${k}:${v}`),
     );
   }
+  if (feastDataSource?.tags) {
+    Object.entries(feastDataSource.tags).forEach(([k, v]) =>
+      tags.push(`${k}:${v}`),
+    );
+  }
+  if (savedDataset?.tags) {
+    Object.entries(savedDataset.tags).forEach(([k, v]) =>
+      tags.push(`${k}:${v}`),
+    );
+  }
 
-  const features: string[] = facets.feast_featureView?.features || [];
+  const features: string[] =
+    facets.feast_featureView?.features || savedDataset?.features || [];
   const entities: string[] = facets.feast_featureView?.entities || [];
   const fvDescription =
     node.description ||
     facets.documentation?.description ||
     facets.feast_featureView?.description ||
     facets.feast_featureService?.description ||
-    facets.feast_entity?.description;
-
-  const featureViews: string[] =
-    facets.feast_featureService?.feature_views || [];
-  const dqMetrics = facets.dataQualityMetrics;
-  const sqlFacet = facets.sql;
-  const dataSource = facets.dataSource;
-  const ownership = facets.ownership;
+    facets.feast_entity?.description ||
+    feastDataSource?.description ||
+    savedDataset?.description;
 
   const knownFacetKeys = new Set([
     "schema",
@@ -546,6 +861,9 @@ const NodeDetailPanel: React.FC<{
     "feast_featureView",
     "feast_featureService",
     "feast_entity",
+    "feast_dataSource",
+    "feast_savedDataset",
+    "feast_onlineStore",
     "dataQualityMetrics",
     "sql",
     "dataSource",
@@ -602,9 +920,7 @@ const NodeDetailPanel: React.FC<{
         </button>
       </div>
 
-      <EuiBadge color={colors.main}>
-        {normalizeProducer(node.producer)}
-      </EuiBadge>
+      <EuiBadge color={colors.main}>{displayProducer(node.producer)}</EuiBadge>
       {node.job_type && (
         <EuiBadge color="hollow" style={{ marginLeft: 4 }}>
           {node.job_type}
@@ -737,7 +1053,11 @@ const NodeDetailPanel: React.FC<{
           </div>
           {node.feast_object_name && (
             <div>
-              <span style={{ color: "#888" }}>Name:</span>{" "}
+              <span style={{ color: "#888" }}>
+                {node.feast_object_type === "onlineStore"
+                  ? "Feature View:"
+                  : "Name:"}
+              </span>{" "}
               {node.feast_object_name}
             </div>
           )}
@@ -750,23 +1070,177 @@ const NodeDetailPanel: React.FC<{
         </div>
       )}
 
-      {dataSource && (
+      {onlineStore && (
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Data Source</div>
-          {dataSource.name && (
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Online Store</div>
+          {onlineStore.store_type && (
             <div>
-              <span style={{ color: "#888" }}>Name:</span> {dataSource.name}
+              <span style={{ color: "#888" }}>Backend:</span>{" "}
+              {onlineStore.store_type}
             </div>
           )}
-          {dataSource.uri && (
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 11,
-                wordBreak: "break-all",
-              }}
-            >
-              {dataSource.uri}
+          {onlineStore.feature_view && (
+            <div>
+              <span style={{ color: "#888" }}>Feature View:</span>{" "}
+              {onlineStore.feature_view}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(dataSource || feastDataSource) && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Data Source</div>
+          {(feastDataSource?.name || dataSource?.name) && (
+            <div>
+              <span style={{ color: "#888" }}>Name:</span>{" "}
+              {feastDataSource?.name || dataSource?.name}
+            </div>
+          )}
+          {feastDataSource?.source_type && (
+            <div>
+              <span style={{ color: "#888" }}>Type:</span>{" "}
+              {feastDataSource.source_type}
+            </div>
+          )}
+          {feastDataSource?.timestamp_field && (
+            <div>
+              <span style={{ color: "#888" }}>Timestamp Field:</span>{" "}
+              <code>{feastDataSource.timestamp_field}</code>
+            </div>
+          )}
+          {feastDataSource?.created_timestamp_field && (
+            <div>
+              <span style={{ color: "#888" }}>Created Timestamp:</span>{" "}
+              <code>{feastDataSource.created_timestamp_field}</code>
+            </div>
+          )}
+          {feastDataSource?.path && (
+            <div>
+              <span style={{ color: "#888" }}>Path:</span>{" "}
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  wordBreak: "break-all",
+                }}
+              >
+                {feastDataSource.path}
+              </span>
+            </div>
+          )}
+          {feastDataSource?.table && (
+            <div>
+              <span style={{ color: "#888" }}>Table:</span>{" "}
+              <code>{feastDataSource.table}</code>
+            </div>
+          )}
+          {feastDataSource?.query && (
+            <div>
+              <span style={{ color: "#888" }}>Query:</span>{" "}
+              <pre
+                style={{
+                  background: isDarkMode ? "#25262b" : "#f5f5f5",
+                  padding: 6,
+                  borderRadius: 4,
+                  fontSize: 11,
+                  overflowX: "auto",
+                  maxHeight: 80,
+                  margin: "4px 0 0",
+                }}
+              >
+                {feastDataSource.query}
+              </pre>
+            </div>
+          )}
+          {dataSource?.uri && (
+            <div>
+              <span style={{ color: "#888" }}>URI:</span>{" "}
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  wordBreak: "break-all",
+                }}
+              >
+                {dataSource.uri}
+              </span>
+            </div>
+          )}
+          {feastDataSource?.field_mapping &&
+            Object.keys(feastDataSource.field_mapping).length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                <span style={{ color: "#888" }}>Field Mapping:</span>
+                <table
+                  style={{
+                    width: "100%",
+                    fontSize: 11,
+                    borderCollapse: "collapse",
+                    marginTop: 4,
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: `1px solid ${isDarkMode ? "#343741" : "#ddd"}`,
+                      }}
+                    >
+                      <th style={{ textAlign: "left", padding: "2px 0" }}>
+                        Source
+                      </th>
+                      <th style={{ textAlign: "left", padding: "2px 0" }}>
+                        Feature
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(feastDataSource.field_mapping).map(
+                      ([src, dst]) => (
+                        <tr
+                          key={src}
+                          style={{
+                            borderBottom: `1px solid ${isDarkMode ? "#2a2b30" : "#eee"}`,
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "2px 0",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {src}
+                          </td>
+                          <td
+                            style={{
+                              padding: "2px 0",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {String(dst)}
+                          </td>
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+        </div>
+      )}
+
+      {savedDataset && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Saved Dataset</div>
+          {savedDataset.feature_service_name && (
+            <div>
+              <span style={{ color: "#888" }}>Feature Service:</span>{" "}
+              {savedDataset.feature_service_name}
+            </div>
+          )}
+          {savedDataset.join_keys?.length > 0 && (
+            <div>
+              <span style={{ color: "#888" }}>Join Keys:</span>{" "}
+              <code>{savedDataset.join_keys.join(", ")}</code>
             </div>
           )}
         </div>
@@ -843,11 +1317,27 @@ const NodeDetailPanel: React.FC<{
       )}
 
       {node.type === "job" && (
-        <RunHistorySection
-          jobNamespace={node.namespace}
-          jobName={node.name}
-          isDarkMode={isDarkMode}
-        />
+        <>
+          <div
+            style={{
+              marginTop: 14,
+              padding: "8px 10px",
+              background: isDarkMode ? "#2a2b30" : "#f4f6f8",
+              borderRadius: 6,
+              fontSize: 12,
+              color: isDarkMode ? "#bbb" : "#555",
+            }}
+          >
+            Materialization / compute run. Select a run below for inputs,
+            outputs, and status. (FeatureService membership is not a transform —
+            that stays as dataset links.)
+          </div>
+          <RunHistorySection
+            jobNamespace={node.namespace}
+            jobName={node.name}
+            isDarkMode={isDarkMode}
+          />
+        </>
       )}
     </div>
   );
@@ -860,6 +1350,12 @@ interface LineageGraphProps {
   olLoading: boolean;
   olError: boolean;
   feastOnlyCheckbox?: React.ReactNode;
+  /**
+   * lineage — datasets + runtime transforms (materialize, Spark); default
+   * objects — datasets only
+   * all — every consumer node/edge
+   */
+  viewMode?: "lineage" | "objects" | "all";
 }
 
 const LineageGraph: React.FC<LineageGraphProps> = ({
@@ -867,54 +1363,168 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
   olLoading,
   olError,
   feastOnlyCheckbox,
+  viewMode = "lineage",
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const [filterType, setFilterType] = useState("");
+  const [filterFeastType, setFilterFeastType] = useState("");
   const [filterProducer, setFilterProducer] = useState("");
   const [filterObject, setFilterObject] = useState("");
   const [selectedNode, setSelectedNode] = useState<OpenLineageNode | null>(
     null,
   );
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const edgesRef = useRef<Edge[]>([]);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!graphContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current.requestFullscreen();
+    }
+  }, []);
+
+  const connectedIds = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const ids = new Set<string>([hoveredNodeId]);
+    const allEdges = edgesRef.current;
+
+    // Walk upstream (target → source)
+    const upQueue = [hoveredNodeId];
+    while (upQueue.length > 0) {
+      const cur = upQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.target === cur && !ids.has(e.source)) {
+          ids.add(e.source);
+          upQueue.push(e.source);
+        }
+      }
+    }
+
+    // Walk downstream (source → target)
+    const downQueue = [hoveredNodeId];
+    while (downQueue.length > 0) {
+      const cur = downQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.source === cur && !ids.has(e.target)) {
+          ids.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    }
+
+    return ids;
+  }, [hoveredNodeId]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id),
+    [],
+  );
+  const onNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
+
+  const objectsOnly = viewMode === "objects";
+  const showTypeFilter = viewMode !== "objects";
+
+  const { baseNodes, baseEdges } = useMemo(() => {
+    if (!olData) return { baseNodes: [] as OpenLineageNode[], baseEdges: [] };
+    if (viewMode === "all") {
+      return { baseNodes: olData.nodes, baseEdges: olData.edges };
+    }
+    if (viewMode === "objects") {
+      return {
+        baseNodes: olData.nodes.filter((n) => n.type === "dataset"),
+        baseEdges: olData.edges.filter(
+          (e) =>
+            e.source_type === "dataset" &&
+            e.target_type === "dataset" &&
+            e.edge_type !== "parent",
+        ),
+      };
+    }
+    const slice = buildLineageGraphSlice(olData);
+    return { baseNodes: slice.nodes, baseEdges: slice.edges };
+  }, [olData, viewMode]);
 
   const producers = useMemo(() => {
-    if (!olData) return [];
     const set = new Set<string>();
-    for (const n of olData.nodes) {
-      set.add(normalizeProducer(n.producer));
+    for (const n of baseNodes) {
+      set.add(displayProducer(n.producer));
     }
     return Array.from(set).sort();
-  }, [olData]);
+  }, [baseNodes]);
+
+  const feastObjectTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of baseNodes) {
+      if (n.feast_object_type && n.feast_object_type !== "unknown") {
+        set.add(n.feast_object_type);
+      }
+    }
+    return Array.from(set).sort();
+  }, [baseNodes]);
+
+  const feastTypeLabels: Record<string, string> = {
+    dataSource: "Data Source",
+    featureView: "Feature View",
+    featureService: "Feature Service",
+    entity: "Entity",
+    onDemandFeatureView: "On-Demand Feature View",
+    streamFeatureView: "Stream Feature View",
+    savedDataset: "Saved Dataset",
+    onlineStore: "Online Store",
+  };
 
   const objectOptions = useMemo(() => {
-    if (!olData) return [];
-    return olData.nodes
+    return baseNodes
       .filter((n) => {
         if (filterType && n.type !== filterType) return false;
-        if (filterProducer && normalizeProducer(n.producer) !== filterProducer)
+        if (filterFeastType && n.feast_object_type !== filterFeastType)
+          return false;
+        if (filterProducer && displayProducer(n.producer) !== filterProducer)
           return false;
         return true;
       })
       .map((n) => n.name)
       .filter((v, i, a) => a.indexOf(v) === i)
       .sort();
-  }, [olData, filterType, filterProducer]);
+  }, [baseNodes, filterType, filterFeastType, filterProducer]);
 
   useEffect(() => {
     setFilterObject("");
-  }, [filterType, filterProducer]);
+  }, [filterType, filterFeastType, filterProducer]);
+
+  useEffect(() => {
+    if (objectsOnly && filterType === "job") {
+      setFilterType("");
+    }
+  }, [objectsOnly, filterType]);
 
   useEffect(() => {
     if (!olData) return;
 
-    let filteredNodes = olData.nodes;
+    let filteredNodes = baseNodes;
     if (filterType) {
       filteredNodes = filteredNodes.filter((n) => n.type === filterType);
     }
+    if (filterFeastType) {
+      filteredNodes = filteredNodes.filter(
+        (n) => n.feast_object_type === filterFeastType,
+      );
+    }
     if (filterProducer) {
       filteredNodes = filteredNodes.filter(
-        (n) => normalizeProducer(n.producer) === filterProducer,
+        (n) => displayProducer(n.producer) === filterProducer,
       );
     }
 
@@ -928,18 +1538,53 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
           .map((n) => makeId(n.type, n.namespace, n.name)),
       );
 
-      const connectedIds = new Set<string>();
-      for (const e of olData.edges) {
-        const srcId = makeId(e.source_type, e.source_namespace, e.source_name);
-        const tgtId = makeId(e.target_type, e.target_namespace, e.target_name);
-        if (focusIds.has(srcId)) connectedIds.add(tgtId);
-        if (focusIds.has(tgtId)) connectedIds.add(srcId);
+      const visibleIds = new Set(focusIds);
+
+      // Walk upstream: follow edges where target matches current → add source
+      const upQueue = Array.from(focusIds);
+      while (upQueue.length > 0) {
+        const current = upQueue.shift()!;
+        for (const e of baseEdges) {
+          const srcId = makeId(
+            e.source_type,
+            e.source_namespace,
+            e.source_name,
+          );
+          const tgtId = makeId(
+            e.target_type,
+            e.target_namespace,
+            e.target_name,
+          );
+          if (tgtId === current && !visibleIds.has(srcId)) {
+            visibleIds.add(srcId);
+            upQueue.push(srcId);
+          }
+        }
       }
 
-      const visibleIds = new Set(
-        Array.from(focusIds).concat(Array.from(connectedIds)),
-      );
-      filteredNodes = olData.nodes.filter((n) =>
+      // Walk downstream: follow edges where source matches current → add target
+      const downQueue = Array.from(focusIds);
+      while (downQueue.length > 0) {
+        const current = downQueue.shift()!;
+        for (const e of baseEdges) {
+          const srcId = makeId(
+            e.source_type,
+            e.source_namespace,
+            e.source_name,
+          );
+          const tgtId = makeId(
+            e.target_type,
+            e.target_namespace,
+            e.target_name,
+          );
+          if (srcId === current && !visibleIds.has(tgtId)) {
+            visibleIds.add(tgtId);
+            downQueue.push(tgtId);
+          }
+        }
+      }
+
+      filteredNodes = baseNodes.filter((n) =>
         visibleIds.has(makeId(n.type, n.namespace, n.name)),
       );
     }
@@ -962,34 +1607,43 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
       position: { x: 0, y: 0 },
     }));
 
-    const flowEdges: Edge[] = olData.edges
+    const flowEdges: Edge[] = baseEdges
       .filter((e) => {
         const srcId = makeId(e.source_type, e.source_namespace, e.source_name);
         const tgtId = makeId(e.target_type, e.target_namespace, e.target_name);
         return filteredNodeIds.has(srcId) && filteredNodeIds.has(tgtId);
       })
       .map((e, i) => {
-        const isSymlink = e.edge_type === "symlink";
+        const edgeType = e.edge_type || "";
+        const isSymlink = edgeType === "symlink";
+        const isParent = edgeType === "parent";
+        const isDerived = edgeType === "derived";
         const color = isSymlink
           ? "#999999"
-          : e.edge_type === "derived"
-            ? "#3366cc"
-            : "#e67300";
+          : isParent
+            ? "#7a7a7a"
+            : isDerived
+              ? "#3366cc"
+              : "#e67300";
         return {
           id: `ol-edge-${i}`,
           source: makeId(e.source_type, e.source_namespace, e.source_name),
           sourceHandle: "source",
           target: makeId(e.target_type, e.target_namespace, e.target_name),
           targetHandle: "target",
-          animated: !isSymlink,
+          animated: !isSymlink && !isParent,
+          label: isParent ? "runs on" : undefined,
+          labelStyle: isParent ? { fontSize: 10, fill: "#666" } : undefined,
           style: {
-            strokeWidth: isSymlink ? 1 : 2,
+            strokeWidth: isSymlink || isParent ? 1.5 : 2,
             stroke: color,
             strokeDasharray: isSymlink
               ? "3 3"
-              : e.edge_type === "derived"
-                ? "5 3"
-                : "none",
+              : isParent
+                ? "2 4"
+                : isDerived
+                  ? "5 3"
+                  : "none",
           },
           type: "smoothstep",
           markerEnd: {
@@ -1002,9 +1656,46 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
       });
 
     const { nodes: ln, edges: le } = layoutGraph(flowNodes, flowEdges);
+    edgesRef.current = le;
     setNodes(ln);
     setEdges(le);
-  }, [olData, filterType, filterProducer, filterObject, setNodes, setEdges]);
+  }, [
+    olData,
+    baseNodes,
+    baseEdges,
+    filterType,
+    filterFeastType,
+    filterProducer,
+    filterObject,
+    setNodes,
+    setEdges,
+  ]);
+
+  // Apply hover-dim: fade unrelated nodes and edges
+  const styledNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedIds.has(n.id) ? 1 : 0.15,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [nodes, connectedIds]);
+
+  const styledEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity:
+          connectedIds.has(e.source) && connectedIds.has(e.target) ? 1 : 0.08,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [edges, connectedIds]);
 
   if (olLoading) {
     return (
@@ -1034,17 +1725,30 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     );
   }
 
-  if (olData.nodes.length === 0) {
+  if (baseNodes.length === 0) {
     return (
       <EuiPanel>
+        {feastOnlyCheckbox && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: 12,
+            }}
+          >
+            {feastOnlyCheckbox}
+          </div>
+        )}
         <EuiEmptyPrompt
           iconType="branch"
-          title={<h2>No Lineage Events</h2>}
+          title={
+            <h2>{objectsOnly ? "No Dataset Lineage" : "No Lineage Yet"}</h2>
+          }
           body={
             <p>
-              No OpenLineage events have been received yet. Configure your data
-              pipeline producers (Airflow, Spark, dbt, Feast) to send events to
-              this instance.
+              {objectsOnly
+                ? "No dataset lineage edges have been recorded yet. Materialize features or emit OpenLineage events that include datasets."
+                : "No OpenLineage events yet. Apply features and run materialization so datasets, jobs, and runs appear here. Toggle 'Feast Only Lineage' above to view registry-based lineage."}
             </p>
           }
         />
@@ -1052,42 +1756,86 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
     );
   }
 
+  const title =
+    viewMode === "objects"
+      ? "Dataset Lineage"
+      : viewMode === "lineage"
+        ? "Lineage"
+        : "OpenLineage Graph";
+
   return (
     <EuiPanel>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
+          gap: 16,
         }}
       >
-        <EuiTitle size="s">
-          <h2>OpenLineage Graph</h2>
-        </EuiTitle>
+        <div>
+          <EuiTitle size="s">
+            <h2>{title}</h2>
+          </EuiTitle>
+          {viewMode === "lineage" && (
+            <p
+              style={{
+                margin: "6px 0 0",
+                fontSize: 13,
+                color: "#69707D",
+                maxWidth: 640,
+              }}
+            >
+              Datasets link by definition (source → feature view → feature
+              service). Runtime transforms — materialize and compute engines
+              like Spark — appear as dashed pills; click them for run history.
+            </p>
+          )}
+        </div>
         {feastOnlyCheckbox && (
-          <div style={{ display: "flex", gap: "20px" }}>
+          <div style={{ display: "flex", gap: "20px", flexShrink: 0 }}>
             {feastOnlyCheckbox}
           </div>
         )}
       </div>
       <EuiSpacer size="m" />
-      <EuiFlexGroup style={{ marginBottom: 16 }}>
+      <EuiFlexGroup style={{ marginBottom: 16 }} wrap>
+        {showTypeFilter && (
+          <EuiFlexItem grow={false} style={{ width: 160 }}>
+            <EuiFormRow label="OL type">
+              <EuiSelect
+                options={[
+                  { value: "", text: "All" },
+                  { value: "job", text: "Job" },
+                  { value: "dataset", text: "Dataset" },
+                ]}
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                aria-label="Filter by OL type"
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
+        )}
+        {feastObjectTypes.length > 0 && (
+          <EuiFlexItem grow={false} style={{ width: 200 }}>
+            <EuiFormRow label="Feast type">
+              <EuiSelect
+                options={[
+                  { value: "", text: "All" },
+                  ...feastObjectTypes.map((t) => ({
+                    value: t,
+                    text: feastTypeLabels[t] || t,
+                  })),
+                ]}
+                value={filterFeastType}
+                onChange={(e) => setFilterFeastType(e.target.value)}
+                aria-label="Filter by Feast type"
+              />
+            </EuiFormRow>
+          </EuiFlexItem>
+        )}
         <EuiFlexItem grow={false} style={{ width: 200 }}>
-          <EuiFormRow label="Filter by type">
-            <EuiSelect
-              options={[
-                { value: "", text: "All" },
-                { value: "job", text: "Job" },
-                { value: "dataset", text: "Dataset" },
-              ]}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              aria-label="Filter by type"
-            />
-          </EuiFormRow>
-        </EuiFlexItem>
-        <EuiFlexItem grow={false} style={{ width: 200 }}>
-          <EuiFormRow label="Filter by producer">
+          <EuiFormRow label="Producer">
             <EuiSelect
               options={[
                 { value: "", text: "All" },
@@ -1102,8 +1850,8 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
             />
           </EuiFormRow>
         </EuiFlexItem>
-        <EuiFlexItem grow={false} style={{ width: 300 }}>
-          <EuiFormRow label="Select object">
+        <EuiFlexItem grow={false} style={{ width: 280 }}>
+          <EuiFormRow label="Focus on">
             <EuiSelect
               options={[
                 { value: "", text: "All" },
@@ -1111,16 +1859,24 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
               ]}
               value={filterObject}
               onChange={(e) => setFilterObject(e.target.value)}
-              aria-label="Select object"
+              aria-label="Focus on object"
             />
           </EuiFormRow>
         </EuiFlexItem>
       </EuiFlexGroup>
-      <div style={{ display: "flex", height: 600, border: "1px solid #ddd" }}>
+      <div
+        ref={graphContainerRef}
+        style={{
+          display: "flex",
+          height: isFullscreen ? "100vh" : 600,
+          border: "1px solid #ddd",
+          background: "#fff",
+        }}
+      >
         <div style={{ flex: 1, position: "relative" }}>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={lineageNodeTypes}
@@ -1128,10 +1884,19 @@ const LineageGraph: React.FC<LineageGraphProps> = ({
             fitView
             minZoom={0.1}
             maxZoom={8}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
             onPaneClick={() => setSelectedNode(null)}
           >
             <Background color="#f0f0f0" gap={16} />
-            <Controls />
+            <Controls>
+              <ControlButton
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? "⊡" : "⛶"}
+              </ControlButton>
+            </Controls>
             <ProducerLegend producers={producers} />
           </ReactFlow>
         </div>

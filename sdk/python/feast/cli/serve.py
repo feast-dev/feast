@@ -5,6 +5,7 @@ import click
 
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
+    DEFAULT_LINEAGE_SERVER_PORT,
     DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_REST_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
@@ -351,3 +352,64 @@ def serve_offline_command(
     store = create_feature_store(ctx)
 
     store.serve_offline(host, port, tls_key_path, tls_cert_path)
+
+
+@click.command("serve_lineage")
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="0.0.0.0",
+    show_default=True,
+    help="Specify a host for the lineage server",
+)
+@click.option(
+    "--port",
+    "-p",
+    type=click.INT,
+    default=DEFAULT_LINEAGE_SERVER_PORT,
+    show_default=True,
+    help="Specify a port for the lineage server",
+)
+@click.option(
+    "--key",
+    "-k",
+    "tls_key_path",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to TLS certificate private key",
+)
+@click.option(
+    "--cert",
+    "-c",
+    "tls_cert_path",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to TLS certificate public key",
+)
+@click.pass_context
+def serve_lineage_command(
+    ctx: click.Context,
+    host: str,
+    port: int,
+    tls_key_path: str,
+    tls_cert_path: str,
+):
+    """Start a standalone OpenLineage lineage server."""
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
+        raise click.BadParameter(
+            "Please pass --cert and --key args to start the lineage server in TLS mode."
+        )
+    store = create_feature_store(ctx)
+
+    try:
+        from feast.lineage_server import start_lineage_server
+    except ImportError as e:
+        raise click.ClickException(f"OpenLineage dependencies are not installed: {e}")
+
+    try:
+        start_lineage_server(store, host, port, tls_key_path, tls_cert_path)
+    except ValueError as e:
+        raise click.ClickException(str(e))

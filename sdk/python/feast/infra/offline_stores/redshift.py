@@ -24,6 +24,7 @@ from dateutil import parser
 from pydantic import StrictStr, model_validator
 
 from feast import OnDemandFeatureView, RedshiftSource
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -54,6 +55,25 @@ from feast.monitoring.monitoring_utils import (
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+
+
+def _get_redshift_client(config: "RepoConfig", data_source=None):
+    """Get a Redshift Data API client, optionally using credentials from data source's connection_ref."""
+    override = get_connection_config_override(data_source) if data_source else None
+    if override:
+        region = override.get("AWS_DEFAULT_REGION", config.offline_store.region)
+        import boto3
+
+        session_kwargs: Dict[str, str] = {}
+        if "AWS_ACCESS_KEY_ID" in override:
+            session_kwargs["aws_access_key_id"] = override["AWS_ACCESS_KEY_ID"]
+        if "AWS_SECRET_ACCESS_KEY" in override:
+            session_kwargs["aws_secret_access_key"] = override["AWS_SECRET_ACCESS_KEY"]
+        if "AWS_SESSION_TOKEN" in override:
+            session_kwargs["aws_session_token"] = override["AWS_SESSION_TOKEN"]
+        session = boto3.Session(region_name=region, **session_kwargs)
+        return session.client("redshift-data")
+    return aws_utils.get_redshift_data_client(config.offline_store.region)
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -535,6 +555,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    max_event_timestamp TIMESTAMPTZ,
     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
     feature_type      VARCHAR(50)  NOT NULL,
     row_count         BIGINT,
@@ -562,6 +583,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    max_event_timestamp TIMESTAMPTZ,
     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
     total_row_count   BIGINT,
     total_features    INTEGER,
@@ -580,6 +602,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     granularity          VARCHAR(20)  NOT NULL DEFAULT 'daily',
     data_source_type     VARCHAR(50)  NOT NULL DEFAULT 'batch',
     computed_at          TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    max_event_timestamp  TIMESTAMPTZ,
     is_baseline          BOOLEAN      NOT NULL DEFAULT FALSE,
     total_feature_views  INTEGER,
     total_features       INTEGER,
@@ -605,6 +628,9 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
     PRIMARY KEY (job_id)
 );
 """,
+    f"ALTER TABLE {MON_TABLE_FEATURE} ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ",
+    f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ",
+    f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ",
 ]
 
 

@@ -305,6 +305,15 @@ type FeatureStoreServices struct {
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// Tolerations are applied to the FeatureStore deployment pods, allowing them to
+	// be scheduled onto nodes with matching taints.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a selector which must be true for the FeatureStore deployment
+	// pods to fit on a node. This selector must match a node's labels for the pod to
+	// be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // OfflineStore configures the offline store service
@@ -622,10 +631,15 @@ type OptionalCtrConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
-// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc), has(self.noAuth)].exists_one(c, c)",message="One selection required between kubernetes, oidc, or noAuth."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
+	// NoAuth explicitly disables authentication and authorization.
+	// When set to true, Feast services run without any auth checks.
+	// Use only for development or testing environments.
+	// +optional
+	NoAuth *bool `json:"noAuth,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.

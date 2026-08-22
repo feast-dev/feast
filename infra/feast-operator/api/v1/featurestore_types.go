@@ -37,6 +37,7 @@ const (
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
 	UIReadyType            = "UI"
+	LineageReadyType       = "Lineage"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 	CronJobReadyType       = "CronJob"
@@ -49,6 +50,7 @@ const (
 	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
 	RegistryFailedReason         = "RegistryDeploymentFailed"
 	UIFailedReason               = "UIDeploymentFailed"
+	LineageFailedReason          = "LineageDeploymentFailed"
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
@@ -60,6 +62,7 @@ const (
 	OnlineStoreReadyMessage       = "Online Store installation complete"
 	RegistryReadyMessage          = "Registry installation complete"
 	UIReadyMessage                = "UI installation complete"
+	LineageReadyMessage           = "Lineage server installation complete"
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
@@ -93,7 +96,7 @@ type OpenLineageConfig struct {
 	// +kubebuilder:validation:Enum=http;console;file;kafka
 	// +optional
 	TransportType *string `json:"transportType,omitempty"`
-	// URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http".
+	// URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http".
 	// +optional
 	TransportUrl *string `json:"transportUrl,omitempty"`
 	// API endpoint path appended to transportUrl. Defaults to "api/v1/lineage".
@@ -140,6 +143,88 @@ type OpenLineageConsumerConfig struct {
 	// RBAC-based filtering of lineage data in the UI.
 	// +optional
 	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
+	// RetentionDays is the number of days to retain OpenLineage events and runs.
+	// Events older than this are automatically pruned. Set to 0 to disable pruning.
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RetentionDays *int32 `json:"retentionDays,omitempty"`
+	// RetentionCheckIntervalHours is how often the background pruning task runs, in hours.
+	// +kubebuilder:default=6
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	RetentionCheckIntervalHours *int32 `json:"retentionCheckIntervalHours,omitempty"`
+	// LineageServer enables a separate Deployment for the OpenLineage consumer.
+	// When set, the consumer is removed from the UI/registry Pod and runs
+	// independently with its own scaling. The Feast producer transport is
+	// auto-configured to send events to the lineage Service.
+	// +optional
+	LineageServer *LineageServerConfig `json:"lineageServer,omitempty"`
+}
+
+// LineageServerConfig defines the separate lineage server Deployment.
+type LineageServerConfig struct {
+	// Server configuration (image, resources, env, TLS, etc.).
+	// +optional
+	Server *ServerConfigs `json:"server,omitempty"`
+	// Replicas for the lineage Deployment. Default 1.
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+}
+
+// MlflowConfig enables MLflow experiment tracking integration for Feast.
+// When enabled, feature retrieval metadata is automatically logged to MLflow runs
+// and the Feast UI displays lineage from feature views to registered models.
+// +kubebuilder:validation:XValidation:rule="!has(self.extraConfig) || !('enabled' in self.extraConfig) && !('tracking_uri' in self.extraConfig) && !('ui_url' in self.extraConfig) && !('tracking_auth' in self.extraConfig) && !('auto_log' in self.extraConfig) && !('auto_log_entity_df' in self.extraConfig) && !('entity_df_max_rows' in self.extraConfig) && !('log_operations' in self.extraConfig) && !('ops_experiment_suffix' in self.extraConfig)",message="extraConfig must not contain keys that duplicate typed fields (enabled, tracking_uri, ui_url, tracking_auth, auto_log, auto_log_entity_df, entity_df_max_rows, log_operations, ops_experiment_suffix); use the corresponding spec fields instead."
+type MlflowConfig struct {
+	// Enable MLflow integration.
+	Enabled bool `json:"enabled"`
+	// MLflow tracking server URI. When omitted, the operator auto-discovers
+	// from the cluster MLflow CR (status.address.url). Falls back to
+	// MLFLOW_TRACKING_URI env var on pods.
+	// +optional
+	TrackingUri *string `json:"trackingUri,omitempty"`
+	// Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+	// When omitted, the operator auto-discovers from the MLflow CR status.url
+	// (the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+	// to trackingUri. Only needed when the tracking URI is cluster-internal.
+	// +optional
+	UiUrl *string `json:"uiUrl,omitempty"`
+	// Automatically log feature metadata on every retrieval inside an active MLflow run.
+	// Defaults to true when enabled.
+	// +optional
+	AutoLog *bool `json:"autoLog,omitempty"`
+	// Save entity DataFrame as MLflow artifact on historical retrieval.
+	// Defaults to false.
+	// +optional
+	AutoLogEntityDf *bool `json:"autoLogEntityDf,omitempty"`
+	// Maximum number of entity DataFrame rows to save as an MLflow artifact.
+	// DataFrames exceeding this limit are skipped. Defaults to 100000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	EntityDfMaxRows *int32 `json:"entityDfMaxRows,omitempty"`
+	// Log feast apply and materialize operations to a separate MLflow experiment.
+	// Defaults to false.
+	// +optional
+	LogOperations *bool `json:"logOperations,omitempty"`
+	// Suffix appended to the project name for the operations experiment.
+	// Defaults to "-feast-ops".
+	// +optional
+	OpsExperimentSuffix *string `json:"opsExperimentSuffix,omitempty"`
+	// Authentication method used by Feast pods when calling the MLflow tracking
+	// server. Common values: "kubernetes-namespaced" (token-based, default on
+	// OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+	// Defaults to "kubernetes-namespaced".
+	// +optional
+	TrackingAuth *string `json:"trackingAuth,omitempty"`
+	// ExtraConfig holds additional MLflow key-value settings written inline into
+	// the mlflow block of feature_store.yaml. Boolean and integer string values
+	// are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+	// YAML field names.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
 }
 
 // FeatureStoreSpec defines the desired state of FeatureStore
@@ -172,6 +257,12 @@ type FeatureStoreSpec struct {
 	// Written into feature_store.yaml for all service pods.
 	// +optional
 	OpenLineage *OpenLineageConfig `json:"openlineage,omitempty"`
+	// Mlflow enables MLflow experiment tracking integration for Feast.
+	// Written into feature_store.yaml for all service pods and the client ConfigMap.
+	// When omitted and a cluster MLflow instance is detected, defaults to enabled
+	// with the discovered tracking URI.
+	// +optional
+	Mlflow *MlflowConfig `json:"mlflow,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
@@ -445,6 +536,15 @@ type FeatureStoreServices struct {
 	// pod anti-affinity rule to prefer spreading pods across nodes.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// Tolerations are applied to the FeatureStore deployment pods, allowing them to
+	// be scheduled onto nodes with matching taints.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a selector which must be true for the FeatureStore deployment
+	// pods to fit on a node. This selector must match a node's labels for the pod to
+	// be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// ResourceClaims defines which ResourceClaims must be allocated
 	// and reserved before the Pod is allowed to start. The resources
 	// will be made available to those containers which consume them
@@ -890,10 +990,15 @@ type OptionalCtrConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
-// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc), has(self.noAuth)].exists_one(c, c)",message="One selection required between kubernetes, oidc, or noAuth."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
+	// NoAuth explicitly disables authentication and authorization.
+	// When set to true, Feast services run without any auth checks.
+	// Use only for development or testing environments.
+	// +optional
+	NoAuth *bool `json:"noAuth,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
@@ -1026,6 +1131,7 @@ type ServiceHostnames struct {
 	Registry     string `json:"registry,omitempty"`
 	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
+	Lineage      string `json:"lineage,omitempty"`
 }
 
 // +kubebuilder:object:root=true

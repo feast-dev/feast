@@ -61,3 +61,8 @@ spec:
         airflow_production: my_project
         spark_etl: my_project
         dbt_analytics: my_project
+      # Retention: auto-prune events and runs older than N days.
+      # Set to 0 to keep everything. Default: 30 days.
+      retentionDays: 30
+      # How often the pruning task runs (hours). Default: 6.
+      retentionCheckIntervalHours: 6

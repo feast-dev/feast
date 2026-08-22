@@ -90,8 +90,16 @@ class SparkApplicationMaterializationJob(MaterializationJob):
         self.namespace = namespace
         self.custom_api = custom_api
         self._error: Optional[BaseException] = error
+        # Once we observe SUCCEEDED/ERROR on the CR, keep it. Feast (and the
+        # Spark Operator TTL) delete the CR after success; a later status()
+        # poll must not turn that into a false "not found" failure.
+        self._terminal_status: Optional[MaterializationJobStatus] = None
+        if error is not None:
+            self._terminal_status = MaterializationJobStatus.ERROR
 
     def status(self) -> MaterializationJobStatus:
+        if self._terminal_status is not None:
+            return self._terminal_status
         if self._error is not None:
             return MaterializationJobStatus.ERROR
 
@@ -112,7 +120,15 @@ class SparkApplicationMaterializationJob(MaterializationJob):
                 .get("errorMessage", f"SparkApplication failed: {state}")
             )
             self._error = Exception(msg)
+            self._terminal_status = MaterializationJobStatus.ERROR
+        elif result == MaterializationJobStatus.SUCCEEDED:
+            self._terminal_status = MaterializationJobStatus.SUCCEEDED
         return result
+
+    def mark_succeeded(self) -> None:
+        """Record successful completion before the CR is deleted/TTL'd."""
+        self._error = None
+        self._terminal_status = MaterializationJobStatus.SUCCEEDED
 
     def _get_cr_with_retry(self) -> Optional[dict]:
         """Fetch SparkApplication CR with exponential backoff on transient errors."""
@@ -128,6 +144,9 @@ class SparkApplicationMaterializationJob(MaterializationJob):
                 )
             except ApiException as e:
                 if e.status == 404:
+                    # Already completed jobs are cleaned up; don't invent a failure.
+                    if self._terminal_status == MaterializationJobStatus.SUCCEEDED:
+                        return None
                     self._error = Exception(
                         f"SparkApplication feast-sa-{self._job_id} not found"
                     )
