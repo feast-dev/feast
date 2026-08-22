@@ -15,6 +15,9 @@
 import json
 import os
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from urllib.parse import urlsplit, urlunsplit
+
+import pyarrow as pa
 
 from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
@@ -112,8 +115,9 @@ class IcebergSource(DataSource):
                 credential_vending=self.credential_vending,
             )
 
-        from pyiceberg.catalog import load_catalog
+        return self.get_pyiceberg_catalog()
 
+    def _pyiceberg_catalog_config(self) -> Dict[str, str]:
         config = {
             "type": self.catalog_type,
             **self.catalog_properties,
@@ -126,7 +130,67 @@ class IcebergSource(DataSource):
             token = os.environ.get(self.token_env_var, "")
             if token:
                 config.setdefault("token", token)
-        return load_catalog(self.catalog_name, **config)
+        return config
+
+    def get_pyiceberg_catalog(self) -> Any:
+        """Load a PyIceberg catalog for mutation-capable operations."""
+        try:
+            from pyiceberg.catalog import load_catalog
+        except ImportError as exc:
+            raise ImportError(
+                "Iceberg materialization requires PyIceberg; install feast[iceberg]."
+            ) from exc
+        return load_catalog(self.catalog_name, **self._pyiceberg_catalog_config())
+
+    def write_materialized_table(
+        self,
+        table: pa.Table,
+        join_cols: list[str],
+    ) -> None:
+        """Create or upsert a materialized Arrow table through PyIceberg."""
+        _validate_upsert_keys(table, join_cols)
+
+        identifier = f"{self.namespace}.{self.iceberg_table}"
+        location = _sanitize_catalog_location(self.endpoint)
+        try:
+            catalog = self.get_pyiceberg_catalog()
+        except ImportError:
+            raise
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not access Iceberg catalog at '{location}' for table "
+                f"'{identifier}': {_sanitize_catalog_error(exc, self)}"
+            ) from exc
+
+        from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
+
+        try:
+            iceberg_table = catalog.load_table(identifier)
+        except NoSuchTableError:
+            try:
+                iceberg_table = catalog.create_table(identifier, schema=table.schema)
+            except NoSuchNamespaceError:
+                raise
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Could not create Iceberg table '{identifier}' through catalog "
+                    f"at '{location}': {_sanitize_catalog_error(exc, self)}"
+                ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not load Iceberg table '{identifier}' through catalog at "
+                f"'{location}': {_sanitize_catalog_error(exc, self)}"
+            ) from exc
+        else:
+            table = _validate_and_reorder_schema(table, iceberg_table.schema())
+
+        try:
+            iceberg_table.upsert(table, join_cols=join_cols)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not upsert Iceberg table '{identifier}' through catalog at "
+                f"'{location}': {_sanitize_catalog_error(exc, self)}"
+            ) from exc
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.BATCH_ICEBERG
@@ -287,6 +351,92 @@ class IcebergSource(DataSource):
                 self.iceberg_table,
             )
         )
+
+
+def _validate_upsert_keys(table: pa.Table, join_cols: list[str]) -> None:
+    if not join_cols:
+        raise ValueError("Iceberg upsert requires at least one key column.")
+
+    missing = sorted(set(join_cols) - set(table.column_names))
+    if missing:
+        raise ValueError(f"Iceberg upsert key columns are missing: {missing}")
+
+    null_columns = [name for name in join_cols if table[name].null_count]
+    if null_columns:
+        raise ValueError(f"Iceberg upsert keys contain null values: {null_columns}")
+
+    keys = zip(*(table[name].to_pylist() for name in join_cols))
+    seen = set()
+    duplicate_count = 0
+    for key in keys:
+        if key in seen:
+            duplicate_count += 1
+        else:
+            seen.add(key)
+    if duplicate_count:
+        raise ValueError(
+            f"Iceberg upsert contains {duplicate_count} duplicate key row(s) "
+            f"for columns {join_cols}."
+        )
+
+
+def _sanitize_catalog_location(endpoint: str) -> str:
+    if not endpoint:
+        return "configured catalog"
+    parsed = urlsplit(endpoint)
+    if not parsed.scheme or not parsed.hostname:
+        return endpoint.split("?", 1)[0]
+    netloc = parsed.hostname
+    if parsed.port:
+        netloc = f"{netloc}:{parsed.port}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+def _sanitize_catalog_error(exc: Exception, source: IcebergSource) -> str:
+    message = str(exc)
+    parsed = urlsplit(source.endpoint)
+    secrets = [parsed.password]
+    if source.token_env_var:
+        secrets.append(os.environ.get(source.token_env_var))
+    for secret in secrets:
+        if secret:
+            message = message.replace(secret, "***")
+    return f"{type(exc).__name__}: {message}"
+
+
+def _validate_and_reorder_schema(table: pa.Table, iceberg_schema: Any) -> pa.Table:
+    from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+    target_schema = schema_to_pyarrow(iceberg_schema)
+    incoming_by_name = {field.name: field for field in table.schema}
+    target_by_name = {field.name: field for field in target_schema}
+
+    missing = sorted(set(target_by_name) - set(incoming_by_name))
+    unexpected = sorted(set(incoming_by_name) - set(target_by_name))
+    incompatible = sorted(
+        name
+        for name in set(incoming_by_name) & set(target_by_name)
+        if not _arrow_types_compatible(
+            incoming_by_name[name].type, target_by_name[name].type
+        )
+        or incoming_by_name[name].nullable != target_by_name[name].nullable
+    )
+    if missing or unexpected or incompatible:
+        raise ValueError(
+            "Iceberg materialization schema mismatch: "
+            f"missing={missing}, unexpected={unexpected}, "
+            f"incompatible={incompatible}."
+        )
+
+    return table.select(target_schema.names)
+
+
+def _arrow_types_compatible(incoming: pa.DataType, target: pa.DataType) -> bool:
+    if incoming == target:
+        return True
+    return (pa.types.is_string(incoming) and pa.types.is_large_string(target)) or (
+        pa.types.is_binary(incoming) and pa.types.is_large_binary(target)
+    )
 
 
 def _iceberg_type_to_feast_value_type(iceberg_type: str) -> ValueType:
