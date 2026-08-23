@@ -19,7 +19,9 @@ This module provides functions to map Feast entities like FeatureViews,
 FeatureServices, DataSources, and Entities to their OpenLineage equivalents.
 """
 
+import re
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from urllib.parse import urlparse, urlunparse
 
 if TYPE_CHECKING:
     from feast import Entity, FeatureService, FeatureView
@@ -53,6 +55,44 @@ def _check_openlineage_available():
             "OpenLineage is not installed. Please install it with: "
             "pip install openlineage-python"
         )
+
+
+_SCHEME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*://")
+
+
+def _sanitize_uri(value: str) -> str:
+    """Strip credentials from a URI or connection string.
+
+    Handles standard URLs with embedded userinfo (scheme://…@host),
+    key-value DSNs (``host=… password=…``), and plain paths.
+    Returns the value unchanged when no credentials are detected.
+    """
+    if not value:
+        return value
+
+    # Key-value DSN style (e.g. "host=localhost password=*** dbname=feast")
+    if "=" in value and not _SCHEME_PATTERN.match(value):
+        return re.sub(
+            r"\b(password|passwd|pwd|secret|token|api_key)\s*=\s*\S+",
+            r"\1=***",
+            value,
+            flags=re.IGNORECASE,
+        )
+
+    # URL-style: strip userinfo (user:password@)
+    if _SCHEME_PATTERN.match(value):
+        try:
+            parsed = urlparse(value)
+            if parsed.username or parsed.password:
+                clean = parsed._replace(
+                    netloc=(parsed.hostname or "")
+                    + (f":{parsed.port}" if parsed.port else "")
+                )
+                return urlunparse(clean)
+        except Exception:
+            pass
+
+    return value
 
 
 def feast_field_to_schema_field(
@@ -126,7 +166,10 @@ def data_source_to_dataset(
         uri=_get_data_source_uri(data_source),
     )
 
-    # Add Feast-specific facet
+    # Add Feast-specific facet (sanitize path to strip credentials)
+    raw_path = (
+        data_source.path if hasattr(data_source, "path") and data_source.path else None
+    )
     facets["feast_dataSource"] = FeastDataSourceFacet(
         name=source_name,
         source_type=source_type,
@@ -139,6 +182,13 @@ def data_source_to_dataset(
         field_mapping=data_source.field_mapping
         if hasattr(data_source, "field_mapping")
         else {},
+        path=_sanitize_uri(raw_path) if raw_path else None,
+        table=data_source.table
+        if hasattr(data_source, "table") and data_source.table
+        else None,
+        query=data_source.query
+        if hasattr(data_source, "query") and data_source.query
+        else None,
         description=data_source.description
         if hasattr(data_source, "description")
         else "",
@@ -187,16 +237,16 @@ def _get_data_source_namespace(
 
 def _get_data_source_uri(data_source: "DataSource") -> str:
     """
-    Get the URI for a data source.
+    Get the URI for a data source with credentials stripped.
 
     Args:
         data_source: Feast DataSource
 
     Returns:
-        URI string representing the data source location
+        Sanitized URI string representing the data source location
     """
     if hasattr(data_source, "path") and data_source.path:
-        return data_source.path
+        return _sanitize_uri(data_source.path)
     elif hasattr(data_source, "table") and data_source.table:
         return f"table://{data_source.table}"
     elif hasattr(data_source, "query") and data_source.query:
@@ -240,6 +290,9 @@ def feature_view_to_job(
     if feature_view.ttl:
         ttl_seconds = int(feature_view.ttl.total_seconds())
 
+    from feast.openlineage.facets import FeastJobKindFacet
+    from feast.openlineage.identity import FeastJobKind
+
     job_facets["feast_featureView"] = FeastFeatureViewFacet(
         name=feature_view.name,
         ttl_seconds=ttl_seconds,
@@ -255,6 +308,10 @@ def feature_view_to_job(
         description=feature_view.description if feature_view.description else "",
         owner=feature_view.owner if feature_view.owner else "",
         tags=feature_view.tags if feature_view.tags else {},
+    )
+    job_facets["feast_jobKind"] = FeastJobKindFacet(
+        kind=FeastJobKind.DEFINITION.value,
+        feast_project="",
     )
 
     # Add documentation
@@ -344,7 +401,8 @@ def feature_service_to_job(
     """
     _check_openlineage_available()
 
-    from feast.openlineage.facets import FeastFeatureServiceFacet
+    from feast.openlineage.facets import FeastFeatureServiceFacet, FeastJobKindFacet
+    from feast.openlineage.identity import FeastJobKind
 
     # Create job facets
     job_facets: Dict[str, Any] = {}
@@ -376,6 +434,10 @@ def feature_service_to_job(
         owner=feature_service.owner if feature_service.owner else "",
         tags=feature_service.tags if feature_service.tags else {},
         logging_enabled=getattr(feature_service, "logging", None) is not None,
+    )
+    job_facets["feast_jobKind"] = FeastJobKindFacet(
+        kind=FeastJobKind.DEFINITION.value,
+        feast_project="",
     )
 
     # Add documentation
@@ -427,6 +489,60 @@ def feature_service_to_job(
     ]
 
     return job, inputs, outputs
+
+
+def feature_view_to_dataset(
+    feature_view: "Union[FeatureView, LabelView]",
+    namespace: str = "feast",
+    as_input: bool = True,
+) -> Any:
+    """
+    Convert a Feast FeatureView to an OpenLineage Dataset with Feast facets.
+
+    Used for apply outputs and materialize inputs so FeatureView metadata is
+    not lost when jobs re-reference the same dataset name.
+    """
+    _check_openlineage_available()
+
+    from feast.openlineage.facets import FeastFeatureViewFacet
+
+    facets: Dict[str, Any] = {}
+
+    ttl_seconds = 0
+    ttl = getattr(feature_view, "ttl", None)
+    if ttl is not None:
+        ttl_seconds = int(ttl.total_seconds())
+
+    facets["feast_featureView"] = FeastFeatureViewFacet(
+        name=feature_view.name,
+        ttl_seconds=ttl_seconds,
+        entities=list(feature_view.entities) if feature_view.entities else [],
+        features=[f.name for f in feature_view.features]
+        if feature_view.features
+        else [],
+        online_enabled=getattr(feature_view, "online", True),
+        offline_enabled=getattr(feature_view, "offline", False),
+        mode=str(feature_view.mode)
+        if hasattr(feature_view, "mode") and feature_view.mode
+        else "",
+        description=feature_view.description if feature_view.description else "",
+        owner=feature_view.owner if feature_view.owner else "",
+        tags=feature_view.tags if feature_view.tags else {},
+    )
+
+    if feature_view.features:
+        facets["schema"] = schema_dataset.SchemaDatasetFacet(
+            fields=[feast_field_to_schema_field(f) for f in feature_view.features]
+        )
+
+    if feature_view.description:
+        facets["documentation"] = documentation_dataset.DocumentationDatasetFacet(
+            description=feature_view.description
+        )
+
+    if as_input:
+        return InputDataset(namespace=namespace, name=feature_view.name, facets=facets)
+    return OutputDataset(namespace=namespace, name=feature_view.name, facets=facets)
 
 
 def entity_to_dataset(
@@ -486,32 +602,67 @@ def entity_to_dataset(
     )
 
 
+def resolve_online_store_type(online_store: Any = None) -> str:
+    """Resolve online store backend type for OpenLineage sink datasets.
+
+    Accepts a RepoConfig ``online_store`` value (config object, dict, or type
+    string) and returns a short type label such as ``redis`` or ``online``.
+    """
+    if online_store is None:
+        return "online"
+    if isinstance(online_store, str):
+        return online_store
+    if isinstance(online_store, dict):
+        return str(online_store.get("type") or "online")
+    return str(getattr(online_store, "type", None) or "online")
+
+
 def online_store_to_dataset(
     store_type: str,
     feature_view_name: str,
     namespace: str = "feast",
 ) -> "OutputDataset":
     """
-    Create an OpenLineage OutputDataset for an online store.
+    Create an OpenLineage OutputDataset for an online store sink.
 
-    Args:
-        store_type: Type of online store (redis, sqlite, dynamodb, etc.)
-        feature_view_name: Name of the feature view being stored
-        namespace: OpenLineage namespace
-
-    Returns:
-        OpenLineage OutputDataset object
+    This represents the *physical* online-store table/keyspace for a FeatureView,
+    not the FeatureView registry object itself. Dataset name stays
+    ``online_store_{feature_view}`` so lineage edges remain stable.
     """
     _check_openlineage_available()
+
+    from feast.openlineage.facets import FeastOnlineStoreFacet
+
+    # Callers historically passed store_type="online_store", which produced
+    # dataSource name "online_store_online_store". Normalize that.
+    store = (store_type or "online").strip() or "online"
+    if store in ("online_store", "online"):
+        store_label = "online"
+    else:
+        store_label = store
 
     return OutputDataset(
         namespace=namespace,
         name=f"online_store_{feature_view_name}",
         facets={
             "dataSource": datasource_dataset.DatasourceDatasetFacet(
-                name=f"{store_type}_online_store",
-                uri=f"{store_type}://feast/{feature_view_name}",
-            )
+                name=store_label,
+                uri=f"{store_label}://feast/{feature_view_name}",
+            ),
+            "feast_onlineStore": FeastOnlineStoreFacet(
+                feature_view=feature_view_name,
+                store_type=store_label,
+                description=(
+                    f"Online store sink for feature view '{feature_view_name}' "
+                    f"({store_label})"
+                ),
+            ),
+            "documentation": documentation_dataset.DocumentationDatasetFacet(
+                description=(
+                    f"Materialized online features for '{feature_view_name}' "
+                    f"in {store_label}"
+                )
+            ),
         },
     )
 

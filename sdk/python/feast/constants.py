@@ -44,6 +44,8 @@ DEFAULT_REGISTRY_REST_SERVER_PORT = 6572
 # Default offline server port
 DEFAULT_OFFLINE_SERVER_PORT = 8815
 
+DEFAULT_LINEAGE_SERVER_PORT = 6580
+
 # Default feature server registry ttl (seconds)
 DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5
 

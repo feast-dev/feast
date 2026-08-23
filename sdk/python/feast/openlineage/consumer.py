@@ -75,6 +75,10 @@ def get_consumer_router(
     """
     Create FastAPI router for the OpenLineage consumer endpoints.
 
+    All endpoints (read and write) are always mounted. When deployed
+    alongside a standalone lineage server, both servers share the same
+    SQL database so full API parity is safe.
+
     Args:
         config: OpenLineage configuration with consumer settings
         store: The lineage store instance
@@ -82,11 +86,11 @@ def get_consumer_router(
         get_allowed_namespaces: Optional callable that returns allowed namespaces
             for the current user (for RBAC filtering). If None, all namespaces visible.
     """
-    router = APIRouter()
+    router = APIRouter(tags=["OpenLineage"])
 
     # ── Producer-facing: receive events ──
 
-    @router.post("/v1/lineage")
+    @router.post("/lineage")
     async def receive_lineage_event(
         request: Request,
         x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
@@ -97,6 +101,13 @@ def get_consumer_router(
 
         Compatible with the standard OpenLineage API endpoint.
         Accepts RunEvent, DatasetEvent, or JobEvent.
+
+        The router defines POST /lineage; the full path depends on
+        the server mount:
+        - UI server (mounted at /api/v1):  POST /api/v1/lineage
+        - REST server (root_path=/api/v1): POST /lineage
+          When behind a reverse proxy, the proxy strips /api/v1,
+          so external clients use POST /api/v1/lineage in both cases.
         """
         api_key = getattr(config, "consumer_api_key", None)
         if not _verify_api_key(api_key, x_api_key, authorization):
@@ -130,7 +141,7 @@ def get_consumer_router(
                 logger.error(f"Failed to process event: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/v1/lineage/batch")
+    @router.post("/lineage/batch")
     async def receive_lineage_batch(
         request: Request,
         x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
@@ -202,6 +213,8 @@ def get_consumer_router(
     ):
         """List stored OpenLineage events with optional filtering."""
         ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if namespace and ns_filter is not None and namespace not in ns_filter:
+            return {"events": [], "total": 0}
         events = store.get_events(
             namespace=namespace,
             job_name=job_name,
@@ -257,21 +270,58 @@ def get_consumer_router(
         )
         return graph
 
+    @router.get("/lineage/openlineage/namespaces")
+    def list_namespaces():
+        """List all distinct namespaces known to the lineage store."""
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        all_ns = store.get_all_namespaces()
+        if ns_filter is not None:
+            all_ns = [ns for ns in all_ns if ns in ns_filter]
+        return {"namespaces": all_ns}
+
     @router.get("/lineage/openlineage/graph")
-    def get_full_lineage_graph():
+    def get_full_lineage_graph(
+        namespace: Optional[str] = Query(None),
+        limit: int = Query(0, ge=0, le=10000),
+        offset: int = Query(0, ge=0),
+    ):
         """
-        Get all lineage edges (RBAC-filtered by namespace).
+        Get all lineage nodes and edges (RBAC-filtered by namespace).
+
+        Optional query params:
+        - namespace: filter to a single namespace
+        - limit/offset: paginate nodes (0 = no limit)
 
         Includes symlink edges that connect datasets across producers
         when they reference the same physical data (via SymlinksDatasetFacet
         or matching dataSource URIs).
         """
         ns_filter = _get_namespace_filter(get_allowed_namespaces)
-        edges = store.get_all_lineage_edges(namespaces=ns_filter)
-        datasets = store.get_datasets(namespaces=ns_filter)
-        jobs = store.get_jobs(namespaces=ns_filter)
+        if namespace:
+            if ns_filter is not None and namespace not in ns_filter:
+                return {"nodes": [], "edges": [], "symlinks": []}
+            ns_filter = [namespace]
 
-        nodes = []
+        total_datasets = store.count_datasets(namespaces=ns_filter)
+        total_jobs = store.count_jobs(namespaces=ns_filter)
+        total_nodes = total_datasets + total_jobs
+
+        if limit > 0:
+            datasets = store.get_datasets(
+                namespaces=ns_filter, limit=limit, offset=offset
+            )
+            remaining = max(0, limit - len(datasets))
+            job_offset = max(0, offset - total_datasets)
+            jobs = (
+                store.get_jobs(namespaces=ns_filter, limit=remaining, offset=job_offset)
+                if remaining > 0 and offset + limit > total_datasets
+                else []
+            )
+        else:
+            datasets = store.get_datasets(namespaces=ns_filter)
+            jobs = store.get_jobs(namespaces=ns_filter)
+
+        nodes: list = []
         for ds in datasets:
             facets = _safe_parse_json(ds.get("facets_json"))
             schema = _safe_parse_json(ds.get("schema_json"))
@@ -304,9 +354,28 @@ def get_consumer_router(
                 }
             )
 
+        edges = store.get_all_lineage_edges(namespaces=ns_filter)
         symlinks = store.get_all_symlinks()
+        for sl in symlinks:
+            edges.append(
+                {
+                    "source_type": "dataset",
+                    "source_namespace": sl["dataset_namespace"],
+                    "source_name": sl["dataset_name"],
+                    "target_type": "dataset",
+                    "target_namespace": sl["linked_namespace"],
+                    "target_name": sl["linked_name"],
+                    "edge_type": "symlink",
+                    "updated_at": sl.get("updated_at"),
+                }
+            )
 
-        return {"nodes": nodes, "edges": edges, "symlinks": symlinks}
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "symlinks": symlinks,
+            "total_nodes": total_nodes,
+        }
 
     # ── Run history endpoints ──
 
@@ -318,11 +387,15 @@ def get_consumer_router(
         offset: int = Query(0, ge=0),
     ):
         """List runs, optionally filtered by job namespace and name."""
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if job_namespace and ns_filter is not None and job_namespace not in ns_filter:
+            return {"runs": [], "total": 0}
         runs = store.get_runs(
             job_namespace=job_namespace,
             job_name=job_name,
             limit=limit,
             offset=offset,
+            namespaces=ns_filter if not job_namespace else None,
         )
         return {"runs": runs, "total": len(runs)}
 
@@ -332,7 +405,49 @@ def get_consumer_router(
         run = store.get_run_detail(run_id)
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if ns_filter is not None:
+            run_ns = run.get("job_namespace")
+            if run_ns and run_ns not in ns_filter:
+                raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
         return run
+
+    @router.get("/lineage/openlineage/retention")
+    def get_retention_status():
+        """Return retention configuration and current storage stats."""
+        consumer_config = getattr(config, "consumer", None)
+        retention_days = (
+            getattr(consumer_config, "retention_days", 30) if consumer_config else 30
+        )
+        check_hours = (
+            getattr(consumer_config, "retention_check_interval_hours", 6)
+            if consumer_config
+            else 6
+        )
+        stats = store.get_retention_stats()
+        return {
+            "retention_days": retention_days,
+            "retention_enabled": retention_days > 0,
+            "check_interval_hours": check_hours,
+            "storage": stats,
+        }
+
+    @router.post("/lineage/openlineage/retention/prune")
+    async def trigger_prune(
+        x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+        authorization: Optional[str] = Header(None),
+    ):
+        """Manually trigger retention pruning."""
+        if not _verify_api_key(config.consumer_api_key, x_api_key, authorization):
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        consumer_config = getattr(config, "consumer", None)
+        retention_days = (
+            getattr(consumer_config, "retention_days", 30) if consumer_config else 30
+        )
+        if retention_days <= 0:
+            return {"message": "Retention pruning is disabled (retention_days=0)"}
+        deleted = store.prune_expired(retention_days)
+        return {"message": "Pruning completed", "deleted": deleted}
 
     def _get_namespace_filter(ns_callable) -> Optional[List[str]]:
         if ns_callable:

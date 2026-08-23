@@ -21,6 +21,70 @@ the authorization tokens that the server can properly identify and use to enforc
 The server-side implementation of the authorization functionality is defined [here](./../../../sdk/python/feast/permissions/server).
 Few of the key models, classes to understand the authorization implementation on the client side can be found [here](./../../../sdk/python/feast/permissions/client).
 
+## Default Authorization Behavior
+
+### Feast Operator (Kubernetes Deployments)
+
+When deploying Feast using the [Feast operator](../../../infra/feast-operator/docs/api/markdown/ref.md), **Kubernetes authentication is enabled by default**. If no `authz` section is specified in the `FeatureStore` CR, the operator automatically configures `kubernetes` auth for all deployed services.
+
+This follows an **"Authenticated by Default, Authorized Gradually"** security model:
+- All Feast endpoints require a valid Kubernetes bearer token by default.
+- If no explicit `Permission` objects are defined (via `permissions.py` + `feast apply`), **all authenticated users are granted full access**. A warning is logged to remind administrators to define fine-grained permissions.
+- Unauthenticated requests are rejected.
+
+This ensures that Feast deployments are never accidentally exposed without authentication, while allowing teams to incrementally adopt fine-grained RBAC.
+
+#### Disabling Authentication with `noAuth`
+
+For development, testing, or environments where authentication is handled externally, you can explicitly disable authentication using the `noAuth` option in the `FeatureStore` CR:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    noAuth: true
+```
+
+{% hint style="warning" %}
+Setting `noAuth: true` disables all authentication and authorization. All endpoints become publicly accessible without any identity checks. Only use this for local development or testing environments. For production, use `kubernetes` or `oidc` authentication.
+{% endhint %}
+
+#### Explicit Kubernetes Auth (Default)
+
+This is equivalent to the default behavior when no `authz` section is provided:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    kubernetes: {}
+```
+
+#### OIDC Auth via Operator
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    oidc:
+      secretRef:
+        name: feast-oidc-secret
+```
+
+### Standalone Deployments (feature_store.yaml)
+
 ## Configuring Authorization
 The authorization is configured using a dedicated `auth` section in the `feature_store.yaml` configuration.
 
@@ -28,13 +92,17 @@ The authorization is configured using a dedicated `auth` section in the `feature
 the `feature_store_yaml_base64` value must include the `auth` section to specify the authorization configuration.
 
 ### No Authorization
-This configuration applies the default `no_auth` authorization:
+This configuration applies the `no_auth` authorization:
 ```yaml
 project: my-project
 auth:
   type: no_auth
 ...
 ```
+
+{% hint style="warning" %}
+Running with `auth.type: no_auth` leaves all endpoints unauthenticated. This is suitable for local development only. For production deployments, configure `kubernetes` or `oidc` authentication.
+{% endhint %}
 
 ### OIDC Authorization
 With OIDC authorization, the Feast client proxies retrieve the JWT token from an OIDC server (or [Identity Provider](https://openid.net/developers/how-connect-works/))

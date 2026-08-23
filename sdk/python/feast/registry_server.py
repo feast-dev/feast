@@ -184,6 +184,82 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry = registry
         self.store = store
 
+    _JOB_NAME_TEMPLATES: dict = {
+        "featureView": ["feast_apply_feature_view_{name}"],
+        "featureService": [
+            "feature_service_{name}",
+            "feast_apply_feature_service_{name}",
+        ],
+        "savedDataset": ["saved_dataset_{name}"],
+        "onDemandFeatureView": ["feast_apply_odfv_{name}"],
+    }
+
+    @property
+    def _openlineage_enabled(self) -> bool:
+        """Fast cached check: is OpenLineage configured and enabled?
+
+        Evaluated once per RegistryServer lifetime so Apply/Delete handlers
+        pay zero cost when OL is disabled.
+        """
+        cached = getattr(self, "_ol_enabled_cache", None)
+        if cached is not None:
+            return cached
+        enabled = False
+        try:
+            if self.store:
+                ol_cfg = getattr(self.store.config, "openlineage", None)
+                if ol_cfg is not None and getattr(ol_cfg, "enabled", False):
+                    enabled = True
+        except Exception:
+            pass
+        self._ol_enabled_cache = enabled
+        return enabled
+
+    def _emit_openlineage_for_objects(self, objects: list, project: str):
+        """Emit OpenLineage events for objects modified via API/gRPC.
+
+        Skips entirely when OL is disabled — no imports, no emitter access.
+        All errors are caught so registry operations never fail due to OL.
+        """
+        if not self._openlineage_enabled or not objects:
+            return
+        try:
+            emitter = self.store.openlineage_emitter
+            if emitter is not None:
+                emitter.emit_apply(objects, project)
+        except Exception as e:
+            logger.warning(f"Failed to emit OpenLineage events for API apply: {e}")
+
+    def _delete_openlineage_for_object(self, name: str, project: str, object_type: str):
+        """Remove OpenLineage data for a deleted Feast object.
+
+        Skips entirely when OL consumer is not active.
+        All errors are caught so registry deletes never fail due to OL.
+        """
+        if not self._openlineage_enabled:
+            return
+        try:
+            import feast.api.registry.rest as rest_module
+
+            ol_store = getattr(rest_module, "_ol_store_instance", None)
+            if ol_store is None:
+                return
+
+            ol_config = getattr(rest_module, "_ol_config", None)
+            namespace = (
+                ol_config.namespace if ol_config and ol_config.namespace else project
+            )
+
+            ol_store.delete_dataset(namespace, name)
+
+            for tpl in self._JOB_NAME_TEMPLATES.get(object_type, []):
+                ol_store.delete_job(namespace, tpl.format(name=name))
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to delete OpenLineage data for {object_type}/{name}: {e}"
+            )
+
     def Proto(self, request: Empty, context) -> RegistryProto:
         """Build a RegistryProto from individually RBAC-filtered list calls.
 
@@ -290,6 +366,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([entity], request.project)
 
         return Empty()
 
@@ -336,6 +413,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_entity(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, "entity")
         return Empty()
 
     def ApplyDataSource(
@@ -354,6 +432,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([data_source], request.project)
 
         return Empty()
 
@@ -407,6 +486,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_data_source(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, "dataSource")
         return Empty()
 
     def GetFeatureView(
@@ -499,13 +579,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         else:
             raise ValueError(f"Unexpected feature view type: {feature_view_type}")
 
-        (
-            self.proxied_registry.apply_feature_view(
-                feature_view=feature_view,
-                project=request.project,
-                commit=request.commit,
-            ),
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view,
+            project=request.project,
+            commit=request.commit,
         )
+        self._emit_openlineage_for_objects([feature_view], request.project)
 
         return Empty()
 
@@ -691,6 +770,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=False
         )
 
+        from feast.on_demand_feature_view import OnDemandFeatureView
+
+        fv_type = (
+            "onDemandFeatureView"
+            if isinstance(feature_view, OnDemandFeatureView)
+            else "featureView"
+        )
+
         assert_permissions(
             resource=cast(FeastObject, feature_view),
             actions=[AuthzedAction.DELETE],
@@ -698,6 +785,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_feature_view(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, fv_type)
         return Empty()
 
     def GetStreamFeatureView(
@@ -834,6 +922,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([feature_service], request.project)
 
         return Empty()
 
@@ -906,6 +995,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_feature_service(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(
+            request.name, request.project, "featureService"
+        )
         return Empty()
 
     def ApplySavedDataset(
@@ -924,6 +1016,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([saved_dataset], request.project)
 
         return Empty()
 
@@ -981,6 +1074,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         self.proxied_registry.delete_saved_dataset(
             name=request.name, project=request.project, commit=request.commit
+        )
+        self._delete_openlineage_for_object(
+            request.name, request.project, "savedDataset"
         )
 
         return Empty()

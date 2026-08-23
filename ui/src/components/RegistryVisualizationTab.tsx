@@ -71,6 +71,8 @@ const RegistryVisualizationTab: React.FC<RegistryVisualizationTabProps> = ({
         return objects.labelViews?.map((lv: any) => lv.spec?.name) || [];
       case "featureService":
         return objects.featureServices?.map((fs: any) => fs.spec?.name) || [];
+      case "savedDataset":
+        return objects.savedDatasets?.map((sd: any) => sd.spec?.name) || [];
       default:
         return [];
     }
@@ -133,6 +135,7 @@ const RegistryVisualizationTab: React.FC<RegistryVisualizationTabProps> = ({
                         { value: "featureView", text: "Feature View" },
                         { value: "labelView", text: "Label View" },
                         { value: "featureService", text: "Feature Service" },
+                        { value: "savedDataset", text: "Saved Dataset" },
                         ...(mlflowData?.runs?.length
                           ? [{ value: "mlflowRun", text: "MLflow Run" }]
                           : []),

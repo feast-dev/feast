@@ -561,3 +561,128 @@ class TestPurgeNamespace:
         self._populate_two_ns(store)
         store.purge_namespace("ns-nonexistent")
         assert len(store.get_events()) == 2
+
+
+class TestRetention:
+    """Tests for prune_expired() and get_retention_stats()."""
+
+    def _insert_old_and_new(self, store, old_age_days=60, new_age_days=5):
+        """Insert events/runs at two ages: one old (should be pruned), one new."""
+        old_ms = int((time.time() - old_age_days * 86400) * 1000)
+        new_ms = int((time.time() - new_age_days * 86400) * 1000)
+
+        tbl_ev = OL_TABLES["events"]
+        tbl_runs = OL_TABLES["runs"]
+        tbl_rio = OL_TABLES["run_io"]
+
+        with store.engine.begin() as conn:
+            conn.execute(
+                tbl_ev.insert().values(
+                    event_id="old-evt",
+                    event_type="COMPLETE",
+                    event_time=old_ms,
+                    producer="test",
+                    job_namespace="ns",
+                    job_name="job1",
+                    run_id="old-run",
+                    event_json="{}",
+                    created_at=old_ms,
+                )
+            )
+            conn.execute(
+                tbl_ev.insert().values(
+                    event_id="new-evt",
+                    event_type="COMPLETE",
+                    event_time=new_ms,
+                    producer="test",
+                    job_namespace="ns",
+                    job_name="job1",
+                    run_id="new-run",
+                    event_json="{}",
+                    created_at=new_ms,
+                )
+            )
+            conn.execute(
+                tbl_runs.insert().values(
+                    run_id="old-run",
+                    job_namespace="ns",
+                    job_name="job1",
+                    state="COMPLETE",
+                    updated_at=old_ms,
+                )
+            )
+            conn.execute(
+                tbl_runs.insert().values(
+                    run_id="new-run",
+                    job_namespace="ns",
+                    job_name="job1",
+                    state="COMPLETE",
+                    updated_at=new_ms,
+                )
+            )
+            conn.execute(
+                tbl_rio.insert().values(
+                    run_id="old-run",
+                    dataset_namespace="ns",
+                    dataset_name="ds1",
+                    io_type="INPUT",
+                )
+            )
+            conn.execute(
+                tbl_rio.insert().values(
+                    run_id="new-run",
+                    dataset_namespace="ns",
+                    dataset_name="ds1",
+                    io_type="INPUT",
+                )
+            )
+
+        store.upsert_job("ns", "job1", {"namespace": "ns", "name": "job1"})
+        store.upsert_dataset("ns", "ds1")
+
+    def test_prune_removes_old_keeps_new(self, store):
+        self._insert_old_and_new(store)
+        deleted = store.prune_expired(retention_days=30)
+
+        assert deleted["events"] == 1
+        assert deleted["runs"] == 1
+        assert deleted["run_io"] == 1
+
+        assert len(store.get_events()) == 1
+        assert len(store.get_runs()) == 1
+
+    def test_prune_preserves_graph_tables(self, store):
+        self._insert_old_and_new(store)
+        store.upsert_lineage_edge("dataset", "ns", "ds1", "job", "ns", "job1")
+
+        store.prune_expired(retention_days=30)
+
+        assert len(store.get_jobs(namespaces=["ns"])) == 1
+        assert len(store.get_datasets(namespaces=["ns"])) == 1
+        edges = store.get_all_lineage_edges(namespaces=["ns"])
+        assert len(edges) == 1
+
+    def test_prune_disabled_when_zero(self, store):
+        self._insert_old_and_new(store)
+        deleted = store.prune_expired(retention_days=0)
+
+        assert deleted == {}
+        assert len(store.get_events()) == 2
+
+    def test_prune_noop_when_nothing_expired(self, store):
+        self._insert_old_and_new(store, old_age_days=5, new_age_days=1)
+        deleted = store.prune_expired(retention_days=30)
+
+        assert deleted["events"] == 0
+        assert deleted["runs"] == 0
+        assert len(store.get_events()) == 2
+
+    def test_retention_stats(self, store):
+        self._insert_old_and_new(store)
+        stats = store.get_retention_stats()
+
+        assert stats["events"]["count"] == 2
+        assert stats["runs"]["count"] == 2
+        assert stats["jobs"]["count"] == 1
+        assert stats["datasets"]["count"] == 1
+        assert "oldest_ms" in stats["events"]
