@@ -10,6 +10,45 @@ Feast supports extracting user groups, namespaces and roles of both Service Acco
 - **Namespaces**: Kubernetes namespaces associated with User/SA
 - **Roles**: Kubernetes roles associated with User/SA
 
+## Operator Default Behavior
+
+When deploying Feast using the Feast operator, **Kubernetes authentication is enabled by default**. You do not need to explicitly configure `authz` in the `FeatureStore` CR — the operator automatically applies `kubernetes` auth to all deployed services.
+
+### What This Means
+
+- All HTTP/gRPC requests to Feast services must include a valid Kubernetes bearer token in the `Authorization` header.
+- The server validates the token via the Kubernetes Token Access Review API and extracts user identity (username, groups, namespaces, roles).
+- If no `Permission` objects are defined, authenticated users get full access (with a warning logged).
+- Unauthenticated requests receive a `401 Unauthorized` response.
+
+### Disabling Authentication
+
+If you need to run Feast without authentication (e.g., for local development or testing), explicitly set `noAuth: true` in the `FeatureStore` CR:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    noAuth: true
+```
+
+{% hint style="warning" %}
+`noAuth: true` disables all authentication and authorization checks. All endpoints become publicly accessible. Use only in non-production environments.
+{% endhint %}
+
+### Choosing an Auth Mode
+
+| `spec.authz` Setting | Behavior |
+| --- | --- |
+| _(not specified)_ | Kubernetes auth enabled (default) |
+| `kubernetes: {}` | Kubernetes auth enabled (explicit) |
+| `oidc: { ... }` | OIDC auth enabled |
+| `noAuth: true` | All auth disabled |
+
 ## Key Features
 
 ### Setting Up Kubernetes RBAC for Feast
@@ -142,19 +181,28 @@ Run `feast apply` from CLI/API/SDK on server or from client(if permitted) to app
 
 ### Common Issues
 
-1. **Token Access Review Fails**
+1. **401 Unauthorized After Upgrading**
+   - The Feast operator now defaults to Kubernetes authentication. If your existing FeatureStore CR did not specify `authz`, the upgrade enables auth automatically.
+   - **Quick fix for testing**: Add `authz.noAuth: true` to your `FeatureStore` CR to restore the previous unauthenticated behavior.
+   - **Recommended**: Update your client applications to include a valid Kubernetes bearer token in requests.
+
+2. **Token Access Review Fails**
    - Check that the Feast server has the required RBAC permissions
    - Verify the token is valid and not expired
    - Check server logs for detailed error messages in debug mode
 
-2. **Groups/Namespaces Not Extracted**
+3. **Groups/Namespaces Not Extracted**
    - Verify the token contains the expected claims
    - Check that the user is properly configured in Kubernetes/ODH/RHOAI
 
-3. **Permission Denied**
+4. **Permission Denied**
    - Verify the user is added to required groups/namespaces Or has the required role assigned
    - Check that the policy is correctly configured
    - Review the permission evaluation logs
+
+5. **"No permissions defined" Warning in Logs**
+   - This is expected when Kubernetes auth is enabled but no `Permission` objects have been applied.
+   - Authenticated users get full access by default. Define permissions via `permissions.py` + `feast apply` to enforce fine-grained authorization.
 
 ## Migration Guide
 

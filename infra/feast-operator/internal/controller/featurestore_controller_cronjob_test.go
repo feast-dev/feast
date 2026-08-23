@@ -124,6 +124,38 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			startingDeadlineSeconds := int64(5)
 			Expect(cronJob.Spec.StartingDeadlineSeconds).To(Equal(&startingDeadlineSeconds))
 
+			// verify CronJob uses a dedicated SA, separate from the feature-server SA
+			cronJobSAName := services.GetFeastServiceName(resource, services.CronJobFeastType)
+			deploymentSAName := objMeta.Name
+			podSpec := cronJob.Spec.JobTemplate.Spec.Template.Spec
+			Expect(podSpec.ServiceAccountName).To(Equal(cronJobSAName))
+			Expect(podSpec.ServiceAccountName).NotTo(Equal(deploymentSAName))
+
+			// verify the dedicated CronJob SA exists
+			cronJobSA := &corev1.ServiceAccount{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      cronJobSAName,
+				Namespace: objMeta.Namespace,
+			}, cronJobSA)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(controllerutil.HasControllerReference(cronJobSA)).To(BeTrue())
+
+			// verify restricted pod security context
+			Expect(podSpec.SecurityContext).NotTo(BeNil())
+			Expect(*podSpec.SecurityContext.RunAsNonRoot).To(BeTrue())
+			Expect(podSpec.SecurityContext.RunAsUser).NotTo(BeNil())
+			Expect(*podSpec.SecurityContext.RunAsUser).To(Equal(int64(1001)))
+			Expect(podSpec.SecurityContext.SeccompProfile).NotTo(BeNil())
+			Expect(podSpec.SecurityContext.SeccompProfile.Type).To(Equal(corev1.SeccompProfileTypeRuntimeDefault))
+
+			// verify restricted container security context
+			for _, c := range append(podSpec.InitContainers, podSpec.Containers...) {
+				Expect(c.SecurityContext).NotTo(BeNil())
+				Expect(*c.SecurityContext.AllowPrivilegeEscalation).To(BeFalse())
+				Expect(c.SecurityContext.Capabilities).NotTo(BeNil())
+				Expect(c.SecurityContext.Capabilities.Drop).To(ContainElement(corev1.Capability("ALL")))
+			}
+
 			checkCronJob(resource.Status.Applied.CronJob, cronJob.Spec)
 		})
 
@@ -243,6 +275,12 @@ var _ = Describe("FeatureStore Controller - Feast CronJob", func() {
 			Expect(cronJob.Spec.Schedule).To(Equal(schedule))
 			Expect(cronJob.Spec.StartingDeadlineSeconds).To(Equal(&startingDeadlineSeconds))
 			Expect(cronJob.Spec.JobTemplate.Spec.Parallelism).To(Equal(&int32Var))
+
+			// verify CronJob uses a dedicated SA, separate from the feature-server SA
+			cronJobSAName := services.GetFeastServiceName(resource, services.CronJobFeastType)
+			podSpec := cronJob.Spec.JobTemplate.Spec.Template.Spec
+			Expect(podSpec.ServiceAccountName).To(Equal(cronJobSAName))
+			Expect(podSpec.ServiceAccountName).NotTo(Equal(objMeta.Name))
 
 			checkCronJob(resource.Status.Applied.CronJob, cronJob.Spec)
 		})

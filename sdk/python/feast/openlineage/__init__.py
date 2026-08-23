@@ -66,8 +66,17 @@ from feast.openlineage.facets import (
     FeastEntityFacet,
     FeastFeatureServiceFacet,
     FeastFeatureViewFacet,
+    FeastJobKindFacet,
     FeastMaterializationFacet,
+    FeastOnlineStoreFacet,
     FeastProjectFacet,
+)
+from feast.openlineage.identity import (
+    FeastJobKind,
+    LineageParentContext,
+    materialize_job_name,
+    resolve_namespace,
+    spark_compute_job_name,
 )
 
 __all__ = [
@@ -76,11 +85,19 @@ __all__ = [
     "FeastOpenLineageEmitter",
     "OpenLineageConfig",
     "OpenLineageConsumerConfig",
+    # Identity / context
+    "FeastJobKind",
+    "LineageParentContext",
+    "materialize_job_name",
+    "resolve_namespace",
+    "spark_compute_job_name",
     # Facets (custom Feast metadata in lineage events)
     "FeastFeatureViewFacet",
     "FeastFeatureServiceFacet",
     "FeastDataSourceFacet",
     "FeastEntityFacet",
+    "FeastOnlineStoreFacet",
     "FeastMaterializationFacet",
     "FeastProjectFacet",
+    "FeastJobKindFacet",
 ]

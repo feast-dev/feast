@@ -87,6 +87,7 @@
     * [5 — Security](how-to-guides/feast-operator/05-security.md)
     * [6 — Batch & Jobs](how-to-guides/feast-operator/06-batch-and-jobs.md)
     * [7 — OpenLineage & Materialization](how-to-guides/feast-operator/07-openlineage-and-materialization.md)
+    * [8 — MLflow Integration](how-to-guides/feast-operator/08-mlflow-integration.md)
 * [Feast Production Deployment Topologies](how-to-guides/production-deployment-topologies.md)
 * [Online Server Performance Tuning](how-to-guides/online-server-performance-tuning.md)
 * [Customizing Feast](how-to-guides/customizing-feast/README.md)

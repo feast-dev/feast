@@ -376,6 +376,7 @@ class FeatureStore:
                 ol_config = self.config.openlineage.to_openlineage_config()
                 emitter = FeastOpenLineageEmitter(ol_config)
                 if emitter.is_enabled:
+                    self._wire_local_processor(emitter)
                     return emitter
         except ImportError:
             # OpenLineage not installed, silently skip
@@ -383,6 +384,21 @@ class FeatureStore:
         except Exception as e:
             warnings.warn(f"Failed to initialize OpenLineage emitter: {e}")
         return None
+
+    def _wire_local_processor(self, emitter: Any) -> None:
+        """Wire the local OL consumer processor into the emitter so
+        Feast-produced events are also stored in the consumer DB."""
+        try:
+            from feast.api.registry.rest import get_ol_processor
+
+            processor = get_ol_processor()
+            if processor and hasattr(emitter, "_client") and emitter._client:
+                emitter._client.set_local_processor(processor)
+                _logger.info(
+                    "Feast OL emitter wired to local consumer processor (lazy)"
+                )
+        except Exception as e:
+            _logger.debug(f"Could not wire emitter to local processor: {e}")
 
     def __repr__(self) -> str:
         # Show lazy loading status without triggering initialization
@@ -538,6 +554,7 @@ class FeatureStore:
         regular_fvs: list,
         previous_states: dict,
         date_range: "_MaterializationDateRange",
+        openlineage_run_id: Optional[str] = None,
     ) -> None:
         """
         Submit all tasks to the engine in one call and process the results.
@@ -550,8 +567,22 @@ class FeatureStore:
         )
 
         batch_start = time.monotonic()
+        materialize_kwargs: Dict[str, Any] = {}
+        if openlineage_run_id and self.openlineage_emitter is not None:
+            from feast.openlineage.identity import (
+                LineageParentContext,
+                materialize_job_name,
+            )
+
+            materialize_kwargs["lineage_parent"] = LineageParentContext(
+                job_namespace=self.openlineage_emitter.namespace_for(self.project),
+                job_name=materialize_job_name(self.project),
+                run_id=openlineage_run_id,
+            )
         try:
-            jobs = provider.batch_engine.materialize(self.registry, tasks)
+            jobs = provider.batch_engine.materialize(
+                self.registry, tasks, **materialize_kwargs
+            )
         except Exception:
             self._rollback_fv_states(regular_fvs, previous_states)
             raise
@@ -608,6 +639,7 @@ class FeatureStore:
         end_date: datetime,
         tqdm_builder,
         disable_event_timestamp: bool = False,
+        openlineage_run_id: Optional[str] = None,
     ) -> None:
         """Batch path: collect all FVs, submit to engine in one call.
 
@@ -644,6 +676,7 @@ class FeatureStore:
                 regular_fvs,
                 previous_states,
                 date_range,
+                openlineage_run_id=openlineage_run_id,
             )
 
     @property
@@ -1880,8 +1913,17 @@ class FeatureStore:
             _logger.debug("MLflow apply logging failed: %s", e)
 
     def _emit_openlineage_apply(self, objects: List[Any]):
-        """Emit OpenLineage events for applied objects."""
+        """Emit OpenLineage events for applied objects.
+
+        Skips when using a remote registry — the RegistryServer already
+        emits OL events in its Apply* handlers, so emitting here would
+        double-count every object.
+        """
         if self.openlineage_emitter is None:
+            return
+        from feast.infra.registry.remote import RemoteRegistry
+
+        if isinstance(self._registry, RemoteRegistry):
             return
         try:
             self.openlineage_emitter.emit_apply(objects, self.project)
@@ -1921,21 +1963,9 @@ class FeatureStore:
     def _teardown_openlineage(self):
         """Clean up OpenLineage data for this project's namespace during teardown."""
         try:
-            if (
-                hasattr(self.config, "openlineage")
-                and self.config.openlineage is not None
-                and self.config.openlineage.enabled
-            ):
-                ol_config = self.config.openlineage.to_openlineage_config()
-                consumer_cfg = getattr(ol_config, "consumer", None)
-                if consumer_cfg and getattr(consumer_cfg, "enabled", False):
-                    conn_str = getattr(consumer_cfg, "connection_string", None)
-                    if conn_str:
-                        from feast.openlineage.store import OpenLineageStore
-
-                        ol_store = OpenLineageStore(connection_string=conn_str)
-                        namespace = f"{self.project}/{self.project}"
-                        ol_store.purge_namespace(namespace)
+            emitter = self.openlineage_emitter
+            if emitter is not None:
+                emitter.teardown_project(self.project)
         except Exception as e:
             warnings.warn(f"Failed to clean up OpenLineage data during teardown: {e}")
 
@@ -2696,6 +2726,7 @@ class FeatureStore:
                     regular_fvs_with_dates,
                     end_date_tz,
                     tqdm_builder,
+                    openlineage_run_id=ol_run_id,
                 )
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
@@ -2909,6 +2940,7 @@ class FeatureStore:
                     end_date,
                     tqdm_builder,
                     disable_event_timestamp=disable_event_timestamp,
+                    openlineage_run_id=ol_run_id,
                 )
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
@@ -3033,7 +3065,11 @@ class FeatureStore:
             return None
         try:
             run_id, success = self.openlineage_emitter.emit_materialize_start(
-                feature_views, start_date, end_date, self.project
+                feature_views,
+                start_date,
+                end_date,
+                self.project,
+                online_store=getattr(self.config, "online_store", None),
             )
             # Return run_id only if START was successfully emitted
             # This prevents orphaned COMPLETE/FAIL events
@@ -3052,7 +3088,10 @@ class FeatureStore:
             return
         try:
             self.openlineage_emitter.emit_materialize_complete(
-                run_id, feature_views, self.project
+                run_id,
+                feature_views,
+                self.project,
+                online_store=getattr(self.config, "online_store", None),
             )
         except Exception as e:
             warnings.warn(f"Failed to emit OpenLineage materialize complete event: {e}")

@@ -509,7 +509,7 @@ class TestFeastMapping:
         )
         datasets = store.get_datasets()
         ds = [d for d in datasets if d["dataset_name"] == "online_store_driver_fv"][0]
-        assert ds["feast_object_type"] == "featureView"
+        assert ds["feast_object_type"] == "onlineStore"
         assert ds["feast_object_name"] == "driver_fv"
 
     def test_request_source_prefix_mapped(self, processor, store):
@@ -538,7 +538,46 @@ class TestFeastMapping:
         )
         datasets = store.get_datasets()
         ds = [d for d in datasets if d["dataset_name"] == "regular_dataset"][0]
-        assert ds["feast_object_type"] == "unknown"
+        # Unresolvable datasets stay untyped rather than "unknown"
+        assert ds["feast_object_type"] in (None, "unknown")
+
+    def test_facet_mapping_feature_view(self, processor, store):
+        processor.process_event(
+            _run_event(
+                inputs=[
+                    {
+                        "namespace": "test-ns",
+                        "name": "driver_hourly_stats",
+                        "facets": {
+                            "feast_featureView": {"name": "driver_hourly_stats"}
+                        },
+                    }
+                ],
+            )
+        )
+        ds = [
+            d
+            for d in store.get_datasets()
+            if d["dataset_name"] == "driver_hourly_stats"
+        ][0]
+        assert ds["feast_object_type"] == "featureView"
+        assert ds["feast_object_name"] == "driver_hourly_stats"
+
+    def test_facet_mapping_entity(self, processor, store):
+        processor.process_event(
+            _run_event(
+                inputs=[
+                    {
+                        "namespace": "test-ns",
+                        "name": "driver",
+                        "facets": {"feast_entity": {"name": "driver"}},
+                    }
+                ],
+            )
+        )
+        ds = [d for d in store.get_datasets() if d["dataset_name"] == "driver"][0]
+        assert ds["feast_object_type"] == "entity"
+        assert ds["feast_object_name"] == "driver"
 
     def test_namespace_mapping_applied(self, processor_with_mapping, store):
         processor_with_mapping.process_event(

@@ -4,6 +4,7 @@ enum FEAST_FCO_TYPES {
   featureView = "featureView",
   featureService = "featureService",
   labelView = "labelView",
+  savedDataset = "savedDataset",
   mlflowRun = "mlflowRun",
   mlflowModel = "mlflowModel",
   openlineageJob = "openlineageJob",

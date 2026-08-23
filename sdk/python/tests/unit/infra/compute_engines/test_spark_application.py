@@ -25,6 +25,7 @@ def _make_repo_config(
 ):
     """Build a mock RepoConfig for testing."""
     config = MagicMock()
+    config.project = "test"
     config.online_store = MagicMock()
     config.online_store.type = online_store_type
     config.offline_store = MagicMock()
@@ -207,6 +208,30 @@ def test_cr_driver_env_passthrough():
     )
 
 
+def test_cr_openlineage_job_name_is_stable():
+    """Each SparkApplication CR is unique, but OL job name is per-project."""
+    from feast.openlineage.identity import LineageParentContext
+
+    engine = _make_engine()
+    parent = LineageParentContext(
+        job_namespace="test",
+        job_name="materialize_test",
+        run_id="run-123",
+    )
+    cr_a = engine._build_spark_application_cr("abcd1234", lineage_parent=parent)
+    cr_b = engine._build_spark_application_cr("efgh5678", lineage_parent=parent)
+    conf_a = cr_a["spec"]["sparkConf"]
+    conf_b = cr_b["spec"]["sparkConf"]
+    assert cr_a["metadata"]["name"] == "feast-sa-abcd1234"
+    assert cr_b["metadata"]["name"] == "feast-sa-efgh5678"
+    assert conf_a["spark.app.name"] == "feast-sa-abcd1234"
+    assert conf_b["spark.app.name"] == "feast-sa-efgh5678"
+    assert conf_a["spark.openlineage.appName"] == "spark_compute_test"
+    assert conf_b["spark.openlineage.appName"] == "spark_compute_test"
+    assert conf_a["spark.openlineage.parentJobName"] == "materialize_test"
+    assert conf_a["spark.openlineage.parentRunId"] == "run-123"
+
+
 # ── Test 9: Status mapping covers all 14 states ──
 
 
@@ -313,7 +338,8 @@ def test_build_per_fv_jobs_all_succeeded():
     task2.feature_view.name = "fv_2"
     task2.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1")
+    mock_job = MagicMock()
+    jobs = engine._build_per_fv_jobs(mock_registry, [task1, task2], "job1", mock_job)
 
     assert len(jobs) == 2
     assert all(isinstance(j, CompletedMaterializationJob) for j in jobs)
@@ -342,7 +368,10 @@ def test_build_per_fv_jobs_partial_failure():
     task_fail.feature_view.name = "fv_fail"
     task_fail.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task_ok, task_fail], "job1")
+    mock_job = MagicMock()
+    jobs = engine._build_per_fv_jobs(
+        mock_registry, [task_ok, task_fail], "job1", mock_job
+    )
 
     assert len(jobs) == 2
     assert isinstance(jobs[0], CompletedMaterializationJob)
@@ -374,12 +403,15 @@ def test_build_per_fv_jobs_single_task_succeeded():
     task.feature_view.name = "fv_1"
     task.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
+    mock_job = MagicMock()
+    mock_job.error.return_value = None
+    mock_job.status.return_value = MaterializationJobStatus.SUCCEEDED
+
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", mock_job)
 
     assert len(jobs) == 1
     assert isinstance(jobs[0], CompletedMaterializationJob)
     assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
-    mock_registry.get_feature_view.assert_called_once_with("fv_1", "test")
     # No live SparkApplication CR is queried (it is about to be deleted).
     engine.custom_api.get_namespaced_custom_object.assert_not_called()
 
@@ -400,9 +432,14 @@ def test_build_per_fv_jobs_single_task_failed():
     task.feature_view.name = "fv_1"
     task.project = "test"
 
-    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1")
+    mock_job = MagicMock()
+    mock_job.error.return_value = Exception("fv_1 failed to materialize")
+    mock_job.status.return_value = MaterializationJobStatus.ERROR
+
+    jobs = engine._build_per_fv_jobs(mock_registry, [task], "job1", mock_job)
 
     assert len(jobs) == 1
+    assert jobs[0] is mock_job
     assert jobs[0].status() == MaterializationJobStatus.ERROR
     assert "fv_1" in str(jobs[0].error())
     engine.custom_api.get_namespaced_custom_object.assert_not_called()
