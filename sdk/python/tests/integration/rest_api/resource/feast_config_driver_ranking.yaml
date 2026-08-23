@@ -5,6 +5,8 @@ metadata:
   namespace: test-ns-feast-rest
 spec:
   feastProject: driver_ranking
+  authz:
+    noAuth: true
   feastProjectDir:
     init:
        template: local

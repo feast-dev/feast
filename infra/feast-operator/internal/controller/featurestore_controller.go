@@ -35,9 +35,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	handler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
@@ -69,8 +72,8 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;create;update;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=feast-discover-namespaces;feast-oidc-token-review;feast-token-review-cluster-role,verbs=get;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;get;list
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=feast-discover-namespaces;feast-oidc-token-review;feast-token-review-cluster-role,verbs=update;delete
 // +kubebuilder:rbac:groups=core,resources=secrets;namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;delete;deletecollection
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
@@ -82,6 +85,7 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=mlflow.opendatahub.io,resources=mlflows,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -100,15 +104,18 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if r.Metrics != nil {
 				r.Metrics.DeleteFeatureStore(req.NamespacedName.Namespace, req.NamespacedName.Name)
 			}
-			// Clean up namespace registry entry even if the CR is not found
-			if err := r.cleanupNamespaceRegistry(ctx, &feastdevv1.FeatureStore{
+			// Clean up namespace registry and OpenLineage discovery entries
+			deletedCR := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      req.NamespacedName.Name,
 					Namespace: req.NamespacedName.Namespace,
 				},
-			}); err != nil {
+			}
+			if err := r.cleanupNamespaceRegistry(ctx, deletedCR); err != nil {
 				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
-				// Don't return error here as the CR is already deleted
+			}
+			if err := r.cleanupOpenLineageDiscovery(ctx, deletedCR); err != nil {
+				logger.Error(err, "Failed to clean up OpenLineage discovery entry for deleted FeatureStore")
 			}
 			return ctrl.Result{}, nil
 		}
@@ -117,14 +124,18 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	currentStatus := cr.Status.DeepCopy()
 
-	// Handle deletion - clean up namespace registry entry
+	// Handle deletion - clean up namespace registry and OpenLineage discovery entries
 	if cr.DeletionTimestamp != nil {
-		logger.Info("FeatureStore is being deleted, cleaning up namespace registry entry")
+		logger.Info("FeatureStore is being deleted, cleaning up registry entries")
 		if r.Metrics != nil {
 			r.Metrics.DeleteFeatureStore(cr.Namespace, cr.Name)
 		}
 		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
 			logger.Error(err, "Failed to clean up namespace registry entry")
+			return ctrl.Result{}, err
+		}
+		if err := r.cleanupOpenLineageDiscovery(ctx, cr); err != nil {
+			logger.Error(err, "Failed to clean up OpenLineage discovery entry")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -149,7 +160,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// Add to namespace registry if deployment was successful and not being deleted
+	// Add to namespace registry and OpenLineage discovery if deployment was successful
 	if recErr == nil && cr.DeletionTimestamp == nil {
 		feast := services.FeastServices{
 			Handler: feasthandler.FeastHandler{
@@ -161,7 +172,9 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		if err := feast.AddToNamespaceRegistry(); err != nil {
 			logger.Error(err, "Failed to add FeatureStore to namespace registry")
-			// Don't return error here as the FeatureStore is already deployed successfully
+		}
+		if err := feast.AddToOpenLineageDiscovery(); err != nil {
+			logger.Error(err, "Failed to add FeatureStore to OpenLineage discovery")
 		}
 	}
 
@@ -275,6 +288,18 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		})
 		bldr = bldr.Owns(sm)
 	}
+	if services.HasMlflowCRD() {
+		mlflow := &unstructured.Unstructured{}
+		mlflow.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "mlflow.opendatahub.io",
+			Version: "v1",
+			Kind:    "MLflow",
+		})
+		bldr = bldr.Watches(mlflow,
+			handler.EnqueueRequestsFromMapFunc(r.mapMlflowToFeastRequests),
+			builder.WithPredicates(mlflowStatusChangedPredicate()),
+		)
+	}
 
 	return bldr.Complete(r)
 
@@ -292,6 +317,63 @@ func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, c
 	}
 
 	return feast.RemoveFromNamespaceRegistry()
+}
+
+// mlflowStatusChangedPredicate triggers the mapper only when the MLflow CR's
+// status changes (readiness transitions) or on create/delete — not on
+// annotation, label, or metadata-only updates.
+func mlflowStatusChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return true },
+		DeleteFunc: func(_ event.DeleteEvent) bool { return true },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldU, ok1 := e.ObjectOld.(*unstructured.Unstructured)
+			newU, ok2 := e.ObjectNew.(*unstructured.Unstructured)
+			if !ok1 || !ok2 {
+				return true
+			}
+			oldStatus, _, _ := unstructured.NestedMap(oldU.Object, "status")
+			newStatus, _, _ := unstructured.NestedMap(newU.Object, "status")
+			return !reflect.DeepEqual(oldStatus, newStatus)
+		},
+		GenericFunc: func(_ event.GenericEvent) bool { return true },
+	}
+}
+
+// mapMlflowToFeastRequests re-queues FeatureStores that use MLflow (those that
+// have not explicitly opted out) when the cluster MLflow CR's status changes.
+func (r *FeatureStoreReconciler) mapMlflowToFeastRequests(ctx context.Context, _ client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+	var feastList feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &feastList, client.InNamespace("")); err != nil {
+		logger.Error(err, "could not list FeatureStores for MLflow watch")
+		return nil
+	}
+	requests := make([]reconcile.Request, 0, len(feastList.Items))
+	for i := range feastList.Items {
+		fs := &feastList.Items[i]
+		if fs.Spec.Mlflow != nil && !fs.Spec.Mlflow.Enabled {
+			continue
+		}
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(fs),
+		})
+	}
+	return requests
+}
+
+// cleanupOpenLineageDiscovery removes the feature store instance from the OpenLineage discovery ConfigMap
+func (r *FeatureStoreReconciler) cleanupOpenLineageDiscovery(ctx context.Context, cr *feastdevv1.FeatureStore) error {
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+
+	return feast.RemoveFromOpenLineageDiscovery()
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

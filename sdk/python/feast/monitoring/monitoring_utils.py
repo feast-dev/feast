@@ -32,6 +32,13 @@ MONITORING_PARQUET_FILES: Dict[str, str] = {
 #  Column definitions — (ordered, used by INSERT / SELECT / Parquet)
 # ------------------------------------------------------------------ #
 
+# Datetime fields serialized to ISO-8601 on read.
+MONITORING_TIMESTAMP_FIELDS: Tuple[str, ...] = (
+    "metric_date",
+    "computed_at",
+    "max_event_timestamp",
+)
+
 FEATURE_METRICS_COLUMNS: List[str] = [
     "project_id",
     "feature_view_name",
@@ -40,6 +47,7 @@ FEATURE_METRICS_COLUMNS: List[str] = [
     "granularity",
     "data_source_type",
     "computed_at",
+    "max_event_timestamp",
     "is_baseline",
     "feature_type",
     "row_count",
@@ -73,6 +81,7 @@ FEATURE_VIEW_METRICS_COLUMNS: List[str] = [
     "granularity",
     "data_source_type",
     "computed_at",
+    "max_event_timestamp",
     "is_baseline",
     "total_row_count",
     "total_features",
@@ -96,6 +105,7 @@ FEATURE_SERVICE_METRICS_COLUMNS: List[str] = [
     "granularity",
     "data_source_type",
     "computed_at",
+    "max_event_timestamp",
     "is_baseline",
     "total_feature_views",
     "total_features",
@@ -238,7 +248,8 @@ def normalize_monitoring_row(record: Dict[str, Any]) -> Dict[str, Any]:
 
     - Replaces float NaN / Inf with None (not JSON-serializable).
     - Parses ``histogram`` from JSON string if needed.
-    - Converts ``metric_date`` / ``computed_at`` to ISO strings.
+    - Converts ``metric_date`` / ``computed_at`` / ``max_event_timestamp``
+      to ISO strings.
     - Normalizes ``is_baseline`` to Python bool.
     """
     import math
@@ -254,8 +265,14 @@ def normalize_monitoring_row(record: Dict[str, Any]) -> Dict[str, Any]:
         except (json.JSONDecodeError, TypeError):
             pass
 
-    for key in ("metric_date", "computed_at"):
+    for key in MONITORING_TIMESTAMP_FIELDS:
         val = record.get(key)
+        if val is None:
+            continue
+        # pandas NaT / NaN leak through parquet reads as non-datetime sentinels.
+        if val is not val or str(val) == "NaT":
+            record[key] = None
+            continue
         if isinstance(val, (date, datetime)):
             record[key] = val.isoformat()
 

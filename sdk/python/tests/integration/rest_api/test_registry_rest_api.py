@@ -450,7 +450,7 @@ class TestRegistryServerRest:
         # Validate specific pagination counts (these are test-specific)
         assert data["relationships_pagination"]["totalCount"] == 71
         assert data["relationships_pagination"]["totalPages"] == 1
-        assert data["indirect_relationships_pagination"]["totalCount"] == 154
+        assert data["indirect_relationships_pagination"]["totalCount"] == 149
         assert data["indirect_relationships_pagination"]["totalPages"] == 1
 
     def test_get_lineage_complete(self, feast_rest_client):

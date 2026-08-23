@@ -98,7 +98,32 @@ jobs:
       - name: Debug KIND Cluster when there is a failure
         if: failure()
         run: |
-          kubectl get pods --all-namespaces
+          echo "=== FeatureStore CRs and conditions ==="
+          kubectl get featurestores.feast.dev --all-namespaces -o yaml || true
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods --all-namespaces -o wide
+          echo ""
+          echo "=== Pod details for non-Running pods ==="
+          for ns in $(kubectl get ns -o jsonpath='{.items[*].metadata.name}'); do
+            for pod in $(kubectl get pods -n "$ns" --field-selector='status.phase!=Running' -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+              echo "--- Pod $ns/$pod ---"
+              kubectl describe pod "$pod" -n "$ns" 2>/dev/null | tail -30
+              echo "--- Logs ---"
+              kubectl logs "$pod" -n "$ns" --all-containers --tail=50 2>/dev/null || true
+            done
+          done
+          echo ""
+          echo "=== Operator logs ==="
+          kubectl logs -n feast-operator-system deploy/feast-operator-controller-manager --tail=100 2>/dev/null || true
+          echo ""
+          echo "=== Cluster RBAC for feast ==="
+          kubectl get clusterroles,clusterrolebindings -o name | grep feast || true
+          echo ""
+          echo "=== Events ==="
+          kubectl get events --all-namespaces --sort-by='.lastTimestamp' | tail -50
+          echo ""
+          echo "=== Nodes ==="
           kubectl describe nodes
 
       - name: Clean up
