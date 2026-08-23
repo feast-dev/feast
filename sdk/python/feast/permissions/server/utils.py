@@ -73,6 +73,11 @@ def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
         registry: The feature store registry.
     """
     if auth_type == AuthManagerType.NONE:
+        logger.warning(
+            "Running with auth_type=no_auth. All endpoints are unauthenticated. "
+            "This is suitable for local development only. For production "
+            "deployments, configure 'kubernetes' or 'oidc' authentication."
+        )
         no_security_manager()
     else:
         # TODO permissions from registry

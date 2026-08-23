@@ -19,3 +19,16 @@ jobs:
         run: make -C infra/feast-operator test
       - name: After code formatting, check for uncommitted differences
         run: git diff --exit-code infra/feast-operator
+      - name: Regenerate bundle and verify CSV is in sync
+        run: make -C infra/feast-operator bundle
+      - name: Check for uncommitted bundle differences
+        run: |
+          # createdAt and operator-sdk builder version change every run;
+          # ignore them so only real RBAC / structural drift fails the check.
+          if ! git diff --exit-code \
+            -I 'createdAt:' \
+            -I 'operator-sdk-v' \
+            infra/feast-operator/bundle/ infra/feast-operator/bundle.Dockerfile; then
+            echo "::error::Bundle manifests are out of sync. Run 'make bundle' in infra/feast-operator/ and commit the result."
+            exit 1
+          fi

@@ -16,6 +16,7 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+from feast.credentials import ConnectionRef
 from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
     IcebergSource,
 )
@@ -54,6 +55,7 @@ class UnityCatalogSource(IcebergSource):
         catalog_properties: Optional[Dict[str, str]] = None,
         register_as_feature_table: bool = True,
         sync_lineage: bool = True,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         if endpoint is None:
             host = os.environ.get("DATABRICKS_HOST", "")
@@ -79,6 +81,7 @@ class UnityCatalogSource(IcebergSource):
             owner=owner,
             token_env_var=token_env_var,
             credential_vending=credential_vending,
+            connection_ref=connection_ref,
         )
         self.register_as_feature_table = register_as_feature_table
         self.sync_lineage = sync_lineage
@@ -129,6 +132,7 @@ class UnityCatalogSource(IcebergSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(dict(data_source.tags)),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
