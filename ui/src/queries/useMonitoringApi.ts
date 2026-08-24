@@ -12,6 +12,7 @@ interface FeatureMetric {
   granularity: string;
   data_source_type: string;
   computed_at: string;
+  max_event_timestamp: string | null;
   is_baseline: boolean;
   feature_type: string;
   row_count: number;
@@ -48,6 +49,7 @@ interface FeatureViewMetric {
   granularity: string;
   data_source_type: string;
   computed_at: string;
+  max_event_timestamp: string | null;
   is_baseline: boolean;
   total_row_count: number;
   total_features: number;
@@ -63,6 +65,7 @@ interface FeatureServiceMetric {
   granularity: string;
   data_source_type: string;
   computed_at: string;
+  max_event_timestamp: string | null;
   is_baseline: boolean;
   total_feature_views: number;
   total_features: number;
@@ -188,6 +191,7 @@ const aggregateToFeatureViewMetrics = (
       granularity: feats[0].granularity,
       data_source_type: feats[0].data_source_type,
       computed_at: feats[0].computed_at,
+      max_event_timestamp: feats[0].max_event_timestamp,
       is_baseline: feats[0].is_baseline,
       total_row_count: maxRowCount,
       total_features: feats.length,
