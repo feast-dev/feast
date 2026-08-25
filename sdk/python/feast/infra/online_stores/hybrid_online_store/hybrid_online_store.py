@@ -167,6 +167,41 @@ class HybridOnlineStore(OnlineStore):
         tag_name = getattr(config.online_store, "routing_tag", "tribe")
         return table.tags.get(tag_name)
 
+    def _group_by_routing_tag(
+        self,
+        tables: Sequence[FeatureView],
+        config: RepoConfig,
+        require_tag: bool,
+    ) -> Dict[str, List[FeatureView]]:
+        """
+        Bucket FeatureViews by the (lower-cased) value of their routing tag.
+
+        Backends act on every FeatureView handed to them, so each one must only
+        ever see its own bucket. Passing the full list made e.g. SQLite create
+        tables for Redis-routed views.
+
+        Args:
+            tables: FeatureViews to group.
+            config: Feast RepoConfig.
+            require_tag: Raise on an untagged FeatureView instead of skipping it.
+        Returns:
+            Mapping of tag value to the FeatureViews carrying it.
+        Raises:
+            ValueError: If ``require_tag`` and a FeatureView has no routing tag.
+        """
+        grouped: Dict[str, List[FeatureView]] = {}
+        for table in tables:
+            tribe = self._get_routing_tag_value(table, config)
+            if not tribe:
+                if require_tag:
+                    tag_name = getattr(config.online_store, "routing_tag", "tribe")
+                    raise ValueError(
+                        f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
+                    )
+                continue
+            grouped.setdefault(tribe.lower(), []).append(table)
+        return grouped
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -273,31 +308,32 @@ class HybridOnlineStore(OnlineStore):
             ValueError: If a FeatureView does not have the required tag.
             NotImplementedError: If no online store is found for a tag value.
         """
-        for table in tables_to_keep:
-            tribe = self._get_routing_tag_value(table, config)
-            if not tribe:
-                tag_name = getattr(config.online_store, "routing_tag", "tribe")
-                raise ValueError(
-                    f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
-                )
+        keep_by_tribe = self._group_by_routing_tag(
+            tables_to_keep, config, require_tag=True
+        )
+        # Untagged views on the way out are skipped rather than fatal: they may
+        # predate the routing tag, and there is no backend to route them to.
+        delete_by_tribe = self._group_by_routing_tag(
+            tables_to_delete, config, require_tag=False
+        )
+        for tribe in {**keep_by_tribe, **delete_by_tribe}:
             online_store = self._get_online_store(tribe, config)
-            if online_store:
-                # Local name: rebinding `config` here would feed the next
-                # iteration the selected backend's config instead of the hybrid
-                # one, losing `routing_tag` from the second FeatureView on.
-                store_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-                online_store.update(
-                    store_config,
-                    tables_to_delete,
-                    tables_to_keep,
-                    entities_to_delete,
-                    entities_to_keep,
-                    partial,
-                )
-            else:
+            if not online_store:
                 raise NotImplementedError(
                     f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
                 )
+            # Local name: rebinding `config` here would feed the next iteration
+            # the selected backend's config instead of the hybrid one, losing
+            # `routing_tag`.
+            store_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
+            online_store.update(
+                store_config,
+                delete_by_tribe.get(tribe, []),
+                keep_by_tribe.get(tribe, []),
+                entities_to_delete,
+                entities_to_keep,
+                partial,
+            )
 
     def teardown(
         self,
@@ -313,27 +349,13 @@ class HybridOnlineStore(OnlineStore):
             tables: Sequence of FeatureViews to teardown.
             entities: Sequence of Entities to teardown.
         """
-        # Use a set of (tribe, store_type, conf_id) to avoid duplicate teardowns for the same instance
-        tribes_seen = set()
-        online_stores_cfg = getattr(config.online_store, "online_stores", [])
-        tag_name = getattr(config.online_store, "routing_tag", "tribe")
-        for table in tables:
-            tribe = table.tags.get(tag_name)
-            if not tribe:
-                continue
-            # Find all store configs matching this tribe (supporting multiple instances of the same type)
-            for store_cfg in online_stores_cfg:
-                store_type = store_cfg.type
-                # Use id(store_cfg.conf) to distinguish different configs of the same type
-                key = (tribe, store_type, id(store_cfg.conf))
-                if key in tribes_seen:
-                    continue
-                tribes_seen.add(key)
-                # Only select the online store if tribe matches the type (or you can add a mapping in config for more flexibility)
-                if tribe.lower() == store_type.split(".")[-1].lower():
-                    online_store = self._get_online_store(tribe, config)
-                    if online_store:
-                        store_config = RepoConfig(
-                            **self._prepare_repo_conf(config, tribe)
-                        )
-                        online_store.teardown(store_config, tables, entities)
+        # Grouping both dedupes backends and keeps each one from tearing down
+        # another backend's FeatureViews. Untagged views have no backend to
+        # route to and are skipped, as before.
+        for tribe, tribe_tables in self._group_by_routing_tag(
+            tables, config, require_tag=False
+        ).items():
+            online_store = self._get_online_store(tribe, config)
+            if online_store:
+                store_config = RepoConfig(**self._prepare_repo_conf(config, tribe))
+                online_store.teardown(store_config, tribe_tables, entities)

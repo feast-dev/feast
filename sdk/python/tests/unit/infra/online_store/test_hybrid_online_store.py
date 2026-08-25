@@ -100,3 +100,84 @@ def test_update_routes_every_feature_view(repo_config, entity):
     assert redis_update.call_count == 1
     assert sqlite_update.call_count == 1
     assert repo_config.online_store.routing_tag == ROUTING_TAG
+
+
+def test_update_passes_each_backend_only_its_own_tables(repo_config, entity):
+    """A backend must not create or drop infrastructure for another backend's views."""
+    fv_redis = _feature_view("fv_redis", "redis", entity)
+    fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
+    fv_redis_gone = _feature_view("fv_redis_gone", "redis", entity)
+
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.update"
+        ) as redis_update,
+        patch(
+            "feast.infra.online_stores.sqlite.SqliteOnlineStore.update"
+        ) as sqlite_update,
+    ):
+        HybridOnlineStore().update(
+            config=repo_config,
+            tables_to_delete=[fv_redis_gone],
+            tables_to_keep=[fv_redis, fv_sqlite],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+    _, redis_delete, redis_keep, *_ = redis_update.call_args.args
+    _, sqlite_delete, sqlite_keep, *_ = sqlite_update.call_args.args
+    assert redis_keep == [fv_redis]
+    assert redis_delete == [fv_redis_gone]
+    assert sqlite_keep == [fv_sqlite]
+    assert sqlite_delete == []
+
+
+def test_update_reaches_a_backend_with_only_deletions(repo_config, entity):
+    """A backend whose views are all being removed still needs its update() call."""
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.update"
+        ) as redis_update,
+        patch(
+            "feast.infra.online_stores.sqlite.SqliteOnlineStore.update"
+        ) as sqlite_update,
+    ):
+        HybridOnlineStore().update(
+            config=repo_config,
+            tables_to_delete=[_feature_view("fv_redis_gone", "redis", entity)],
+            tables_to_keep=[_feature_view("fv_sqlite", "sqlite", entity)],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+    assert redis_update.call_count == 1
+    assert sqlite_update.call_count == 1
+
+
+def test_teardown_passes_each_backend_only_its_own_tables(repo_config, entity):
+    """Teardown used to hand every backend the full table list."""
+    fv_redis = _feature_view("fv_redis", "redis", entity)
+    fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
+    fv_sqlite2 = _feature_view("fv_sqlite2", "sqlite", entity)
+
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.teardown"
+        ) as redis_teardown,
+        patch(
+            "feast.infra.online_stores.sqlite.SqliteOnlineStore.teardown"
+        ) as sqlite_teardown,
+    ):
+        HybridOnlineStore().teardown(
+            config=repo_config,
+            tables=[fv_redis, fv_sqlite, fv_sqlite2],
+            entities=[entity],
+        )
+
+    assert redis_teardown.call_count == 1
+    assert sqlite_teardown.call_count == 1
+    assert redis_teardown.call_args.args[1] == [fv_redis]
+    # Both sqlite views in one call: the old dedup dropped the second one.
+    assert sqlite_teardown.call_args.args[1] == [fv_sqlite, fv_sqlite2]
