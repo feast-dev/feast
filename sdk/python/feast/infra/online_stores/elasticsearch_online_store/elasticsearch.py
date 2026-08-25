@@ -22,6 +22,7 @@ from feast.infra.key_encoding_utils import (
     get_list_val_str,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -56,6 +57,13 @@ class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
 
 
 logger = logging.getLogger(__name__)
+
+
+def _versioned_index_name(table: FeatureView, config: RepoConfig) -> str:
+    """Return the index name with a version suffix when versioning is enabled."""
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
 
 
 class ElasticsearchFilterTranslator(FilterTranslator):
@@ -179,10 +187,10 @@ class ElasticSearchOnlineStore(OnlineStore):
             )
             return self._client
 
-    def _bulk_batch_actions(self, table: FeatureView, batch: List[Dict[str, Any]]):
+    def _bulk_batch_actions(self, index_name: str, batch: List[Dict[str, Any]]):
         for row in batch:
             yield {
-                "_index": table.name,
+                "_index": index_name,
                 "_id": f"{row['entity_key']}_{row['timestamp']}",
                 "_source": row,
             }
@@ -197,7 +205,8 @@ class ElasticSearchOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         insert_values = []
-        include_value_num = self._index_has_value_num(config, table.name)
+        index_name = _versioned_index_name(table, config)
+        include_value_num = self._index_has_value_num(config, index_name)
         grouped_docs: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "features": {},
@@ -238,7 +247,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         batch_size = config.online_store.write_batch_size
         for i in range(0, len(insert_values), batch_size):
             batch = insert_values[i : i + batch_size]
-            actions = self._bulk_batch_actions(table, batch)
+            actions = self._bulk_batch_actions(index_name, batch)
             helpers.bulk(self._get_client(config), actions, refresh="wait_for")
 
     def online_read(
@@ -269,7 +278,9 @@ class ElasticSearchOnlineStore(OnlineStore):
             },
         }
 
-        response = self._get_client(config).search(index=table.name, body=body)
+        response = self._get_client(config).search(
+            index=_versioned_index_name(table, config), body=body
+        )
 
         results = []
 
@@ -351,7 +362,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         }
 
         self._get_client(config).indices.create(
-            index=table.name,
+            index=_versioned_index_name(table, config),
             mappings=index_mapping,
         )
 
@@ -366,7 +377,9 @@ class ElasticSearchOnlineStore(OnlineStore):
     ):
         # implement the update method
         for table in tables_to_delete:
-            self._get_client(config).delete_by_query(index=table.name)
+            self._get_client(config).delete_by_query(
+                index=_versioned_index_name(table, config)
+            )
         for table in tables_to_keep:
             self.create_index(config, table)
 
@@ -379,7 +392,9 @@ class ElasticSearchOnlineStore(OnlineStore):
         project = config.project
         try:
             for table in tables:
-                self._get_client(config).indices.delete(index=table.name)
+                self._get_client(config).indices.delete(
+                    index=_versioned_index_name(table, config)
+                )
         except Exception as e:
             logging.exception(f"Error deleting index in project {project}: {e}")
             raise
@@ -425,7 +440,9 @@ class ElasticSearchOnlineStore(OnlineStore):
             }
         }
         body = {"size": top_k, "_source": True, "query": query}
-        response = self._get_client(config).search(index=table.name, body=body)
+        response = self._get_client(config).search(
+            index=_versioned_index_name(table, config), body=body
+        )
         rows = response["hits"]["hits"][0:top_k]
         for row in rows:
             entity_key = row["_source"]["entity_key"]
@@ -485,7 +502,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         if embedding is None and query_string is None:
             raise ValueError("Either embedding or query_string must be provided")
 
-        es_index = table.name
+        es_index = _versioned_index_name(table, config)
         body: Dict[str, Any] = {
             "size": top_k,
         }
