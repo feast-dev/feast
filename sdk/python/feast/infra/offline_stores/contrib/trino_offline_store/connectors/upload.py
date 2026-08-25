@@ -18,7 +18,7 @@ offline_store:
 ```
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, Iterator, Optional, Set
 
 import numpy as np
@@ -117,10 +117,18 @@ def format_pandas_row(df: pd.DataFrame) -> str:
     def _format_value(row: pd.Series, schema: Dict[str, Any]) -> str:
         formated_values = []
         for row_name, row_value in row.items():
-            if schema[row_name].startswith("timestamp"):
+            if _is_nan(row_value):
+                formated_values.append("NULL")
+            elif schema[row_name].startswith("timestamp"):
                 if isinstance(row_value, datetime):
                     row_value = format_datetime(row_value)
                 formated_values.append(f"TIMESTAMP '{row_value}'")
+            elif schema[row_name].startswith("date"):
+                if isinstance(row_value, (datetime, date)):
+                    row_value = row_value.strftime("%Y-%m-%d")
+                formated_values.append(f"DATE '{row_value}'")
+            elif isinstance(row_value, (bool, np.bool_)):
+                formated_values.append("TRUE" if row_value else "FALSE")
             elif isinstance(row_value, list):
                 formated_values.append(f"ARRAY{row_value}")
             elif isinstance(row_value, np.ndarray):
@@ -128,9 +136,8 @@ def format_pandas_row(df: pd.DataFrame) -> str:
             elif isinstance(row_value, tuple):
                 formated_values.append(f"ARRAY{list(row_value)}")
             elif isinstance(row_value, str):
-                formated_values.append(f"'{row_value}'")
-            elif _is_nan(row_value):
-                formated_values.append("NULL")
+                escaped = row_value.replace("'", "''")
+                formated_values.append(f"'{escaped}'")
             else:
                 formated_values.append(f"{row_value}")
 
