@@ -301,6 +301,7 @@ const FeatureListPage = () => {
             </EuiFlexGroup>
             <EuiSpacer size="m" />
             <EuiBasicTable
+              tableLayout="auto"
               columns={columns}
               items={paginatedFeatures}
               rowProps={getRowProps}
