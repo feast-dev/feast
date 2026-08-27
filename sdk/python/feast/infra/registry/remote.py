@@ -93,8 +93,8 @@ class RemoteRegistryConfig(RegistryConfig):
     Required when the connection address differs from the service hostname,
     e.g. when connecting through a tunnel or proxy for local development. """
 
-    timeout: Optional[int] = None
-    """ int: Timeout in seconds for registry gRPC calls. Must be strictly positive. """
+    timeout: Optional[float] = None
+    """ float: Timeout in seconds for registry gRPC calls. Must be strictly positive. """
 
     keepalive_time_ms: Optional[int] = None
     """ int: Period in milliseconds after which a keepalive ping is sent on the transport. Must be strictly positive. """
@@ -102,9 +102,12 @@ class RemoteRegistryConfig(RegistryConfig):
     keepalive_timeout_ms: Optional[int] = None
     """ int: Timeout in milliseconds for keepalive ping acknowledgement. Must be strictly positive. """
 
+    keepalive_permit_without_calls: Optional[bool] = None
+    """ bool: Allow keepalive pings when there are no in-flight RPCs. """
+
     @field_validator("timeout", "keepalive_time_ms", "keepalive_timeout_ms")
     @classmethod
-    def validate_positive_values(cls, v: Optional[int]) -> Optional[int]:
+    def validate_positive_values(cls, v: Optional[float]) -> Optional[float]:
         if v is not None and v <= 0:
             raise ValueError("value must be strictly positive (> 0)")
         return v
@@ -142,6 +145,13 @@ class RemoteRegistry(BaseRegistry):
         if registry_config.keepalive_timeout_ms is not None:
             options.append(
                 ("grpc.keepalive_timeout_ms", registry_config.keepalive_timeout_ms)
+            )
+        if registry_config.keepalive_permit_without_calls is not None:
+            options.append(
+                (
+                    "grpc.keepalive_permit_without_calls",
+                    1 if registry_config.keepalive_permit_without_calls else 0,
+                )
             )
 
         if registry_config.cert or registry_config.is_tls:

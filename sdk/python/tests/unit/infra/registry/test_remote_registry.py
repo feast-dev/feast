@@ -121,6 +121,7 @@ def test_remote_registry_channel_options(mock_insecure_channel):
         path="localhost:50051",
         keepalive_time_ms=10000,
         keepalive_timeout_ms=5000,
+        keepalive_permit_without_calls=True,
     )
     # We patch grpc.intercept_channel to avoid auth interceptor type checks during test
     with patch("feast.infra.registry.remote.grpc.intercept_channel"):
@@ -132,6 +133,7 @@ def test_remote_registry_channel_options(mock_insecure_channel):
     options = kwargs.get("options", [])
     assert ("grpc.keepalive_time_ms", 10000) in options
     assert ("grpc.keepalive_timeout_ms", 5000) in options
+    assert ("grpc.keepalive_permit_without_calls", 1) in options
 
 
 def test_remote_registry_client_timeout_interceptor():
@@ -184,16 +186,18 @@ def test_remote_registry_validation_positive_values():
     # Valid configurations should work
     config = RemoteRegistryConfig(
         path="localhost:50051",
-        timeout=5,
+        timeout=2.5,
         keepalive_time_ms=1000,
         keepalive_timeout_ms=500,
+        keepalive_permit_without_calls=False,
     )
-    assert config.timeout == 5
+    assert config.timeout == 2.5
     assert config.keepalive_time_ms == 1000
     assert config.keepalive_timeout_ms == 500
+    assert config.keepalive_permit_without_calls is False
 
     # Invalid values should throw ValidationError
     for field in ["timeout", "keepalive_time_ms", "keepalive_timeout_ms"]:
-        for bad_val in [0, -1]:
+        for bad_val in [0, -1, -2.5]:
             with pytest.raises(ValidationError):
                 RemoteRegistryConfig(path="localhost:50051", **{field: bad_val})

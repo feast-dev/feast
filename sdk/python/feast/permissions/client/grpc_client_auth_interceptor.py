@@ -20,7 +20,7 @@ class GrpcClientAuthHeaderInterceptor(
     grpc.StreamUnaryClientInterceptor,
     grpc.StreamStreamClientInterceptor,
 ):
-    def __init__(self, auth_config: AuthConfig, timeout: Optional[int] = None):
+    def __init__(self, auth_config: AuthConfig, timeout: Optional[float] = None):
         self._auth_config = auth_config
         self._timeout = timeout
 
