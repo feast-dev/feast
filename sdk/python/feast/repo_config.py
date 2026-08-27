@@ -203,6 +203,15 @@ class RegistryConfig(FeastBaseModel):
         online store table and can be queried independently. Version history
         tracking in the registry is always active regardless of this setting. """
 
+    serve_features_while_materializing: StrictBool = False
+    """ bool: Allow online serving to continue for a feature view while it is in
+        the ``MATERIALIZING`` state. When ``feature_store.materialize()`` runs against
+        a shared registry it transitions the feature view to ``MATERIALIZING`` and
+        commits that state, which otherwise causes concurrent feature servers to
+        reject requests until materialization completes. When True, feature views in
+        the ``MATERIALIZING`` state keep serving their last-materialized values.
+        Truly-unavailable states (e.g. ``CREATED``, ``GENERATED``) remain gated. """
+
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 

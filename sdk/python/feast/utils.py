@@ -1333,9 +1333,20 @@ def _get_feature_views_to_use(
         if hasattr(fv, "state"):
             from feast.feature_view import FeatureViewState
 
-            if isinstance(fv.state, FeatureViewState) and fv.state not in (
+            servable_states = {
                 FeatureViewState.STATE_UNSPECIFIED,
                 FeatureViewState.AVAILABLE_ONLINE,
+            }
+            # When 'serve_features_while_materializing' is enabled, keep serving
+            # the last-materialized values while a feature view is MATERIALIZING,
+            # so routine incremental materialization against a shared registry does
+            # not interrupt concurrent feature servers (see issue #6780).
+            if getattr(registry, "serve_features_while_materializing", False):
+                servable_states.add(FeatureViewState.MATERIALIZING)
+
+            if (
+                isinstance(fv.state, FeatureViewState)
+                and fv.state not in servable_states
             ):
                 raise ValueError(
                     f"Feature view '{name}' is in state '{fv.state.name}' "
