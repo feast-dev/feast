@@ -4,6 +4,7 @@ from tempfile import mkstemp
 
 import pytest
 
+from feast import utils
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
@@ -431,3 +432,52 @@ class TestMaterializationDisabledBlocking:
                 end_date=datetime.utcnow(),
             )
         store.teardown()
+
+
+# ---------------------------------------------------------------------------
+# Serving lifecycle gate: serve_features_while_materializing
+# ---------------------------------------------------------------------------
+
+
+class _StubRegistry:
+    """Minimal registry stub exposing what _get_feature_views_to_use needs."""
+
+    def __init__(self, fv, serve_features_while_materializing=False):
+        self._fv = fv
+        self.serve_features_while_materializing = serve_features_while_materializing
+
+    def get_any_feature_view(self, name, project, allow_cache=False):
+        return self._fv
+
+
+class TestServeWhileMaterializingGate:
+    def _fv_in_state(self, state):
+        fv = _simple_feature_view()
+        fv.state = state
+        return fv
+
+    def test_materializing_blocked_by_default(self):
+        registry = _StubRegistry(self._fv_in_state(FeatureViewState.MATERIALIZING))
+        with pytest.raises(ValueError, match="cannot serve features"):
+            utils._get_feature_views_to_use(registry, "default", ["test_fv:f1"])
+
+    def test_materializing_served_when_flag_enabled(self):
+        registry = _StubRegistry(
+            self._fv_in_state(FeatureViewState.MATERIALIZING),
+            serve_features_while_materializing=True,
+        )
+        fvs, _ = utils._get_feature_views_to_use(registry, "default", ["test_fv:f1"])
+        assert [fv.name for fv in fvs] == ["test_fv"]
+
+    def test_available_online_served_regardless_of_flag(self):
+        registry = _StubRegistry(self._fv_in_state(FeatureViewState.AVAILABLE_ONLINE))
+        fvs, _ = utils._get_feature_views_to_use(registry, "default", ["test_fv:f1"])
+        assert [fv.name for fv in fvs] == ["test_fv"]
+
+    def test_created_still_blocked_even_with_flag(self):
+        registry = _StubRegistry(
+            self._fv_in_state(FeatureViewState.CREATED),
+            serve_features_while_materializing=True,
+        )
+        with pytest.raises(ValueError, match="cannot serve features"):
+            utils._get_feature_views_to_use(registry, "default", ["test_fv:f1"])
