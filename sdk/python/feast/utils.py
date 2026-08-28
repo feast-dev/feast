@@ -1600,12 +1600,16 @@ def _prepare_entities_to_read_from_online_store(
 
     join_key_values: Dict[str, List[ValueProto]] = {}
     request_data_features: Dict[str, List[ValueProto]] = {}
-    # Entity rows may be either entities or request data.
+    # Entity rows may be either entities or request data, and the same name can be
+    # both: one OnDemandFeatureView may need it as request data while a FeatureView
+    # in the same request uses it as a join key. Classify each role independently so
+    # a shared name is not consumed by whichever check happens to run first.
     for join_key_or_entity_name, values in entity_proto_values.items():
         # Found request data
         if join_key_or_entity_name in needed_request_data:
             request_data_features[join_key_or_entity_name] = values
-        elif join_key_or_entity_name in join_keys_set:
+
+        if join_key_or_entity_name in join_keys_set:
             # It's a join key
             join_key = join_key_or_entity_name
             requested_result_row_names.add(join_key)
@@ -1616,9 +1620,7 @@ def _prepare_entities_to_read_from_online_store(
             warnings.warn("Using entity name is deprecated. Use join_key instead.")
             requested_result_row_names.add(join_key)
             join_key_values[join_key] = values
-        else:
-            # Key is not recognized (likely a feature value), so we skip it.
-            continue  # Or handle accordingly
+        # Any other key is not recognized (likely a feature value) and is skipped.
 
     ensure_request_data_values_exist(needed_request_data, request_data_features)
 
@@ -1626,7 +1628,7 @@ def _prepare_entities_to_read_from_online_store(
     online_features_response = GetOnlineFeaturesResponse(results=[])
     _populate_result_rows_from_columnar(
         online_features_response=online_features_response,
-        data=dict(**join_key_values, **request_data_features),
+        data={**join_key_values, **request_data_features},
     )
 
     # Add the Entityless case after populating result rows to avoid having to remove
