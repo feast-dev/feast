@@ -237,6 +237,7 @@ class OnlineStore(ABC):
                 online_features_response,
                 full_feature_names,
                 output_len,
+                first_idxs,
                 grouped_refs,
                 registry,
                 project,
@@ -522,6 +523,7 @@ class OnlineStore(ABC):
                 online_features_response,
                 full_feature_names,
                 output_len,
+                first_idxs,
                 grouped_refs,
                 registry,
                 project,
@@ -606,11 +608,15 @@ class OnlineStore(ABC):
         online_features_response: Any,
         full_feature_names: bool,
         num_rows: int,
+        entity_row_indices: Sequence[Sequence[int]],
         grouped_refs: List,
         registry: BaseRegistry,
         project: str,
     ) -> bool:
         """Build the response from pre-computed vectors.
+
+        ``entity_row_indices`` maps each deduplicated entity vector to its original
+        request rows, preserving input order and repeated entities in the response.
 
         Returns True if the fast path succeeded for ALL entities, False otherwise
         (caller should fall back to per-FV reads).
@@ -695,8 +701,10 @@ class OnlineStore(ABC):
 
         now_secs = _time_mod.time() if any_ttl else 0.0
 
-        for row_idx, vec in enumerate(vectors):
-            ts_list[row_idx] = vec.precomputed_at
+        for entity_idx, vec in enumerate(vectors):
+            destination_row_indices = entity_row_indices[entity_idx]
+            for row_idx in destination_row_indices:
+                ts_list[row_idx] = vec.precomputed_at
 
             # Build per-FV expiry flags once per entity (not per feature).
             fv_expired: Optional[Dict[str, bool]] = None
@@ -720,14 +728,16 @@ class OnlineStore(ABC):
             stored_values = vec.values
             for out_idx in range(n_features):
                 src_idx = reorder_map[out_idx] if reorder_map else out_idx
-                feat_values[out_idx][row_idx] = stored_values[src_idx]
+                status = PRESENT
 
                 if fv_expired:
                     feat_fv = feat_fv_names[out_idx]
                     if feat_fv and fv_expired.get(feat_fv, False):
-                        feat_statuses[out_idx][row_idx] = OUTSIDE_MAX_AGE
-                        continue
-                feat_statuses[out_idx][row_idx] = PRESENT
+                        status = OUTSIDE_MAX_AGE
+
+                for row_idx in destination_row_indices:
+                    feat_values[out_idx][row_idx] = stored_values[src_idx]
+                    feat_statuses[out_idx][row_idx] = status
 
         online_features_response.metadata.feature_names.val.extend(
             expected_feature_names
