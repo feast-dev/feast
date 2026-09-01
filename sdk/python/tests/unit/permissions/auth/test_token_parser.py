@@ -1149,3 +1149,37 @@ def test_intra_comm_client_token_is_accepted_by_oidc_parser(oidc_config):
     assertpy.assert_that(user).is_not_none()
     assertpy.assert_that(user.username).is_equal_to(_INTRA_COMM_SECRET)
     assertpy.assert_that(user.roles).is_equal_to([])
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param({}, id="no-sub"),
+        pytest.param({"sub": None}, id="null-sub"),
+        pytest.param({"sub": 42}, id="non-string-sub"),
+        pytest.param({"sub": f"::{_INTRA_COMM_SECRET}"}, id="too-few-segments"),
+        pytest.param({"sub": f":::{_INTRA_COMM_SECRET}:x"}, id="too-many-segments"),
+        pytest.param({"sub": ":::another-account"}, id="another-service-account"),
+    ],
+)
+def test_k8s_intra_comm_rejects_a_signed_token_with_an_unusable_subject(claims):
+    """
+    Holding the shared secret is necessary but not sufficient. The subject still has to
+    carry the intra-server service-account name in the shape the client sends, so a
+    holder of the secret cannot reach the internal identity with a malformed token.
+    """
+    token = encode_intra_comm_token(claims, _INTRA_COMM_SECRET)
+
+    assertpy.assert_that(_k8s_get_intra_comm_user(token)).is_none()
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+def test_oidc_intra_comm_rejects_a_signed_token_for_another_username(oidc_config):
+    """The same, for the OIDC parser's `preferred_username` claim."""
+    token = encode_intra_comm_token(
+        {"preferred_username": "another-user"}, _INTRA_COMM_SECRET
+    )
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+
+    assertpy.assert_that(token_parser._get_intra_comm_user(token)).is_none()
