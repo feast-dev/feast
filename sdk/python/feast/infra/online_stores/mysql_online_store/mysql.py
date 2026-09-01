@@ -100,14 +100,14 @@ class MySQLOnlineStore(OnlineStore):
                 if progress:
                     progress(1)
         else:
-            batch_size = config.online_store.bacth_size
+            batch_size = config.online_store.batch_size
             if not batch_size or batch_size < 2:
                 raise ValueError("Batch size must be at least 2")
             insert_values = []
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                 ).hex()
                 timestamp = to_naive_utc(timestamp)
                 if created_ts is not None:
