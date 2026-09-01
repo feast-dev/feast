@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -5,6 +6,9 @@ import textwrap
 from unittest.mock import MagicMock, mock_open, patch
 
 import assertpy
+import pyarrow as pa
+import pyarrow.flight as fl
+import pytest
 
 from feast.infra.offline_stores.remote import (
     RemoteOfflineStore,
@@ -192,3 +196,74 @@ def test_module_level_fips_sets_env_before_pyarrow_import():
     assert result.returncode == 0, (
         f"Subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+def _server_for(command):
+    """Build a mocked OfflineServer plus the flight key for a command."""
+    key = ("command_id", json.dumps(command))
+    server = MagicMock(spec=OfflineServer)
+    server.store = MagicMock()
+    server.store.set_current_project.return_value = "project-token"
+    server.flights = {key: MagicMock()}
+    return server, key
+
+
+def test_do_get_scopes_permissions_to_the_requested_project():
+    """
+    The permission list is loaded per project, so it has to follow the project the
+    request names. Otherwise a caller reaches every project the server serves through
+    whichever project the server itself was started from.
+    """
+    command = {"api": "get_historical_features", "project": "project_b"}
+    server, key = _server_for(command)
+    server.get_historical_features.return_value.to_arrow.return_value = pa.table(
+        {"a": [1]}
+    )
+
+    # do_get is wrapped by inject_user_details_decorator, which returns early when
+    # the call carries no `auth` middleware.
+    context = MagicMock()
+    context.get_middleware.return_value = None
+
+    OfflineServer.do_get(
+        server, context=context, ticket=fl.Ticket(ticket=str(key).encode())
+    )
+
+    server.store.set_current_project.assert_called_once_with("project_b")
+    server.store.reset_current_project.assert_called_once_with("project-token")
+
+
+def test_call_api_scopes_permissions_to_the_requested_project():
+    """The put-side dispatcher scopes the permission lookup the same way."""
+    command = {"api": "validate_data_source", "project": "project_b"}
+    server, key = _server_for(command)
+
+    OfflineServer._call_api(server, command["api"], command, key)
+
+    server.store.set_current_project.assert_called_once_with("project_b")
+    server.store.reset_current_project.assert_called_once_with("project-token")
+
+
+def test_call_api_resets_the_project_when_the_handler_raises():
+    """A failed request must not leave its project bound for the next one."""
+    command = {"api": "validate_data_source", "project": "project_b"}
+    server, key = _server_for(command)
+    server.validate_data_source.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        OfflineServer._call_api(server, command["api"], command, key)
+
+    server.store.reset_current_project.assert_called_once_with("project-token")
+
+
+def test_call_api_without_a_project_leaves_the_lookup_unchanged():
+    """
+    A command that carries no project passes `None`, which the SecurityManager falls
+    back from to the server's own project — the behaviour before this scoping existed.
+    """
+    command = {"api": "validate_data_source"}
+    server, key = _server_for(command)
+
+    OfflineServer._call_api(server, command["api"], command, key)
+
+    server.store.set_current_project.assert_called_once_with(None)
