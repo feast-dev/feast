@@ -193,8 +193,11 @@ def test_module_level_fips_sets_env_before_pyarrow_import() -> None:
             capture_output=True,
             text=True,
             env=env,
-            # Cold imports can be slow on macOS under parallel test load.
-            timeout=180,
+            # A cold subprocess importing feast.offline_server pulls in pyarrow and
+            # gRPC, which can take well over a minute on contended CI runners
+            # (notably macOS). Allow generous headroom so this does not flake while
+            # still catching a genuine import hang.
+            timeout=300,
         )
     except subprocess.TimeoutExpired as exc:
         # TimeoutExpired captures bytes even when subprocess.run uses text=True.
