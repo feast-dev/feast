@@ -741,6 +741,82 @@ class TestResolveFeatureCounts:
         assert fv_count == "2"
 
 
+class TestBinFeatureCount:
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (0, "0"),
+            (1, "1-10"),
+            (10, "1-10"),
+            (11, "11-50"),
+            (50, "11-50"),
+            (51, "51-200"),
+            (200, "51-200"),
+            (201, "201+"),
+        ],
+    )
+    def test_default_boundaries(self, count, expected):
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [10, 50, 200]) == expected
+
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (1, "1-5"),
+            (5, "1-5"),
+            (6, "6-20"),
+            (20, "6-20"),
+            (21, "21+"),
+        ],
+    )
+    def test_custom_boundaries(self, count, expected):
+
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [5, 20]) == expected
+
+
+class TestMetricsConfig:
+    def test_feature_count_bins_default(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig()
+        assert config.feature_count_bins == [10, 50, 200]
+
+    def test_feature_count_bins_custom(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig(feature_count_bins=[5, 20])
+        assert config.feature_count_bins == [5, 20]
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [0, 10, 50],
+            [-1, 10, 50],
+        ],
+    )
+    def test_feature_count_bins_must_be_positive(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="positive"):
+            MetricsConfig(feature_count_bins=bins)
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [50, 10, 200],
+            [10, 10, 200],
+        ],
+    )
+    def test_feature_count_bins_must_be_strictly_increasing(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            MetricsConfig(feature_count_bins=bins)
+
+
 class TestFeatureServerMetricsIntegration:
     """Test that feature server endpoints record metrics."""
 
@@ -751,6 +827,11 @@ class TestFeatureServerMetricsIntegration:
         def builder(**async_support):
             provider = FooProvider.with_async_support(**async_support)
             fs = MagicMock()
+
+            from feast.infra.feature_servers.base_config import MetricsConfig
+
+            fs.config.feature_server.metrics = MetricsConfig()
+
             fs._get_provider.return_value = provider
             from feast.online_response import OnlineResponse
             from feast.protos.feast.serving.ServingService_pb2 import (
@@ -798,20 +879,30 @@ class TestFeatureServerMetricsIntegration:
     @pytest.mark.parametrize(
         "features,expected_feat_count,expected_fv_count",
         [
-            (["fv1:a"], "1", "1"),
-            (["fv1:a", "fv1:b", "fv2:c"], "3", "2"),
+            (["fv1:a"], "1-10", "1"),
+            (["fv1:a", "fv1:b", "fv2:c"], "1-10", "2"),
             (
                 ["fv1:a", "fv1:b", "fv2:c", "fv2:d", "fv3:e"],
-                "5",
+                "1-10",
                 "3",
             ),
+            (
+                [f"fv1:f{i}" for i in range(11)],
+                "11-50",
+                "1",
+            ),
         ],
-        ids=["1_feat_1_fv", "3_feats_2_fvs", "5_feats_3_fvs"],
+        ids=[
+            "1_feat_1_fv",
+            "3_feats_2_fvs",
+            "5_feats_3_fvs",
+            "11_feats_1_fv",
+        ],
     )
     def test_latency_labels_with_varying_request_sizes(
         self, mock_fs_factory, features, expected_feat_count, expected_fv_count
     ):
-        """Verify feature_count and feature_view_count labels change with request size."""
+        """Verify feature_count is bucketed while feature_view_count remains exact."""
         from fastapi.testclient import TestClient
 
         from feast.feature_server import get_app
@@ -830,6 +921,35 @@ class TestFeatureServerMetricsIntegration:
             "/get-online-features",
             json={
                 "features": features,
+                "entities": {"id": [1]},
+            },
+        )
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_latency_labels_use_custom_feature_count_bins(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        fs = mock_fs_factory(online_read=False)
+        fs.config.feature_server.metrics = MetricsConfig(feature_count_bins=[2, 4])
+
+        client = TestClient(get_app(fs))
+
+        label_set = dict(
+            endpoint="/get-online-features",
+            feature_count="3-4",
+            feature_view_count="1",
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        client.post(
+            "/get-online-features",
+            json={
+                "features": ["fv:a", "fv:b", "fv:c"],
                 "entities": {"id": [1]},
             },
         )
