@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from feast import FeatureStore, RepoConfig
 from feast.infra.offline_stores.contrib.chronon_offline_store.chronon_source import (
     ChrononSource,
 )
@@ -103,3 +104,40 @@ def test_chronon_source_requires_materialization_path():
             chronon_join="team/training_set.v1",
             timestamp_field="event_timestamp",
         )
+
+
+@pytest.mark.parametrize(
+    "option,initial,updated",
+    [
+        ("materialization_path", "old.parquet", "new.parquet"),
+        ("chronon_join", "team/old.v1", "team/new.v2"),
+        ("chronon_group_by", "team/old.v1", "team/new.v2"),
+        ("online_endpoint", "http://old.test", "http://new.test"),
+    ],
+)
+def test_apply_updates_chronon_source_options(
+    tmp_path: Path, option: str, initial: str, updated: str
+) -> None:
+    config = RepoConfig(
+        project="test",
+        registry=str(tmp_path / "registry.db"),
+        provider="chronon",
+        offline_store={"type": "chronon"},
+        online_store={"type": "sqlite", "path": str(tmp_path / "online.db")},
+    )
+    config.repo_path = tmp_path
+    store = FeatureStore(config=config)
+    for value in [initial, updated]:
+        options = {
+            "name": "source",
+            "materialization_path": str(tmp_path / "source.parquet"),
+            "timestamp_field": "event_timestamp",
+            "chronon_join": "team/features.v1",
+        }
+        if option == "chronon_group_by":
+            options.pop("chronon_join")
+        options[option] = value
+        source = ChrononSource(**options)
+        store.apply([source])
+    assert getattr(store.get_data_source("source"), option) == updated
+    assert hash(source) == hash(store.get_data_source("source"))

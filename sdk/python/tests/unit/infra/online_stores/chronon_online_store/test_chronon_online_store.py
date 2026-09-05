@@ -1,9 +1,10 @@
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
 
-from feast import Entity, FeatureView, Field
+from feast import Entity, FeatureStore, FeatureView, Field
 from feast.infra.offline_stores.contrib.chronon_offline_store.chronon_source import (
     ChrononSource,
 )
@@ -14,7 +15,7 @@ from feast.infra.online_stores.chronon_online_store.chronon import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig, RepoConfig
-from feast.types import Float32, Int64
+from feast.types import Array, FeastType, Float32, Int32, Int64, Map
 from feast.value_type import ValueType
 
 
@@ -121,7 +122,7 @@ def test_chronon_online_store_maps_success_and_failure(monkeypatch, tmp_path: Pa
     assert captured["url"].endswith("/v1/features/join/team%2Ftraining_set.v1")
     assert captured["json"] == [{"user_id": 1}, {"user_id": 2}]
     assert rows[0][1] is not None
-    assert abs(rows[0][1]["feature_a"].double_val - 0.5) < 1e-6
+    assert rows[0][1]["feature_a"] == ValueProto(float_val=0.5)
     assert rows[1] == (None, None)
 
 
@@ -288,3 +289,82 @@ def test_chronon_online_store_rejects_invalid_features_payload(
             _entity_keys(),
             requested_features=["feature_a"],
         )
+
+
+@pytest.mark.parametrize(
+    "dtype,value,expected",
+    [
+        (Float32, 0.5, ValueProto(float_val=0.5)),
+        (Int32, 3, ValueProto(int32_val=3)),
+        (Array(Int64), [], ValueProto(int64_list_val={"val": []})),
+        (Map, {}, ValueProto(map_val={})),
+        (Float32, None, ValueProto()),
+    ],
+)
+def test_online_read_preserves_schema(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    dtype: FeastType,
+    value: Any,
+    expected: ValueProto,
+) -> None:
+    source = ChrononSource(
+        materialization_path=str(_write_chronon_parquet(tmp_path)),
+        chronon_join="team/training_set.v1",
+        timestamp_field="event_timestamp",
+    )
+    view = _feature_view(source)
+    view.features = [Field(name="feature_a", dtype=dtype)]
+
+    class Session:
+        def post(self, *args: Any, **kwargs: Any) -> _Response:
+            return _Response(
+                {"results": [{"status": "Success", "features": {"feature_a": value}}]}
+            )
+
+    monkeypatch.setattr(
+        "feast.infra.online_stores.chronon_online_store.chronon.HttpSessionManager.get_session",
+        lambda *args, **kwargs: Session(),
+    )
+    rows = ChrononOnlineStore().online_read(
+        _repo_config(tmp_path), view, _entity_keys()[:1], ["feature_a"]
+    )
+    assert rows == [(None, {"feature_a": expected})]
+
+
+def test_online_read_applies_source_field_mapping(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = ChrononSource(
+        materialization_path=str(_write_chronon_parquet(tmp_path)),
+        chronon_join="team/training_set.v1",
+        timestamp_field="event_timestamp",
+        field_mapping={"user_id": "customer_id", "feature_a": "renamed"},
+    )
+    store = FeatureStore(config=_repo_config(tmp_path))
+    customer = Entity(
+        name="customer", join_keys=["customer_id"], value_type=ValueType.INT64
+    )
+    view = FeatureView(
+        name="profile",
+        entities=[customer],
+        schema=[Field(name="renamed", dtype=Float32)],
+        source=source,
+    )
+    store.apply([customer, view])
+
+    class Session:
+        def post(self, url: str, json: Any, **kwargs: Any) -> _Response:
+            assert json == [{"user_id": 1}]
+            return _Response(
+                {"results": [{"status": "Success", "features": {"feature_a": 2.0}}]}
+            )
+
+    monkeypatch.setattr(
+        "feast.infra.online_stores.chronon_online_store.chronon.HttpSessionManager.get_session",
+        lambda *args, **kwargs: Session(),
+    )
+    result = store.get_online_features(
+        features=["profile:renamed"], entity_rows=[{"customer_id": 1}]
+    ).to_dict()
+    assert result == {"customer_id": [1], "renamed": [2.0]}

@@ -54,15 +54,21 @@ class ChrononOnlineStore(OnlineStore):
         )
 
     @staticmethod
-    def _entity_key_to_request_row(entity_key: EntityKeyProto) -> Dict[str, Any]:
+    def _entity_key_to_request_row(
+        entity_key: EntityKeyProto, reverse_field_mapping: Dict[str, str]
+    ) -> Dict[str, Any]:
         return {
-            join_key: feast_value_type_to_python_type(value)
+            reverse_field_mapping.get(
+                join_key, join_key
+            ): feast_value_type_to_python_type(value)
             for join_key, value in zip(entity_key.join_keys, entity_key.entity_values)
         }
 
     @staticmethod
     def _feature_values_to_proto(
-        response_features: Dict[str, Any], requested_features: Optional[List[str]]
+        response_features: Dict[str, Any],
+        requested_features: Optional[List[str]],
+        feature_types: Dict[str, ValueType],
     ) -> Dict[str, ValueProto]:
         if requested_features is not None:
             response_features = {
@@ -73,7 +79,7 @@ class ChrononOnlineStore(OnlineStore):
         result: Dict[str, ValueProto] = {}
         for feature_name, value in response_features.items():
             result[feature_name] = python_values_to_proto_values(
-                [value], ValueType.UNKNOWN
+                [value], feature_types.get(feature_name, ValueType.UNKNOWN)
             )[0]
         return result
 
@@ -101,8 +107,15 @@ class ChrononOnlineStore(OnlineStore):
         assert isinstance(config.online_store, ChrononOnlineStoreConfig)
 
         url = self._build_url(config, table)
+        source = self._get_chronon_source(table)
+        field_mapping = source.field_mapping
+        reverse_field_mapping = {value: key for key, value in field_mapping.items()}
+        feature_types = {
+            feature.name: feature.dtype.to_value_type() for feature in table.features
+        }
         payload = [
-            self._entity_key_to_request_row(entity_key) for entity_key in entity_keys
+            self._entity_key_to_request_row(entity_key, reverse_field_mapping)
+            for entity_key in entity_keys
         ]
         session = HttpSessionManager.get_session(
             config.auth_config,
@@ -139,7 +152,12 @@ class ChrononOnlineStore(OnlineStore):
                 raise RuntimeError(
                     "Chronon response row expected `features` to be a JSON object."
                 )
-            feature_values = self._feature_values_to_proto(features, requested_features)
+            features = {
+                field_mapping.get(key, key): value for key, value in features.items()
+            }
+            feature_values = self._feature_values_to_proto(
+                features, requested_features, feature_types
+            )
             output.append((None, feature_values))
         return output
 

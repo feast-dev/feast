@@ -105,10 +105,15 @@ wait_for_mongo() {
 
 wait_for_data_load() {
   local attempts=90
-  until docker logs "${MAIN_CONTAINER}" 2>&1 | grep -q "Spark session available as 'spark'"; do
+  until docker exec "${MAIN_CONTAINER}" test -f /tmp/chronon-data-load.complete; do
+    if [[ "$(docker inspect --format '{{.State.Running}}' "${MAIN_CONTAINER}")" != "true" ]]; then
+      echo "Chronon quickstart data loader exited before completing." >&2
+      docker logs "${MAIN_CONTAINER}" >&2 || true
+      exit 1
+    fi
     attempts=$((attempts - 1))
     if [[ "${attempts}" -le 0 ]]; then
-      echo "Chronon quickstart data loader did not initialize Spark in time." >&2
+      echo "Chronon quickstart data loader did not complete in time." >&2
       exit 1
     fi
     sleep 2
@@ -180,7 +185,7 @@ docker run -d \
   -e "CHRONON_ONLINE_ARGS=-Zuser=admin -Zpassword=admin -Zhost=${MONGO_CONTAINER} -Zport=27017 -Zdatabase=admin" \
   -v "${CHRONON_DIR}/quickstart/mongo-online-impl:/srv/onlineImpl" \
   ezvz/chronon \
-  bash -lc '/opt/spark/bin/spark-shell -i scripts/data-loader.scala && tail -f /dev/null' >/dev/null
+  bash -lc '/opt/spark/bin/spark-shell -i scripts/data-loader.scala && touch /tmp/chronon-data-load.complete && tail -f /dev/null' >/dev/null
 
 wait_for_data_load
 run_quickstart_online_prep

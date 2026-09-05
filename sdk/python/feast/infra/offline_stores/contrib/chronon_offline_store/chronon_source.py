@@ -99,6 +99,19 @@ class ChrononSource(DataSource):
             owner=owner,
         )
 
+    def __hash__(self) -> int:
+        return super().__hash__()
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, ChrononSource)
+            and super().__eq__(other)
+            and self.materialization_path == other.materialization_path
+            and self.chronon_join == other.chronon_join
+            and self.chronon_group_by == other.chronon_group_by
+            and self.online_endpoint == other.online_endpoint
+        )
+
     @property
     def materialization_path(self) -> str:
         return self._chronon_options.materialization_path
@@ -167,5 +180,5 @@ class ChrononSource(DataSource):
         resolved_path = FileSource.get_uri_for_file_path(
             repo_path=config.repo_path, uri=self.materialization_path
         )
-        schema = ds.dataset(resolved_path, format="parquet").schema
+        schema = ds.dataset(resolved_path, format="parquet", partitioning="hive").schema
         return [(field.name, str(field.type)) for field in schema]

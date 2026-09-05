@@ -20,6 +20,7 @@ from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     assert_expected_columns_in_entity_df,
     get_expected_join_keys,
+    infer_event_timestamp_from_entity_df,
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -199,7 +200,9 @@ class ChrononOfflineStore(OfflineStore):
             )
 
         entity_df = utils.make_df_tzaware(entity_df)
-        entity_event_timestamp_col = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+        entity_event_timestamp_col = infer_event_timestamp_from_entity_df(
+            entity_df.dtypes.to_dict()
+        )
         expected_join_keys = get_expected_join_keys(project, feature_views, registry)
         assert_expected_columns_in_entity_df(
             entity_df.dtypes.to_dict(),
@@ -281,6 +284,7 @@ class ChrononOfflineStore(OfflineStore):
                         left_on=entity_event_timestamp_col,
                         right_on=timestamp_col,
                         direction="backward",
+                        tolerance=feature_view.ttl or None,
                     )
                     joined_frames.append(joined)
 
