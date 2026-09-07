@@ -507,6 +507,24 @@ class EntityDFNotDateTime(FeastError):
         )
 
 
+class MissingJoinKeyValuesException(FeastError, KeyError):
+    """A required join key was not supplied for the requested feature views.
+
+    Subclasses ``KeyError`` as well, because that is what this condition raised
+    before it carried an HTTP status, and callers catch it.
+    """
+
+    def __init__(self, missing_keys, empty_keys, provided_keys):
+        super().__init__(
+            f"Missing join key values for keys: {sorted(missing_keys)}. "
+            f"No values provided for keys: {sorted(empty_keys)}. "
+            f"Provided join_key_values: {list(provided_keys)}"
+        )
+
+    def http_status_code(self) -> int:
+        return HttpStatusCode.HTTP_400_BAD_REQUEST
+
+
 class PushSourceNotFoundException(FeastError):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
