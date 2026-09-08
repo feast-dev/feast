@@ -5,6 +5,8 @@ A caller whose upstream query matched nothing sends zero rows. That used to hit
 which the feature server turned into a 500.
 """
 
+import asyncio
+
 import pytest
 from fastapi import status as HttpStatusCode
 
@@ -50,5 +52,22 @@ def test_request_without_join_keys_raises_a_client_error(entity_rows):
     ) as store:
         with pytest.raises(MissingJoinKeyValuesException) as excinfo:
             store.get_online_features(features=FEATURES, entity_rows=entity_rows)
+
+    assert "driver_id" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("entity_rows", [[], {}], ids=["empty_list", "no_columns"])
+def test_request_without_join_keys_raises_a_client_error_async(entity_rows):
+    """``entity_rows=[]`` indexed ``[0]`` on the async path too."""
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        with pytest.raises(MissingJoinKeyValuesException) as excinfo:
+            asyncio.run(
+                store.get_online_features_async(
+                    features=FEATURES, entity_rows=entity_rows
+                )
+            )
 
     assert "driver_id" in str(excinfo.value)
