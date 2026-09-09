@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
 
 import duckdb
 import ibis
@@ -32,6 +39,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
     MONITORING_DIR,
     MONITORING_PARQUET_FILES,
+    MONITORING_TIMESTAMP_FIELDS,
     empty_categorical_metric,
     empty_numeric_metric,
     monitoring_parquet_meta,
@@ -42,19 +50,80 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    if isinstance(data_source, IcebergSource):
+        return _read_iceberg_catalog_source(data_source, repo_path)
+
     assert isinstance(data_source, FileSource)
+
+    resolved_creds = data_source.resolve_credentials()
 
     if isinstance(data_source.file_format, ParquetFormat) or (
         data_source.file_format is None and data_source.path.endswith(".parquet")
     ):
+        if resolved_creds and data_source.path.startswith("s3://"):
+            storage_options = {
+                "AWS_ACCESS_KEY_ID": resolved_creds.get("AWS_ACCESS_KEY_ID", ""),
+                "AWS_SECRET_ACCESS_KEY": resolved_creds.get(
+                    "AWS_SECRET_ACCESS_KEY", ""
+                ),
+            }
+            if data_source.s3_endpoint_override:
+                storage_options["AWS_ENDPOINT_URL"] = data_source.s3_endpoint_override
+            session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+            if session_token:
+                storage_options["AWS_SESSION_TOKEN"] = session_token
+            return ibis.read_parquet(data_source.path, storage_options=storage_options)
         return ibis.read_parquet(data_source.path)
     elif isinstance(data_source.file_format, DeltaFormat):
+        storage_options = {}
+        if resolved_creds:
+            storage_options["AWS_ACCESS_KEY_ID"] = resolved_creds.get(
+                "AWS_ACCESS_KEY_ID", ""
+            )
+            storage_options["AWS_SECRET_ACCESS_KEY"] = resolved_creds.get(
+                "AWS_SECRET_ACCESS_KEY", ""
+            )
+            session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+            if session_token:
+                storage_options["AWS_SESSION_TOKEN"] = session_token
         if data_source.s3_endpoint_override:
-            storage_options = {
-                "AWS_ENDPOINT_URL": data_source.s3_endpoint_override,
-            }
+            storage_options["AWS_ENDPOINT_URL"] = data_source.s3_endpoint_override
+        if storage_options:
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
+
+
+def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -> Table:
+    """Read from an IcebergSource via PyIceberg.
+
+    Loads the table through the configured catalog (REST, SQL, Hive, etc.)
+    and scans it to Arrow.
+    """
+    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
+
+    if data_source.catalog_type != "rest":
+        catalog_client = data_source.get_catalog_client()
+        table = catalog_client.load_table(fqn)
+    else:
+        from pyiceberg.catalog import load_catalog
+
+        catalog_config: dict = {
+            "type": "rest",
+            "uri": data_source.endpoint,
+            "warehouse": data_source.warehouse,
+        }
+        if data_source.token_env_var:
+            token = os.environ.get(data_source.token_env_var)
+            if token:
+                catalog_config["token"] = token
+        catalog = load_catalog(data_source.catalog_name, **catalog_config)
+        table = catalog.load_table(fqn)
+
+    return ibis.memtable(table.scan().to_arrow())
 
 
 def _write_data_source(
@@ -419,7 +488,7 @@ def _duckdb_parquet_query(
     for _, row in df.iterrows():
         record = {c: row.get(c) for c in columns}
         normalize_monitoring_row(record)
-        for key in ("metric_date", "computed_at"):
+        for key in MONITORING_TIMESTAMP_FIELDS:
             val = record.get(key)
             if (
                 val is not None
@@ -453,6 +522,8 @@ class DuckDBOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class DuckDBOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -488,6 +559,7 @@ class DuckDBOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         return get_historical_features_ibis(
             config=config,
@@ -501,6 +573,7 @@ class DuckDBOfflineStore(OfflineStore):
             data_source_writer=_write_data_source,
             staging_location=config.offline_store.staging_location,
             staging_location_endpoint_override=config.offline_store.staging_location_endpoint_override,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
     @staticmethod

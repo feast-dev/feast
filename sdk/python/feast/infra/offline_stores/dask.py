@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import dask
 import dask.dataframe as dd
@@ -40,6 +40,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
     MONITORING_DIR,
     MONITORING_PARQUET_FILES,
+    MONITORING_TIMESTAMP_FIELDS,
     monitoring_parquet_meta,
     normalize_monitoring_row,
     opt_float,
@@ -141,6 +142,8 @@ class DaskRetrievalJob(RetrievalJob):
 
 
 class DaskOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
@@ -150,6 +153,7 @@ class DaskOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
@@ -299,6 +303,9 @@ class DaskOfflineStore(OfflineStore):
                 if non_entity_mode:
                     current_join_keys = []
 
+                # Snapshot before the merge blends the two sides together.
+                entity_df_columns = list(entity_df_with_features.columns)
+
                 df_to_join = _merge(
                     entity_df_with_features, df_to_join, current_join_keys
                 )
@@ -313,6 +320,17 @@ class DaskOfflineStore(OfflineStore):
                     entity_df_event_timestamp_col,
                     timestamp_field,
                 )
+
+                if filter_by_created_timestamp and created_timestamp_column:
+                    df_to_join = _apply_created_timestamp_cutoff(
+                        df_to_join,
+                        timestamp_field,
+                        created_timestamp_column,
+                        entity_df_event_timestamp_col,
+                        # Join keys too: in non-entity mode they come from the
+                        # feature view side.
+                        set(entity_df_columns) | set(join_keys),
+                    )
 
                 df_to_join = _drop_duplicates(
                     df_to_join,
@@ -640,7 +658,9 @@ class DaskOfflineStore(OfflineStore):
             uri=data_source.file_options.uri,
         )
         filesystem, path = FileSource.create_filesystem_and_path(
-            str(absolute_path), data_source.file_options.s3_endpoint_override
+            str(absolute_path),
+            data_source.file_options.s3_endpoint_override,
+            resolved_credentials=data_source.resolve_credentials(),
         )
         try:
             t = pq.read_table(path, filesystem=filesystem, columns=[timestamp_field])
@@ -761,7 +781,9 @@ def _dask_read_batch_arrow(
         uri=data_source.file_options.uri,
     )
     filesystem, path = FileSource.create_filesystem_and_path(
-        str(absolute_path), data_source.file_options.s3_endpoint_override
+        str(absolute_path),
+        data_source.file_options.s3_endpoint_override,
+        resolved_credentials=data_source.resolve_credentials(),
     )
     return pq.read_table(path, filesystem=filesystem)
 
@@ -947,7 +969,7 @@ def _dask_parquet_query(
     for _, row in df.iterrows():
         record = {c: row.get(c) for c in columns}
         normalize_monitoring_row(record)
-        for key in ("metric_date", "computed_at"):
+        for key in MONITORING_TIMESTAMP_FIELDS:
             val = record.get(key)
             if (
                 val is not None
@@ -982,15 +1004,26 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _read_datasource(data_source, repo_path) -> dd.DataFrame:
-    storage_options = (
-        {
+    storage_options: Optional[dict] = None
+    resolved_creds = data_source.resolve_credentials()
+
+    if resolved_creds:
+        storage_options = {
+            "key": resolved_creds.get("AWS_ACCESS_KEY_ID", ""),
+            "secret": resolved_creds.get("AWS_SECRET_ACCESS_KEY", ""),
+        }
+        endpoint = data_source.file_options.s3_endpoint_override
+        if endpoint:
+            storage_options["client_kwargs"] = {"endpoint_url": endpoint}
+        session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+        if session_token:
+            storage_options["token"] = session_token
+    elif data_source.file_options.s3_endpoint_override:
+        storage_options = {
             "client_kwargs": {
                 "endpoint_url": data_source.file_options.s3_endpoint_override
             }
         }
-        if data_source.file_options.s3_endpoint_override
-        else None
-    )
 
     path = FileSource.get_uri_for_file_path(
         repo_path=repo_path,
@@ -1181,6 +1214,32 @@ def _filter_ttl(
         df_to_join = df_to_join.persist()
 
     return df_to_join
+
+
+def _apply_created_timestamp_cutoff(
+    df_to_join: dd.DataFrame,
+    timestamp_field: str,
+    created_timestamp_column: str,
+    entity_df_event_timestamp_col: str,
+    preserved_columns: Set[str],
+) -> dd.DataFrame:
+    # Versions created after the entity timestamp. The isna() term leaves rows with a
+    # null source timestamp untouched, matching _filter_ttl.
+    too_new = ~df_to_join[timestamp_field].isna() & ~(
+        df_to_join[created_timestamp_column]
+        <= df_to_join[entity_df_event_timestamp_col]
+    )
+
+    # Blank instead of drop, so the entity row survives when every candidate is too new.
+    # _drop_duplicates then prefers a real match (nulls sort first, keep="last").
+    # Single assign, left lazy: a per-column loop is super-linear to optimize.
+    return df_to_join.assign(
+        **{
+            column: df_to_join[column].mask(too_new)
+            for column in df_to_join.columns
+            if column not in preserved_columns
+        }
+    )
 
 
 def _drop_duplicates(

@@ -87,6 +87,11 @@ registry.apply_feature_view(feature_view, project)
 # → registry_store.update_registry_proto(proto)
 ```
 
+**How the SQL backend works:**
+- Per-object tables, each storing that object's serialized proto in a binary column.
+- **Binary proto columns must use `ProtoBytes`, not `LargeBinary` directly** (defined at the top of `infra/registry/sql.py`). `ProtoBytes` emits `LONGBLOB` on MySQL and MariaDB and falls back to `LargeBinary`'s default on every other dialect (`BLOB` on SQLite, `BYTEA` on PostgreSQL). Plain `LargeBinary` maps to MySQL `BLOB` (64 KB cap), which silently truncates large protos (e.g. a `FeatureView`) and later fails to deserialize. Any new serialized-proto/blob-metadata column reintroduces that bug if it uses `LargeBinary`.
+- All tables are declared on the module-level `metadata` object in `sql.py` (the source of truth). `metadata.create_all` only creates missing tables — it never widens existing columns, so schema changes to existing registries require a manual migration (see `docs/reference/registries/sql.md`). On MySQL/MariaDB, `SqlRegistry._warn_if_narrow_blob_columns` logs an error at startup for any registry proto column still typed as the narrow `BLOB` — a new column is covered automatically as long as it's typed `ProtoBytes` (the diagnostic selects columns by `column.type is ProtoBytes`); a column typed as plain `LargeBinary` would be silently missed.
+
 **Supporting files:**
 - `infra/registry/base_registry.py` — abstract interface
 - `infra/registry/proto_registry_utils.py` — proto serialization helpers

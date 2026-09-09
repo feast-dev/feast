@@ -344,6 +344,51 @@ class TestGranularCategoryControl:
         )
 
 
+class TestInitWorkerFreshnessMonitoring:
+    """init_worker_freshness_monitoring mirrors init_worker_monitoring's gating."""
+
+    def test_starts_daemon_thread_when_freshness_enabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=False,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=True,
+        )
+        mock_store = MagicMock()
+
+        with patch("feast.metrics.threading.Thread") as mock_thread_cls:
+            m.init_worker_freshness_monitoring(mock_store)
+
+        mock_thread_cls.assert_called_once_with(
+            target=m.monitor_freshness, args=(mock_store, 30), daemon=True
+        )
+        mock_thread_cls.return_value.start.assert_called_once()
+
+    def test_does_not_start_thread_when_freshness_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=False,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=False,
+        )
+        mock_store = MagicMock()
+
+        with patch("feast.metrics.threading.Thread") as mock_thread_cls:
+            m.init_worker_freshness_monitoring(mock_store)
+
+        mock_thread_cls.assert_not_called()
+
+
 class TestMetricsYamlConfig:
     """Verify metrics config in feature_store.yaml is respected.
 
@@ -437,6 +482,21 @@ class TestMetricsYamlConfig:
 
         mock_fm = self._call_start_server(mock_store, cli_metrics=False)
         mock_fm.start_metrics_server.assert_not_called()
+
+    def test_freshness_monitoring_deferred_same_as_resource_monitoring(self):
+        """start_freshness_monitoring must mirror start_resource_monitoring exactly."""
+        from types import SimpleNamespace
+
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(
+            feature_server=SimpleNamespace(metrics=SimpleNamespace(enabled=True)),
+        )
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=False)
+        _, kwargs = mock_fm.start_metrics_server.call_args
+        assert (
+            kwargs["start_resource_monitoring"] == kwargs["start_freshness_monitoring"]
+        )
 
 
 class TestTrackOnlineFeaturesEntities:

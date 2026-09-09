@@ -200,6 +200,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -228,6 +229,7 @@ def build_point_in_time_query(
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
         "full_feature_names": full_feature_names,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
         "final_output_feature_names": final_output_feature_names,
     }
 
@@ -429,3 +431,12 @@ def get_timestamp_filter_sql(
             filters.append(f"{dp_field} <= '{format_date(end_date)}'")
 
     return " AND ".join(filters) if filters else ""
+
+
+def gather_all_entities(fv_query_contexts: List[FeatureViewQueryContext]):
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities

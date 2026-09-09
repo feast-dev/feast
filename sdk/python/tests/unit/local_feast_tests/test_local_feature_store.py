@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -11,7 +11,7 @@ from feast.aggregation import Aggregation
 from feast.data_format import AvroFormat, ParquetFormat
 from feast.data_source import KafkaSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames
+from feast.errors import ConflictingFeatureViewNames, FeatureViewNotFoundException
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
@@ -19,11 +19,13 @@ from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.stream_feature_view import stream_feature_view
+from feast.transformation.pandas_transformation import PandasTransformation
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
 from tests.universal.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
@@ -441,6 +443,121 @@ def test_apply_permissions(test_feature_store):
     test_feature_store.teardown()
 
 
+def _apply_feature_view_to_delete(test_feature_store, file_source):
+    """Register an entity and a feature view, and return the feature view."""
+    entity = Entity(
+        name="driver_entity", join_keys=["test_key"], value_type=ValueType.INT64
+    )
+    driver_fv = FeatureView(
+        name="driver_fv_to_delete",
+        entities=[entity],
+        schema=[Field(name="test_key", dtype=Int64)],
+        source=file_source,
+    )
+    test_feature_store.apply([entity, driver_fv])
+
+    fvs = test_feature_store.list_batch_feature_views()
+    assert len(fvs) == 1
+    assert fvs[0].name == driver_fv.name
+
+    return driver_fv
+
+
+def _deletion_source_dataframe():
+    """Build the small source frame both deletion tests register against."""
+    now = pd.Timestamp.utcnow().round("ms")
+    return pd.DataFrame(
+        {
+            "test_key": [1, 2, 1, 3, 3],
+            "feature_value": [0.1, 0.2, 0.3, 4.0, 5.0],
+            "ts_1": [
+                now,
+                now - pd.Timedelta(hours=4),
+                now - pd.Timedelta(hours=3),
+                now - pd.Timedelta(hours=2),
+                now - pd.Timedelta(hours=1),
+            ],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_delete_feature_view(test_feature_store):
+    """Test the delete_feature_view lifecycle documented in registry.md.
+
+    Mirrors the end-to-end snippet in docs/getting-started/components/registry.md:
+    list the object, delete it by name, list again to confirm it is gone, and
+    check that fetching it afterwards raises FeatureViewNotFoundException.
+    """
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with prep_file_source(
+        df=_deletion_source_dataframe(), timestamp_field="ts_1"
+    ) as file_source:
+        driver_fv = _apply_feature_view_to_delete(test_feature_store, file_source)
+
+        # Delete the feature view by name
+        test_feature_store.delete_feature_view(driver_fv.name)
+
+        # Verify feature view is deleted
+        assert len(test_feature_store.list_batch_feature_views()) == 0
+
+        # Verify get_feature_view raises FeatureViewNotFoundException
+        with pytest.raises(FeatureViewNotFoundException):
+            test_feature_store.get_feature_view(driver_fv.name)
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_delete_feature_view_raises_when_missing(test_feature_store):
+    """Deleting a feature view that was never registered raises, as documented."""
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with pytest.raises(FeatureViewNotFoundException):
+        test_feature_store.delete_feature_view("feature_view_that_does_not_exist")
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_delete_feature_view(test_feature_store):
+    """Test that a feature view can be deleted using objects_to_delete with partial=False.
+
+    This is the `feast apply` path called out in the hint block in registry.md,
+    and is distinct from the delete_feature_view path covered above.
+    """
+    assert isinstance(test_feature_store, FeatureStore)
+
+    with prep_file_source(
+        df=_deletion_source_dataframe(), timestamp_field="ts_1"
+    ) as file_source:
+        driver_fv = _apply_feature_view_to_delete(test_feature_store, file_source)
+
+        # Delete the feature view using objects_to_delete
+        test_feature_store.apply(
+            objects=[], objects_to_delete=[driver_fv], partial=False
+        )
+
+        # Verify feature view is deleted
+        assert len(test_feature_store.list_batch_feature_views()) == 0
+
+        # Verify get_feature_view raises FeatureViewNotFoundException
+        with pytest.raises(FeatureViewNotFoundException):
+            test_feature_store.get_feature_view(driver_fv.name)
+
+    test_feature_store.teardown()
+
+
 @pytest.mark.parametrize(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
@@ -507,6 +624,69 @@ def test_reapply_feature_view(test_feature_store, dataframe_source):
         # Check Feature View
         fv_stored = test_feature_store.get_feature_view(fv2.name)
         assert len(fv_stored.materialization_intervals) == 0
+
+        test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+@pytest.mark.parametrize("dataframe_source", [lazy_fixture("simple_dataset_1")])
+def test_materialize_incremental_odfv_entity_name_differs_from_join_key(
+    test_feature_store, dataframe_source
+):
+    """Regression test for https://github.com/feast-dev/feast/issues/5965.
+
+    _materialize_odfv must resolve source feature views' join key *columns*
+    (FeatureView.join_keys), not their entity *names* (FeatureView.entities),
+    when building the entity_df and querying the offline store. Before the
+    fix, this failed whenever an Entity's name differed from its join_keys.
+    """
+    with prep_file_source(df=dataframe_source, timestamp_field="ts_1") as file_source:
+        # Entity name ("id") intentionally differs from its join key
+        # ("id_join_key"), mirroring the exact repro from the issue.
+        e = Entity(name="id", join_keys=["id_join_key"])
+
+        source_fv = FeatureView(
+            name="my_feature_view_1",
+            schema=[Field(name="float_col", dtype=Float32)],
+            entities=[e],
+            source=file_source,
+            ttl=timedelta(days=3650),
+        )
+
+        def transform(features_df: pd.DataFrame) -> pd.DataFrame:
+            out = pd.DataFrame()
+            out["label"] = features_df["float_col"].apply(
+                lambda v: "high" if v >= 1 else "low"
+            )
+            return out
+
+        odfv = OnDemandFeatureView(
+            name="my_odfv",
+            entities=[e],
+            sources=[source_fv],
+            schema=[Field(name="label", dtype=String)],
+            feature_transformation=PandasTransformation(
+                udf=transform, udf_string="transform"
+            ),
+            write_to_online_store=True,
+        )
+
+        test_feature_store.apply([e, source_fv, odfv])
+
+        # Should not raise. Before the fix, this raised
+        # FeastJoinKeysDuringMaterialization because _materialize_odfv
+        # queried the offline store for a column named "id" (the entity
+        # name) instead of "id_join_key" (the actual join key column).
+        test_feature_store.materialize_incremental(end_date=datetime.now(timezone.utc))
+
+        response = test_feature_store.get_online_features(
+            features=["my_odfv:label"],
+            entity_rows=[{"id_join_key": 1}],
+        ).to_dict()
+        assert response["label"][0] is not None
 
         test_feature_store.teardown()
 

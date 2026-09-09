@@ -112,7 +112,7 @@ install-python-dependencies-ci: ## Install Python CI dependencies using uv pip s
 	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
 	@if [ "$$(uname -s)" = "Linux" ]; then \
 		echo "Installing dependencies with torch CPU index for Linux..."; \
-		uv pip sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
+		uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
 	else \
 		echo "Installing dependencies from PyPI for macOS..."; \
 		uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
@@ -150,9 +150,11 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
 			--no-emit-package milvus-lite \
+			--no-emit-package pymilvus \
+			--no-emit-package faiss-cpu \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 && \
+			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 typing_extensions && \
 			pybuild-deps compile --generate-hashes \
 			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
 			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
@@ -171,6 +173,9 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
 	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--cov=feast \
+		--cov-report=xml \
+		--cov-report=term-missing \
 		sdk/python/tests/unit
 
 # Fast unit tests only
@@ -726,10 +731,16 @@ push-feast-operator-docker: ## Push Feast Operator Docker image
 	$(MAKE) docker-push
 
 build-feast-operator-docker: ## Build Feast Operator Docker image
-	cd infra/feast-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-build
+	@if [ -n "$(DOCKER_PLATFORMS)" ]; then \
+		cd infra/feast-operator && \
+		docker buildx build --push --platform=$(DOCKER_PLATFORMS) \
+			--tag $(REGISTRY)/feast-operator:$(VERSION) -f Dockerfile .; \
+	else \
+		cd infra/feast-operator && \
+		IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+		VERSION=$(VERSION) \
+		$(MAKE) docker-build; \
+	fi
 
 build-feast-operator-docker-on-mac: ## Build Feast Operator Docker image on Mac
 	cd infra/feast-operator && \

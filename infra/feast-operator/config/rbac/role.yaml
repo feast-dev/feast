@@ -9,11 +9,11 @@ rules:
   resources:
   - configmaps
   - persistentvolumeclaims
-  - serviceaccounts
   - services
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - update
@@ -22,9 +22,19 @@ rules:
   - ""
   resources:
   - namespaces
-  - pods
   - secrets
   verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - deletecollection
   - get
   - list
   - watch
@@ -34,6 +44,23 @@ rules:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -76,6 +103,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - config.openshift.io
+  resources:
+  - apiservers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - feast.dev
   resources:
   - featurestores
@@ -101,6 +136,14 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - mlflow.opendatahub.io
+  resources:
+  - mlflows
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -128,10 +171,36 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - clusterroles
+  verbs:
+  - create
+  - get
+  - list
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - feast-discover-namespaces
+  - feast-oidc-token-review
+  - feast-token-review-cluster-role
+  resources:
+  - clusterroles
+  verbs:
+  - delete
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - rolebindings
   - roles
-  - subjectaccessreviews
   verbs:
   - create
   - delete
@@ -150,3 +219,11 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  verbs:
+  - create
+  - delete
+  - get

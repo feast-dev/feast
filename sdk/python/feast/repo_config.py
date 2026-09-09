@@ -51,6 +51,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
     "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
+    "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -66,6 +67,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
+    "aerospike": "feast.infra.online_stores.aerospike_online_store.AerospikeOnlineStore",
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
@@ -75,6 +77,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "scylladb": "feast.infra.online_stores.scylladb_online_store.scylladb.ScyllaDBOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
@@ -107,6 +110,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
     "chronon": "feast.infra.offline_stores.contrib.chronon_offline_store.chronon.ChrononOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -204,19 +208,33 @@ class RegistryConfig(FeastBaseModel):
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 
+    @staticmethod
+    def _normalize_postgres_scheme(value: str, field_name: str) -> str:
+        """Rewrite a bare ``postgresql://`` URL to the psycopg3 driver, with a warning.
+
+        SQLAlchemy resolves a bare ``postgresql://`` to the psycopg2 driver, while
+        feast standardizes on psycopg3 (``postgresql+psycopg``). Pass an explicit
+        ``postgresql+psycopg2`` to keep psycopg2. Shared by the ``path`` and
+        ``read_path`` validators so both endpoints normalize identically.
+        """
+        if value.startswith("postgresql://"):
+            _logger.warning(
+                f"The `{field_name}` of the `RegistryConfig` starts with a plain "
+                "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitly "
+                f"to `{field_name}`. To silence this warning, pass `postgresql+psycopg` "
+                f"explicitly to `{field_name}`."
+            )
+            # Rewrite only the leading scheme, not any later occurrence (e.g.
+            # inside credentials or a query string).
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
-            if path.startswith("postgresql://"):
-                _logger.warning(
-                    "The `path` of the `RegistryConfig` starts with a plain "
-                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
-                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
-                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
-                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
-                    "explicitely to `path`."
-                )
-                return path.replace("postgresql://", "postgresql+psycopg://")
+            return cls._normalize_postgres_scheme(path, "path")
         return path
 
 
@@ -239,6 +257,39 @@ class DataQualityMonitoringConfig(FeastConfigBaseModel):
 
     auto_baseline: StrictBool = True
     """Whether baseline distribution is computed automatically on ``feast apply``."""
+
+
+class OpenLineageConsumerConfig(FeastBaseModel):
+    """Configuration for the OpenLineage consumer (event receiver)."""
+
+    enabled: StrictBool = False
+    """ bool: Whether the consumer is enabled. """
+
+    store_type: StrictStr = "sql"
+    """ str: Storage backend type. Currently only 'sql' is supported. """
+
+    connection_string: Optional[StrictStr] = None
+    """ str: Optional separate database connection string. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: API key for authenticating producers sending events. """
+
+    namespace_mapping: Optional[Dict[str, str]] = None
+    """ dict: Read-side RBAC bridge mapping external OL namespaces to Feast project
+    names. Users who can DESCRIBE a project also see lineage from mapped namespaces.
+    Example: {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"} """
+
+    retention_days: int = 30
+    """ int: Number of days to retain OpenLineage events and runs. Set to 0 to
+    disable automatic pruning. Default: 30 days. """
+
+    retention_check_interval_hours: int = 6
+    """ int: How often the background pruning task runs, in hours. Default: 6. """
+
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
 
 
 class OpenLineageConfig(FeastBaseModel):
@@ -283,9 +334,28 @@ class OpenLineageConfig(FeastBaseModel):
     emit_on_materialize: StrictBool = True
     """ bool: Emit lineage events during materialization. """
 
+    consumer: Optional[OpenLineageConsumerConfig] = None
+    """ OpenLineageConsumerConfig: Consumer (event receiver) configuration. """
+
     def to_openlineage_config(self):
         """Convert to feast.openlineage.OpenLineageConfig."""
         from feast.openlineage.config import OpenLineageConfig as OLConfig
+        from feast.openlineage.config import (
+            OpenLineageConsumerConfig as OLConsumerConfig,
+        )
+
+        consumer = None
+        if self.consumer:
+            consumer = OLConsumerConfig(
+                enabled=self.consumer.enabled,
+                store_type=self.consumer.store_type,
+                connection_string=self.consumer.connection_string,
+                api_key=self.consumer.api_key,
+                namespace_mapping=self.consumer.namespace_mapping or {},
+                retention_days=self.consumer.retention_days,
+                retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
+            )
 
         return OLConfig(
             enabled=self.enabled,
@@ -297,7 +367,41 @@ class OpenLineageConfig(FeastBaseModel):
             producer=self.producer,
             emit_on_apply=self.emit_on_apply,
             emit_on_materialize=self.emit_on_materialize,
+            consumer=consumer or OLConsumerConfig(),
         )
+
+
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the query-time embedding model used by the feature server.
+
+    Required when using ``openai_search`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    **Sentence Transformers** (default) — runs locally, no API key required.
+    Ideal for air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers   # default; can be omitted
+          model: all-MiniLM-L6-v2
+
+    Custom providers can be plugged in by implementing the
+    :class:`~feast.embedder.EmbeddingProvider` protocol and passing an
+    instance to :class:`~feast.feature_store.FeatureStore`.
+    """
+
+    provider: str = "sentence_transformers"
+    """Embedding backend to use.  Supported values:
+    ``'sentence_transformers'`` (default)."""
+
+    model: str
+    """Model identifier.
+
+    Any HuggingFace model name compatible with ``SentenceTransformer``,
+    e.g. ``'all-MiniLM-L6-v2'``, ``'BAAI/bge-small-en-v1.5'``.
+    """
 
 
 class RepoConfig(FeastBaseModel):
@@ -338,6 +442,13 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: Embedding model configuration.
+    Required when using openai_search or the
+    OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """

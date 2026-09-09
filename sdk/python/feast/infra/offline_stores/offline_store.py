@@ -451,6 +451,16 @@ class OfflineStore(ABC):
     the SnowflakeOfflineStore can handle SnowflakeSources but not FileSources.
     """
 
+    supports_filter_by_created_timestamp: bool = False
+    """Whether get_historical_features supports the filter_by_created_timestamp flag."""
+
+    def ensure_filter_by_created_timestamp_supported(self) -> None:
+        """Raises NotImplementedError if this store does not support filter_by_created_timestamp."""
+        if not self.supports_filter_by_created_timestamp:
+            raise NotImplementedError(
+                f"filter_by_created_timestamp is not supported by {type(self).__name__}"
+            )
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -513,6 +523,10 @@ class OfflineStore(ABC):
         Keyword Args:
             start_date: Start date for the timestamp range when retrieving features without entity_df.
             end_date: End date for the timestamp range when retrieving features without entity_df. By default, the current time is used.
+            filter_by_created_timestamp: If True, only feature values whose created timestamp (the
+                ``created_timestamp_column`` of the batch source) is at or before the entity row's event
+                timestamp are considered. Only passed through when a store declares
+                ``supports_filter_by_created_timestamp``.
 
         Returns:
             A RetrievalJob that can be executed to get the features.

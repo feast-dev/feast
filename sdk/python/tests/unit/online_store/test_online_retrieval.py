@@ -158,7 +158,9 @@ def test_get_online_features() -> None:
 
         # Feature values
         assert tensor_result["lon"] == ["1.0", "1.0"]  # String -> not tensor
-        assert torch.equal(tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0]))
+        assert torch.equal(
+            tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0], device=device)
+        )
         assert tensor_result["name"] == ["John", "John"]
         assert torch.equal(tensor_result["trips"], torch.tensor([7, 7], device=device))
 
@@ -1303,7 +1305,6 @@ def test_milvus_stored_writes_with_explode() -> None:
     )
 
     random.seed(42)
-    vector_length = 10
     runner = CliRunner()
     with runner.local_repo(
         example_repo_py=get_example_repo("example_rag_feature_repo.py"),
@@ -1357,10 +1358,10 @@ def test_milvus_stored_writes_with_explode() -> None:
                     "Document chunking example.",
                 ],
                 "vector": [
-                    [0.1] * vector_length,
-                    [0.2] * vector_length,
-                    [0.3] * vector_length,
-                    [0.4] * vector_length,
+                    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                 ],
             }
             return output
@@ -1428,7 +1429,8 @@ def test_milvus_stored_writes_with_explode() -> None:
         )
 
         # Test vector search using Milvus
-        query_embedding = [0.1] * vector_length
+        # Query vector closest to doc_2/chunk-1 [0,0,1,0,...] then doc_1/chunk-2 [0,1,0,0,...]
+        query_embedding = [0.0, 0.3, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         # First get Milvus client and search directly
         client = store._provider._online_store.client

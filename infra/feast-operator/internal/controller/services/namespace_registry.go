@@ -36,8 +36,22 @@ type NamespaceRegistryData struct {
 	Namespaces map[string][]string `json:"namespaces"`
 }
 
+// isProtectedProject checks if this CR is annotated as a protected project
+func (feast *FeastServices) isProtectedProject() bool {
+	annotations := feast.Handler.FeatureStore.GetAnnotations()
+	return annotations[ProtectedProjectAnnotation] == "true"
+}
+
 // deployNamespaceRegistry creates and manages the namespace registry ConfigMap
 func (feast *FeastServices) deployNamespaceRegistry() error {
+	// Skip namespace registry for protected projects.
+	// Protected projects are managed externally and should not be visible to other instances.
+	if feast.isProtectedProject() {
+		logger := log.FromContext(feast.Handler.Context)
+		logger.V(1).Info("Skipping namespace registry for protected project", "project", feast.Handler.FeatureStore.Spec.FeastProject)
+		return nil
+	}
+
 	// Check if we can determine the target namespace before creating any resources
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
@@ -230,6 +244,11 @@ func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
 
 // AddToNamespaceRegistry adds a feature store instance to the namespace registry
 func (feast *FeastServices) AddToNamespaceRegistry() error {
+	// Skip for protected projects — they should not appear in the namespace registry.
+	if feast.isProtectedProject() {
+		return nil
+	}
+
 	logger := log.FromContext(feast.Handler.Context)
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {

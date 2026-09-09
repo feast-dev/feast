@@ -110,9 +110,25 @@ We verify the building the wheels and Docker images in **your fork** of Feast, n
    - [Maven repo (feast-datatypes, feast-serving-client)](https://mvnrepository.com/artifact/dev.feast)
 
 ### 4. (for minor releases) Post-release steps
-#### 4a: Creating a new branch
-Create a new branch based on master (i.e. v0.22-branch) and push to the main Feast repo. This will be where 
-cherry-picks go for future patch releases and where documentation will point.
+#### 4a: Versioned branch and documentation publication
+
+The `publish_versioned_docs` release job creates the `v<major>.<minor>-branch` maintenance branch
+at the released tag, imports that branch into a versioned GitBook space, and makes the new space
+the public default. It verifies the final GitBook state before succeeding.
+
+The repository must define `GITBOOK_ORG_ID` and `GITBOOK_SITE_ID` variables and a scoped
+`GITBOOK_TOKEN` secret with permission to create and update spaces, update the site, and publish
+it. The release token must be able to create the maintenance branch.
+
+The job is safe to rerun. It reuses matching branches and spaces, but it will not move an existing
+maintenance branch that points somewhere other than the released tag. It also leaves the previous
+documentation version as the public default until the new branch has imported successfully.
+
+To publish documentation independently of a release, run the `release` workflow from `master` and
+set `publish_docs_version` to an existing release such as `0.66.0`. When this input is set, the
+release jobs are skipped and only the versioned documentation job runs. Keep `dry_run` enabled for
+the first run, then disable it to create or verify the maintenance branch and publish its GitBook
+space. The standalone job does not move `stable` or create a release.
 
 #### 4b: Adding a high level summary in the GitHub release notes
 By default, Semantic Release will pull in messages from commits (features vs fixes, etc). But this is hard to digest,
@@ -120,7 +136,9 @@ so it helps to have a high level overview. See https://github.com/feast-dev/feas
 
 #### 4c: Update documentation
 
-In the Feast Gitbook:
+If the automated documentation job fails, use its error as the recovery point and complete the
+remaining steps in the Feast GitBook:
+
 1. Create a new space within the Feast collection
 2. Go to the overflow menu on the top -> Synchronize with Git
    1. Specify GitHub as the provider

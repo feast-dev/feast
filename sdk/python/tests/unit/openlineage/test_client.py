@@ -54,13 +54,12 @@ class TestDefaultConsoleTransport:
     def test_default_config_uses_console_transport(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Ensure no openlineage.yml is found by changing cwd to an empty dir
         monkeypatch.chdir(tmp_path)
         monkeypatch.delenv("OPENLINEAGE_CONFIG", raising=False)
         monkeypatch.delenv("OPENLINEAGE_URL", raising=False)
         monkeypatch.delenv("OPENLINEAGE_DISABLED", raising=False)
 
-        config = OpenLineageConfig(enabled=True)  # transport_type defaults to None
+        config = OpenLineageConfig(enabled=True)
         client = FeastOpenLineageClient(config=config)
 
         assert client.is_enabled
@@ -90,12 +89,11 @@ class TestTransformTransportFromYml:
         monkeypatch.delenv("OPENLINEAGE_URL", raising=False)
         monkeypatch.delenv("OPENLINEAGE_DISABLED", raising=False)
 
-        config = OpenLineageConfig(enabled=True)  # transport_type=None
+        config = OpenLineageConfig(enabled=True)
         client = FeastOpenLineageClient(config=config)
 
         assert client.is_enabled
         assert isinstance(client._client.transport, TransformTransport)
-        # The inner transport should be console
         assert isinstance(client._client.transport.transport, ConsoleTransport)
 
     def test_transform_yml_in_cwd_is_respected(
@@ -105,11 +103,10 @@ class TestTransformTransportFromYml:
         monkeypatch.delenv("OPENLINEAGE_URL", raising=False)
         monkeypatch.delenv("OPENLINEAGE_DISABLED", raising=False)
 
-        # Write openlineage.yml in the dir we'll chdir to
         _write_openlineage_yml(tmp_path)
         monkeypatch.chdir(tmp_path)
 
-        config = OpenLineageConfig(enabled=True)  # transport_type=None
+        config = OpenLineageConfig(enabled=True)
         client = FeastOpenLineageClient(config=config)
 
         assert client.is_enabled
@@ -129,7 +126,6 @@ class TestExplicitConfigOverridesYml:
         client = FeastOpenLineageClient(config=config)
 
         assert client.is_enabled
-        # Must be plain ConsoleTransport, NOT TransformTransport
         assert isinstance(client._client.transport, ConsoleTransport)
         assert not isinstance(client._client.transport, TransformTransport)
 

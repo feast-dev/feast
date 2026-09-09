@@ -172,6 +172,53 @@ class TestDbtManifestParser:
 
         assert "Invalid JSON" in str(exc_info.value)
 
+    def test_parse_retries_with_sanitized_supported_languages(
+        self, tmp_path, monkeypatch
+    ):
+        """Test parser retries after removing unsupported macro languages."""
+        manifest = {
+            "metadata": {
+                "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
+                "dbt_version": "1.11.11",
+            },
+            "nodes": {},
+            "macros": {
+                "macro.dbt.materialization_function_default": {
+                    "name": "materialization_function_default",
+                    "supported_languages": ["python", "sql", "javascript"],
+                }
+            },
+        }
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest))
+
+        class _ParsedManifest:
+            nodes = {}
+            metadata = None
+
+        call_manifests = []
+
+        def _fake_parse_manifest(*, manifest):
+            call_manifests.append(manifest)
+            if len(call_manifests) == 1:
+                raise Exception("supported_languages Input should be 'python' or 'sql'")
+            return _ParsedManifest()
+
+        monkeypatch.setattr(
+            "dbt_artifacts_parser.parser.parse_manifest", _fake_parse_manifest
+        )
+
+        parser = DbtManifestParser(str(manifest_path))
+        parser.parse()
+
+        assert len(call_manifests) == 2
+        assert call_manifests[0]["macros"][
+            "macro.dbt.materialization_function_default"
+        ]["supported_languages"] == ["python", "sql", "javascript"]
+        assert call_manifests[1]["macros"][
+            "macro.dbt.materialization_function_default"
+        ]["supported_languages"] == ["python", "sql"]
+
     def test_get_all_models(self, sample_manifest):
         """Test getting all models from manifest."""
         parser = DbtManifestParser(str(sample_manifest))

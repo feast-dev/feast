@@ -37,6 +37,7 @@ const (
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
 	UIReadyType            = "UI"
+	LineageReadyType       = "Lineage"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 	CronJobReadyType       = "CronJob"
@@ -49,6 +50,7 @@ const (
 	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
 	RegistryFailedReason         = "RegistryDeploymentFailed"
 	UIFailedReason               = "UIDeploymentFailed"
+	LineageFailedReason          = "LineageDeploymentFailed"
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
@@ -60,6 +62,7 @@ const (
 	OnlineStoreReadyMessage       = "Online Store installation complete"
 	RegistryReadyMessage          = "Registry installation complete"
 	UIReadyMessage                = "UI installation complete"
+	LineageReadyMessage           = "Lineage server installation complete"
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
@@ -93,7 +96,7 @@ type OpenLineageConfig struct {
 	// +kubebuilder:validation:Enum=http;console;file;kafka
 	// +optional
 	TransportType *string `json:"transportType,omitempty"`
-	// URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http".
+	// URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http".
 	// +optional
 	TransportUrl *string `json:"transportUrl,omitempty"`
 	// API endpoint path appended to transportUrl. Defaults to "api/v1/lineage".
@@ -109,6 +112,117 @@ type OpenLineageConfig struct {
 	// bootstrap_servers, topic; file path). Boolean values ("true"/"false") and
 	// integer values are automatically coerced to their native YAML types.
 	// Keys must be valid Feast OpenLineageConfig YAML field names.
+	// +optional
+	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
+	// Consumer configures the OpenLineage consumer (event receiver) that enables
+	// Feast to receive and display lineage from external producers (Airflow, Spark, dbt, etc.).
+	// +optional
+	Consumer *OpenLineageConsumerConfig `json:"consumer,omitempty"`
+}
+
+// OpenLineageConsumerConfig configures the OpenLineage consumer (event receiver).
+// When enabled, the Feast REST server exposes POST /api/v1/lineage to receive
+// OpenLineage events from any producer, storing them for visualization in the Feast UI.
+type OpenLineageConsumerConfig struct {
+	// Enable the OpenLineage consumer.
+	Enabled bool `json:"enabled"`
+	// StoreType is the storage backend for lineage events. Currently only "sql" is supported.
+	// +kubebuilder:default="sql"
+	// +kubebuilder:validation:Enum=sql
+	// +optional
+	StoreType *string `json:"storeType,omitempty"`
+	// Reference to a Secret containing the key "connection_string" for a separate
+	// lineage database. If omitted, the SQL registry database is reused.
+	// +optional
+	ConnectionStringSecretRef *corev1.LocalObjectReference `json:"connectionStringSecretRef,omitempty"`
+	// Reference to a Secret containing the key "api_key" that producers must
+	// provide in the X-API-Key header when sending events.
+	// +optional
+	ApiKeySecretRef *corev1.LocalObjectReference `json:"apiKeySecretRef,omitempty"`
+	// NamespaceMapping maps OpenLineage namespaces to Feast projects for
+	// RBAC-based filtering of lineage data in the UI.
+	// +optional
+	NamespaceMapping map[string]string `json:"namespaceMapping,omitempty"`
+	// RetentionDays is the number of days to retain OpenLineage events and runs.
+	// Events older than this are automatically pruned. Set to 0 to disable pruning.
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	RetentionDays *int32 `json:"retentionDays,omitempty"`
+	// RetentionCheckIntervalHours is how often the background pruning task runs, in hours.
+	// +kubebuilder:default=6
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	RetentionCheckIntervalHours *int32 `json:"retentionCheckIntervalHours,omitempty"`
+	// LineageServer enables a separate Deployment for the OpenLineage consumer.
+	// When set, the consumer is removed from the UI/registry Pod and runs
+	// independently with its own scaling. The Feast producer transport is
+	// auto-configured to send events to the lineage Service.
+	// +optional
+	LineageServer *LineageServerConfig `json:"lineageServer,omitempty"`
+}
+
+// LineageServerConfig defines the separate lineage server Deployment.
+type LineageServerConfig struct {
+	// Server configuration (image, resources, env, TLS, etc.).
+	// +optional
+	Server *ServerConfigs `json:"server,omitempty"`
+	// Replicas for the lineage Deployment. Default 1.
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+}
+
+// MlflowConfig enables MLflow experiment tracking integration for Feast.
+// When enabled, feature retrieval metadata is automatically logged to MLflow runs
+// and the Feast UI displays lineage from feature views to registered models.
+// +kubebuilder:validation:XValidation:rule="!has(self.extraConfig) || !('enabled' in self.extraConfig) && !('tracking_uri' in self.extraConfig) && !('ui_url' in self.extraConfig) && !('tracking_auth' in self.extraConfig) && !('auto_log' in self.extraConfig) && !('auto_log_entity_df' in self.extraConfig) && !('entity_df_max_rows' in self.extraConfig) && !('log_operations' in self.extraConfig) && !('ops_experiment_suffix' in self.extraConfig)",message="extraConfig must not contain keys that duplicate typed fields (enabled, tracking_uri, ui_url, tracking_auth, auto_log, auto_log_entity_df, entity_df_max_rows, log_operations, ops_experiment_suffix); use the corresponding spec fields instead."
+type MlflowConfig struct {
+	// Enable MLflow integration.
+	Enabled bool `json:"enabled"`
+	// MLflow tracking server URI. When omitted, the operator auto-discovers
+	// from the cluster MLflow CR (status.address.url). Falls back to
+	// MLFLOW_TRACKING_URI env var on pods.
+	// +optional
+	TrackingUri *string `json:"trackingUri,omitempty"`
+	// Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+	// When omitted, the operator auto-discovers from the MLflow CR status.url
+	// (the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+	// to trackingUri. Only needed when the tracking URI is cluster-internal.
+	// +optional
+	UiUrl *string `json:"uiUrl,omitempty"`
+	// Automatically log feature metadata on every retrieval inside an active MLflow run.
+	// Defaults to true when enabled.
+	// +optional
+	AutoLog *bool `json:"autoLog,omitempty"`
+	// Save entity DataFrame as MLflow artifact on historical retrieval.
+	// Defaults to false.
+	// +optional
+	AutoLogEntityDf *bool `json:"autoLogEntityDf,omitempty"`
+	// Maximum number of entity DataFrame rows to save as an MLflow artifact.
+	// DataFrames exceeding this limit are skipped. Defaults to 100000.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	EntityDfMaxRows *int32 `json:"entityDfMaxRows,omitempty"`
+	// Log feast apply and materialize operations to a separate MLflow experiment.
+	// Defaults to false.
+	// +optional
+	LogOperations *bool `json:"logOperations,omitempty"`
+	// Suffix appended to the project name for the operations experiment.
+	// Defaults to "-feast-ops".
+	// +optional
+	OpsExperimentSuffix *string `json:"opsExperimentSuffix,omitempty"`
+	// Authentication method used by Feast pods when calling the MLflow tracking
+	// server. Common values: "kubernetes-namespaced" (token-based, default on
+	// OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+	// Defaults to "kubernetes-namespaced".
+	// +optional
+	TrackingAuth *string `json:"trackingAuth,omitempty"`
+	// ExtraConfig holds additional MLflow key-value settings written inline into
+	// the mlflow block of feature_store.yaml. Boolean and integer string values
+	// are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+	// YAML field names.
 	// +optional
 	ExtraConfig map[string]string `json:"extraConfig,omitempty"`
 }
@@ -143,13 +257,31 @@ type FeatureStoreSpec struct {
 	// Written into feature_store.yaml for all service pods.
 	// +optional
 	OpenLineage *OpenLineageConfig `json:"openlineage,omitempty"`
+	// Mlflow enables MLflow experiment tracking integration for Feast.
+	// Written into feature_store.yaml for all service pods and the client ConfigMap.
+	// When omitted and a cluster MLflow instance is detected, defaults to enabled
+	// with the discovered tracking URI.
+	// +optional
+	Mlflow *MlflowConfig `json:"mlflow,omitempty"`
 }
 
 // FeastProjectDir defines how to create the feast project directory.
-// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init), has(self.packaged)].exists_one(c, c)",message="One selection required between init, git, or packaged."
 type FeastProjectDir struct {
-	Git  *GitCloneOptions  `json:"git,omitempty"`
-	Init *FeastInitOptions `json:"init,omitempty"`
+	Git      *GitCloneOptions      `json:"git,omitempty"`
+	Init     *FeastInitOptions     `json:"init,omitempty"`
+	Packaged *FeastPackagedOptions `json:"packaged,omitempty"`
+}
+
+// FeastPackagedOptions describes a feature repository packaged in a feature server image.
+// +kubebuilder:validation:XValidation:rule="self.featureRepoPath.startsWith('/') && self.featureRepoPath != '/' && !self.featureRepoPath.contains('//') && !self.featureRepoPath.endsWith('/') && !self.featureRepoPath.contains('/./') && !self.featureRepoPath.endsWith('/.') && !self.featureRepoPath.contains('/../') && !self.featureRepoPath.endsWith('/..')",message="FeatureRepoPath must be a canonical absolute, non-root path without dot segments or repeated separators."
+type FeastPackagedOptions struct {
+	// Image containing the packaged feature repository. When set, this image is used by the
+	// repository initialization and feast apply containers and as the default service image.
+	// When omitted, the operator's configured feature server image is used.
+	Image string `json:"image,omitempty"`
+	// FeatureRepoPath is the canonical absolute path to the feature repository in the image.
+	FeatureRepoPath string `json:"featureRepoPath"`
 }
 
 // GitCloneOptions describes how a clone should be performed.
@@ -378,6 +510,10 @@ type FeatureStoreServices struct {
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// InitImage overrides the image for init containers (feast-init, feast-apply).
+	// Resolution order: InitImage → FeastProjectDir.Packaged.Image → RELATED_IMAGE_FEATURE_SERVER → DefaultImage.
+	// +optional
+	InitImage *string `json:"initImage,omitempty"`
 	// Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true.
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
@@ -400,6 +536,15 @@ type FeatureStoreServices struct {
 	// pod anti-affinity rule to prefer spreading pods across nodes.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// Tolerations are applied to the FeatureStore deployment pods, allowing them to
+	// be scheduled onto nodes with matching taints.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a selector which must be true for the FeatureStore deployment
+	// pods to fit on a node. This selector must match a node's labels for the pod to
+	// be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// ResourceClaims defines which ResourceClaims must be allocated
 	// and reserved before the Pod is allowed to start. The resources
 	// will be made available to those containers which consume them
@@ -483,7 +628,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray;oracle
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray;oracle;hybrid
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -504,6 +649,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"clickhouse",
 	"ray",
 	"oracle",
+	"hybrid",
 }
 
 // OnlineStore configures the online store service
@@ -515,6 +661,11 @@ type OnlineStore struct {
 	// Controls metrics granularity, offline push batching, and MCP.
 	// +optional
 	Serving *ServingConfig `json:"serving,omitempty"`
+	// Disabled skips deploying the online store service entirely, including its
+	// serving pod and persistence. Omitting the online store block, or setting
+	// this to false, deploys the online store with defaults as before.
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // ServingConfig configures the feature_server section of the generated feature_store.yaml.
@@ -597,7 +748,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb;aerospike;scylladb
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -623,6 +774,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"milvus",
 	"hybrid",
 	"mongodb",
+	"aerospike",
+	"scylladb",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -837,10 +990,15 @@ type OptionalCtrConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
-// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc), has(self.noAuth)].exists_one(c, c)",message="One selection required between kubernetes, oidc, or noAuth."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
+	// NoAuth explicitly disables authentication and authorization.
+	// When set to true, Feast services run without any auth checks.
+	// Use only for development or testing environments.
+	// +optional
+	NoAuth *bool `json:"noAuth,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
@@ -877,6 +1035,17 @@ type OidcAuthz struct {
 	// ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH.
 	// +optional
 	CACertConfigMap *OidcCACertConfigMap `json:"caCertConfigMap,omitempty"`
+	// Seconds the servers reuse the provider's fetched JWK set before refetching. Defaults to 300.
+	// Also bounds how long a key the provider revoked keeps validating tokens, so lower it if the
+	// provider rotates or revokes aggressively, at the cost of more JWKS fetches.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	JwksCacheLifespanSeconds *int32 `json:"jwksCacheLifespanSeconds,omitempty"`
+	// Seconds before a JWKS fetch times out. Defaults to 10. The fetch happens inline on the request
+	// path, so an unresponsive provider blocks serving for at most this long.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	JwksRequestTimeoutSeconds *int32 `json:"jwksRequestTimeoutSeconds,omitempty"`
 }
 
 // OidcCACertConfigMap references a ConfigMap containing a CA certificate for OIDC provider TLS.
@@ -962,6 +1131,7 @@ type ServiceHostnames struct {
 	Registry     string `json:"registry,omitempty"`
 	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
+	Lineage      string `json:"lineage,omitempty"`
 }
 
 // +kubebuilder:object:root=true

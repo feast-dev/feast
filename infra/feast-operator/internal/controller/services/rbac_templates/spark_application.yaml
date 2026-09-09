@@ -1,0 +1,26 @@
+engine_type: spark_application
+
+server:
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps"]
+      verbs: ["create", "delete"]
+    - apiGroups: ["sparkoperator.k8s.io"]
+      resources: ["sparkapplications"]
+      verbs: ["create", "get", "delete"]
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["list"]
+    - apiGroups: [""]
+      resources: ["pods/log"]
+      verbs: ["get"]
+
+driver:
+  create_service_account: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["create", "get", "list", "watch", "delete", "deletecollection"]
+    - apiGroups: [""]
+      resources: ["services", "configmaps", "persistentvolumeclaims"]
+      verbs: ["create", "get", "list", "watch", "delete", "deletecollection"]

@@ -19,6 +19,7 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from google.protobuf.message import Message
 
@@ -36,6 +37,7 @@ from feast.errors import (
     PermissionNotFoundException,
     ProjectNotFoundException,
     ProjectObjectNotFoundException,
+    SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -57,7 +59,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, to_naive_utc
 from feast.version_utils import (
     generate_version_id,
     parse_version,
@@ -154,6 +156,12 @@ def get_registry_store_class_from_type(registry_store_type: str):
 
 def get_registry_store_class_from_scheme(registry_path: str):
     uri = urlparse(registry_path)
+    if uri.scheme == "" or (
+        len(uri.scheme) == 1 and registry_path[1:3] in (":\\", ":/")
+    ):
+        registry_store_type = REGISTRY_STORE_CLASS_FOR_SCHEME["file"]
+        return get_registry_store_class_from_type(registry_store_type)
+
     if uri.scheme not in REGISTRY_STORE_CLASS_FOR_SCHEME:
         raise Exception(
             f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
@@ -446,6 +454,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.prepare_for_apply(self, project, allow_cache=True)
         now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
@@ -572,20 +581,23 @@ class Registry(BaseRegistry):
             existing_proto.spec.version = getattr(updated_fv, "version")
 
         # Configuration fields (FeatureView / LabelView TTL)
-        if (
-            hasattr(existing_proto.spec, "ttl")
-            and hasattr(updated_fv, "ttl")
-            and updated_fv.ttl
-        ):
+        # Note: don't gate this on `updated_fv.ttl` being truthy -- None and
+        # timedelta(0) are both the documented way to express "no ttl", and
+        # are falsy, so that check would silently drop the update exactly
+        # when a user clears an existing ttl.
+        if hasattr(existing_proto.spec, "ttl") and hasattr(updated_fv, "ttl"):
             if isinstance(updated_fv, FeatureView):
                 ttl_duration = updated_fv.get_ttl_duration()
-                if ttl_duration:
-                    existing_proto.spec.ttl.CopyFrom(ttl_duration)
+                existing_proto.spec.ttl.CopyFrom(
+                    ttl_duration if ttl_duration is not None else Duration()
+                )
             elif isinstance(updated_fv, LabelView):
-                from google.protobuf.duration_pb2 import Duration
-
                 ttl_duration = Duration()
-                ttl_duration.FromTimedelta(updated_fv.ttl)
+                if updated_fv.ttl is not None:
+                    try:
+                        ttl_duration.FromTimedelta(updated_fv.ttl)
+                    except (ValueError, OverflowError) as e:
+                        raise ValueError(f"Invalid TTL value: {updated_fv.ttl}") from e
                 existing_proto.spec.ttl.CopyFrom(ttl_duration)
         if hasattr(existing_proto.spec, "online") and hasattr(updated_fv, "online"):
             existing_proto.spec.online = getattr(updated_fv, "online")
@@ -1082,13 +1094,24 @@ class Registry(BaseRegistry):
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_all_feature_views(
+        feature_views = proto_registry_utils.list_all_feature_views(
             registry_proto, project, tags, skip_udf=skip_udf
         )
+        if updated_since is not None:
+            # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
+            cutoff = to_naive_utc(updated_since)
+            feature_views = [
+                fv
+                for fv in feature_views
+                if fv.last_updated_timestamp is not None
+                and fv.last_updated_timestamp >= cutoff
+            ]
+        return feature_views
 
     def get_any_feature_view(
         self, name: str, project: str, allow_cache: bool = False
@@ -1287,11 +1310,36 @@ class Registry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
+        return proto_registry_utils.list_saved_datasets(
+            registry_proto,
+            project,
+            tags,
+            namespace=namespace,
+            collection=collection,
+        )
+
+    def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+
+        for idx, existing_saved_dataset_proto in enumerate(
+            self.cached_registry_proto.saved_datasets
+        ):
+            if (
+                existing_saved_dataset_proto.spec.name == name
+                and existing_saved_dataset_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.saved_datasets[idx]
+                if commit:
+                    self.commit()
+                return
+        raise SavedDatasetNotFound(name, project=project)
 
     def apply_validation_reference(
         self,

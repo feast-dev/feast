@@ -219,6 +219,7 @@ GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_sta
     "feature_name": "conv_rate",
     "feature_type": "numeric",
     "metric_date": "2025-03-26",
+    "max_event_timestamp": "2025-03-27T14:30:00+00:00",
     "granularity": "daily",
     "data_source_type": "batch",
     "row_count": 15000,
@@ -241,6 +242,8 @@ GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_sta
   }
 ]
 ```
+
+The UI **Freshness** column uses `max_event_timestamp` — `MAX(event_timestamp)` from the source — not `metric_date` (the DQM window start). Age is `now − max_event_timestamp`.
 
 ### Per-feature-view aggregates
 
@@ -462,3 +465,11 @@ The monitoring page is always accessible in the sidebar. To see actual data:
 
 2. Run `feast apply` — this computes baseline metrics automatically
 3. Schedule `feast monitor run` (or click "Compute Metrics" in the UI) to generate daily/weekly/monthly metrics
+
+## Related: Operational and SOX Metrics
+
+Feature Quality Monitoring focuses on **data-level** metrics (distributions, null rates, drift). Feast also provides **operational metrics** for infrastructure observability:
+
+- **Prometheus metrics** (`feast_offline_store_*`, `feast_online_store_*`) — latency, throughput, and error rates for offline/online store operations. See [Python Feature Server — Metrics](../reference/feature-servers/python-feature-server.md).
+- **SOX audit logging** (`feast.audit`) — structured audit events for compliance tracking of feature store operations.
+- **OpenTelemetry integration** — distributed tracing for feature serving requests. See [OpenTelemetry Integration](../getting-started/components/open-telemetry.md).

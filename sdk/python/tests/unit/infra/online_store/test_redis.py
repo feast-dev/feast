@@ -1,11 +1,12 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast.infra.online_stores.helpers import _mmh3
 from feast.infra.online_stores.redis import RedisOnlineStore, RedisOnlineStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -424,6 +425,145 @@ def test_online_write_batch_with_dedup_uses_two_pipelines(
     assert mock_client.pipeline.call_count == 1
     # hmget was issued for the timestamp check
     pipe.hmget.assert_called_once()
+
+
+def _dedup_config():
+    return RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+        online_store=RedisOnlineStoreConfig(),  # default: skip_dedup=False
+    )
+
+
+def _single_entity_batch(timestamps_and_values):
+    """Build a write batch for one entity key, one row per (timestamp, value) pair."""
+    entity_key = EntityKeyProto(
+        join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]
+    )
+    return [
+        (entity_key, {"feature_10": ValueProto(int32_val=value)}, timestamp, None)
+        for timestamp, value in timestamps_and_values
+    ]
+
+
+def _written_feature_values(hset_calls, feature_view_name, feature_name):
+    """Extract the serialized feature value from each queued hset call."""
+    f_key = _mmh3(f"{feature_view_name}:{feature_name}")
+    return [call.kwargs["mapping"][f_key] for call in hset_calls]
+
+
+@pytest.mark.parametrize(
+    "order",
+    ["descending", "ascending", "unordered"],
+    ids=["descending", "ascending", "unordered"],
+)
+def test_online_write_batch_keeps_latest_event_time_within_batch(
+    redis_online_store: RedisOnlineStore, feature_view, order
+):
+    """A batch containing several rows for one entity key must leave the value
+    belonging to the latest event timestamp in the store, whatever order the rows
+    arrive in.
+
+    Regression test for #5163: previous timestamps were read once up front, so rows
+    sharing an entity key all compared against the same pre-batch snapshot and could
+    not see each other. Every row passed the staleness guard and the last row queued
+    won, so a reverse-chronological batch stored the *oldest* value.
+    """
+    t1 = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    t2 = t1 + timedelta(seconds=5)
+    t3 = t2 + timedelta(seconds=5)
+
+    rows = {
+        "descending": [(t3, 30), (t2, 20), (t1, 10)],
+        "ascending": [(t1, 10), (t2, 20), (t3, 30)],
+        "unordered": [(t2, 20), (t3, 30), (t1, 10)],
+    }[order]
+    data = _single_entity_batch(rows)
+
+    mock_client = MagicMock()
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    # No pre-existing value: one hmget result per row, each holding None.
+    pipe.execute.side_effect = [[[None]] * len(data), []]
+    mock_client.pipeline.return_value = pipe
+
+    with patch.object(redis_online_store, "_get_client", return_value=mock_client):
+        redis_online_store.online_write_batch(
+            _dedup_config(), feature_view, data, progress=None
+        )
+
+    written = _written_feature_values(
+        pipe.hset.call_args_list, feature_view.name, "feature_10"
+    )
+    assert written, "no write was queued for the batch"
+    # Redis applies queued commands in order, so the surviving value is the last one.
+    assert written[-1] == ValueProto(int32_val=30).SerializeToString()
+
+
+def test_online_write_batch_async_keeps_latest_event_time_within_batch(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """online_write_batch_async must honour the same intra-batch ordering guarantee
+    as the sync path (#5163)."""
+    t1 = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    t2 = t1 + timedelta(seconds=5)
+    t3 = t2 + timedelta(seconds=5)
+    data = _single_entity_batch([(t3, 30), (t2, 20), (t1, 10)])
+
+    async_pipe = AsyncMock()
+    async_pipe.__aenter__ = AsyncMock(return_value=async_pipe)
+    async_pipe.__aexit__ = AsyncMock(return_value=False)
+    async_pipe.execute = AsyncMock(side_effect=[[[None]] * len(data), []])
+    async_pipe.hset = MagicMock()
+
+    mock_async_client = AsyncMock()
+    mock_async_client.pipeline = MagicMock(return_value=async_pipe)
+
+    async def _run():
+        with patch.object(
+            redis_online_store,
+            "_get_client_async",
+            AsyncMock(return_value=mock_async_client),
+        ):
+            await redis_online_store.online_write_batch_async(
+                _dedup_config(), feature_view, data, progress=None
+            )
+
+    asyncio.run(_run())
+
+    written = _written_feature_values(
+        async_pipe.hset.call_args_list, feature_view.name, "feature_10"
+    )
+    assert written, "no write was queued for the batch"
+    assert written[-1] == ValueProto(int32_val=30).SerializeToString()
+
+
+def test_online_write_batch_still_skips_rows_older_than_stored_value(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """The pre-existing staleness guard must keep working: a row older than the value
+    already in Redis is dropped rather than written."""
+    stored_ts = Timestamp()
+    stored_ts.FromDatetime(datetime(2024, 1, 1, 12, 0, 10, tzinfo=timezone.utc))
+    older = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    data = _single_entity_batch([(older, 10)])
+
+    mock_client = MagicMock()
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.side_effect = [[[stored_ts.SerializeToString()]], []]
+    mock_client.pipeline.return_value = pipe
+
+    with patch.object(redis_online_store, "_get_client", return_value=mock_client):
+        redis_online_store.online_write_batch(
+            _dedup_config(), feature_view, data, progress=None
+        )
+
+    pipe.hset.assert_not_called()
 
 
 def test_online_write_batch_async_skip_dedup_single_pipeline(

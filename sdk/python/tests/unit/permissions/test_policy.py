@@ -42,3 +42,10 @@ def test_role_based_policy(users, required_roles, username, result):
         assertpy.assert_that(explain).is_equal_to("")
     else:
         assertpy.assert_that(len(explain)).is_greater_than(0)
+
+
+def test_policy_eq_cross_type_returns_false():
+    """A policy compared to a different type returns False, not TypeError."""
+    policy = RoleBasedPolicy(roles=["reader"])
+    assert (policy == "not a policy") is False
+    assert (policy == 42) is False

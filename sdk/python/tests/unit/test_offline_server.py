@@ -1,4 +1,8 @@
-from unittest.mock import MagicMock, patch
+import os
+import subprocess
+import sys
+import textwrap
+from unittest.mock import MagicMock, mock_open, patch
 
 import assertpy
 
@@ -7,7 +11,11 @@ from feast.infra.offline_stores.remote import (
     RemoteOfflineStoreConfig,
     _create_retrieval_metadata,
 )
-from feast.offline_server import OfflineServer
+from feast.offline_server import (
+    OfflineServer,
+    _configure_grpc_fips,
+    _is_fips_enabled,
+)
 
 
 def test_create_retrieval_metadata_with_sql_string():
@@ -86,3 +94,101 @@ def test_offline_server_get_historical_features_passes_sql_to_store():
     assertpy.assert_that(result).is_equal_to(mock_job)
     _, kwargs = mock_offline_store.get_historical_features.call_args
     assertpy.assert_that(kwargs["entity_df"]).is_equal_to(sql)
+
+
+def test_is_fips_enabled_returns_true():
+    with patch("builtins.open", mock_open(read_data="1\n")):
+        assert _is_fips_enabled() is True
+
+
+def test_is_fips_enabled_returns_false():
+    with patch("builtins.open", mock_open(read_data="0\n")):
+        assert _is_fips_enabled() is False
+
+
+def test_is_fips_enabled_missing_file():
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        assert _is_fips_enabled() is False
+
+
+def test_configure_grpc_fips_sets_cipher_suites():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {}, clear=False),
+    ):
+        os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+        _configure_grpc_fips()
+        assert "GRPC_SSL_CIPHER_SUITES" in os.environ
+        assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
+        del os.environ["GRPC_SSL_CIPHER_SUITES"]
+
+
+def test_configure_grpc_fips_respects_existing_env():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=True),
+        patch.dict(os.environ, {"GRPC_SSL_CIPHER_SUITES": "custom"}, clear=False),
+    ):
+        _configure_grpc_fips()
+        assert os.environ["GRPC_SSL_CIPHER_SUITES"] == "custom"
+
+
+def test_configure_grpc_fips_noop_without_fips():
+    with (
+        patch("feast.offline_server._is_fips_enabled", return_value=False),
+        patch.dict(os.environ, {}, clear=False),
+    ):
+        os.environ.pop("GRPC_SSL_CIPHER_SUITES", None)
+        _configure_grpc_fips()
+        assert "GRPC_SSL_CIPHER_SUITES" not in os.environ
+
+
+def test_module_level_fips_sets_env_before_pyarrow_import():
+    """GRPC_SSL_CIPHER_SUITES must be set at module load time,
+    before pyarrow.flight (which bundles gRPC) is imported.
+
+    Uses a subprocess so pyarrow.flight is not already cached in
+    sys.modules, which lets us verify the true import ordering.
+    """
+    script = textwrap.dedent("""\
+        import io, os, sys
+
+        # Intercept only /proc/sys/crypto/fips_enabled to simulate FIPS
+        _real_open = open
+        def _fips_open(file, *args, **kwargs):
+            if str(file) == "/proc/sys/crypto/fips_enabled":
+                return io.StringIO("1\\n")
+            return _real_open(file, *args, **kwargs)
+
+        import builtins
+        builtins.open = _fips_open
+
+        # Track import order to verify env var is set before pyarrow.flight
+        original_import = builtins.__import__
+        def tracking_import(name, *args, **kwargs):
+            if name == "pyarrow.flight":
+                assert "GRPC_SSL_CIPHER_SUITES" in os.environ, (
+                    "GRPC_SSL_CIPHER_SUITES not set before pyarrow.flight import"
+                )
+            return original_import(name, *args, **kwargs)
+
+        builtins.__import__ = tracking_import
+        try:
+            import feast.offline_server
+            assert "GRPC_SSL_CIPHER_SUITES" in os.environ
+            assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
+        finally:
+            builtins.__import__ = original_import
+            builtins.open = _real_open
+    """)
+    env = os.environ.copy()
+    env.pop("GRPC_SSL_CIPHER_SUITES", None)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        f"Subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )

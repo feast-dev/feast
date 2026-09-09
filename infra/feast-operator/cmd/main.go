@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -25,6 +26,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	configv1 "github.com/openshift/api/config/v1"
+	tlspkg "github.com/openshift/controller-runtime-common/pkg/tls"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
@@ -61,6 +64,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(configv1.Install(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
 	utilruntime.Must(feastdevv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(feastdevv1.AddToScheme(scheme))
@@ -95,9 +99,8 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var secureMetrics bool
-	var enableHTTP2 bool
 	var featureStoreMetrics bool
-	var tlsOpts []func(*tls.Config)
+	tlsOpts := make([]func(*tls.Config), 0, 2)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -106,8 +109,6 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&secureMetrics, "metrics-secure", true,
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
-	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.BoolVar(&featureStoreMetrics, "feature-store-metrics", true,
 		"Enable Prometheus gauges exposing online/offline store and registry configuration per FeatureStore. "+
 			"Disable with --feature-store-metrics=false.")
@@ -119,20 +120,20 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
+	// Fetch cluster TLS profile from apiservers.config.openshift.io/cluster
+	cfg := ctrl.GetConfigOrDie()
+	bootstrapClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		setupLog.Error(err, "unable to create bootstrap client for TLS profile fetch")
+		os.Exit(1)
 	}
 
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
+	tlsResult, err := bootstrapTLS(context.Background(), bootstrapClient)
+	if err != nil {
+		setupLog.Error(err, "TLS bootstrap failed")
+		os.Exit(1)
 	}
+	tlsOpts = append(tlsOpts, tlsResult.TLSOpts...)
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
@@ -162,7 +163,7 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -230,6 +231,32 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
+	// Register SecurityProfileWatcher to restart on TLS profile changes
+	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
+
+	if tlsResult.ProfileFetched {
+		watcher := &tlspkg.SecurityProfileWatcher{
+			Client:                mgr.GetClient(),
+			InitialTLSProfileSpec: tlsResult.ProfileSpec,
+			OnProfileChange: func(_ context.Context, _, _ configv1.TLSProfileSpec) {
+				setupLog.Info("TLS profile changed, initiating shutdown to reload")
+				cancel()
+			},
+		}
+		if tlsResult.AdherenceFetched {
+			watcher.InitialTLSAdherencePolicy = tlsResult.AdherencePolicy
+			watcher.OnAdherencePolicyChange = func(_ context.Context, _, _ configv1.TLSAdherencePolicy) {
+				setupLog.Info("TLS adherence policy changed, initiating shutdown to reload")
+				cancel()
+			}
+		}
+		if err := watcher.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up TLS profile watcher")
+			os.Exit(1)
+		}
+	}
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -240,7 +267,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

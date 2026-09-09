@@ -19,6 +19,7 @@ overhead and avoids atexit-handler (Dask thread pool, PySpark JVM) hang risks
 that can push the cumulative test time past the pytest global timeout budget.
 """
 
+import os
 import random
 import string
 import subprocess
@@ -53,25 +54,52 @@ class CliRunner:
     modules from the feature repo, and it is hard to clean up that state otherwise.
     """
 
-    def run(self, args: List[str], cwd: Path) -> subprocess.CompletedProcess:
+    def _subprocess_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        parent_paths = [path for path in sys.path if path]
+        existing_pythonpath = env.get("PYTHONPATH")
+        if existing_pythonpath:
+            parent_paths.append(existing_pythonpath)
+        env["PYTHONPATH"] = os.pathsep.join(parent_paths)
+        return env
+
+    def run(
+        self, args: List[str], cwd: Path, attempts: int = 2
+    ) -> subprocess.CompletedProcess:
         # Apply a conservative timeout to prevent CI hangs from Dask atexit-handler
         # stalls or other subprocess blockages.
         timeout = 120
 
-        try:
-            return subprocess.run(
-                [sys.executable, cli.__file__] + args,
-                cwd=cwd,
-                capture_output=True,
-                timeout=timeout,
-            )
-        except subprocess.TimeoutExpired:
-            return subprocess.CompletedProcess(
-                args=[sys.executable, cli.__file__] + args,
-                returncode=-1,
-                stdout=b"",
-                stderr=f"Command timed out after {timeout}s: {args}".encode(),
-            )
+        # Commands routed through here (e.g. `apply`) do not materialize, so they
+        # cannot trigger the Dask atexit hang described in the module docstring. A
+        # timeout is therefore almost always transient slowness — a cold child
+        # interpreter importing Feast (pandas/pyarrow/...) on a loaded CI runner,
+        # which has been observed to exceed the timeout on the slower macOS
+        # runners. Retry once so a single slow cold start does not flake the test:
+        # the retry runs with warm OS/page caches and typically finishes quickly,
+        # while a genuine repeated stall still fails once attempts are exhausted.
+        full_args = [sys.executable, cli.__file__] + args
+        result = None
+        for attempt in range(1, attempts + 1):
+            try:
+                return subprocess.run(
+                    full_args,
+                    cwd=cwd,
+                    capture_output=True,
+                    timeout=timeout,
+                    env=self._subprocess_env(),
+                )
+            except subprocess.TimeoutExpired:
+                result = subprocess.CompletedProcess(
+                    args=full_args,
+                    returncode=-1,
+                    stdout=b"",
+                    stderr=(
+                        f"Command timed out after {timeout}s "
+                        f"(attempt {attempt}/{attempts}): {args}"
+                    ).encode(),
+                )
+        return result
 
     def run_with_output(self, args: List[str], cwd: Path) -> Tuple[int, bytes]:
         is_teardown = "teardown" in args
@@ -87,6 +115,7 @@ class CliRunner:
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=self._subprocess_env(),
         )
         try:
             stdout, _ = proc.communicate(timeout=timeout)
@@ -130,15 +159,18 @@ class CliRunner:
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 
+            registry_path_yaml = str(data_path / "registry.db")
+            online_store_path_yaml = str(data_path / "online_store.db")
+
             repo_config = repo_path / "feature_store.yaml"
             if online_store == "sqlite":
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
-                    path: {data_path / "online_store.db"}
+                    path: {online_store_path_yaml}
                 offline_store:
                     type: {offline_store}
                 entity_key_serialization_version: 3
@@ -148,10 +180,10 @@ class CliRunner:
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
-                    path: {data_path / "online_store.db"}
+                    path: {online_store_path_yaml}
                     type: milvus
                     vector_enabled: true
                     embedding_dim: 10
@@ -164,7 +196,7 @@ class CliRunner:
                 yaml_config = dedent(
                     f"""
                 project: {project_id}
-                registry: {data_path / "registry.db"}
+                registry: {registry_path_yaml}
                 provider: local
                 online_store:
                     type: {online_store}

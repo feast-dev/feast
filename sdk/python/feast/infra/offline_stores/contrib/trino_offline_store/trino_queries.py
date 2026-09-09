@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import signal
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -92,8 +93,9 @@ class Query(object):
         self.status = QueryStatus.PENDING
         self._cursor = cursor
 
-        signal.signal(signal.SIGINT, self.cancel)
-        signal.signal(signal.SIGTERM, self.cancel)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, self.cancel)
+            signal.signal(signal.SIGTERM, self.cancel)
 
     def execute(self) -> Results:
         try:

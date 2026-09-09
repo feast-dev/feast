@@ -16,9 +16,74 @@
 Configuration classes for Feast OpenLineage integration.
 """
 
+import json
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
+
+
+@dataclass
+class OpenLineageConsumerConfig:
+    """
+    Configuration for the OpenLineage consumer (event receiver).
+
+    Attributes:
+        enabled: Whether the consumer is enabled
+        store_type: Storage backend type ('sql' uses the SQL registry DB)
+        connection_string: Optional separate DB connection string
+        api_key: API key for authenticating producers sending events
+        namespace_mapping: Read-side RBAC bridge mapping external OpenLineage
+            namespaces to Feast project names. When a user can DESCRIBE a Feast
+            project, they also see lineage from any external namespace mapped to
+            that project. Also used during ingest to resolve incoming datasets to
+            Feast registry objects. Example:
+            {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"}
+        retention_days: Number of days to retain OpenLineage events and runs.
+            Events older than this are automatically pruned. Set to 0 to disable
+            pruning (keep everything). Default: 30 days.
+        retention_check_interval_hours: How often the background pruning runs,
+            in hours. Default: 6 hours.
+        standalone_server: When true, the retention background task is
+            delegated to the standalone lineage server (feast serve_lineage).
+            All consumer API endpoints remain available on both servers.
+            Set automatically by the operator when lineageServer is configured.
+    """
+
+    enabled: bool = False
+    store_type: str = "sql"
+    connection_string: Optional[str] = None
+    api_key: Optional[str] = None
+    namespace_mapping: Dict[str, str] = field(default_factory=dict)
+    retention_days: int = 30
+    retention_check_interval_hours: int = 6
+    standalone_server: bool = False
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenLineageConsumerConfig":
+        return cls(
+            enabled=config_dict.get("enabled", False),
+            store_type=config_dict.get("store_type", "sql"),
+            connection_string=config_dict.get("connection_string"),
+            api_key=config_dict.get("api_key"),
+            namespace_mapping=config_dict.get("namespace_mapping", {}),
+            retention_days=int(config_dict.get("retention_days", 30)),
+            retention_check_interval_hours=int(
+                config_dict.get("retention_check_interval_hours", 6)
+            ),
+            standalone_server=config_dict.get("standalone_server", False),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "store_type": self.store_type,
+            "connection_string": self.connection_string,
+            "api_key": self.api_key,
+            "namespace_mapping": self.namespace_mapping,
+            "retention_days": self.retention_days,
+            "retention_check_interval_hours": self.retention_check_interval_hours,
+            "standalone_server": self.standalone_server,
+        }
 
 
 @dataclass
@@ -38,6 +103,7 @@ class OpenLineageConfig:
         emit_on_apply: Emit lineage events when feast apply is called
         emit_on_materialize: Emit lineage events during materialization
         additional_config: Additional transport-specific configuration
+        consumer: Consumer (event receiver) configuration
     """
 
     enabled: bool = True
@@ -50,6 +116,9 @@ class OpenLineageConfig:
     emit_on_apply: bool = True
     emit_on_materialize: bool = True
     additional_config: Dict[str, Any] = field(default_factory=dict)
+    consumer: OpenLineageConsumerConfig = field(
+        default_factory=OpenLineageConsumerConfig
+    )
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenLineageConfig":
@@ -62,6 +131,13 @@ class OpenLineageConfig:
         Returns:
             OpenLineageConfig instance
         """
+        consumer_dict = config_dict.get("consumer", {})
+        consumer = (
+            OpenLineageConsumerConfig.from_dict(consumer_dict)
+            if consumer_dict
+            else OpenLineageConsumerConfig()
+        )
+
         return cls(
             enabled=config_dict.get("enabled", True),
             transport_type=config_dict.get("transport_type"),
@@ -73,6 +149,7 @@ class OpenLineageConfig:
             emit_on_apply=config_dict.get("emit_on_apply", True),
             emit_on_materialize=config_dict.get("emit_on_materialize", True),
             additional_config=config_dict.get("additional_config", {}),
+            consumer=consumer,
         )
 
     @classmethod
@@ -88,10 +165,38 @@ class OpenLineageConfig:
             FEAST_OPENLINEAGE_API_KEY: API key for authentication
             FEAST_OPENLINEAGE_NAMESPACE: Default namespace (default: feast)
             FEAST_OPENLINEAGE_PRODUCER: Producer identifier
+            FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING: JSON object mapping external
+                OL namespaces to Feast project names for RBAC scoping.
+                Example: '{"spark://ml-team": "ml_team", "airflow://prod-cluster": "prod"}'
 
         Returns:
             OpenLineageConfig instance
         """
+        ns_mapping_raw = os.getenv("FEAST_OPENLINEAGE_CONSUMER_NAMESPACE_MAPPING", "")
+        ns_mapping: Dict[str, str] = {}
+        if ns_mapping_raw:
+            try:
+                ns_mapping = json.loads(ns_mapping_raw)
+            except json.JSONDecodeError:
+                pass
+
+        consumer = OpenLineageConsumerConfig(
+            enabled=os.getenv("FEAST_OPENLINEAGE_CONSUMER_ENABLED", "false").lower()
+            == "true",
+            store_type=os.getenv("FEAST_OPENLINEAGE_CONSUMER_STORE_TYPE", "sql"),
+            connection_string=os.getenv("FEAST_OPENLINEAGE_CONSUMER_CONNECTION_STRING"),
+            api_key=os.getenv("FEAST_OPENLINEAGE_CONSUMER_API_KEY"),
+            namespace_mapping=ns_mapping,
+            retention_days=int(
+                os.getenv("FEAST_OPENLINEAGE_CONSUMER_RETENTION_DAYS", "30")
+            ),
+            retention_check_interval_hours=int(
+                os.getenv(
+                    "FEAST_OPENLINEAGE_CONSUMER_RETENTION_CHECK_INTERVAL_HOURS", "6"
+                )
+            ),
+        )
+
         return cls(
             enabled=os.getenv("FEAST_OPENLINEAGE_ENABLED", "true").lower() == "true",
             transport_type=os.getenv("FEAST_OPENLINEAGE_TRANSPORT_TYPE"),
@@ -108,7 +213,12 @@ class OpenLineageConfig:
                 "FEAST_OPENLINEAGE_EMIT_ON_MATERIALIZE", "true"
             ).lower()
             == "true",
+            consumer=consumer,
         )
+
+    @property
+    def consumer_api_key(self) -> Optional[str]:
+        return self.consumer.api_key if self.consumer else None
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -117,7 +227,7 @@ class OpenLineageConfig:
         Returns:
             Dictionary representation of the configuration
         """
-        return {
+        result = {
             "enabled": self.enabled,
             "transport_type": self.transport_type,
             "transport_url": self.transport_url,
@@ -129,6 +239,9 @@ class OpenLineageConfig:
             "emit_on_materialize": self.emit_on_materialize,
             "additional_config": self.additional_config,
         }
+        if self.consumer:
+            result["consumer"] = self.consumer.to_dict()
+        return result
 
     def get_transport_config(self) -> Optional[Dict[str, Any]]:
         """

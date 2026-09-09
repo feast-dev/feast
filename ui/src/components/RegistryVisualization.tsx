@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ReactFlow,
   Node,
   Edge,
   Controls,
+  ControlButton,
   Background,
   useNodesState,
   useEdgesState,
@@ -82,10 +89,16 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#cc0000"; // Red
     case FEAST_FCO_TYPES.labelView:
       return "#e6570e"; // Deep orange for label views
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#8B5CF6"; // Purple for saved datasets
     case FEAST_FCO_TYPES.mlflowRun:
       return "#0194e2"; // MLflow brand blue
     case FEAST_FCO_TYPES.mlflowModel:
       return "#7b2d8e"; // Purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#e67300"; // Deep orange for OL jobs
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#3366cc"; // Steel blue for OL datasets
     default:
       return "#666666"; // Gray
   }
@@ -103,10 +116,16 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ffe6e6"; // Light red
     case FEAST_FCO_TYPES.labelView:
       return "#fde8dc"; // Light deep orange
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#EDE9FE"; // Light purple
     case FEAST_FCO_TYPES.mlflowRun:
       return "#e6f6fd"; // Light MLflow blue
     case FEAST_FCO_TYPES.mlflowModel:
       return "#f3e6f9"; // Light purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#fff0e0"; // Light deep orange
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#e0ecff"; // Light steel blue
     default:
       return "#f0f0f0"; // Light gray
   }
@@ -124,10 +143,16 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "◆"; // Diamond for data source
     case FEAST_FCO_TYPES.labelView:
       return "◉"; // Bullseye for label view
+    case FEAST_FCO_TYPES.savedDataset:
+      return "⬟"; // Pentagon for saved dataset
     case FEAST_FCO_TYPES.mlflowRun:
       return "⬡"; // Hexagon for MLflow run
     case FEAST_FCO_TYPES.mlflowModel:
       return "⬢"; // Filled hexagon for registered model
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "⚙"; // Gear for OL job
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "⬡"; // Hexagon for OL dataset
     default:
       return "●"; // Default circle
   }
@@ -168,6 +193,9 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         break;
       case FEAST_FCO_TYPES.labelView:
         path = `/p/${projectName}/label-view/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.savedDataset:
+        path = `/p/${projectName}/data-set/${data.label}`;
         break;
       default:
         return;
@@ -432,8 +460,11 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
     [FEAST_FCO_TYPES.labelView]: [],
+    [FEAST_FCO_TYPES.savedDataset]: [],
     [FEAST_FCO_TYPES.mlflowRun]: [],
     [FEAST_FCO_TYPES.mlflowModel]: [],
+    [FEAST_FCO_TYPES.openlineageJob]: [],
+    [FEAST_FCO_TYPES.openlineageDataset]: [],
   };
 
   isolatedNodes.forEach((node) => {
@@ -491,6 +522,7 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.labelView, label: "Label View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+    { type: FEAST_FCO_TYPES.savedDataset, label: "Saved Dataset" },
     { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
     { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
@@ -656,7 +688,7 @@ const registryToFlow = (
   objects.onDemandFeatureViews?.forEach((odfv) => {
     const odfvName = odfv.spec?.name;
     nodes.push({
-      id: `odfv-${odfvName}`,
+      id: `fv-${odfvName}`,
       type: "custom",
       data: {
         label: odfvName,
@@ -679,7 +711,7 @@ const registryToFlow = (
   objects.streamFeatureViews?.forEach((sfv) => {
     const sfvName = sfv.spec?.name;
     nodes.push({
-      id: `sfv-${sfvName}`,
+      id: `fv-${sfvName}`,
       type: "custom",
       data: {
         label: sfvName,
@@ -738,6 +770,27 @@ const registryToFlow = (
     });
   });
 
+  (objects as any).savedDatasets?.forEach((sd: any) => {
+    const sdName = sd.spec?.name;
+    nodes.push({
+      id: `sd-${sdName}`,
+      type: "custom",
+      data: {
+        label: sdName,
+        type: FEAST_FCO_TYPES.savedDataset,
+        metadata: sd,
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.savedDataset,
+              sdName,
+            )
+          : [],
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
   const dataSources = new Set<string>();
 
   objects.featureViews?.forEach((fv) => {
@@ -752,6 +805,16 @@ const registryToFlow = (
     }
     if (sfv.spec?.streamSource?.name) {
       dataSources.add(sfv.spec.streamSource.name);
+    }
+  });
+
+  objects.onDemandFeatureViews?.forEach((odfv: any) => {
+    if (odfv.spec?.sources) {
+      Object.values(odfv.spec.sources).forEach((input: any) => {
+        if (input.requestDataSource?.name) {
+          dataSources.add(input.requestDataSource.name);
+        }
+      });
     }
   });
 
@@ -924,10 +987,16 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "ds";
     case FEAST_FCO_TYPES.labelView:
       return "lv";
+    case FEAST_FCO_TYPES.savedDataset:
+      return "sd";
     case FEAST_FCO_TYPES.mlflowRun:
       return "mlflow";
     case FEAST_FCO_TYPES.mlflowModel:
       return "model";
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "ol-job";
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "ol-ds";
     default:
       return "unknown";
   }
@@ -940,6 +1009,8 @@ interface RegistryVisualizationProps {
   filterNode?: { type: FEAST_FCO_TYPES; name: string };
   permissions?: any[];
   mlflowRuns?: MlflowRunData[];
+  extraCheckboxes?: React.ReactNode;
+  filterControls?: React.ReactNode;
 }
 
 const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
@@ -949,6 +1020,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   filterNode,
   permissions,
   mlflowRuns,
+  extraCheckboxes,
+  filterControls,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -957,6 +1030,64 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     useState(false);
   const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
+
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const edgesRef = useRef<Edge[]>([]);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!graphContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current.requestFullscreen();
+    }
+  }, []);
+
+  const connectedIds = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const ids = new Set<string>([hoveredNodeId]);
+    const allEdges = edgesRef.current;
+
+    // Walk upstream (target → source)
+    const upQueue = [hoveredNodeId];
+    while (upQueue.length > 0) {
+      const cur = upQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.target === cur && !ids.has(e.source)) {
+          ids.add(e.source);
+          upQueue.push(e.source);
+        }
+      }
+    }
+
+    // Walk downstream (source → target)
+    const downQueue = [hoveredNodeId];
+    while (downQueue.length > 0) {
+      const cur = downQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.source === cur && !ids.has(e.target)) {
+          ids.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    }
+
+    return ids;
+  }, [hoveredNodeId]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id),
+    [],
+  );
+  const onNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
 
   useEffect(() => {
     if (registryData && relationships) {
@@ -1036,6 +1167,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           showIsolatedNodes,
         );
 
+      edgesRef.current = layoutedEdges;
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
@@ -1053,6 +1185,31 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     setEdges,
   ]);
 
+  const styledNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedIds.has(n.id) ? 1 : 0.15,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [nodes, connectedIds]);
+
+  const styledEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity:
+          connectedIds.has(e.source) && connectedIds.has(e.target) ? 1 : 0.08,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [edges, connectedIds]);
+
   return (
     <EuiPanel>
       <style>{edgeAnimationStyle}</style>
@@ -1066,7 +1223,15 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         <EuiTitle size="s">
           <h2>Lineage</h2>
         </EuiTitle>
-        <div style={{ display: "flex", gap: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            alignItems: "center",
+            fontSize: 13,
+          }}
+        >
+          {extraCheckboxes}
           <label>
             <input
               type="checkbox"
@@ -1086,16 +1251,24 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         </div>
       </div>
       <EuiSpacer size="m" />
+      {filterControls}
 
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
           <EuiLoadingSpinner size="xl" />
         </div>
       ) : (
-        <div style={{ height: 600, border: "1px solid #ddd" }}>
+        <div
+          ref={graphContainerRef}
+          style={{
+            height: isFullscreen ? "100vh" : 600,
+            border: "1px solid #ddd",
+            background: "#fff",
+          }}
+        >
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -1103,9 +1276,18 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             fitView
             minZoom={0.1}
             maxZoom={8}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
           >
             <Background color="#f0f0f0" gap={16} />
-            <Controls />
+            <Controls>
+              <ControlButton
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? "⊡" : "⛶"}
+              </ControlButton>
+            </Controls>
             <Legend />
           </ReactFlow>
         </div>

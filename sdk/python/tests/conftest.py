@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib
 import logging
 import multiprocessing
 import os
@@ -20,7 +21,7 @@ from datetime import timedelta
 from multiprocessing import Process
 from sys import platform
 from textwrap import dedent
-from typing import Any, Dict, List, Tuple, no_type_check
+from typing import Any, Dict, List, Optional, Tuple, no_type_check
 from unittest import mock
 
 import pandas as pd
@@ -36,34 +37,90 @@ from tests.data.data_creator import (
     create_document_dataset,
     create_image_dataset,
 )
-from tests.universal.feature_repos.integration_test_repo_config import (  # noqa: E402
-    IntegrationTestRepoConfig,
-)
-from tests.universal.feature_repos.repo_configuration import (  # noqa: E402
-    AVAILABLE_OFFLINE_STORES,
-    AVAILABLE_ONLINE_STORES,
-    OFFLINE_STORE_TO_PROVIDER_CONFIG,
-    Environment,
-    TestData,
-    construct_test_environment,
-    construct_universal_feature_views,
-    construct_universal_test_data,
-)
-from tests.universal.feature_repos.universal.data_sources.file import (  # noqa: E402
-    FileDataSourceCreator,
-)
-from tests.universal.feature_repos.universal.entities import (  # noqa: E402
-    customer,
-    driver,
-    location,
-)
-from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
-from tests.utils.ssl_certifcates_util import (
-    combine_trust_stores,
-    create_ca_trust_store,
-    generate_self_signed_cert,
-)
+
+IntegrationTestRepoConfig: Any = None
+Environment = Any
+TestData = Any
+AVAILABLE_OFFLINE_STORES: Any = None
+AVAILABLE_ONLINE_STORES: Any = None
+OFFLINE_STORE_TO_PROVIDER_CONFIG: Any = None
+construct_test_environment: Any = None
+construct_universal_feature_views: Any = None
+construct_universal_test_data: Any = None
+FileDataSourceCreator: Any = None
+customer: Any = None
+driver: Any = None
+location: Any = None
+_universal_deps_missing_reason: Optional[str] = None
+
+
+def _load_universal_feature_repo_deps() -> bool:
+    global IntegrationTestRepoConfig
+    global Environment
+    global TestData
+    global AVAILABLE_OFFLINE_STORES
+    global AVAILABLE_ONLINE_STORES
+    global OFFLINE_STORE_TO_PROVIDER_CONFIG
+    global construct_test_environment
+    global construct_universal_feature_views
+    global construct_universal_test_data
+    global FileDataSourceCreator
+    global customer
+    global driver
+    global location
+    global _universal_deps_missing_reason
+
+    if IntegrationTestRepoConfig is not None:
+        return True
+
+    try:
+        integration_config = importlib.import_module(
+            "tests.universal.feature_repos.integration_test_repo_config"
+        )
+        repo_configuration = importlib.import_module(
+            "tests.universal.feature_repos.repo_configuration"
+        )
+        file_data_sources = importlib.import_module(
+            "tests.universal.feature_repos.universal.data_sources.file"
+        )
+        entities = importlib.import_module(
+            "tests.universal.feature_repos.universal.entities"
+        )
+    except ModuleNotFoundError as e:
+        _universal_deps_missing_reason = (
+            f"Optional integration test dependency is not installed: {e.name}"
+        )
+        return False
+
+    IntegrationTestRepoConfig = integration_config.IntegrationTestRepoConfig
+    Environment = repo_configuration.Environment
+    TestData = repo_configuration.TestData
+    AVAILABLE_OFFLINE_STORES = repo_configuration.AVAILABLE_OFFLINE_STORES
+    AVAILABLE_ONLINE_STORES = repo_configuration.AVAILABLE_ONLINE_STORES
+    OFFLINE_STORE_TO_PROVIDER_CONFIG = (
+        repo_configuration.OFFLINE_STORE_TO_PROVIDER_CONFIG
+    )
+    construct_test_environment = repo_configuration.construct_test_environment
+    construct_universal_feature_views = (
+        repo_configuration.construct_universal_feature_views
+    )
+    construct_universal_test_data = repo_configuration.construct_universal_test_data
+    FileDataSourceCreator = file_data_sources.FileDataSourceCreator
+    customer = entities.customer
+    driver = entities.driver
+    location = entities.location
+    _universal_deps_missing_reason = None
+    return True
+
+
+def _skip_missing_universal_feature_repo_deps() -> None:
+    if not _load_universal_feature_repo_deps():
+        pytest.skip(
+            _universal_deps_missing_reason
+            or "Optional integration test dependencies are not installed"
+        )
+
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +142,7 @@ for logger_name in logging.root.manager.loggerDict:  # type: ignore
 
 
 def pytest_configure(config):
-    if platform in ["darwin", "windows"]:
+    if platform == "darwin" or platform.startswith("win"):
         multiprocessing.set_start_method("spawn", force=True)
     else:
         multiprocessing.set_start_method("fork")
@@ -192,6 +249,7 @@ def start_test_local_server(repo_path: str, port: int):
 
 @pytest.fixture
 def environment(request, worker_id):
+    _skip_missing_universal_feature_repo_deps()
     e = construct_test_environment(
         request.param,
         worker_id=worker_id,
@@ -211,6 +269,7 @@ def environment(request, worker_id):
 
 @pytest.fixture
 def vectordb_environment(request, worker_id):
+    _skip_missing_universal_feature_repo_deps()
     e = construct_test_environment(
         request.param,
         worker_id=worker_id,
@@ -251,6 +310,23 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
     parameter should point to the same Python object (hence, we use _config_cache dict to store those objects).
     """
     if "environment" in metafunc.fixturenames:
+        if not _load_universal_feature_repo_deps():
+            metafunc.parametrize(
+                "environment",
+                [
+                    pytest.param(
+                        None,
+                        marks=pytest.mark.skip(
+                            reason=_universal_deps_missing_reason
+                            or "Optional integration test dependencies are not installed"
+                        ),
+                    )
+                ],
+                indirect=True,
+                ids=["missing_optional_integration_deps"],
+            )
+            return
+
         markers = {m.name: m for m in metafunc.definition.own_markers}
         offline_stores = None
         if "universal_offline_stores" in markers:
@@ -371,6 +447,7 @@ def feature_server_endpoint(environment):
 
 @pytest.fixture
 def universal_data_sources(environment) -> TestData:
+    _skip_missing_universal_feature_repo_deps()
     return construct_universal_test_data(environment)
 
 
@@ -394,6 +471,7 @@ def feature_store_for_online_retrieval(
     Returns a feature store that is ready for online retrieval, along with entity rows and feature
     refs that can be used to query for online features.
     """
+    _skip_missing_universal_feature_repo_deps()
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -478,6 +556,11 @@ def server_port():
 
 @pytest.fixture
 def feature_store(temp_dir, auth_config, applied_permissions):
+    try:
+        from tests.utils.auth_permissions_util import default_store
+    except ModuleNotFoundError as e:
+        pytest.skip(f"Optional auth test dependency is not installed: {e.name}")
+
     print(f"Creating store at {temp_dir}")
     return default_store(str(temp_dir), auth_config, applied_permissions)
 
@@ -542,6 +625,15 @@ def auth_config(request, is_integration_test):
 
 @pytest.fixture(scope="module")
 def tls_mode(request):
+    try:
+        from tests.utils.ssl_certifcates_util import (
+            combine_trust_stores,
+            create_ca_trust_store,
+            generate_self_signed_cert,
+        )
+    except ModuleNotFoundError as e:
+        pytest.skip(f"Optional TLS test dependency is not installed: {e.name}")
+
     is_tls_mode = request.param[0]
     output_combined_truststore_path = ""
 

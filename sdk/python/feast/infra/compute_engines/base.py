@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 import pyarrow as pa
 
@@ -18,6 +18,9 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
+
+if TYPE_CHECKING:
+    from feast.openlineage.identity import LineageParentContext
 
 
 class ComputeEngine(ABC):
@@ -85,14 +88,43 @@ class ComputeEngine(ABC):
         """
         pass
 
+    @property
+    def supports_batch(self) -> bool:
+        """Whether this engine can accept all tasks in a single materialize() call.
+
+        When True, feature_store.py collects all FV tasks upfront and submits
+        them in one batch.  When False (default), the standard per-FV loop
+        through ``provider.materialize_single_feature_view()`` is used.
+        """
+        return False
+
+    @property
+    def applies_materialization(self) -> bool:
+        """If True, the engine already wrote watermarks/state (e.g. driver pod)."""
+        return False
+
     def materialize(
         self,
         registry: BaseRegistry,
         tasks: Union[MaterializationTask, List[MaterializationTask]],
+        *,
+        lineage_parent: Optional["LineageParentContext"] = None,
         **kwargs,
     ) -> List[MaterializationJob]:
+        """Materialize features for the given tasks.
+
+        Args:
+            registry: Feature registry
+            tasks: One or more materialization tasks
+            lineage_parent: Optional OpenLineage parent run. Engines that emit
+                their own lineage (e.g. SparkApplication) should attach this as
+                a parentRun; others ignore it.
+            **kwargs: Engine-specific options
+        """
         if isinstance(tasks, MaterializationTask):
             tasks = [tasks]
+        if lineage_parent is not None:
+            kwargs["lineage_parent"] = lineage_parent
         return [self._materialize_one(registry, task, **kwargs) for task in tasks]
 
     def _materialize_one(

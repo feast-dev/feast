@@ -55,6 +55,7 @@ if typing.TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
+    from feast.feature_view_projection import FeatureViewProjection
     from feast.infra.registry.base_registry import BaseRegistry
     from feast.on_demand_feature_view import OnDemandFeatureView
 
@@ -811,17 +812,58 @@ def _augment_response_with_on_demand_transforms(
             # Apply transformation. Note: aggregations and transformation configs are mutually exclusive
             # TODO: Fix to make it work for having both aggregation and transformation
             #  ticket: https://github.com/feast-dev/feast/issues/5689
+            # A UDF should only get features from the sources it declared. Drop
+            # features that belong to other feature views so it can't read them by
+            # accident (#6158). Join keys, request data and the declared features
+            # stay. substrait filters on its own, so leave it alone.
+            declared_source_names = {
+                projection.name
+                for projection in odfv.source_feature_view_projections.values()
+            }
+            undeclared_columns: set[str] = set()
+            # features the caller asked for that aren't one of our sources
+            for feature_ref in feature_refs:
+                ref_view_name, _, ref_feature_name = _parse_feature_ref(feature_ref)
+                if ref_view_name in requested_odfv_feature_names:
+                    continue
+                if ref_view_name not in declared_source_names:
+                    undeclared_columns.add(ref_feature_name)
+                    undeclared_columns.add(f"{ref_view_name}__{ref_feature_name}")
+            # features that are only in the response because another requested
+            # ODFV needs them as input
+            for other_odfv in requested_on_demand_feature_views:
+                for projection in other_odfv.source_feature_view_projections.values():
+                    if projection.name in declared_source_names:
+                        continue
+                    for feature in projection.features:
+                        undeclared_columns.add(feature.name)
+                        undeclared_columns.add(f"{projection.name}__{feature.name}")
+
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
+                odfv_input_dict = {
+                    k: v
+                    for k, v in initial_response_dict.items()
+                    if k not in undeclared_columns
+                }
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    initial_response_dict
+                    odfv_input_dict
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
+                odfv_input_arrow = initial_response_arrow
+                if odfv.mode == "pandas":
+                    odfv_input_arrow = initial_response_arrow.select(
+                        [
+                            c
+                            for c in initial_response_arrow.column_names
+                            if c not in undeclared_columns
+                        ]
+                    )
                 transformed_features_arrow = odfv.transform_arrow(
-                    initial_response_arrow, full_feature_names
+                    odfv_input_arrow, full_feature_names
                 )
             else:
                 raise Exception(
@@ -1193,6 +1235,19 @@ def _list_feature_views(
     return feature_views
 
 
+def _merge_projection_features(
+    target: "FeatureViewProjection",
+    other: "FeatureViewProjection",
+) -> None:
+    existing_names = {feature.name for feature in target.features}
+    merged = list(target.features)
+    for feature in other.features:
+        if feature.name not in existing_names:
+            existing_names.add(feature.name)
+            merged.append(feature)
+    target.features = merged
+
+
 def _get_feature_views_to_use(
     registry: "BaseRegistry",
     project,
@@ -1223,6 +1278,25 @@ def _get_feature_views_to_use(
         feature_views = parsed  # type: ignore[assignment]
 
     fvs_to_use, od_fvs_to_use = [], []
+    fvs_by_projection_key: Dict[str, "FeatureView"] = {}
+
+    def _append_or_merge_source_fv(fv_with_projection: "FeatureView") -> None:
+        # Index every (source) feature view by its effective projection key so
+        # that a regular FeatureView and an ODFV source projection resolving to
+        # the same key are merged into a single entry instead of duplicated.
+        # Without this, requesting ["src_fv:a", "odfv_b:b_out"] where odfv_b
+        # sources src_fv appends two src_fv entries and later raises
+        # "KeyError: Feature a not found in projection src_fv".
+        projection_key = fv_with_projection.projection.name_to_use()
+        existing = fvs_by_projection_key.get(projection_key)
+        if existing is None:
+            fvs_by_projection_key[projection_key] = fv_with_projection
+            fvs_to_use.append(fv_with_projection)
+        else:
+            _merge_projection_features(
+                existing.projection, fv_with_projection.projection
+            )
+
     for name, version_num, projection in feature_views:
         if version_num is not None:
             if not getattr(registry, "enable_online_versioning", False):
@@ -1286,10 +1360,8 @@ def _get_feature_views_to_use(
                     source_fv.entities = []  # type: ignore[attr-defined]
                     source_fv.entity_columns = []  # type: ignore[attr-defined]
 
-                if source_fv not in fvs_to_use:
-                    fvs_to_use.append(
-                        source_fv.with_projection(copy.copy(source_projection))
-                    )
+                new_source_fv = source_fv.with_projection(copy.copy(source_projection))
+                _append_or_merge_source_fv(new_source_fv)
         else:
             if (
                 hide_dummy_entity
@@ -1302,7 +1374,7 @@ def _get_feature_views_to_use(
                 fv = fv.with_projection(copy.copy(projection))
                 if version_num is not None:
                     fv.projection.version_tag = version_num
-            fvs_to_use.append(fv)
+            _append_or_merge_source_fv(fv)  # type: ignore[arg-type]
 
     return (fvs_to_use, od_fvs_to_use)
 
@@ -1495,6 +1567,13 @@ def _prepare_entities_to_read_from_online_store(
         needed_request_data,
         entityless_case,
     ) = _get_cached_request_context(registry, project, features, full_feature_names)
+
+    # Online stores may append internal fields to the requested feature lists.
+    # Keep those request-local so the cached resolution result remains unchanged.
+    grouped_refs = [
+        (feature_view, list(requested_features))
+        for feature_view, requested_features in grouped_refs
+    ]
 
     # Mutable copy — downstream code adds join keys to this set.
     requested_result_row_names = set(requested_result_row_names_frozen)
@@ -1779,3 +1858,24 @@ def _get_feature_view_vector_field_metadata(
     if not vector_fields:
         return None
     return vector_fields[0]
+
+
+def _distance_to_score(distance: float, metric: Optional[str] = None) -> float:
+    """Convert a raw distance value into a higher-is-better relevance score.
+
+    OpenAI clients treat ``score`` as higher-is-better (used with
+    ``score_threshold``).  Online stores return raw *distance* values where
+    lower is better, so a metric-aware conversion is required.
+
+    * **L2 / euclidean**: ``1 / (1 + distance)`` — maps [0, inf) to (0, 1]
+    * **cosine** (pgvector ``<=>`` returns ``1 - cosine_similarity``):
+      ``1 - distance`` — recovers cosine similarity, clamped >= 0
+    * **inner_product / ip / dot** (pgvector ``<#>`` returns ``-dot(a, b)``):
+      ``-distance`` — recovers the raw inner product
+    """
+    m = (metric or "L2").lower()
+    if m in ("cosine",):
+        return max(0.0, 1.0 - distance)
+    if m in ("inner_product", "ip", "dot"):
+        return -distance
+    return 1.0 / (1.0 + distance)

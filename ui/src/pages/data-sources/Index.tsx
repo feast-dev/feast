@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -14,8 +14,8 @@ import {
 } from "@elastic/eui";
 
 import DatasourcesListingTable from "./DataSourcesListingTable";
+import DataSourceCatalog from "./DataSourceCatalog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
 import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
@@ -67,33 +67,97 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 
   const st = formData.sourceType;
   if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
-    payload.file_options = { uri: formData.fileUri };
+    payload.file_options = {
+      uri: formData.fileUri,
+      file_format: formData.fileFormat || "parquet",
+      s3_endpoint_override: formData.fileS3EndpointOverride || "",
+    };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
     payload.bigquery_options = {
       table: formData.bigqueryTable,
       query: formData.bigqueryQuery,
     };
+    if (formData.bigqueryDatePartitionColumn) {
+      payload.date_partition_column = formData.bigqueryDatePartitionColumn;
+    }
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
     payload.snowflake_options = {
       table: formData.snowflakeTable,
       database: formData.snowflakeDatabase,
       schema_: formData.snowflakeSchema,
+      query: formData.snowflakeQuery || "",
+      warehouse: formData.snowflakeWarehouse || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
     payload.redshift_options = {
       table: formData.redshiftTable,
       database: formData.redshiftDatabase,
       schema_: formData.redshiftSchema,
+      query: formData.redshiftQuery || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
     payload.kafka_options = {
       kafka_bootstrap_servers: formData.kafkaBootstrapServers,
       topic: formData.kafkaTopic,
+      message_format: formData.kafkaMessageFormat || "json",
+      watermark_delay_threshold: formData.kafkaWatermarkDelay || "",
     };
   } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
     payload.spark_options = {
       table: formData.sparkTable,
       path: formData.sparkPath,
+      query: formData.sparkQuery || "",
+      file_format: formData.sparkFileFormat || "",
+      table_format: formData.sparkTableFormat || "",
+      table_format_catalog: formData.sparkTableFormatCatalog || "",
+      table_format_namespace: formData.sparkTableFormatNamespace || "",
+      table_format_properties: formData.sparkTableFormatProperties || "",
+      date_partition_column: formData.sparkDatePartitionColumn || "",
+      date_partition_column_format: formData.sparkDatePartitionFormat || "",
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
+    payload.trino_options = {
+      table: formData.trinoTable,
+      query: formData.trinoQuery,
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ATHENA)) {
+    payload.athena_options = {
+      table: formData.athenaTable,
+      query: formData.athenaQuery,
+      database: formData.athenaDatabase,
+      data_source: formData.athenaDataSource,
+    };
+    if (formData.athenaDatePartitionColumn) {
+      payload.date_partition_column = formData.athenaDatePartitionColumn;
+    }
+  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ICEBERG)) {
+    const catalogProps = formData.icebergCatalogProperties.trim()
+      ? JSON.parse(formData.icebergCatalogProperties)
+      : {};
+    payload.custom_options = {
+      configuration: JSON.stringify({
+        catalog_type: formData.icebergCatalogType || "rest",
+        endpoint: formData.icebergEndpoint,
+        warehouse: formData.icebergWarehouse,
+        namespace: formData.icebergNamespace,
+        table: formData.icebergTable,
+        token_env_var: formData.icebergTokenEnvVar || null,
+        credential_vending: formData.icebergCredentialVending !== "false",
+        catalog_properties: catalogProps,
+      }),
+    };
+    payload.data_source_class_type =
+      "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource";
+  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
+    payload.kinesis_options = {
+      region: formData.kinesisRegion,
+      stream_name: formData.kinesisStreamName,
+      record_format: formData.kinesisRecordFormat || "json",
+    };
+  } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
+    payload.custom_options = {
+      class_name: formData.customSourceClassName,
+      config: formData.customSourceConfig,
     };
   }
 
@@ -102,10 +166,15 @@ const formDataToPayload = (formData: DataSourceFormData, project: string) => {
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadDatasources();
   const isAllProjects = projectName === "all";
 
+  const [showCatalog, setShowCatalog] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [preselectedSourceType, setPreselectedSourceType] = useState<
+    string | null
+  >(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const applyDataSource = useApplyDataSource();
@@ -116,11 +185,101 @@ const Index = () => {
 
   const filterResult = data ? filterFn(data, searchTokens) : data;
 
+  const hasExistingSources = isSuccess && data && data.length > 0;
+  const isEmpty = isSuccess && (!data || data.length === 0);
+
+  const modalInitialData = useMemo(() => {
+    if (!preselectedSourceType) return undefined;
+    return {
+      name: "",
+      description: "",
+      owner: "",
+      sourceType: preselectedSourceType,
+      timestampField: "",
+      createdTimestampColumn: "",
+      tags: [] as { key: string; value: string }[],
+      fileUri: "",
+      fileFormat: "parquet",
+      fileS3EndpointOverride: "",
+      bigqueryTable: "",
+      bigqueryQuery: "",
+      bigqueryDatePartitionColumn: "",
+      snowflakeTable: "",
+      snowflakeDatabase: "",
+      snowflakeSchema: "",
+      snowflakeQuery: "",
+      snowflakeWarehouse: "",
+      redshiftTable: "",
+      redshiftDatabase: "",
+      redshiftSchema: "",
+      redshiftQuery: "",
+      kafkaBootstrapServers: "",
+      kafkaTopic: "",
+      kafkaMessageFormat: "json",
+      kafkaWatermarkDelay: "",
+      sparkTable: "",
+      sparkPath: "",
+      sparkQuery: "",
+      sparkFileFormat: "parquet",
+      sparkTableFormat: "",
+      sparkTableFormatCatalog: "",
+      sparkTableFormatNamespace: "",
+      sparkTableFormatProperties: "",
+      sparkDatePartitionColumn: "",
+      sparkDatePartitionFormat: "%Y-%m-%d",
+      kinesisRegion: "",
+      kinesisStreamName: "",
+      kinesisRecordFormat: "json",
+      trinoTable: "",
+      trinoQuery: "",
+      athenaTable: "",
+      athenaQuery: "",
+      athenaDatabase: "",
+      athenaDataSource: "",
+      athenaDatePartitionColumn: "",
+      customSourceClassName: "",
+      customSourceConfig: "",
+      icebergCatalogType: "rest",
+      icebergEndpoint: "",
+      icebergWarehouse: "",
+      icebergNamespace: "",
+      icebergTable: "",
+      icebergTokenEnvVar: "",
+      icebergCredentialVending: "true",
+      icebergCatalogProperties: "",
+      rayReaderType: "parquet",
+      rayPath: "",
+      rayReaderOptions: "",
+      postgresTable: "",
+      postgresQuery: "",
+      mongodbCollection: "",
+      clickhouseTable: "",
+      clickhouseQuery: "",
+      mssqlTable: "",
+      mssqlConnectionStr: "",
+      mssqlDatePartitionColumn: "",
+      oracleTable: "",
+      oracleConnectionStr: "",
+      oracleDatePartitionColumn: "",
+      couchbaseDatabase: "",
+      couchbaseScope: "",
+      couchbaseCollection: "",
+      couchbaseQuery: "",
+    };
+  }, [preselectedSourceType]);
+
+  const handleSelectType = (sourceType: string) => {
+    setPreselectedSourceType(sourceType);
+    setIsModalOpen(true);
+  };
+
   const handleCreateSubmit = (formData: DataSourceFormData) => {
     const payload = formDataToPayload(formData, projectName || "");
     applyDataSource.mutate(payload as any, {
       onSuccess: () => {
         setIsModalOpen(false);
+        setPreselectedSourceType(null);
+        setShowCatalog(false);
         setErrorMessage(null);
         setSuccessMessage(
           `Data source "${formData.name}" created successfully.`,
@@ -128,7 +287,6 @@ const Index = () => {
         setTimeout(() => setSuccessMessage(null), 5000);
       },
       onError: (err: unknown) => {
-        // Error shown inside the modal via submitError prop
         const message =
           err instanceof Error ? err.message : "An unexpected error occurred.";
         setErrorMessage(message);
@@ -143,13 +301,13 @@ const Index = () => {
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
         rightSideItems={[
-          ...(isAllProjects
+          ...(isAllProjects || showCatalog
             ? []
             : [
                 <EuiButton
                   fill
                   iconType="plus"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setShowCatalog(true)}
                   key="create"
                 >
                   Create Data Source
@@ -175,7 +333,7 @@ const Index = () => {
             <EuiSpacer size="m" />
           </>
         )}
-        {errorMessage && (
+        {errorMessage && !isModalOpen && (
           <>
             <EuiCallOut
               title={errorMessage}
@@ -186,32 +344,84 @@ const Index = () => {
             <EuiSpacer size="m" />
           </>
         )}
-        {isLoading && (
-          <p>
-            <EuiLoadingSpinner size="m" /> Loading
-          </p>
-        )}
-        {isError && <p>We encountered an error while loading.</p>}
-        {isSuccess && !data && <DataSourceIndexEmptyState />}
-        {isSuccess && data && data.length > 0 && filterResult && (
-          <React.Fragment>
-            <EuiFlexGroup>
-              <EuiFlexItem grow={2}>
-                <EuiTitle size="xs">
-                  <h2>Search</h2>
+
+        {showCatalog && !isAllProjects && (
+          <>
+            <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
+              <EuiFlexItem grow={false}>
+                <EuiTitle size="s">
+                  <h2>Select a Data Source Type</h2>
                 </EuiTitle>
-                <EuiFieldSearch
-                  value={searchString}
-                  fullWidth={true}
-                  onChange={(e) => {
-                    setSearchString(e.target.value);
-                  }}
-                />
               </EuiFlexItem>
+              {hasExistingSources && (
+                <EuiFlexItem grow={false}>
+                  <EuiButton
+                    onClick={() => setShowCatalog(false)}
+                    iconType="arrowLeft"
+                    size="s"
+                  >
+                    Back to Data Sources
+                  </EuiButton>
+                </EuiFlexItem>
+              )}
             </EuiFlexGroup>
             <EuiSpacer size="m" />
-            <DatasourcesListingTable dataSources={filterResult} />
-          </React.Fragment>
+            <DataSourceCatalog onSelectType={handleSelectType} />
+          </>
+        )}
+
+        {!showCatalog && (
+          <>
+            {isLoading && (
+              <p>
+                <EuiLoadingSpinner size="m" /> Loading
+              </p>
+            )}
+            {isPermissionDenied && (
+              <EuiCallOut
+                title="Permission denied"
+                color="warning"
+                iconType="lock"
+              >
+                <p>You do not have permission to view data sources.</p>
+              </EuiCallOut>
+            )}
+            {isError && !isPermissionDenied && (
+              <p>We encountered an error while loading.</p>
+            )}
+            {isEmpty && !isAllProjects && (
+              <>
+                <EuiTitle size="s">
+                  <h2>No data sources yet — create your first connection</h2>
+                </EuiTitle>
+                <EuiSpacer size="l" />
+                <DataSourceCatalog onSelectType={handleSelectType} />
+              </>
+            )}
+            {isEmpty && isAllProjects && (
+              <p>No data sources found across projects.</p>
+            )}
+            {hasExistingSources && filterResult && (
+              <React.Fragment>
+                <EuiFlexGroup>
+                  <EuiFlexItem grow={2}>
+                    <EuiTitle size="xs">
+                      <h2>Search</h2>
+                    </EuiTitle>
+                    <EuiFieldSearch
+                      value={searchString}
+                      fullWidth={true}
+                      onChange={(e) => {
+                        setSearchString(e.target.value);
+                      }}
+                    />
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+                <EuiSpacer size="m" />
+                <DatasourcesListingTable dataSources={filterResult} />
+              </React.Fragment>
+            )}
+          </>
         )}
       </EuiPageTemplate.Section>
 
@@ -219,11 +429,13 @@ const Index = () => {
         <DataSourceFormModal
           onClose={() => {
             setIsModalOpen(false);
+            setPreselectedSourceType(null);
             setErrorMessage(null);
           }}
           onSubmit={handleCreateSubmit}
           isSubmitting={applyDataSource.isLoading}
           submitError={errorMessage}
+          initialData={modalInitialData}
         />
       )}
     </EuiPageTemplate>

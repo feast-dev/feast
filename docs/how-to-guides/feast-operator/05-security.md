@@ -39,7 +39,7 @@ to subjects using standard Kubernetes `ClusterRoleBinding` or `RoleBinding` reso
 > Kubernetes auth requires all services to be exposed as servers (the controller rejects
 > partial configurations where some services are local while RBAC is enabled).
 
-**SDK docs**: [Feast RBAC](../reference/auth/rbac.md)
+**SDK docs**: [Feast RBAC](../../getting-started/architecture/rbac.md)
 
 ---
 
@@ -62,7 +62,19 @@ stringData:
   client_secret: <your-client-secret>
   username: <service-account-username>     # used for client-credentials flow
   password: <service-account-password>
+  audience: <expected-aud-claim>           # optional: reject tokens whose aud claim differs
+  issuer: <expected-iss-claim>             # optional: reject tokens whose iss claim differs
 ```
+
+The optional `audience` and `issuer` keys enable audience and issuer claim verification on the standard OIDC/JWKS validation path; when omitted, the `aud` and `iss` claims are not checked. Set them to the values your IdP puts in the token itself, which are not always the ones in the discovery document (see [OIDC Authorization](../../getting-started/components/authz_manager.md#oidc-authorization)). The Secret key `issuer` is distinct from the CR's `issuerUrl`, which selects the discovery endpoint and plays no part in claim verification. Kubernetes ServiceAccount tokens (validated via TokenReview) and intra-server communication follow separate paths and are not subject to these checks.
+
+{% hint style="warning" %}
+Before enabling these, three operational caveats:
+
+* **Existing Secret keys take effect on operator upgrade.** Keys named `audience` or `issuer` already present in the referenced Secret were previously ignored; after upgrading they are forwarded to every Feast pod.
+* **Your IdP must mint matching tokens for Feast's own clients.** Feast's client-credentials flow requests no audience, so in multi-service topologies (e.g. a remote registry) and for the UI's browser tokens, the IdP must be configured to issue tokens carrying the expected claims (e.g. a Keycloak audience mapper), or inter-service calls will be rejected.
+* **Secret edits are not watched.** Changes to these keys apply on the next reconcile or pod restart, not immediately.
+{% endhint %}
 
 Reference the Secret from the CR:
 
@@ -81,6 +93,15 @@ spec:
 
 ### Advanced OIDC options
 
+{% hint style="warning" %}
+Every option in this section requires `apiVersion: feast.dev/v1`. Under the deprecated
+`feast.dev/v1alpha1`, `authz.oidc` accepts only `secretRef`. The CRD has no conversion
+webhook, so a resource submitted as v1alpha1 is validated against the v1alpha1 schema and
+any other field is pruned without error rather than rejected. Applying the example below
+as v1alpha1 therefore leaves OIDC configured by Secret alone, with none of these settings
+taking effect and nothing in the output to say so. Use v1, which is the storage version.
+{% endhint %}
+
 ```yaml
 authz:
   oidc:
@@ -89,10 +110,19 @@ authz:
     secretKeyName: client_id          # override the default Secret key name
     tokenEnvVar: FEAST_TOKEN          # env var from which servers read the Bearer token
     verifySSL: false                  # disable SSL verification (dev only)
-    caCertConfigMap: oidc-ca-cert     # ConfigMap with CA cert for SSL verification
+    caCertConfigMap:                  # ConfigMap with CA cert for SSL verification
+      name: oidc-ca-cert
+    jwksCacheLifespanSeconds: 300     # how long servers reuse the fetched JWK set
+    jwksRequestTimeoutSeconds: 10     # network timeout for the JWKS fetch
 ```
 
-**SDK docs**: [Feast OIDC Auth](../reference/auth/oidc.md)
+`jwksCacheLifespanSeconds` is not only a performance setting: it also bounds how long a key the provider has **revoked** continues to validate tokens. Lower it if your provider rotates or revokes aggressively, at the cost of proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless, because an unknown key id forces a refetch. `jwksRequestTimeoutSeconds` bounds how long an unresponsive provider can block request serving. Both must be at least 1. When unset, neither key is written to the generated configuration and the feature server applies its own defaults (300 and 10 seconds respectively).
+
+{% hint style="warning" %}
+These two options require a feature server image that recognizes them. The operator deploys a matching image by default, so this only applies if you pin an older one explicitly, through a container `image` override or the operator's `RELATED_IMAGE_FEATURE_SERVER` setting. An image that predates these options rejects its configuration at startup, so leave them unset until the pinned image is updated.
+{% endhint %}
+
+**SDK docs**: [Feast OIDC Auth](../../getting-started/components/authz_manager.md#oidc-authorization)
 
 ---
 

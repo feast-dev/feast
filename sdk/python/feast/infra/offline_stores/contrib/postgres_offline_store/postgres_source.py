@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from typeguard import typechecked
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, ZeroColumnQueryResult
 from feast.infra.utils.postgres.connection_utils import _get_conn
@@ -35,6 +36,7 @@ class PostgreSQLSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a PostgreSQLSource object.
 
@@ -70,6 +72,7 @@ class PostgreSQLSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     def __hash__(self):
@@ -77,9 +80,7 @@ class PostgreSQLSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, PostgreSQLSource):
-            raise TypeError(
-                "Comparisons should only involve PostgreSQLSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -95,6 +96,7 @@ class PostgreSQLSource(DataSource):
 
         postgres_options = json.loads(data_source.custom_options.configuration)
 
+        tags = dict(data_source.tags)
         return PostgreSQLSource(
             name=postgres_options["name"],
             query=postgres_options["query"],
@@ -103,8 +105,9 @@ class PostgreSQLSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:

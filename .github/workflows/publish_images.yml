@@ -74,7 +74,7 @@ jobs:
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: |
-          if [ "${{ matrix.component }}" = "feature-server" ]; then
+          if [[ "${{ matrix.component }}" == "feature-server" || "${{ matrix.component }}" == "feast-operator" ]]; then
             make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX} DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
           else
             make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
@@ -84,8 +84,8 @@ jobs:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
           HIGHEST_SEMVER_TAG: ${{ steps.get-version.outputs.highest_semver_tag }}
         run: |
-          if [ "${{ matrix.component }}" = "feature-server" ]; then
-            echo "feature-server image pushed via buildx during build step"
+          if [[ "${{ matrix.component }}" == "feature-server" || "${{ matrix.component }}" == "feast-operator" ]]; then
+            echo "${{ matrix.component }} image pushed via buildx during build step"
           else
             make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
           fi
@@ -93,8 +93,8 @@ jobs:
           echo "Only push to latest tag if tag is the highest semver version $HIGHEST_SEMVER_TAG"
           if [ "${VERSION_WITHOUT_PREFIX}" = "${HIGHEST_SEMVER_TAG:1}" ]
           then
-            if [ "${{ matrix.component }}" = "feature-server" ]; then
-              docker buildx imagetools create -t ${REGISTRY}/feature-server:latest ${REGISTRY}/feature-server:${VERSION_WITHOUT_PREFIX}
+            if [[ "${{ matrix.component }}" == "feature-server" || "${{ matrix.component }}" == "feast-operator" ]]; then
+              docker buildx imagetools create -t ${REGISTRY}/${{ matrix.component }}:latest ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX}
             else
               docker tag ${REGISTRY}/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} ${REGISTRY}/${{ matrix.component }}:latest
               docker push ${REGISTRY}/${{ matrix.component }}:latest

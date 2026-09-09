@@ -1,8 +1,10 @@
 import logging
+from datetime import timezone
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
+from google.protobuf import timestamp_pb2
 from google.protobuf.duration_pb2 import Duration
 from pydantic import BaseModel
 
@@ -266,10 +268,34 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         data_source: str = Query(
             None, description="Filter feature views by data source name"
         ),
+        updated_since: Optional[str] = Query(
+            None,
+            description="Only return feature views updated at or after this ISO-8601 UTC timestamp (e.g. 2024-01-01T00:00:00Z)",
+        ),
         tags: Dict[str, str] = Depends(parse_tags),
         pagination_params: dict = Depends(get_pagination_params),
         sorting_params: dict = Depends(get_sorting_params),
     ):
+        updated_since_proto = None
+        if updated_since is not None:
+            from datetime import datetime
+
+            try:
+                dt = datetime.fromisoformat(updated_since.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Invalid 'updated_since' value '{updated_since}'; expected an "
+                        "ISO-8601 timestamp (e.g. 2024-01-01T00:00:00Z)."
+                    ),
+                )
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            ts = timestamp_pb2.Timestamp()
+            ts.FromDatetime(dt.astimezone(timezone.utc))
+            updated_since_proto = ts
+
         req = RegistryServer_pb2.ListAllFeatureViewsRequest(
             project=project,
             allow_cache=allow_cache,
@@ -280,6 +306,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             data_source=data_source,
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
+            updated_since=updated_since_proto,
         )
         response = grpc_call(grpc_handler.ListAllFeatureViews, req)
         any_feature_views = response.get("featureViews", [])

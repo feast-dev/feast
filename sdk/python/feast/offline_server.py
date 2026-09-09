@@ -7,36 +7,77 @@ import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
-import click
-import pyarrow as pa
-import pyarrow.flight as fl
-from google.protobuf.json_format import Parse
+_FIPS_CIPHER_SUITES = ":".join(
+    [
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "AES128-GCM-SHA256",
+        "AES256-GCM-SHA384",
+    ]
+)
 
-from feast import FeatureStore, FeatureView, utils
-from feast.arrow_error_handler import arrow_server_error_handling_decorator
-from feast.data_source import DataSource
-from feast.errors import FeatureViewNotFoundException
-from feast.feature_logging import FeatureServiceLoggingSource
-from feast.feature_view import DUMMY_ENTITY_NAME
-from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.permissions.action import AuthzedAction
-from feast.permissions.security_manager import assert_permissions
-from feast.permissions.server.arrow import (
+
+def _is_fips_enabled() -> bool:
+    try:
+        with open("/proc/sys/crypto/fips_enabled") as f:
+            return f.read().strip() == "1"
+    except (FileNotFoundError, PermissionError, OSError):
+        return False
+
+
+def _configure_grpc_fips() -> bool:
+    if _is_fips_enabled() and "GRPC_SSL_CIPHER_SUITES" not in os.environ:
+        os.environ["GRPC_SSL_CIPHER_SUITES"] = _FIPS_CIPHER_SUITES
+        return True
+    return False
+
+
+# On FIPS-enabled systems (notably IBM Power ppc64le), gRPC reads
+# GRPC_SSL_CIPHER_SUITES during shared-library initialization.  The env var
+# must be set before any gRPC-linked module (pyarrow.flight) is imported.
+_fips_configured = _configure_grpc_fips()
+
+import click  # noqa: E402
+import pyarrow as pa  # noqa: E402
+import pyarrow.flight as fl  # noqa: E402
+from google.protobuf.json_format import Parse  # noqa: E402
+
+from feast import FeatureStore, FeatureView, utils  # noqa: E402
+from feast.arrow_error_handler import (  # noqa: E402
+    arrow_server_error_handling_decorator,
+)
+from feast.data_source import DataSource  # noqa: E402
+from feast.errors import FeatureViewNotFoundException  # noqa: E402
+from feast.feature_logging import FeatureServiceLoggingSource  # noqa: E402
+from feast.feature_view import DUMMY_ENTITY_NAME  # noqa: E402
+from feast.infra.offline_stores.offline_utils import (  # noqa: E402
+    get_offline_store_from_config,
+)
+from feast.permissions.action import AuthzedAction  # noqa: E402
+from feast.permissions.security_manager import assert_permissions  # noqa: E402
+from feast.permissions.server.arrow import (  # noqa: E402
     AuthorizationMiddlewareFactory,
     inject_user_details_decorator,
 )
-from feast.permissions.server.utils import (
+from feast.permissions.server.utils import (  # noqa: E402
     AuthManagerType,
     ServerType,
     init_auth_manager,
     init_security_manager,
     str_to_auth_manager_type,
 )
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.saved_dataset import SavedDatasetStorage
+from feast.protos.feast.core.DataSource_pb2 import (  # noqa: E402
+    DataSource as DataSourceProto,
+)
+from feast.saved_dataset import SavedDatasetStorage  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+if _fips_configured:
+    logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
 
 
 class OfflineServer(fl.FlightServerBase):
@@ -596,6 +637,7 @@ def start_server(
     tls_cert_path: str = "",
 ):
     _init_auth_manager(store)
+    _configure_grpc_fips()
 
     tls_certificates = []
     scheme = "grpc+tcp"

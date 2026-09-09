@@ -22,6 +22,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
+{% content-ref url="valkey.md" %}
+[valkey.md](valkey.md)
+{% endcontent-ref %}
+
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
@@ -31,7 +35,7 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 {% endcontent-ref %}
 
 {% content-ref url="bigtable.md" %}
-[bigtable.md](mysql.md)
+[bigtable.md](bigtable.md)
 {% endcontent-ref %}
 
 {% content-ref url="postgres.md" %}
@@ -56,6 +60,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="mongodb.md" %}
 [mongodb.md](mongodb.md)
+{% endcontent-ref %}
+
+{% content-ref url="aerospike.md" %}
+[aerospike.md](aerospike.md)
 {% endcontent-ref %}
 
 {% content-ref url="hazelcast.md" %}

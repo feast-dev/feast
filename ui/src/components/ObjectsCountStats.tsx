@@ -4,7 +4,6 @@ import {
   EuiFlexItem,
   EuiStat,
   EuiHorizontalRule,
-  EuiTitle,
   EuiSpacer,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
@@ -26,124 +25,104 @@ const ObjectsCountStats = () => {
   const { projectName } = useParams();
   const navigate = useNavigate();
 
-  const { data: featureServices, isSuccess: fsOk } = useResourceQuery<any[]>({
+  const fsQuery = useResourceQuery<any[]>({
     resourceType: "stats-fs",
     project: projectName,
     restPath: featureServiceListPath(projectName),
     restSelect: (d) => d.featureServices,
   });
 
-  const { data: featureViews, isSuccess: fvOk } = useResourceQuery<
-    genericFVType[]
-  >({
+  const fvQuery = useResourceQuery<genericFVType[]>({
     resourceType: "stats-fvs",
     project: projectName,
     restPath: featureViewListPath(projectName),
     restSelect: restFeatureViewsToMergedList,
   });
 
-  const { data: entities, isSuccess: entOk } = useResourceQuery<any[]>({
+  const entQuery = useResourceQuery<any[]>({
     resourceType: "stats-ent",
     project: projectName,
     restPath: entityListPath(projectName),
     restSelect: (d) => d.entities,
   });
 
-  const { data: dataSources, isSuccess: dsOk } = useResourceQuery<any[]>({
+  const dsQuery = useResourceQuery<any[]>({
     resourceType: "stats-ds",
     project: projectName,
     restPath: dataSourceListPath(projectName),
     restSelect: (d) => d.dataSources,
   });
 
-  const { data: features, isSuccess: featOk } = useResourceQuery<any[]>({
+  const featQuery = useResourceQuery<any[]>({
     resourceType: "stats-feat",
     project: projectName,
     restPath: featuresListPath(projectName),
     restSelect: (d) => d.features || [],
   });
 
-  const { data: labelViews, isSuccess: lvOk } = useResourceQuery<any[]>({
+  const lvQuery = useResourceQuery<any[]>({
     resourceType: "stats-lv",
     project: projectName,
     restPath: labelViewListPath(projectName),
     restSelect: restLabelViewsFromResponse,
   });
 
-  const allOk = fsOk && fvOk && entOk && dsOk && featOk && lvOk;
-  const hasLabelViews = (labelViews?.length || 0) > 0;
+  const settled = (q: { isSuccess: boolean; isError: boolean }) =>
+    q.isSuccess || q.isError;
+  const allSettled =
+    settled(fsQuery) &&
+    settled(fvQuery) &&
+    settled(entQuery) &&
+    settled(dsQuery) &&
+    settled(featQuery) &&
+    settled(lvQuery);
+
+  const stat = (
+    q: { data?: any[]; isPermissionDenied: boolean },
+    label: string,
+    path: string,
+  ) => {
+    if (q.isPermissionDenied) return null;
+    return (
+      <EuiFlexItem>
+        <EuiStat
+          style={statStyle}
+          onClick={() => navigate(`/p/${projectName}/${path}`)}
+          description={`${label}→`}
+          title={q.data?.length || 0}
+          reverse
+        />
+      </EuiFlexItem>
+    );
+  };
+
+  const hasLabelViews =
+    !lvQuery.isPermissionDenied && (lvQuery.data?.length || 0) > 0;
+
+  const queries = [fsQuery, fvQuery, featQuery, entQuery, dsQuery, lvQuery];
+  const hasAnyAccessible = queries.some((q) => !q.isPermissionDenied);
+
+  if (allSettled && !hasAnyAccessible) return null;
 
   return (
     <React.Fragment>
       <EuiSpacer size="l" />
       <EuiHorizontalRule margin="xs" />
-      {!allOk && <p>Loading</p>}
-      {allOk && (
+      {!allSettled && <p>Loading</p>}
+      {allSettled && (
         <React.Fragment>
-          <EuiTitle size="xs">
-            <h3>Registered in this Feast project are &hellip;</h3>
-          </EuiTitle>
-          <EuiSpacer size="s" />
           <EuiFlexGroup>
-            <EuiFlexItem>
-              <EuiStat
-                style={statStyle}
-                onClick={() => navigate(`/p/${projectName}/feature-service`)}
-                description="Feature Services→"
-                title={featureServices?.length || 0}
-                reverse
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                style={statStyle}
-                description="Feature Views→"
-                onClick={() => navigate(`/p/${projectName}/feature-view`)}
-                title={featureViews?.length || 0}
-                reverse
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                style={statStyle}
-                description="Features→"
-                onClick={() => navigate(`/p/${projectName}/features`)}
-                title={features?.length || 0}
-                reverse
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                style={statStyle}
-                description="Entities→"
-                onClick={() => navigate(`/p/${projectName}/entity`)}
-                title={entities?.length || 0}
-                reverse
-              />
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiStat
-                style={statStyle}
-                description="Data Sources→"
-                onClick={() => navigate(`/p/${projectName}/data-source`)}
-                title={dataSources?.length || 0}
-                reverse
-              />
-            </EuiFlexItem>
+            {stat(fsQuery, "Feature Services", "feature-service")}
+            {stat(fvQuery, "Feature Views", "feature-view")}
+            {stat(featQuery, "Features", "features")}
+            {stat(entQuery, "Entities", "entity")}
+            {stat(dsQuery, "Data Sources", "data-source")}
           </EuiFlexGroup>
           {hasLabelViews && (
             <React.Fragment>
               <EuiSpacer size="m" />
               <EuiFlexGroup>
-                <EuiFlexItem>
-                  <EuiStat
-                    style={statStyle}
-                    onClick={() => navigate(`/p/${projectName}/label-view`)}
-                    description="Label Views→"
-                    title={labelViews?.length || 0}
-                    reverse
-                  />
-                </EuiFlexItem>
+                {stat(lvQuery, "Label Views", "label-view")}
                 <EuiFlexItem />
                 <EuiFlexItem />
                 <EuiFlexItem />

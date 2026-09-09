@@ -51,7 +51,7 @@ const FeatureViewProjectionDisplayPanel = (
       <EuiSpacer size="s" />
       <EuiBasicTable
         columns={columns}
-        items={featureViewProjection?.featureColumns!}
+        items={featureViewProjection?.featureColumns || []}
       />
     </EuiPanel>
   );

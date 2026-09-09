@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
 import {
+  EuiButtonEmpty,
   EuiCard,
   EuiFlexGrid,
+  EuiFlexGroup,
   EuiFlexItem,
   EuiIcon,
   EuiSkeletonText,
@@ -13,10 +15,12 @@ import {
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import { useNavigate } from "react-router-dom";
 import FeastIconBlue from "../graphics/FeastIconBlue";
+import { useRegistryRefreshContext } from "../contexts/RegistryRefreshContext";
 
 const RootProjectSelectionPage = () => {
   const { isLoading, isSuccess, data } = useLoadProjectsList();
   const navigate = useNavigate();
+  const { refreshing, handleRefresh } = useRegistryRefreshContext();
 
   useEffect(() => {
     if (data && data.default) {
@@ -48,12 +52,27 @@ const RootProjectSelectionPage = () => {
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Section>
-        <EuiTitle size="s">
-          <h1>Welcome to Feast</h1>
-        </EuiTitle>
-        <EuiText>
-          <p>Select one of the projects.</p>
-        </EuiText>
+        <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
+          <EuiFlexItem>
+            <EuiTitle size="s">
+              <h1>Welcome to Feast</h1>
+            </EuiTitle>
+            <EuiText>
+              <p>Select one of the projects.</p>
+            </EuiText>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiButtonEmpty
+              iconType="refresh"
+              onClick={handleRefresh}
+              isLoading={refreshing}
+              isDisabled={refreshing}
+              size="s"
+            >
+              Refresh
+            </EuiButtonEmpty>
+          </EuiFlexItem>
+        </EuiFlexGroup>
         <EuiHorizontalRule margin="m" />
         {isLoading && <EuiSkeletonText lines={1} />}
         {isSuccess && data?.projects && (

@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import (
     DataSourceNoNameException,
@@ -43,6 +44,7 @@ class RedshiftSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         database: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a RedshiftSource object.
@@ -66,6 +68,7 @@ class RedshiftSource(DataSource):
             owner (optional): The owner of the redshift source, typically the email of the primary
                 maintainer.
             database (optional): The Redshift database name.
+            connection_ref (optional): Connection reference for credential resolution.
         """
         if table is None and query is None:
             raise ValueError('No "table" or "query" argument provided.')
@@ -90,6 +93,7 @@ class RedshiftSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     @staticmethod
@@ -103,6 +107,7 @@ class RedshiftSource(DataSource):
         Returns:
             A RedshiftSource object based on the data_source protobuf.
         """
+        tags = dict(data_source.tags)
         return RedshiftSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
@@ -112,9 +117,10 @@ class RedshiftSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             query=data_source.redshift_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
             database=data_source.redshift_options.database,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -123,9 +129,7 @@ class RedshiftSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, RedshiftSource):
-            raise TypeError(
-                "Comparisons should only involve RedshiftSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)

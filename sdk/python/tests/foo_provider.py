@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from feast import Entity, FeatureService, FeatureView, RepoConfig
 from feast.data_source import DataSource
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
@@ -171,10 +172,11 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[

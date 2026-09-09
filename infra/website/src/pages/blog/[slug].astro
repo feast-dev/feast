@@ -106,7 +106,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     max-width: 1024px;
     padding: 0 20px;
     word-break: break-word;
-    color: rgb(0, 0, 0);
+    color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizelegibility;
     font-feature-settings: "ss03";
@@ -116,7 +116,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     font-family: var(--font-sans);
     font-size: 20px;
     line-height: 1.5;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0 auto 24px;
     max-width: 768px;
   }
@@ -124,7 +124,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-meta {
     font-family: var(--font-sans);
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     display: flex;
     gap: 16px;
     justify-content: center;
@@ -197,7 +197,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
 
   /* Code blocks */
   .blog-content :global(pre) {
-    background: #f6f8fa;
+    background: var(--color-surface);
     padding: 16px;
     border-radius: 4px;
     overflow-x: auto;
@@ -207,7 +207,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(code) {
     font-family: var(--font-mono);
     font-size: 14px;
-    background: #f6f8fa;
+    background: var(--color-surface);
     padding: 2px 4px;
     border-radius: 3px;
   }
@@ -223,6 +223,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
     height: auto;
     border-radius: 4px;
     margin: 32px 0;
+    cursor: zoom-in;
   }
 
   /* Hero Image */
@@ -258,7 +259,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
 
   .blog-content :global(figcaption) {
     font-size: 14px;
-    color: #666;
+    color: var(--color-text-secondary);
     text-align: center;
     margin-top: 8px;
   }
@@ -277,9 +278,9 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(blockquote) {
     margin: 24px 0;
     padding-left: 16px;
-    border-left: 4px solid #ddd;
+    border-left: 4px solid var(--color-border);
     font-style: italic;
-    color: #555;
+    color: var(--color-text-secondary);
   }
 
   /* Tables */
@@ -292,12 +293,12 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
   .blog-content :global(th),
   .blog-content :global(td) {
     padding: 12px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     text-align: left;
   }
 
   .blog-content :global(th) {
-    background: #f6f8fa;
+    background: var(--color-surface);
     font-weight: 600;
   }
 
@@ -339,4 +340,67 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
       font-size: 18px;
     }
   }
-</style> 
+</style>
+
+<script>
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  const img = document.createElement('img');
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+
+  function open(src: string, alt: string) {
+    img.src = src;
+    img.alt = alt;
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  overlay.addEventListener('click', close);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  document.querySelectorAll('.blog-content img').forEach((el) => {
+    el.addEventListener('click', () => {
+      const image = el as HTMLImageElement;
+      open(image.src, image.alt);
+    });
+  });
+</script>
+
+<style is:global>
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  .lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .lightbox-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+</style>
+

@@ -403,9 +403,18 @@ class RemoteRegistry(BaseRegistry):
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
+        updated_since_proto = None
+        if updated_since is not None:
+            ts = Timestamp()
+            ts.FromDatetime(updated_since)
+            updated_since_proto = ts
         request = RegistryServer_pb2.ListAllFeatureViewsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            updated_since=updated_since_proto,
         )
 
         response: RegistryServer_pb2.ListAllFeatureViewsResponse = (
@@ -480,7 +489,7 @@ class RemoteRegistry(BaseRegistry):
         request = RegistryServer_pb2.ApplySavedDatasetRequest(
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
-        self.stub.ApplyFeatureService(request)
+        self.stub.ApplySavedDataset(request)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(
@@ -502,9 +511,15 @@ class RemoteRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         request = RegistryServer_pb2.ListSavedDatasetsRequest(
-            project=project, allow_cache=allow_cache, tags=tags
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            namespace=namespace or "",
+            collection=collection or "",
         )
         response = self.stub.ListSavedDatasets(request)
         return [

@@ -66,6 +66,7 @@ registry:
 |-------|------|---------|-------------|
 | `registry_type` | string | `file` | Registry backend (`file`, `sql`, etc.) |
 | `path` | string | — | Connection string or file path |
+| `schema_mode` | string | `auto` | SQL registry only. `auto`: create tables on startup; `verify`: check tables exist, error if missing; `skip`: no DDL or verification. See [SQL Registry docs](registries/sql.md#schema-management-schema_mode). |
 | `mcp.enabled` | bool | `false` | Enable MCP (Model Context Protocol) on the REST registry server |
 
 When `registry.mcp.enabled` is `true`, the REST registry server exposes registry

@@ -370,6 +370,13 @@ class RedisOnlineStore(OnlineStore):
             # flattening the list of lists. `hmget` does the lookup assuming a list of keys in the key bin
             prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
+            # Latest event timestamp queued so far in this batch, per entity key. The
+            # reads above all happened before any write, so without this rows sharing
+            # an entity key would each compare against the same pre-batch value, all
+            # pass the staleness check, and the last one queued would win regardless
+            # of its event time.
+            batch_latest_nanos: Dict[bytes, int] = {}
+
             for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
                 keys, prev_event_timestamps, data
             ):
@@ -381,15 +388,21 @@ class RedisOnlineStore(OnlineStore):
                 # New timestamp in nanoseconds
                 new_total_nanos = ts.seconds * 1_000_000_000 + ts.nanos
                 # Compare against existing timestamp (nanosecond precision)
+                prev_total_nanos = 0
                 if prev_event_time:
                     prev_ts = Timestamp()
                     prev_ts.ParseFromString(prev_event_time)
                     prev_total_nanos = prev_ts.seconds * 1_000_000_000 + prev_ts.nanos
-                    # Skip only if older OR exact same instant
-                    if prev_total_nanos and new_total_nanos <= prev_total_nanos:
-                        if progress:
-                            progress(1)
-                        continue
+                # Whichever is newer: the stored value or an earlier row of this batch
+                latest_seen_nanos = max(
+                    prev_total_nanos, batch_latest_nanos.get(redis_key_bin, 0)
+                )
+                # Skip only if older OR exact same instant
+                if latest_seen_nanos and new_total_nanos <= latest_seen_nanos:
+                    if progress:
+                        progress(1)
+                    continue
+                batch_latest_nanos[redis_key_bin] = new_total_nanos
                 # Store full timestamp (seconds + nanos)
                 entity_hset = {ts_key: ts.SerializeToString()}
 
@@ -466,6 +479,10 @@ class RedisOnlineStore(OnlineStore):
 
         prev_event_timestamps = [i[0] for i in prev_event_timestamps]
 
+        # See online_write_batch: guards against rows in this batch that share an
+        # entity key overwriting each other out of event-time order.
+        batch_latest_nanos: Dict[bytes, int] = {}
+
         async with client.pipeline(transaction=False) as pipe:
             for redis_key_bin, prev_event_time, (_, values, timestamp, _) in zip(
                 keys, prev_event_timestamps, data
@@ -475,14 +492,19 @@ class RedisOnlineStore(OnlineStore):
                 ts.FromDatetime(aware_ts)
                 new_total_nanos = ts.seconds * 1_000_000_000 + ts.nanos
 
+                prev_total_nanos = 0
                 if prev_event_time:
                     prev_ts = Timestamp()
                     prev_ts.ParseFromString(prev_event_time)
                     prev_total_nanos = prev_ts.seconds * 1_000_000_000 + prev_ts.nanos
-                    if prev_total_nanos and new_total_nanos <= prev_total_nanos:
-                        if progress:
-                            progress(1)
-                        continue
+                latest_seen_nanos = max(
+                    prev_total_nanos, batch_latest_nanos.get(redis_key_bin, 0)
+                )
+                if latest_seen_nanos and new_total_nanos <= latest_seen_nanos:
+                    if progress:
+                        progress(1)
+                    continue
+                batch_latest_nanos[redis_key_bin] = new_total_nanos
 
                 entity_hset = {ts_key: ts.SerializeToString()}
                 for feature_name, val in values.items():

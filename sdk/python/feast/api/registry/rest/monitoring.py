@@ -64,6 +64,12 @@ def get_monitoring_router(grpc_handler, store=None):
                     status_code=503,
                     detail="Monitoring service is not available: no FeatureStore configured",
                 )
+            dqm_config = getattr(store.config, "data_quality_monitoring_config", None)
+            if dqm_config is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Monitoring is not enabled: add data_quality_monitoring section to feature_store.yaml",
+                )
             from feast.monitoring.monitoring_service import MonitoringService
 
             _monitoring_service = MonitoringService(store)

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import uuid as uuid_module
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -25,11 +25,9 @@ from feast.type_map import feast_value_type_to_python_type
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
-    import torch
-
-    TorchTensor: TypeAlias = torch.Tensor
+    from torch import Tensor as TorchTensor
 else:
-    TorchTensor: TypeAlias = Any
+    TorchTensor = Any
 
 TIMESTAMP_POSTFIX: str = "__ts"
 

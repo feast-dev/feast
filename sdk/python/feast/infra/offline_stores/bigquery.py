@@ -10,11 +10,13 @@ from typing import (
     ContextManager,
     Dict,
     Iterator,
+    KeysView,
     List,
     Literal,
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -25,6 +27,7 @@ from pydantic import StrictStr, field_validator
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import flags_helper
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -57,7 +60,7 @@ from feast.monitoring.monitoring_utils import (
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import _utc_now, get_user_agent
+from feast.utils import _utc_now, compute_non_entity_date_range, get_user_agent
 
 from .bigquery_source import (
     BigQueryLoggingDestination,
@@ -135,6 +138,8 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class BigQueryOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -267,10 +272,12 @@ class BigQueryOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
+        **kwargs: Any,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
@@ -297,39 +304,52 @@ class BigQueryOfflineStore(OfflineStore):
             config.offline_store.table_create_disposition,
         )
 
-        entity_schema = _get_entity_schema(
-            client=client,
-            entity_df=entity_df,
-        )
+        # Non-entity mode: create a left temporary table from entity keys - any entity key having an event in the time window
 
-        entity_df_event_timestamp_col = (
-            offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
-        )
+        non_entity_mode = entity_df is None
 
-        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            client,
-        )
+        if non_entity_mode:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
+            entity_df_event_timestamp_range = (start_date, end_date)
 
-        @contextlib.contextmanager
-        def query_generator() -> Iterator[str]:
-            _upload_entity_df(
+            # Pre-compute query contexts to collect entity column names per feature view.
+            fv_query_contexts_pre = offline_utils.get_feature_view_query_context(
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
+            )
+            all_entities = offline_utils.gather_all_entities(fv_query_contexts_pre)
+            event_timestamp_col = "entity_ts"
+            entity_schema_keys: KeysView[str] = cast(
+                KeysView[str],
+                {k: None for k in (all_entities + [event_timestamp_col])}.keys(),
+            )
+
+            entity_schema = None
+        else:
+            entity_schema = _get_entity_schema(
                 client=client,
-                table_name=table_reference,
                 entity_df=entity_df,
             )
-
-            expected_join_keys = offline_utils.get_expected_join_keys(
-                project, feature_views, registry
+            event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+                entity_schema
             )
-
-            offline_utils.assert_expected_columns_in_entity_df(
-                entity_schema, expected_join_keys, entity_df_event_timestamp_col
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                event_timestamp_col,
+                client,
             )
-
-            # Build a query context containing all information required to template the BigQuery SQL query
-            query_context = offline_utils.get_feature_view_query_context(
+            entity_schema_keys = entity_schema.keys()
+            all_entities = []
+            start_date = entity_df_event_timestamp_range[0]
+            end_date = entity_df_event_timestamp_range[1]
+            fv_query_contexts_pre = offline_utils.get_feature_view_query_context(
                 feature_refs,
                 feature_views,
                 registry,
@@ -337,20 +357,48 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_df_event_timestamp_range,
             )
 
+        @contextlib.contextmanager
+        def query_generator() -> Iterator[str]:
+            if non_entity_mode:
+                _bq_create_entity_union_table(
+                    client=client,
+                    table_name=table_reference,
+                    feature_views=feature_views,
+                    fv_query_contexts=fv_query_contexts_pre,
+                    start_date=start_date,
+                    end_date=end_date,
+                    all_entities=all_entities,
+                    event_timestamp_col=event_timestamp_col,
+                )
+            else:
+                _upload_entity_df(
+                    client=client,
+                    table_name=table_reference,
+                    entity_df=entity_df,
+                )
+                expected_join_keys = offline_utils.get_expected_join_keys(
+                    project, feature_views, registry
+                )
+                assert entity_schema is not None
+                offline_utils.assert_expected_columns_in_entity_df(
+                    entity_schema, expected_join_keys, event_timestamp_col
+                )
+
             # Generate the BigQuery SQL query from the query context
             query = offline_utils.build_point_in_time_query(
-                query_context,
+                feature_view_query_contexts=fv_query_contexts_pre,
                 left_table_query_string=table_reference,
-                entity_df_event_timestamp_col=entity_df_event_timestamp_col,
-                entity_df_columns=entity_schema.keys(),
+                entity_df_event_timestamp_col=event_timestamp_col,
+                entity_df_columns=entity_schema_keys,
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
             )
 
             try:
                 yield query
             finally:
-                # Asynchronously clean up the uploaded Bigquery table, which will expire
+                # Asynchronously clean up the uploaded BigQuery table, which will expire
                 # if cleanup fails
                 client.delete_table(table=table_reference, not_found_ok=True)
 
@@ -364,7 +412,7 @@ class BigQueryOfflineStore(OfflineStore):
             ),
             metadata=RetrievalMetadata(
                 features=feature_refs,
-                keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
+                keys=list(set(entity_schema_keys) - {event_timestamp_col}),
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
@@ -567,6 +615,62 @@ class BigQueryOfflineStore(OfflineStore):
         )
 
 
+def _bq_create_entity_union_table(
+    client: "Client",
+    table_name: str,
+    feature_views: List[FeatureView],
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+    start_date: datetime,
+    end_date: datetime,
+    all_entities: List[str],
+    event_timestamp_col: str,
+) -> None:
+    """
+    Creates a BigQuery temp table containing the UNION DISTINCT of entity keys observed
+    across all feature views in [start_date, end_date], plus a stable as-of timestamp
+    column set to end_date. Used as the left table for PIT joins in non-entity mode.
+    """
+    start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
+
+    per_view_selects: List[str] = []
+    for fv, ctx in zip(feature_views, fv_query_contexts):
+        assert isinstance(fv.batch_source, BigQuerySource)
+        from_expression = fv.batch_source.get_table_query_string()
+        timestamp_field = ctx.timestamp_field
+
+        ctx_entities_set = set(ctx.entities)
+        select_entities: List[str] = []
+        for col in all_entities:
+            if col in ctx_entities_set:
+                select_entities.append(f"`{col}`")
+            else:
+                select_entities.append(f"CAST(NULL AS STRING) AS `{col}`")
+
+        per_view_selects.append(
+            f"SELECT DISTINCT {', '.join(select_entities)} "
+            f"FROM {from_expression} "
+            f"WHERE `{timestamp_field}` BETWEEN TIMESTAMP('{start_str}') AND TIMESTAMP('{end_str}')"
+        )
+
+    union_query = "\nUNION DISTINCT\n".join(per_view_selects)
+    entity_cols = (
+        ", ".join(f"`{e}`" for e in all_entities) if all_entities else "TRUE AS _dummy"
+    )
+
+    create_sql = (
+        f"CREATE TABLE `{table_name}` AS "
+        f"SELECT {entity_cols}, TIMESTAMP('{end_str}') AS `{event_timestamp_col}` "
+        f"FROM ({union_query}) AS _entity_union"
+    )
+
+    block_until_done(client, client.query(create_sql))
+
+    table = client.get_table(table_name)
+    table.expires = _utc_now() + timedelta(minutes=30)
+    client.update_table(table, ["expires"])
+
+
 # ------------------------------------------------------------------ #
 #  BigQuery monitoring metrics (native)
 # ------------------------------------------------------------------ #
@@ -589,7 +693,7 @@ def _bq_scalar_param_type(column: str) -> str:
         return "BOOL"
     if column == "metric_date":
         return "DATE"
-    if column == "computed_at":
+    if column in ("computed_at", "max_event_timestamp"):
         return "TIMESTAMP"
     if column in {
         "row_count",
@@ -785,6 +889,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   feature_type STRING NOT NULL,
   row_count INT64,
@@ -811,6 +916,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_row_count INT64,
   total_features INT64,
@@ -828,6 +934,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_feature_views INT64,
   total_features INT64,
@@ -854,6 +961,11 @@ PRIMARY KEY (job_id) NOT ENFORCED
 """
     for ddl in (feature_ddl, view_ddl, service_ddl, job_ddl):
         client.query(ddl).result()
+    for tbl in (MON_TABLE_FEATURE, MON_TABLE_FEATURE_VIEW, MON_TABLE_FEATURE_SERVICE):
+        client.query(
+            f"ALTER TABLE `{proj}.{ds}.{tbl}` "
+            "ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMP"
+        ).result()
 
 
 def _bq_get_monitoring_max_timestamp(
@@ -1483,8 +1595,28 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _get_bigquery_client(
-    project: Optional[str] = None, location: Optional[str] = None
+    project: Optional[str] = None,
+    location: Optional[str] = None,
+    data_source=None,
 ) -> bigquery.Client:
+    override = get_connection_config_override(data_source) if data_source else None
+    if override and "service_account_json" in override:
+        from google.oauth2 import service_account
+
+        try:
+            sa_info = json.loads(override["service_account_json"])
+        except json.JSONDecodeError as exc:
+            raise FeastProviderLoginError(
+                "The 'service_account_json' credential resolved from "
+                f"ConnectionRef is not valid JSON: {exc}"
+            )
+        credentials = service_account.Credentials.from_service_account_info(sa_info)
+        return bigquery.Client(
+            project=override.get("project", project),
+            location=location,
+            credentials=credentials,
+            client_info=get_http_client_info(),
+        )
     try:
         client = bigquery.Client(
             project=project, location=location, client_info=get_http_client_info()
@@ -1633,6 +1765,10 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= Timestamp_sub(entity_dataframe.entity_timestamp, interval {{ featureview.ttl }} second)
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}

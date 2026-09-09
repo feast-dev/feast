@@ -118,6 +118,8 @@ class MsSqlServerOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class MsSqlServerOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -151,6 +153,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         # TODO avoid this conversion
         if type(entity_df) == str:
@@ -168,6 +171,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             data_source_reader=_build_data_source_reader(config),
             data_source_writer=_build_data_source_writer(config),
             event_expire_timestamp_fn=mssql_event_expire_timestamp_fn,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
     @staticmethod

@@ -4,6 +4,16 @@
 
 The Remote Registry is a gRPC client for the registry that implements the `RemoteRegistry` class using the existing `BaseRegistry` interface.
 
+## Installing the client dependency
+
+The remote registry client requires `grpcio`. Install the dedicated client extra before using `registry_type: remote`:
+
+```bash
+pip install "feast[remote]"
+```
+
+The existing `grpcio` extra remains available when running the registry server and includes its reflection and health-checking dependencies.
+
 ## How to configure the client
 
 User needs to create a client side `feature_store.yaml` file, set the `registry_type` to `remote` and provide the server connection configuration.

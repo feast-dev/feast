@@ -1,26 +1,6 @@
 name: publish web ui
 
 on:
-  workflow_dispatch: # Allows manual trigger of the workflow
-    inputs:
-      current_version:
-        description: 'Current version to bump from (e.g., v1.2.3). If not provided, will auto-detect from git tags'
-        required: false
-        type: string
-      custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
-        required: false
-        type: string
-      token:
-        description: 'Personal Access Token'
-        required: false
-        default: ""
-        type: string
-      publish_ui:
-        description: 'Publish to NPM?'
-        required: true
-        default: true
-        type: boolean
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       current_version:
@@ -39,16 +19,17 @@ on:
       publish_ui:
         description: 'Publish to NPM?'
         required: true
-        default: true
         type: boolean
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   publish-web-ui-npm:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    env:
-      # This publish is working using an NPM automation token to bypass 2FA
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    environment: production
     steps:
       - uses: actions/checkout@v4
       - name: Determine current version
@@ -108,8 +89,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: './ui/.nvmrc'
+          node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@11.5.1
       - name: Bump file versions (temporarily for Web UI publish)
         if: github.event.inputs.custom_version != ''
         env:
@@ -137,6 +120,3 @@ jobs:
         working-directory: ./ui
         if: github.event.inputs.publish_ui != 'false'
         run: npm publish
-        env:
-          # This publish is working using an NPM automation token to bypass 2FA
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 

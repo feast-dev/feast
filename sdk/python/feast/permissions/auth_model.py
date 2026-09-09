@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Tuple
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -37,8 +37,25 @@ class AuthConfig(FeastConfigBaseModel):
 class OidcAuthConfig(AuthConfig):
     auth_discovery_url: str
     client_id: Optional[str] = None
+    ui_client_id: Optional[str] = None
     verify_ssl: bool = True
     ca_cert_path: str = ""
+    # When set, incoming tokens must carry a matching `aud` / `iss` claim;
+    # when left unset (the default), the corresponding claim is not verified.
+    # Set these to the values your IdP puts in the token itself, which may
+    # differ from the discovery document (e.g. Entra ID v1.0 tokens validated
+    # against a v2.0 discovery URL).
+    audience: Optional[str] = None
+    issuer: Optional[str] = None
+    # How long the fetched JWK set is reused before the server refetches it.
+    # This also bounds how long a key the IdP has revoked keeps validating
+    # tokens, so lower it if your provider rotates or revokes aggressively;
+    # every reduction costs a corresponding increase in JWKS fetches.
+    jwks_cache_lifespan_seconds: int = Field(default=300, gt=0)
+    # Network timeout for the JWKS fetch. This fetch happens inline on the
+    # request path, so an unresponsive IdP blocks serving for at most this
+    # long.
+    jwks_request_timeout_seconds: float = Field(default=10, gt=0)
 
 
 class OidcClientAuthConfig(OidcAuthConfig):
@@ -50,6 +67,11 @@ class OidcClientAuthConfig(OidcAuthConfig):
     client_secret: Optional[str] = None
     token: Optional[str] = None
     token_env_var: Optional[str] = None
+    # Stop reusing an IdP-issued token this many seconds before it expires,
+    # so a reused token still has life left when the server validates it.
+    # Raise it if clients see sporadic 401s from clock skew or slow calls;
+    # lower it to squeeze more reuse out of short-lived tokens.
+    token_refresh_margin_seconds: float = Field(default=30, gt=0)
 
     @model_validator(mode="after")
     def _validate_credentials(self):

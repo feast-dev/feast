@@ -14,7 +14,7 @@ const { frontmatter } = Astro.props;
         <header class="mb-8">
           <h1 class="font-mono font-bold text-4xl mb-2">{frontmatter.title}</h1>
           {frontmatter.date && (
-            <time class="font-mono text-sm text-gray-500 block" datetime={frontmatter.date}>
+            <time class="blog-date" datetime={frontmatter.date}>
               {new Date(frontmatter.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
@@ -34,6 +34,13 @@ const { frontmatter } = Astro.props;
 </BaseLayout>
 
 <style>
+  .blog-date {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    display: block;
+  }
+
   .blog-content {
     font-family: var(--font-sans);
   }
@@ -77,13 +84,13 @@ const { frontmatter } = Astro.props;
   
   .blog-content :global(code) {
     font-family: var(--font-mono);
-    background-color: #f5f5f5;
+    background-color: var(--color-surface);
     padding: 0.2em 0.4em;
     border-radius: 3px;
   }
-  
+
   .blog-content :global(pre) {
-    background-color: #f5f5f5;
+    background-color: var(--color-surface);
     padding: 1em;
     border-radius: 5px;
     overflow-x: auto;

@@ -82,7 +82,7 @@ class Project:
 
     def __eq__(self, other):
         if not isinstance(other, Project):
-            raise TypeError("Comparisons should only involve Project class objects.")
+            return False
 
         if (
             self.name != other.name

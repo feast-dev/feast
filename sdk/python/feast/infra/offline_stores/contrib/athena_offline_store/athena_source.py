@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -35,6 +36,7 @@ class AthenaSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a AthenaSource object.
@@ -82,6 +84,7 @@ class AthenaSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     @staticmethod
@@ -95,6 +98,7 @@ class AthenaSource(DataSource):
         Returns:
             A AthenaSource object based on the data_source protobuf.
         """
+        tags = dict(data_source.tags)
         return AthenaSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
@@ -106,7 +110,8 @@ class AthenaSource(DataSource):
             date_partition_column=data_source.date_partition_column,
             query=data_source.athena_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -115,9 +120,7 @@ class AthenaSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, AthenaSource):
-            raise TypeError(
-                "Comparisons should only involve AthenaSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)

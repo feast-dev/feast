@@ -13,14 +13,14 @@ class User:
     def __init__(
         self,
         username: str,
-        roles: list[str] = [],
-        groups: list[str] = [],
-        namespaces: list[str] = [],
+        roles: Optional[list[str]] = None,
+        groups: Optional[list[str]] = None,
+        namespaces: Optional[list[str]] = None,
     ):
         self._username = username
-        self._roles = roles
-        self._groups = groups
-        self._namespaces = namespaces
+        self._roles = roles if roles is not None else []
+        self._groups = groups if groups is not None else []
+        self._namespaces = namespaces if namespaces is not None else []
 
     @property
     def username(self):

@@ -41,10 +41,54 @@ class OidcTokenParser(TokenParser):
             ca_cert_path=self._auth_config.ca_cert_path,
         )
         self._k8s_auth_api = None
+        self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
 
-    async def _validate_token(self, access_token: str):
+    def _get_jwks_client(self) -> PyJWKClient:
+        """Lazily build and cache a parser-lifetime ``PyJWKClient``.
+
+        A per-request client starts with a cold JWK-set cache, forcing a
+        full HTTPS fetch of the JWKS document on every authenticated
+        request. Reusing one client lets PyJWT cache the JWK set for
+        ``jwks_cache_lifespan_seconds``, which also bounds two staleness
+        windows: a key the IdP has removed keeps validating, and a
+        rotation that reuses an existing ``kid`` keeps failing, for at
+        most that long. Rotations that introduce a new ``kid`` recover
+        immediately (``PyJWKClient.get_signing_key`` refreshes and
+        retries once on a cache miss).
         """
-        Validate the token extracted from the header of the user request against the OAuth2 server.
+        if self._jwks_client is None:
+            ssl_ctx = ssl.create_default_context()
+            if not self._auth_config.verify_ssl:
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+            elif self._auth_config.ca_cert_path and os.path.exists(
+                self._auth_config.ca_cert_path
+            ):
+                ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
+            self._jwks_client = PyJWKClient(
+                self.oidc_discovery_service.get_jwks_url(),
+                headers={"User-agent": "custom-user-agent"},
+                ssl_context=ssl_ctx,
+                # Explicit so upgrades cannot silently change the staleness
+                # window documented above, and so a hung IdP bounds how long
+                # a fetch can block the serving path.
+                lifespan=self._auth_config.jwks_cache_lifespan_seconds,
+                timeout=self._auth_config.jwks_request_timeout_seconds,
+            )
+        return self._jwks_client
+
+    async def _check_discovery_endpoints(self, access_token: str):
+        """Check that the provider's discovery document exposes the OAuth2 endpoints.
+
+        This does **not** verify *access_token*, despite taking it: the bearer
+        scheme below only parses an ``Authorization`` header, and this method
+        supplies that header itself, so any token value passes. The token is
+        genuinely verified in ``_decode_token``, which checks the signature
+        against the provider's JWKS and validates the claims.
+
+        What can fail here is constructing the scheme, which reads the token
+        and authorization endpoints from the discovery document. A document
+        missing either one raises before any token is inspected.
         """
         # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
         # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
@@ -61,17 +105,29 @@ class OidcTokenParser(TokenParser):
 
     @staticmethod
     def _extract_username_or_raise_error(data: dict) -> str:
-        """Extract the username from the decoded JWT. Raises if missing — identity is mandatory.
+        """Extract the username from the decoded JWT, or raise if the token
+        carries none of the recognised identity claims.
 
-        Checks ``preferred_username`` first (Keycloak default), then falls back
-        to ``upn`` (Azure AD / Entra ID).
+        Human identity claims take precedence: ``preferred_username`` (Keycloak
+        default), then ``upn`` (Azure AD / Entra ID). Client-credentials
+        (app-only) tokens carry neither, so the calling application's own
+        identity is used instead: ``azp`` (Entra ID v2 tokens), ``appid``
+        (Entra ID v1 tokens), and finally ``sub``, which every issuer sets.
+        A claim present with a null or non-string value is skipped rather than
+        returned, so it never shadows a usable later claim. Because ``sub`` is a
+        mandatory string JWT claim, the raise below fires only for a malformed
+        token that provides none of the five as a string.
         """
-        if "preferred_username" in data:
-            return data["preferred_username"]
-        if "upn" in data:
-            return data["upn"]
+        for claim in ("preferred_username", "upn", "azp", "appid", "sub"):
+            value = data.get(claim)
+            if isinstance(value, str):
+                return value
+        logger.debug(
+            f"No usable username claim; token claims present: {list(data.keys())}"
+        )
         raise AuthenticationError(
-            "Missing preferred_username or upn field in access token."
+            "Missing username claim in access token: expected one of "
+            "preferred_username, upn, azp, appid or sub."
         )
 
     @staticmethod
@@ -104,31 +160,31 @@ class OidcTokenParser(TokenParser):
         return False
 
     def _decode_token(self, access_token: str) -> dict:
-        """Fetch the JWKS signing key and decode + verify the JWT."""
-        optional_custom_headers = {"User-agent": "custom-user-agent"}
-        ssl_ctx = ssl.create_default_context()
-        if not self._auth_config.verify_ssl:
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-        elif self._auth_config.ca_cert_path and os.path.exists(
-            self._auth_config.ca_cert_path
-        ):
-            ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
-        jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(),
-            headers=optional_custom_headers,
-            ssl_context=ssl_ctx,
-        )
-        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        """Fetch the JWKS signing key and decode + verify the JWT.
+
+        Signature and expiry are always verified. Audience and issuer are
+        verified only when ``audience`` / ``issuer`` are set on
+        ``OidcAuthConfig``; both default to off, because the claim values a
+        provider puts in the token can legitimately differ from its discovery
+        metadata (e.g. Entra ID v1.0 tokens validated against a v2.0
+        discovery document).
+        """
+        signing_key = self._get_jwks_client().get_signing_key_from_jwt(access_token)
+        expected_audience = self._auth_config.audience
+        expected_issuer = self._auth_config.issuer
         return jwt.decode(
             access_token,
             signing_key.key,
             algorithms=["RS256"],
-            audience="account",
+            # "account" preserves the historical Keycloak-shaped default; it
+            # is inert while verify_aud is off.
+            audience=expected_audience if expected_audience is not None else "account",
+            issuer=expected_issuer,
             options={
-                "verify_aud": False,
+                "verify_aud": expected_audience is not None,
                 "verify_signature": True,
                 "verify_exp": True,
+                "verify_iss": expected_issuer is not None,
             },
             leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
         )
@@ -171,8 +227,8 @@ class OidcTokenParser(TokenParser):
 
         # Standard OIDC / Keycloak flow
         try:
-            await self._validate_token(access_token)
-            logger.debug("Token successfully validated.")
+            await self._check_discovery_endpoints(access_token)
+            logger.debug("OIDC discovery document exposes the expected endpoints.")
         except Exception as e:
             if self._is_ssl_error(e):
                 logger.error(
@@ -194,6 +250,10 @@ class OidcTokenParser(TokenParser):
                 if self._auth_config.client_id
                 else []
             )
+            # Entra ID emits app roles in the top-level `roles` claim instead of
+            # Keycloak's nested `resource_access.<client_id>.roles`. Merge both
+            # shapes for every issuer, preserving order and dropping duplicates.
+            roles = list(dict.fromkeys(roles + self._extract_claim(data, "roles")))
             groups = self._extract_claim(data, "groups")
 
             logger.info(

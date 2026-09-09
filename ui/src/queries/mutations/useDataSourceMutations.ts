@@ -15,6 +15,12 @@ interface ApplyDataSourcePayload {
   redshift_options?: { table: string; database: string; schema_: string };
   kafka_options?: { kafka_bootstrap_servers: string; topic: string };
   spark_options?: { table: string; path: string };
+  custom_options?: {
+    configuration?: string;
+    class_name?: string;
+    config?: string;
+  };
+  data_source_class_type?: string;
 }
 
 interface DeleteDataSourcePayload {

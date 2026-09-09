@@ -61,6 +61,24 @@ def test_spark_transformation_node_executes_udf(spark_session):
     assert rows[1]["name"] == "John D."
 
 
+def test_spark_transformation_node_caches_resolved_udf():
+    def identity(df):
+        return df
+
+    input_node = MagicMock()
+    input_node.name = "source"
+    node = SparkTransformationNode(
+        "transform",
+        udf=identity,
+        inputs=[input_node],
+        udf_string="",
+    )
+    first = node._resolve_udf()
+    second = node._resolve_udf()
+    assert first is second
+    assert first is identity
+
+
 def test_spark_aggregation_node_executes_correctly(spark_session):
     # Sample input DataFrame
     input_df = spark_session.createDataFrame(

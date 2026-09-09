@@ -78,10 +78,22 @@ type FeatureStoreSpec struct {
 }
 
 // FeastProjectDir defines how to create the feast project directory.
-// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init), has(self.packaged)].exists_one(c, c)",message="One selection required between init, git, or packaged."
 type FeastProjectDir struct {
-	Git  *GitCloneOptions  `json:"git,omitempty"`
-	Init *FeastInitOptions `json:"init,omitempty"`
+	Git      *GitCloneOptions      `json:"git,omitempty"`
+	Init     *FeastInitOptions     `json:"init,omitempty"`
+	Packaged *FeastPackagedOptions `json:"packaged,omitempty"`
+}
+
+// FeastPackagedOptions describes a feature repository packaged in a feature server image.
+// +kubebuilder:validation:XValidation:rule="self.featureRepoPath.startsWith('/') && self.featureRepoPath != '/' && !self.featureRepoPath.contains('//') && !self.featureRepoPath.endsWith('/') && !self.featureRepoPath.contains('/./') && !self.featureRepoPath.endsWith('/.') && !self.featureRepoPath.contains('/../') && !self.featureRepoPath.endsWith('/..')",message="FeatureRepoPath must be a canonical absolute, non-root path without dot segments or repeated separators."
+type FeastPackagedOptions struct {
+	// Image containing the packaged feature repository. When set, this image is used by the
+	// repository initialization and feast apply containers and as the default service image.
+	// When omitted, the operator's configured feature server image is used.
+	Image string `json:"image,omitempty"`
+	// FeatureRepoPath is the canonical absolute path to the feature repository in the image.
+	FeatureRepoPath string `json:"featureRepoPath"`
 }
 
 // GitCloneOptions describes how a clone should be performed.
@@ -293,6 +305,15 @@ type FeatureStoreServices struct {
 	RunFeastApplyOnInit *bool `json:"runFeastApplyOnInit,omitempty"`
 	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// Tolerations are applied to the FeatureStore deployment pods, allowing them to
+	// be scheduled onto nodes with matching taints.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a selector which must be true for the FeatureStore deployment
+	// pods to fit on a node. This selector must match a node's labels for the pod to
+	// be scheduled on that node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // OfflineStore configures the offline store service
@@ -325,7 +346,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse;ray;hybrid
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -345,6 +366,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"couchbase.offline",
 	"clickhouse",
 	"ray",
+	"hybrid",
 }
 
 // OnlineStore configures the online store service
@@ -373,7 +395,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb;aerospike;scylladb
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -399,6 +421,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"milvus",
 	"hybrid",
 	"mongodb",
+	"aerospike",
+	"scylladb",
 }
 
 // LocalRegistryConfig configures the registry service
@@ -607,10 +631,15 @@ type OptionalCtrConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
-// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc), has(self.noAuth)].exists_one(c, c)",message="One selection required between kubernetes, oidc, or noAuth."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
+	// NoAuth explicitly disables authentication and authorization.
+	// When set to true, Feast services run without any auth checks.
+	// Use only for development or testing environments.
+	// +optional
+	NoAuth *bool `json:"noAuth,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.

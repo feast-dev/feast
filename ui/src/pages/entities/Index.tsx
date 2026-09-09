@@ -47,7 +47,8 @@ const formDataToPayload = (formData: EntityFormData, project: string) => ({
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isLoading, isSuccess, isError, data } = useLoadEntities();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadEntities();
   const isAllProjects = projectName === "all";
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,7 +122,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view entities.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && !data && <EntityIndexEmptyState />}
         {isSuccess && data && <EntitiesListingTable entities={data} />}
       </EuiPageTemplate.Section>

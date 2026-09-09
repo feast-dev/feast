@@ -28,15 +28,45 @@ import "feast/core/DataFormat.proto";
 import "feast/types/Value.proto";
 import "feast/core/Feature.proto";
 
+// Connection reference for a DataSource.
+// Combines connection type, credential resolution, and non-sensitive
+// connection parameters into a single reusable reference.
+// Allows DataSources to declare their full connection identity — which
+// backend to use, how to authenticate, and where to connect — independent
+// of the global offline_store config in feature_store.yaml.
+message ConnectionRef {
+  // Credential provider type: "kubernetes", "vault", "aws-secrets-manager",
+  // "gcp-secret-manager", "azure-key-vault", "env".
+  string provider = 1;
+
+  // Provider-specific name: K8s Secret name, Vault path, env var prefix, etc.
+  string name = 2;
+
+  // Optional scope qualifier: K8s namespace, Vault mount, AWS region, etc.
+  string namespace = 3;
+
+  // Optional offline store class type (e.g., "snowflake.offline", "bigquery",
+  // "spark", "iceberg-rest"). When empty, inferred from the DataSource class.
+  string connection_type = 4;
+
+  // Optional authentication mechanism: "secret", "oauth2", "basic", "sigv4".
+  // Defaults to "secret" (raw key-value credentials from provider).
+  string auth_type = 5;
+
+  // Optional non-sensitive connection parameters (e.g., account, database,
+  // warehouse, endpoint URI). Keys and values are backend-specific.
+  map<string, string> params = 6;
+}
+
 // Defines a Data Source that can be used source Feature data
-// Next available id: 29
+// Next available id: 30
 message DataSource {
   // Field indexes should *not* be reused. Not sure if fields 6-10 were used previously or not,
   // but they are going to be reserved for backwards compatibility.
   reserved 6 to 10;
 
   // Type of Data Source.
-  // Next available id: 13
+  // Next available id: 14
   enum SourceType {
     INVALID = 0;
     BATCH_FILE = 1;
@@ -51,6 +81,7 @@ message DataSource {
     BATCH_TRINO = 10;
     BATCH_SPARK = 11;
     BATCH_ATHENA = 12;
+    BATCH_ICEBERG = 13;
   }
 
   // Unique name of data source within the project
@@ -93,6 +124,13 @@ message DataSource {
 
   // Optional batch source for streaming sources for historical features and materialization.
   DataSource batch_source = 26;
+
+  // Optional connection reference for this data source.
+  // When set, OfflineStores resolve connection type and credentials at
+  // runtime via the registered CredentialProvider instead of using ambient
+  // env vars or the global offline_store config in feature_store.yaml.
+  // All fields except provider and name are optional.
+  ConnectionRef connection_ref = 29;
 
   SourceMeta meta = 50;
 

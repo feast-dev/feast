@@ -63,10 +63,11 @@ class DataSource(google.protobuf.message.Message):
         BATCH_TRINO: DataSource._SourceType.ValueType  # 10
         BATCH_SPARK: DataSource._SourceType.ValueType  # 11
         BATCH_ATHENA: DataSource._SourceType.ValueType  # 12
+        BATCH_ICEBERG: DataSource._SourceType.ValueType  # 13
 
     class SourceType(_SourceType, metaclass=_SourceTypeEnumTypeWrapper):
         """Type of Data Source.
-        Next available id: 13
+        Next available id: 14
         """
 
     INVALID: DataSource.SourceType.ValueType  # 0
@@ -82,6 +83,7 @@ class DataSource(google.protobuf.message.Message):
     BATCH_TRINO: DataSource.SourceType.ValueType  # 10
     BATCH_SPARK: DataSource.SourceType.ValueType  # 11
     BATCH_ATHENA: DataSource.SourceType.ValueType  # 12
+    BATCH_ICEBERG: DataSource.SourceType.ValueType  # 13
 
     class TagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor

@@ -33,7 +33,7 @@ class RestRegistryServer:
     def __init__(self, store: FeatureStore):
         self.store = store
         self.registry = store.registry
-        self.grpc_handler = RegistryServer(self.registry)
+        self.grpc_handler = RegistryServer(self.registry, store=self.store)
         recent_visit_logging_cfg = {}
         feature_server_cfg = getattr(
             getattr(store, "config", None), "feature_server", None
@@ -78,12 +78,21 @@ class RestRegistryServer:
 
         registry_cfg = getattr(store.config, "registry", None)
         mcp_cfg = getattr(registry_cfg, "mcp", None)
-        if mcp_cfg and getattr(mcp_cfg, "enabled", False) is True:
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
             try:
                 from fastapi_mcp import FastApiMCP
 
+                from feast.infra.mcp_servers.mcp_server import (
+                    _patch_fastapi_mcp_schema_resolver,
+                )
+
+                _patch_fastapi_mcp_schema_resolver()
                 mcp = FastApiMCP(self.app, name="feast-registry-mcp")
-                mcp.mount()
+                mount_sse = getattr(mcp, "mount_sse", None)
+                if mount_sse is not None:
+                    mount_sse()
+                else:
+                    mcp.mount()
                 logger.info("MCP support enabled on REST registry server")
             except ImportError:
                 logger.warning(
@@ -317,6 +326,10 @@ class RestRegistryServer:
         tls_cert_path: str = "",
     ):
         import uvicorn
+
+        from feast.registry_server import _sync_protected_project_tag
+
+        _sync_protected_project_tag(self.store)
 
         if tls_key_path and tls_cert_path:
             logger.info("Starting REST registry server in TLS(SSL) mode")

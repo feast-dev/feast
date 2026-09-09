@@ -22,6 +22,7 @@ from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_format import StreamFormat
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -157,6 +158,7 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino_source.TrinoSource",
     DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
     DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena_source.AthenaSource",
+    DataSourceProto.SourceType.BATCH_ICEBERG: "feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source.IcebergSource",
     DataSourceProto.SourceType.STREAM_KAFKA: "feast.data_source.KafkaSource",
     DataSourceProto.SourceType.STREAM_KINESIS: "feast.data_source.KinesisSource",
     DataSourceProto.SourceType.REQUEST_SOURCE: "feast.data_source.RequestSource",
@@ -193,6 +195,10 @@ class DataSource(ABC):
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
+        connection_ref (optional): Connection reference for this data source.
+            When set, OfflineStores resolve connection type and credentials at runtime
+            via the registered CredentialProvider instead of using ambient env vars or
+            the global offline_store config. All fields except provider and name are optional.
         created_timestamp: The time when the data source was created.
         last_updated_timestamp: The time when the data source was last updated.
     """
@@ -206,6 +212,7 @@ class DataSource(ABC):
     owner: str
     date_partition_column: str
     timestamp_field_type: str
+    connection_ref: Optional[ConnectionRef]
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
@@ -221,6 +228,7 @@ class DataSource(ABC):
         owner: Optional[str] = "",
         date_partition_column: Optional[str] = None,
         timestamp_field_type: Optional[str] = None,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a DataSource object.
@@ -242,6 +250,8 @@ class DataSource(ABC):
             timestamp_field_type (optional): Type of the timestamp_field column.
                 Defaults to "TIMESTAMP". Set to "DATE" when the event timestamp column
                 is a DATE type, so SQL generation uses date-only comparisons.
+            connection_ref (optional): Connection reference for this data source.
+                See :class:`~feast.credentials.ConnectionRef`.
         """
         self.name = name
         self.timestamp_field = timestamp_field or ""
@@ -263,9 +273,22 @@ class DataSource(ABC):
             date_partition_column if date_partition_column else ""
         )
         self.timestamp_field_type = timestamp_field_type if timestamp_field_type else ""
+        self.connection_ref = connection_ref
         now = _utc_now()
         self.created_timestamp = now
         self.last_updated_timestamp = now
+
+    def resolve_credentials(self) -> Optional[Dict[str, str]]:
+        """Resolve credentials from the ``connection_ref`` if set.
+
+        Returns ``None`` when no ``connection_ref`` is configured (ambient
+        credentials are used instead).
+        """
+        if self.connection_ref is None:
+            return None
+        from feast.credentials import resolve_credentials
+
+        return resolve_credentials(self.connection_ref)
 
     def __hash__(self):
         return hash((self.name, self.timestamp_field))
@@ -278,7 +301,7 @@ class DataSource(ABC):
             return False
 
         if not isinstance(other, DataSource):
-            raise TypeError("Comparisons should only involve DataSource class objects.")
+            return False
 
         if (
             self.name != other.name
@@ -290,6 +313,7 @@ class DataSource(ABC):
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
+            or self.connection_ref != other.connection_ref
         ):
             return False
 
@@ -328,6 +352,9 @@ class DataSource(ABC):
             data_source_instance = cls.from_proto(data_source)
 
         data_source_instance._extract_timestamps_from_proto(data_source)
+        data_source_instance.connection_ref = ConnectionRef.from_tags(
+            dict(data_source.tags)
+        )
 
         return data_source_instance
 
@@ -337,6 +364,10 @@ class DataSource(ABC):
         """
         proto = self._to_proto_impl()
         self._set_timestamps_in_proto(proto)
+
+        if self.connection_ref is not None:
+            for key, value in self.connection_ref.to_tags().items():
+                proto.tags[key] = value
 
         return proto
 
@@ -498,9 +529,7 @@ class KafkaSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, KafkaSource):
-            raise TypeError(
-                "Comparisons should only involve KafkaSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False
@@ -638,9 +667,7 @@ class RequestSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, RequestSource):
-            raise TypeError(
-                "Comparisons should only involve RequestSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False
@@ -800,9 +827,7 @@ class KinesisSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, KinesisSource):
-            raise TypeError(
-                "Comparisons should only involve KinesisSource class objects."
-            )
+            return False
 
         if not super().__eq__(other):
             return False

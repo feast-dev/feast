@@ -129,6 +129,28 @@ def test_apply_feature_view(tmp_path):
     assert stored.name == "driver_id"
 ```
 
+### Pattern: SQL registry — dialect DDL and startup-check tests
+
+See `sdk/python/tests/unit/infra/registry/test_sql_registry.py`.
+
+- **Assert dialect-specific DDL without a live DB**: compile a table for a target dialect and check the emitted column type. Useful for column-type rules like `ProtoBytes` → `LONGBLOB` on MySQL/MariaDB.
+  ```python
+  from sqlalchemy.dialects import mysql
+  from sqlalchemy.schema import CreateTable
+  ddl = str(CreateTable(feature_views).compile(dialect=mysql.dialect()))
+  assert "feature_view_proto LONGBLOB" in ddl
+  ```
+- **Unit-test a startup diagnostic with a mock engine**: stub `engine.dialect.name` and the `engine.connect()` context manager so no DB is needed.
+  ```python
+  engine = MagicMock()
+  engine.dialect.name = "mysql"
+  engine.connect.return_value.__enter__.return_value.execute.return_value.fetchall.return_value = [
+      ("feature_views", "feature_view_proto"),
+  ]
+  SqlRegistry._warn_if_narrow_blob_columns(engine)
+  ```
+- **Live round-trip behavior** (e.g. a >64 KB proto surviving the column) belongs in an integration test against the `mysql_registry` fixture in `tests/integration/registration/test_universal_registry.py` (DDL-compile tests can't catch runtime truncation).
+
 ### Pattern: testing FeatureStore end-to-end (unit level)
 
 ```python

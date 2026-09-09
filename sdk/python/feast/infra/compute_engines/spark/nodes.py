@@ -45,6 +45,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.transformation.udf_rehydrate import resolve_udf
 
 logger = logging.getLogger(__name__)
 
@@ -602,9 +603,32 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, udf: Callable, inputs: List[DAGNode]):
+    def __init__(
+        self,
+        name: str,
+        udf: Callable,
+        inputs: List[DAGNode],
+        udf_string: str = "",
+    ):
         super().__init__(name, inputs)
         self.udf = udf
+        self.udf_string = udf_string or ""
+        self._resolved_udf: Optional[Callable] = None
+
+    def _resolve_udf(self) -> Callable:
+        """Prefer source reconstruction over dill callables.
+
+        Dill-deserialized functions that call DataFrame.withColumn / __getitem__
+        can segfault (exit 139) on Spark 4.0.1. Re-executing ``udf_string``
+        yields a healthy callable. Result is cached for the lifetime of the node.
+        """
+        if self._resolved_udf is None:
+            self._resolved_udf = resolve_udf(
+                udf_string=self.udf_string,
+                fallback_udf=self.udf,
+                preferred_name=self.name,
+            )
+        return self._resolved_udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         input_values = self.get_input_values(context)
@@ -613,7 +637,7 @@ class SparkTransformationNode(DAGNode):
 
         input_dfs: List[DataFrame] = [val.data for val in input_values]
 
-        transformed_df = self.udf(*input_dfs)
+        transformed_df = self._resolve_udf()(*input_dfs)
 
         return DAGValue(
             data=transformed_df, format=DAGFormat.SPARK, metadata={"transformed": True}

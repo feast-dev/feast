@@ -70,6 +70,21 @@ E_CASSANDRA_INCONSISTENT_AUTH = (
 E_CASSANDRA_UNKNOWN_LB_POLICY = (
     "Unknown/unsupported Load Balancing Policy name in Cassandra configuration"
 )
+E_CASSANDRA_DC_DEFAULT_NOT_FOUND = (
+    "Cassandra multi-DC: 'load_balancing.local_dc' "
+    "does not match any datacenter 'name' in the 'datacenters' list"
+)
+E_CASSANDRA_DC_CONFIG_CONFLICT = (
+    "Cassandra config: 'datacenters' is mutually exclusive with "
+    "'hosts' and 'secure_bundle_path'"
+)
+E_CASSANDRA_DC_CONFIG_EMPTY = (
+    "Cassandra config: 'datacenters' list must not be empty if provided"
+)
+E_CASSANDRA_DC_ROUTING_INVALID = (
+    "Cassandra multi-DC: 'routing.read_dc' or 'routing.write_dc' "
+    "does not match any datacenter 'name' in the 'datacenters' list"
+)
 
 # CQL command templates (that is, before replacing schema names)
 INSERT_CQL_4_TEMPLATE = (
@@ -153,6 +168,102 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     request_timeout: Optional[StrictFloat] = None
     """Request timeout in seconds."""
 
+    class CassandraDatacenterConfig(FeastConfigBaseModel):
+        """
+        Per-datacenter configuration for multi-DC Cassandra deployments.
+
+        When the top-level ``datacenters`` list is used, each entry defines
+        the contact points and replication settings for one datacenter.
+        A named Cassandra execution profile (keyed by ``name``) is created
+        for every entry, enabling targeted per-DC routing via the driver's
+        execution-profile mechanism.
+        """
+
+        name: StrictStr
+        """
+        Datacenter name as reported by the cluster (e.g. ``datacenter1``).
+        Also used as the named execution-profile key and referenced by
+        ``routing.read_dc`` / ``routing.write_dc``.
+        """
+
+        hosts: List[StrictStr]
+        """Contact-point host addresses belonging to this datacenter."""
+
+        replication_factor: Optional[StrictInt] = None
+        """
+        Replication factor for this datacenter.
+        Informational only — keyspace must be pre-created.
+        """
+
+        replication_strategy: Optional[StrictStr] = None
+        """
+        Replication strategy class (e.g. ``'SimpleStrategy'``,
+        ``'NetworkTopologyStrategy'``).
+        Informational only — keyspace must be pre-created.
+        """
+
+    class CassandraRoutingConfig(FeastConfigBaseModel):
+        """
+        Optional per-operation datacenter routing for multi-DC deployments.
+
+        Allows reads and writes to be directed to different datacenters.
+        Both fields are optional; when omitted the default datacenter
+        (from ``load_balancing.local_dc`` or the first entry in
+        ``datacenters``) is used for that operation.
+
+        Values must match the ``name`` of one of the entries in the
+        ``datacenters`` list.
+
+        Example::
+
+            routing:
+                read_dc: dc2   # reads served from dc2
+                write_dc: dc1  # writes sent to dc1
+        """
+
+        read_dc: Optional[StrictStr] = None
+        """Datacenter name to use for read operations (online_read)."""
+
+        write_dc: Optional[StrictStr] = None
+        """Datacenter name to use for write operations (online_write_batch)."""
+
+    datacenters: Optional[List[CassandraDatacenterConfig]] = None
+    """
+    Per-datacenter configuration enabling multi-DC Cassandra support.
+
+    When set, a named Cassandra execution profile is registered for each
+    datacenter (profile name = ``name`` field of each entry).  The default
+    profile is determined by ``load_balancing.local_dc``; if
+    ``load_balancing`` is absent the first datacenter in the list is used.
+
+    Use ``routing`` to direct reads and writes to specific datacenters.
+
+    Mutually exclusive with ``hosts`` and ``secure_bundle_path``.
+    The keyspace must already exist; Feast does not create it automatically.
+
+    Example::
+
+        datacenters:
+          - name: dc1
+            hosts: [192.168.1.1, 192.168.1.2]
+            replication_factor: 3
+          - name: dc2
+            hosts: [10.0.0.1]
+            replication_factor: 2
+        routing:
+            read_dc: dc2
+            write_dc: dc1
+        load_balancing:
+            local_dc: dc1
+            load_balancing_policy: TokenAwarePolicy(DCAwareRoundRobinPolicy)
+    """
+
+    routing: Optional[CassandraRoutingConfig] = None
+    """
+    Optional read/write datacenter routing for multi-DC mode.
+    Ignored when ``datacenters`` is not set.
+    """
+
     class CassandraLoadBalancingPolicy(FeastConfigBaseModel):
         """
         Configuration block related to the Cluster's load-balancing policy.
@@ -173,6 +284,9 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """
     Details on the load-balancing policy: it will be
     wrapped into an execution profile if present.
+
+    In multi-DC mode (``datacenters`` list), ``local_dc`` also selects
+    which datacenter's profile becomes the default execution profile.
     """
 
     read_concurrency: Optional[StrictInt] = 100
@@ -202,12 +316,24 @@ class CassandraOnlineStore(OnlineStore):
                     to issue commands.
         _keyspace:  Cassandra keyspace all tables live in.
         _prepared_statements: cache of statements prepared by the driver.
+        _dc_execution_profiles: list of named execution-profile keys
+                    registered in multi-DC mode (one per datacenter).
+                    Empty in single-DC / Astra DB mode.
+        _read_execution_profile:  execution profile used for read operations.
+                    Set to the configured ``routing.read_dc`` profile in
+                    multi-DC mode, ``EXEC_PROFILE_DEFAULT`` otherwise.
+        _write_execution_profile: execution profile used for write operations.
+                    Set to the configured ``routing.write_dc`` profile in
+                    multi-DC mode, ``EXEC_PROFILE_DEFAULT`` otherwise.
     """
 
     _cluster: Cluster = None
     _session: Session = None
     _keyspace: str = "feast_keyspace"
     _prepared_statements: Dict[str, PreparedStatement] = {}
+    _dc_execution_profiles: List[str]
+    _read_execution_profile: Any = EXEC_PROFILE_DEFAULT
+    _write_execution_profile: Any = EXEC_PROFILE_DEFAULT
 
     def _get_session(self, config: RepoConfig):
         """
@@ -223,85 +349,196 @@ class CassandraOnlineStore(OnlineStore):
 
         if self._session:
             return self._session
-        if not self._session:
-            # configuration consistency checks
-            hosts = online_store_config.hosts
-            secure_bundle_path = online_store_config.secure_bundle_path
+
+        # ------------------------------------------------------------------
+        # Branch B: multi-DC mode — one named execution profile
+        # per datacenter
+        # ------------------------------------------------------------------
+        if online_store_config.datacenters is not None:
+            # Validate: empty list is a misconfiguration
+            if len(online_store_config.datacenters) == 0:
+                raise CassandraInvalidConfig(E_CASSANDRA_DC_CONFIG_EMPTY)
+
+            # Validate: mutually exclusive with hosts / secure_bundle_path
+            if online_store_config.hosts or online_store_config.secure_bundle_path:
+                raise CassandraInvalidConfig(E_CASSANDRA_DC_CONFIG_CONFLICT)
+
             port = online_store_config.port or 9042
             keyspace = online_store_config.keyspace
             username = online_store_config.username
             password = online_store_config.password
             protocol_version = online_store_config.protocol_version
 
-            db_directions = hosts or secure_bundle_path
-            if not db_directions or not keyspace:
-                raise CassandraInvalidConfig(E_CASSANDRA_NOT_CONFIGURED)
-            if hosts and secure_bundle_path:
-                raise CassandraInvalidConfig(E_CASSANDRA_MISCONFIGURED)
             if (username is None) ^ (password is None):
                 raise CassandraInvalidConfig(E_CASSANDRA_INCONSISTENT_AUTH)
 
-            if username is not None:
-                auth_provider = PlainTextAuthProvider(
-                    username=username,
-                    password=password,
-                )
-            else:
-                auth_provider = None
+            auth_provider = (
+                PlainTextAuthProvider(username=username, password=password)
+                if username is not None
+                else None
+            )
 
-            # handling of load-balancing policy (optional)
-            if online_store_config.load_balancing:
-                # construct a proper execution profile embedding
-                # the configured LB policy
-                _lbp_name = online_store_config.load_balancing.load_balancing_policy
+            _lbp_name = (
+                online_store_config.load_balancing.load_balancing_policy
+                if online_store_config.load_balancing
+                else "DCAwareRoundRobinPolicy"
+            )
+
+            execution_profiles: Dict[Any, ExecutionProfile] = {}
+            all_hosts: List[str] = []
+            self._dc_execution_profiles = []  # fresh list per connection
+            for dc in online_store_config.datacenters:
+                all_hosts.extend(dc.hosts)
                 if _lbp_name == "DCAwareRoundRobinPolicy":
-                    lb_policy = DCAwareRoundRobinPolicy(
-                        local_dc=online_store_config.load_balancing.local_dc,
-                    )
+                    lb_policy = DCAwareRoundRobinPolicy(local_dc=dc.name)
                 elif _lbp_name == "TokenAwarePolicy(DCAwareRoundRobinPolicy)":
                     lb_policy = TokenAwarePolicy(
-                        DCAwareRoundRobinPolicy(
-                            local_dc=online_store_config.load_balancing.local_dc,
-                        )
+                        DCAwareRoundRobinPolicy(local_dc=dc.name)
                     )
                 else:
                     raise CassandraInvalidConfig(E_CASSANDRA_UNKNOWN_LB_POLICY)
-
-                # wrap it up in a map of ex.profiles with a default
-                exe_profile = ExecutionProfile(
+                execution_profiles[dc.name] = ExecutionProfile(
                     request_timeout=online_store_config.request_timeout,
                     load_balancing_policy=lb_policy,
                 )
-                execution_profiles = {EXEC_PROFILE_DEFAULT: exe_profile}
-            else:
-                execution_profiles = None
+                self._dc_execution_profiles.append(dc.name)
+                if (
+                    dc.replication_factor is not None
+                    or dc.replication_strategy is not None
+                ):
+                    logger.info(
+                        "Cassandra multi-DC: "
+                        "replication_factor/replication_strategy "
+                        "for DC '%s' are informational only; "
+                        "keyspace must be pre-created.",
+                        dc.name,
+                    )
 
-            # additional optional keyword args to Cluster
+            # Determine default DC
+            default_dc = (
+                online_store_config.load_balancing.local_dc
+                if online_store_config.load_balancing
+                else online_store_config.datacenters[0].name
+            )
+            if default_dc not in execution_profiles:
+                raise CassandraInvalidConfig(E_CASSANDRA_DC_DEFAULT_NOT_FOUND)
+            default_profile = execution_profiles[default_dc]
+            execution_profiles[EXEC_PROFILE_DEFAULT] = default_profile
+
+            # Resolve read/write execution profiles from routing config
+            dc_names = set(self._dc_execution_profiles)
+            if online_store_config.routing:
+                # use given dc or fall back to default_dc
+                read_dc = online_store_config.routing.read_dc
+                write_dc = online_store_config.routing.write_dc
+                if (read_dc and read_dc not in dc_names) or (
+                    write_dc and write_dc not in dc_names
+                ):
+                    raise CassandraInvalidConfig(E_CASSANDRA_DC_ROUTING_INVALID)
+                self._read_execution_profile = read_dc or default_dc
+                self._write_execution_profile = write_dc or default_dc
+            else:
+                self._read_execution_profile = default_dc
+                self._write_execution_profile = default_dc
+
             cluster_kwargs = {
                 k: v
-                for k, v in {
-                    "protocol_version": protocol_version,
-                    "execution_profiles": execution_profiles,
-                }.items()
+                for k, v in {"protocol_version": protocol_version}.items()
                 if v is not None
             }
-
-            # creation of Cluster (Cassandra vs. Astra)
-            if hosts:
-                self._cluster = Cluster(
-                    hosts, port=port, auth_provider=auth_provider, **cluster_kwargs
-                )
-            else:
-                # we use 'secure_bundle_path'
-                self._cluster = Cluster(
-                    cloud={"secure_connect_bundle": secure_bundle_path},
-                    auth_provider=auth_provider,
-                    **cluster_kwargs,
-                )
-
-            # creation of Session
+            self._cluster = Cluster(
+                all_hosts,
+                port=port,
+                auth_provider=auth_provider,
+                execution_profiles=execution_profiles,
+                **cluster_kwargs,
+            )
             self._keyspace = keyspace
             self._session = self._cluster.connect(self._keyspace)
+            return self._session
+
+        # ------------------------------------------------------------------
+        # Branch A: original single-DC / Astra DB
+        # ------------------------------------------------------------------
+        hosts = online_store_config.hosts
+        secure_bundle_path = online_store_config.secure_bundle_path
+        port = online_store_config.port or 9042
+        keyspace = online_store_config.keyspace
+        username = online_store_config.username
+        password = online_store_config.password
+        protocol_version = online_store_config.protocol_version
+
+        db_directions = hosts or secure_bundle_path
+        if not db_directions or not keyspace:
+            raise CassandraInvalidConfig(E_CASSANDRA_NOT_CONFIGURED)
+        if hosts and secure_bundle_path:
+            raise CassandraInvalidConfig(E_CASSANDRA_MISCONFIGURED)
+        if (username is None) ^ (password is None):
+            raise CassandraInvalidConfig(E_CASSANDRA_INCONSISTENT_AUTH)
+
+        if username is not None:
+            auth_provider = PlainTextAuthProvider(
+                username=username,
+                password=password,
+            )
+        else:
+            auth_provider = None
+
+        # handling of load-balancing policy (optional)
+        if online_store_config.load_balancing:
+            # construct a proper execution profile embedding
+            # the configured LB policy
+            _lbp_name = online_store_config.load_balancing.load_balancing_policy
+            if _lbp_name == "DCAwareRoundRobinPolicy":
+                lb_policy = DCAwareRoundRobinPolicy(
+                    local_dc=online_store_config.load_balancing.local_dc,
+                )
+            elif _lbp_name == "TokenAwarePolicy(DCAwareRoundRobinPolicy)":
+                lb_policy = TokenAwarePolicy(
+                    DCAwareRoundRobinPolicy(
+                        local_dc=online_store_config.load_balancing.local_dc,
+                    )
+                )
+            else:
+                raise CassandraInvalidConfig(E_CASSANDRA_UNKNOWN_LB_POLICY)
+
+            # wrap it up in a map of ex.profiles with a default
+            exe_profile = ExecutionProfile(
+                request_timeout=online_store_config.request_timeout,
+                load_balancing_policy=lb_policy,
+            )
+            lb_execution_profiles: Optional[Dict[Any, ExecutionProfile]] = {
+                EXEC_PROFILE_DEFAULT: exe_profile
+            }
+        else:
+            lb_execution_profiles = None
+
+        # additional optional keyword args to Cluster
+        cluster_kwargs_branch_a: Dict[str, Any] = {
+            k: v
+            for k, v in {
+                "protocol_version": protocol_version,
+                "execution_profiles": lb_execution_profiles,
+            }.items()
+            if v is not None
+        }
+
+        # creation of Cluster (Cassandra vs. Astra)
+        if hosts:
+            self._cluster = Cluster(
+                hosts, port=port, auth_provider=auth_provider, **cluster_kwargs_branch_a
+            )
+        else:
+            # we use 'secure_bundle_path'
+            self._cluster = Cluster(
+                cloud={"secure_connect_bundle": secure_bundle_path},
+                auth_provider=auth_provider,
+                **cluster_kwargs_branch_a,
+            )
+
+        # creation of Session
+        self._keyspace = keyspace
+        self._session = self._cluster.connect(self._keyspace)
 
         return self._session
 
@@ -498,6 +735,7 @@ class CassandraOnlineStore(OnlineStore):
             insert_cql,
             rows,
             concurrency=config.online_store.write_concurrency,
+            execution_profile=self._write_execution_profile,
         )
 
     def _read_rows_by_entity_keys(
@@ -526,6 +764,7 @@ class CassandraOnlineStore(OnlineStore):
             select_cql,
             ((entity_key_bin,) for entity_key_bin in entity_key_bins),
             concurrency=config.online_store.read_concurrency,
+            execution_profile=self._read_execution_profile,
         )
         # execute_concurrent_with_args return a sequence
         # of (success, result_or_exception) pairs:

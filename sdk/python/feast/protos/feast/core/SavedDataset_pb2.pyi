@@ -58,6 +58,9 @@ class SavedDatasetSpec(google.protobuf.message.Message):
     STORAGE_FIELD_NUMBER: builtins.int
     FEATURE_SERVICE_NAME_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    NAMESPACE_FIELD_NUMBER: builtins.int
+    COLLECTION_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the dataset. Must be unique since it's possible to overwrite dataset by name"""
     project: builtins.str
@@ -77,6 +80,18 @@ class SavedDatasetSpec(google.protobuf.message.Message):
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """User defined metadata"""
+    namespace: builtins.str
+    """Optional logical namespace for hierarchical grouping.
+    Maps to the top-level prefix in Iceberg REST Catalog API.
+    Empty string means not set (no namespace scoping).
+    """
+    collection: builtins.str
+    """Optional sub-grouping within a namespace.
+    Maps to the namespace level in Iceberg REST Catalog API.
+    Empty string means not set (dataset sits directly under namespace).
+    """
+    description: builtins.str
+    """Description of the saved dataset."""
     def __init__(
         self,
         *,
@@ -88,9 +103,12 @@ class SavedDatasetSpec(google.protobuf.message.Message):
         storage: global___SavedDatasetStorage | None = ...,
         feature_service_name: builtins.str = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        namespace: builtins.str = ...,
+        collection: builtins.str = ...,
+        description: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["storage", b"storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["collection", b"collection", "description", b"description", "feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "namespace", b"namespace", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
 
 global___SavedDatasetSpec = SavedDatasetSpec
 

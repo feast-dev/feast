@@ -3,7 +3,7 @@ import logging
 import threading
 import warnings
 from abc import abstractmethod
-from datetime import timedelta
+from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +23,7 @@ from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, to_naive_utc
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,11 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_all_feature_views(
-        self, project: str, tags: Optional[dict[str, str]], **kwargs: Any
+        self,
+        project: str,
+        tags: Optional[dict[str, str]],
+        updated_since: Optional[datetime] = None,
+        **kwargs: Any,
     ) -> List[BaseFeatureView]:
         pass
 
@@ -132,13 +136,27 @@ class CachingRegistry(BaseRegistry):
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
         skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
-            return proto_registry_utils.list_all_feature_views(
+            feature_views = proto_registry_utils.list_all_feature_views(
                 self.cached_registry_proto, project, tags, skip_udf=skip_udf
             )
-        return self._list_all_feature_views(project, tags, skip_udf=skip_udf)
+            if updated_since is not None:
+                # last_updated_timestamp from proto is offset-naive UTC; normalise for comparison
+                cutoff = to_naive_utc(updated_since)
+                feature_views = [
+                    fv
+                    for fv in feature_views
+                    if fv.last_updated_timestamp is not None
+                    and fv.last_updated_timestamp >= cutoff
+                ]
+        else:
+            feature_views = self._list_all_feature_views(
+                project, tags, updated_since=updated_since, skip_udf=skip_udf
+            )
+        return feature_views
 
     @abstractmethod
     def _get_feature_view(self, name: str, project: str) -> FeatureView:
@@ -326,7 +344,11 @@ class CachingRegistry(BaseRegistry):
 
     @abstractmethod
     def _list_saved_datasets(
-        self, project: str, tags: Optional[dict[str, str]] = None
+        self,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         pass
 
@@ -335,13 +357,21 @@ class CachingRegistry(BaseRegistry):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project, tags
+                self.cached_registry_proto,
+                project,
+                tags,
+                namespace=namespace,
+                collection=collection,
             )
-        return self._list_saved_datasets(project, tags)
+        return self._list_saved_datasets(
+            project, tags, namespace=namespace, collection=collection
+        )
 
     @abstractmethod
     def _get_validation_reference(self, name: str, project: str) -> ValidationReference:

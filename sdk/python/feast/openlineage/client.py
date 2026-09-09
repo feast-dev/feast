@@ -82,6 +82,8 @@ class FeastOpenLineageClient:
                    load from environment variables.
             feature_store: Optional FeatureStore instance for context.
         """
+        self._local_processor = None
+
         if not OPENLINEAGE_AVAILABLE:
             logger.warning(
                 "OpenLineage is not installed. Lineage events will not be emitted. "
@@ -132,6 +134,23 @@ class FeastOpenLineageClient:
         """Get the default namespace."""
         return self._config.namespace
 
+    def set_local_processor(self, processor) -> None:
+        """Attach a local OpenLineageProcessor so emitted events are also ingested locally."""
+        self._local_processor = processor
+
+    def _event_to_dict(self, event: Any) -> Optional[Dict[str, Any]]:
+        """Convert an OL event object to a plain dict for the local processor."""
+        try:
+            if hasattr(event, "to_dict"):
+                return event.to_dict()
+            if hasattr(event, "__dict__"):
+                import json
+
+                return json.loads(json.dumps(event, default=str))
+        except Exception as e:
+            logger.debug(f"Could not serialize event for local processor: {e}")
+        return None
+
     def emit(self, event: Any) -> bool:
         """
         Emit an OpenLineage event.
@@ -148,6 +167,15 @@ class FeastOpenLineageClient:
 
         try:
             self._client.emit(event)
+
+            if self._local_processor is not None:
+                event_dict = self._event_to_dict(event)
+                if event_dict:
+                    try:
+                        self._local_processor.process_event(event_dict)
+                    except Exception as le:
+                        logger.debug(f"Local processor ingest failed (non-fatal): {le}")
+
             return True
         except Exception as e:
             logger.error(f"Failed to emit OpenLineage event: {e}")
@@ -247,6 +275,7 @@ class FeastOpenLineageClient:
         inputs: Optional[List[Any]] = None,
         outputs: Optional[List[Any]] = None,
         job_facets: Optional[Dict[str, Any]] = None,
+        namespace: Optional[str] = None,
     ) -> bool:
         """
         Emit a JobEvent for a Feast job definition.
@@ -256,6 +285,7 @@ class FeastOpenLineageClient:
             inputs: List of input datasets
             outputs: List of output datasets
             job_facets: Job facets
+            namespace: Optional namespace for the job (defaults to client namespace)
 
         Returns:
             True if successful, False otherwise
@@ -269,7 +299,7 @@ class FeastOpenLineageClient:
             event = JobEvent(
                 eventTime=datetime.now(timezone.utc).isoformat(),
                 job=Job(
-                    namespace=self.namespace,
+                    namespace=namespace or self.namespace,
                     name=job_name,
                     facets=job_facets or {},
                 ),

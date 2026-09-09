@@ -147,10 +147,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-06-13T11:22:06Z"
+    createdAt: "2026-08-21T03:30:58Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.64.0
+  name: feast-operator.v0.66.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -180,11 +180,11 @@ spec:
           resources:
           - configmaps
           - persistentvolumeclaims
-          - serviceaccounts
           - services
           verbs:
           - create
           - delete
+          - deletecollection
           - get
           - list
           - update
@@ -193,9 +193,19 @@ spec:
           - ""
           resources:
           - namespaces
-          - pods
           - secrets
           verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - create
+          - delete
+          - deletecollection
           - get
           - list
           - watch
@@ -205,6 +215,23 @@ spec:
           - pods/exec
           verbs:
           - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods/log
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
@@ -247,6 +274,14 @@ spec:
           - update
           - watch
         - apiGroups:
+          - config.openshift.io
+          resources:
+          - apiservers
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - feast.dev
           resources:
           - featurestores
@@ -272,6 +307,14 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - mlflow.opendatahub.io
+          resources:
+          - mlflows
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
@@ -299,10 +342,36 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - clusterrolebindings
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
           - clusterroles
+          verbs:
+          - create
+          - get
+          - list
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resourceNames:
+          - feast-discover-namespaces
+          - feast-oidc-token-review
+          - feast-token-review-cluster-role
+          resources:
+          - clusterroles
+          verbs:
+          - delete
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
           - rolebindings
           - roles
-          - subjectaccessreviews
           verbs:
           - create
           - delete
@@ -321,6 +390,14 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - sparkoperator.k8s.io
+          resources:
+          - sparkapplications
+          verbs:
+          - create
+          - delete
+          - get
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -364,13 +441,13 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.64.0
+                  value: quay.io/feastdev/feature-server:0.66.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
                 - name: GOMEMLIMIT
                   value: 230MiB
                 - name: OIDC_ISSUER_URL
-                image: quay.io/feastdev/feast-operator:0.64.0
+                image: quay.io/feastdev/feast-operator:0.66.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -460,8 +537,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.64.0
+  - image: quay.io/feastdev/feature-server:0.66.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.64.0
+  version: 0.66.0

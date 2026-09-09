@@ -1,0 +1,19 @@
+---
+description: Formatting and lint rules for the Feast UI (React/TypeScript)
+globs: ui/src/**
+alwaysApply: false
+---
+
+## After editing any file under `ui/src/`
+
+1. **Run Prettier** before considering the task complete:
+   ```bash
+   cd ui && yarn prettier --write <changed-files>
+   ```
+2. **Verify** formatting passes:
+   ```bash
+   cd ui && yarn format:check
+   ```
+   CI runs `yarn format:check` and will reject PRs with style violations.
+
+3. Prettier config lives in `ui/package.json` (no separate `.prettierrc`). Do not override it.
