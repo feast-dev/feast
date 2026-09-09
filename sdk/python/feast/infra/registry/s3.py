@@ -10,10 +10,11 @@ from feast.errors import S3RegistryBucketForbiddenAccess, S3RegistryBucketNotExi
 from feast.infra.registry.registry_store import RegistryStore
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
-from feast.utils import _utc_now
+from feast.utils import _utc_now, get_user_agent
 
 try:
     import boto3
+    from botocore.config import Config
 except ImportError as e:
     from feast.errors import FeastExtrasDependencyImportError
 
@@ -28,8 +29,11 @@ class S3RegistryStore(RegistryStore):
         self._key = self._uri.path.lstrip("/")
         self._boto_extra_args = registry_config.s3_additional_kwargs or {}
 
+        # FEAST_S3_ENDPOINT_URL may point at Amazon S3 or an S3-compatible endpoint.
         self.s3_client = boto3.resource(
-            "s3", endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL")
+            "s3",
+            endpoint_url=os.environ.get("FEAST_S3_ENDPOINT_URL"),
+            config=Config(user_agent_extra=get_user_agent()),
         )
 
     def get_registry_proto(self):
