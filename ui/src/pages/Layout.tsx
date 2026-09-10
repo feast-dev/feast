@@ -38,6 +38,25 @@ import { useAuth } from "../contexts/AuthContext";
 import { RegistryRefreshContext } from "../contexts/RegistryRefreshContext";
 import useRegistryRefresh from "../hooks/useRegistryRefresh";
 
+const ArrowDownGlyph = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M4 6.5l4 4 4-4"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const Layout = () => {
   let { projectName } = useParams();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -288,7 +307,7 @@ const Layout = () => {
                               <EuiText size="xs">
                                 <strong>{user.username}</strong>
                               </EuiText>
-                              <EuiIcon type="arrowDown" size="s" />
+                              <EuiIcon type={ArrowDownGlyph} size="s" />
                             </button>
                           }
                           isOpen={isUserMenuOpen}
