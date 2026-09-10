@@ -247,6 +247,30 @@ class RegistryConfig(FeastBaseModel):
             return cls._normalize_postgres_scheme(path, "path")
         return path
 
+    @model_validator(mode="after")
+    def _warn_on_unsafe_serve_while_materializing(self) -> "RegistryConfig":
+        """Warn when ``serve_features_while_materializing`` is combined with a
+        registry configuration where it is a no-op or where its guarantees may
+        not hold. These are advisory warnings only, never hard failures.
+        """
+        if self.serve_features_while_materializing:
+            if self.registry_type != "sql":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled but "
+                    f"`registry_type` is '{self.registry_type}'. The flag targets "
+                    "the serving interruption caused by concurrent servers sharing "
+                    "a `sql` registry that materialization flips to `MATERIALIZING`; "
+                    "on other registry types it typically has no effect."
+                )
+            if self.cache_mode == "thread":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled together with "
+                    "`cache_mode='thread'`. In thread mode the registry cache may lag "
+                    "by up to `cache_ttl_seconds`, so feature-view state transitions "
+                    "(including the exit from `MATERIALIZING`) may be observed stale."
+                )
+        return self
+
 
 class MaterializationConfig(BaseModel):
     """Configuration options for feature materialization behavior."""
