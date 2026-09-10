@@ -59,6 +59,7 @@ from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.feature_servers.base_config import MetricsConfig
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -650,10 +651,11 @@ def get_app(
     fs_cfg = getattr(store.config, "feature_server", None)
     metrics_cfg = getattr(fs_cfg, "metrics", None)
 
+    default_feature_count_bins = MetricsConfig().feature_count_bins
     feature_count_bins = (
-        getattr(metrics_cfg, "feature_count_bins", [10, 50, 200])
+        getattr(metrics_cfg, "feature_count_bins", default_feature_count_bins)
         if metrics_cfg is not None
-        else [10, 50, 200]
+        else default_feature_count_bins
     )
 
 
