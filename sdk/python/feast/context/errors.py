@@ -40,10 +40,20 @@ class TokenizerUnavailableError(ContextError):
 
 
 class TokenBudgetExceededError(ContextError):
-    def __init__(self, requested: int, remaining: int, max_tokens: int):
+    def __init__(
+        self,
+        requested: int,
+        remaining: int,
+        max_tokens: int,
+        *,
+        message: str = "",
+    ):
         super().__init__(
-            f"Cannot consume {requested} tokens: only {remaining} of "
-            f"{max_tokens} tokens remain in the budget."
+            message
+            or (
+                f"Cannot consume {requested} tokens: only {remaining} of "
+                f"{max_tokens} tokens remain in the budget."
+            )
         )
         self.requested = requested
         self.remaining = remaining
@@ -51,3 +61,24 @@ class TokenBudgetExceededError(ContextError):
 
     def http_status_code(self) -> int:
         return HttpStatusCode.HTTP_400_BAD_REQUEST
+
+
+class RequiredSectionError(TokenBudgetExceededError):
+    """A section that must not be dropped does not fit the budget.
+
+    Raised instead of quietly returning a prompt missing its instructions:
+    the caller has to widen the budget or shorten the section.
+    """
+
+    def __init__(self, section: str, requested: int, remaining: int, max_tokens: int):
+        super().__init__(
+            requested,
+            remaining,
+            max_tokens,
+            message=(
+                f"Section {section} is critical and cannot be dropped, but it "
+                f"needs {requested} tokens with only {remaining} of "
+                f"{max_tokens} left in the budget."
+            ),
+        )
+        self.section = section
