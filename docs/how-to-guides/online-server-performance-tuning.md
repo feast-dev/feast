@@ -32,7 +32,9 @@ When the server processes a `get_online_features()` call, it groups the requeste
 **Guideline:** For features that share the same entity key and are frequently requested together, consolidate them into a **single feature view**. This reduces the number of store round-trips per request. Split feature views only when features have different entities, different materialization schedules, or different data source update frequencies.
 
 {% hint style="info" %}
-**Redis exception:** The Redis online store overrides `get_online_features()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
+**Redis exception:** The Redis online store overrides `_read_features_per_fv()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
+
+**PostgreSQL exception:** PostgreSQL stores each feature view in its own table and overrides `_read_features_per_fv()` to combine the per-view reads into a **single `UNION ALL` statement**, so a request touching any number of feature views costs **1** query on both the sync and async paths. This helps most where round trips dominate — a handful of entities against a remote database. Past `MAX_BATCHED_READ_KEYS` entity keys in a request the store reverts to one query per view, because at that size the saved round trips no longer offset holding every view's rows at once. As with Redis, consolidating feature views still reduces application-layer overhead.
 {% endhint %}
 
 ### Feature services are free (and can be faster)
@@ -87,7 +89,7 @@ Requesting just `combined_score` triggers reads from **both** `driver_stats_fv` 
 
 ## Pre-computed feature vectors
 
-When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even with Redis pipeline batching, the protobuf deserialization and response-building overhead grows linearly with the number of views.
+When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even where the store batches its reads (Redis, PostgreSQL), the protobuf deserialization and response-building overhead grows linearly with the number of views.
 
 **Pre-computed feature vectors** solve this by storing all of a feature service's features for each entity as a single serialized blob. At read time, the server fetches one blob per entity instead of N reads per feature view, reducing the operation to O(1).
 
@@ -276,7 +278,7 @@ The online store is the single largest factor in `get_online_features()` latency
 | ----- | ------------------- | ---------- | -------- | ------------- |
 | **Redis / Dragonfly** | < 1 ms | No (threadpool) | Ultra-low latency, high throughput; all FV reads batched into 1 pipeline | Requires in-memory capacity for your dataset |
 | **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS | Pay-per-request cost; batch API limits (100 items) |
-| **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra | Connection pooling needed at scale |
+| **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra; all FV reads batched into 1 query | Connection pooling needed at scale |
 | **MongoDB** | 2–5 ms | Yes | Flexible schema, async-native | Requires index tuning for large datasets |
 | **Aerospike** | < 1 ms | No (threadpool) | Ultra-low latency, hybrid memory (RAM + SSD), large datasets | Namespace must be pre-configured on the cluster |
 | **Bigtable** | 3–8 ms | No (threadpool) | Large-scale GCP workloads | Row-key design affects read performance |
@@ -304,8 +306,8 @@ The feature server can read from the online store using either an **async** or *
 | ----- | ---------- | ----------- | ----- |
 | **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O |
 | **MongoDB** | Yes | Yes | Uses `motor` (async MongoDB driver) |
-| **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path |
-| **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (overridden with batched single pipeline) |
+| **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path. `_read_features_per_fv` is overridden to batch all feature view reads into a single `UNION ALL` query |
+| **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (`_read_features_per_fv` overridden with batched single pipeline) |
 | **Aerospike** | Implemented | No | Async methods wrap the blocking C client via `run_in_executor`; does not yet advertise via `async_supported`, so the server still uses the threadpool path |
 | All others | No | No | Fall back to sync with `run_in_threadpool()` |
 
@@ -387,7 +389,7 @@ online_store:
 
 #### Batched multi-feature-view reads
 
-The Redis online store overrides `get_online_features()` to issue all `HMGET` commands — across every feature view in the request — in a **single pipeline execution**. This reduces Redis round trips from `N` (one per feature view) to `1` regardless of request size.
+The Redis online store overrides `_read_features_per_fv()` to issue all `HMGET` commands — across every feature view in the request — in a **single pipeline execution**. This reduces Redis round trips from `N` (one per feature view) to `1` regardless of request size.
 
 | Feature views | Round trips (other stores) | Round trips (Redis) |
 | :---: | :---: | :---: |
