@@ -13,7 +13,7 @@ ROUTING_TAG = "backend"
 
 
 @pytest.fixture
-def entity():
+def entity() -> Entity:
     return Entity(name="id", join_keys=["id"], value_type=ValueType.INT64)
 
 
@@ -32,7 +32,7 @@ def _feature_view(name: str, backend: str, entity: Entity) -> FeatureView:
 
 
 @pytest.fixture
-def repo_config():
+def repo_config() -> RepoConfig:
     return RepoConfig(
         registry="test-registry.db",
         project="test_project",
@@ -54,7 +54,9 @@ def repo_config():
     )
 
 
-def test_prepare_repo_conf_does_not_mutate_caller_config(repo_config):
+def test_prepare_repo_conf_does_not_mutate_caller_config(
+    repo_config: RepoConfig,
+) -> None:
     """The selected backend's config must not leak back into the caller's config."""
     original_online_store = repo_config.online_store
     original_redis_conf = dict(repo_config.online_store.online_stores[0].conf)
@@ -67,7 +69,9 @@ def test_prepare_repo_conf_does_not_mutate_caller_config(repo_config):
     assert repo_config.online_store.online_stores[0].conf == original_redis_conf
 
 
-def test_update_routes_every_feature_view(repo_config, entity):
+def test_update_routes_every_feature_view(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
     """Regression: routing used to break from the second FeatureView onwards.
 
     `update()` rebound `config` to the selected backend's RepoConfig, so the next
@@ -102,7 +106,9 @@ def test_update_routes_every_feature_view(repo_config, entity):
     assert repo_config.online_store.routing_tag == ROUTING_TAG
 
 
-def test_update_passes_each_backend_only_its_own_tables(repo_config, entity):
+def test_update_passes_each_backend_only_its_own_tables(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
     """A backend must not create or drop infrastructure for another backend's views."""
     fv_redis = _feature_view("fv_redis", "redis", entity)
     fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
@@ -133,7 +139,9 @@ def test_update_passes_each_backend_only_its_own_tables(repo_config, entity):
     assert sqlite_delete == []
 
 
-def test_update_reaches_a_backend_with_only_deletions(repo_config, entity):
+def test_update_reaches_a_backend_with_only_deletions(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
     """A backend whose views are all being removed still needs its update() call."""
     with (
         patch(
@@ -156,7 +164,9 @@ def test_update_reaches_a_backend_with_only_deletions(repo_config, entity):
     assert sqlite_update.call_count == 1
 
 
-def test_teardown_passes_each_backend_only_its_own_tables(repo_config, entity):
+def test_teardown_passes_each_backend_only_its_own_tables(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
     """Teardown used to hand every backend the full table list."""
     fv_redis = _feature_view("fv_redis", "redis", entity)
     fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
