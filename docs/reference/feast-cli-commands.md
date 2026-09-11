@@ -484,6 +484,24 @@ reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ```
 
 
+## MLflow
+
+MLflow integration utilities for GenAI dataset sync and DataSource validation. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+
+```bash
+# Sync MLflow GenAI EvaluationDataset → FeatureView (via MlflowDatasetSource)
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Preview flattened dataset records
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+
+# Validate an MlflowDatasetSource-backed FeatureView
+feast mlflow validate-source eval_records
+
+# List all FeatureViews backed by MlflowDatasetSource
+feast mlflow list-sources
+```
+
 ## Registry
 
 ### create-schema
