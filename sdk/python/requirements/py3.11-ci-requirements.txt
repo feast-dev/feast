@@ -2920,9 +2920,9 @@ mistune==3.3.4 \
     # via
     #   great-expectations
     #   nbconvert
-mlflow==3.2.0 \
-    --hash=sha256:db97b925cc8afba15caf3749dcb4a95be83f9608e974f23253fbbc1d675247ea \
-    --hash=sha256:e96bd42238ea8b477691c8a8f6e8bdbf9247415ad7892e6e885994c6940bcf74
+mlflow==3.15.0 \
+    --hash=sha256:3ae54c7f91a6b98ae9360aaeda9b31eb7930571c2690491a7b550c84f795a709 \
+    --hash=sha256:c53d7933391fefda2ac0f6b942d1744a02b5b65da74a93cc125247f4c4da57c9
     # via feast (pyproject.toml)
 mlflow-skinny==3.2.0 \
     --hash=sha256:b359ec082a0a966e4e8e80f03d850da7fa677ebe57e67b1c0877029e5eeee443 \
