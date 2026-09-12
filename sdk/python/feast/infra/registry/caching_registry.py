@@ -36,8 +36,19 @@ class CachingRegistry(BaseRegistry):
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
-        self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
+        try:
+            self.cached_registry_proto = self.proto()
+            self.cached_registry_proto_created = _utc_now()
+        except Exception as e:
+            # A backing store that is unreachable at construction time must not
+            # make the registry unconstructable. Leaving the cache empty keeps
+            # is_cache_valid() False, so the first cache-allowed read triggers a
+            # refresh once the backend is reachable. Mirrors refresh()'s handling.
+            logger.debug(
+                f"Error while performing initial registry cache load: {e}",
+                exc_info=True,
+            )
         if cache_mode == "thread":
             self._start_thread_async_refresh(cache_ttl_seconds)
             atexit.register(self._exit_handler)
