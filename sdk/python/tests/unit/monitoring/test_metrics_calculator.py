@@ -104,6 +104,59 @@ class TestComputeNumeric:
         assert result["p90"] <= result["p95"]
         assert result["p95"] <= result["p99"]
 
+    @pytest.mark.parametrize("non_finite", [float("inf"), float("-inf"), float("nan")])
+    def test_non_finite_values_are_excluded(self, non_finite):
+        """Non-finite values must not break metrics computation.
+
+        They occur in ordinary feature engineering (e.g. a ratio whose
+        denominator is zero) and previously raised ValueError from
+        np.histogram, discarding metrics for the whole feature view.
+        """
+        calc = _make_calc()
+        arr = pa.array([1.0, 2.0, 3.0, non_finite], type=pa.float64())
+        result = calc.compute_numeric(arr)
+
+        # Statistics are computed over the finite values only.
+        assert result["mean"] == pytest.approx(2.0)
+        assert result["min_val"] == 1.0
+        assert result["max_val"] == 3.0
+        assert result["histogram"] is not None
+        # row_count still describes the raw data.
+        assert result["row_count"] == 4
+
+    def test_all_non_finite(self):
+        calc = _make_calc()
+        arr = pa.array([float("inf"), float("nan")], type=pa.float64())
+        result = calc.compute_numeric(arr)
+
+        assert result["row_count"] == 2
+        assert result["mean"] is None
+        assert result["histogram"] is None
+
+    def test_non_finite_mixed_with_nulls(self):
+        calc = _make_calc()
+        arr = pa.array([1.0, None, 3.0, float("inf")], type=pa.float64())
+        result = calc.compute_numeric(arr)
+
+        assert result["null_count"] == 1
+        assert result["mean"] == pytest.approx(2.0)
+        assert result["histogram"] is not None
+
+    def test_compute_all_survives_non_finite_column(self):
+        """One bad column must not discard metrics for the others."""
+        calc = _make_calc()
+        table = pa.table(
+            {
+                "ratio": pa.array([0.5, 1.0, float("inf")], type=pa.float64()),
+                "clicks": pa.array([1.0, 2.0, 3.0], type=pa.float64()),
+            }
+        )
+        results = calc.compute_all(table, [("ratio", "numeric"), ("clicks", "numeric")])
+
+        assert {r["feature_name"] for r in results} == {"ratio", "clicks"}
+        clicks = next(r for r in results if r["feature_name"] == "clicks")
+        assert clicks["mean"] == pytest.approx(2.0)
+
 
 class TestComputeCategorical:
     def test_basic(self):
