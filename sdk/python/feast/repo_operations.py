@@ -38,6 +38,10 @@ from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
 
+_SQLITE_ONLINE_STORE_TEMPLATES = frozenset(
+    {"athena", "aws", "gcp", "local", "minimal", "pytorch_nlp", "ray", "spark"}
+)
+
 
 def py_path_to_module(path: Path) -> str:
     return (
@@ -577,6 +581,12 @@ def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
     if not is_valid_name(repo_name):
         raise BadParameter(
             message="Name should be alphanumeric values, underscores, and hyphens but not start with an underscore or hyphen",
+            param_hint="PROJECT_DIRECTORY",
+        )
+
+    if "-" in repo_name and template.lower() in _SQLITE_ONLINE_STORE_TEMPLATES:
+        raise BadParameter(
+            message="Project names for SQLite online stores cannot contain hyphens because they are used in table names.",
             param_hint="PROJECT_DIRECTORY",
         )
 
