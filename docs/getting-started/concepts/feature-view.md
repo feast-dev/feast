@@ -162,6 +162,32 @@ Feature names must be unique within a [feature view](feature-view.md#feature-vie
 
 Each field can have additional metadata associated with it, specified as key-value [tags](https://rtd.feast.dev/en/master/feast.html#feast.field.Field).
 
+### Default values
+
+A field can declare a typed default that Feast substitutes when the feature is missing or null, so every consumer sees the same value instead of imputing its own:
+
+```python
+from feast import Field
+from feast.types import Int64
+
+Field(
+    name="transaction_count",
+    dtype=Int64,
+    default_value=0,
+)
+```
+
+The default is applied during online retrieval and after the historical point-in-time join, and it is applied before on demand feature views run, so a transformation receives the same input in training and serving.
+
+Some details worth knowing:
+
+* Defaults are opt-in. A field without `default_value` behaves exactly as before, returning null.
+* The default must be representable as the field's `dtype`. A value the type cannot hold, and a float that an integer type would truncate such as `1.5` for an `Int64`, are rejected when the `Field` is created rather than during serving. Values the type *can* hold are coerced and stored in their converted form, so `Float32` with `0.1` reads back as `0.10000000149011612` and `Int64` with `"5"` reads back as `5`.
+* Feature statuses are not changed. A missing feature still reports `NOT_FOUND` even when a default is returned, so monitoring continues to reveal upstream data loss. If you need to distinguish "genuinely zero" from "missing" in a model, define a separate indicator feature.
+* Values outside the feature view's TTL keep their real value and `OUTSIDE_MAX_AGE` status. A default never replaces a stale value.
+
+Because older Feast runtimes ignore the field, upgrade your serving deployments before relying on a configured default.
+
 ## \[Alpha\] Versioning
 
 Feature views support automatic version tracking. Every time `feast apply` detects a schema or UDF change, a versioned snapshot is saved to the registry. This enables auditing what changed, reverting to a prior version, querying specific versions via `@v<N>` syntax, and staging new versions without promoting them.

@@ -720,7 +720,7 @@ WITH entity_dataframe AS (
  Joins the outputs of multiple time travel joins to a single table.
  The entity_dataframe dataset being our source of truth here.
  */
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (

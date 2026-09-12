@@ -12,18 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import json
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from typeguard import typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import FeastType, Struct, from_value_type
 from feast.value_type import ValueType
 
 STRUCT_SCHEMA_TAG = "feast:struct_schema"
 NESTED_COLLECTION_INNER_TYPE_TAG = "feast:nested_inner_type"
+
+_INTEGER_VALUE_TYPES = frozenset(
+    {
+        ValueType.INT32,
+        ValueType.INT64,
+        ValueType.INT32_LIST,
+        ValueType.INT64_LIST,
+        ValueType.INT32_SET,
+        ValueType.INT64_SET,
+    }
+)
 
 
 @typechecked
@@ -39,6 +52,8 @@ class Field:
         vector_index: If set to True the field will be indexed for vector similarity search.
         vector_length: The length of the vector if the vector index is set to True.
         vector_search_metric: The metric used for vector similarity search.
+        default_value: Value substituted when the feature is missing or null at
+            retrieval time. None means no default is configured.
     """
 
     name: str
@@ -48,6 +63,7 @@ class Field:
     vector_index: bool
     vector_length: int
     vector_search_metric: Optional[str]
+    default_value: Any
 
     def __init__(
         self,
@@ -59,6 +75,7 @@ class Field:
         vector_index: bool = False,
         vector_length: int = 0,
         vector_search_metric: Optional[str] = None,
+        default_value: Any = None,
     ):
         """
         Creates a Field object.
@@ -70,6 +87,11 @@ class Field:
             tags (optional): User-defined metadata in dictionary form.
             vector_index (optional): If set to True the field will be indexed for vector similarity search.
             vector_search_metric (optional): The metric used for vector similarity search.
+            default_value (optional): Value substituted when the feature is missing or
+                null at retrieval time. Must be compatible with dtype.
+
+        Raises:
+            ValueError: If default_value cannot be represented as dtype.
         """
         self.name = name
         self.dtype = dtype
@@ -78,6 +100,71 @@ class Field:
         self.vector_index = vector_index
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
+        # Copied so a later mutation of the caller's list or dict cannot drift from the
+        # proto cached below, which would make the offline and online paths disagree.
+        self.default_value = (
+            copy.deepcopy(default_value)
+            if isinstance(default_value, (list, dict, set))
+            else default_value
+        )
+        # Converted once: fails where the user wrote it, and online reads reuse it.
+        self._default_value_proto: Optional[ValueProto] = (
+            self._build_default_value_proto() if default_value is not None else None
+        )
+        if self._default_value_proto is not None:
+            # Store what the registry will actually hold. The conversion coerces, so
+            # String with 123 persists "123"; keeping 123 here would make a Field
+            # compare unequal to its own round trip and register as a schema change
+            # on every apply.
+            from feast.type_map import feast_value_type_to_python_type
+
+            self.default_value = feast_value_type_to_python_type(
+                self._default_value_proto
+            )
+
+    @property
+    def default_value_proto(self) -> Optional[ValueProto]:
+        """The default as a proto, or None when the field configures no default."""
+        return self._default_value_proto
+
+    def _build_default_value_proto(self) -> ValueProto:
+        """Converts this field's default value to its proto representation.
+
+        Raises:
+            ValueError: If the default value cannot be represented as this field's dtype.
+        """
+        from feast.type_map import python_values_to_proto_values
+
+        value_type = self.dtype.to_value_type()
+
+        # The conversion truncates a float into an integer type, so 1.5 would be stored
+        # as 1. Nothing else is checked by value: comparing the round-trip would reject
+        # legitimate defaults such as 0.1 on Float32, which no float32 can hold exactly.
+        if value_type in _INTEGER_VALUE_TYPES and isinstance(self.default_value, float):
+            if not self.default_value.is_integer():
+                raise ValueError(
+                    f"default_value {self.default_value!r} for field {self.name!r} would "
+                    f"be truncated by dtype {self.dtype}."
+                )
+
+        try:
+            proto_value = python_values_to_proto_values(
+                [self.default_value], value_type
+            )[0]
+        except Exception as e:
+            raise ValueError(
+                f"default_value {self.default_value!r} for field {self.name!r} is not "
+                f"compatible with dtype {self.dtype}: {e}"
+            ) from e
+
+        # An unrepresentable value converts to an empty Value, which would otherwise read
+        # back as "no default configured".
+        if proto_value.WhichOneof("val") is None:
+            raise ValueError(
+                f"default_value {self.default_value!r} for field {self.name!r} is not "
+                f"compatible with dtype {self.dtype}."
+            )
+        return proto_value
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -89,6 +176,7 @@ class Field:
             or self.description != other.description
             or self.tags != other.tags
             or self.vector_length != other.vector_length
+            or self.default_value != other.default_value
             # or self.vector_index != other.vector_index
             # or self.vector_search_metric != other.vector_search_metric
         ):
@@ -111,6 +199,7 @@ class Field:
             f"    vector_index={self.vector_index!r}\n"
             f"    vector_length={self.vector_length!r}\n"
             f"    vector_search_metric={self.vector_search_metric!r}\n"
+            f"    default_value={self.default_value!r}\n"
             f")"
         )
 
@@ -142,6 +231,8 @@ class Field:
             vector_index=self.vector_index,
             vector_length=self.vector_length,
             vector_search_metric=vector_search_metric,
+            # None leaves the field unset, which is what keeps presence meaningful.
+            default_value=self._default_value_proto,
         )
 
     @classmethod
@@ -180,7 +271,16 @@ class Field:
             dtype = from_value_type(value_type=value_type)
             user_tags = {k: v for k, v in tags.items() if k not in internal_tags}
 
-        return cls(
+        # Presence, not truthiness, so defaults of 0, False and "" survive.
+        default_value = None
+        default_value_proto = None
+        if field_proto.HasField("default_value"):
+            from feast.type_map import feast_value_type_to_python_type
+
+            default_value_proto = field_proto.default_value
+            default_value = feast_value_type_to_python_type(default_value_proto)
+
+        field = cls(
             name=field_proto.name,
             dtype=dtype,
             tags=user_tags,
@@ -188,7 +288,13 @@ class Field:
             vector_index=vector_index,
             vector_length=vector_length,
             vector_search_metric=vector_search_metric,
+            default_value=default_value,
         )
+        if default_value_proto is not None:
+            # Reuse what the registry already holds rather than re-deriving it; the
+            # value was validated when the Field was first written.
+            field._default_value_proto = default_value_proto
+        return field
 
     @classmethod
     def from_feature(cls, feature: Feature):

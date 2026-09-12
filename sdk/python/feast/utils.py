@@ -916,6 +916,27 @@ def _augment_response_with_on_demand_transforms(
                     )
                 )
 
+            # A transform returning null still yields the declared default. Statuses are
+            # left as they are, matching how stored features are handled.
+            odfv_defaults = {
+                (
+                    f"{odfv.projection.name_to_use()}__{field.name}"
+                    if full_feature_names
+                    else field.name
+                ): field.default_value_proto
+                for field in odfv.schema
+                if field.default_value_proto is not None
+            }
+            if odfv_defaults:
+                apply_default_value_protos(
+                    proto_values,
+                    {
+                        index: odfv_defaults[name]
+                        for index, name in enumerate(selected_subset)
+                        if name in odfv_defaults
+                    },
+                )
+
             odfv_result_names |= set(selected_subset)
 
             online_features_response.metadata.feature_names.val.extend(selected_subset)
@@ -1658,6 +1679,74 @@ def _get_entity_key_protos(
     return entity_key_protos
 
 
+def get_default_values_by_column(
+    fvs: List[Tuple[Union["FeatureView", "OnDemandFeatureView"], List[str]]],
+    full_feature_names: bool,
+) -> Dict[str, Any]:
+    """Maps historical output column names to the defaults their fields declare."""
+    defaults: Dict[str, Any] = {}
+    for view, feature_names in fvs:
+        requested = set(feature_names)
+        for field in view.projection.features:
+            if field.name not in requested or field.default_value is None:
+                continue
+            column = (
+                f"{view.projection.name_to_use()}__{field.name}"
+                if full_feature_names
+                else field.name
+            )
+            # Without full_feature_names two views can expose the same feature name.
+            # Silently keeping the last default would be wrong data, not a nuisance.
+            existing = defaults.get(column)
+            if existing is not None and existing != field.default_value:
+                raise ValueError(
+                    f"Conflicting default values for output column {column!r}: "
+                    f"{existing!r} and {field.default_value!r}. Retrieve with "
+                    f"full_feature_names=True to disambiguate."
+                )
+            defaults[column] = field.default_value
+    return defaults
+
+
+def _is_null_proto_value(value: ValueProto) -> bool:
+    """An unset Value and an explicit null_val both mean "no value"."""
+    which = value.WhichOneof("val")
+    return which is None or which == "null_val"
+
+
+def apply_default_value_protos(
+    feat_values: List[List[ValueProto]],
+    defaults_by_index: Mapping[int, ValueProto],
+    null_value: Optional[ValueProto] = None,
+) -> None:
+    """Substitutes defaults for null values in place, leaving statuses untouched.
+
+    Shared by both online writers so the precomputed fast path cannot drift from the
+    regular read path. Callers pass the sentinel they pre-filled with: identity is far
+    cheaper than WhichOneof, and every position no row wrote still holds it.
+    """
+    for feature_index, default_proto in defaults_by_index.items():
+        values = feat_values[feature_index]
+        for row_index, value in enumerate(values):
+            if value is null_value or _is_null_proto_value(value):
+                values[row_index] = default_proto
+
+
+def _get_default_value_protos(
+    table: "FeatureView", requested_features: List[str]
+) -> Dict[str, ValueProto]:
+    """Returns proto defaults for the requested features that declare one.
+
+    Read from the projection so aliased and subsetted views resolve correctly.
+    """
+    requested = set(requested_features)
+    return {
+        name: proto
+        for name, proto in table.projection.default_value_protos().items()
+        if name in requested
+    }
+
+
 def _populate_response_from_feature_data(
     requested_features: List[str],
     read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
@@ -1742,6 +1831,18 @@ def _populate_response_from_feature_data(
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = PRESENT
+
+    # Only the value is swapped; NOT_FOUND is what track_feature_statuses reports.
+    apply_default_value_protos(
+        feat_values,
+        {
+            feat_idx_map[name]: proto
+            for name, proto in _get_default_value_protos(
+                table, requested_features
+            ).items()
+        },
+        null_value,
+    )
 
     try:
         from feast.metrics import track_feature_statuses

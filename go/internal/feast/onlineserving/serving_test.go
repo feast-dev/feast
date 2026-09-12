@@ -2,13 +2,18 @@ package onlineserving
 
 import (
 	"testing"
+	"time"
 
+	"github.com/apache/arrow/go/v17/arrow/array"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
 	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -331,4 +336,118 @@ func TestUnpackFeatureViewsByReferences(t *testing.T) {
 		map[string]*model.OnDemandFeatureView{"odfv": onDemandView})
 
 	assertCorrectUnpacking(t, fvs, odfvs, err)
+}
+
+func defaultValueTestView(defaultValue *types.Value) *model.FeatureView {
+	return &model.FeatureView{
+		Base: &model.BaseFeatureView{
+			Name: "driver_stats",
+			Features: []*model.Field{
+				{Name: "conv_rate", Dtype: types.ValueType_INT64, DefaultValue: defaultValue},
+			},
+			Projection: &model.FeatureViewProjection{Name: "driver_stats"},
+		},
+		Ttl: durationpb.New(time.Hour * 24 * 365 * 100),
+	}
+}
+
+func defaultValueTestGroupRef() *GroupedFeaturesPerEntitySet {
+	return &GroupedFeaturesPerEntitySet{
+		FeatureNames:        []string{"conv_rate"},
+		FeatureViewNames:    []string{"driver_stats"},
+		AliasedFeatureNames: []string{"driver_stats__conv_rate"},
+		Indices:             [][]int{{0}},
+	}
+}
+
+func transposeSingle(t *testing.T, view *model.FeatureView, featureData2D [][]onlinestore.FeatureData) *FeatureVector {
+	t.Helper()
+	vectors, err := TransposeFeatureRowsIntoColumns(
+		featureData2D,
+		defaultValueTestGroupRef(),
+		[]*FeatureViewAndRefs{{View: view, FeatureRefs: []string{"conv_rate"}}},
+		memory.NewGoAllocator(),
+		1,
+	)
+	assert.Nil(t, err)
+	assert.Len(t, vectors, 1)
+	return vectors[0]
+}
+
+func TestTransposeSubstitutesDefaultForMissingRow(t *testing.T) {
+	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
+
+	vector := transposeSingle(t, view, [][]onlinestore.FeatureData{nil})
+
+	assert.Equal(t, serving.FieldStatus_NOT_FOUND, vector.Statuses[0])
+	assert.Equal(t, int64(7), vector.Values.(*array.Int64).Value(0))
+}
+
+func TestTransposeSubstitutesDefaultForNullValue(t *testing.T) {
+	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
+	featureData2D := [][]onlinestore.FeatureData{{{
+		Reference: serving.FeatureReferenceV2{FeatureViewName: "driver_stats", FeatureName: "conv_rate"},
+		Timestamp: timestamppb.Timestamp{Seconds: timestamppb.Now().Seconds},
+		Value:     types.Value{Val: &types.Value_NullVal{}},
+	}}}
+
+	vector := transposeSingle(t, view, featureData2D)
+
+	assert.Equal(t, serving.FieldStatus_NOT_FOUND, vector.Statuses[0])
+	assert.Equal(t, int64(7), vector.Values.(*array.Int64).Value(0))
+}
+
+func TestTransposeLeavesPresentValueUntouched(t *testing.T) {
+	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
+	featureData2D := [][]onlinestore.FeatureData{{{
+		Reference: serving.FeatureReferenceV2{FeatureViewName: "driver_stats", FeatureName: "conv_rate"},
+		Timestamp: timestamppb.Timestamp{Seconds: timestamppb.Now().Seconds},
+		Value:     types.Value{Val: &types.Value_Int64Val{Int64Val: 3}},
+	}}}
+
+	vector := transposeSingle(t, view, featureData2D)
+
+	assert.Equal(t, serving.FieldStatus_PRESENT, vector.Statuses[0])
+	assert.Equal(t, int64(3), vector.Values.(*array.Int64).Value(0))
+}
+
+func TestTransposeWithoutDefaultLeavesNull(t *testing.T) {
+	view := defaultValueTestView(nil)
+
+	vector := transposeSingle(t, view, [][]onlinestore.FeatureData{nil})
+
+	assert.Equal(t, serving.FieldStatus_NOT_FOUND, vector.Statuses[0])
+	// array.Null reports NullN rather than IsNull for this type.
+	assert.Equal(t, 1, vector.Values.NullN())
+}
+
+// A default whose type differs from the stored values must not be inserted: the Arrow
+// type comes from the first non-nil value, and a mismatch would serve real values as 0.
+func TestTransposeDoesNotRetypeColumnWithMismatchedDefault(t *testing.T) {
+	view := defaultValueTestView(&types.Value{Val: &types.Value_Int64Val{Int64Val: 7}})
+	featureData2D := [][]onlinestore.FeatureData{
+		nil, // missing row first, so the default would set the column type
+		{{
+			Reference: serving.FeatureReferenceV2{FeatureViewName: "driver_stats", FeatureName: "conv_rate"},
+			Timestamp: timestamppb.Timestamp{Seconds: timestamppb.Now().Seconds},
+			Value:     types.Value{Val: &types.Value_DoubleVal{DoubleVal: 2.5}},
+		}},
+	}
+
+	vectors, err := TransposeFeatureRowsIntoColumns(
+		featureData2D,
+		&GroupedFeaturesPerEntitySet{
+			FeatureNames:        []string{"conv_rate"},
+			FeatureViewNames:    []string{"driver_stats"},
+			AliasedFeatureNames: []string{"driver_stats__conv_rate"},
+			Indices:             [][]int{{0}, {1}},
+		},
+		[]*FeatureViewAndRefs{{View: view, FeatureRefs: []string{"conv_rate"}}},
+		memory.NewGoAllocator(),
+		2,
+	)
+	assert.Nil(t, err)
+
+	// The stored double must survive rather than being read back as 0.
+	assert.Equal(t, 2.5, vectors[0].Values.(*array.Float64).Value(1))
 }

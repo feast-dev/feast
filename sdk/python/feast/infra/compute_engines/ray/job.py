@@ -22,7 +22,11 @@ from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
     REMOTE_STORAGE_SCHEMES,
 )
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
-from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
+from feast.infra.offline_stores.offline_store import (
+    RetrievalJob,
+    RetrievalMetadata,
+    _apply_default_values,
+)
 from feast.infra.ray_initializer import get_ray_wrapper
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -81,6 +85,14 @@ class RayDAGRetrievalJob(RetrievalJob):
                         raise ValueError(
                             f"Unsupported result type: {type(result.data)}"
                         )
+                # Filled here because to_ray_dataset/to_df/to_arrow all read
+                # _result_dataset directly and never reach the base class.
+                if self._feature_default_values and self._result_dataset is not None:
+                    defaults = self._feature_default_values
+                    self._result_dataset = self._result_dataset.map_batches(
+                        lambda batch: _apply_default_values(batch, defaults),
+                        batch_format="pyarrow",
+                    )
                 return result
             except Exception as e:
                 self._error = e

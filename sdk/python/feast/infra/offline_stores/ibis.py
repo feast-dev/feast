@@ -544,6 +544,16 @@ class IbisRetrievalJob(RetrievalJob):
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
         return self._on_demand_feature_views
 
+    def _table_with_defaults(self):
+        """Coalesces defaults into the expression, for the paths that write it directly
+        rather than going through to_arrow."""
+        columns = {
+            name: self.table[name].fill_null(value)
+            for name, value in self._feature_default_values.items()
+            if name in self.table.columns
+        }
+        return self.table.mutate(**columns) if columns else self.table
+
     def persist(
         self,
         storage: SavedDatasetStorage,
@@ -551,7 +561,7 @@ class IbisRetrievalJob(RetrievalJob):
         timeout: Optional[int] = None,
     ):
         self.data_source_writer(
-            self.table,
+            self._table_with_defaults(),
             storage.to_data_source(),
             self.repo_path,
             "overwrite",
@@ -570,6 +580,6 @@ class IbisRetrievalJob(RetrievalJob):
 
         storage_options = {"AWS_ENDPOINT_URL": self.staging_location_endpoint_override}
 
-        self.table.to_delta(path, storage_options=storage_options)
+        self._table_with_defaults().to_delta(path, storage_options=storage_options)
 
         return list_s3_files(path, self.staging_location_endpoint_override)

@@ -1000,6 +1000,9 @@ def _redshift_sql_categorical_stats(
 
 
 class RedshiftRetrievalJob(RetrievalJob):
+    # Defaults are COALESCEd into the point-in-time query.
+    _defaults_applied_in_query = True
+
     def __init__(
         self,
         query: Union[str, Callable[[], ContextManager[str]]],
@@ -1080,7 +1083,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_s3(self) -> str:
         """Export dataset to S3 in Parquet format and return path"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_s3(self._s3_resource, self._s3_path, transformed_df)
             return self._s3_path
@@ -1100,7 +1103,7 @@ class RedshiftRetrievalJob(RetrievalJob):
 
     def to_redshift(self, table_name: str) -> None:
         """Save dataset as a new Redshift table"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
             aws_utils.upload_df_to_redshift(
                 self._redshift_client,
@@ -1416,7 +1419,7 @@ WITH entity_dataframe AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
