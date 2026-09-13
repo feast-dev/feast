@@ -1204,10 +1204,6 @@ if sys.platform != "win32":
         def __init__(
             self, store: "feast.FeatureStore", metrics_enabled: bool = False, **options
         ):
-            self._app = get_app(
-                store=store,
-                registry_ttl_sec=options["registry_ttl_sec"],
-            )
             self._store = store
             self._options = options
             self._metrics_enabled = metrics_enabled
@@ -1227,7 +1223,10 @@ if sys.platform != "win32":
                 self.cfg.set("child_exit", _gunicorn_child_exit)
 
         def load(self):
-            return self._app
+            return get_app(
+                store=self._store,
+                registry_ttl_sec=self._options["registry_ttl_sec"],
+            )
 
     def _gunicorn_post_worker_init(store: "feast.FeatureStore", worker):
         """Start per-worker resource and freshness monitoring after Gunicorn forks."""
