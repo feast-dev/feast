@@ -1,16 +1,21 @@
+import posixpath
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.fs as pafs
+import pyarrow.parquet as pq
 from pydantic import StrictStr
 
 from feast import utils
+from feast.data_format import ParquetFormat
 from feast.data_source import DataSource
+from feast.errors import SavedDatasetLocationAlreadyExists
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.file_source import FileSource, SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
@@ -39,10 +44,14 @@ class ChrononRetrievalJob(RetrievalJob):
         evaluation_function: Callable[[], pd.DataFrame],
         full_feature_names: bool,
         metadata: Optional[RetrievalMetadata] = None,
-    ):
+        repo_path: str = ".",
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+    ) -> None:
         self.evaluation_function = evaluation_function
         self._full_feature_names = full_feature_names
         self._metadata = metadata
+        self.repo_path = repo_path
+        self._on_demand_feature_views = on_demand_feature_views or []
 
     @property
     def full_feature_names(self) -> bool:
@@ -50,7 +59,7 @@ class ChrononRetrievalJob(RetrievalJob):
 
     @property
     def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
-        return []
+        return self._on_demand_feature_views
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         return self.evaluation_function().reset_index(drop=True)
@@ -63,10 +72,34 @@ class ChrononRetrievalJob(RetrievalJob):
         storage: SavedDatasetStorage,
         allow_overwrite: bool = False,
         timeout: Optional[int] = None,
-    ):
-        raise NotImplementedError(
-            "ChrononRetrievalJob does not currently support persisted saved datasets."
+    ) -> None:
+        if not isinstance(storage, SavedDatasetFileStorage) or not isinstance(
+            storage.file_options.file_format, ParquetFormat
+        ):
+            raise ValueError("Chronon retrieval results require Parquet file storage.")
+        uri = FileSource.get_uri_for_file_path(
+            repo_path=Path(self.repo_path), uri=storage.file_options.uri
         )
+        filesystem, path = FileSource.create_filesystem_and_path(
+            str(uri), storage.file_options.s3_endpoint_override
+        )
+        if filesystem is None:
+            filesystem, path = pafs.FileSystem.from_uri(str(uri))
+        info = filesystem.get_file_info(path)
+        if info.type != pafs.FileType.NotFound and not allow_overwrite:
+            raise SavedDatasetLocationAlreadyExists(location=str(uri))
+        # Evaluate before replacing an existing result, including ODFV transforms.
+        table = self.to_arrow(timeout=timeout)
+        if path.endswith(".parquet"):
+            filesystem.create_dir(posixpath.dirname(path), recursive=True)
+            pq.write_table(table, path, filesystem=filesystem)
+        else:
+            if info.type == pafs.FileType.Directory:
+                filesystem.delete_dir_contents(path)
+            filesystem.create_dir(path, recursive=True)
+            pq.write_table(
+                table, posixpath.join(path, "part-0.parquet"), filesystem=filesystem
+            )
 
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
@@ -83,13 +116,18 @@ def _get_chronon_source(feature_view: FeatureView):
 
 
 def _load_materialized_dataframe(
-    config: RepoConfig, feature_view: FeatureView
+    config: RepoConfig, feature_view: FeatureView, columns: List[str]
 ) -> pd.DataFrame:
     source = _get_chronon_source(feature_view)
     resolved_path = FileSource.get_uri_for_file_path(
         repo_path=config.repo_path, uri=source.materialization_path
     )
-    dataframe = pd.read_parquet(resolved_path)
+    # Projection uses physical Parquet names; mapping happens after the read.
+    reverse_mapping = {value: key for key, value in source.field_mapping.items()}
+    physical_columns = list(
+        dict.fromkeys(reverse_mapping.get(col, col) for col in columns)
+    )
+    dataframe = pd.read_parquet(resolved_path, columns=physical_columns)
     if source.field_mapping:
         dataframe = dataframe.rename(columns=source.field_mapping)
     return utils.make_df_tzaware(dataframe)
@@ -135,9 +173,11 @@ class ChrononOfflineStore(OfflineStore):
                 registry.list_on_demand_feature_views(project),
             )
         )
-        if requested_odfvs:
+        if entity_df is None and any(
+            odfv.get_request_data_schema() for odfv in requested_odfvs
+        ):
             raise ValueError(
-                "ChrononOfflineStore does not support on-demand feature views."
+                "On-demand request data must be supplied in a pandas entity_df."
             )
         if entity_df is not None and not isinstance(entity_df, pd.DataFrame):
             raise ValueError(
@@ -165,8 +205,16 @@ class ChrononOfflineStore(OfflineStore):
 
             def evaluate_non_entity_retrieval() -> pd.DataFrame:
                 feature_view, selected_features = next(iter(requested_features.items()))
-                dataframe = _load_materialized_dataframe(config, feature_view)
                 timestamp_col = _get_required_timestamp_field(feature_view)
+                dataframe = _load_materialized_dataframe(
+                    config,
+                    feature_view,
+                    [
+                        *(entity.name for entity in feature_view.entity_columns),
+                        timestamp_col,
+                        *selected_features,
+                    ],
+                )
                 start_date = kwargs.get("start_date")
                 end_date = kwargs.get("end_date")
                 if start_date is not None:
@@ -197,6 +245,8 @@ class ChrononOfflineStore(OfflineStore):
                 evaluation_function=evaluate_non_entity_retrieval,
                 full_feature_names=full_feature_names,
                 metadata=metadata,
+                repo_path=str(config.repo_path),
+                on_demand_feature_views=list(requested_odfvs),
             )
 
         entity_df = utils.make_df_tzaware(entity_df)
@@ -214,7 +264,6 @@ class ChrononOfflineStore(OfflineStore):
             result = entity_df.copy()
             for feature_view, selected_features in requested_features.items():
                 source = _get_chronon_source(feature_view)
-                source_df = _load_materialized_dataframe(config, feature_view)
                 timestamp_col = _get_required_timestamp_field(feature_view)
                 created_col = source.created_timestamp_column
                 left_keys = []
@@ -227,6 +276,16 @@ class ChrononOfflineStore(OfflineStore):
                     )
                     right_keys.append(entity_column.name)
 
+                source_df = _load_materialized_dataframe(
+                    config,
+                    feature_view,
+                    [
+                        *right_keys,
+                        timestamp_col,
+                        *([created_col] if created_col else []),
+                        *selected_features,
+                    ],
+                )
                 sort_columns = right_keys + [timestamp_col]
                 if created_col and created_col in source_df.columns:
                     sort_columns.append(created_col)
@@ -305,6 +364,8 @@ class ChrononOfflineStore(OfflineStore):
             evaluation_function=evaluate_historical_retrieval,
             full_feature_names=full_feature_names,
             metadata=metadata,
+            repo_path=str(config.repo_path),
+            on_demand_feature_views=list(requested_odfvs),
         )
 
     @staticmethod
@@ -328,7 +389,16 @@ class ChrononOfflineStore(OfflineStore):
                 schema=[],
                 source=data_source,
             )
-            dataframe = _load_materialized_dataframe(config, feature_view)
+            dataframe = _load_materialized_dataframe(
+                config,
+                feature_view,
+                [
+                    *join_key_columns,
+                    timestamp_field,
+                    *([created_timestamp_column] if created_timestamp_column else []),
+                    *feature_name_columns,
+                ],
+            )
             dataframe = dataframe[
                 (dataframe[timestamp_field] >= utils.make_tzaware(start_date))
                 & (dataframe[timestamp_field] <= utils.make_tzaware(end_date))
@@ -349,6 +419,7 @@ class ChrononOfflineStore(OfflineStore):
         return ChrononRetrievalJob(
             evaluation_function=evaluate_pull_latest,
             full_feature_names=False,
+            repo_path=str(config.repo_path),
         )
 
     @staticmethod
@@ -372,7 +443,16 @@ class ChrononOfflineStore(OfflineStore):
                 schema=[],
                 source=data_source,
             )
-            dataframe = _load_materialized_dataframe(config, feature_view)
+            dataframe = _load_materialized_dataframe(
+                config,
+                feature_view,
+                [
+                    *join_key_columns,
+                    timestamp_field,
+                    *([created_timestamp_column] if created_timestamp_column else []),
+                    *feature_name_columns,
+                ],
+            )
             if start_date is not None:
                 dataframe = dataframe[
                     dataframe[timestamp_field] >= utils.make_tzaware(start_date)
@@ -387,6 +467,7 @@ class ChrononOfflineStore(OfflineStore):
         return ChrononRetrievalJob(
             evaluation_function=evaluate_pull_all,
             full_feature_names=False,
+            repo_path=str(config.repo_path),
         )
 
     @staticmethod

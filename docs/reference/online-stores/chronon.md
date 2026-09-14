@@ -48,7 +48,9 @@ Feast builds Chronon URLs from the source metadata:
 | `chronon_join`     | `/v1/features/join/{quoted_chronon_join}` |
 | `chronon_group_by` | `/v1/features/groupby/{quoted_chronon_group_by}` |
 
-The request body is a list of entity rows. Chronon responses are expected to be JSON objects with a `results` list whose length matches the number of requested entity keys. Rows with non-success statuses are returned as missing feature rows.
+The request body is a list of entity rows. Chronon responses are expected to be JSON objects with a `results` list whose length matches the number of requested entity keys. Successful rows preserve missing/null feature values. A `Failure` row (or an unknown/missing status) raises `RuntimeError`, even when the HTTP status is 200, so a backend error is not silently treated as an unknown entity. A failure in any row fails the entire retrieval call. HTTP errors also raise.
+
+Retries are opt-in through `connection_retries` (0–5, default 0). This uses Feast's shared HTTP session manager, including retries for the read-only POST request on connection failures, read timeouts, and HTTP 429, 500, 502, 503, and 504. HTTP 400 and per-row Chronon failures are not retried. There are at most `1 + connection_retries` attempts, with the session manager's exponential backoff and `Retry-After` handling. `timeout` applies to each attempt's connection/read timeout, not a total wall-clock deadline; account for additional attempts and backoff in your inference latency budget.
 
 ## Local service testing
 
@@ -73,6 +75,7 @@ CHRONON_PREFLIGHT_ONLY=1 CHRONON_REPO=/path/to/chronon infra/scripts/chronon/sta
 | `type`       | yes      | `chronon`               | Must be set to `chronon`. |
 | `path`       | no       | `http://localhost:8080` | Chronon online service base URL. |
 | `timeout`    | no       | `30`                    | HTTP request timeout in seconds. |
+| `connection_retries` | no | `0` | Additional HTTP attempts, an integer from 0 to 5. |
 | `verify_ssl` | no       | `true`                  | Whether TLS certificates are verified for HTTPS requests. |
 
 ## Functionality Matrix

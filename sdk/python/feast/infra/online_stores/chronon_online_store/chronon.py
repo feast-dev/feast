@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 from urllib.parse import quote
 
-from pydantic import StrictInt, StrictStr
+from pydantic import Field, StrictInt, StrictStr
 
 from feast.data_source import DataSource
 from feast.feature_view import FeatureView
@@ -23,6 +23,7 @@ class ChrononOnlineStoreConfig(FeastConfigBaseModel):
     path: StrictStr = "http://localhost:8080"
     timeout: StrictInt = 30
     verify_ssl: bool = True
+    connection_retries: StrictInt = Field(default=0, ge=0, le=5)
 
 
 class ChrononOnlineStore(OnlineStore):
@@ -119,7 +120,7 @@ class ChrononOnlineStore(OnlineStore):
         ]
         session = HttpSessionManager.get_session(
             config.auth_config,
-            max_retries=0,
+            max_retries=config.online_store.connection_retries,
         )
         response = session.post(
             url,
@@ -141,12 +142,14 @@ class ChrononOnlineStore(OnlineStore):
             )
 
         output: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        for row in results:
+        for row_index, row in enumerate(results):
             if not isinstance(row, dict):
                 raise RuntimeError("Chronon response rows must be JSON objects.")
             if row.get("status") != "Success":
-                output.append((None, None))
-                continue
+                raise RuntimeError(
+                    f"Chronon failed to retrieve row {row_index}: "
+                    f"unexpected status {row.get('status')!r}."
+                )
             features = row.get("features", {})
             if not isinstance(features, dict):
                 raise RuntimeError(

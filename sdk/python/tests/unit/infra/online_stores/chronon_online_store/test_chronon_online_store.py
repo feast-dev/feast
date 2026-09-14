@@ -13,6 +13,8 @@ from feast.infra.online_stores.chronon_online_store.chronon import (
     ChrononOnlineStoreConfig,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Int64List
+from feast.protos.feast.types.Value_pb2 import Map as MapProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig, RepoConfig
 from feast.types import Array, FeastType, Float32, Int32, Int64, Map
@@ -81,7 +83,7 @@ def _entity_keys() -> list[EntityKeyProto]:
     ]
 
 
-def test_chronon_online_store_maps_success_and_failure(monkeypatch, tmp_path: Path):
+def test_chronon_online_store_maps_success_and_missing(monkeypatch, tmp_path: Path):
     data_path = _write_chronon_parquet(tmp_path)
     config = _repo_config(tmp_path)
 
@@ -102,7 +104,7 @@ def test_chronon_online_store_maps_success_and_failure(monkeypatch, tmp_path: Pa
                 {
                     "results": [
                         {"status": "Success", "features": {"feature_a": 0.5}},
-                        {"status": "Failure", "error": "boom"},
+                        {"status": "Success", "features": {"feature_a": None}},
                     ]
                 }
             )
@@ -123,7 +125,7 @@ def test_chronon_online_store_maps_success_and_failure(monkeypatch, tmp_path: Pa
     assert captured["json"] == [{"user_id": 1}, {"user_id": 2}]
     assert rows[0][1] is not None
     assert rows[0][1]["feature_a"] == ValueProto(float_val=0.5)
-    assert rows[1] == (None, None)
+    assert rows[1] == (None, {"feature_a": ValueProto()})
 
 
 def test_chronon_online_store_builds_group_by_url(monkeypatch, tmp_path: Path):
@@ -296,8 +298,8 @@ def test_chronon_online_store_rejects_invalid_features_payload(
     [
         (Float32, 0.5, ValueProto(float_val=0.5)),
         (Int32, 3, ValueProto(int32_val=3)),
-        (Array(Int64), [], ValueProto(int64_list_val={"val": []})),
-        (Map, {}, ValueProto(map_val={})),
+        (Array(Int64), [], ValueProto(int64_list_val=Int64List())),
+        (Map, {}, ValueProto(map_val=MapProto())),
         (Float32, None, ValueProto()),
     ],
 )
@@ -368,3 +370,113 @@ def test_online_read_applies_source_field_mapping(
         features=["profile:renamed"], entity_rows=[{"customer_id": 1}]
     ).to_dict()
     assert result == {"customer_id": [1], "renamed": [2.0]}
+
+
+@pytest.mark.parametrize("status", ["Failure", "Unexpected", None])
+def test_online_read_raises_on_unsuccessful_rows(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, status: Any
+) -> None:
+    source = ChrononSource(
+        materialization_path=str(_write_chronon_parquet(tmp_path)),
+        chronon_join="team/training_set.v1",
+        timestamp_field="event_timestamp",
+    )
+
+    class Session:
+        def post(self, *args: Any, **kwargs: Any) -> _Response:
+            return _Response(
+                {"results": [{"status": status, "error": "backend unavailable"}]}
+            )
+
+    monkeypatch.setattr(
+        "feast.infra.online_stores.chronon_online_store.chronon.HttpSessionManager.get_session",
+        lambda *args, **kwargs: Session(),
+    )
+    with pytest.raises(RuntimeError, match="Chronon.*row 0"):
+        ChrononOnlineStore().online_read(
+            _repo_config(tmp_path),
+            _feature_view(source),
+            _entity_keys()[:1],
+            ["feature_a"],
+        )
+
+
+@pytest.mark.parametrize("retries", [-1, 6, True, 1.5])
+def test_retry_count_is_bounded(retries: Any) -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ChrononOnlineStoreConfig(connection_retries=retries)
+
+
+@pytest.mark.parametrize(
+    "retries,status,expected_calls,success",
+    [
+        (0, 503, 1, False),
+        (1, 503, 2, True),
+        (1, 400, 1, False),
+        (1, 429, 2, True),
+        (1, 502, 2, True),
+        (1, 504, 2, True),
+        (1, 500, 2, True),
+        (2, 503, 3, False),
+    ],
+)
+def test_online_read_http_retry_policy(
+    tmp_path: Path, retries: int, status: int, expected_calls: int, success: bool
+) -> None:
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    import requests
+
+    from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
+
+    calls = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            calls.append(
+                json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            )
+            code = 200 if success and len(calls) > 1 else status
+            body = json.dumps(
+                {"results": [{"status": "Success", "features": {"feature_a": 2.0}}]}
+            ).encode()
+            self.send_response(code)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        config = _repo_config(tmp_path)
+        config.online_store.path = f"http://127.0.0.1:{server.server_port}"
+        config.online_store.connection_retries = retries
+        source = ChrononSource(
+            materialization_path="unused.parquet",
+            chronon_join="team/join",
+            timestamp_field="event_timestamp",
+        )
+        if success:
+            rows = ChrononOnlineStore().online_read(
+                config, _feature_view(source), _entity_keys()[:1], ["feature_a"]
+            )
+            assert rows == [(None, {"feature_a": ValueProto(float_val=2.0)})]
+        else:
+            with pytest.raises(requests.RequestException):
+                ChrononOnlineStore().online_read(
+                    config, _feature_view(source), _entity_keys()[:1], ["feature_a"]
+                )
+        assert calls == [[{"user_id": 1}]] * expected_calls
+    finally:
+        HttpSessionManager.close_session()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
