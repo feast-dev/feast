@@ -192,6 +192,11 @@ class OfflineServer(fl.FlightServerBase):
         assert api is not None, "api can not be empty"
 
         remove_data = False
+        # Permission checks in the handlers below read the SecurityManager's
+        # permission list, which is loaded per project. Bind it to the project this
+        # request names, so a caller cannot reach another project's resources
+        # through whichever project the server itself was started from.
+        project_token = self.store.set_current_project(command.get("project"))
         try:
             if api == OfflineServer.offline_write_batch.__name__:
                 self.offline_write_batch(command, key)
@@ -211,6 +216,7 @@ class OfflineServer(fl.FlightServerBase):
             traceback.print_exc()
             raise e
         finally:
+            self.store.reset_current_project(project_token)
             if remove_data:
                 # Get service is consumed, so we clear the corresponding flight and data
                 del self.flights[key]
@@ -284,6 +290,9 @@ class OfflineServer(fl.FlightServerBase):
         api = command["api"]
         logger.debug(f"get command is {command}")
         logger.debug(f"requested api is {api}")
+        # As in _call_api, the permission list is per project, so it has to follow the
+        # project named by the request rather than the server's own.
+        project_token = self.store.set_current_project(command.get("project"))
         try:
             if api == OfflineServer.get_historical_features.__name__:
                 table = self.get_historical_features(command, key).to_arrow()
@@ -302,6 +311,8 @@ class OfflineServer(fl.FlightServerBase):
             logger.exception(e)
             traceback.print_exc()
             raise e
+        finally:
+            self.store.reset_current_project(project_token)
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
