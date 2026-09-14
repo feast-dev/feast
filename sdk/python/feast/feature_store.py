@@ -1167,7 +1167,7 @@ class FeatureStore:
                 "This API is stable, but the functionality does not scale well for offline retrieval",
                 RuntimeWarning,
             )
-        _validate_feature_views(
+        validate_feature_views(
             [
                 *views_to_update,
                 *odfvs_to_update,
@@ -1458,7 +1458,7 @@ class FeatureStore:
                 desired_repo_contents.stream_feature_views,
                 desired_repo_contents.label_views,
             )
-        _validate_data_sources(desired_repo_contents.data_sources)
+        validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
@@ -5058,7 +5058,7 @@ def _print_materialization_log(
         )
 
 
-def _validate_feature_views(feature_views: List[BaseFeatureView]):
+def validate_feature_views(feature_views: List[BaseFeatureView]):
     """Verify feature views have case-insensitively unique names across all types.
 
     This validates that no two feature views (of any type: FeatureView,
@@ -5080,7 +5080,7 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             fv_by_name[case_insensitive_fv_name] = fv
 
 
-def _validate_data_sources(data_sources: List[DataSource]):
+def validate_data_sources(data_sources: List[DataSource]):
     """Verify data sources have case-insensitively unique names."""
     ds_names = set()
     for ds in data_sources:
