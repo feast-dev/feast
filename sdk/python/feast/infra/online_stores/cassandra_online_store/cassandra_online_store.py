@@ -19,6 +19,7 @@ Cassandra/Astra DB online store for Feast.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import (
     Any,
@@ -47,6 +48,7 @@ from pydantic import StrictFloat, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -108,6 +110,10 @@ CREATE_TABLE_CQL_TEMPLATE = """
 
 DROP_TABLE_CQL_TEMPLATE = "DROP TABLE IF EXISTS {fqtable};"
 
+SELECT_KEYSPACE_TABLES_CQL_TEMPLATE = (
+    "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?;"
+)
+
 # op_name -> (cql template string, prepare boolean)
 CQL_TEMPLATE_MAP = {
     # Queries/DML, statements to be prepared
@@ -116,6 +122,8 @@ CQL_TEMPLATE_MAP = {
     # DDL, do not prepare these
     "drop": (DROP_TABLE_CQL_TEMPLATE, False),
     "create": (CREATE_TABLE_CQL_TEMPLATE, False),
+    # Schema introspection, used to find every version of a feature view
+    "select_keyspace_tables": (SELECT_KEYSPACE_TABLES_CQL_TEMPLATE, True),
 }
 
 # Logger
@@ -686,11 +694,15 @@ class CassandraOnlineStore(OnlineStore):
             tables_to_keep: Tables to keep in the Online Store.
         """
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables_to_keep:
             self._create_table(config, project, table)
         for table in tables_to_delete:
-            self._drop_table(config, project, table)
+            if versioning:
+                self._drop_all_version_tables(config, project, table)
+            else:
+                self._drop_table(config, project, table)
 
     def teardown(
         self,
@@ -706,17 +718,31 @@ class CassandraOnlineStore(OnlineStore):
             tables: Tables to delete from the feature repo.
         """
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables:
-            self._drop_table(config, project, table)
+            if versioning:
+                self._drop_all_version_tables(config, project, table)
+            else:
+                self._drop_table(config, project, table)
 
     @staticmethod
-    def _fq_table_name(keyspace: str, project: str, table: FeatureView) -> str:
+    def _fq_table_name(
+        keyspace: str,
+        project: str,
+        table: FeatureView,
+        enable_versioning: bool = False,
+    ) -> str:
         """
         Generate a fully-qualified table name,
         including quotes and keyspace.
+
+        When feature view versioning is enabled, the version of the view is
+        appended to the table name (``driver_stats_v2``), so that each version
+        of a feature view is stored in a table of its own.
         """
-        return f'"{keyspace}"."{project}_{table.name}"'
+        versioned_name = compute_versioned_name(table, enable_versioning)
+        return f'"{keyspace}"."{project}_{versioned_name}"'
 
     def _write_rows_concurrently(
         self,
@@ -727,7 +753,12 @@ class CassandraOnlineStore(OnlineStore):
     ):
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace,
+            project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
         insert_cql = self._get_cql_statement(config, "insert4", fqtable=fqtable)
         #
         execute_concurrent_with_args(
@@ -751,7 +782,12 @@ class CassandraOnlineStore(OnlineStore):
         """
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace,
+            project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
         projection_columns = "*" if columns is None else ", ".join(columns)
         select_cql = self._get_cql_statement(
             config,
@@ -789,16 +825,56 @@ class CassandraOnlineStore(OnlineStore):
         """Handle the CQL (low-level) deletion of a table."""
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace,
+            project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
         drop_cql = self._get_cql_statement(config, "drop", fqtable)
         logger.info(f"Deleting table {fqtable}.")
         session.execute(drop_cql)
+
+    def _drop_all_version_tables(
+        self,
+        config: RepoConfig,
+        project: str,
+        table: FeatureView,
+    ):
+        """
+        Handle the CQL (low-level) deletion of every version of a table.
+
+        The in-memory feature view carries a single version, but the keyspace
+        may hold one table per version ever written; dropping only the current
+        one would leave the rest behind. ``system_schema`` cannot match a
+        pattern, so the keyspace is listed and the names are filtered here.
+        """
+        session: Session = self._get_session(config)
+        keyspace: str = self._keyspace
+        base = f"{project}_{table.name}"
+        version_pattern = re.compile(rf"^{re.escape(base)}(_v[0-9]+)?$")
+        list_cql = self._get_cql_statement(config, "select_keyspace_tables", fqtable="")
+        table_names = [
+            row.table_name
+            for row in session.execute(list_cql, [keyspace])
+            if version_pattern.match(row.table_name)
+        ]
+        for table_name in table_names:
+            fqtable = f'"{keyspace}"."{table_name}"'
+            drop_cql = self._get_cql_statement(config, "drop", fqtable)
+            logger.info(f"Deleting table {fqtable}.")
+            session.execute(drop_cql)
 
     def _create_table(self, config: RepoConfig, project: str, table: FeatureView):
         """Handle the CQL (low-level) creation of a table."""
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace,
+            project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
         create_cql = self._get_cql_statement(config, "create", fqtable)
         logger.info(f"Creating table {fqtable}.")
         session.execute(create_cql)

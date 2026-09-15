@@ -197,7 +197,7 @@ Versioning is supported on all three feature view types:
 ## Online Store Support
 
 {% hint style="info" %}
-**Currently, version-qualified online reads (`@v<N>`) are only supported with the SQLite online store.** Support for additional online stores (Redis, DynamoDB, Bigtable, Postgres, etc.) will be added based on community priority.
+**Version-qualified online reads (`@v<N>`) are supported on the SQLite, PostgreSQL, MySQL, Redis, DynamoDB, Milvus, FAISS and Cassandra online stores.** Support for the remaining online stores will be added based on community priority.
 
 If you need versioned online reads for a specific online store, please [open a GitHub issue](https://github.com/feast-dev/feast/issues/new) describing your use case and which store you need. This helps us prioritize development.
 {% endhint %}
@@ -222,7 +222,7 @@ ambiguity, the following characters are reserved and must not appear in feature 
 
 ## Known Limitations
 
-- **Online store coverage** — Version-qualified reads (`@v<N>`) are SQLite-only today. Other online stores are follow-up work.
+- **Online store coverage** — Version-qualified reads (`@v<N>`) are supported on SQLite, PostgreSQL, MySQL, Redis, DynamoDB, Milvus, FAISS and Cassandra. The remaining online stores are follow-up work.
 - **Offline store versioning** — Versioned historical retrieval is not yet supported.
 - **Version deletion** — There is no mechanism to prune old versions from the registry.
 - **Cross-version joins** — Joining features from different versions of the same feature view in `get_historical_features` is not supported.
