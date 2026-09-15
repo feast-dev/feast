@@ -1702,6 +1702,274 @@ class TestOracleComputeCorrectness:
         assert results[1]["null_count"] == 5
 
 
+def _trino_importable():
+    try:
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_numeric_stats,  # noqa: F401
+        )
+
+        return True
+    except ImportError:
+        return False
+
+
+@pytest.mark.skipif(not _trino_importable(), reason="Trino deps not installed")
+class TestTrinoComputeCorrectness:
+    """Tests Trino result parsing with mocked Trino client.
+
+    Trino execute_query returns Results with data: List[List[Any]].
+    """
+
+    def test_numeric_stats(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_numeric_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        vals = NUMERIC_VALUES
+        row = [
+            10,
+            10,
+            statistics.mean(vals),
+            statistics.stdev(vals),
+            1.0,
+            10.0,
+            5.5,
+            7.75,
+            9.1,
+            9.55,
+            9.91,
+        ]
+        hist_rows = [[i + 1, 2] for i in range(5)]
+
+        mock_client = MagicMock()
+        call_count = [0]
+
+        def mock_execute(query_text):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return Results(data=[row], columns=[{"name": "col", "type": "double"}])
+            return Results(
+                data=hist_rows,
+                columns=[
+                    {"name": "bucket", "type": "bigint"},
+                    {"name": "cnt", "type": "bigint"},
+                ],
+            )
+
+        mock_client.execute_query.side_effect = mock_execute
+
+        results = _trino_sql_numeric_stats(
+            mock_client,
+            "test_table",
+            ["numeric_col"],
+            "1=1",
+            histogram_bins=5,
+        )
+
+        assert len(results) == 1
+        r = results[0]
+        expected = _expected_numeric_stats()
+        assert_numeric_correctness(r, expected, "trino_numeric")
+        assert r["histogram"] is not None
+        assert sum(r["histogram"]["counts"]) == 10
+
+    def test_numeric_stats_with_nulls(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_numeric_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        vals = NON_NULL_VALUES
+        row = [
+            10,
+            5,
+            statistics.mean(vals),
+            statistics.stdev(vals),
+            1.0,
+            9.0,
+            5.0,
+            7.0,
+            8.6,
+            8.8,
+            8.96,
+        ]
+        hist_rows = [[i + 1, 1] for i in range(5)]
+
+        mock_client = MagicMock()
+        call_count = [0]
+
+        def mock_execute(query_text):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return Results(data=[row], columns=[{"name": "col", "type": "double"}])
+            return Results(
+                data=hist_rows,
+                columns=[
+                    {"name": "bucket", "type": "bigint"},
+                    {"name": "cnt", "type": "bigint"},
+                ],
+            )
+
+        mock_client.execute_query.side_effect = mock_execute
+
+        results = _trino_sql_numeric_stats(
+            mock_client,
+            "t",
+            ["col"],
+            "1=1",
+            histogram_bins=5,
+        )
+
+        r = results[0]
+        assert r["null_count"] == 5
+        assert r["null_rate"] == pytest.approx(0.5)
+        assert r["mean"] == pytest.approx(5.0, abs=1e-4)
+
+    def test_categorical_stats(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_categorical_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        rows = [
+            [10, 0, 4, "a", 4],
+            [10, 0, 4, "b", 3],
+            [10, 0, 4, "c", 2],
+            [10, 0, 4, "d", 1],
+        ]
+        mock_client = MagicMock()
+        mock_client.execute_query.return_value = Results(
+            data=rows,
+            columns=[
+                {"name": "row_count", "type": "bigint"},
+                {"name": "null_count", "type": "bigint"},
+                {"name": "unique_count", "type": "bigint"},
+                {"name": "value", "type": "varchar"},
+                {"name": "cnt", "type": "bigint"},
+            ],
+        )
+
+        result = _trino_sql_categorical_stats(
+            mock_client,
+            "t",
+            "cat_col",
+            "1=1",
+            top_n=10,
+        )
+
+        expected = _expected_categorical_stats()
+        assert_categorical_correctness(result, expected, "trino_categorical")
+
+    def test_empty_result(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_numeric_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        mock_client = MagicMock()
+        mock_client.execute_query.return_value = Results(
+            data=[],
+            columns=[],
+        )
+
+        results = _trino_sql_numeric_stats(
+            mock_client,
+            "t",
+            ["col"],
+            "1=1",
+            histogram_bins=5,
+        )
+
+        assert len(results) == 1
+        assert results[0]["mean"] is None
+        assert results[0]["row_count"] == 0
+
+    def test_multiple_features(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_numeric_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        row = [
+            10,
+            # Feature 0: numeric_col
+            10,
+            5.5,
+            3.03,
+            1.0,
+            10.0,
+            5.5,
+            7.75,
+            9.1,
+            9.55,
+            9.91,
+            # Feature 1: numeric_with_nulls
+            5,
+            5.0,
+            3.16,
+            1.0,
+            9.0,
+            5.0,
+            7.0,
+            8.6,
+            8.8,
+            8.96,
+        ]
+        hist_rows = [[i + 1, 2] for i in range(5)]
+
+        mock_client = MagicMock()
+        call_count = [0]
+
+        def mock_execute(query_text):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return Results(data=[row], columns=[{"name": "col", "type": "double"}])
+            return Results(
+                data=hist_rows,
+                columns=[
+                    {"name": "bucket", "type": "bigint"},
+                    {"name": "cnt", "type": "bigint"},
+                ],
+            )
+
+        mock_client.execute_query.side_effect = mock_execute
+
+        results = _trino_sql_numeric_stats(
+            mock_client,
+            "t",
+            ["col_a", "col_b"],
+            "1=1",
+            histogram_bins=5,
+        )
+
+        assert len(results) == 2
+        assert results[0]["mean"] == pytest.approx(5.5, abs=1e-2)
+        assert results[1]["mean"] == pytest.approx(5.0, abs=1e-2)
+        assert results[0]["null_count"] == 0
+        assert results[1]["null_count"] == 5
+
+
 # ===================================================================
 # Cross-backend consistency: MetricsCalculator vs DuckDB vs Dask
 # ===================================================================
