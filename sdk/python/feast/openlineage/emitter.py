@@ -567,10 +567,13 @@ class FeastOpenLineageEmitter:
         """
         Emit lineage for a saved dataset definition.
 
-        Creates a definition job with inputs derived from:
-        - FeatureService (when feature_service_name is set)
-        - FeatureViews (extracted from feature refs in the format "view:feat")
-        - DataSources (matched by comparing storage location against registered sources)
+        Emits two events:
+        1. A **RunEvent** that captures the definition-time topology:
+           FeatureService/FeatureView → SavedDataset job.
+        2. A **DatasetEvent** with SymlinksDatasetFacet that links the
+           logical SavedDataset name to its physical storage URI, plus
+           OwnershipDatasetFacet and LifecycleStateChangeDatasetFacet
+           when the information is available.
 
         Args:
             saved_dataset: The SavedDataset object
@@ -675,7 +678,7 @@ class FeastOpenLineageEmitter:
                 **self._job_kind_facets(FeastJobKind.DEFINITION, project),
             }
 
-            return self._client.emit_run_event(
+            run_result = self._client.emit_run_event(
                 job_name=f"saved_dataset_{saved_dataset.name}",
                 run_id=str(uuid.uuid4()),
                 event_type=RunState.COMPLETE,
@@ -684,11 +687,137 @@ class FeastOpenLineageEmitter:
                 job_facets=job_facets,
                 namespace=namespace,
             )
+
+            # Emit a DatasetEvent with symlink, ownership, and lifecycle facets
+            self._emit_saved_dataset_metadata(
+                saved_dataset, project, namespace, registered_data_sources
+            )
+
+            return run_result
         except Exception as e:
             logger.error(
                 f"Error emitting saved dataset lineage for {saved_dataset.name}: {e}"
             )
             return False
+
+    def _emit_saved_dataset_metadata(
+        self,
+        saved_dataset: Any,
+        project: str,
+        namespace: str,
+        registered_data_sources: Optional[List[Any]] = None,
+    ):
+        """Emit a DatasetEvent for a SavedDataset with OL-standard facets.
+
+        Includes:
+        - SymlinksDatasetFacet linking logical name to physical storage URI
+        - OwnershipDatasetFacet from tags (``owner`` key) or the object owner
+        - LifecycleStateChangeDatasetFacet (CREATE)
+        - SchemaDatasetFacet from features
+        """
+        try:
+            from openlineage.client.facet_v2 import (
+                lifecycle_state_change_dataset,
+                ownership_dataset,
+                schema_dataset,
+                symlinks_dataset,
+            )
+        except ImportError:
+            logger.debug(
+                "openlineage facet_v2 modules not available; "
+                "skipping DatasetEvent for SavedDataset"
+            )
+            return
+
+        ds_facets: Dict[str, Any] = {}
+
+        # SymlinksDatasetFacet: link logical name → physical storage URI
+        storage_uri = self._get_saved_dataset_storage_uri(saved_dataset)
+        if storage_uri:
+            ds_facets["symlinks"] = symlinks_dataset.SymlinksDatasetFacet(
+                identifiers=[
+                    symlinks_dataset.Identifier(
+                        namespace=namespace,
+                        name=storage_uri,
+                        type="TABLE",
+                    )
+                ]
+            )
+
+        # OwnershipDatasetFacet
+        owner = None
+        if hasattr(saved_dataset, "tags") and saved_dataset.tags:
+            owner = saved_dataset.tags.get("owner")
+        if not owner and hasattr(saved_dataset, "owner") and saved_dataset.owner:
+            owner = saved_dataset.owner
+        if owner:
+            ds_facets["ownership"] = ownership_dataset.OwnershipDatasetFacet(
+                owners=[
+                    ownership_dataset.Owner(
+                        name=owner,
+                        type="FEAST_TAG",
+                    )
+                ]
+            )
+
+        # LifecycleStateChangeDatasetFacet
+        ds_facets["lifecycleStateChange"] = (
+            lifecycle_state_change_dataset.LifecycleStateChangeDatasetFacet(
+                lifecycleStateChange=lifecycle_state_change_dataset.LifecycleStateChange.CREATE,
+            )
+        )
+
+        # SchemaDatasetFacet
+        if saved_dataset.features:
+            ds_facets["schema"] = schema_dataset.SchemaDatasetFacet(
+                fields=[
+                    schema_dataset.SchemaDatasetFacetFields(name=f, type="UNKNOWN")
+                    for f in saved_dataset.features
+                ]
+            )
+
+        try:
+            self._client.emit_dataset_event(
+                dataset_name=saved_dataset.name,
+                namespace=namespace,
+                facets=ds_facets,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to emit DatasetEvent for SavedDataset "
+                f"{saved_dataset.name}: {e}"
+            )
+
+    @staticmethod
+    def _get_saved_dataset_storage_uri(saved_dataset: Any) -> Optional[str]:
+        """Extract a physical storage URI from a SavedDataset's storage."""
+        if not hasattr(saved_dataset, "storage") or not saved_dataset.storage:
+            return None
+        try:
+            storage_proto = saved_dataset.storage.to_proto()
+        except Exception:
+            return None
+
+        if hasattr(storage_proto, "file_url") and storage_proto.file_url:
+            return storage_proto.file_url
+        if hasattr(storage_proto, "bigquery_path") and storage_proto.bigquery_path:
+            return storage_proto.bigquery_path
+        if hasattr(storage_proto, "redshift_path") and storage_proto.redshift_path:
+            return storage_proto.redshift_path
+        if hasattr(storage_proto, "s3_path") and storage_proto.s3_path:
+            return storage_proto.s3_path
+        if hasattr(storage_proto, "trino_path") and storage_proto.trino_path:
+            return storage_proto.trino_path
+
+        for attr_name in dir(storage_proto):
+            if attr_name.startswith("_"):
+                continue
+            if "path" in attr_name or "url" in attr_name or "uri" in attr_name:
+                val = getattr(storage_proto, attr_name, None)
+                if val and isinstance(val, str):
+                    return val
+
+        return None
 
     def emit_materialize_start(
         self,
