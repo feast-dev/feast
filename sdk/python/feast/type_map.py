@@ -562,7 +562,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "BYTES_LIST": ValueType.BYTES_LIST,
         "STRING_LIST": ValueType.STRING_LIST,
-        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT32_LIST": ValueType.INT32_LIST,
         "INT64_LIST": ValueType.INT64_LIST,
         "DOUBLE_LIST": ValueType.DOUBLE_LIST,
         "FLOAT_LIST": ValueType.FLOAT_LIST,

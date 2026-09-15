@@ -50,6 +50,12 @@ def test_null_unix_timestamp_list():
     assert converted[0] is None
 
 
+def test_convert_value_type_str_to_value_type_int_lists():
+    # Regression: "INT32_LIST" once had a trailing space and fell through to STRING.
+    assert _convert_value_type_str_to_value_type("INT32_LIST") == ValueType.INT32_LIST
+    assert _convert_value_type_str_to_value_type("INT64_LIST") == ValueType.INT64_LIST
+
+
 @pytest.mark.parametrize(
     "values",
     (
