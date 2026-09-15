@@ -143,7 +143,7 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp", "mcp>=1.0,<1.30"]
-mlflow = ["mlflow>=2.10.0,<4"]
+mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
 
