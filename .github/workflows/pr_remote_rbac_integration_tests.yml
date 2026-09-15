@@ -40,9 +40,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install the latest version of uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
+          version: "0.12.7"
           enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
