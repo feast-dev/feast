@@ -573,6 +573,17 @@ def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
 
     from colorama import Fore, Style
 
+    # PROJECT_DIRECTORY may be provided as a path, e.g. ``feast init /tmp/test``
+    # or ``feast init my/sub/dir``. When no explicit ``--repo-path`` is given,
+    # treat the argument as the target directory and derive the Feast project
+    # name from its final path component, so project-name validation runs
+    # against the name rather than the whole path.
+    if repo_path is None and (
+        os.sep in repo_name or (os.altsep and os.altsep in repo_name)
+    ):
+        repo_path = repo_name
+        repo_name = Path(repo_name).name
+
     # Validate project name
     if not is_valid_name(repo_name):
         raise BadParameter(
