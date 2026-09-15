@@ -443,7 +443,7 @@ spec:
                 - name: RELATED_IMAGE_FEATURE_SERVER
                   value: quay.io/feastdev/feature-server:0.66.0
                 - name: RELATED_IMAGE_CRON_JOB
-                  value: quay.io/openshift/origin-cli:4.17
+                  value: registry.k8s.io/kubectl:v1.30.5
                 - name: GOMEMLIMIT
                   value: 230MiB
                 - name: OIDC_ISSUER_URL
@@ -539,6 +539,6 @@ spec:
   relatedImages:
   - image: quay.io/feastdev/feature-server:0.66.0
     name: feature-server
-  - image: quay.io/openshift/origin-cli:4.17
+  - image: registry.k8s.io/kubectl:v1.30.5
     name: cron-job
   version: 0.66.0

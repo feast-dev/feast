@@ -58,7 +58,7 @@ offline, registry, UI) and for the **init containers** (git clone, `feast apply`
 it overrides all of them at once without touching any CR.
 
 The **cronJob** container uses a separate env var: `RELATED_IMAGE_CRON_JOB`
-(default: `quay.io/openshift/origin-cli:4.17`).
+(default: `registry.k8s.io/kubectl:v1.30.5`).
 
 **Cluster-wide image override (operator env var)** — set this on the operator `Deployment`
 to redirect all pods cluster-wide to a different registry (e.g. a private mirror or a
