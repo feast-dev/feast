@@ -155,7 +155,7 @@ func (feast *FeastServices) getCronJobPodSpec() corev1.PodSpec {
 		},
 	}
 	// On vanilla Kubernetes (e.g. Kind) we must set an explicit non-root UID
-	// because the default CronJob image (origin-cli) runs as root.
+	// because the default CronJob image (kubectl) runs as root.
 	// On OpenShift the restricted-v2 SCC auto-assigns a UID from the
 	// namespace's allowed range, so we must NOT set RunAsUser.
 	if !IsOpenShift() {

@@ -117,7 +117,7 @@ fresh without managing an external job scheduler.
 The CronJob container image is resolved through the following priority chain:
 
 1. **`cronJob.containerConfigs.image` in the CR** — per-CronJob override
-2. **`RELATED_IMAGE_CRON_JOB` env var on the operator pod** — cluster-wide default set by OLM/platform (default: `quay.io/openshift/origin-cli:4.17`)
+2. **`RELATED_IMAGE_CRON_JOB` env var on the operator pod** — cluster-wide default set by OLM/platform (default: `registry.k8s.io/kubectl:v1.30.5`)
 
 ```sh
 # Override cluster-wide for all CronJobs
