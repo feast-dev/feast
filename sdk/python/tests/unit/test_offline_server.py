@@ -5,6 +5,7 @@ import textwrap
 from unittest.mock import MagicMock, mock_open, patch
 
 import assertpy
+import pytest
 
 from feast.infra.offline_stores.remote import (
     RemoteOfflineStore,
@@ -142,7 +143,7 @@ def test_configure_grpc_fips_noop_without_fips():
         assert "GRPC_SSL_CIPHER_SUITES" not in os.environ
 
 
-def test_module_level_fips_sets_env_before_pyarrow_import():
+def test_module_level_fips_sets_env_before_pyarrow_import() -> None:
     """GRPC_SSL_CIPHER_SUITES must be set at module load time,
     before pyarrow.flight (which bundles gRPC) is imported.
 
@@ -150,7 +151,10 @@ def test_module_level_fips_sets_env_before_pyarrow_import():
     sys.modules, which lets us verify the true import ordering.
     """
     script = textwrap.dedent("""\
-        import io, os, sys
+        import faulthandler, io, os, sys
+
+        # Capture a stalled import before the parent terminates this process.
+        faulthandler.dump_traceback_later(120)
 
         # Intercept only /proc/sys/crypto/fips_enabled to simulate FIPS
         _real_open = open
@@ -177,18 +181,30 @@ def test_module_level_fips_sets_env_before_pyarrow_import():
             assert "GRPC_SSL_CIPHER_SUITES" in os.environ
             assert "AES128-GCM-SHA256" in os.environ["GRPC_SSL_CIPHER_SUITES"]
         finally:
+            faulthandler.cancel_dump_traceback_later()
             builtins.__import__ = original_import
             builtins.open = _real_open
     """)
     env = os.environ.copy()
     env.pop("GRPC_SSL_CIPHER_SUITES", None)
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        capture_output=True,
-        text=True,
-        env=env,
-        timeout=60,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            env=env,
+            # Cold imports can be slow on macOS under parallel test load.
+            timeout=180,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # TimeoutExpired captures bytes even when subprocess.run uses text=True.
+        stdout = (exc.stdout or b"").decode(errors="replace")
+        stderr = (exc.stderr or b"").decode(errors="replace")
+        pytest.fail(
+            f"Subprocess timed out after {exc.timeout}s:\n"
+            f"stdout: {stdout}\nstderr: {stderr}",
+            pytrace=False,
+        )
     assert result.returncode == 0, (
         f"Subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
