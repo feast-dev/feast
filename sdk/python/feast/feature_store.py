@@ -3262,7 +3262,13 @@ class FeatureStore:
                 # Read features for each FV via base class online_read.
                 fv_data: Dict[
                     str,
-                    List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
+                    List[
+                        Tuple[
+                            Optional[datetime],
+                            Optional[Dict[str, ValueProto]],
+                            Optional[datetime],
+                        ]
+                    ],
                 ] = {}
                 for fv_obj, proj in feature_views:
                     req_features = [f.name for f in proj.features]
@@ -3281,11 +3287,18 @@ class FeatureStore:
 
                     for _fv, proj in feature_views:
                         fv_name = proj.name_to_use()
-                        fv_row_ts, feat_dict = fv_data[fv_name][entity_idx]
+                        fv_row_ts, feat_dict, fv_created_ts = fv_data[fv_name][
+                            entity_idx
+                        ]
 
                         if fv_row_ts:
                             fv_ts = Timestamp()
                             fv_ts.FromDatetime(utils.make_tzaware(fv_row_ts))
+                            created_ts_proto = Timestamp()
+                            if fv_created_ts:
+                                created_ts_proto.FromDatetime(
+                                    utils.make_tzaware(fv_created_ts)
+                                )
                             fv_timestamps.append(
                                 FeatureViewTimestamp(
                                     feature_view_name=fv_name,
