@@ -9,12 +9,18 @@ populates the GetOnlineFeaturesResponse.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+import pyarrow as pa
+
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.utils import _populate_response_from_feature_data
+from feast.utils import (
+    _convert_arrow_fv_to_proto,
+    _convert_arrow_odfv_to_proto,
+    _populate_response_from_feature_data,
+)
 
 
 def _make_table(name="test_fv"):
@@ -24,6 +30,14 @@ def _make_table(name="test_fv"):
     table.projection.name_alias = None
     table.projection.name = name
     return table
+
+
+def test_convert_empty_arrow_table_to_proto_returns_no_rows():
+    """A zero-row Arrow Table has no record batches and is a valid empty write."""
+    table = pa.table({"unused": pa.array([], type=pa.string())})
+
+    assert _convert_arrow_fv_to_proto(table, MagicMock(), {}) == []
+    assert _convert_arrow_odfv_to_proto(table, MagicMock(), {}) == []
 
 
 class TestPopulateResponseFromFeatureData:

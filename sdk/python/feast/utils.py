@@ -431,6 +431,8 @@ def _convert_arrow_fv_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
+        if table.num_rows == 0:
+            return []
         table = table.to_batches()[0]
 
     if feature_view.batch_source is None:
@@ -489,6 +491,8 @@ def _convert_arrow_odfv_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
+        if table.num_rows == 0:
+            return []
         table = table.to_batches()[0]
 
     columns = [
