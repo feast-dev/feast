@@ -141,6 +141,7 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra ci \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+		python3 infra/scripts/add_cpu_torch_hashes.py --python-version $(ver) sdk/python/requirements/py$(ver)-ci-requirements.txt && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
