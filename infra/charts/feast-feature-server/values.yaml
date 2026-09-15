@@ -29,6 +29,16 @@ feature_store_yaml_base64: ""
 # feast_mode -- Feast supported deployment modes - online (default), offline, ui and registry
 feast_mode: "online"
 
+# intraCommunicationSecret -- Kubernetes Secret holding the shared secret that Feast
+# servers present to each other instead of an end-user credential. Every Feast release
+# that has to call another one (a feature server and the registry server it reads from,
+# for example) must point at the same Secret, and the value has to stay private to the
+# installation: a caller able to produce it is trusted by the RBAC layer without any
+# further check. Intra-server communication stays disabled while `name` is empty.
+intraCommunicationSecret:
+  name: ""
+  key: "INTRA_COMMUNICATION_BASE64"
+
 # commandArgs -- Override the default command arguments for complete control over CLI options
 # If not specified, falls back to legacy behavior based on feast_mode
 # Example for UI mode with custom options:
