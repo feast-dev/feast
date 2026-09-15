@@ -63,13 +63,21 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _infra_object_types() -> Dict[str, Tuple[Any, Any]]:
-    """Map type name -> (feast class, proto class) for objects sent to /update-infra.
+def _infra_object_types() -> Dict[str, Tuple[Any, Any, bool]]:
+    """Map type name -> (feast class, proto class, has_udf) for objects sent to /update-infra.
 
     Imported lazily: these modules import from `feast` at module scope, and
     pulling them in at the top of this file would create an import cycle.
     Cached because `update()` calls this once per object in four lists, and
     re-running the imports each time is pure overhead.
+
+    `has_udf` marks the types whose `from_proto()` will `dill.loads()` a
+    user-defined function unless told not to via `skip_udf=True`. It exists
+    so `decode_infra_object` cannot forget to set that flag: provisioning
+    never needs the UDF body, and this endpoint decodes payloads an
+    authenticated-but-untrusted client controls, so unpickling it is a
+    remote-code-execution hole (the same reason `registry_server.py` always
+    passes `skip_udf=True` when decoding client-submitted protos).
     """
     from feast.labeling.label_view import LabelView
     from feast.on_demand_feature_view import OnDemandFeatureView
@@ -85,11 +93,11 @@ def _infra_object_types() -> Dict[str, Tuple[Any, Any]]:
     from feast.stream_feature_view import StreamFeatureView
 
     return {
-        "FeatureView": (FeatureView, FeatureViewProto),
-        "StreamFeatureView": (StreamFeatureView, StreamFeatureViewProto),
-        "OnDemandFeatureView": (OnDemandFeatureView, OnDemandFeatureViewProto),
-        "LabelView": (LabelView, LabelViewProto),
-        "Entity": (Entity, EntityProto),
+        "FeatureView": (FeatureView, FeatureViewProto, True),
+        "StreamFeatureView": (StreamFeatureView, StreamFeatureViewProto, True),
+        "OnDemandFeatureView": (OnDemandFeatureView, OnDemandFeatureViewProto, True),
+        "LabelView": (LabelView, LabelViewProto, False),
+        "Entity": (Entity, EntityProto, False),
     }
 
 
@@ -114,17 +122,25 @@ def encode_infra_object(obj: Any) -> Dict[str, str]:
 
 
 def decode_infra_object(payload: Mapping[str, str]) -> Any:
-    """Inverse of :func:`encode_infra_object`, used by the feature server."""
+    """Inverse of :func:`encode_infra_object`, used by the feature server.
+
+    `payload["proto"]` is client-controlled -- it arrives as a raw HTTP
+    request body, not something the server generated. `skip_udf=True` is
+    passed for every type that supports it so a decoded FeatureView /
+    StreamFeatureView / OnDemandFeatureView never triggers `dill.loads()` on
+    that untrusted input. See `_infra_object_types` for why.
+    """
     type_name = payload["type"]
     types = _infra_object_types()
     if type_name not in types:
         raise ValueError(
             f"Unknown object type {type_name!r}; expected one of {sorted(types)}"
         )
-    feast_class, proto_class = types[type_name]
-    return feast_class.from_proto(
-        proto_class.FromString(base64.b64decode(payload["proto"]))
-    )
+    feast_class, proto_class, has_udf = types[type_name]
+    proto = proto_class.FromString(base64.b64decode(payload["proto"]))
+    if has_udf:
+        return feast_class.from_proto(proto, skip_udf=True)
+    return feast_class.from_proto(proto)
 
 
 def _json_safe(val: Any) -> Any:

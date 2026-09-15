@@ -1,5 +1,8 @@
+import base64
 import inspect
 import json
+import os
+import pickle
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
@@ -15,6 +18,12 @@ from feast.infra.online_stores.remote import (
     encode_infra_object,
 )
 from feast.online_response import OnlineResponse
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Float32, Int64, String, UnixTimestamp
@@ -838,6 +847,87 @@ class TestRemoteOnlineStoreUpdateInfra:
     def test_decode_rejects_unknown_type(self):
         with pytest.raises(ValueError, match="Unknown object type"):
             decode_infra_object({"type": "NotAFeastObject", "proto": ""})
+
+    def test_decode_never_unpickles_untrusted_stream_udf(self, tmp_path):
+        """decode_infra_object must not `dill.loads()` a UDF from a client payload.
+
+        `StreamFeatureView.from_proto()` runs `dill.loads()` on the embedded
+        UDF unless told `skip_udf=True`. This endpoint decodes a raw HTTP
+        request body -- an authenticated-but-untrusted client's bytes, not
+        registry content -- so unpickling it is remote code execution, not a
+        metadata read (#6693 follow-up). A pickled object's `__reduce__` runs
+        during `loads()`, before the caller does anything with the result, so
+        a directory appearing on disk proves the payload executed.
+        """
+        marker_dir = tmp_path / "should_never_be_created"
+
+        class _Payload:
+            def __reduce__(self):
+                return (os.mkdir, (str(marker_dir),))
+
+        proto = StreamFeatureViewProto()
+        proto.spec.name = "malicious_sfv"
+        proto.spec.user_defined_function.body = pickle.dumps(_Payload())
+
+        try:
+            decode_infra_object(
+                {
+                    "type": "StreamFeatureView",
+                    "proto": base64.b64encode(proto.SerializeToString()).decode(
+                        "ascii"
+                    ),
+                }
+            )
+        except Exception:
+            # This minimal proto omits an unrelated required field (a batch
+            # or stream source); that's fine -- the property under test is
+            # that the pickled UDF body never gets unpickled, independent of
+            # whether decoding otherwise succeeds.
+            pass
+
+        assert not marker_dir.exists(), (
+            "decode_infra_object unpickled a UDF body from an untrusted "
+            "proto -- skip_udf is not being passed through"
+        )
+
+    def test_decode_never_execs_untrusted_on_demand_udf_source(self, tmp_path):
+        """decode_infra_object must not exec() a UDF's source from a client payload.
+
+        `OnDemandFeatureView.from_proto()` -> `PandasTransformation.from_proto()`
+        -> `resolve_udf()` runs `exec()` on the UDF's `body_text` unless told
+        `skip_udf=True`. That code treats `body_text` as "trusted registry
+        content written by feast apply" -- but this endpoint decodes a raw
+        HTTP request body, so exec()-ing it is remote code execution.
+        """
+        marker_dir = tmp_path / "should_never_be_created_2"
+
+        proto = OnDemandFeatureViewProto()
+        proto.spec.name = "malicious_odfv"
+        proto.spec.mode = "pandas"
+        proto.spec.feature_transformation.user_defined_function.body_text = (
+            f"import os\nos.mkdir(r'{marker_dir}')\ndef fn(df):\n    return df\n"
+        )
+
+        try:
+            decode_infra_object(
+                {
+                    "type": "OnDemandFeatureView",
+                    "proto": base64.b64encode(proto.SerializeToString()).decode(
+                        "ascii"
+                    ),
+                }
+            )
+        except ValueError:
+            # This minimal proto omits unrelated required fields (sources),
+            # so full object construction fails -- irrelevant here. The
+            # property under test is that the UDF source never executes,
+            # independent of whether decoding otherwise succeeds.
+            pass
+
+        assert not marker_dir.exists(), (
+            "decode_infra_object exec()'d a UDF body from an untrusted "
+            "proto -- skip_udf is not being passed through"
+        )
 
     @patch("feast.infra.online_stores.remote.post_remote_update_infra")
     def test_update_posts_tables_to_the_feature_server(
