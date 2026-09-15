@@ -1,10 +1,16 @@
 """Unit tests for IcebergSource, UnityCatalogSource, and IcebergRestClient."""
 
 import json
+import sys
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
+import pyarrow as pa
 import pytest
 import requests
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
+from pyiceberg.schema import Schema
+from pyiceberg.types import DoubleType, LongType, NestedField, StringType, TimestampType
 
 from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_rest_client import (
     CatalogAuthError,
@@ -24,6 +30,37 @@ from feast.value_type import ValueType
 
 
 class TestIcebergSource:
+    @staticmethod
+    def _materialization_source() -> IcebergSource:
+        return IcebergSource(
+            catalog_type="sql",
+            endpoint="sqlite:////tmp/catalog.db",
+            warehouse="file:///tmp/warehouse",
+            namespace="features",
+            table="driver_stats",
+        )
+
+    @staticmethod
+    def _materialization_table() -> pa.Table:
+        return pa.table(
+            {
+                "driver_id": [1, 2],
+                "event_timestamp": pa.array(
+                    [datetime(2026, 8, 16, 10), datetime(2026, 8, 16, 11)],
+                    type=pa.timestamp("us"),
+                ),
+                "value": [1.0, 2.0],
+            }
+        )
+
+    @staticmethod
+    def _materialization_schema() -> Schema:
+        return Schema(
+            NestedField(1, "driver_id", LongType(), required=False),
+            NestedField(2, "event_timestamp", TimestampType(), required=False),
+            NestedField(3, "value", DoubleType(), required=False),
+        )
+
     def test_basic_creation(self):
         source = IcebergSource(
             endpoint="http://localhost:8080/api/2.1/unity-catalog/iceberg",
@@ -81,6 +118,256 @@ class TestIcebergSource:
         )
         assert source.catalog_type == "glue"
         assert source.catalog_properties == {"region_name": "us-east-1"}
+
+    @patch.dict("os.environ", {"ICEBERG_TOKEN": "secret"})
+    def test_get_pyiceberg_catalog_for_rest(self):
+        mock_load_catalog = MagicMock()
+        mock_catalog_module = MagicMock(load_catalog=mock_load_catalog)
+        source = IcebergSource(
+            catalog_type="rest",
+            endpoint="http://catalog.test",
+            warehouse="warehouse",
+            namespace="features",
+            table="driver_stats",
+            token_env_var="ICEBERG_TOKEN",
+            catalog_properties={"prefix": "tenant"},
+        )
+
+        with patch.dict(sys.modules, {"pyiceberg.catalog": mock_catalog_module}):
+            source.get_pyiceberg_catalog()
+
+        mock_load_catalog.assert_called_once_with(
+            "feast_iceberg",
+            type="rest",
+            prefix="tenant",
+            uri="http://catalog.test",
+            warehouse="warehouse",
+            token="secret",
+        )
+
+    def test_get_pyiceberg_catalog_for_non_rest(self):
+        mock_load_catalog = MagicMock()
+        mock_catalog_module = MagicMock(load_catalog=mock_load_catalog)
+        source = IcebergSource(
+            catalog_type="sql",
+            endpoint="sqlite:////tmp/catalog.db",
+            warehouse="file:///tmp/warehouse",
+            namespace="features",
+            table="driver_stats",
+            catalog_name="local",
+            catalog_properties={"echo": "false"},
+        )
+
+        with patch.dict(sys.modules, {"pyiceberg.catalog": mock_catalog_module}):
+            source.get_pyiceberg_catalog()
+
+        mock_load_catalog.assert_called_once_with(
+            "local",
+            type="sql",
+            echo="false",
+            uri="sqlite:////tmp/catalog.db",
+            warehouse="file:///tmp/warehouse",
+        )
+
+    def test_get_pyiceberg_catalog_missing_dependency_has_install_guidance(self):
+        source = self._materialization_source()
+
+        with patch.dict(sys.modules, {"pyiceberg": None, "pyiceberg.catalog": None}):
+            with pytest.raises(ImportError, match=r"install feast\[iceberg\]"):
+                source.get_pyiceberg_catalog()
+
+    def test_write_materialized_table_rejects_missing_key_before_catalog_access(self):
+        source = self._materialization_source()
+        source.get_pyiceberg_catalog = MagicMock()
+
+        with pytest.raises(ValueError, match="missing.*unknown_key"):
+            source.write_materialized_table(
+                self._materialization_table(), join_cols=["unknown_key"]
+            )
+
+        source.get_pyiceberg_catalog.assert_not_called()
+
+    def test_write_materialized_table_rejects_null_key_before_catalog_access(self):
+        source = self._materialization_source()
+        source.get_pyiceberg_catalog = MagicMock()
+        incoming = self._materialization_table().set_column(
+            0, "driver_id", pa.array([1, None], type=pa.int64())
+        )
+
+        with pytest.raises(ValueError, match="null.*driver_id"):
+            source.write_materialized_table(incoming, join_cols=["driver_id"])
+
+        source.get_pyiceberg_catalog.assert_not_called()
+
+    def test_write_materialized_table_rejects_duplicate_keys_before_catalog_access(
+        self,
+    ):
+        source = self._materialization_source()
+        source.get_pyiceberg_catalog = MagicMock()
+        incoming = pa.table(
+            {
+                "driver_id": [1, 1],
+                "event_timestamp": pa.array(
+                    [datetime(2026, 8, 16, 10), datetime(2026, 8, 16, 10)],
+                    type=pa.timestamp("us"),
+                ),
+                "value": [1.0, 2.0],
+            }
+        )
+
+        with pytest.raises(ValueError, match="1 duplicate.*driver_id"):
+            source.write_materialized_table(
+                incoming, join_cols=["driver_id", "event_timestamp"]
+            )
+
+        source.get_pyiceberg_catalog.assert_not_called()
+
+    def test_write_materialized_table_upserts_existing_table(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table()
+        iceberg_table = MagicMock()
+        iceberg_table.schema.return_value = self._materialization_schema()
+        catalog = MagicMock()
+        catalog.load_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        source.write_materialized_table(
+            incoming,
+            join_cols=["driver_id", "event_timestamp"],
+        )
+
+        catalog.load_table.assert_called_once_with("features.driver_stats")
+        catalog.create_table.assert_not_called()
+        iceberg_table.upsert.assert_called_once_with(
+            incoming,
+            join_cols=["driver_id", "event_timestamp"],
+        )
+
+    def test_write_materialized_table_creates_missing_table(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table()
+        iceberg_table = MagicMock()
+        catalog = MagicMock()
+        catalog.load_table.side_effect = NoSuchTableError("missing")
+        catalog.create_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        source.write_materialized_table(
+            incoming, join_cols=["driver_id", "event_timestamp"]
+        )
+
+        catalog.create_table.assert_called_once_with(
+            "features.driver_stats", schema=incoming.schema
+        )
+        iceberg_table.upsert.assert_called_once_with(
+            incoming,
+            join_cols=["driver_id", "event_timestamp"],
+        )
+
+    def test_write_materialized_table_does_not_create_missing_namespace(self):
+        source = self._materialization_source()
+        catalog = MagicMock()
+        catalog.load_table.side_effect = NoSuchTableError("missing")
+        catalog.create_table.side_effect = NoSuchNamespaceError("missing namespace")
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        with pytest.raises(NoSuchNamespaceError, match="missing namespace"):
+            source.write_materialized_table(
+                self._materialization_table(),
+                join_cols=["driver_id", "event_timestamp"],
+            )
+
+        catalog.create_namespace.assert_not_called()
+
+    def test_write_materialized_table_rejects_schema_mismatch(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table().append_column(
+            "unexpected", pa.array([1, 2])
+        )
+        target_schema = Schema(
+            NestedField(1, "driver_id", LongType(), required=False),
+            NestedField(2, "event_timestamp", TimestampType(), required=False),
+            NestedField(3, "value", StringType(), required=False),
+            NestedField(4, "missing", LongType(), required=False),
+        )
+        iceberg_table = MagicMock()
+        iceberg_table.schema.return_value = target_schema
+        catalog = MagicMock()
+        catalog.load_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        with pytest.raises(ValueError) as exc_info:
+            source.write_materialized_table(
+                incoming, join_cols=["driver_id", "event_timestamp"]
+            )
+
+        message = str(exc_info.value)
+        assert "missing" in message
+        assert "unexpected" in message
+        assert "incompatible" in message
+        assert "value" in message
+        iceberg_table.upsert.assert_not_called()
+
+    def test_write_materialized_table_supports_timestamp_only_key(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table().drop(["driver_id"])
+        iceberg_table = MagicMock()
+        iceberg_table.schema.return_value = Schema(
+            NestedField(1, "event_timestamp", TimestampType(), required=False),
+            NestedField(2, "value", DoubleType(), required=False),
+        )
+        catalog = MagicMock()
+        catalog.load_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        source.write_materialized_table(incoming, join_cols=["event_timestamp"])
+
+        iceberg_table.upsert.assert_called_once()
+
+    def test_write_materialized_table_wraps_catalog_error_with_sanitized_context(self):
+        token_value = "sensitive-value"
+        source = IcebergSource(
+            catalog_type="rest",
+            endpoint="https://catalog.test/api",
+            warehouse="warehouse",
+            namespace="features",
+            table="driver_stats",
+            token_env_var="ICEBERG_TEST_TOKEN",
+        )
+        source.get_pyiceberg_catalog = MagicMock(
+            side_effect=RuntimeError(f"unauthorized: {token_value}")
+        )
+
+        with patch.dict("os.environ", {"ICEBERG_TEST_TOKEN": token_value}):
+            with pytest.raises(RuntimeError) as exc_info:
+                source.write_materialized_table(
+                    self._materialization_table(),
+                    join_cols=["driver_id", "event_timestamp"],
+                )
+
+        message = str(exc_info.value)
+        assert "features.driver_stats" in message
+        assert "https://catalog.test/api" in message
+        assert token_value not in message
+
+    def test_write_materialized_table_wraps_commit_error_with_table_context(self):
+        source = self._materialization_source()
+        incoming = self._materialization_table()
+        iceberg_table = MagicMock()
+        iceberg_table.schema.return_value = self._materialization_schema()
+        iceberg_table.upsert.side_effect = RuntimeError("commit conflict")
+        catalog = MagicMock()
+        catalog.load_table.return_value = iceberg_table
+        source.get_pyiceberg_catalog = MagicMock(return_value=catalog)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            source.write_materialized_table(
+                incoming, join_cols=["driver_id", "event_timestamp"]
+            )
+
+        message = str(exc_info.value)
+        assert "features.driver_stats" in message
+        assert "commit conflict" in message
 
     def test_proto_roundtrip(self):
         source = IcebergSource(

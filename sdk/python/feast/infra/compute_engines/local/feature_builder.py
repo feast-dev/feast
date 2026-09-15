@@ -129,6 +129,9 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, view, input_node):
-        node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
+        column_info = self.get_column_info(view)
+        node = LocalOutputNode(
+            "output", self.dag_root.view, column_info, inputs=[input_node]
+        )
         self.nodes.append(node)
         return node
