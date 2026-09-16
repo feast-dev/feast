@@ -48,7 +48,7 @@ def _config() -> RepoConfig:
             "database": "test",
             "db_schema": "public",
             "user": "root",
-            "password": "test",
+            "password": "test",  # pragma: allowlist secret
         },
         entity_key_serialization_version=3,
     )
