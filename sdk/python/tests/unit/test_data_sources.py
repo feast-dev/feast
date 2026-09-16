@@ -46,6 +46,57 @@ def test_push_source_without_batch_source():
     assert push_source_unproto.name == "test_push_source"
 
 
+def test_push_source_with_source_views():
+    class DummyFeatureView:
+        def __init__(self, name: str):
+            self.name = name
+
+    fv1 = DummyFeatureView("user_transaction_stats")
+    fv2 = DummyFeatureView("user_credit_profile")
+
+    # Initialize with objects and strings
+    push_source = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        source_views=[fv1, fv2],
+        description="test push source with lineage",
+    )
+
+    assert push_source.source_views == ["user_transaction_stats", "user_credit_profile"]
+
+    # Convert to proto and verify
+    proto = push_source.to_proto()
+    assert proto.HasField("push_options")
+    assert list(proto.push_options.upstream_feature_views) == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Deserialize from proto and verify
+    unproto = PushSource.from_proto(proto)
+    assert unproto.name == "risk_calc_pipeline"
+    assert unproto.source_views == ["user_transaction_stats", "user_credit_profile"]
+    assert unproto.description == "test push source with lineage"
+    assert unproto == push_source
+
+    # Verify equality and inequality
+    push_source_same = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        source_views=["user_transaction_stats", "user_credit_profile"],
+        description="test push source with lineage",
+    )
+    assert push_source == push_source_same
+
+    push_source_diff = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        source_views=["user_transaction_stats"],
+        description="test push source with lineage",
+    )
+    assert push_source != push_source_diff
+
+
 def test_request_source_primitive_type_to_proto():
     schema = [
         Field(name="f1", dtype=Float32),

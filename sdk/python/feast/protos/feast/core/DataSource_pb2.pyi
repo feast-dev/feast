@@ -37,9 +37,76 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+class ConnectionRef(google.protobuf.message.Message):
+    """Connection reference for a DataSource.
+    Combines connection type, credential resolution, and non-sensitive
+    connection parameters into a single reusable reference.
+    Allows DataSources to declare their full connection identity — which
+    backend to use, how to authenticate, and where to connect — independent
+    of the global offline_store config in feature_store.yaml.
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class ParamsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    PROVIDER_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    NAMESPACE_FIELD_NUMBER: builtins.int
+    CONNECTION_TYPE_FIELD_NUMBER: builtins.int
+    AUTH_TYPE_FIELD_NUMBER: builtins.int
+    PARAMS_FIELD_NUMBER: builtins.int
+    provider: builtins.str
+    """Credential provider type: "kubernetes", "vault", "aws-secrets-manager",
+    "gcp-secret-manager", "azure-key-vault", "env".
+    """
+    name: builtins.str
+    """Provider-specific name: K8s Secret name, Vault path, env var prefix, etc."""
+    namespace: builtins.str
+    """Optional scope qualifier: K8s namespace, Vault mount, AWS region, etc."""
+    connection_type: builtins.str
+    """Optional offline store class type (e.g., "snowflake.offline", "bigquery",
+    "spark", "iceberg-rest"). When empty, inferred from the DataSource class.
+    """
+    auth_type: builtins.str
+    """Optional authentication mechanism: "secret", "oauth2", "basic", "sigv4".
+    Defaults to "secret" (raw key-value credentials from provider).
+    """
+    @property
+    def params(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+        """Optional non-sensitive connection parameters (e.g., account, database,
+        warehouse, endpoint URI). Keys and values are backend-specific.
+        """
+    def __init__(
+        self,
+        *,
+        provider: builtins.str = ...,
+        name: builtins.str = ...,
+        namespace: builtins.str = ...,
+        connection_type: builtins.str = ...,
+        auth_type: builtins.str = ...,
+        params: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["auth_type", b"auth_type", "connection_type", b"connection_type", "name", b"name", "namespace", b"namespace", "params", b"params", "provider", b"provider"]) -> None: ...
+
+global___ConnectionRef = ConnectionRef
+
 class DataSource(google.protobuf.message.Message):
     """Defines a Data Source that can be used source Feature data
-    Next available id: 29
+    Next available id: 30
     """
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -457,9 +524,16 @@ class DataSource(google.protobuf.message.Message):
 
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+        UPSTREAM_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+        @property
+        def upstream_feature_views(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+            """Names of upstream FeatureViews consumed by the process feeding this PushSource"""
         def __init__(
             self,
+            *,
+            upstream_feature_views: collections.abc.Iterable[builtins.str] | None = ...,
         ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["upstream_feature_views", b"upstream_feature_views"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
@@ -474,6 +548,7 @@ class DataSource(google.protobuf.message.Message):
     TIMESTAMP_FIELD_TYPE_FIELD_NUMBER: builtins.int
     DATA_SOURCE_CLASS_TYPE_FIELD_NUMBER: builtins.int
     BATCH_SOURCE_FIELD_NUMBER: builtins.int
+    CONNECTION_REF_FIELD_NUMBER: builtins.int
     META_FIELD_NUMBER: builtins.int
     FILE_OPTIONS_FIELD_NUMBER: builtins.int
     BIGQUERY_OPTIONS_FIELD_NUMBER: builtins.int
@@ -523,6 +598,14 @@ class DataSource(google.protobuf.message.Message):
     def batch_source(self) -> global___DataSource:
         """Optional batch source for streaming sources for historical features and materialization."""
     @property
+    def connection_ref(self) -> global___ConnectionRef:
+        """Optional connection reference for this data source.
+        When set, OfflineStores resolve connection type and credentials at
+        runtime via the registered CredentialProvider instead of using ambient
+        env vars or the global offline_store config in feature_store.yaml.
+        All fields except provider and name are optional.
+        """
+    @property
     def meta(self) -> global___DataSource.SourceMeta: ...
     @property
     def file_options(self) -> global___DataSource.FileOptions: ...
@@ -564,6 +647,7 @@ class DataSource(google.protobuf.message.Message):
         timestamp_field_type: builtins.str = ...,
         data_source_class_type: builtins.str = ...,
         batch_source: global___DataSource | None = ...,
+        connection_ref: global___ConnectionRef | None = ...,
         meta: global___DataSource.SourceMeta | None = ...,
         file_options: global___DataSource.FileOptions | None = ...,
         bigquery_options: global___DataSource.BigQueryOptions | None = ...,
@@ -578,8 +662,8 @@ class DataSource(google.protobuf.message.Message):
         trino_options: global___DataSource.TrinoOptions | None = ...,
         athena_options: global___DataSource.AthenaOptions | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "connection_ref", b"connection_ref", "custom_options", b"custom_options", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "options", b"options", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "trino_options", b"trino_options"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["athena_options", b"athena_options", "batch_source", b"batch_source", "bigquery_options", b"bigquery_options", "connection_ref", b"connection_ref", "created_timestamp_column", b"created_timestamp_column", "custom_options", b"custom_options", "data_source_class_type", b"data_source_class_type", "date_partition_column", b"date_partition_column", "description", b"description", "field_mapping", b"field_mapping", "file_options", b"file_options", "kafka_options", b"kafka_options", "kinesis_options", b"kinesis_options", "meta", b"meta", "name", b"name", "options", b"options", "owner", b"owner", "project", b"project", "push_options", b"push_options", "redshift_options", b"redshift_options", "request_data_options", b"request_data_options", "snowflake_options", b"snowflake_options", "spark_options", b"spark_options", "tags", b"tags", "timestamp_field", b"timestamp_field", "timestamp_field_type", b"timestamp_field_type", "trino_options", b"trino_options", "type", b"type"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["options", b"options"]) -> typing_extensions.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
 
 global___DataSource = DataSource

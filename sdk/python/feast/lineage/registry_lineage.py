@@ -228,6 +228,27 @@ class RegistryLineageGenerator:
                         )
                         relationships.append(rel)
 
+                # Stream source -> FeatureView relationships
+                if (
+                    hasattr(feature_view.spec, "stream_source")
+                    and feature_view.spec.stream_source
+                ):
+                    stream_source_name = getattr(
+                        feature_view.spec.stream_source, "name", None
+                    )
+                    if stream_source_name:
+                        relationships.append(
+                            EntityRelation(
+                                source=EntityReference(
+                                    FeastObjectType.DATA_SOURCE, stream_source_name
+                                ),
+                                target=EntityReference(
+                                    FeastObjectType.FEATURE_VIEW,
+                                    feature_view.spec.name,
+                                ),
+                            )
+                        )
+
                 # Batch source relationship
                 if (
                     hasattr(feature_view.spec, "batch_source")
@@ -454,6 +475,72 @@ class RegistryLineageGenerator:
                             ),
                         )
                     )
+
+        # Upstream FeatureView -> DataSource (PushSource) relationships
+        push_sources = {
+            ds.name: ds
+            for ds in registry.data_sources
+            if hasattr(ds, "name")
+            and ds.name
+            and hasattr(ds, "push_options")
+            and ds.push_options
+        }
+        for fv in registry.feature_views:
+            if (
+                hasattr(fv, "spec")
+                and fv.spec
+                and hasattr(fv.spec, "stream_source")
+                and fv.spec.stream_source
+                and hasattr(fv.spec.stream_source, "name")
+                and fv.spec.stream_source.name
+                and hasattr(fv.spec.stream_source, "push_options")
+                and fv.spec.stream_source.push_options
+            ):
+                push_sources[fv.spec.stream_source.name] = fv.spec.stream_source
+        for sfv in registry.stream_feature_views:
+            if (
+                hasattr(sfv, "spec")
+                and sfv.spec
+                and hasattr(sfv.spec, "stream_source")
+                and sfv.spec.stream_source
+                and hasattr(sfv.spec.stream_source, "name")
+                and sfv.spec.stream_source.name
+                and hasattr(sfv.spec.stream_source, "push_options")
+                and sfv.spec.stream_source.push_options
+            ):
+                push_sources[sfv.spec.stream_source.name] = sfv.spec.stream_source
+        for lv in registry.label_views:
+            if (
+                hasattr(lv, "spec")
+                and lv.spec
+                and hasattr(lv.spec, "source")
+                and lv.spec.source
+                and hasattr(lv.spec.source, "name")
+                and lv.spec.source.name
+                and hasattr(lv.spec.source, "push_options")
+                and lv.spec.source.push_options
+            ):
+                push_sources[lv.spec.source.name] = lv.spec.source
+
+        for ds in push_sources.values():
+            if (
+                not hasattr(ds, "push_options")
+                or not hasattr(ds.push_options, "upstream_feature_views")
+                or not ds.push_options.upstream_feature_views
+            ):
+                continue
+            for upstream_fv in ds.push_options.upstream_feature_views:
+                source_type = (
+                    FeastObjectType.LABEL_VIEW
+                    if upstream_fv in label_view_names
+                    else FeastObjectType.FEATURE_VIEW
+                )
+                relationships.append(
+                    EntityRelation(
+                        source=EntityReference(source_type, upstream_fv),
+                        target=EntityReference(FeastObjectType.DATA_SOURCE, ds.name),
+                    )
+                )
 
         # SavedDataset relationships
         ds_location_index = _build_datasource_location_index(registry)

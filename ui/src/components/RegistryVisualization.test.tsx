@@ -4,7 +4,9 @@ import { waitFor } from "@testing-library/react";
 import RegistryVisualization from "./RegistryVisualization";
 import { feast } from "../protos";
 import { FEAST_FCO_TYPES } from "../parsers/types";
-import { EntityRelation } from "../parsers/parseEntityRelationships";
+import parseEntityRelationships, {
+  EntityRelation,
+} from "../parsers/parseEntityRelationships";
 import { ThemeProvider } from "../contexts/ThemeContext";
 
 // ReactFlow requires ResizeObserver
@@ -368,5 +370,240 @@ describe("RegistryVisualization legend", () => {
     });
 
     expect(screen.getByText("vN")).toBeInTheDocument();
+  });
+});
+
+describe("parseEntityRelationships PushSource lineage", () => {
+  test("parses upstreamFeatureViews on PushSource into EntityRelation links", () => {
+    const registry = makeRegistry({
+      featureViews: [
+        feast.core.FeatureView.create({
+          spec: {
+            name: "user_risk_target_fv",
+            streamSource: feast.core.DataSource.create({
+              name: "risk_calc_pipeline",
+              pushOptions: feast.core.DataSource.PushOptions.create({
+                upstreamFeatureViews: [
+                  "user_transaction_stats",
+                  "user_credit_profile",
+                ],
+              }),
+            }),
+          },
+        }),
+      ],
+      dataSources: [
+        feast.core.DataSource.create({
+          name: "risk_calc_pipeline",
+          pushOptions: feast.core.DataSource.PushOptions.create({
+            upstreamFeatureViews: [
+              "user_transaction_stats",
+              "user_credit_profile",
+            ],
+          }),
+        }),
+      ],
+    });
+
+    const links = parseEntityRelationships(registry);
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_transaction_stats",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "risk_calc_pipeline",
+      },
+    });
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_credit_profile",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "risk_calc_pipeline",
+      },
+    });
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "risk_calc_pipeline",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_risk_target_fv",
+      },
+    });
+  });
+
+  test("parses streamSource and batchSource on FeatureView with PushSource without upstreamFeatureViews", () => {
+    const registry = makeRegistry({
+      featureViews: [
+        feast.core.FeatureView.create({
+          spec: {
+            name: "user_push_fv",
+            streamSource: feast.core.DataSource.create({
+              name: "user_push_source",
+            }),
+            batchSource: feast.core.DataSource.create({
+              name: "user_push_batch_source",
+            }),
+          },
+        }),
+      ],
+      dataSources: [
+        feast.core.DataSource.create({
+          name: "user_push_source",
+        }),
+        feast.core.DataSource.create({
+          name: "user_push_batch_source",
+        }),
+      ],
+    });
+
+    const links = parseEntityRelationships(registry);
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_push_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_push_fv",
+      },
+    });
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_push_batch_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_push_fv",
+      },
+    });
+
+    // Ensure no upstream featureView -> dataSource links exist
+    const upstreamLinks = links.filter(
+      (l) =>
+        l.source.type === FEAST_FCO_TYPES.featureView &&
+        l.target.type === FEAST_FCO_TYPES.dataSource,
+    );
+    expect(upstreamLinks).toHaveLength(0);
+  });
+
+  test("parses streamSource and batchSource on FeatureView with KafkaSource", () => {
+    const registry = makeRegistry({
+      featureViews: [
+        feast.core.FeatureView.create({
+          spec: {
+            name: "user_kafka_fv",
+            streamSource: feast.core.DataSource.create({
+              name: "user_kafka_source",
+              kafkaOptions: feast.core.DataSource.KafkaOptions.create({
+                topic: "user_events",
+                kafkaBootstrapServers: "localhost:9092",
+              }),
+            }),
+            batchSource: feast.core.DataSource.create({
+              name: "user_kafka_batch_source",
+            }),
+          },
+        }),
+      ],
+      dataSources: [
+        feast.core.DataSource.create({
+          name: "user_kafka_source",
+        }),
+        feast.core.DataSource.create({
+          name: "user_kafka_batch_source",
+        }),
+      ],
+    });
+
+    const links = parseEntityRelationships(registry);
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_kafka_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_kafka_fv",
+      },
+    });
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_kafka_batch_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_kafka_fv",
+      },
+    });
+  });
+
+  test("parses streamSource and batchSource on FeatureView with KinesisSource", () => {
+    const registry = makeRegistry({
+      featureViews: [
+        feast.core.FeatureView.create({
+          spec: {
+            name: "user_kinesis_fv",
+            streamSource: feast.core.DataSource.create({
+              name: "user_kinesis_source",
+              kinesisOptions: feast.core.DataSource.KinesisOptions.create({
+                streamName: "user_stream",
+                region: "us-west-2",
+              }),
+            }),
+            batchSource: feast.core.DataSource.create({
+              name: "user_kinesis_batch_source",
+            }),
+          },
+        }),
+      ],
+      dataSources: [
+        feast.core.DataSource.create({
+          name: "user_kinesis_source",
+        }),
+        feast.core.DataSource.create({
+          name: "user_kinesis_batch_source",
+        }),
+      ],
+    });
+
+    const links = parseEntityRelationships(registry);
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_kinesis_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_kinesis_fv",
+      },
+    });
+
+    expect(links).toContainEqual({
+      source: {
+        type: FEAST_FCO_TYPES.dataSource,
+        name: "user_kinesis_batch_source",
+      },
+      target: {
+        type: FEAST_FCO_TYPES.featureView,
+        name: "user_kinesis_fv",
+      },
+    });
   });
 });

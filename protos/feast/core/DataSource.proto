@@ -299,6 +299,8 @@ message DataSource {
   // the online store on-demand, such as by stream consumers.
   message PushOptions {
     reserved 1;
+    // Names of upstream FeatureViews consumed by the process feeding this PushSource
+    repeated string upstream_feature_views = 2;
   }
 
 

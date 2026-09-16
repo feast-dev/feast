@@ -15,7 +15,7 @@ import enum
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
@@ -881,12 +881,14 @@ class PushSource(DataSource):
     # TODO(adchia): consider adding schema here in case where Feast manages pushing events to the offline store
     # TODO(adchia): consider a "mode" to support pushing raw vs transformed events
     batch_source: Optional[DataSource] = None
+    source_views: List[str] = []
 
     def __init__(
         self,
         *,
         name: str,
         batch_source: Optional[DataSource] = None,
+        source_views: Optional[Sequence[Union[Any, str]]] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -898,6 +900,7 @@ class PushSource(DataSource):
             name: Name of the push source
             batch_source: The batch source that backs this push source. It's used when materializing from the offline
                 store to the online store, and when retrieving historical features.
+            source_views (optional): Upstream feature views (or names) consumed by the process feeding this push source.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
@@ -905,6 +908,9 @@ class PushSource(DataSource):
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.batch_source = batch_source
+        self.source_views = [
+            sv.name if hasattr(sv, "name") else str(sv) for sv in (source_views or [])
+        ]
 
     def __eq__(self, other):
         if not isinstance(other, PushSource):
@@ -914,6 +920,9 @@ class PushSource(DataSource):
             return False
 
         if self.batch_source != other.batch_source:
+            return False
+
+        if self.source_views != other.source_views:
             return False
 
         return True
@@ -937,9 +946,16 @@ class PushSource(DataSource):
             else None
         )
 
+        source_views = (
+            list(data_source.push_options.upstream_feature_views)
+            if data_source.HasField("push_options")
+            else []
+        )
+
         return PushSource(
             name=data_source.name,
             batch_source=batch_source,
+            source_views=source_views,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -953,6 +969,8 @@ class PushSource(DataSource):
             tags=self.tags,
             owner=self.owner,
         )
+
+        data_source_proto.push_options.upstream_feature_views.extend(self.source_views)
 
         # Only set timestamp fields if we have a batch source and this PushSource doesn't have its own fields
         if self.batch_source and not (
