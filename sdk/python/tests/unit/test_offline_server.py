@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import subprocess
@@ -15,10 +16,17 @@ from feast.infra.offline_stores.remote import (
     RemoteOfflineStoreConfig,
     _create_retrieval_metadata,
 )
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.offline_server import (
     OfflineServer,
     _configure_grpc_fips,
     _is_fips_enabled,
+)
+from feast.permissions.security_manager import (
+    SecurityManager,
+    get_security_manager,
+    no_security_manager,
+    set_security_manager,
 )
 
 
@@ -213,6 +221,9 @@ def test_module_level_fips_sets_env_before_pyarrow_import() -> None:
     )
 
 
+_SERVER_HOME_PROJECT = "the_project_the_server_was_started_from"
+
+
 def _server_for(command):
     """Build a mocked OfflineServer plus the flight key for a command."""
     key = ("command_id", json.dumps(command))
@@ -223,7 +234,35 @@ def _server_for(command):
     return server, key
 
 
-def test_do_get_scopes_permissions_to_the_requested_project():
+@contextlib.contextmanager
+def _recording_security_manager(seen):
+    """
+    Install a SecurityManager whose registry records the project every permission
+    lookup resolves to.
+
+    Asserting on `store.set_current_project` alone would not show whether the check is
+    scoped: the store and the SecurityManager hold separate ContextVars, and
+    `SecurityManager.permissions` reads its own. Recording the project the registry is
+    asked for is the thing the fix is actually about.
+    """
+    registry = MagicMock(spec=BaseRegistry)
+    registry.list_permissions.side_effect = lambda project=None, **kwargs: (
+        seen.append(project) or []
+    )
+    sm = SecurityManager(project=_SERVER_HOME_PROJECT, registry=registry)
+    set_security_manager(sm)
+    try:
+        yield sm
+    finally:
+        no_security_manager()
+
+
+def _permission_check():
+    """Stand in for the assert_permissions call every real handler makes."""
+    get_security_manager().permissions
+
+
+def test_do_get_scopes_the_permission_lookup_to_the_requested_project():
     """
     The permission list is loaded per project, so it has to follow the project the
     request names. Otherwise a caller reaches every project the server serves through
@@ -231,30 +270,47 @@ def test_do_get_scopes_permissions_to_the_requested_project():
     """
     command = {"api": "get_historical_features", "project": "project_b"}
     server, key = _server_for(command)
-    server.get_historical_features.return_value.to_arrow.return_value = pa.table(
-        {"a": [1]}
-    )
+    seen = []
+
+    def handler(*args, **kwargs):
+        _permission_check()
+        result = MagicMock()
+        result.to_arrow.return_value = pa.table({"a": [1]})
+        return result
+
+    server.get_historical_features.side_effect = handler
 
     # do_get is wrapped by inject_user_details_decorator, which returns early when
     # the call carries no `auth` middleware.
     context = MagicMock()
     context.get_middleware.return_value = None
 
-    OfflineServer.do_get(
-        server, context=context, ticket=fl.Ticket(ticket=str(key).encode())
-    )
+    with _recording_security_manager(seen) as sm:
+        OfflineServer.do_get(
+            server, context=context, ticket=fl.Ticket(ticket=str(key).encode())
+        )
+        sm.permissions  # after the dispatcher returns
 
+    assert seen == ["project_b", _SERVER_HOME_PROJECT], (
+        "the check inside the handler must resolve to the requested project, and the "
+        "binding must be gone once the request is done"
+    )
     server.store.set_current_project.assert_called_once_with("project_b")
     server.store.reset_current_project.assert_called_once_with("project-token")
 
 
-def test_call_api_scopes_permissions_to_the_requested_project():
+def test_call_api_scopes_the_permission_lookup_to_the_requested_project():
     """The put-side dispatcher scopes the permission lookup the same way."""
     command = {"api": "validate_data_source", "project": "project_b"}
     server, key = _server_for(command)
+    seen = []
+    server.validate_data_source.side_effect = lambda *a, **k: _permission_check()
 
-    OfflineServer._call_api(server, command["api"], command, key)
+    with _recording_security_manager(seen) as sm:
+        OfflineServer._call_api(server, command["api"], command, key)
+        sm.permissions
 
+    assert seen == ["project_b", _SERVER_HOME_PROJECT]
     server.store.set_current_project.assert_called_once_with("project_b")
     server.store.reset_current_project.assert_called_once_with("project-token")
 
@@ -263,22 +319,43 @@ def test_call_api_resets_the_project_when_the_handler_raises():
     """A failed request must not leave its project bound for the next one."""
     command = {"api": "validate_data_source", "project": "project_b"}
     server, key = _server_for(command)
+    seen = []
     server.validate_data_source.side_effect = RuntimeError("boom")
 
-    with pytest.raises(RuntimeError):
-        OfflineServer._call_api(server, command["api"], command, key)
+    with _recording_security_manager(seen) as sm:
+        with pytest.raises(RuntimeError):
+            OfflineServer._call_api(server, command["api"], command, key)
+        sm.permissions
 
+    assert seen == [_SERVER_HOME_PROJECT]
     server.store.reset_current_project.assert_called_once_with("project-token")
 
 
-def test_call_api_without_a_project_leaves_the_lookup_unchanged():
+def test_call_api_without_a_project_falls_back_to_the_servers_own():
     """
     A command that carries no project passes `None`, which the SecurityManager falls
-    back from to the server's own project — the behaviour before this scoping existed.
+    back from to the project it was built with -- the behaviour before this scoping
+    existed.
     """
     command = {"api": "validate_data_source"}
+    server, key = _server_for(command)
+    seen = []
+    server.validate_data_source.side_effect = lambda *a, **k: _permission_check()
+
+    with _recording_security_manager(seen):
+        OfflineServer._call_api(server, command["api"], command, key)
+
+    assert seen == [_SERVER_HOME_PROJECT]
+    server.store.set_current_project.assert_called_once_with(None)
+
+
+def test_dispatchers_work_without_a_security_manager():
+    """An unauthenticated deployment has no SecurityManager at all."""
+    no_security_manager()
+    command = {"api": "validate_data_source", "project": "project_b"}
     server, key = _server_for(command)
 
     OfflineServer._call_api(server, command["api"], command, key)
 
-    server.store.set_current_project.assert_called_once_with(None)
+    server.store.set_current_project.assert_called_once_with("project_b")
+    server.store.reset_current_project.assert_called_once_with("project-token")

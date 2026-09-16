@@ -56,7 +56,10 @@ from feast.infra.offline_stores.offline_utils import (  # noqa: E402
     get_offline_store_from_config,
 )
 from feast.permissions.action import AuthzedAction  # noqa: E402
-from feast.permissions.security_manager import assert_permissions  # noqa: E402
+from feast.permissions.security_manager import (  # noqa: E402
+    assert_permissions,
+    get_security_manager,
+)
 from feast.permissions.server.arrow import (  # noqa: E402
     AuthorizationMiddlewareFactory,
     inject_user_details_decorator,
@@ -192,11 +195,17 @@ class OfflineServer(fl.FlightServerBase):
         assert api is not None, "api can not be empty"
 
         remove_data = False
-        # Permission checks in the handlers below read the SecurityManager's
-        # permission list, which is loaded per project. Bind it to the project this
-        # request names, so a caller cannot reach another project's resources
-        # through whichever project the server itself was started from.
-        project_token = self.store.set_current_project(command.get("project"))
+        # Permission checks in the handlers below read the SecurityManager's permission
+        # list, which is loaded per project, so it has to follow the project this request
+        # names -- otherwise a caller reaches another project's resources through
+        # whichever project the server itself was started from. The SecurityManager keeps
+        # its own ContextVar, separate from the store's, and `permissions` reads that one,
+        # so binding the store alone does not scope the check. Bind both: the security
+        # manager for the policy, the store for the objects the handlers resolve.
+        project = command.get("project")
+        sm = get_security_manager()
+        sm_token = sm.set_current_project(project) if sm is not None else None
+        project_token = self.store.set_current_project(project)
         try:
             if api == OfflineServer.offline_write_batch.__name__:
                 self.offline_write_batch(command, key)
@@ -217,6 +226,8 @@ class OfflineServer(fl.FlightServerBase):
             raise e
         finally:
             self.store.reset_current_project(project_token)
+            if sm is not None and sm_token is not None:
+                sm.reset_current_project(sm_token)
             if remove_data:
                 # Get service is consumed, so we clear the corresponding flight and data
                 del self.flights[key]
@@ -290,9 +301,12 @@ class OfflineServer(fl.FlightServerBase):
         api = command["api"]
         logger.debug(f"get command is {command}")
         logger.debug(f"requested api is {api}")
-        # As in _call_api, the permission list is per project, so it has to follow the
-        # project named by the request rather than the server's own.
-        project_token = self.store.set_current_project(command.get("project"))
+        # As in _call_api, and for the same reason, bind both the security manager and
+        # the store to the project this request names.
+        project = command.get("project")
+        sm = get_security_manager()
+        sm_token = sm.set_current_project(project) if sm is not None else None
+        project_token = self.store.set_current_project(project)
         try:
             if api == OfflineServer.get_historical_features.__name__:
                 table = self.get_historical_features(command, key).to_arrow()
@@ -313,6 +327,8 @@ class OfflineServer(fl.FlightServerBase):
             raise e
         finally:
             self.store.reset_current_project(project_token)
+            if sm is not None and sm_token is not None:
+                sm.reset_current_project(sm_token)
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
