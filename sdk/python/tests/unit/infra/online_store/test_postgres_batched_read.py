@@ -166,6 +166,14 @@ async def _read_async(store, grouped_refs, rows, join_key_values=None):
     return executed, response
 
 
+async def _read_sync(store, grouped_refs, rows, join_key_values=None):
+    """Await-compatible wrapper so both overrides share one test body."""
+    return _read(store, grouped_refs, rows, join_key_values)
+
+
+READERS = [pytest.param(_read_sync, id="sync"), pytest.param(_read_async, id="async")]
+
+
 def _two_views_same_feature_name(store):
     """Two views exposing the SAME feature name, both keyed on the same entity.
 
@@ -188,7 +196,8 @@ def _two_views_same_feature_name(store):
     return grouped_refs, rows
 
 
-def test_single_round_trip_for_multiple_feature_views():
+@pytest.mark.parametrize("read", READERS)
+async def test_single_round_trip_for_multiple_feature_views(read):
     """Three feature views must produce one execute, not three."""
     store = PostgreSQLOnlineStore()
     grouped_refs = [
@@ -197,7 +206,7 @@ def test_single_round_trip_for_multiple_feature_views():
         (_feature_view("fv_c", "feat_c"), ["feat_c"]),
     ]
 
-    executed, _ = _read(store, grouped_refs, rows=[])
+    executed, _ = await read(store, grouped_refs, rows=[])
 
     assert len(executed) == 1
     statement = executed[0][0].as_string(None)
@@ -206,12 +215,13 @@ def test_single_round_trip_for_multiple_feature_views():
         assert table in statement
 
 
-def test_rows_are_demultiplexed_by_tag():
+@pytest.mark.parametrize("read", READERS)
+async def test_rows_are_demultiplexed_by_tag(read):
     """Two views sharing an entity key AND a feature name must not cross."""
     store = PostgreSQLOnlineStore()
     grouped_refs, rows = _two_views_same_feature_name(store)
 
-    _, response = _read(store, grouped_refs, rows)
+    _, response = await read(store, grouped_refs, rows)
 
     assert response.results[0].values[0].int64_val == 11
     assert response.results[1].values[0].int64_val == 22
@@ -250,38 +260,32 @@ def test_per_view_entity_bookkeeping_is_not_shared():
     assert [v.int64_val for v in response.results[1].values] == [70, 70, 71]
 
 
-def test_large_requests_fall_back_to_the_generic_path():
-    """Past the key threshold, batching is skipped rather than ballooning memory."""
+@pytest.mark.parametrize(
+    ("entity_rows", "exp_executes"),
+    [(2, 1), (MAX_BATCHED_READ_KEYS, 0)],
+    ids=["under_threshold", "over_threshold"],
+)
+def test_batching_is_gated_by_the_key_threshold(entity_rows, exp_executes):
+    """Past the key threshold, batching is skipped rather than ballooning memory.
+
+    Two views, so the row count only has to reach the limit to exceed it. A batched
+    request issues exactly one statement; the generic fallback issues none, because
+    it reads each view through online_read instead.
+    """
     store = PostgreSQLOnlineStore()
     grouped_refs = [
         (_feature_view("fv_a", "feat_a"), ["feat_a"]),
         (_feature_view("fv_b", "feat_b"), ["feat_b"]),
     ]
-    n = MAX_BATCHED_READ_KEYS  # 2 views x this many rows is over the limit
-    join_key_values = _drivers(*range(n))
+    join_key_values = _drivers(*range(entity_rows))
 
     def one_row_per_key(self, config, table, entity_keys, requested_features=None):
         return [(None, None)] * len(entity_keys)
 
-    with (
-        patch.object(
-            PostgreSQLOnlineStore, "_construct_batched_query_and_params"
-        ) as batched,
-        patch.object(PostgreSQLOnlineStore, "online_read", one_row_per_key) as _,
-    ):
-        store._read_features_per_fv(
-            **_args(grouped_refs, join_key_values, GetOnlineFeaturesResponse())
-        )
+    with patch.object(PostgreSQLOnlineStore, "online_read", one_row_per_key):
+        executed, _ = _read(store, grouped_refs, [], join_key_values)
 
-    # No batched query was built, so the generic per-view path ran instead.
-    batched.assert_not_called()
-
-
-def test_small_requests_still_batch():
-    """The guard must not accidentally disable batching for ordinary requests."""
-    store = PostgreSQLOnlineStore()
-    grouped_refs = [(_feature_view("fv_a", "feat_a"), ["feat_a"])]
-    assert not store._too_large_to_batch(grouped_refs, _drivers(1, 2))
+    assert len(executed) == exp_executes
 
 
 def test_empty_grouped_refs_issues_no_query():
@@ -290,8 +294,14 @@ def test_empty_grouped_refs_issues_no_query():
     assert executed == []
 
 
-@pytest.mark.parametrize("requested", [["feat_a"], []])
-def test_query_shape_with_and_without_requested_features(requested):
+@pytest.mark.parametrize(
+    ("requested", "exp_feature_filter", "exp_params"),
+    [(["feat_a"], True, 2), ([], False, 1)],
+    ids=["with_requested_features", "without_requested_features"],
+)
+def test_query_shape_with_and_without_requested_features(
+    requested, exp_feature_filter, exp_params
+):
     """Omitting requested features must drop the filter, not pass an empty one."""
     store = PostgreSQLOnlineStore()
     config = _config()
@@ -303,36 +313,7 @@ def test_query_shape_with_and_without_requested_features(requested):
     )
 
     query, params = store._construct_batched_query_and_params(config, reads)
-    statement = query.as_string(None)
+    where_clause = query.as_string(None).split("WHERE")[1]
 
-    if requested:
-        assert "feature_name = ANY(%s)" in statement
-        assert len(params) == 2
-    else:
-        assert "feature_name" not in statement.split("WHERE")[1]
-        assert len(params) == 1
-
-
-async def test_async_single_round_trip():
-    """The async override batches too."""
-    store = PostgreSQLOnlineStore()
-    grouped_refs = [
-        (_feature_view("fv_a", "feat_a"), ["feat_a"]),
-        (_feature_view("fv_b", "feat_b"), ["feat_b"]),
-    ]
-
-    executed, _ = await _read_async(store, grouped_refs, rows=[])
-
-    assert len(executed) == 1
-    assert executed[0][0].as_string(None).count("UNION ALL") == 1
-
-
-async def test_async_rows_are_demultiplexed_by_tag():
-    """Same shared-feature-name guard as the sync path."""
-    store = PostgreSQLOnlineStore()
-    grouped_refs, rows = _two_views_same_feature_name(store)
-
-    _, response = await _read_async(store, grouped_refs, rows)
-
-    assert response.results[0].values[0].int64_val == 11
-    assert response.results[1].values[0].int64_val == 22
+    assert ("feature_name" in where_clause) is exp_feature_filter
+    assert len(params) == exp_params
