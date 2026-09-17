@@ -1,3 +1,4 @@
+from typing import Optional
 from unittest.mock import patch
 
 import pytest
@@ -17,13 +18,13 @@ def entity() -> Entity:
     return Entity(name="id", join_keys=["id"], value_type=ValueType.INT64)
 
 
-def _feature_view(name: str, backend: str, entity: Entity) -> FeatureView:
+def _feature_view(name: str, backend: Optional[str], entity: Entity) -> FeatureView:
     return FeatureView(
         name=name,
         entities=[entity],
         schema=[Field(name="feature1", dtype=PrimitiveFeastType.INT64)],
         online=True,
-        tags={ROUTING_TAG: backend},
+        tags={ROUTING_TAG: backend} if backend else {},
         source=FileSource(
             path="/tmp/feast_hybrid_test.parquet",
             event_timestamp_column="event_timestamp",
@@ -191,3 +192,91 @@ def test_teardown_passes_each_backend_only_its_own_tables(
     assert redis_teardown.call_args.args[1] == [fv_redis]
     # Both sqlite views in one call: the old dedup dropped the second one.
     assert sqlite_teardown.call_args.args[1] == [fv_sqlite, fv_sqlite2]
+
+
+def test_update_rejects_a_kept_feature_view_without_the_routing_tag(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
+    """An untagged view that is here to stay has no backend, and the error says so.
+
+    The message must name the configured tag. Reporting the "tribe" default was
+    the symptom that made the original bug so hard to read.
+    """
+    with pytest.raises(ValueError, match=f"must have a '{ROUTING_TAG}' tag"):
+        HybridOnlineStore().update(
+            config=repo_config,
+            tables_to_delete=[],
+            tables_to_keep=[_feature_view("fv_untagged", None, entity)],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+
+def test_update_skips_an_untagged_feature_view_on_the_way_out(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
+    """A view being removed may predate the routing tag, so it is skipped, not fatal."""
+    fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
+
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.update"
+        ) as redis_update,
+        patch(
+            "feast.infra.online_stores.sqlite.SqliteOnlineStore.update"
+        ) as sqlite_update,
+    ):
+        HybridOnlineStore().update(
+            config=repo_config,
+            tables_to_delete=[_feature_view("fv_untagged_gone", None, entity)],
+            tables_to_keep=[fv_sqlite],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+    assert redis_update.call_count == 0
+    _, sqlite_delete, sqlite_keep, *_ = sqlite_update.call_args.args
+    assert sqlite_keep == [fv_sqlite]
+    assert sqlite_delete == []
+
+
+def test_update_raises_when_the_routing_tag_has_no_backend(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
+    """A tag value with no configured online store is a configuration error."""
+    with pytest.raises(NotImplementedError, match=f"{ROUTING_TAG} tag 'bigtable'"):
+        HybridOnlineStore().update(
+            config=repo_config,
+            tables_to_delete=[],
+            tables_to_keep=[_feature_view("fv_bigtable", "bigtable", entity)],
+            entities_to_delete=[],
+            entities_to_keep=[entity],
+            partial=False,
+        )
+
+
+def test_teardown_skips_a_routing_tag_with_no_backend(
+    repo_config: RepoConfig, entity: Entity
+) -> None:
+    """Teardown has nothing to tear down for a tag no backend claims."""
+    fv_sqlite = _feature_view("fv_sqlite", "sqlite", entity)
+
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.teardown"
+        ) as redis_teardown,
+        patch(
+            "feast.infra.online_stores.sqlite.SqliteOnlineStore.teardown"
+        ) as sqlite_teardown,
+    ):
+        HybridOnlineStore().teardown(
+            config=repo_config,
+            tables=[_feature_view("fv_bigtable", "bigtable", entity), fv_sqlite],
+            entities=[entity],
+        )
+
+    assert redis_teardown.call_count == 0
+    assert sqlite_teardown.call_count == 1
+    assert sqlite_teardown.call_args.args[1] == [fv_sqlite]
