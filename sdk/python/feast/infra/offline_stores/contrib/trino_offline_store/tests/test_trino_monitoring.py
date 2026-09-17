@@ -305,12 +305,20 @@ def test_save_and_query_monitoring_metrics(repo_config):
         )
 
     full_table = f"memory.feast_test.{MON_TABLE_FEATURE}"
-    assert any(f"DROP TABLE IF EXISTS {full_table}" in q for q in executed_queries)
+    staging_table = f"memory.feast_test.{MON_TABLE_FEATURE}__staging"
+    assert any(f"DROP TABLE IF EXISTS {staging_table}" in q for q in executed_queries)
     assert any(
-        f"CREATE TABLE IF NOT EXISTS {full_table}" in q for q in executed_queries
+        f"CREATE TABLE IF NOT EXISTS {staging_table}" in q for q in executed_queries
     )
     assert any("histogram         VARCHAR" in q for q in executed_queries)
-    assert any(f"INSERT INTO {full_table}" in q for q in executed_queries)
+    assert any(f"INSERT INTO {staging_table}" in q for q in executed_queries)
+    assert any(
+        q.strip() == f"DROP TABLE IF EXISTS {full_table}" for q in executed_queries
+    )
+    assert any(
+        f"ALTER TABLE {staging_table} RENAME TO {MON_TABLE_FEATURE}" in q
+        for q in executed_queries
+    )
     insert_q = [q for q in executed_queries if "INSERT INTO" in q][0]
     assert "'f1'" in insert_q
 
@@ -366,6 +374,11 @@ def test_save_monitoring_metrics_with_all_null_optional_columns(repo_config):
         assert "max_event_timestamp null" not in q
     assert any("histogram         VARCHAR" in q for q in executed_queries)
     assert any("max_event_timestamp TIMESTAMP" in q for q in executed_queries)
+    staging_table = f"memory.feast_test.{MON_TABLE_FEATURE}__staging"
+    assert any(
+        f"ALTER TABLE {staging_table} RENAME TO {MON_TABLE_FEATURE}" in q
+        for q in executed_queries
+    )
     insert_q = [q for q in executed_queries if "INSERT INTO" in q][0]
     assert "NULL" in insert_q
 
@@ -418,9 +431,16 @@ def test_clear_monitoring_baseline(repo_config):
         )
 
     full_table = f"memory.feast_test.{MON_TABLE_FEATURE}"
-    assert any(f"DROP TABLE IF EXISTS {full_table}" in q for q in executed_queries)
+    staging_table = f"memory.feast_test.{MON_TABLE_FEATURE}__staging"
     assert any(
-        f"CREATE TABLE IF NOT EXISTS {full_table}" in q for q in executed_queries
+        q.strip() == f"DROP TABLE IF EXISTS {full_table}" for q in executed_queries
+    )
+    assert any(
+        f"CREATE TABLE IF NOT EXISTS {staging_table}" in q for q in executed_queries
+    )
+    assert any(
+        f"ALTER TABLE {staging_table} RENAME TO {MON_TABLE_FEATURE}" in q
+        for q in executed_queries
     )
     insert_queries = [q for q in executed_queries if "INSERT INTO" in q]
     assert len(insert_queries) == 1
@@ -428,6 +448,62 @@ def test_clear_monitoring_baseline(repo_config):
     # Check that test_project has is_baseline set to FALSE and other_project has TRUE
     assert "FALSE" in insert_q
     assert "TRUE" in insert_q
+
+
+def test_save_monitoring_metrics_failure_preserves_target_table(repo_config):
+    mock_client = MagicMock()
+    executed_queries = []
+
+    def mock_execute(q):
+        executed_queries.append(q)
+        if "INSERT INTO" in q:
+            raise RuntimeError("Simulated network timeout during insert")
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_execute
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        metrics = [
+            {
+                "project_id": "test_project",
+                "feature_view_name": "fv1",
+                "feature_name": "f1",
+                "metric_date": date(2025, 1, 1),
+                "granularity": "daily",
+                "data_source_type": "batch",
+                "computed_at": datetime(2025, 1, 1, 12, 0, 0),
+                "is_baseline": False,
+                "feature_type": "numeric",
+                "row_count": 100,
+                "null_count": 0,
+                "null_rate": 0.0,
+                "mean": 10.0,
+            }
+        ]
+        with pytest.raises(RuntimeError, match="Simulated network timeout"):
+            TrinoOfflineStore.save_monitoring_metrics(
+                config=repo_config,
+                metric_type="feature",
+                metrics=metrics,
+            )
+
+    full_table = f"memory.feast_test.{MON_TABLE_FEATURE}"
+    staging_table = f"memory.feast_test.{MON_TABLE_FEATURE}__staging"
+
+    # Original target table should NEVER have been dropped
+    assert not any(
+        q.strip() == f"DROP TABLE IF EXISTS {full_table}" for q in executed_queries
+    )
+    # Staging table should have been cleaned up in the exception handler
+    drop_staging_queries = [
+        q
+        for q in executed_queries
+        if q.strip() == f"DROP TABLE IF EXISTS {staging_table}"
+    ]
+    assert len(drop_staging_queries) >= 2  # once before create, once in cleanup
 
 
 def test_numeric_histogram_single_value():
