@@ -658,7 +658,6 @@ def get_app(
         else default_feature_count_bins
     )
 
-
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
