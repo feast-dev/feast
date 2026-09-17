@@ -1101,35 +1101,60 @@ def _trino_recreate_and_insert_monitoring_table(
     columns: List[str],
     batch_size: int = 1000,
 ) -> None:
+    """Writes monitoring metrics using a staging table + rename-swap pattern.
+
+    To avoid data loss from crashes, timeouts, or network interruptions during
+    batch inserts, data is first fully written into `{table_name}__staging`.
+    Once writing succeeds, the target table is replaced via `ALTER TABLE ... RENAME TO`.
+    If an error occurs before swap completion, the staging table is dropped and the
+    original table remains untouched.
+    """
+    ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
+    if not ddl_template:
+        return
+
+    staging_table_name = f"{table_name}__staging"
+    full_staging_table_name = _trino_monitoring_table_name(config, staging_table_name)
+
     try:
-        client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
+        client.execute_query(f"DROP TABLE IF EXISTS {full_staging_table_name}")
     except Exception:
         pass
 
-    ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
-    if ddl_template:
-        with_clause = _trino_table_with_clause(config)
-        stmt = ddl_template.format(
-            table=full_table_name,
-            with_clause=with_clause,
-        )
+    with_clause = _trino_table_with_clause(config)
+    stmt = ddl_template.format(
+        table=full_staging_table_name,
+        with_clause=with_clause,
+    )
+
+    try:
         client.execute_query(stmt)
 
-    if df.empty:
-        return
+        if not df.empty:
+            col_list = [c for c in columns if c in df.columns]
+            for pos in range(0, len(df), batch_size):
+                batch_df = df.iloc[pos : pos + batch_size]
+                values_list = []
+                for _, row in batch_df.iterrows():
+                    row_vals = [_trino_sql_literal(row.get(col)) for col in col_list]
+                    values_list.append(f"({', '.join(row_vals)})")
+                insert_sql = (
+                    f"INSERT INTO {full_staging_table_name} ({', '.join(col_list)})\n"
+                    f"VALUES {', '.join(values_list)}"
+                )
+                client.execute_query(insert_sql)
 
-    col_list = [c for c in columns if c in df.columns]
-    for pos in range(0, len(df), batch_size):
-        batch_df = df.iloc[pos : pos + batch_size]
-        values_list = []
-        for _, row in batch_df.iterrows():
-            row_vals = [_trino_sql_literal(row.get(col)) for col in col_list]
-            values_list.append(f"({', '.join(row_vals)})")
-        insert_sql = (
-            f"INSERT INTO {full_table_name} ({', '.join(col_list)})\n"
-            f"VALUES {', '.join(values_list)}"
+        # Swap: drop target table and rename staging table
+        client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
+        client.execute_query(
+            f"ALTER TABLE {full_staging_table_name} RENAME TO {table_name}"
         )
-        client.execute_query(insert_sql)
+    except Exception:
+        try:
+            client.execute_query(f"DROP TABLE IF EXISTS {full_staging_table_name}")
+        except Exception:
+            pass
+        raise
 
 
 def _get_table_reference_for_new_entity(
