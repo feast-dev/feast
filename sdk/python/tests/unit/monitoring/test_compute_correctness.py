@@ -1360,12 +1360,13 @@ class TestSparkComputeCorrectness:
                 StructField("numeric_col", DoubleType(), True),
                 StructField("numeric_with_nulls", DoubleType(), True),
                 StructField("categorical_col", StringType(), True),
+                StructField("categorical_all_nulls", StringType(), True),
             ]
         )
 
         ts = datetime(2025, 1, 15, 12, 0, 0)
         rows = [
-            (ts, NUMERIC_VALUES[i], NUMERIC_WITH_NULLS[i], CATEGORICAL_VALUES[i])
+            (ts, NUMERIC_VALUES[i], NUMERIC_WITH_NULLS[i], CATEGORICAL_VALUES[i], None)
             for i in range(ROW_COUNT)
         ]
         df = self.spark.createDataFrame(rows, schema)
@@ -1472,6 +1473,94 @@ class TestSparkComputeCorrectness:
             + result["histogram"]["other_count"]
         )
         assert total == 10
+
+    def test_categorical_all_nulls(self):
+        from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+            _spark_sql_categorical_stats,
+        )
+
+        result = _spark_sql_categorical_stats(
+            self.spark,
+            "feast_test_monitoring",
+            "categorical_all_nulls",
+            "1=1",
+            top_n=10,
+        )
+
+        assert result["row_count"] == 10
+        assert result["null_count"] == 10
+        assert result["null_rate"] == 1.0
+        assert result["histogram"]["unique_count"] == 0
+        assert result["histogram"]["values"] == []
+        assert result["histogram"]["other_count"] == 0
+
+
+class TestSparkComputeMockedCorrectness:
+    """Unit tests for Spark SQL monitoring logic using mocked SparkSession and real Row objects."""
+
+    def test_categorical_stats(self):
+        from unittest.mock import MagicMock
+
+        from pyspark.sql import Row
+
+        from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+            _spark_sql_categorical_stats,
+        )
+
+        mock_spark = MagicMock()
+        mock_counts = MagicMock()
+        mock_counts.collect.return_value = [Row(10, 0, 4)]
+        mock_top = MagicMock()
+        mock_top.collect.return_value = [
+            Row("a", 4),
+            Row("b", 3),
+            Row("c", 2),
+            Row("d", 1),
+        ]
+        mock_spark.sql.side_effect = lambda q: (
+            mock_counts if "COUNT(DISTINCT" in q else mock_top
+        )
+
+        result = _spark_sql_categorical_stats(
+            mock_spark,
+            "feast_test_monitoring",
+            "categorical_col",
+            "1=1",
+            top_n=10,
+        )
+
+        expected = _expected_categorical_stats()
+        assert_categorical_correctness(result, expected, "spark_categorical")
+
+    def test_categorical_all_nulls(self):
+        from unittest.mock import MagicMock
+
+        from pyspark.sql import Row
+
+        from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+            _spark_sql_categorical_stats,
+        )
+
+        mock_spark = MagicMock()
+        mock_res = MagicMock()
+        mock_res.collect.return_value = [Row(100, 100, 0)]
+        mock_spark.sql.return_value = mock_res
+
+        result = _spark_sql_categorical_stats(
+            mock_spark,
+            "feast_test_monitoring",
+            "cat_col",
+            "1=1",
+            top_n=10,
+        )
+
+        assert result["row_count"] == 100
+        assert result["null_count"] == 100
+        assert result["null_rate"] == 1.0
+        assert result["histogram"]["unique_count"] == 0
+        assert result["histogram"]["values"] == []
+        assert result["histogram"]["other_count"] == 0
+        assert mock_spark.sql.call_count == 1
 
 
 # ===================================================================
@@ -1844,22 +1933,29 @@ class TestTrinoComputeCorrectness:
             Results,
         )
 
-        rows = [
-            [10, 0, 4, "a", 4],
-            [10, 0, 4, "b", 3],
-            [10, 0, 4, "c", 2],
-            [10, 0, 4, "d", 1],
-        ]
-        mock_client = MagicMock()
-        mock_client.execute_query.return_value = Results(
-            data=rows,
+        counts_res = Results(
+            data=[[10, 0, 4]],
             columns=[
                 {"name": "row_count", "type": "bigint"},
                 {"name": "null_count", "type": "bigint"},
                 {"name": "unique_count", "type": "bigint"},
+            ],
+        )
+        top_res = Results(
+            data=[
+                ["a", 4],
+                ["b", 3],
+                ["c", 2],
+                ["d", 1],
+            ],
+            columns=[
                 {"name": "value", "type": "varchar"},
                 {"name": "cnt", "type": "bigint"},
             ],
+        )
+        mock_client = MagicMock()
+        mock_client.execute_query.side_effect = lambda q: (
+            counts_res if "COUNT(DISTINCT" in q else top_res
         )
 
         result = _trino_sql_categorical_stats(
@@ -1872,6 +1968,41 @@ class TestTrinoComputeCorrectness:
 
         expected = _expected_categorical_stats()
         assert_categorical_correctness(result, expected, "trino_categorical")
+
+    def test_categorical_all_nulls(self):
+        from unittest.mock import MagicMock
+
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
+            _trino_sql_categorical_stats,
+        )
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+            Results,
+        )
+
+        mock_client = MagicMock()
+        mock_client.execute_query.return_value = Results(
+            data=[[100, 100, 0]],
+            columns=[
+                {"name": "row_count", "type": "bigint"},
+                {"name": "null_count", "type": "bigint"},
+                {"name": "unique_count", "type": "bigint"},
+            ],
+        )
+
+        result = _trino_sql_categorical_stats(
+            mock_client,
+            "t",
+            "cat_col",
+            "1=1",
+            top_n=10,
+        )
+
+        assert result["row_count"] == 100
+        assert result["null_count"] == 100
+        assert result["null_rate"] == 1.0
+        assert result["histogram"]["unique_count"] == 0
+        assert result["histogram"]["values"] == []
+        assert result["histogram"]["other_count"] == 0
 
     def test_empty_result(self):
         from unittest.mock import MagicMock

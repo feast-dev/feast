@@ -562,9 +562,10 @@ class TrinoOfflineStore(OfflineStore):
         assert isinstance(data_source, TrinoSource)
 
         client = _get_trino_client(config=config)
+
         from_expression = data_source.get_table_query_string()
         q_ts = f'"{timestamp_field}"'
-        sql = f"SELECT MAX({q_ts}) AS max_ts FROM {from_expression} AS _src"
+        sql = f"SELECT MAX({q_ts}) AS max_ts FROM ({from_expression}) AS _src"
         results = client.execute_query(sql)
         rows = results.data
         if not rows or rows[0] is None or rows[0][0] is None:
@@ -840,7 +841,7 @@ def _trino_sql_numeric_stats(
 
     query = (
         f"SELECT {', '.join(select_parts)} "
-        f"FROM {from_expression} AS _src WHERE {ts_clause}"
+        f"FROM ({from_expression}) AS _src WHERE {ts_clause}"
     )
     results = client.execute_query(query)
     rows = results.data
@@ -906,7 +907,7 @@ def _trino_sql_numeric_histogram(
 
     if min_val == max_val:
         sql = (
-            f"SELECT COUNT(*) FROM {from_expression} AS _src "
+            f"SELECT COUNT(*) FROM ({from_expression}) AS _src "
             f"WHERE {q_col} IS NOT NULL AND {ts_clause}"
         )
         res = client.execute_query(sql)
@@ -924,7 +925,7 @@ def _trino_sql_numeric_histogram(
     query = (
         f"SELECT bucket, COUNT(*) AS cnt FROM ("
         f"  SELECT {inner} "
-        f"  FROM {from_expression} AS _src "
+        f"  FROM ({from_expression}) AS _src "
         f"  WHERE {q_col} IS NOT NULL AND {ts_clause}"
         f") AS _b WHERE bucket IS NOT NULL "
         f"GROUP BY bucket ORDER BY bucket"
@@ -955,30 +956,35 @@ def _trino_sql_categorical_stats(
 ) -> Dict[str, Any]:
     q_col = f'"{col_name}"'
 
-    query = (
-        f"WITH filtered AS ("
-        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
-        f") "
+    counts_query = (
         f"SELECT "
-        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
-        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
-        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
-        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
-        f"  CAST({q_col} AS VARCHAR) AS value, COUNT(*) AS cnt "
-        f"FROM filtered WHERE {q_col} IS NOT NULL "
-        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM ({from_expression}) AS _src "
+        f"WHERE {ts_clause}"
     )
-
-    res = client.execute_query(query)
+    res = client.execute_query(counts_query)
     rows = res.data or []
-    if not rows:
+    if not rows or not rows[0] or rows[0][0] is None or int(rows[0][0]) == 0:
         return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
     unique_count = int(rows[0][2] or 0)
 
-    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS VARCHAR) AS value, COUNT(*) AS cnt "
+            f"FROM ({from_expression}) AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        res_top = client.execute_query(top_n_query)
+        top_rows = res_top.data or []
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
     top_total = sum(e["count"] for e in top_entries)
     other_count = (row_count - null_count) - top_total
 

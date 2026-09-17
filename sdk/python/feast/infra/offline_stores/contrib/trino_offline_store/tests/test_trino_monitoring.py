@@ -150,13 +150,19 @@ def test_compute_monitoring_metrics(repo_config, data_source):
                     {"name": "cnt", "type": "bigint"},
                 ],
             )
-        elif "WITH filtered AS" in query_text:
+        elif "COUNT(DISTINCT" in query_text:
             return Results(
-                data=[[100, 0, 3, "val_a", 60], [100, 0, 3, "val_b", 40]],
+                data=[[100, 0, 3]],
                 columns=[
                     {"name": "row_count", "type": "bigint"},
                     {"name": "null_count", "type": "bigint"},
                     {"name": "unique_count", "type": "bigint"},
+                ],
+            )
+        elif 'GROUP BY "status"' in query_text:
+            return Results(
+                data=[["val_a", 60], ["val_b", 40]],
+                columns=[
                     {"name": "value", "type": "varchar"},
                     {"name": "cnt", "type": "bigint"},
                 ],
@@ -194,7 +200,8 @@ def test_compute_monitoring_metrics(repo_config, data_source):
     # Check query patterns
     assert any("APPROX_PERCENTILE" in q for q in executed_queries)
     assert any("STDDEV_SAMP" in q for q in executed_queries)
-    assert any("WITH filtered AS" in q for q in executed_queries)
+    assert any("COUNT(DISTINCT" in q for q in executed_queries)
+    assert any('GROUP BY "status"' in q for q in executed_queries)
 
 
 def test_get_monitoring_max_timestamp(repo_config, data_source):
@@ -383,3 +390,128 @@ def test_numeric_histogram_single_value():
     assert hist["bins"] == [10.0, 10.0]
     assert hist["counts"] == [42]
     assert hist["bin_width"] == 0.0
+
+
+def test_query_backed_trino_source_monitoring(repo_config):
+    query_source = TrinoSource(
+        name="query_source",
+        query="SELECT trip_cost, status, event_timestamp FROM memory.feast_test.driver_stats",
+        timestamp_field="event_timestamp",
+    )
+    mock_client = MagicMock()
+    executed_queries = []
+
+    def mock_execute(query_text):
+        executed_queries.append(query_text)
+        if "APPROX_PERCENTILE" in query_text:
+            return Results(
+                data=[[100, 90, 50.0, 10.0, 1.0, 100.0, 45.0, 75.0, 90.0, 95.0, 99.0]],
+                columns=[{"name": "col", "type": "double"}],
+            )
+        elif "GROUP BY bucket" in query_text:
+            return Results(
+                data=[[1, 50], [2, 40]],
+                columns=[
+                    {"name": "bucket", "type": "bigint"},
+                    {"name": "cnt", "type": "bigint"},
+                ],
+            )
+        elif "COUNT(DISTINCT" in query_text:
+            return Results(
+                data=[[100, 0, 3]],
+                columns=[
+                    {"name": "row_count", "type": "bigint"},
+                    {"name": "null_count", "type": "bigint"},
+                    {"name": "unique_count", "type": "bigint"},
+                ],
+            )
+        elif 'GROUP BY "status"' in query_text:
+            return Results(
+                data=[["val_a", 60], ["val_b", 40]],
+                columns=[
+                    {"name": "value", "type": "varchar"},
+                    {"name": "cnt", "type": "bigint"},
+                ],
+            )
+        elif "SELECT MAX(" in query_text:
+            return Results(
+                data=[[datetime(2025, 1, 15, 10, 30, 0)]],
+                columns=[{"name": "max_ts", "type": "timestamp"}],
+            )
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_execute
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        TrinoOfflineStore.get_monitoring_max_timestamp(
+            config=repo_config,
+            data_source=query_source,
+            timestamp_field="event_timestamp",
+        )
+        TrinoOfflineStore.compute_monitoring_metrics(
+            config=repo_config,
+            data_source=query_source,
+            feature_columns=[("trip_cost", "numeric"), ("status", "categorical")],
+            timestamp_field="event_timestamp",
+            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end_date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+            histogram_bins=5,
+            top_n=10,
+        )
+
+    expected_from = f"FROM ({query_source.query}) AS _src"
+    assert len(executed_queries) == 5
+    for q in executed_queries:
+        assert expected_from in q
+        assert f"FROM {query_source.query} AS _src" not in q
+
+
+def test_categorical_all_nulls_monitoring(repo_config, data_source):
+    mock_client = MagicMock()
+    executed_queries = []
+
+    def mock_execute(query_text):
+        executed_queries.append(query_text)
+        if "COUNT(DISTINCT" in query_text:
+            # 100 rows, all 100 null, 0 distinct values
+            return Results(
+                data=[[100, 100, 0]],
+                columns=[
+                    {"name": "row_count", "type": "bigint"},
+                    {"name": "null_count", "type": "bigint"},
+                    {"name": "unique_count", "type": "bigint"},
+                ],
+            )
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_execute
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        results = TrinoOfflineStore.compute_monitoring_metrics(
+            config=repo_config,
+            data_source=data_source,
+            feature_columns=[("all_null_col", "categorical")],
+            timestamp_field="event_timestamp",
+            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end_date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+        )
+
+    assert len(results) == 1
+    m = results[0]
+    assert m["feature_name"] == "all_null_col"
+    assert m["feature_type"] == "categorical"
+    assert m["row_count"] == 100
+    assert m["null_count"] == 100
+    assert m["null_rate"] == 1.0
+    assert m["histogram"]["unique_count"] == 0
+    assert m["histogram"]["values"] == []
+    assert m["histogram"]["other_count"] == 0
+    # Should only execute the counts query, not the top_n query
+    assert len(executed_queries) == 1
+    assert "GROUP BY" not in executed_queries[0]

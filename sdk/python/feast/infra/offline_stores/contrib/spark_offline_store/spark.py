@@ -929,29 +929,33 @@ def _spark_sql_categorical_stats(
 ) -> Dict[str, Any]:
     q_col = f"`{col_name}`"
 
-    query = (
-        f"WITH filtered AS ("
-        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
-        f") "
+    counts_query = (
         f"SELECT "
-        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
-        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
-        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
-        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
-        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
-        f"FROM filtered WHERE {q_col} IS NOT NULL "
-        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {ts_clause}"
     )
-
-    rows = spark_session.sql(query).collect()
-    if not rows:
+    rows = spark_session.sql(counts_query).collect()
+    if not rows or rows[0][0] is None or int(rows[0][0]) == 0:
         return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
     unique_count = int(rows[0][2] or 0)
 
-    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+            f"FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        top_rows = spark_session.sql(top_n_query).collect()
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
     top_total = sum(e["count"] for e in top_entries)
     other_count = (row_count - null_count) - top_total
 
