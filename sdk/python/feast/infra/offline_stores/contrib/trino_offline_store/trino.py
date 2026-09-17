@@ -830,6 +830,13 @@ def _trino_sql_literal(val: Any) -> str:
     if isinstance(val, (int, float, np.integer, np.floating)):
         return str(val)
     if isinstance(val, (datetime, pd.Timestamp)):
+        if val.tzinfo is not None and val.tzinfo.utcoffset(val) is not None:
+            val = val.astimezone(timezone.utc)
+        return f"TIMESTAMP '{val.strftime('%Y-%m-%d %H:%M:%S.%f')}'"
+    if isinstance(val, np.datetime64):
+        val = pd.Timestamp(val)
+        if val.tzinfo is not None and val.tzinfo.utcoffset(val) is not None:
+            val = val.astimezone(timezone.utc)
         return f"TIMESTAMP '{val.strftime('%Y-%m-%d %H:%M:%S.%f')}'"
     if isinstance(val, date):
         return f"DATE '{val.strftime('%Y-%m-%d')}'"
