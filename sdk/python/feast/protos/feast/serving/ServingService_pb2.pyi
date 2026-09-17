@@ -296,20 +296,24 @@ class GetOnlineFeaturesResponse(google.protobuf.message.Message):
         VALUES_FIELD_NUMBER: builtins.int
         STATUSES_FIELD_NUMBER: builtins.int
         EVENT_TIMESTAMPS_FIELD_NUMBER: builtins.int
+        CREATED_TIMESTAMPS_FIELD_NUMBER: builtins.int
         @property
         def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.Value]: ...
         @property
         def statuses(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[global___FieldStatus.ValueType]: ...
         @property
         def event_timestamps(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[google.protobuf.timestamp_pb2.Timestamp]: ...
+        @property
+        def created_timestamps(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[google.protobuf.timestamp_pb2.Timestamp]: ...
         def __init__(
             self,
             *,
             values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
             statuses: collections.abc.Iterable[global___FieldStatus.ValueType] | None = ...,
             event_timestamps: collections.abc.Iterable[google.protobuf.timestamp_pb2.Timestamp] | None = ...,
+            created_timestamps: collections.abc.Iterable[google.protobuf.timestamp_pb2.Timestamp] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["event_timestamps", b"event_timestamps", "statuses", b"statuses", "values", b"values"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["created_timestamps", b"created_timestamps", "event_timestamps", b"event_timestamps", "statuses", b"statuses", "values", b"values"]) -> None: ...
 
     METADATA_FIELD_NUMBER: builtins.int
     RESULTS_FIELD_NUMBER: builtins.int
