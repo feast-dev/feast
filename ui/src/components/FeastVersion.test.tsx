@@ -32,9 +32,7 @@ const renderVersion = () => {
 
 test("renders the running Feast version", async () => {
   server.use(
-    http.get("/api/v1/version", () =>
-      HttpResponse.json({ feast_version: "1.2.3" }),
-    ),
+    http.get("/api/v1/version", () => HttpResponse.json({ version: "1.2.3" })),
   );
 
   renderVersion();
@@ -45,7 +43,7 @@ test("renders the running Feast version", async () => {
 test("renders an explicit unknown runtime version", async () => {
   server.use(
     http.get("/api/v1/version", () =>
-      HttpResponse.json({ feast_version: "unknown" }),
+      HttpResponse.json({ version: "unknown" }),
     ),
   );
 
@@ -74,7 +72,7 @@ test("hides a malformed version response", async () => {
   server.use(
     http.get("/api/v1/version", () => {
       requestHandled = true;
-      return HttpResponse.json({ version: "1.2.3" });
+      return HttpResponse.json({ feast_version: "1.2.3" });
     }),
   );
 

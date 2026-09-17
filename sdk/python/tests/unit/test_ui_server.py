@@ -113,7 +113,7 @@ def test_ui_server_exposes_version_under_rest_api(ui_app_with_registry):
         response = client.get("/api/v1/version")
 
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-    assertpy.assert_that(response.json()).is_equal_to({"feast_version": "1.2.3"})
+    assertpy.assert_that(response.json()).is_equal_to({"version": "1.2.3"})
 
 
 def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):

@@ -62,7 +62,7 @@ Most endpoints support these common query parameters:
 - **Response Example**:
   ```json
   {
-    "feast_version": "0.66.0"
+    "version": "0.66.0"
   }
   ```
 

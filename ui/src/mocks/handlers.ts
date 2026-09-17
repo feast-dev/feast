@@ -120,7 +120,7 @@ const restPermissions = http.get("/api/v1/permissions", () =>
 );
 
 const restVersion = http.get("/api/v1/version", () =>
-  HttpResponse.json({ feast_version: "0.66.0" }),
+  HttpResponse.json({ version: "0.66.0" }),
 );
 
 // Detail endpoints

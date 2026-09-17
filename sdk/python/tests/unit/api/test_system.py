@@ -16,7 +16,7 @@ def test_version_endpoint_returns_runtime_package_version(version: str) -> None:
         response = TestClient(app).get("/version")
 
     assert response.status_code == 200
-    assert response.json() == {"feast_version": version}
+    assert response.json() == {"version": version}
 
 
 def test_version_endpoint_inherits_application_authentication() -> None:

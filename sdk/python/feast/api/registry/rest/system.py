@@ -9,7 +9,7 @@ from feast.version import get_version
 class VersionResponse(BaseModel):
     """Runtime version information for the Feast server."""
 
-    feast_version: str
+    version: str
 
 
 def get_system_router() -> APIRouter:
@@ -18,6 +18,6 @@ def get_system_router() -> APIRouter:
     @router.get("/version", response_model=VersionResponse, tags=["System"])
     def get_feast_version() -> VersionResponse:
         """Return the installed Feast package version for this process."""
-        return VersionResponse(feast_version=get_version())
+        return VersionResponse(version=get_version())
 
     return router

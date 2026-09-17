@@ -4,7 +4,7 @@ import { useDataMode } from "../contexts/DataModeContext";
 import restFetch from "./restApiClient";
 
 interface FeastVersionResponse {
-  feast_version: string;
+  version: string;
 }
 
 const useFeastVersion = (registryPath: string) => {

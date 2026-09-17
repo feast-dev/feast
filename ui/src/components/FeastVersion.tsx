@@ -10,16 +10,16 @@ const FeastVersion = ({ registryPath }: { registryPath: string }) => {
     isLoading ||
     isError ||
     !data ||
-    typeof data.feast_version !== "string" ||
-    data.feast_version.length === 0
+    typeof data.version !== "string" ||
+    data.version.length === 0
   ) {
     return null;
   }
 
   const label =
-    data.feast_version === "unknown"
+    data.version === "unknown"
       ? "Feast version unknown"
-      : `Feast v${data.feast_version}`;
+      : `Feast v${data.version}`;
 
   return (
     <EuiText size="xs" color="subdued">
