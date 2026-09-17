@@ -376,6 +376,9 @@ class SqlRegistry(CachingRegistry):
         self.enable_online_versioning = (
             registry_config.enable_online_feature_view_versioning
         )
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
