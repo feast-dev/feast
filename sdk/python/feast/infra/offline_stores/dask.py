@@ -59,6 +59,13 @@ from feast.utils import (
 # See (https://github.com/dask/dask/issues/10881#issuecomment-1923327936)
 dask.config.set({"dataframe.convert-string": False})
 
+# Identifies each input entity_df row through the join/dedup pipeline below, so that
+# rows sharing the same join key(s) and event timestamp - but differing in other
+# entity_df columns - are not collapsed into one by _drop_duplicates. SQL-based
+# offline stores (BigQuery, Snowflake, Redshift, Postgres, ...) avoid this the same
+# way, via a per-row "entity_row_unique_id" carried through their generated queries.
+_ENTITY_ROW_ID_COL = "__entity_row_unique_id__"
+
 
 class DaskOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for dask store"""
@@ -217,6 +224,13 @@ class DaskOfflineStore(OfflineStore):
             # Create a copy of entity_df to prevent modifying the original
             entity_df_with_features = entity_df.copy()
 
+            # Tag each input row with a unique id before it can be fanned out by the
+            # per-feature-view join below, so that distinct entity_df rows sharing a
+            # join key and event timestamp are never collapsed together by
+            # _drop_duplicates (see _ENTITY_ROW_ID_COL).
+            entity_df_with_features = entity_df_with_features.reset_index(drop=True)
+            entity_df_with_features[_ENTITY_ROW_ID_COL] = entity_df_with_features.index
+
             entity_df_event_timestamp_col_type = entity_df_with_features.dtypes[
                 entity_df_event_timestamp_col
             ]
@@ -341,6 +355,11 @@ class DaskOfflineStore(OfflineStore):
                     timestamp_field,
                     created_timestamp_column,
                     entity_df_event_timestamp_col,
+                    # In non-entity mode there is one synthetic entity_df row shared
+                    # by every real entity fanned out from the feature source, so
+                    # dedup must stay keyed on (join key, timestamp) - not the
+                    # single shared row id.
+                    None if non_entity_mode else _ENTITY_ROW_ID_COL,
                 )
 
                 entity_df_with_features = _drop_columns(
@@ -350,6 +369,9 @@ class DaskOfflineStore(OfflineStore):
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join
 
+            entity_df_with_features = entity_df_with_features.drop(
+                columns=[_ENTITY_ROW_ID_COL]
+            )
             return entity_df_with_features.persist()
 
         job = DaskRetrievalJob(
@@ -1251,6 +1273,7 @@ def _drop_duplicates(
     timestamp_field: str,
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
+    entity_row_id_col: Optional[str] = None,
 ) -> dd.DataFrame:
     column_order = df_to_join.columns
 
@@ -1280,8 +1303,17 @@ def _drop_duplicates(
         )
         df_to_join = df_to_join.persist()
 
+    # Deduplicate per original entity_df row (entity_row_id_col) rather than per
+    # (join key, event timestamp): two distinct input rows can legitimately share
+    # both, and must each keep their own matched feature values instead of being
+    # collapsed into one (see _ENTITY_ROW_ID_COL).
+    dedup_subset = (
+        [entity_row_id_col]
+        if entity_row_id_col and entity_row_id_col in df_to_join.columns
+        else all_join_keys + [entity_df_event_timestamp_col]
+    )
     df_to_join = df_to_join.drop_duplicates(
-        all_join_keys + [entity_df_event_timestamp_col],
+        dedup_subset,
         keep="last",
         ignore_index=True,
     )
