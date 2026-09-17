@@ -631,25 +631,18 @@ class TrinoOfflineStore(OfflineStore):
         if not metrics:
             return
         assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
-        table, columns, pk_columns = monitoring_table_meta(metric_type)
+        table, columns, _ = monitoring_table_meta(metric_type)
         full_table_name = _trino_monitoring_table_name(config, table)
         pdf_new = pd.DataFrame([{c: m.get(c) for c in columns} for m in metrics])
         pdf_new = _trino_normalize_histogram_column(pdf_new)
 
         client = _get_trino_client(config=config)
-        try:
-            results = client.execute_query(f"SELECT * FROM {full_table_name}")
-            pdf_old = results.to_dataframe()
-            pdf_merged = _trino_pandas_upsert(pdf_old, pdf_new, pk_columns)
-        except Exception:
-            pdf_merged = pdf_new
-
-        _trino_recreate_and_insert_monitoring_table(
+        _trino_insert_monitoring_metrics(
             client=client,
             config=config,
             table_name=table,
             full_table_name=full_table_name,
-            df=pdf_merged,
+            df=pdf_new,
             columns=columns,
         )
 
@@ -663,7 +656,7 @@ class TrinoOfflineStore(OfflineStore):
         end_date: Optional[date] = None,
     ) -> List[Dict[str, Any]]:
         assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
-        table, columns, _ = monitoring_table_meta(metric_type)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
         full_table_name = _trino_monitoring_table_name(config, table)
         client = _get_trino_client(config=config)
 
@@ -693,6 +686,14 @@ class TrinoOfflineStore(OfflineStore):
             df = results.to_dataframe()
             if df.empty:
                 return []
+            if "computed_at" in df.columns:
+                pk_cols = [c for c in pk_columns if c in df.columns]
+                order_col_name = order_col.strip('"')
+                df = df.sort_values("computed_at").drop_duplicates(
+                    subset=pk_cols, keep="last"
+                )
+                if order_col_name in df.columns:
+                    df = df.sort_values(order_col_name)
             return [normalize_monitoring_row(row.to_dict()) for _, row in df.iterrows()]
         except Exception:
             return []
@@ -710,35 +711,34 @@ class TrinoOfflineStore(OfflineStore):
         full_table_name = _trino_monitoring_table_name(config, table)
         client = _get_trino_client(config=config)
 
-        try:
-            results = client.execute_query(f"SELECT * FROM {full_table_name}")
-            pdf = results.to_dataframe()
-        except Exception:
-            return
-
-        if pdf.empty:
-            return
-
-        mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
+        conditions = [
+            f'"project_id" = {_trino_sql_literal(project)}',
+            '"is_baseline" = TRUE',
+        ]
         if feature_view_name is not None:
-            mask &= pdf["feature_view_name"] == feature_view_name
+            conditions.append(
+                f'"feature_view_name" = {_trino_sql_literal(feature_view_name)}'
+            )
         if feature_name is not None:
-            mask &= pdf["feature_name"] == feature_name
+            conditions.append(f'"feature_name" = {_trino_sql_literal(feature_name)}')
         if data_source_type is not None:
-            mask &= pdf["data_source_type"] == data_source_type
+            conditions.append(
+                f'"data_source_type" = {_trino_sql_literal(data_source_type)}'
+            )
 
-        if not mask.any():
-            return
-
-        pdf.loc[mask, "is_baseline"] = False
-        _trino_recreate_and_insert_monitoring_table(
-            client=client,
-            config=config,
-            table_name=table,
-            full_table_name=full_table_name,
-            df=pdf,
-            columns=columns,
-        )
+        update_sql = f'UPDATE {full_table_name} SET "is_baseline" = FALSE WHERE {" AND ".join(conditions)}'
+        try:
+            client.execute_query(update_sql)
+        except Exception:
+            # Fallback for append-only connectors that do not support in-place UPDATE (e.g. Hive/Memory without ACID)
+            _trino_rewrite_clear_baseline(
+                client=client,
+                config=config,
+                table_name=table,
+                full_table_name=full_table_name,
+                columns=columns,
+                conditions=conditions,
+            )
 
 
 def _trino_monitoring_table_name(config: RepoConfig, table: str) -> str:
@@ -1092,7 +1092,7 @@ _TRINO_MONITORING_DDL_BY_TABLE: Dict[str, str] = {
 }
 
 
-def _trino_recreate_and_insert_monitoring_table(
+def _trino_insert_monitoring_metrics(
     client: Trino,
     config: RepoConfig,
     table_name: str,
@@ -1101,14 +1101,56 @@ def _trino_recreate_and_insert_monitoring_table(
     columns: List[str],
     batch_size: int = 1000,
 ) -> None:
-    """Writes monitoring metrics using a staging table + rename-swap pattern.
+    """Appends monitoring metrics to the target table without dropping or recreating it."""
+    if df.empty:
+        return
 
-    To avoid data loss from crashes, timeouts, or network interruptions during
-    batch inserts, data is first fully written into `{table_name}__staging`.
-    Once writing succeeds, the target table is replaced via `ALTER TABLE ... RENAME TO`.
-    If an error occurs before swap completion, the staging table is dropped and the
-    original table remains untouched.
-    """
+    # Ensure target table exists before inserting
+    ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
+    if ddl_template:
+        with_clause = _trino_table_with_clause(config)
+        stmt = ddl_template.format(
+            table=full_table_name,
+            with_clause=with_clause,
+        )
+        try:
+            client.execute_query(stmt)
+        except Exception:
+            pass
+
+    col_list = [c for c in columns if c in df.columns]
+    for pos in range(0, len(df), batch_size):
+        batch_df = df.iloc[pos : pos + batch_size]
+        values_list = []
+        for _, row in batch_df.iterrows():
+            row_vals = [_trino_sql_literal(row.get(col)) for col in col_list]
+            values_list.append(f"({', '.join(row_vals)})")
+        insert_sql = (
+            f"INSERT INTO {full_table_name} ({', '.join(col_list)})\n"
+            f"VALUES {', '.join(values_list)}"
+        )
+        client.execute_query(insert_sql)
+
+
+def _trino_rewrite_clear_baseline(
+    client: Trino,
+    config: RepoConfig,
+    table_name: str,
+    full_table_name: str,
+    columns: List[str],
+    conditions: List[str],
+) -> None:
+    """Fallback rewrite for clear_monitoring_baseline on connectors that do not support UPDATE."""
+    check_sql = (
+        f"SELECT 1 FROM {full_table_name} WHERE {' AND '.join(conditions)} LIMIT 1"
+    )
+    try:
+        res = client.execute_query(check_sql)
+        if not res.data:
+            return
+    except Exception:
+        return
+
     ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
     if not ddl_template:
         return
@@ -1129,22 +1171,20 @@ def _trino_recreate_and_insert_monitoring_table(
 
     try:
         client.execute_query(stmt)
+        case_expr = (
+            f'CASE WHEN {" AND ".join(conditions)} THEN FALSE ELSE "is_baseline" END'
+        )
+        select_cols = [
+            f'"{c}"' if c != "is_baseline" else f'{case_expr} AS "is_baseline"'
+            for c in columns
+        ]
+        target_cols = [f'"{c}"' for c in columns]
+        insert_sql = (
+            f"INSERT INTO {full_staging_table_name} ({', '.join(target_cols)})\n"
+            f"SELECT {', '.join(select_cols)} FROM {full_table_name}"
+        )
+        client.execute_query(insert_sql)
 
-        if not df.empty:
-            col_list = [c for c in columns if c in df.columns]
-            for pos in range(0, len(df), batch_size):
-                batch_df = df.iloc[pos : pos + batch_size]
-                values_list = []
-                for _, row in batch_df.iterrows():
-                    row_vals = [_trino_sql_literal(row.get(col)) for col in col_list]
-                    values_list.append(f"({', '.join(row_vals)})")
-                insert_sql = (
-                    f"INSERT INTO {full_staging_table_name} ({', '.join(col_list)})\n"
-                    f"VALUES {', '.join(values_list)}"
-                )
-                client.execute_query(insert_sql)
-
-        # Swap: drop target table and rename staging table
         client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
         client.execute_query(
             f"ALTER TABLE {full_staging_table_name} RENAME TO {table_name}"
