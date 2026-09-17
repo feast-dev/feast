@@ -644,16 +644,13 @@ class TrinoOfflineStore(OfflineStore):
         except Exception:
             pdf_merged = pdf_new
 
-        try:
-            client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
-        except Exception:
-            pass
-
-        upload_pandas_dataframe_to_trino(
+        _trino_recreate_and_insert_monitoring_table(
             client=client,
+            config=config,
+            table_name=table,
+            full_table_name=full_table_name,
             df=pdf_merged,
-            table=full_table_name,
-            connector_args=config.offline_store.connector,
+            columns=columns,
         )
 
     @staticmethod
@@ -709,8 +706,9 @@ class TrinoOfflineStore(OfflineStore):
         data_source_type: Optional[str] = None,
     ) -> None:
         assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
+        table, columns, _ = monitoring_table_meta("feature")
+        full_table_name = _trino_monitoring_table_name(config, table)
         client = _get_trino_client(config=config)
-        full_table_name = _trino_monitoring_table_name(config, MON_TABLE_FEATURE)
 
         try:
             results = client.execute_query(f"SELECT * FROM {full_table_name}")
@@ -733,16 +731,13 @@ class TrinoOfflineStore(OfflineStore):
             return
 
         pdf.loc[mask, "is_baseline"] = False
-        try:
-            client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
-        except Exception:
-            pass
-
-        upload_pandas_dataframe_to_trino(
+        _trino_recreate_and_insert_monitoring_table(
             client=client,
+            config=config,
+            table_name=table,
+            full_table_name=full_table_name,
             df=pdf,
-            table=full_table_name,
-            connector_args=config.offline_store.connector,
+            columns=columns,
         )
 
 
@@ -799,7 +794,7 @@ def _trino_pandas_upsert(
 
 
 def _trino_sql_literal(val: Any) -> str:
-    if val is None:
+    if val is None or pd.isna(val):
         return "NULL"
     if isinstance(val, (bool, np.bool_)):
         return "TRUE" if val else "FALSE"
@@ -1088,6 +1083,53 @@ CREATE TABLE IF NOT EXISTS {table} (
 ) {with_clause}
 """,
 ]
+
+_TRINO_MONITORING_DDL_BY_TABLE: Dict[str, str] = {
+    MON_TABLE_FEATURE: _TRINO_MONITORING_DDL_STATEMENTS[0],
+    MON_TABLE_FEATURE_VIEW: _TRINO_MONITORING_DDL_STATEMENTS[1],
+    MON_TABLE_FEATURE_SERVICE: _TRINO_MONITORING_DDL_STATEMENTS[2],
+    MON_TABLE_JOB: _TRINO_MONITORING_DDL_STATEMENTS[3],
+}
+
+
+def _trino_recreate_and_insert_monitoring_table(
+    client: Trino,
+    config: RepoConfig,
+    table_name: str,
+    full_table_name: str,
+    df: pd.DataFrame,
+    columns: List[str],
+    batch_size: int = 1000,
+) -> None:
+    try:
+        client.execute_query(f"DROP TABLE IF EXISTS {full_table_name}")
+    except Exception:
+        pass
+
+    ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
+    if ddl_template:
+        with_clause = _trino_table_with_clause(config)
+        stmt = ddl_template.format(
+            table=full_table_name,
+            with_clause=with_clause,
+        )
+        client.execute_query(stmt)
+
+    if df.empty:
+        return
+
+    col_list = [c for c in columns if c in df.columns]
+    for pos in range(0, len(df), batch_size):
+        batch_df = df.iloc[pos : pos + batch_size]
+        values_list = []
+        for _, row in batch_df.iterrows():
+            row_vals = [_trino_sql_literal(row.get(col)) for col in col_list]
+            values_list.append(f"({', '.join(row_vals)})")
+        insert_sql = (
+            f"INSERT INTO {full_table_name} ({', '.join(col_list)})\n"
+            f"VALUES {', '.join(values_list)}"
+        )
+        client.execute_query(insert_sql)
 
 
 def _get_table_reference_for_new_entity(
