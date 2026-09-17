@@ -258,22 +258,14 @@ def test_ensure_monitoring_tables(repo_config):
 
 def test_save_and_query_monitoring_metrics(repo_config):
     mock_client = MagicMock()
-    uploaded_dfs = []
+    executed_queries = []
+    mock_client.execute_query.side_effect = lambda q: (
+        executed_queries.append(q) or Results(data=[], columns=[])
+    )
 
-    def mock_upload(client, df, table, connector_args):
-        uploaded_dfs.append((table, df))
-
-    mock_client.execute_query.return_value = Results(data=[], columns=[])
-
-    with (
-        patch(
-            "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
-            return_value=mock_client,
-        ),
-        patch(
-            "feast.infra.offline_stores.contrib.trino_offline_store.trino.upload_pandas_dataframe_to_trino",
-            side_effect=mock_upload,
-        ),
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
     ):
         metrics = [
             {
@@ -308,11 +300,70 @@ def test_save_and_query_monitoring_metrics(repo_config):
             metrics=metrics,
         )
 
-    assert len(uploaded_dfs) == 1
-    table_uploaded, df_uploaded = uploaded_dfs[0]
-    assert table_uploaded == f"memory.feast_test.{MON_TABLE_FEATURE}"
-    assert len(df_uploaded) == 1
-    assert df_uploaded["feature_name"].iloc[0] == "f1"
+    full_table = f"memory.feast_test.{MON_TABLE_FEATURE}"
+    assert any(f"DROP TABLE IF EXISTS {full_table}" in q for q in executed_queries)
+    assert any(
+        f"CREATE TABLE IF NOT EXISTS {full_table}" in q for q in executed_queries
+    )
+    assert any("histogram         VARCHAR" in q for q in executed_queries)
+    assert any(f"INSERT INTO {full_table}" in q for q in executed_queries)
+    insert_q = [q for q in executed_queries if "INSERT INTO" in q][0]
+    assert "'f1'" in insert_q
+
+
+def test_save_monitoring_metrics_with_all_null_optional_columns(repo_config):
+    mock_client = MagicMock()
+    executed_queries = []
+    mock_client.execute_query.side_effect = lambda q: (
+        executed_queries.append(q) or Results(data=[], columns=[])
+    )
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        metrics = [
+            {
+                "project_id": "test_project",
+                "feature_view_name": "fv1",
+                "feature_name": "f1",
+                "metric_date": date(2025, 1, 1),
+                "granularity": "daily",
+                "data_source_type": "batch",
+                "computed_at": datetime(2025, 1, 1, 12, 0, 0),
+                "max_event_timestamp": None,
+                "is_baseline": False,
+                "feature_type": "categorical",
+                "row_count": 100,
+                "null_count": 100,
+                "null_rate": 1.0,
+                "mean": None,
+                "stddev": None,
+                "min_val": None,
+                "max_val": None,
+                "p50": None,
+                "p75": None,
+                "p90": None,
+                "p95": None,
+                "p99": None,
+                "histogram": None,
+            }
+        ]
+        TrinoOfflineStore.save_monitoring_metrics(
+            config=repo_config,
+            metric_type="feature",
+            metrics=metrics,
+        )
+
+    # Recreated table must preserve explicit monitoring schema, never inferring "histogram null"
+    for q in executed_queries:
+        assert "null null" not in q
+        assert "histogram null" not in q
+        assert "max_event_timestamp null" not in q
+    assert any("histogram         VARCHAR" in q for q in executed_queries)
+    assert any("max_event_timestamp TIMESTAMP" in q for q in executed_queries)
+    insert_q = [q for q in executed_queries if "INSERT INTO" in q][0]
+    assert "NULL" in insert_q
 
 
 def test_clear_monitoring_baseline(repo_config):
@@ -336,25 +387,24 @@ def test_clear_monitoring_baseline(repo_config):
         ]
     )
 
-    mock_client.execute_query.return_value = Results(
-        data=existing_df.values.tolist(),
-        columns=[{"name": col, "type": "varchar"} for col in existing_df.columns],
-    )
+    executed_queries = []
 
-    uploaded_dfs = []
+    def mock_execute(q):
+        executed_queries.append(q)
+        if "SELECT *" in q:
+            return Results(
+                data=existing_df.values.tolist(),
+                columns=[
+                    {"name": col, "type": "varchar"} for col in existing_df.columns
+                ],
+            )
+        return Results(data=[], columns=[])
 
-    def mock_upload(client, df, table, connector_args):
-        uploaded_dfs.append(df)
+    mock_client.execute_query.side_effect = mock_execute
 
-    with (
-        patch(
-            "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
-            return_value=mock_client,
-        ),
-        patch(
-            "feast.infra.offline_stores.contrib.trino_offline_store.trino.upload_pandas_dataframe_to_trino",
-            side_effect=mock_upload,
-        ),
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
     ):
         TrinoOfflineStore.clear_monitoring_baseline(
             config=repo_config,
@@ -363,12 +413,17 @@ def test_clear_monitoring_baseline(repo_config):
             feature_name="f1",
         )
 
-    assert len(uploaded_dfs) == 1
-    cleared_df = uploaded_dfs[0]
-    test_proj_row = cleared_df[cleared_df["project_id"] == "test_project"].iloc[0]
-    assert test_proj_row["is_baseline"] is False or test_proj_row["is_baseline"] == 0
-    other_proj_row = cleared_df[cleared_df["project_id"] == "other_project"].iloc[0]
-    assert other_proj_row["is_baseline"] is True or other_proj_row["is_baseline"] == 1
+    full_table = f"memory.feast_test.{MON_TABLE_FEATURE}"
+    assert any(f"DROP TABLE IF EXISTS {full_table}" in q for q in executed_queries)
+    assert any(
+        f"CREATE TABLE IF NOT EXISTS {full_table}" in q for q in executed_queries
+    )
+    insert_queries = [q for q in executed_queries if "INSERT INTO" in q]
+    assert len(insert_queries) == 1
+    insert_q = insert_queries[0]
+    # Check that test_project has is_baseline set to FALSE and other_project has TRUE
+    assert "FALSE" in insert_q
+    assert "TRUE" in insert_q
 
 
 def test_numeric_histogram_single_value():
