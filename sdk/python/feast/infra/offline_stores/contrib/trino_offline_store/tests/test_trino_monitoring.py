@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -74,6 +74,17 @@ def test_sql_literal_formatting():
     assert _trino_sql_literal(date(2025, 1, 15)) == "DATE '2025-01-15'"
     dt = datetime(2025, 1, 15, 12, 0, 0)
     assert _trino_sql_literal(dt) == "TIMESTAMP '2025-01-15 12:00:00.000000'"
+    dt_tz = datetime(
+        2025, 1, 15, 12, 0, 0, tzinfo=timezone(timedelta(hours=5, minutes=30))
+    )
+    assert _trino_sql_literal(dt_tz) == "TIMESTAMP '2025-01-15 06:30:00.000000'"
+    ts_tz = pd.Timestamp("2025-01-15 12:00:00+05:30")
+    assert _trino_sql_literal(ts_tz) == "TIMESTAMP '2025-01-15 06:30:00.000000'"
+    assert _trino_sql_literal(pd.NaT) == "NULL"
+    assert (
+        _trino_sql_literal(np.datetime64("2025-01-15T12:00:00"))
+        == "TIMESTAMP '2025-01-15 12:00:00.000000'"
+    )
 
 
 def test_monitoring_table_name_and_with_clause(repo_config):
