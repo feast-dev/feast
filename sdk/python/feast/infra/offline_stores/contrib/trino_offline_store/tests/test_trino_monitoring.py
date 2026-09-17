@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+from trino.exceptions import TrinoConnectionError, TrinoQueryError
 
 from feast.infra.offline_stores.contrib.trino_offline_store.connectors.upload import (
     format_pandas_row,
@@ -664,3 +665,140 @@ def test_format_pandas_row_with_containers_and_nulls():
     assert "NULL" in rows[1]
     assert "FALSE" in rows[1]
     assert "'normal'" in rows[1]
+
+
+def test_ensure_monitoring_tables_handles_column_already_exists(repo_config):
+    mock_client = MagicMock()
+
+    def mock_exec(query):
+        if "ADD COLUMN" in query:
+            raise TrinoQueryError(
+                {
+                    "errorName": "COLUMN_ALREADY_EXISTS",
+                    "message": "Column already exists",
+                }
+            )
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_exec
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        # Should complete without error when column already exists
+        TrinoOfflineStore.ensure_monitoring_tables(config=repo_config)
+
+
+def test_ensure_monitoring_tables_raises_on_permission_error(repo_config):
+    mock_client = MagicMock()
+
+    def mock_exec(query):
+        if "ADD COLUMN" in query:
+            raise TrinoQueryError(
+                {"errorName": "ACCESS_DENIED", "message": "Access Denied"}
+            )
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_exec
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        with pytest.raises(TrinoQueryError) as exc_info:
+            TrinoOfflineStore.ensure_monitoring_tables(config=repo_config)
+        assert exc_info.value.error_name == "ACCESS_DENIED"
+
+
+def test_ensure_monitoring_tables_raises_on_connection_error(repo_config):
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoConnectionError("Connection refused")
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        with pytest.raises(TrinoConnectionError):
+            TrinoOfflineStore.ensure_monitoring_tables(config=repo_config)
+
+
+def test_query_monitoring_metrics_handles_query_error(repo_config):
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoQueryError(
+        {"errorName": "TABLE_NOT_FOUND", "message": "Table does not exist"}
+    )
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        res = TrinoOfflineStore.query_monitoring_metrics(
+            config=repo_config,
+            project="test_project",
+            metric_type="feature",
+        )
+    assert res == []
+
+
+def test_query_monitoring_metrics_raises_on_connection_error(repo_config):
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoConnectionError("Connection failed")
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        with pytest.raises(TrinoConnectionError):
+            TrinoOfflineStore.query_monitoring_metrics(
+                config=repo_config,
+                project="test_project",
+                metric_type="feature",
+            )
+
+
+def test_clear_monitoring_baseline_falls_back_on_query_error(repo_config):
+    mock_client = MagicMock()
+    executed_queries = []
+
+    def mock_exec(query):
+        executed_queries.append(query)
+        if query.startswith("UPDATE"):
+            raise TrinoQueryError(
+                {
+                    "errorName": "NOT_SUPPORTED",
+                    "message": "This connector does not support modifying table rows",
+                }
+            )
+        return Results(data=[], columns=[])
+
+    mock_client.execute_query.side_effect = mock_exec
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        TrinoOfflineStore.clear_monitoring_baseline(
+            config=repo_config,
+            project="test_project",
+            feature_view_name="fv1",
+        )
+
+    assert any(q.startswith("UPDATE") for q in executed_queries)
+    assert any("SELECT 1 FROM" in q for q in executed_queries)
+
+
+def test_clear_monitoring_baseline_raises_on_connection_error(repo_config):
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoConnectionError("Connection dropped")
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        with pytest.raises(TrinoConnectionError):
+            TrinoOfflineStore.clear_monitoring_baseline(
+                config=repo_config,
+                project="test_project",
+                feature_view_name="fv1",
+            )

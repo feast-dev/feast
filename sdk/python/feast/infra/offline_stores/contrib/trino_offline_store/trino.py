@@ -24,6 +24,7 @@ from trino.auth import (
     KerberosAuthentication,
     OAuth2Authentication,
 )
+from trino.exceptions import TrinoQueryError
 
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
@@ -587,9 +588,13 @@ class TrinoOfflineStore(OfflineStore):
         if dataset:
             try:
                 client.execute_query(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{dataset}")
-            except Exception:
-                logging.exception(f"Failed to create schema {catalog}.{dataset}")
-                pass
+            except TrinoQueryError as e:
+                logger.debug(
+                    "Schema %s.%s creation skipped or failed: %s",
+                    catalog,
+                    dataset,
+                    e,
+                )
 
         with_clause = _trino_table_with_clause(config)
         for ddl_template, tbl_name in zip(
@@ -618,9 +623,23 @@ class TrinoOfflineStore(OfflineStore):
                 client.execute_query(
                     f"ALTER TABLE {full_table} ADD COLUMN max_event_timestamp TIMESTAMP"
                 )
-            except Exception:
-                # Column already exists on newly created tables or dialect difference
-                pass
+            except TrinoQueryError as e:
+                if (
+                    e.error_name in ("COLUMN_ALREADY_EXISTS", "NOT_SUPPORTED")
+                    or "already exists" in (e.message or "").lower()
+                ):
+                    logger.debug(
+                        "Column max_event_timestamp already exists or unsupported on %s: %s",
+                        full_table,
+                        e,
+                    )
+                else:
+                    logger.debug(
+                        "Failed to add column max_event_timestamp to %s: %s",
+                        full_table,
+                        e,
+                    )
+                    raise
 
     @staticmethod
     def save_monitoring_metrics(
@@ -695,7 +714,12 @@ class TrinoOfflineStore(OfflineStore):
                 if order_col_name in df.columns:
                     df = df.sort_values(order_col_name)
             return [normalize_monitoring_row(row.to_dict()) for _, row in df.iterrows()]
-        except Exception:
+        except TrinoQueryError as e:
+            logger.debug(
+                "Failed to query monitoring metrics from %s: %s",
+                full_table_name,
+                e,
+            )
             return []
 
     @staticmethod
@@ -729,7 +753,12 @@ class TrinoOfflineStore(OfflineStore):
         update_sql = f'UPDATE {full_table_name} SET "is_baseline" = FALSE WHERE {" AND ".join(conditions)}'
         try:
             client.execute_query(update_sql)
-        except Exception:
+        except TrinoQueryError as e:
+            logger.debug(
+                "In-place UPDATE not supported on %s, falling back to rewrite: %s",
+                full_table_name,
+                e,
+            )
             # Fallback for append-only connectors that do not support in-place UPDATE (e.g. Hive/Memory without ACID)
             _trino_rewrite_clear_baseline(
                 client=client,
@@ -1115,8 +1144,12 @@ def _trino_insert_monitoring_metrics(
         )
         try:
             client.execute_query(stmt)
-        except Exception:
-            pass
+        except TrinoQueryError as e:
+            logger.debug(
+                "Table creation skipped or failed for %s: %s",
+                full_table_name,
+                e,
+            )
 
     col_list = [c for c in columns if c in df.columns]
     for pos in range(0, len(df), batch_size):
@@ -1148,7 +1181,12 @@ def _trino_rewrite_clear_baseline(
         res = client.execute_query(check_sql)
         if not res.data:
             return
-    except Exception:
+    except TrinoQueryError as e:
+        logger.debug(
+            "Could not query %s to check for baseline records: %s",
+            full_table_name,
+            e,
+        )
         return
 
     ddl_template = _TRINO_MONITORING_DDL_BY_TABLE.get(table_name)
@@ -1160,8 +1198,12 @@ def _trino_rewrite_clear_baseline(
 
     try:
         client.execute_query(f"DROP TABLE IF EXISTS {full_staging_table_name}")
-    except Exception:
-        pass
+    except TrinoQueryError as e:
+        logger.debug(
+            "Failed to drop staging table %s: %s",
+            full_staging_table_name,
+            e,
+        )
 
     with_clause = _trino_table_with_clause(config)
     stmt = ddl_template.format(
@@ -1192,8 +1234,12 @@ def _trino_rewrite_clear_baseline(
     except Exception:
         try:
             client.execute_query(f"DROP TABLE IF EXISTS {full_staging_table_name}")
-        except Exception:
-            pass
+        except TrinoQueryError as cleanup_err:
+            logger.debug(
+                "Failed to clean up staging table %s: %s",
+                full_staging_table_name,
+                cleanup_err,
+            )
         raise
 
 
