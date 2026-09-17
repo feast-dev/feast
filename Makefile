@@ -109,14 +109,10 @@ install-python-dependencies-ci: ## Install Python CI dependencies using uv pip s
 		echo "Creating virtualenv..."; \
 		uv venv .venv; \
 	fi
-	# Install CPU-only torch first to prevent CUDA dependency issues (Linux only)
-	@if [ "$$(uname -s)" = "Linux" ]; then \
-		echo "Installing dependencies with torch CPU index for Linux..."; \
-		uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
-	else \
-		echo "Installing dependencies from PyPI for macOS..."; \
-		uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt; \
-	fi
+	# Must match the --torch-backend used to compile the CI lock, otherwise the
+	# recorded CPU-wheel hashes (from download.pytorch.org) fail to verify.
+	# The lock is universal, so one command serves both Linux and macOS.
+	uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
 
 # Used in github actions/ci
@@ -139,7 +135,8 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra ci \
+			"uv pip compile -p $(ver) --universal --no-strip-extras pyproject.toml --extra ci \
+			--torch-backend cpu \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml \
