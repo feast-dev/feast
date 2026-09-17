@@ -108,16 +108,24 @@ def format_pandas_row(df: pd.DataFrame) -> str:
     def _is_nan(value: Any) -> bool:
         if value is None:
             return True
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return False
 
         try:
-            return np.isnan(value)
-        except TypeError:
+            return bool(pd.isna(value))
+        except (TypeError, ValueError):
             return False
 
     def _format_value(row: pd.Series, schema: Dict[str, Any]) -> str:
         formated_values = []
         for row_name, row_value in row.items():
-            if _is_nan(row_value):
+            if isinstance(row_value, list):
+                formated_values.append(f"ARRAY{row_value}")
+            elif isinstance(row_value, np.ndarray):
+                formated_values.append(f"ARRAY{row_value.tolist()}")
+            elif isinstance(row_value, tuple):
+                formated_values.append(f"ARRAY{list(row_value)}")
+            elif _is_nan(row_value):
                 formated_values.append("NULL")
             elif schema[row_name].startswith("timestamp"):
                 if isinstance(row_value, datetime):
@@ -129,12 +137,6 @@ def format_pandas_row(df: pd.DataFrame) -> str:
                 formated_values.append(f"DATE '{row_value}'")
             elif isinstance(row_value, (bool, np.bool_)):
                 formated_values.append("TRUE" if row_value else "FALSE")
-            elif isinstance(row_value, list):
-                formated_values.append(f"ARRAY{row_value}")
-            elif isinstance(row_value, np.ndarray):
-                formated_values.append(f"ARRAY{row_value.tolist()}")
-            elif isinstance(row_value, tuple):
-                formated_values.append(f"ARRAY{list(row_value)}")
             elif isinstance(row_value, str):
                 escaped = row_value.replace("'", "''")
                 formated_values.append(f"'{escaped}'")

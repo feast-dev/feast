@@ -2,9 +2,13 @@ import json
 from datetime import date, datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
+from feast.infra.offline_stores.contrib.trino_offline_store.connectors.upload import (
+    format_pandas_row,
+)
 from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoOfflineStore,
     TrinoOfflineStoreConfig,
@@ -570,3 +574,50 @@ def test_categorical_all_nulls_monitoring(repo_config, data_source):
     # Should only execute the counts query, not the top_n query
     assert len(executed_queries) == 1
     assert "GROUP BY" not in executed_queries[0]
+
+
+def test_format_pandas_row_with_containers_and_nulls():
+    df = pd.DataFrame(
+        [
+            {
+                "int_col": 1,
+                "list_col": [1, 2],
+                "array_col": np.array([3, 4]),
+                "tuple_col": (5, 6),
+                "null_col": None,
+                "bool_col": True,
+                "str_col": "O'Connor",
+                "ts_col": datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                "date_col": date(2025, 1, 1),
+            },
+            {
+                "int_col": 2,
+                "list_col": None,
+                "array_col": None,
+                "tuple_col": None,
+                "null_col": np.nan,
+                "bool_col": False,
+                "str_col": "normal",
+                "ts_col": None,
+                "date_col": None,
+            },
+        ]
+    )
+
+    formatted = format_pandas_row(df)
+    rows = formatted.split("),(")
+    assert len(rows) == 2
+
+    # First row should have array formatting and escaped string
+    assert "ARRAY[1, 2]" in rows[0]
+    assert "ARRAY[3, 4]" in rows[0]
+    assert "ARRAY[5, 6]" in rows[0]
+    assert "'O''Connor'" in rows[0]
+    assert "TRUE" in rows[0]
+    assert "TIMESTAMP '2025-01-01 12:00:00.000000'" in rows[0]
+    assert "DATE '2025-01-01'" in rows[0]
+
+    # Second row with nulls should have NULL for missing containers and timestamps
+    assert "NULL" in rows[1]
+    assert "FALSE" in rows[1]
+    assert "'normal'" in rows[1]
