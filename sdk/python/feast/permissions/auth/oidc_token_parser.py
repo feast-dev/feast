@@ -12,6 +12,10 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    get_intra_comm_secret,
+)
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.oidc_service import OIDCDiscoveryService
@@ -194,8 +198,9 @@ class OidcTokenParser(TokenParser):
         Validate the access token then decode it to extract the user credentials,
         roles, and groups.
 
-        A single unverified decode is performed upfront for lightweight routing:
-        intra-server communication, Kubernetes SA tokens (identified by the
+        Intra-server communication tokens are verified against the shared secret
+        before any claim on them is trusted. Every other token is routed with a
+        single unverified decode: Kubernetes SA tokens (identified by the
         ``kubernetes.io`` claim), or standard OIDC/Keycloak JWKS validation.
 
         Returns:
@@ -209,7 +214,7 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
 
-        user = self._get_intra_comm_user(unverified)
+        user = self._get_intra_comm_user(access_token)
         if user:
             return user
 
@@ -310,16 +315,27 @@ class OidcTokenParser(TokenParser):
         return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
     @staticmethod
-    def _get_intra_comm_user(decoded_token: dict) -> Optional[User]:
-        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+    def _get_intra_comm_user(access_token: str) -> Optional[User]:
+        """
+        Return the intra-server communication user for a token that proves knowledge
+        of the shared secret.
 
-        if intra_communication_base64:
-            if "preferred_username" in decoded_token:
-                preferred_username: str = decoded_token["preferred_username"]
-                if (
-                    preferred_username is not None
-                    and preferred_username == intra_communication_base64
-                ):
-                    return User(username=preferred_username, roles=[])
+        The signature is verified against the shared secret before the claim is read,
+        so a caller that does not hold the secret cannot assume the internal identity.
+
+        Returns:
+            Optional[User]: the internal user, or `None` when the token is not an
+                intra-server communication token.
+        """
+        intra_communication_base64 = get_intra_comm_secret()
+        if not intra_communication_base64:
+            return None
+
+        claims = decode_intra_comm_token(access_token, intra_communication_base64)
+        if claims is None:
+            return None
+
+        if claims.get("preferred_username") == intra_communication_base64:
+            return User(username=intra_communication_base64, roles=[])
 
         return None
