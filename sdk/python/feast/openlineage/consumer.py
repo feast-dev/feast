@@ -337,6 +337,10 @@ def get_consumer_router(
                     "schema": schema,
                     "description": ds.get("description"),
                     "source_type": ds.get("source_type"),
+                    "owner": ds.get("owner_name"),
+                    "owner_type": ds.get("owner_type"),
+                    "lifecycle_state": ds.get("lifecycle_state"),
+                    "current_version": ds.get("current_version"),
                     "facets": facets,
                 }
             )
@@ -376,6 +380,56 @@ def get_consumer_router(
             "symlinks": symlinks,
             "total_nodes": total_nodes,
         }
+
+    # ── Dataset versioning endpoints ──
+
+    @router.get("/lineage/openlineage/datasets/{namespace}/{name}/versions")
+    def list_dataset_versions(
+        namespace: str,
+        name: str,
+        limit: int = Query(50, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+    ):
+        """List version history for a dataset."""
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if ns_filter is not None and namespace not in ns_filter:
+            return {"versions": [], "total": 0}
+        versions = store.get_dataset_versions(namespace, name, limit, offset)
+        for v in versions:
+            v["schema"] = _safe_parse_json(v.pop("schema_json", None))
+            v["facets"] = _safe_parse_json(v.pop("facets_json", None))
+        return {"versions": versions, "total": len(versions)}
+
+    # ── Column-level lineage endpoint ──
+
+    @router.get("/lineage/openlineage/datasets/{namespace}/{name}/columns")
+    def get_column_lineage(
+        namespace: str,
+        name: str,
+        direction: str = Query("both", pattern="^(both|upstream|downstream)$"),
+    ):
+        """Get column-level lineage for a dataset.
+
+        Shows which input fields map to which output fields, including
+        transformation types when available.
+        """
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if ns_filter is not None and namespace not in ns_filter:
+            return {"column_lineage": []}
+        cl = store.get_column_lineage(namespace, name, direction)
+        return {"column_lineage": cl}
+
+    # ── Execution tree endpoint ──
+
+    @router.get("/lineage/openlineage/runs/{run_id}/tree")
+    def get_run_tree(run_id: str):
+        """Get the full execution tree (all runs sharing the same root).
+
+        Each run includes parent_run_id and root_run_id for hierarchy
+        reconstruction on the client side.
+        """
+        tree = store.get_run_tree(run_id)
+        return {"runs": tree, "total": len(tree)}
 
     # ── Run history endpoints ──
 

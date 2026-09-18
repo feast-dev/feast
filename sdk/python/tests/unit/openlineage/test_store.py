@@ -686,3 +686,294 @@ class TestRetention:
         assert stats["jobs"]["count"] == 1
         assert stats["datasets"]["count"] == 1
         assert "oldest_ms" in stats["events"]
+
+    def test_prune_deletes_old_dataset_versions(self, store):
+        self._insert_old_and_new(store)
+
+        old_ms = int((time.time() - 60 * 86400) * 1000)
+        new_ms = int((time.time() - 5 * 86400) * 1000)
+        tbl_ver = OL_TABLES["dataset_versions"]
+        store.upsert_dataset("ns", "ds1")
+        with store.engine.begin() as conn:
+            conn.execute(
+                tbl_ver.insert().values(
+                    dataset_namespace="ns",
+                    dataset_name="ds1",
+                    version=1,
+                    created_by_run_id="old-run",
+                    created_at=old_ms,
+                )
+            )
+            conn.execute(
+                tbl_ver.insert().values(
+                    dataset_namespace="ns",
+                    dataset_name="ds1",
+                    version=2,
+                    created_by_run_id="new-run",
+                    created_at=new_ms,
+                )
+            )
+
+        deleted = store.prune_expired(retention_days=30)
+        assert deleted["dataset_versions"] == 1
+
+        versions = store.get_dataset_versions("ns", "ds1")
+        assert len(versions) == 1
+        assert versions[0]["version"] == 2
+
+
+# ── Dataset versioning ──
+
+
+class TestDatasetVersioning:
+    def test_create_version(self, store):
+        store.upsert_dataset("ns", "ds1")
+        ver = store.create_dataset_version("ns", "ds1", run_id="r1")
+        assert ver == 1
+
+    def test_increment_versions(self, store):
+        store.upsert_dataset("ns", "ds1")
+        assert store.create_dataset_version("ns", "ds1") == 1
+        assert store.create_dataset_version("ns", "ds1") == 2
+        assert store.create_dataset_version("ns", "ds1") == 3
+
+    def test_current_version_updated(self, store):
+        store.upsert_dataset("ns", "ds1")
+        store.create_dataset_version("ns", "ds1")
+        store.create_dataset_version("ns", "ds1")
+        datasets = store.get_datasets(namespaces=["ns"])
+        assert datasets[0]["current_version"] == 2
+
+    def test_list_versions(self, store):
+        store.upsert_dataset("ns", "ds1")
+        for i in range(5):
+            store.create_dataset_version("ns", "ds1", run_id=f"run-{i}")
+        versions = store.get_dataset_versions("ns", "ds1", limit=3)
+        assert len(versions) == 3
+        assert versions[0]["version"] == 5
+
+    def test_get_specific_version(self, store):
+        store.upsert_dataset("ns", "ds1")
+        store.create_dataset_version(
+            "ns",
+            "ds1",
+            run_id="r1",
+            schema_json='{"fields": []}',
+            facets_json='{"key": "val"}',
+        )
+        v = store.get_dataset_version("ns", "ds1", 1)
+        assert v is not None
+        assert v["created_by_run_id"] == "r1"
+
+    def test_get_missing_version(self, store):
+        store.upsert_dataset("ns", "ds1")
+        assert store.get_dataset_version("ns", "ds1", 99) is None
+
+
+# ── Column lineage store ──
+
+
+class TestColumnLineageStore:
+    def test_upsert_and_query(self, store):
+        store.upsert_column_lineage(
+            "ns",
+            "out_ds",
+            "col_a",
+            "ns",
+            "in_ds",
+            "col_x",
+            transformation_type="DIRECT",
+        )
+        cl = store.get_column_lineage("ns", "out_ds", direction="upstream")
+        assert len(cl) == 1
+        assert cl[0]["output_field"] == "col_a"
+        assert cl[0]["input_field"] == "col_x"
+        assert cl[0]["transformation_type"] == "DIRECT"
+
+    def test_dedup(self, store):
+        for _ in range(3):
+            store.upsert_column_lineage(
+                "ns",
+                "out_ds",
+                "col_a",
+                "ns",
+                "in_ds",
+                "col_x",
+            )
+        cl = store.get_column_lineage("ns", "out_ds")
+        upstream = [c for c in cl if c["direction"] == "upstream"]
+        assert len(upstream) == 1
+
+    def test_downstream_query(self, store):
+        store.upsert_column_lineage(
+            "ns",
+            "out_ds",
+            "col_a",
+            "ns",
+            "in_ds",
+            "col_x",
+        )
+        cl = store.get_column_lineage("ns", "in_ds", direction="downstream")
+        assert len(cl) == 1
+        assert cl[0]["dataset_name"] == "out_ds"
+        assert cl[0]["direction"] == "downstream"
+
+
+# ── Dataset ownership store ──
+
+
+class TestDatasetOwnershipStore:
+    def test_upsert_and_query(self, store):
+        store.upsert_dataset("ns", "owned_ds")
+        store._upsert_dataset_owners(
+            "ns",
+            "owned_ds",
+            [
+                {"name": "alice", "type": "PERSON"},
+                {"name": "team-data", "type": "TEAM"},
+            ],
+        )
+        owners = store.get_dataset_owners("ns", "owned_ds")
+        assert len(owners) == 2
+        names = {o["name"] for o in owners}
+        assert "alice" in names
+        assert "team-data" in names
+
+    def test_upsert_updates_type(self, store):
+        store._upsert_dataset_owners("ns", "ds1", [{"name": "alice", "type": "PERSON"}])
+        store._upsert_dataset_owners("ns", "ds1", [{"name": "alice", "type": "ADMIN"}])
+        owners = store.get_dataset_owners("ns", "ds1")
+        assert len(owners) == 1
+        assert owners[0]["type"] == "ADMIN"
+
+    def test_empty_owner_skipped(self, store):
+        store._upsert_dataset_owners("ns", "ds1", [{"name": "", "type": "PERSON"}])
+        owners = store.get_dataset_owners("ns", "ds1")
+        assert len(owners) == 0
+
+
+# ── Run hierarchy store ──
+
+
+class TestRunHierarchyStore:
+    def test_parent_and_root_stored(self, store):
+        store.upsert_job("ns", "j1", {"facets": {}})
+        store.upsert_run(
+            "child-1",
+            "ns",
+            "j1",
+            "COMPLETE",
+            parent_run_id="parent-1",
+            root_run_id="root-1",
+        )
+        runs = store.get_runs()
+        assert runs[0]["parent_run_id"] == "parent-1"
+        assert runs[0]["root_run_id"] == "root-1"
+
+    def test_child_runs(self, store):
+        store.upsert_job("ns", "j1", {"facets": {}})
+        store.upsert_run("parent", "ns", "j1", "COMPLETE")
+        store.upsert_run(
+            "child-a",
+            "ns",
+            "j1",
+            "COMPLETE",
+            parent_run_id="parent",
+        )
+        store.upsert_run(
+            "child-b",
+            "ns",
+            "j1",
+            "COMPLETE",
+            parent_run_id="parent",
+        )
+        children = store.get_child_runs("parent")
+        assert len(children) == 2
+
+    def test_run_tree(self, store):
+        store.upsert_job("ns", "j1", {"facets": {}})
+        store.upsert_run("root", "ns", "j1", "COMPLETE")
+        store.upsert_run(
+            "child-1",
+            "ns",
+            "j1",
+            "COMPLETE",
+            parent_run_id="root",
+            root_run_id="root",
+        )
+        store.upsert_run(
+            "grandchild",
+            "ns",
+            "j1",
+            "COMPLETE",
+            parent_run_id="child-1",
+            root_run_id="root",
+        )
+        tree = store.get_run_tree("root")
+        assert len(tree) == 3
+        run_ids = {r["run_id"] for r in tree}
+        assert {"root", "child-1", "grandchild"} == run_ids
+
+
+# ── Purge with extended tables ──
+
+
+class TestPurgeExtendedTables:
+    def test_purge_all_clears_extended(self, store):
+        store.upsert_dataset("ns", "ds1")
+        store.create_dataset_version("ns", "ds1")
+        store.upsert_column_lineage(
+            "ns",
+            "ds1",
+            "col",
+            "ns",
+            "src",
+            "src_col",
+        )
+        store._upsert_dataset_owners("ns", "ds1", [{"name": "owner", "type": "PERSON"}])
+
+        store.purge_all()
+        assert len(store.get_dataset_versions("ns", "ds1")) == 0
+        assert len(store.get_column_lineage("ns", "ds1")) == 0
+        assert len(store.get_dataset_owners("ns", "ds1")) == 0
+
+    def test_purge_namespace_clears_extended(self, store):
+        store.upsert_dataset("ns-a", "ds1")
+        store.upsert_dataset("ns-b", "ds2")
+        store.create_dataset_version("ns-a", "ds1")
+        store.create_dataset_version("ns-b", "ds2")
+        store.upsert_column_lineage(
+            "ns-a",
+            "ds1",
+            "col",
+            "ns-a",
+            "src",
+            "src_col",
+        )
+        store._upsert_dataset_owners(
+            "ns-a", "ds1", [{"name": "owner", "type": "PERSON"}]
+        )
+
+        store.purge_namespace("ns-a")
+        assert len(store.get_dataset_versions("ns-a", "ds1")) == 0
+        assert len(store.get_column_lineage("ns-a", "ds1")) == 0
+        assert len(store.get_dataset_owners("ns-a", "ds1")) == 0
+        assert len(store.get_dataset_versions("ns-b", "ds2")) == 1
+
+    def test_delete_dataset_clears_extended(self, store):
+        store.upsert_dataset("ns", "ds1")
+        store.create_dataset_version("ns", "ds1")
+        store.upsert_column_lineage(
+            "ns",
+            "ds1",
+            "col",
+            "ns",
+            "src",
+            "src_col",
+        )
+        store._upsert_dataset_owners("ns", "ds1", [{"name": "owner", "type": "PERSON"}])
+
+        store.delete_dataset("ns", "ds1")
+        assert len(store.get_dataset_versions("ns", "ds1")) == 0
+        assert len(store.get_column_lineage("ns", "ds1")) == 0
+        assert len(store.get_dataset_owners("ns", "ds1")) == 0
