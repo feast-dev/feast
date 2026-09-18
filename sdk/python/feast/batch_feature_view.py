@@ -11,6 +11,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.online_config import OnlineConfig
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
@@ -43,6 +44,7 @@ class BatchFeatureView(FeatureView):
             columns. If not specified, can be inferred from the underlying data source.
         source: The batch source of data where this group of features is stored.
         online: A boolean indicating whether online retrieval and write to online store is enabled for this feature view.
+        online_config: Optional online retention and write semantics.
         offline: A boolean indicating whether offline retrieval and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
@@ -90,6 +92,7 @@ class BatchFeatureView(FeatureView):
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = False,
+        online_config: Optional[OnlineConfig] = None,
         offline: bool = False,
         description: str = "",
         owner: str = "",
@@ -149,6 +152,7 @@ class BatchFeatureView(FeatureView):
             ttl=ttl,
             tags=tags,
             online=online,
+            online_config=online_config,
             offline=offline,
             description=description,
             owner=owner,
@@ -189,6 +193,7 @@ def batch_feature_view(
     source: Optional[DataSource] = None,
     tags: Optional[Dict[str, str]] = None,
     online: bool = True,
+    online_config: Optional[OnlineConfig] = None,
     offline: bool = True,
     description: str = "",
     owner: str = "",
@@ -220,6 +225,7 @@ def batch_feature_view(
             source=source,
             tags=tags,
             online=online,
+            online_config=online_config,
             offline=offline,
             description=description,
             owner=owner,

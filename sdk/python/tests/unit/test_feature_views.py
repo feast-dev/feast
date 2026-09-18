@@ -11,6 +11,7 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.online_config import OnlineConfig
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -99,6 +100,7 @@ def test_hash():
         ],
         source=file_source,
     )
+
     feature_view_2 = FeatureView(
         name="my-feature-view",
         entities=[],
@@ -154,6 +156,41 @@ def test_proto_conversion():
         and feature_view_proto.spec.batch_source.name == "my-file-source"
         and feature_view_proto.spec.batch_source.type == 1
     )
+
+
+def test_online_config_feature_view_round_trip() -> None:
+    file_source = FileSource(name="events-source", path="events.parquet")
+    online_config = OnlineConfig(
+        mode="sequence",
+        max_length=50,
+        max_age=timedelta(days=90),
+        write_mode="append",
+    )
+    feature_view = FeatureView(
+        name="events",
+        entities=[],
+        schema=[Field(name="value", dtype=Float32)],
+        source=file_source,
+        online_config=online_config,
+    )
+
+    proto = feature_view.to_proto()
+    assert proto.spec.HasField("online_config")
+    assert proto.spec.online_config.mode == proto.spec.online_config.SEQUENCE
+    assert proto.spec.online_config.max_length == 50
+    assert proto.spec.online_config.max_age_seconds == 90 * 24 * 60 * 60
+    assert proto.spec.online_config.write_mode == proto.spec.online_config.APPEND
+
+    round_tripped = FeatureView.from_proto(proto)
+    assert round_tripped.online_config == online_config
+    assert round_tripped == feature_view
+
+
+def test_online_config_is_absent_by_default() -> None:
+    feature_view = FeatureView(name="events")
+
+    assert not feature_view.to_proto().spec.HasField("online_config")
+    assert FeatureView.from_proto(feature_view.to_proto()).online_config is None
 
 
 # TODO(felixwang9817): Add tests for field mapping logic.
