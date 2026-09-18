@@ -1,4 +1,4 @@
-"""Unit tests for Registry._update_metadata_fields TTL handling (issue #6703).
+"""Unit tests for Registry._update_metadata_fields configuration handling.
 
 Re-applying a FeatureView with its ttl cleared to ``None`` or
 ``timedelta(0)`` (both the documented ways to express "no ttl") used to be
@@ -10,6 +10,7 @@ directly via the class here rather than standing up a full registry backend.
 """
 
 from datetime import timedelta
+from typing import Optional
 
 import pytest
 
@@ -18,16 +19,21 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.registry import Registry
+from feast.online_config import OnlineConfig
 from feast.types import Float32
+from feast.value_type import ValueType
 
 
-def _feature_view(ttl):
+def _feature_view(
+    ttl: Optional[timedelta], online_config: Optional[OnlineConfig] = None
+) -> FeatureView:
     return FeatureView(
         name="fv",
-        entities=[Entity(name="e", join_keys=["e_id"])],
+        entities=[Entity(name="e", join_keys=["e_id"], value_type=ValueType.INT64)],
         schema=[Field(name="f1", dtype=Float32)],
         source=FileSource(path="file://feast/*", timestamp_field="ts_col"),
         ttl=ttl,
+        online_config=online_config,
     )
 
 
@@ -51,3 +57,38 @@ def test_update_metadata_fields_preserves_finite_ttl():
     Registry._update_metadata_fields(None, existing_proto, updated_fv)
 
     assert existing_proto.spec.ttl.ToTimedelta() == timedelta(days=3)
+
+
+def test_update_metadata_fields_replaces_online_config() -> None:
+    existing_proto = _feature_view(
+        timedelta(days=10),
+        OnlineConfig(mode="sequence", max_length=10, write_mode="append"),
+    ).to_proto()
+    updated_config = OnlineConfig(
+        mode="sequence",
+        max_length=50,
+        max_age=timedelta(days=90),
+        write_mode="append",
+    )
+
+    Registry._update_metadata_fields(
+        None,
+        existing_proto,
+        _feature_view(timedelta(days=10), updated_config),
+    )
+
+    assert existing_proto.spec.HasField("online_config")
+    assert OnlineConfig.from_proto(existing_proto.spec.online_config) == updated_config
+
+
+def test_update_metadata_fields_clears_online_config() -> None:
+    existing_proto = _feature_view(
+        timedelta(days=10),
+        OnlineConfig(mode="sequence", max_length=10, write_mode="append"),
+    ).to_proto()
+
+    Registry._update_metadata_fields(
+        None, existing_proto, _feature_view(timedelta(days=10))
+    )
+
+    assert not existing_proto.spec.HasField("online_config")

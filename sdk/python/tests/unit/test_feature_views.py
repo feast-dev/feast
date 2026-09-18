@@ -11,6 +11,7 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.online_config import OnlineConfig
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -99,6 +100,7 @@ def test_hash():
         ],
         source=file_source,
     )
+
     feature_view_2 = FeatureView(
         name="my-feature-view",
         entities=[],
@@ -154,6 +156,67 @@ def test_proto_conversion():
         and feature_view_proto.spec.batch_source.name == "my-file-source"
         and feature_view_proto.spec.batch_source.type == 1
     )
+
+
+def test_online_config_feature_view_round_trip_and_copy() -> None:
+    file_source = FileSource(name="events-source", path="events.parquet")
+    online_config = OnlineConfig(
+        mode="sequence",
+        max_length=50,
+        max_age=timedelta(days=90),
+        write_mode="append",
+    )
+    feature_view = FeatureView(
+        name="events",
+        entities=[],
+        schema=[Field(name="value", dtype=Float32)],
+        source=file_source,
+        online_config=online_config,
+    )
+
+    proto = feature_view.to_proto()
+    assert proto.spec.HasField("online_config")
+    assert proto.spec.online_config.mode == proto.spec.online_config.SEQUENCE
+    assert proto.spec.online_config.max_length == 50
+    assert proto.spec.online_config.max_age_seconds == 90 * 24 * 60 * 60
+    assert proto.spec.online_config.write_mode == proto.spec.online_config.APPEND
+
+    round_tripped = FeatureView.from_proto(proto)
+    assert round_tripped.online_config == online_config
+    assert round_tripped == feature_view
+
+    copied = feature_view.__copy__()
+    assert copied.online_config == online_config
+    assert copied == feature_view
+
+
+def test_online_config_absent_and_explicit_default_are_distinct() -> None:
+    without_config = FeatureView(name="events")
+    with_default_config = FeatureView(name="events", online_config=OnlineConfig())
+
+    assert not without_config.to_proto().spec.HasField("online_config")
+    assert with_default_config.to_proto().spec.HasField("online_config")
+    assert FeatureView.from_proto(without_config.to_proto()).online_config is None
+    assert FeatureView.from_proto(with_default_config.to_proto()).online_config == (
+        OnlineConfig()
+    )
+    assert without_config != with_default_config
+
+
+def test_batch_feature_view_online_config_round_trip() -> None:
+    online_config = OnlineConfig(mode="sequence", max_length=10, write_mode="append")
+    batch_feature_view = BatchFeatureView(
+        name="batch-events",
+        source=FileSource(name="events-source", path="events.parquet"),
+        udf=lambda df: df,
+        online=True,
+        online_config=online_config,
+    )
+
+    round_tripped = FeatureView.from_proto(batch_feature_view.to_proto())
+
+    assert isinstance(round_tripped, BatchFeatureView)
+    assert round_tripped.online_config == online_config
 
 
 # TODO(felixwang9817): Add tests for field mapping logic.
