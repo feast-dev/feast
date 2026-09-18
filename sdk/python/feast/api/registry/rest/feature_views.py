@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from google.protobuf import timestamp_pb2
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import ParseDict
 from pydantic import BaseModel
 
 from feast.api.registry.rest.codegen_utils import render_feature_view_code
@@ -343,9 +344,23 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
                 )
             )
 
-        batch_source_proto = (
-            DataSourceProto(name=body.batch_source) if body.batch_source else None
-        )
+        batch_source_proto = None
+        if body.batch_source:
+            # The body carries only the source's name, so read the registered
+            # source back out of the registry. A proto built from the name alone
+            # has no type, and DataSource.from_proto then rejects it with
+            # "Could not identify the source type being added."
+            batch_source_proto = ParseDict(
+                grpc_call(
+                    grpc_handler.GetDataSource,
+                    RegistryServer_pb2.GetDataSourceRequest(
+                        name=body.batch_source,
+                        project=body.project,
+                        allow_cache=False,
+                    ),
+                ),
+                DataSourceProto(),
+            )
 
         ttl = (
             Duration(seconds=body.ttl_seconds) if body.ttl_seconds is not None else None
