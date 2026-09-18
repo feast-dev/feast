@@ -13,6 +13,7 @@ The following examples illustrate various **Feast** use cases to enhance underst
 1. **[Podman/Podman Compose Local](podman_local)**: Demonstrates how to deploy Feast remote server components using Podman Compose locally.
 1. **[RHOAI Feast Demo](rhoai-quickstart)**: Showcases Feast's core functionality using a Jupyter notebook, including fetching online feature data from a remote server and retrieving metadata from a remote registry.
 1. **[RAG Fine Tuning with Feast and Milvus](rag-retriever)**: Demonstrates end-to-end RAG fine-tuning using Feast and Milvus, including data preparation, embedding generation, feature store setup, and RAG system implementation with custom FeastRagRetriever.
+1. **[Chronon Demo](chronon)**: Demonstrates historical retrieval from Chronon materializations and online retrieval from a live Chronon quickstart service.
 
 # Feast Operator Examples
 
