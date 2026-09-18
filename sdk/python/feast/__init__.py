@@ -39,6 +39,7 @@ from .field import Field
 from .filter_models import FilterTranslator
 from .labeling import ConflictPolicy, LabelView
 from .on_demand_feature_view import OnDemandFeatureView
+from .online_config import OnlineConfig
 from .project import Project
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
@@ -69,6 +70,7 @@ __all__ = [
     "LabelView",
     "ConflictPolicy",
     "OnDemandFeatureView",
+    "OnlineConfig",
     "RepoConfig",
     "StreamFeatureView",
     "ValueType",
