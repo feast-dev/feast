@@ -15,6 +15,20 @@ const hasJsxRuntime = (() => {
   }
 })();
 
+const transformImportMetaForJest = ({ types: t }) => ({
+  visitor: {
+    MetaProperty(path) {
+      if (
+        path.node.meta.name === "import" &&
+        path.node.property.name === "meta"
+      ) {
+        // Jest runs transformed code as CommonJS, where import.meta is unavailable.
+        path.replaceWith(t.objectExpression([]));
+      }
+    },
+  },
+});
+
 module.exports = babelJest.createTransformer({
   presets: [
     [
@@ -24,6 +38,7 @@ module.exports = babelJest.createTransformer({
       },
     ],
   ],
+  plugins: [transformImportMetaForJest],
   babelrc: false,
   configFile: false,
 });
