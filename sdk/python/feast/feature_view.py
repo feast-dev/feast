@@ -115,9 +115,10 @@ class FeatureView(BaseFeatureView):
     Attributes:
         name: The unique name of the feature view.
         entities: The list of names of entities that this feature view is associated with.
-        ttl: The amount of time this group of features lives. A ttl of 0 indicates that
-            this group of features lives forever. Note that large ttl's or a ttl of 0
-            can result in extremely computationally intensive queries.
+        ttl: The time window Feast uses when looking back for historical feature
+            values. A ttl of 0 disables this lookback limit. Note that large ttl
+            values or a ttl of 0 can result in extremely computationally
+            intensive queries.
         batch_source: Optional batch source of data where this group of features
             is stored. If no source is provided, this will be None.
         stream_source: The stream source of data where this group of features is stored.
@@ -193,9 +194,10 @@ class FeatureView(BaseFeatureView):
                 and entity columns.
             # TODO: clarify that schema is only useful here...
             entities (optional): The list of entities with which this group of features is associated.
-            ttl (optional): The amount of time this group of features lives. A ttl of 0 indicates that
-                this group of features lives forever. Note that large ttl's or a ttl of 0
-                can result in extremely computationally intensive queries.
+            ttl (optional): The time window Feast uses when looking back for historical
+                feature values. A ttl of 0 disables this lookback limit. Note that
+                large ttl values or a ttl of 0 can result in extremely computationally
+                intensive queries.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
             offline (optional): A boolean indicating whether write to offline store is enabled for
