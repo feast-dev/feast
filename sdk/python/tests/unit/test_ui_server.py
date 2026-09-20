@@ -105,6 +105,17 @@ def test_ui_server_health_endpoint(ui_app_with_registry):
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
 
 
+def test_ui_server_exposes_version_under_rest_api(ui_app_with_registry):
+    """Version endpoint is mounted under the authenticated REST API."""
+    client = TestClient(ui_app_with_registry)
+
+    with patch("feast.api.registry.rest.system.get_version", return_value="1.2.3"):
+        response = client.get("/api/v1/version")
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(response.json()).is_equal_to({"version": "1.2.3"})
+
+
 def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):
     """Health endpoint returns 503 when registry is unavailable."""
     client = TestClient(ui_app_without_registry)

@@ -18,6 +18,11 @@ on:
         required: true
         default: true
         type: boolean
+      publish_docs_version:
+        description: 'Publish docs for an existing release (for example, 0.66.0)'
+        required: false
+        default: ""
+        type: string
   workflow_call:
     inputs:
       dry_run:
@@ -35,10 +40,19 @@ on:
         required: true
         default: true
         type: boolean
+      publish_docs_version:
+        description: 'Publish docs for an existing release (for example, 0.66.0)'
+        required: false
+        default: ""
+        type: string
+    secrets:
+      GITBOOK_TOKEN:
+        description: 'Token used to publish versioned documentation'
+        required: true
 
 jobs:
   get_dry_release_versions:
-    if: github.repository == 'feast-dev/feast'
+    if: github.repository == 'feast-dev/feast' && inputs.publish_docs_version == ''
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
@@ -196,3 +210,53 @@ jobs:
         run: |
           git checkout -B stable origin/${GITHUB_REF#refs/heads/}
           git push origin stable --force
+
+  publish_versioned_docs:
+    name: Publish versioned documentation
+    if: github.event.inputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    needs: [get_dry_release_versions, release]
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+      GITBOOK_TOKEN: ${{ secrets.GITBOOK_TOKEN }}
+      GITBOOK_ORG_ID: ${{ vars.GITBOOK_ORG_ID }}
+      GITBOOK_SITE_ID: ${{ vars.GITBOOK_SITE_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Publish released documentation
+        run: |
+          python infra/scripts/release/publish_versioned_docs.py \
+            --version "${{ needs.get_dry_release_versions.outputs.next_version }}"
+
+  publish_existing_version_docs:
+    name: Publish documentation for an existing release
+    if: github.repository == 'feast-dev/feast' && inputs.publish_docs_version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ inputs.token }}
+      GITBOOK_TOKEN: ${{ secrets.GITBOOK_TOKEN }}
+      GITBOOK_ORG_ID: ${{ vars.GITBOOK_ORG_ID }}
+      GITBOOK_SITE_ID: ${{ vars.GITBOOK_SITE_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Publish released documentation
+        run: |
+          args=(--version "${{ inputs.publish_docs_version }}")
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          python infra/scripts/release/publish_versioned_docs.py "${args[@]}"
