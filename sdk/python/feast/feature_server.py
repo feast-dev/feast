@@ -587,10 +587,26 @@ def get_app(
             active_timer = threading.Timer(registry_ttl_sec, async_refresh)
             active_timer.start()
 
+    # --- Audit logging setup ---
+    audit_logging_cfg = getattr(fs_cfg, "audit_logging", None)
+    audit_logger_instance = None
+    if audit_logging_cfg is not None and getattr(audit_logging_cfg, "enabled", False):
+        from feast.audit.audit_logger import create_audit_logger_from_config
+
+        audit_logger_instance = create_audit_logger_from_config(audit_logging_cfg)
+        if audit_logger_instance:
+            logger.info(
+                "Structured audit logging is ENABLED (sink=%s)",
+                getattr(audit_logging_cfg, "sink", "stdout"),
+            )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Load static artifacts before initializing store
         await load_static_artifacts(app, store)
+
+        if audit_logger_instance is not None:
+            app.state.audit_logger = audit_logger_instance
 
         await store.initialize()
         async_refresh()
@@ -603,9 +619,18 @@ def get_app(
             # wait=False: do not block process exit on in-flight materialize
             # (same fire-and-forget contract as returning 202 mid-job).
             materialize_executor.shutdown(wait=False)
+            if audit_logger_instance is not None:
+                audit_logger_instance.close()
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
+
+    # Add audit logging middleware when enabled (REST only;
+    # MCP audit is handled at the protocol layer in mcp_server.py)
+    if audit_logger_instance is not None:
+        from feast.audit.audit_middleware import AuditLoggingMiddleware
+
+        app.add_middleware(AuditLoggingMiddleware)
 
     @app.post(
         "/get-online-features",
@@ -1153,12 +1178,12 @@ def get_app(
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     # Add MCP support if enabled in feature server configuration
-    _add_mcp_support_if_enabled(app, store)
+    _add_mcp_support_if_enabled(app, store, audit_logger_instance)
 
     return app
 
 
-def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore", audit_logger=None):
     """Add MCP support to the FastAPI app if enabled in configuration."""
     mcp_transport_not_supported_error = None
     try:
@@ -1180,7 +1205,9 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
                 logger.error(f"Error checking/adding MCP support: {e}")
                 return
 
-            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+            mcp_server = add_mcp_support_to_app(
+                app, store, store.config.feature_server, audit_logger=audit_logger
+            )
 
             if mcp_server:
                 logger.info("MCP support has been enabled for the Feast feature server")
