@@ -660,7 +660,7 @@ class TestRegistryLineage:
         push_ds = DataSource()
         push_ds.name = "risk_calc_pipeline"
         push_ds.type = DataSource.SourceType.PUSH_SOURCE
-        push_ds.push_options.upstream_feature_views.extend(
+        push_ds.push_options.upstream_feature_view_names.extend(
             ["user_transaction_stats", "user_credit_profile"]
         )
         registry.data_sources.append(push_ds)
@@ -721,12 +721,12 @@ class TestRegistryLineage:
 
     def test_feature_view_stream_sources_without_upstream_views(self):
         """Test FeatureView with stream sources (PushSource, KafkaSource, KinesisSource)
-        without source_views specified draws edges from stream_source to FeatureView
+        without upstream_feature_view_names specified draws edges from stream_source to FeatureView
         and batch_source to FeatureView.
         """
         registry = Registry()
 
-        # 1. FeatureView with PushSource (no upstream_feature_views)
+        # 1. FeatureView with PushSource (no upstream_feature_view_names)
         push_ds = DataSource()
         push_ds.name = "user_push_source"
         push_ds.type = DataSource.SourceType.PUSH_SOURCE
@@ -806,7 +806,7 @@ class TestRegistryLineage:
                 f"Expected relationship {exp} not found in {actual_direct}"
             )
 
-        # Ensure no reverse edges (e.g. featureView -> dataSource) exist since no source_views are specified
+        # Ensure no reverse edges (e.g. featureView -> dataSource) exist since no upstream_feature_view_names are specified
         reverse_edges = [
             rel
             for rel in direct_relationships
@@ -855,7 +855,7 @@ class TestRegistryLineage:
             name="batch_file_source", path="data/batch.parquet"
         )
 
-        # 1. PushSource without source_views
+        # 1. PushSource without upstream_feature_view_names
         push_source = FeastPushSource(
             name="sdk_push_source",
             batch_source=file_source,

@@ -525,11 +525,11 @@ class RegistryLineageGenerator:
         for ds in push_sources.values():
             if (
                 not hasattr(ds, "push_options")
-                or not hasattr(ds.push_options, "upstream_feature_views")
-                or not ds.push_options.upstream_feature_views
+                or not hasattr(ds.push_options, "upstream_feature_view_names")
+                or not ds.push_options.upstream_feature_view_names
             ):
                 continue
-            for upstream_fv in ds.push_options.upstream_feature_views:
+            for upstream_fv in ds.push_options.upstream_feature_view_names:
                 source_type = (
                     FeastObjectType.LABEL_VIEW
                     if upstream_fv in label_view_names

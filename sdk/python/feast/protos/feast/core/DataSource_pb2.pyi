@@ -524,16 +524,16 @@ class DataSource(google.protobuf.message.Message):
 
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        UPSTREAM_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+        UPSTREAM_FEATURE_VIEW_NAMES_FIELD_NUMBER: builtins.int
         @property
-        def upstream_feature_views(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
+        def upstream_feature_view_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
             """Names of upstream FeatureViews consumed by the process feeding this PushSource"""
         def __init__(
             self,
             *,
-            upstream_feature_views: collections.abc.Iterable[builtins.str] | None = ...,
+            upstream_feature_view_names: collections.abc.Iterable[builtins.str] | None = ...,
         ) -> None: ...
-        def ClearField(self, field_name: typing_extensions.Literal["upstream_feature_views", b"upstream_feature_views"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["upstream_feature_view_names", b"upstream_feature_view_names"]) -> None: ...
 
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int

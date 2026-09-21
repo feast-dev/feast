@@ -374,7 +374,7 @@ describe("RegistryVisualization legend", () => {
 });
 
 describe("parseEntityRelationships PushSource lineage", () => {
-  test("parses upstreamFeatureViews on PushSource into EntityRelation links", () => {
+  test("parses upstreamFeatureViewNames on PushSource into EntityRelation links", () => {
     const registry = makeRegistry({
       featureViews: [
         feast.core.FeatureView.create({
@@ -383,7 +383,7 @@ describe("parseEntityRelationships PushSource lineage", () => {
             streamSource: feast.core.DataSource.create({
               name: "risk_calc_pipeline",
               pushOptions: feast.core.DataSource.PushOptions.create({
-                upstreamFeatureViews: [
+                upstreamFeatureViewNames: [
                   "user_transaction_stats",
                   "user_credit_profile",
                 ],
@@ -396,7 +396,7 @@ describe("parseEntityRelationships PushSource lineage", () => {
         feast.core.DataSource.create({
           name: "risk_calc_pipeline",
           pushOptions: feast.core.DataSource.PushOptions.create({
-            upstreamFeatureViews: [
+            upstreamFeatureViewNames: [
               "user_transaction_stats",
               "user_credit_profile",
             ],
@@ -441,7 +441,7 @@ describe("parseEntityRelationships PushSource lineage", () => {
     });
   });
 
-  test("parses streamSource and batchSource on FeatureView with PushSource without upstreamFeatureViews", () => {
+  test("parses streamSource and batchSource on FeatureView with PushSource without upstreamFeatureViewNames", () => {
     const registry = makeRegistry({
       featureViews: [
         feast.core.FeatureView.create({

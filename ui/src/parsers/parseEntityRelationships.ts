@@ -274,14 +274,15 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
   const dsLocationIndex = buildDataSourceLocationIndex(allDataSources);
 
   // Upstream FeatureView -> DataSource (PushSource) relationships
-  // Note: BatchSource and non-push StreamSource do not declare upstreamFeatureViews.
+  // Note: BatchSource and non-push StreamSource do not declare upstreamFeatureViewNames.
   const seenPushEdges = new Set<string>();
   allDataSources.forEach((ds: any) => {
     const dsObj = ds.spec || ds;
     const dsName = dsObj.name;
     const pushOpts = dsObj.pushOptions || dsObj.push_options;
     const upstreamFvs =
-      pushOpts?.upstreamFeatureViews || pushOpts?.upstream_feature_views;
+      pushOpts?.upstreamFeatureViewNames ||
+      pushOpts?.upstream_feature_view_names;
     if (dsName && Array.isArray(upstreamFvs)) {
       upstreamFvs.forEach((upstreamFvName: string) => {
         const edgeKey = `${upstreamFvName}->${dsName}`;
