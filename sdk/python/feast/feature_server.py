@@ -59,6 +59,7 @@ from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.feature_servers.base_config import MetricsConfig
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -236,6 +237,21 @@ def _resolve_feature_counts(
     """Return ``(feature_count_str, feature_view_count_str)`` for Prometheus labels."""
     fv_names, feat_count = _parse_feature_info(features)
     return str(feat_count), str(len(fv_names))
+
+
+def bin_feature_count(count: int, bins: List[int]) -> str:
+    """Map a raw feature count to an inclusive range label."""
+    if count == 0:
+        return "0"
+
+    lower = 1
+
+    for upper in bins:
+        if count <= upper:
+            return f"{lower}-{upper}"
+        lower = upper + 1
+
+    return f"{lower}+"
 
 
 def _emit_online_audit(
@@ -632,6 +648,16 @@ def get_app(
 
         app.add_middleware(AuditLoggingMiddleware)
 
+    fs_cfg = getattr(store.config, "feature_server", None)
+    metrics_cfg = getattr(fs_cfg, "metrics", None)
+
+    default_feature_count_bins = MetricsConfig().feature_count_bins
+    feature_count_bins = (
+        getattr(metrics_cfg, "feature_count_bins", default_feature_count_bins)
+        if metrics_cfg is not None
+        else default_feature_count_bins
+    )
+
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
@@ -643,7 +669,11 @@ def get_app(
         ) as metrics_ctx:
             features = await _get_features(request, store)
             feat_count, fv_count = _resolve_feature_counts(features)
-            metrics_ctx.feature_count = feat_count
+
+            metrics_ctx.feature_count = bin_feature_count(
+                int(feat_count),
+                feature_count_bins,
+            )
             metrics_ctx.feature_view_count = fv_count
 
             entity_count = len(next(iter(request.entities.values()), []))
@@ -1288,6 +1318,7 @@ def start_server(
 
     fs_cfg = getattr(store.config, "feature_server", None)
     metrics_cfg = getattr(fs_cfg, "metrics", None)
+
     metrics_from_config = getattr(metrics_cfg, "enabled", False)
     metrics_active = metrics or metrics_from_config
     uses_gunicorn = sys.platform != "win32"
