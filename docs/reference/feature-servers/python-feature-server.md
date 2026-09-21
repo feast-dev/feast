@@ -368,7 +368,7 @@ thread from starting). All categories default to `true` except
 | `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
 | `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
 | `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
-| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
 | `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
 | `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
 | `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
@@ -381,6 +381,28 @@ thread from starting). All categories default to `true` except
 | `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
 | `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
 | `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
+
+### Feature count bucketing
+
+The `feature_count` label on `feast_feature_server_request_latency_seconds`
+is bucketed rather than exact, to keep cardinality bounded for feature
+services that vary widely in how many features they request. By default,
+counts are grouped into `0`, `1-10`, `11-50`, `51-200`, and `201+`.
+
+Customize the bucket boundaries with `feature_count_bins` in the `metrics`
+block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    feature_count_bins: [5, 20]
+```
+
+This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
+affects the Prometheus label; the `feature_count` field in audit logs (see
+below) always reports the exact count.
 
 ### Per-ODFV transformation metrics
 
