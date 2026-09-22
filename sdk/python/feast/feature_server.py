@@ -262,6 +262,8 @@ def _emit_online_audit(
     latency_ms: float,
 ):
     """Best-effort audit log emission for online feature requests."""
+    if not feast_metrics._config.audit_logging:
+        return
     try:
         from feast.permissions.security_manager import get_security_manager
 
@@ -686,9 +688,11 @@ def get_app(
                 include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
-            audit_start_ms = time.monotonic() * 1000
+            audit_start_ms = 0.0
             audit_status = "success"
             try:
+                if feast_metrics._config.audit_logging:
+                    audit_start_ms = time.monotonic() * 1000
                 if store._get_provider().async_supported.online.read:
                     response = await store.get_online_features_async(**read_params)  # type: ignore
                 else:
@@ -699,10 +703,11 @@ def get_app(
                 audit_status = "error"
                 raise
             finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
-                )
+                if feast_metrics._config.audit_logging:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
 
             response_dict = await run_in_threadpool(
                 convert_response_to_dict, response.proto
