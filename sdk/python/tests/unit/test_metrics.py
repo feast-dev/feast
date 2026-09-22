@@ -389,6 +389,255 @@ class TestInitWorkerFreshnessMonitoring:
         mock_thread_cls.assert_not_called()
 
 
+class TestStartMetricsServerProcess:
+    """Verify start_metrics_server launches the HTTP endpoint in a child process."""
+
+    def test_launches_dedicated_process(self):
+        """start_metrics_server spawns a multiprocessing.Process, not a Thread."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store, port=9090)
+
+            mock_proc_cls.assert_called_once_with(
+                target=m._run_metrics_server,
+                args=(9090, m._prometheus_mp_dir, mock_event),
+                daemon=True,
+                name="feast-metrics-server",
+            )
+            mock_proc.start.assert_called_once()
+
+    def test_process_receives_correct_mp_dir(self):
+        """The child process receives the multiprocess directory path."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 99
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store)
+
+            _, kwargs = mock_proc_cls.call_args
+            assert kwargs["args"][1] == m._prometheus_mp_dir
+
+    def test_background_threads_still_started(self):
+        """Resource and freshness monitoring threads still launch in-process."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+        flags = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            freshness=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+        )
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 1
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(
+                mock_store,
+                metrics_config=flags,
+                start_resource_monitoring=True,
+                start_freshness_monitoring=True,
+            )
+
+            thread_calls = mock_thread_cls.call_args_list
+            targets = [c.kwargs.get("target") for c in thread_calls]
+            assert m.monitor_resources in targets
+            assert m.monitor_freshness in targets
+
+    def test_no_threads_when_monitoring_deferred(self):
+        """When monitoring is deferred to workers, no threads are started."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 1
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(
+                mock_store,
+                start_resource_monitoring=False,
+                start_freshness_monitoring=False,
+            )
+
+            mock_thread_cls.assert_not_called()
+
+    def test_waits_for_ready_event(self):
+        """start_metrics_server waits on the readiness event from the child."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 42
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store)
+
+            mock_event.wait.assert_called_once_with(timeout=5)
+
+    def test_logs_error_when_child_exits_before_ready(self):
+        """If the child process dies before signalling readiness, log an error."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = False
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+            patch("feast.metrics.logger") as mock_logger,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 7
+            mock_proc.is_alive.return_value = False
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store, port=9999)
+
+            mock_logger.error.assert_called_once()
+            assert "9999" in str(mock_logger.error.call_args)
+
+    def test_child_shutdown_handler_dispatches_asynchronously(self):
+        """The SIGTERM handler must call httpd.shutdown() from a separate thread."""
+        import os
+        import signal
+
+        import feast.metrics as m
+
+        mock_httpd = MagicMock()
+        mock_httpd.serve_forever.side_effect = lambda: None
+        captured_handlers = {}
+
+        def capture_signal(signum, handler):
+            captured_handlers[signum] = handler
+
+        with (
+            patch(
+                "wsgiref.simple_server.make_server",
+                return_value=mock_httpd,
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            original_signal = signal.signal
+            signal.signal = capture_signal
+            try:
+                m._run_metrics_server(
+                    8000,
+                    os.environ.get("PROMETHEUS_MULTIPROCESS_DIR", "/tmp"),
+                )
+            finally:
+                signal.signal = original_signal
+
+            handler = captured_handlers.get(signal.SIGTERM)
+            assert handler is not None, "SIGTERM handler was not registered"
+
+            handler(signal.SIGTERM, None)
+
+            mock_thread_cls.assert_called_once()
+            call_kwargs = mock_thread_cls.call_args
+            assert call_kwargs.kwargs.get("target") == mock_httpd.shutdown
+            assert call_kwargs.kwargs.get("daemon") is True
+
+    def test_child_logs_and_exits_on_bind_failure(self):
+        """If make_server() fails (e.g. port in use), child logs and returns."""
+        import feast.metrics as m
+
+        with (
+            patch(
+                "wsgiref.simple_server.make_server",
+                side_effect=OSError("Address already in use"),
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+            patch("feast.metrics.logger") as mock_logger,
+        ):
+            mock_event = MagicMock()
+
+            m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
+
+            mock_logger.exception.assert_called_once()
+            assert "8000" in str(mock_logger.exception.call_args)
+            mock_event.set.assert_not_called()
+
+    def test_ready_event_set_on_successful_bind(self):
+        """The ready_event is set after make_server() succeeds."""
+        import feast.metrics as m
+
+        mock_httpd = MagicMock()
+        mock_httpd.serve_forever.side_effect = lambda: None
+
+        with (
+            patch(
+                "wsgiref.simple_server.make_server",
+                return_value=mock_httpd,
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+        ):
+            mock_event = MagicMock()
+
+            m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
+
+            mock_event.set.assert_called_once()
+
+
 class TestMetricsYamlConfig:
     """Verify metrics config in feature_store.yaml is respected.
 
