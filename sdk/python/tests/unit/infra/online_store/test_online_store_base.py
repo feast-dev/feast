@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -53,3 +54,19 @@ class TestOnlineStoreBase:
     def test_cannot_instantiate_abstract(self):
         with pytest.raises(TypeError):
             OnlineStore()
+
+    def test_online_append_not_implemented_by_default(self):
+        store = ConcreteOnlineStore()
+        with pytest.raises(NotImplementedError, match="does not support online append"):
+            store.online_append(config=MagicMock(), table=MagicMock(), data=[])
+
+    def test_online_append_async_not_implemented_by_default(self):
+        store = ConcreteOnlineStore()
+        with pytest.raises(
+            NotImplementedError, match="does not support online append async"
+        ):
+            asyncio.run(
+                store.online_append_async(
+                    config=MagicMock(), table=MagicMock(), data=[]
+                )
+            )

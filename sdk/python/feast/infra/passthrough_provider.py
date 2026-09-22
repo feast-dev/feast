@@ -56,6 +56,14 @@ from feast.utils import (
 DEFAULT_BATCH_SIZE = 10_000
 
 
+def _uses_append_write_mode(feature_view: BaseFeatureView) -> bool:
+    return (
+        isinstance(feature_view, FeatureView)
+        and feature_view.online_config is not None
+        and feature_view.online_config.write_mode == "append"
+    )
+
+
 class PassthroughProvider(Provider):
     """
     The passthrough provider delegates all operations to the underlying online and offline stores.
@@ -210,6 +218,30 @@ class PassthroughProvider(Provider):
             await self.online_store.online_write_batch_async(
                 config, table, data, progress
             )
+
+    def online_append(
+        self,
+        config: RepoConfig,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        if self.online_store:
+            self.online_store.online_append(config, table, data, progress)
+
+    async def online_append_async(
+        self,
+        config: RepoConfig,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        if self.online_store:
+            await self.online_store.online_append_async(config, table, data, progress)
 
     def offline_write_batch(
         self,
@@ -402,9 +434,14 @@ class PassthroughProvider(Provider):
             df=df,
             field_mapping=field_mapping,
         )
-        self.online_write_batch(
-            self.repo_config, feature_view, rows_to_write, progress=None
-        )
+        if _uses_append_write_mode(feature_view):
+            self.online_append(
+                self.repo_config, feature_view, rows_to_write, progress=None
+            )
+        else:
+            self.online_write_batch(
+                self.repo_config, feature_view, rows_to_write, progress=None
+            )
 
     async def ingest_df_async(
         self,
@@ -417,9 +454,14 @@ class PassthroughProvider(Provider):
             df=df,
             field_mapping=field_mapping,
         )
-        await self.online_write_batch_async(
-            self.repo_config, feature_view, rows_to_write, progress=None
-        )
+        if _uses_append_write_mode(feature_view):
+            await self.online_append_async(
+                self.repo_config, feature_view, rows_to_write, progress=None
+            )
+        else:
+            await self.online_write_batch_async(
+                self.repo_config, feature_view, rows_to_write, progress=None
+            )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
         if (
