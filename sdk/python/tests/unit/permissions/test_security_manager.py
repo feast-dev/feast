@@ -1,15 +1,23 @@
+from unittest.mock import Mock
+
 import assertpy
 import pytest
 
 from feast.entity import Entity
 from feast.errors import FeastObjectNotFoundException, FeastPermissionError
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.action import READ, AuthzedAction
 from feast.permissions.security_manager import (
+    SecurityManager,
     assert_permissions,
     assert_permissions_to_update,
+    is_auth_necessary,
+    no_security_manager,
     permitted_resources,
+    set_security_manager,
 )
 from feast.permissions.user import User
+from feast.value_type import ValueType
 
 
 @pytest.mark.parametrize(
@@ -326,3 +334,17 @@ def test_update_entity(
     else:
         with pytest.raises(FeastPermissionError):
             assert_permissions_to_update(resource=entity, getter=getter, project="")
+
+
+def test_write_auth_only_skips_permission_rbac():
+    registry = Mock(spec=BaseRegistry)
+    registry.list_permissions = Mock(return_value=[])
+    sm = SecurityManager(project="any", registry=registry, write_auth_only=True)
+    set_security_manager(sm)
+    try:
+        assert is_auth_necessary(sm) is False
+        entity = Entity(name="user", join_keys=["user_id"], value_type=ValueType.STRING)
+        assert assert_permissions(entity, actions=AuthzedAction.CREATE) is entity
+        assert permitted_resources([entity], actions=AuthzedAction.DESCRIBE) == [entity]
+    finally:
+        no_security_manager()

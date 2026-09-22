@@ -200,6 +200,9 @@ def permitted_resources(
             # NoAuthConfig: allow all resources
             logger.debug("NoAuthConfig enabled - allowing access to all resources")
             return resources
+        if sm.write_auth_only:
+            # Write-path OIDC: reads are unauthenticated; skip Permission filtering.
+            return resources
         elif sm.current_user is not None:
             # Intra-communication user: allow all resources
             logger.debug("Intra-communication user - allowing access to all resources")

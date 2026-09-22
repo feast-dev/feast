@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -12,7 +13,18 @@ from starlette.authentication import (
 
 from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
+from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.user import User
+from tests.unit.permissions.auth.rsa_jwt import (
+    AUDIENCE,
+    ISSUER,
+    encode_jwt,
+    generate_rsa_keypair,
+    patch_oidc_jwks,
+)
+from tests.unit.permissions.auth.rsa_jwt import (
+    CLIENT_ID as OKTA_CLIENT_ID,
+)
 
 _CLIENT_ID = "test"
 
@@ -264,3 +276,153 @@ def test_k8s_inter_server_comm(
             for r in roles:
                 assertpy.assert_that(user.has_matching_role([r])).is_true()
             assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
+
+
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+@pytest.mark.parametrize(
+    "claims, expected_user, expected_roles",
+    [
+        ({"sub": "okta-sub"}, "okta-sub", []),
+        ({"cid": "okta-cid"}, "okta-cid", []),
+        (
+            {"preferred_username": "alice", "sub": "s", "cid": "c"},
+            "alice",
+            [],
+        ),
+        ({"sub": "s", "cid": "c"}, "s", []),
+        (
+            {
+                "sub": "okta-sub",
+                "resource_access": {_CLIENT_ID: {"roles": ["reader"]}},
+            },
+            "okta-sub",
+            ["reader"],
+        ),
+        (
+            {"sub": "okta-sub", "resource_access": {"other": {"roles": ["x"]}}},
+            "okta-sub",
+            [],
+        ),
+    ],
+)
+def test_oidc_okta_claim_fallbacks(
+    mock_discovery_data,
+    mock_jwt,
+    mock_signing_key,
+    oidc_config,
+    claims,
+    expected_user,
+    expected_roles,
+):
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+    mock_jwt.return_value = claims
+
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    user = token_parser.user_details_from_access_token_sync(access_token="aaa-bbb-ccc")
+
+    assertpy.assert_that(user.username).is_equal_to(expected_user)
+    assertpy.assert_that(user.roles).is_equal_to(expected_roles)
+
+
+@patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
+@patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
+def test_oidc_missing_identity_claims_fail(
+    mock_discovery_data, mock_jwt, mock_signing_key, oidc_config
+):
+    signing_key = MagicMock()
+    signing_key.key = "a-key"
+    mock_signing_key.return_value = signing_key
+    mock_discovery_data.return_value = {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+    mock_jwt.return_value = {"iss": "https://example"}
+
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+    with pytest.raises(AuthenticationError):
+        token_parser.user_details_from_access_token_sync(access_token="aaa-bbb-ccc")
+
+
+@pytest.fixture(scope="module")
+def rsa_keypair():
+    return generate_rsa_keypair()
+
+
+def _okta_auth_config() -> OidcAuthConfig:
+    return OidcAuthConfig(
+        type="oidc",
+        auth_discovery_url="https://example/.well-known/openid-configuration",
+        client_id=OKTA_CLIENT_ID,
+        issuer=ISSUER,
+        audience=AUDIENCE,
+    )
+
+
+def test_oidc_real_jwt_okta_sub_succeeds(rsa_keypair, monkeypatch):
+    private_key, public_key = rsa_keypair
+    patch_oidc_jwks(monkeypatch, public_key)
+    token = encode_jwt(private_key)
+
+    user = OidcTokenParser(
+        auth_config=_okta_auth_config()
+    ).user_details_from_access_token_sync(token)
+    assertpy.assert_that(user.username).is_equal_to("okta-app")
+    assertpy.assert_that(user.roles).is_equal_to([])
+
+
+def test_oidc_real_jwt_wrong_audience_fails(rsa_keypair, monkeypatch):
+    private_key, public_key = rsa_keypair
+    patch_oidc_jwks(monkeypatch, public_key)
+    token = encode_jwt(private_key, aud="wrong-audience")
+
+    with pytest.raises(AuthenticationError):
+        OidcTokenParser(
+            auth_config=_okta_auth_config()
+        ).user_details_from_access_token_sync(token)
+
+
+def test_oidc_real_jwt_missing_issuer_fails(rsa_keypair, monkeypatch):
+    private_key, public_key = rsa_keypair
+    patch_oidc_jwks(monkeypatch, public_key)
+    token = encode_jwt(private_key, iss=None)
+
+    with pytest.raises(AuthenticationError):
+        OidcTokenParser(
+            auth_config=_okta_auth_config()
+        ).user_details_from_access_token_sync(token)
+
+
+def test_oidc_real_jwt_expired_fails(rsa_keypair, monkeypatch):
+    private_key, public_key = rsa_keypair
+    patch_oidc_jwks(monkeypatch, public_key)
+    token = encode_jwt(
+        private_key, exp=datetime.now(timezone.utc) - timedelta(minutes=5)
+    )
+
+    with pytest.raises(AuthenticationError):
+        OidcTokenParser(
+            auth_config=_okta_auth_config()
+        ).user_details_from_access_token_sync(token)
+
+
+def test_oidc_real_jwt_bad_signature_fails(rsa_keypair, monkeypatch):
+    _, public_key = rsa_keypair
+    other_private, _ = generate_rsa_keypair()
+    patch_oidc_jwks(monkeypatch, public_key)
+    token = encode_jwt(other_private)
+
+    with pytest.raises(AuthenticationError):
+        OidcTokenParser(
+            auth_config=_okta_auth_config()
+        ).user_details_from_access_token_sync(token)
