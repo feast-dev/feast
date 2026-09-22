@@ -18,11 +18,16 @@ from feast.repo_config import FeastConfigBaseModel
 
 class AuthConfig(FeastConfigBaseModel):
     type: Literal["oidc", "kubernetes", "no_auth"] = "no_auth"
+    # Opt-in write-path gRPC auth. Default false so existing no_auth / stock OIDC
+    # servers are unchanged. extra=forbid requires this field to be declared.
+    write_auth_only: bool = False
 
 
 class OidcAuthConfig(AuthConfig):
     auth_discovery_url: str
     client_id: str
+    issuer: Optional[str] = None
+    audience: Optional[str] = None
 
 
 class OidcClientAuthConfig(OidcAuthConfig):

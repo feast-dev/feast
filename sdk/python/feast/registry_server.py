@@ -22,13 +22,14 @@ from feast.infra.registry.sql import SqlRegistry
 from feast.infra.registry.sql_fallback import SqlFallbackRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import AuthzedAction
+from feast.permissions.auth_model import AuthConfig
 from feast.permissions.permission import Permission
 from feast.permissions.security_manager import (
     assert_permissions,
     assert_permissions_to_update,
     permitted_resources,
 )
-from feast.permissions.server.grpc import AuthInterceptor
+from feast.permissions.server.grpc import AuthInterceptor, WritePathAuthInterceptor
 from feast.permissions.server.utils import (
     AuthManagerType,
     ServerType,
@@ -1341,7 +1342,7 @@ def start_server(
 
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=_grpc_interceptors(auth_manager_type),
+        interceptors=_grpc_interceptors(auth_manager_type, store.config.auth_config),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
@@ -1383,17 +1384,23 @@ def start_server(
 
 def _grpc_interceptors(
     auth_type: AuthManagerType,
+    auth_config: Optional[AuthConfig] = None,
 ) -> Optional[list[grpc.ServerInterceptor]]:
     """
     A list of the interceptors for the registry server.
 
     Args:
         auth_type: The type of authorization manager, from the feature store configuration.
+        auth_config: The auth configuration, used to select write-path vs stock OIDC.
 
     Returns:
         list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
     """
     if auth_type == AuthManagerType.NONE:
         return [ErrorInterceptor()]
+
+    write_auth_only = bool(getattr(auth_config, "write_auth_only", False))
+    if auth_type == AuthManagerType.OIDC and write_auth_only:
+        return [WritePathAuthInterceptor(), ErrorInterceptor()]
 
     return [AuthInterceptor(), ErrorInterceptor()]

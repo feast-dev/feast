@@ -31,3 +31,16 @@ class AuthInterceptor(grpc.ServerInterceptor):
             sm.set_current_user(current_user)
 
         return continuation(handler_call_details)
+
+
+class WritePathAuthInterceptor(grpc.ServerInterceptor):
+    """
+    Authenticate write RPCs only. JWT parse and set_current_user run on the
+    worker thread (handler wrap), not in intercept_service.
+
+    Handler wrapping and the write-RPC allowlist are filled in with the
+    interceptor implementation.
+    """
+
+    def intercept_service(self, continuation, handler_call_details):
+        return continuation(handler_call_details)

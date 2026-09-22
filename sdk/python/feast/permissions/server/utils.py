@@ -75,11 +75,12 @@ def init_security_manager(auth_type: AuthManagerType, fs: "feast.FeatureStore"):
     if auth_type == AuthManagerType.NONE:
         no_security_manager()
     else:
-        # TODO permissions from registry
+        write_auth_only = bool(getattr(fs.config.auth_config, "write_auth_only", False))
         set_security_manager(
             SecurityManager(
                 project=fs.project,
                 registry=fs.registry,
+                write_auth_only=write_auth_only,
             )
         )
 
