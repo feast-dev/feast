@@ -4,13 +4,6 @@ from requests import Response
 
 
 def mock_oidc(request, monkeypatch, client_id):
-    async def mock_oath2(self, request):
-        return "OK"
-
-    monkeypatch.setattr(
-        "feast.permissions.auth.oidc_token_parser.OAuth2AuthorizationCodeBearer.__call__",
-        mock_oath2,
-    )
     signing_key = MagicMock()
     signing_key.key = "a-key"
     monkeypatch.setattr(

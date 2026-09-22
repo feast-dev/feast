@@ -1,11 +1,8 @@
 import logging
 import os
-from typing import Optional
-from unittest.mock import Mock
+from typing import Any, Optional
 
 import jwt
-from fastapi import Request
-from fastapi.security import OAuth2AuthorizationCodeBearer
 from jwt import PyJWKClient
 from starlette.authentication import (
     AuthenticationError,
@@ -22,7 +19,11 @@ logger = logging.getLogger(__name__)
 class OidcTokenParser(TokenParser):
     """
     A `TokenParser` to use an OIDC server to retrieve the user details.
-    Server settings are retrieved from the `auth` configurationof the Feature store.
+    Server settings are retrieved from the `auth` configuration of the Feature store.
+
+    Token validation is synchronous (JWKS + ``jwt.decode``) so it is safe to call from
+    gRPC ThreadPoolExecutor workers. Signature and ``exp`` are always verified;
+    ``iss`` and ``aud`` are verified when configured on ``OidcAuthConfig``.
     """
 
     _auth_config: OidcAuthConfig
@@ -32,23 +33,6 @@ class OidcTokenParser(TokenParser):
         self.oidc_discovery_service = OIDCDiscoveryService(
             self._auth_config.auth_discovery_url
         )
-
-    async def _validate_token(self, access_token: str):
-        """
-        Validate the token extracted from the header of the user request against the OAuth2 server.
-        """
-        # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
-        # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
-        request = Mock(spec=Request)
-        request.headers = {"Authorization": f"Bearer {access_token}"}
-
-        oauth_2_scheme = OAuth2AuthorizationCodeBearer(
-            tokenUrl=self.oidc_discovery_service.get_token_url(),
-            authorizationUrl=self.oidc_discovery_service.get_authorization_url(),
-            refreshUrl=self.oidc_discovery_service.get_refresh_url(),
-        )
-
-        await oauth_2_scheme(request=request)
 
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
@@ -60,19 +44,33 @@ class OidcTokenParser(TokenParser):
         Raises:
             AuthenticationError if any error happens.
         """
+        return self.user_details_from_access_token_sync(access_token)
 
-        # check if intra server communication
+    def user_details_from_access_token_sync(self, access_token: str) -> User:
+        """
+        Synchronous JWT validation and claim extraction.
+        """
         user = self._get_intra_comm_user(access_token)
         if user:
             return user
 
         try:
-            await self._validate_token(access_token)
-            logger.debug("Token successfully validated.")
+            data = self._decode_token(access_token)
+        except AuthenticationError:
+            raise
         except Exception as e:
             logger.error(f"Token validation failed: {e}")
             raise AuthenticationError(f"Invalid token: {e}")
 
+        current_user = self._username_from_claims(data)
+        roles = self._roles_from_claims(data)
+        logger.info(f"Extracted user {current_user} and roles {roles}")
+        return User(username=current_user, roles=roles)
+
+    def _decode_token(self, access_token: str) -> dict[str, Any]:
+        """
+        Verify signature, exp, and optional iss/aud against the OIDC JWKS.
+        """
         optional_custom_headers = {"User-agent": "custom-user-agent"}
         jwks_client = PyJWKClient(
             self.oidc_discovery_service.get_jwks_url(), headers=optional_custom_headers
@@ -80,41 +78,55 @@ class OidcTokenParser(TokenParser):
 
         try:
             signing_key = jwks_client.get_signing_key_from_jwt(access_token)
-            data = jwt.decode(
-                access_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience="account",
-                options={
-                    "verify_aud": False,
+            issuer = self._auth_config.issuer
+            audience = self._auth_config.audience
+            decode_kwargs: dict[str, Any] = {
+                "algorithms": ["RS256"],
+                "options": {
                     "verify_signature": True,
                     "verify_exp": True,
+                    "verify_aud": bool(audience),
+                    "verify_iss": bool(issuer),
                 },
-                leeway=10,  # accepts tokens generated up to 10 seconds in the past, in case of clock skew
-            )
-
-            if "preferred_username" not in data:
-                raise AuthenticationError(
-                    "Missing preferred_username field in access token."
-                )
-            current_user = data["preferred_username"]
-
-            if "resource_access" not in data:
-                logger.warning("Missing resource_access field in access token.")
-            client_id = self._auth_config.client_id
-            if client_id not in data["resource_access"]:
-                logger.warning(
-                    f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
-                )
-                roles = []
-            else:
-                roles = data["resource_access"][client_id]["roles"]
-
-            logger.info(f"Extracted user {current_user} and roles {roles}")
-            return User(username=current_user, roles=roles)
+                "leeway": 10,  # accepts tokens generated up to 10 seconds in the past
+            }
+            if audience:
+                decode_kwargs["audience"] = audience
+            if issuer:
+                decode_kwargs["issuer"] = issuer
+            return jwt.decode(access_token, signing_key.key, **decode_kwargs)
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
+
+    def _username_from_claims(self, data: dict[str, Any]) -> str:
+        current_user = (
+            data.get("preferred_username") or data.get("sub") or data.get("cid")
+        )
+        if not current_user:
+            raise AuthenticationError(
+                "Missing preferred_username, sub, and cid in access token."
+            )
+        return str(current_user)
+
+    def _roles_from_claims(self, data: dict[str, Any]) -> list:
+        resource_access = data.get("resource_access")
+        if not isinstance(resource_access, dict):
+            logger.warning("Missing resource_access field in access token.")
+            return []
+
+        client_id = self._auth_config.client_id
+        client_access = resource_access.get(client_id)
+        if not isinstance(client_access, dict):
+            logger.warning(
+                f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
+            )
+            return []
+
+        roles = client_access.get("roles")
+        if not isinstance(roles, list):
+            return []
+        return roles
 
     def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
