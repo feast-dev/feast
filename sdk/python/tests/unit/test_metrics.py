@@ -1847,6 +1847,31 @@ class TestParseFeatureInfo:
 class TestEmitOnlineAudit:
     """Tests for the _emit_online_audit helper in feature_server."""
 
+    def test_skips_when_audit_logging_disabled(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_metrics,
+            patch(
+                "feast.permissions.security_manager.get_security_manager",
+            ) as mock_sm,
+        ):
+            mock_metrics._config.audit_logging = False
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=1,
+                status="success",
+                latency_ms=10.0,
+            )
+            mock_metrics.emit_online_audit_log.assert_not_called()
+            mock_sm.assert_not_called()
+
     def test_emits_audit_log_with_anonymous_user(self):
         from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
 

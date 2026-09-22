@@ -1829,6 +1829,7 @@ def _populate_response_from_feature_data(
     feat_statuses = [[NOT_FOUND] * output_len for _ in range(n_features)]
 
     feat_idx_map = {name: i for i, name in enumerate(requested_features)}
+    _present_count = 0
     for row_idx, destinations in enumerate(indexes_tuple):
         _, feature_data = read_rows[row_idx]
         if feature_data is None:
@@ -1839,13 +1840,13 @@ def _populate_response_from_feature_data(
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = PRESENT
+                    _present_count += 1
 
     try:
         from feast.metrics import track_feature_statuses
 
-        _present = sum(s == PRESENT for row in feat_statuses for s in row)
-        _not_found = (n_features * output_len) - _present
-        track_feature_statuses(table.name, _present, _not_found)
+        _not_found = (n_features * output_len) - _present_count
+        track_feature_statuses(table.name, _present_count, _not_found)
     except Exception:
         pass
 
