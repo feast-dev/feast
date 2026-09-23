@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import StrictBool, StrictInt
+from pydantic import Field, StrictBool, StrictInt, field_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -59,6 +59,24 @@ class MetricsConfig(FeastConfigBaseModel):
     (feast_feature_server_request_total,
     feast_feature_server_request_latency_seconds)."""
 
+    feature_count_bins: list[int] = Field(default_factory=lambda: [10, 50, 200])
+    """Upper bounds used to bucket the ``feature_count`` label in request latency metrics.
+
+    For example, ``[10, 50, 200]`` produces labels
+    ``1-10``, ``11-50``, ``51-200``, and ``201+``.
+    """
+
+    @field_validator("feature_count_bins")
+    @classmethod
+    def validate_feature_count_bins(cls, bins: list[int]) -> list[int]:
+        if any(bound <= 0 for bound in bins):
+            raise ValueError("feature_count_bins must contain only positive integers")
+
+        if any(lower >= upper for lower, upper in zip(bins, bins[1:])):
+            raise ValueError("feature_count_bins must be strictly increasing")
+
+        return bins
+
     online_features: StrictBool = True
     """Emit online feature retrieval metrics
     (feast_online_features_request_total,
@@ -94,6 +112,27 @@ class MetricsConfig(FeastConfigBaseModel):
     identity, entity keys, feature views, row counts, and latency."""
 
 
+class AuditLoggingConfig(FeastConfigBaseModel):
+    """Structured audit logging configuration for the feature server.
+
+    Emits JSONL audit events for MCP tool calls, REST requests,
+    and authentication/authorization decisions.
+    """
+
+    enabled: StrictBool = False
+    """Whether structured audit logging is enabled."""
+
+    sink: Literal["stdout", "file", "logger"] = "stdout"
+    """Audit event sink: ``stdout``, ``file``, or ``logger``."""
+
+    file_path: str = "feast_audit.log"
+    """File path when ``sink`` is ``file``."""
+
+    log_successful_reads: StrictBool = True
+    """Emit audit events for successful read operations. Set to ``False``
+    to reduce log volume in high-throughput read-heavy deployments."""
+
+
 class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Base Feature Server config that should be extended"""
 
@@ -106,6 +145,10 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
 
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """
+
+    audit_logging: Optional[AuditLoggingConfig] = None
+    """Structured audit logging configuration. Emits JSONL audit events
+    for MCP tool calls, REST requests, and auth decisions."""
 
     offline_push_batching_enabled: Optional[StrictBool] = None
     """Whether to batch writes to the offline store via the `/push` endpoint."""

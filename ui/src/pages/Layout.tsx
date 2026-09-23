@@ -29,6 +29,7 @@ import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
 import ThemeToggle from "../components/ThemeToggle";
+import FeastVersion from "../components/FeastVersion";
 import RegistrySearch, {
   RegistrySearchRef,
 } from "../components/RegistrySearch";
@@ -198,11 +199,13 @@ const Layout = () => {
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "flex-start",
+                    justifyContent: "space-between",
                     alignItems: "center",
+                    gap: 8,
                   }}
                 >
                   <ThemeToggle />
+                  <FeastVersion registryPath={registryPath} />
                 </div>
               </React.Fragment>
             )}
