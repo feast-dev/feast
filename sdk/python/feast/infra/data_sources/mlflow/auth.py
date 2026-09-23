@@ -154,6 +154,59 @@ def get_current_mlflow_token() -> Optional[str]:
     return _current_mlflow_token.get()
 
 
+def resolve_ca_bundle() -> Optional[str]:
+    """Resolve a CA bundle path for MLflow HTTPS connections.
+
+    Resolution chain (first non-empty wins):
+      1. ``MLFLOW_TRACKING_SERVER_CERT_PATH`` — MLflow's own env var
+      2. ``REQUESTS_CA_BUNDLE`` — standard for the ``requests`` library
+      3. ``CURL_CA_BUNDLE`` — fallback used by ``requests`` / ``urllib3``
+      4. ``None`` — use the system default trust store
+    """
+    for var in (
+        "MLFLOW_TRACKING_SERVER_CERT_PATH",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+    ):
+        path = os.environ.get(var)
+        if path:
+            logger.debug("Using CA bundle from %s=%s", var, path)
+            return path
+    logger.debug("No custom CA bundle configured; using system default")
+    return None
+
+
+_current_ca_bundle: ContextVar[Optional[str]] = ContextVar(
+    "feast_mlflow_ca_bundle", default=None
+)
+
+
+@contextlib.contextmanager
+def mlflow_ca_bundle_scope(ca_bundle: Optional[str]) -> Iterator[None]:
+    """Activate *ca_bundle* for the current async/thread context.
+
+    Allows callers to override the CA bundle used for MLflow HTTPS
+    connections without mutating ``os.environ``.
+    """
+    reset = _current_ca_bundle.set(ca_bundle)
+    try:
+        yield
+    finally:
+        _current_ca_bundle.reset(reset)
+
+
+def get_current_ca_bundle() -> Optional[str]:
+    """Return the CA bundle active in the current context, if any.
+
+    Falls back to ``resolve_ca_bundle()`` when no context-local override
+    is set.
+    """
+    bundle = _current_ca_bundle.get()
+    if bundle is not None:
+        return bundle
+    return resolve_ca_bundle()
+
+
 class FeastMLflowHeaderProvider:
     """Inject Feast-resolved auth tokens into MLflow REST requests.
 

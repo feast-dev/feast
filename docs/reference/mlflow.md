@@ -446,14 +446,20 @@ mlflow:
   supported_artifact_formats:
     - parquet
     - csv
+  request_timeout: 30
+  max_retries: 3
+  retry_backoff_factor: 1.0
 ```
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `ca_bundle` | `str` | `None` | Path to CA bundle for TLS verification |
+| `ca_bundle` | `str` | `None` | Path to CA bundle for TLS verification (falls back to `REQUESTS_CA_BUNDLE` env var) |
 | `supported_artifact_formats` | `list[str]` | `["parquet", "csv"]` | Artifact formats the adapter will accept |
+| `request_timeout` | `int` | `30` | Timeout in seconds for individual HTTP requests to the MLflow tracking server |
+| `max_retries` | `int` | `3` | Maximum retry attempts for transient MLflow API failures (timeouts, 5xx, connection errors) |
+| `retry_backoff_factor` | `float` | `1.0` | Base factor for exponential backoff between retries (wait = factor × 2^attempt) |
 
-### CLI commands for DataSource validation
+### CLI commands
 
 #### `feast mlflow validate-source`
 
@@ -475,3 +481,27 @@ Lists all FeatureViews backed by MlflowDatasetSource:
 ```bash
 feast mlflow list-sources
 ```
+
+#### `feast mlflow sync-dataset`
+
+Syncs an MLflow GenAI Dataset into a Feast FeatureView (for Tier 3 offline stores like BigQuery, Snowflake, Redshift):
+
+```bash
+feast mlflow sync-dataset --feature-view eval_records
+feast mlflow sync-dataset --feature-view eval_records --full-refresh
+feast mlflow sync-dataset --feature-view eval_records --dry-run
+feast mlflow sync-dataset --feature-view eval_records --batch-size 5000
+feast mlflow sync-dataset --feature-view eval_records --field-mapping mapping.json
+```
+
+When `--feature-view` is omitted, syncs all FeatureViews whose source is `MlflowDatasetSource`. Supports incremental sync (default) via watermark tags and full refresh via `--full-refresh`.
+
+#### `feast mlflow preview-dataset`
+
+Preview flattened records from an MLflow GenAI Dataset:
+
+```bash
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+```
+
+Fetches the dataset, flattens nested fields, and displays a preview. Useful for inspecting data shape before defining a FeatureView.

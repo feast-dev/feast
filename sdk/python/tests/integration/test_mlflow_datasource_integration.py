@@ -365,7 +365,9 @@ class TestSavedDatasetRoundTrip:
             project="test_project",
             registry=str(tmp_path / "registry_saved.db"),
             provider="local",
-            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online_saved.db")),
+            online_store=SqliteOnlineStoreConfig(
+                path=str(tmp_path / "online_saved.db")
+            ),
             offline_store="duckdb",
             entity_key_serialization_version=3,
         )
