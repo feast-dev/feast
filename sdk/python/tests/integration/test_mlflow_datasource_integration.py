@@ -304,3 +304,93 @@ class TestProtoRoundTripIntegration:
         assert retrieved_src.artifact_path == "outputs/features.parquet"
         assert retrieved_src.artifact_format == "parquet"
         assert retrieved_src.is_artifact_mode
+
+
+class TestSavedDatasetRoundTrip:
+    """AC3: create_saved_dataset() round-trip from MLflow-backed historical features."""
+
+    def test_create_saved_dataset_round_trip(self, tmp_feast_repo):
+        tmp_path, feature_path, _, _, entity_df = tmp_feast_repo
+
+        now = datetime.now(tz=timezone.utc)
+        expected_data = pa.table(
+            {
+                "record_id": ["r1", "r2", "r3"],
+                "score": [0.9, 0.8, 0.95],
+                "category": ["A", "B", "A"],
+                "event_timestamp": [
+                    now - timedelta(hours=3),
+                    now - timedelta(hours=2),
+                    now - timedelta(hours=1),
+                ],
+            }
+        )
+
+        batch_source = FileSource(path=feature_path, timestamp_field="event_timestamp")
+        mlflow_src = MlflowDatasetSource(
+            name="artifact_src",
+            run_id="test-run-123",
+            artifact_path="outputs/artifact.parquet",
+            artifact_format="parquet",
+            batch_source=batch_source,
+            timestamp_field="event_timestamp",
+        )
+
+        entity = Entity(
+            name="record_id",
+            join_keys=["record_id"],
+            value_type=ValueType.STRING,
+        )
+        fv = FeatureView(
+            name="artifact_features",
+            entities=[entity],
+            schema=[
+                Field(name="score", dtype=Float64),
+                Field(name="category", dtype=String),
+            ],
+            source=mlflow_src,
+            ttl=timedelta(days=1),
+        )
+
+        saved_path = str(tmp_path / "data" / "saved_dataset.parquet")
+        from feast.data_format import ParquetFormat
+        from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+
+        storage = SavedDatasetFileStorage(
+            path=saved_path,
+            file_format=ParquetFormat(),
+        )
+
+        config = RepoConfig(
+            project="test_project",
+            registry=str(tmp_path / "registry_saved.db"),
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online_saved.db")),
+            offline_store="duckdb",
+            entity_key_serialization_version=3,
+        )
+
+        store = FeatureStore(config=config)
+        store.apply([entity, fv])
+        store.registry.apply_data_source(storage.to_data_source(), store.config.project)
+
+        with patch.object(MlflowDatasetSource, "to_arrow", return_value=expected_data):
+            job = store.get_historical_features(
+                entity_df=entity_df,
+                features=["artifact_features:score", "artifact_features:category"],
+            )
+            saved = store.create_saved_dataset(
+                from_=job,
+                name="mlflow_saved",
+                storage=storage,
+                allow_overwrite=True,
+            )
+
+        assert saved.name == "mlflow_saved"
+        loaded = store.get_saved_dataset("mlflow_saved")
+        assert loaded.name == "mlflow_saved"
+
+        round_trip_df = loaded.to_df()
+        assert len(round_trip_df) == 3
+        assert "score" in round_trip_df.columns
+        assert "category" in round_trip_df.columns
