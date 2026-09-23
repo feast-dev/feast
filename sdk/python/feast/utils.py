@@ -1757,7 +1757,9 @@ def _get_entity_key_protos(
 
 def _populate_response_from_feature_data(
     requested_features: List[str],
-    read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
+    read_rows: List[
+        Tuple[Optional[datetime], Optional[Dict[str, ValueProto]], Optional[datetime]]
+    ],
     indexes: Iterable[List[int]],
     online_features_response: GetOnlineFeaturesResponse,
     full_feature_names: bool,
@@ -1812,26 +1814,34 @@ def _populate_response_from_feature_data(
     NOT_FOUND = FieldStatus.NOT_FOUND
 
     row_ts_protos = []
-    for row_ts, _ in read_rows:
+    created_ts_protos = []
+    for row_ts, _, created_ts in read_rows:
         ts = Timestamp()
         if row_ts is not None:
             ts.FromDatetime(row_ts)
         row_ts_protos.append(ts)
 
+        c_ts = Timestamp()
+        if created_ts is not None:
+            c_ts.FromDatetime(created_ts)
+        created_ts_protos.append(c_ts)
+
     ts_template = [null_ts] * output_len
+    created_ts_template = [null_ts] * output_len
     indexes_tuple = tuple(indexes)
     for row_idx, destinations in enumerate(indexes_tuple):
         ts = row_ts_protos[row_idx]
+        c_ts = created_ts_protos[row_idx]
         for out_idx in destinations:
             ts_template[out_idx] = ts
-
+            created_ts_template[out_idx] = c_ts
     feat_values = [[null_value] * output_len for _ in range(n_features)]
     feat_statuses = [[NOT_FOUND] * output_len for _ in range(n_features)]
 
     feat_idx_map = {name: i for i, name in enumerate(requested_features)}
     _present_count = 0
     for row_idx, destinations in enumerate(indexes_tuple):
-        _, feature_data = read_rows[row_idx]
+        _, feature_data, _ = read_rows[row_idx]
         if feature_data is None:
             continue
         for feat_name, feat_val in feature_data.items():
@@ -1856,6 +1866,7 @@ def _populate_response_from_feature_data(
                 values=feat_values[f_idx],
                 statuses=feat_statuses[f_idx],
                 event_timestamps=list(ts_template),
+                created_timestamps=list(created_ts_template),
             )
         )
 

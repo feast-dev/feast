@@ -812,7 +812,7 @@ class OnlineStore(ABC):
             return [None] * len(entity_keys)
 
         result: List[Optional[bytes]] = []
-        for _ts, feature_dict in rows:
+        for _ts, feature_dict, _created_ts in rows:
             if feature_dict and "vector" in feature_dict:
                 val = feature_dict["vector"]
                 if val.HasField("bytes_val"):
