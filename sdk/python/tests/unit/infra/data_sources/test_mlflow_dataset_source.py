@@ -336,6 +336,29 @@ class TestAuthTokenResolution:
             token = _from_service_account()
             assert token == "sa-token-123"
 
+    def test_tracking_auth_and_tracking_token_coexist(self):
+        from feast.infra.data_sources.mlflow.auth import (
+            FeastMLflowHeaderProvider,
+            mlflow_token_scope,
+            resolve_mlflow_token,
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "MLFLOW_TRACKING_AUTH": "kubernetes-namespaced",
+                "MLFLOW_TRACKING_TOKEN": "user-token-123",
+            },
+        ):
+            token = resolve_mlflow_token()
+            assert token == "user-token-123"
+
+            provider = FeastMLflowHeaderProvider()
+            with mlflow_token_scope(token):
+                assert provider.in_context() is True
+                headers = provider.request_headers()
+                assert headers["Authorization"] == "Bearer user-token-123"
+
 
 # ---------------------------------------------------------------------------
 # Schema introspection
