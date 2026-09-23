@@ -38,9 +38,21 @@ mlflow:
   supported_artifact_formats:
     - parquet
     - csv
+  request_timeout: 30        # seconds per HTTP request to MLflow (default: 30)
+  max_retries: 3             # retry attempts for transient failures (default: 3)
+  retry_backoff_factor: 1.0  # exponential backoff base (default: 1.0 → 1s, 2s, 4s)
 ```
 
 On operator-managed clusters, `tracking_uri` and `ui_url` are often injected automatically when an `MLflow` CR is present. You can still set `ca_bundle` explicitly for DataSource reads from a workbench or CI job.
+
+| Field | Default | Description |
+|---|---|---|
+| `tracking_uri` | `MLFLOW_TRACKING_URI` env | MLflow tracking server URI |
+| `ca_bundle` | `None` | CA bundle path for TLS (falls back to `REQUESTS_CA_BUNDLE` env) |
+| `supported_artifact_formats` | `["parquet", "csv"]` | Accepted artifact formats |
+| `request_timeout` | `30` | Seconds per HTTP request to MLflow |
+| `max_retries` | `3` | Retry attempts for transient failures (timeouts, 5xx) |
+| `retry_backoff_factor` | `1.0` | Exponential backoff base (wait = factor × 2^attempt) |
 
 ## Step 2: Define `MlflowDatasetSource` FeatureViews
 
@@ -179,4 +191,4 @@ The Feast operator may inject `MLFLOW_TRACKING_AUTH=kubernetes-namespaced` for p
 - No online store integration with MLflow.
 - No pickle or other non-tabular artifact formats.
 - No bypass of MLflow’s auth layer via direct object storage.
-- Operator FeatureStore CR fields for DataSource-specific MLflow config may evolve in follow-up releases; see RHAI-474 glue work.
+- Operator FeatureStore CR fields for DataSource-specific MLflow config may evolve in follow-up releases.
