@@ -6,7 +6,7 @@
 
 ## Forked Repo Best Practices
 1.  You should setup your fork so that you can make pull requests against your own master branch.
-    - This prevents unnecessary integration tests and other github actions that are irrelevant to your code changes from being run everytime you would like to make a code change.
+    - This prevents unnecessary integration tests and other github actions that are irrelevant to your code changes from being run every time you would like to make a code change.
     - **NOTE**: Most workflows are enabled by default so manually [disable workflows](https://docs.github.com/en/actions/managing-workflow-runs/disabling-and-enabling-a-workflow) that are not needed.
 2. When you are ready to merge changes into the official feast branch, make a pull request with the main feast branch and request a review from other maintainers.
     - Since your code changes should only touch tests that are relevant to your functionality, and other tests should pass as well.
@@ -56,6 +56,6 @@ Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[p
 
     - Each test in Feast is parametrized by its offline and online store so we can filter out tests by name. The above command chooses only tests with BigQuery that do not use Dynamo or Redshift.
 
-5. Everytime a pull request or a change to a pull request is made, the integration tests, the local integration tests, the unit tests, and the linter should run.
+5. Every time a pull request or a change to a pull request is made, the integration tests, the local integration tests, the unit tests, and the linter should run.
 
 > Sample fork setups can be found here: [snowflake](https://github.com/kevjumba/feast/pull/30) and [bigquery](https://github.com/kevjumba/feast/pull/31).

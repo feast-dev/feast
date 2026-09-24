@@ -1,4 +1,4 @@
-# Registies
+# Registries
 
 Please see [Registry](../../getting-started/components/registry.md) for a conceptual explanation of registries.
 

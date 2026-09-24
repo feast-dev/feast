@@ -128,7 +128,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 - [uv](https://docs.astral.sh/) for managing python dependencies. [installation instructions](https://docs.astral.sh/uv/getting-started/installation/)
 - (M1 Mac only): Follow the [dev guide if you have issues](https://github.com/feast-dev/feast/issues/2105)
 - (Optional): Node & Yarn (needed for building the feast UI)
-- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versioons.
+- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versions.
 
 ### Quick start
 - create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version)
