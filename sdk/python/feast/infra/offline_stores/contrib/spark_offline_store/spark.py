@@ -35,7 +35,6 @@ from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
-from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
