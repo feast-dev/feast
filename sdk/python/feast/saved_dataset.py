@@ -261,7 +261,7 @@ class ValidationReference:
     dataset_name: str
     description: str
     tags: Dict[str, str]
-    profiler: Profiler
+    profiler: Optional[Profiler]
 
     _profile: Optional[Profile] = None
     _dataset: Optional[SavedDataset] = None
@@ -270,7 +270,7 @@ class ValidationReference:
         self,
         name: str,
         dataset_name: str,
-        profiler: Profiler,
+        profiler: Optional[Profiler] = None,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
     ):
@@ -316,28 +316,49 @@ class ValidationReference:
                     "to get validation reference object."
                 )
 
+            if not self.profiler:
+                raise RuntimeError(
+                    "Failed to calculate profile: profiler is not set on this "
+                    "ValidationReference."
+                )
+
             self._profile = self.profiler.analyze_dataset(self._dataset.to_df())
         return self._profile
 
     @classmethod
-    def from_proto(cls, proto: ValidationReferenceProto) -> "ValidationReference":
-        profiler_attr = proto.WhichOneof("profiler")
-        if profiler_attr == "ge_profiler":
-            from feast.dqm.profilers.ge_profiler import GEProfiler
+    def from_proto(
+        cls, proto: ValidationReferenceProto, skip_udf: bool = False
+    ) -> "ValidationReference":
+        """Build a ValidationReference from its proto.
 
-            profiler = GEProfiler.from_proto(proto.ge_profiler)
-        else:
-            raise RuntimeError("Unrecognized profiler")
+        Args:
+            proto: the serialized validation reference.
+            skip_udf: when True, leave ``profiler`` and the cached profile unset
+                instead of deserializing them. Both are dill payloads, so callers
+                that only need identity metadata (notably authorization checks in
+                the registry server) must not deserialize them.
+        """
+        profiler: Optional[Profiler] = None
+        profile: Optional[Profile] = None
 
-        profile_attr = proto.WhichOneof("cached_profile")
-        if profile_attr == "ge_profile":
-            from feast.dqm.profilers.ge_profiler import GEProfile
+        if not skip_udf:
+            profiler_attr = proto.WhichOneof("profiler")
+            if profiler_attr == "ge_profiler":
+                from feast.dqm.profilers.ge_profiler import GEProfiler
 
-            profile = GEProfile.from_proto(proto.ge_profile)
-        elif not profile_attr:
-            profile = None
-        else:
-            raise RuntimeError("Unrecognized profile")
+                profiler = GEProfiler.from_proto(proto.ge_profiler)
+            else:
+                raise RuntimeError("Unrecognized profiler")
+
+            profile_attr = proto.WhichOneof("cached_profile")
+            if profile_attr == "ge_profile":
+                from feast.dqm.profilers.ge_profiler import GEProfile
+
+                profile = GEProfile.from_proto(proto.ge_profile)
+            elif not profile_attr:
+                profile = None
+            else:
+                raise RuntimeError("Unrecognized profile")
 
         ref = ValidationReference(
             name=proto.name,
