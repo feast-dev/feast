@@ -46,13 +46,15 @@ import json
 import logging
 import os
 import shutil
+import socket
 import tempfile
 import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
+from wsgiref.simple_server import WSGIServer, make_server
 
 import psutil
 
@@ -583,14 +585,11 @@ def init_worker_freshness_monitoring(store: "FeatureStore"):
         t.start()
 
 
-def _make_metrics_httpd(port: int, app):
+def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIServer:
     """Build the metrics HTTP server, dual-stack ("::") when the host
     supports IPv6, or IPv4-only (falls back to `make_server`'s default
     behavior) otherwise.
     """
-    import socket
-    from wsgiref.simple_server import WSGIServer, make_server
-
     from feast import utils
 
     if not utils._ipv6_available():

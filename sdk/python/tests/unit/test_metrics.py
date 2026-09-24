@@ -775,6 +775,7 @@ class TestBinFeatureCount:
         ],
     )
     def test_custom_boundaries(self, count, expected):
+
         from feast.feature_server import bin_feature_count
 
         assert bin_feature_count(count, [5, 20]) == expected
