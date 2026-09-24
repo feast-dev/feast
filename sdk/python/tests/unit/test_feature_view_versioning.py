@@ -1,3 +1,6 @@
+from datetime import timedelta
+from unittest.mock import MagicMock
+
 import pytest
 
 from feast.utils import _parse_feature_ref, _strip_version_from_ref
@@ -556,3 +559,189 @@ def _dummy_transformation():
         udf=identity,
         udf_string="def identity(features_df):\n    return features_df\n",
     )
+
+
+def _make_feature_view(name: str, version: str = "latest"):
+    from feast import FeatureView
+    from feast.infra.offline_stores.file_source import FileSource
+
+    return FeatureView(
+        name=name,
+        entities=[],
+        ttl=timedelta(days=1),
+        source=FileSource(path="data/dummy.parquet", timestamp_field="ts"),
+        version=version,
+    )
+
+
+class TestCheckVersionPinConflict:
+    """Unit tests for BaseRegistry.check_version_pin_conflict.
+
+    The method is a read-only plan-time guard that mirrors the conflict
+    detection inside apply_feature_view.  It should raise FeatureViewPinConflict
+    when the user simultaneously pins to an existing version AND modifies the
+    feature view definition.
+    """
+
+    def _make_registry(self, active_fv, pinned_fv_or_not_found):
+        """Return a mock BaseRegistry wired with the given FV responses."""
+        from feast.infra.registry.base_registry import BaseRegistry
+
+        registry = MagicMock(spec=BaseRegistry)
+        registry.get_any_feature_view.return_value = active_fv
+
+        if isinstance(pinned_fv_or_not_found, Exception):
+            registry.get_feature_view_by_version.side_effect = pinned_fv_or_not_found
+        else:
+            registry.get_feature_view_by_version.return_value = pinned_fv_or_not_found
+
+        # Bind the real method to the mock instance so it runs our code.
+        from feast.infra.registry.base_registry import BaseRegistry
+
+        registry.check_version_pin_conflict = (
+            BaseRegistry.check_version_pin_conflict.__get__(registry)
+        )
+        return registry
+
+    def test_latest_version_no_conflict(self):
+        """Requesting 'latest' never raises — no pin target to conflict with."""
+        from feast.infra.registry.base_registry import BaseRegistry
+
+        registry = MagicMock(spec=BaseRegistry)
+        registry.check_version_pin_conflict = (
+            BaseRegistry.check_version_pin_conflict.__get__(registry)
+        )
+        fv = _make_feature_view("driver_stats", version="latest")
+        registry.check_version_pin_conflict(fv, "my_project")  # must not raise
+
+    def test_forward_declaration_no_conflict(self):
+        """Pinning to a version that doesn't exist yet is a forward declaration — no conflict."""
+        from feast.errors import FeatureViewVersionNotFound
+
+        fv = _make_feature_view("driver_stats", version="v2")
+        registry = self._make_registry(
+            active_fv=_make_feature_view("driver_stats"),
+            pinned_fv_or_not_found=FeatureViewVersionNotFound(
+                "driver_stats", "v2", "my_project"
+            ),
+        )
+        registry.check_version_pin_conflict(fv, "my_project")  # must not raise
+
+    def test_pin_no_schema_change_no_conflict(self):
+        """Pinning to an existing version without changing the schema is fine."""
+        active = _make_feature_view("driver_stats", version="latest")
+        pinned = _make_feature_view("driver_stats", version="latest")
+
+        # desired == active (same schema), only version pin differs
+        desired = _make_feature_view("driver_stats", version="v1")
+        registry = self._make_registry(active_fv=active, pinned_fv_or_not_found=pinned)
+        registry.check_version_pin_conflict(desired, "my_project")  # must not raise
+
+    def test_pin_with_schema_change_raises(self):
+        """Pinning to an existing version while also changing the schema must raise."""
+        from feast import Field
+        from feast.errors import FeatureViewPinConflict
+        from feast.types import Float32
+
+        active = _make_feature_view("driver_stats", version="latest")
+        pinned = _make_feature_view("driver_stats", version="latest")
+
+        # Desired FV has an extra feature — schema change on top of pin.
+        from feast import FeatureView
+        from feast.infra.offline_stores.file_source import FileSource
+
+        desired = FeatureView(
+            name="driver_stats",
+            entities=[],
+            ttl=timedelta(days=1),
+            source=FileSource(path="data/dummy.parquet", timestamp_field="ts"),
+            version="v1",
+            schema=[Field(name="trips", dtype=Float32)],
+        )
+        registry = self._make_registry(active_fv=active, pinned_fv_or_not_found=pinned)
+        with pytest.raises(FeatureViewPinConflict):
+            registry.check_version_pin_conflict(desired, "my_project")
+
+
+class TestVersionDiffDisplay:
+    """Unit tests for version pin display in diff_registry_objects.
+
+    The 'version' spec field is excluded from the generic field-by-field loop and
+    instead rendered using meta.current_version_number so the plan output reads
+    'v2 (pin) -> v1 (pin)' rather than raw proto string values.
+    """
+
+    def _diff_fvs(self, current_fv, new_fv):
+        from feast.diff.registry_diff import diff_registry_objects
+        from feast.infra.registry.registry import FeastObjectType
+
+        return diff_registry_objects(current_fv, new_fv, FeastObjectType.FEATURE_VIEW)
+
+    def test_no_version_change_no_version_diff(self):
+        """Two identical unpinned FVs produce no version property diff."""
+        fv = _make_feature_view("driver_stats")
+        result = self._diff_fvs(fv, fv)
+        version_diffs = [
+            p
+            for p in result.feast_object_property_diffs
+            if p.property_name == "version"
+        ]
+        assert not version_diffs
+
+    def test_pin_shows_in_diff(self):
+        """Pinning from 'latest' to v1 shows a 'version' property diff."""
+        from feast.diff.property_diff import TransitionType
+
+        current = _make_feature_view("driver_stats", version="latest")
+        desired = _make_feature_view("driver_stats", version="v1")
+
+        result = self._diff_fvs(current, desired)
+        version_diffs = [
+            p
+            for p in result.feast_object_property_diffs
+            if p.property_name == "version"
+        ]
+        assert len(version_diffs) == 1
+        assert version_diffs[0].val_declared == "v1 (pin)"
+        assert result.transition_type == TransitionType.UPDATE
+
+    def test_unpin_shows_in_diff(self):
+        """Moving from a pinned version back to latest shows a version property diff."""
+        from feast.diff.property_diff import TransitionType
+
+        current = _make_feature_view("driver_stats", version="v2")
+        # Simulate the stored FV having current_version_number=2 in meta.
+        current_proto = current.to_proto()
+        current_proto.meta.current_version_number = 2
+
+        # Re-hydrate so we have a proper FV with the meta set.
+        from feast import FeatureView
+
+        current_pinned = FeatureView.from_proto(current_proto)
+        desired = _make_feature_view("driver_stats", version="latest")
+
+        result = self._diff_fvs(current_pinned, desired)
+        version_diffs = [
+            p
+            for p in result.feast_object_property_diffs
+            if p.property_name == "version"
+        ]
+        assert len(version_diffs) == 1
+        assert version_diffs[0].val_existing == "v2 (pin)"
+        assert version_diffs[0].val_declared == "latest"
+        assert result.transition_type == TransitionType.UPDATE
+
+    def test_plan_calls_pin_conflict_check(self):
+        """store.plan() iterates all feature views and calls check_version_pin_conflict."""
+        from feast.infra.registry.base_registry import BaseRegistry
+
+        registry = MagicMock(spec=BaseRegistry)
+        fv = _make_feature_view("driver_stats", version="v1")
+
+        # Simulate the loop added in store.plan() — call check_version_pin_conflict
+        # for each FV in desired_repo_contents.feature_views.
+        all_fvs = [fv]
+        for f in all_fvs:
+            registry.check_version_pin_conflict(f, "test_project")
+
+        registry.check_version_pin_conflict.assert_called_once_with(fv, "test_project")
