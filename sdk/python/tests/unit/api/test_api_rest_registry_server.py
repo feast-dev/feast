@@ -1,8 +1,11 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+from feast.api.registry.rest.rest_registry_server import (
+    RestRegistryServer,
+    _rest_bind_host,
+)
 from feast.feature_store import FeatureStore
 
 
@@ -76,3 +79,54 @@ def test_routes_registered_in_app():
     register_all_routes(app, grpc_handler, server)
 
     assert app.include_router.call_count == 16
+
+
+def test_rest_bind_host_is_ipv6_wildcard_when_available():
+    with patch(
+        "feast.api.registry.rest.rest_registry_server._ipv6_available",
+        return_value=True,
+    ):
+        assert _rest_bind_host() == "::"
+
+
+def test_rest_bind_host_falls_back_to_ipv4():
+    with patch(
+        "feast.api.registry.rest.rest_registry_server._ipv6_available",
+        return_value=False,
+    ):
+        assert _rest_bind_host() == "0.0.0.0"
+
+
+@pytest.mark.parametrize(
+    "ipv6_available,expected_host", [(True, "::"), (False, "0.0.0.0")]
+)
+@pytest.mark.parametrize("tls", [True, False])
+def test_start_server_binds_with_rest_bind_host(
+    mock_store_and_registry, mocker, tls, ipv6_available, expected_host
+):
+    mocker.patch("feast.api.registry.rest.rest_registry_server.get_auth_manager")
+    mocker.patch("feast.api.registry.rest.rest_registry_server.init_auth_manager")
+    mocker.patch("feast.api.registry.rest.rest_registry_server.init_security_manager")
+    mocker.patch("feast.api.registry.rest.rest_registry_server.register_all_routes")
+    mocker.patch("feast.api.registry.rest.rest_registry_server.RegistryServer")
+    mocker.patch("feast.registry_server._sync_protected_project_tag")
+    mock_uvicorn_run = mocker.patch("uvicorn.run")
+
+    store, _ = mock_store_and_registry
+    server = RestRegistryServer(store)
+
+    with patch(
+        "feast.api.registry.rest.rest_registry_server._ipv6_available",
+        return_value=ipv6_available,
+    ):
+        if tls:
+            server.start_server(
+                port=6572, tls_key_path="/tmp/key.pem", tls_cert_path="/tmp/cert.pem"
+            )
+        else:
+            server.start_server(port=6572)
+
+    mock_uvicorn_run.assert_called_once()
+    _, kwargs = mock_uvicorn_run.call_args
+    assert kwargs["host"] == expected_host
+    assert kwargs["port"] == 6572

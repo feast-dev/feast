@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import http.client
+import socket
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -771,7 +775,6 @@ class TestBinFeatureCount:
         ],
     )
     def test_custom_boundaries(self, count, expected):
-
         from feast.feature_server import bin_feature_count
 
         assert bin_feature_count(count, [5, 20]) == expected
@@ -1950,3 +1953,122 @@ class TestEmitOnlineAudit:
                 status="error",
                 latency_ms=5.0,
             )
+
+
+def _ok_app(environ, start_response):
+    start_response("200 OK", [("Content-Type", "text/plain")])
+    return [b"ok"]
+
+
+def _serve(httpd):
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    return t
+
+
+def _http_get_ok(host, port):
+    # Use http.client directly, not urllib, so a corporate/system HTTP proxy
+    # can't intercept the loopback request and mask a real bind failure.
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", "/")
+        resp = conn.getresponse()
+        return resp.read()
+    finally:
+        conn.close()
+
+
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
+
+
+def test_metrics_httpd_is_dual_stack_when_ipv6_available():
+    from feast.metrics import _make_metrics_httpd
+
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+    httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET6
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+        assert _http_get_ok("::1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_metrics_httpd_falls_back_to_ipv4_without_ipv6():
+    from feast.metrics import _make_metrics_httpd
+
+    with patch("feast.utils._ipv6_available", return_value=False):
+        httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_ipv6_available_false_when_af_inet6_unsupported():
+    from feast.utils import _ipv6_available
+
+    with patch(
+        "socket.socket", side_effect=OSError(97, "Address family not supported")
+    ):
+        assert _ipv6_available() is False
+
+
+def test_ipv6_available_true_uses_v6only_off_and_wildcard_bind():
+    from feast.utils import _ipv6_available
+
+    mock_sock = MagicMock()
+    mock_sock.__enter__.return_value = mock_sock
+    mock_sock.__exit__.return_value = False
+    with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+        assert _ipv6_available() is True
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_called_once_with(
+        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0
+    )
+    mock_sock.bind.assert_called_once_with(("::", 0))
+
+
+def test_start_metrics_server_wires_make_metrics_httpd(mocker):
+    from feast.metrics import _MetricsFlags, start_metrics_server
+
+    mock_httpd = MagicMock()
+    mock_make_metrics_httpd = mocker.patch(
+        "feast.metrics._make_metrics_httpd", return_value=mock_httpd
+    )
+
+    start_metrics_server(
+        MagicMock(),
+        port=9999,
+        metrics_config=_MetricsFlags(),
+        start_resource_monitoring=False,
+        start_freshness_monitoring=False,
+    )
+
+    mock_make_metrics_httpd.assert_called_once()
+    args, _ = mock_make_metrics_httpd.call_args
+    assert args[0] == 9999
+
+    # The httpd is served on a daemon thread; poll briefly for it to run.
+    for _ in range(100):
+        if mock_httpd.serve_forever.called:
+            break
+        time.sleep(0.01)
+    assert mock_httpd.serve_forever.called

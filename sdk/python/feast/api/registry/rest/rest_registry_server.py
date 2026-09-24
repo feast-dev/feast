@@ -23,10 +23,17 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.registry_server import RegistryServer
-from feast.utils import _utc_now
+from feast.utils import _ipv6_available, _utc_now
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+def _rest_bind_host() -> str:
+    # "::" is dual-stack on Linux (net.ipv6.bindv6only=0), matching the
+    # gRPC registry server's "[::]" (registry_server.py). Falls back to
+    # IPv4-only when the host has no IPv6 (e.g. ipv6.disable=1 kernels).
+    return "::" if _ipv6_available() else "0.0.0.0"
 
 
 class RestRegistryServer:
@@ -336,7 +343,7 @@ class RestRegistryServer:
             logger.info(f"REST registry server listening on https://localhost:{port}")
             uvicorn.run(
                 self.app,
-                host="0.0.0.0",
+                host=_rest_bind_host(),
                 port=port,
                 ssl_keyfile=tls_key_path,
                 ssl_certfile=tls_cert_path,
@@ -346,6 +353,6 @@ class RestRegistryServer:
             logger.info(f"REST registry server listening on http://localhost:{port}")
             uvicorn.run(
                 self.app,
-                host="0.0.0.0",
+                host=_rest_bind_host(),
                 port=port,
             )

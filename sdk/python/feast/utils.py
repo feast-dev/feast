@@ -2,6 +2,7 @@ import copy
 import itertools
 import logging
 import os
+import socket
 import threading
 import typing
 import warnings
@@ -61,6 +62,22 @@ if typing.TYPE_CHECKING:
 
 APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+def _ipv6_available() -> bool:
+    """True if this host can bind a dual-stack IPv6 wildcard socket.
+
+    Some kernels (e.g. booted with ``ipv6.disable=1``) raise ``EAFNOSUPPORT``
+    for ``socket.AF_INET6``, so servers that want to bind dual-stack must
+    probe first and fall back to IPv4-only.
+    """
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            sock.bind(("::", 0))
+        return True
+    except OSError:
+        return False
 
 
 def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
