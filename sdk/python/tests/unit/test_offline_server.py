@@ -503,6 +503,34 @@ def test_split_oversized_passes_through_empty_batch(monkeypatch):
     assert batches[0].num_rows == 0
 
 
+def test_split_oversized_computes_integer_half(monkeypatch):
+    """half = batch.num_rows // 2 must stay integer division: a real pyarrow
+    RecordBatch.slice() silently truncates a float length/offset to the same
+    value, so that path can't distinguish `//` from `/` here. Use a
+    duck-typed fake that records the exact slice() arguments instead."""
+
+    class _RecordingBatch:
+        def __init__(self, num_rows):
+            self.num_rows = num_rows
+            self.slice_calls = []
+
+        def slice(self, offset, length=None):
+            self.slice_calls.append((offset, length))
+            return _RecordingBatch(1)  # terminate recursion on the next call
+
+    monkeypatch.setattr(
+        offline_server_module.pa.ipc, "get_record_batch_size", lambda b: 2**31
+    )
+    batch = _RecordingBatch(2)
+
+    list(offline_server_module._split_oversized(batch))
+
+    assert batch.slice_calls == [(0, 1), (1, None)]
+    assert all(
+        isinstance(v, int) for call in batch.slice_calls for v in call if v is not None
+    )
+
+
 def test_split_oversized_respects_exact_cap_boundary(monkeypatch):
     """A batch encoded at exactly _MAX_BATCH_BYTES must not be split (<=, not <)."""
     batch = pa.record_batch({"x": pa.array([1, 2])})
