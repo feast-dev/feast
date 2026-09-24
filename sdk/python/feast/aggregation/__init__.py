@@ -69,15 +69,15 @@ class Aggregation:
     @classmethod
     def from_proto(cls, agg_proto: AggregationProto):
         time_window = (
-            timedelta(days=0)
-            if agg_proto.time_window.ToNanoseconds() == 0
-            else agg_proto.time_window.ToTimedelta()
+            agg_proto.time_window.ToTimedelta()
+            if agg_proto.HasField("time_window")
+            else None
         )
 
         slide_interval = (
-            timedelta(days=0)
-            if agg_proto.slide_interval.ToNanoseconds() == 0
-            else agg_proto.slide_interval.ToTimedelta()
+            agg_proto.slide_interval.ToTimedelta()
+            if agg_proto.HasField("slide_interval")
+            else None
         )
         aggregation = cls(
             column=agg_proto.column,
