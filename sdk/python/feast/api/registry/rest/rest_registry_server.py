@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import socket
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -29,11 +30,29 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def _rest_bind_host() -> str:
-    # "::" is dual-stack on Linux (net.ipv6.bindv6only=0), matching the
-    # gRPC registry server's "[::]" (registry_server.py). Falls back to
-    # IPv4-only when the host has no IPv6 (e.g. ipv6.disable=1 kernels).
-    return "::" if _ipv6_available() else "0.0.0.0"
+def _make_rest_socket(port: int) -> socket.socket:
+    """Build the REST registry server's listening socket, dual-stack ("::")
+    when the host supports IPv6, or IPv4-only otherwise (e.g. ipv6.disable=1
+    kernels), matching the gRPC registry server's "[::]" reachability.
+
+    uvicorn's own ``host="::"`` binds IPv6-only: asyncio's
+    ``loop.create_server`` sets ``IPV6_V6ONLY=1`` on any socket it creates
+    itself from a host string, which would silently drop IPv4 clients on
+    every host, not just IPv6-less ones. So the socket is bound here, with
+    ``IPV6_V6ONLY`` explicitly cleared, and handed to uvicorn pre-built.
+    """
+    if _ipv6_available():
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        address: tuple = ("::", port)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        address = ("0.0.0.0", port)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(socket.SOMAXCONN)
+    sock.setblocking(False)
+    return sock
 
 
 class RestRegistryServer:
@@ -338,21 +357,17 @@ class RestRegistryServer:
 
         _sync_protected_project_tag(self.store)
 
+        sock = _make_rest_socket(port)
         if tls_key_path and tls_cert_path:
             logger.info("Starting REST registry server in TLS(SSL) mode")
             logger.info(f"REST registry server listening on https://localhost:{port}")
-            uvicorn.run(
+            config = uvicorn.Config(
                 self.app,
-                host=_rest_bind_host(),
-                port=port,
                 ssl_keyfile=tls_key_path,
                 ssl_certfile=tls_cert_path,
             )
         else:
             logger.info("Starting REST registry server in non-TLS(SSL) mode")
             logger.info(f"REST registry server listening on http://localhost:{port}")
-            uvicorn.run(
-                self.app,
-                host=_rest_bind_host(),
-                port=port,
-            )
+            config = uvicorn.Config(self.app)
+        uvicorn.Server(config).run(sockets=[sock])
