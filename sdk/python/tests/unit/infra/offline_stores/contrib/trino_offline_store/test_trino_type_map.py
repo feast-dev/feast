@@ -121,6 +121,9 @@ class TestTrinoToPaValueType:
         assert trino_to_pa_value_type("decimal(32)") == pa.decimal128(32, 0)
         assert trino_to_pa_value_type("decimal(9)") == pa.decimal128(9, 0)
 
+    def test_decimal_precision_clamps_to_38(self) -> None:
+        assert trino_to_pa_value_type("decimal(39, 2)") == pa.decimal128(38, 2)
+
     def test_decimal_schema_accepts_cursor_values(self) -> None:
         from decimal import Decimal
 
