@@ -39,6 +39,8 @@ func TestWithBindHost(t *testing.T) {
 		{"online bracketed", OnlineFeastType, []string{"serve", "--metrics", "-h", hostAllIPv4}, dual, []string{"serve", "--metrics", "-h", "[::]"}},
 		{"offline bracketed", OfflineFeastType, []string{"serve_offline", "-h", hostAllIPv4}, dual, []string{"serve_offline", "-h", "[::]"}},
 		{"ui bare", UIFeastType, []string{"ui", "-h", hostAllIPv4}, dual, []string{"ui", "-h", "::"}},
+		{"-h as first arg is still replaced", LineageFeastType, []string{"-h", hostAllIPv4}, dual, []string{"-h", "::"}},
+		{"-h with no following value does not panic or get touched", OnlineFeastType, []string{"serve", "-h"}, dual, []string{"serve", "-h"}},
 		{"lineage bare", LineageFeastType, []string{"serve_lineage", "-h", hostAllIPv4}, dual, []string{"serve_lineage", "-h", "::"}},
 		{"registry has no host flag", RegistryFeastType, []string{"serve_registry"}, dual, []string{"serve_registry"}},
 	}
