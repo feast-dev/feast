@@ -1,5 +1,4 @@
 import logging
-import os
 from contextvars import ContextVar
 from typing import Callable, List, Optional, Union
 
@@ -7,6 +6,7 @@ from feast.errors import FeastObjectNotFoundException
 from feast.feast_object import FeastObject
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.action import AuthzedAction
+from feast.permissions.auth.intra_comm import get_intra_comm_secret
 from feast.permissions.enforcer import enforce_policy
 from feast.permissions.permission import Permission
 from feast.permissions.user import User
@@ -246,7 +246,7 @@ def no_security_manager():
 
 
 def is_auth_necessary(sm: Optional[SecurityManager]) -> bool:
-    intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+    intra_communication_base64 = get_intra_comm_secret()
 
     # If no security manager, no auth is necessary
     if sm is None:
@@ -256,8 +256,13 @@ def is_auth_necessary(sm: Optional[SecurityManager]) -> bool:
     if sm.current_user is None:
         return True
 
-    # If user is intra-communication, no auth is necessary
-    if sm.current_user.username == intra_communication_base64:
+    # If user is intra-communication, no auth is necessary. The secret must be
+    # configured: without it there is no internal identity to recognize, and a
+    # comparison against an unset value would let a blank username skip every check.
+    if (
+        intra_communication_base64
+        and sm.current_user.username == intra_communication_base64
+    ):
         return False
 
     # Otherwise, auth is necessary
