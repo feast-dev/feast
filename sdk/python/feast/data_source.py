@@ -673,10 +673,7 @@ class RequestSource(DataSource):
             return False
 
         if isinstance(self.schema, List) and isinstance(other.schema, List):
-            for field1, field2 in zip(self.schema, other.schema):
-                if field1 != field2:
-                    return False
-            return True
+            return self.schema == other.schema
         else:
             return False
 

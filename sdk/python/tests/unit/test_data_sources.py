@@ -63,6 +63,50 @@ def test_request_source_primitive_type_to_proto():
     assert deserialized_request_source == request_source
 
 
+@pytest.mark.parametrize(
+    "schema_names,other_schema_names,equal",
+    [
+        pytest.param(["f1"], ["f1", "f2"], False, id="different-lengths"),
+        pytest.param([], ["f1"], False, id="empty-and-nonempty"),
+        pytest.param([], [], True, id="both-empty"),
+        pytest.param(["f1", "f2"], ["f1", "f2"], True, id="equal-fields"),
+        pytest.param(["f1"], ["other"], False, id="changed-field-name"),
+        pytest.param(["f1", "f2"], ["f2", "f1"], False, id="changed-order"),
+    ],
+)
+def test_request_source_schema_equality(
+    schema_names: list[str], other_schema_names: list[str], equal: bool
+) -> None:
+    source = RequestSource(
+        name="source", schema=[Field(name=name, dtype=Int64) for name in schema_names]
+    )
+    other = RequestSource(
+        name="source",
+        schema=[Field(name=name, dtype=Int64) for name in other_schema_names],
+    )
+
+    assert (source == other) is equal
+    assert (other == source) is equal
+
+
+@pytest.mark.parametrize(
+    "other_field",
+    [
+        pytest.param(Field(name="f1", dtype=Bool), id="changed-dtype"),
+        pytest.param(
+            Field(name="f1", dtype=Int64, tags={"team": "ml"}),
+            id="changed-field-metadata",
+        ),
+    ],
+)
+def test_request_source_schema_field_changes(other_field: Field) -> None:
+    source = RequestSource(name="source", schema=[Field(name="f1", dtype=Int64)])
+    other = RequestSource(name="source", schema=[other_field])
+
+    assert source != other
+    assert other != source
+
+
 def test_hash():
     push_source_1 = PushSource(
         name="test",
