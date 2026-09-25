@@ -949,6 +949,12 @@ type ServerConfigs struct {
 	// Unset or false binds 0.0.0.0 (IPv4 only) for every server that takes a host flag, including the registry's REST server.
 	// +optional
 	DualStack *bool `json:"dualStack,omitempty"`
+	// CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+	// server with tools such as opentelemetry-instrument or a profiler. The generated command and
+	// all its flags are kept.
+	// +kubebuilder:validation:items:MinLength=1
+	// +optional
+	CommandPrefix []string `json:"commandPrefix,omitempty"`
 	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
 	// This allows attaching persistent storage, config files, secrets, or other resources
 	// required by the Feast components. Ensure that each volume mount has a corresponding

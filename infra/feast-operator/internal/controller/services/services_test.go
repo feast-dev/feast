@@ -754,6 +754,29 @@ var _ = Describe("Registry Service", func() {
 			Expect(onlineContainer.Command).To(Equal([]string{feastCommand, "serve", "--metrics", "-h", "[::]", "-p", "6566"}))
 		})
 
+		It("should prefix the online command and keep every computed flag", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{
+					Metrics:       ptr.To(true),
+					CommandPrefix: []string{"opentelemetry-instrument"},
+					WorkerConfigs: &feastdevv1.WorkerConfigs{Workers: ptr.To(int32(4))},
+				},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer.Command).To(Equal([]string{
+				"opentelemetry-instrument", feastCommand, "serve", "--metrics", "-h", hostAllIPv4, "--workers", "4", "-p", "6566",
+			}))
+		})
+
 		It("should handle empty NodeSelector gracefully", func() {
 			// Set empty NodeSelector
 			emptyNodeSelector := map[string]string{}

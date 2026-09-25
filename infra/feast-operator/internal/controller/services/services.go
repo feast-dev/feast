@@ -823,7 +823,15 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	feastCommand := append([]string{baseCommand}, options...)
 	feastCommand = append(feastCommand, deploySettings.Args...)
 
-	return feastCommand
+	return withCommandPrefix(feastCommand, feast.getServerConfigs(feastType))
+}
+
+// withCommandPrefix prepends the user-configured wrapper command, if any, to cmd.
+func withCommandPrefix(cmd []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	if serverConfigs == nil || len(serverConfigs.CommandPrefix) == 0 {
+		return cmd
+	}
+	return append(append([]string{}, serverConfigs.CommandPrefix...), cmd...)
 }
 
 // withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
@@ -1736,7 +1744,7 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	container := corev1.Container{
 		Name:    string(LineageFeastType),
 		Image:   image,
-		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
+		Command: withCommandPrefix(append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...), serverConfigs),
 		Args:    []string{"-p", fmt.Sprintf("%d", port)},
 		Ports: []corev1.ContainerPort{
 			{

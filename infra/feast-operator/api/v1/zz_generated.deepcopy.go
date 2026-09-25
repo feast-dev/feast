@@ -1683,6 +1683,11 @@ func (in *ServerConfigs) DeepCopyInto(out *ServerConfigs) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CommandPrefix != nil {
+		in, out := &in.CommandPrefix, &out.CommandPrefix
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
 		*out = make([]corev1.VolumeMount, len(*in))
