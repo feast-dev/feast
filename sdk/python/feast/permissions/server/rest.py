@@ -55,6 +55,7 @@ async def inject_user_details(request: Request) -> AsyncIterator[Any]:
             )
 
             sm.set_current_user(current_user)
+            sm.set_current_request_token(access_token)
             project = _extract_project_from_request(request)
             if project is not None:
                 project_token = sm.set_current_project(project)
