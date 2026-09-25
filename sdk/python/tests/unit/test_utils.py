@@ -6,9 +6,14 @@ which converts raw online_read rows into protobuf FeatureVectors and
 populates the GetOnlineFeaturesResponse.
 """
 
+import http.client
 import socket
+import threading
+import time
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -16,6 +21,17 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 )
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.utils import _make_dual_stack_socket, _populate_response_from_feature_data
+
+
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
 
 
 def _make_table(name="test_fv"):
@@ -466,3 +482,49 @@ def test_make_dual_stack_socket_falls_back_to_ipv4():
 
     mock_socket_cls.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
     mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
+
+
+def test_make_dual_stack_socket_is_reachable_on_both_families():
+    # Regression test: a framework's own host="::" (uvicorn.run,
+    # asyncio.loop.create_server) binds IPv6-only, because IPV6_V6ONLY=1
+    # gets set on any socket it creates itself from a host string.
+    # _make_dual_stack_socket must hand back a pre-bound, dual-stack socket
+    # instead -- this exercises the one real socket every dual-stack
+    # consumer (REST registry, ui, lineage) shares.
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+
+    import uvicorn
+    from fastapi import FastAPI
+
+    sock = _make_dual_stack_socket(0)
+    port = sock.getsockname()[1]
+
+    app = FastAPI()
+
+    @app.get("/health")
+    def health():
+        return {"ok": True}
+
+    server = uvicorn.Server(uvicorn.Config(app, log_level="critical"))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]})
+    thread.daemon = True
+    thread.start()
+    try:
+        for _ in range(200):
+            if server.started:
+                break
+            time.sleep(0.01)
+        assert server.started, "uvicorn server did not start in time"
+
+        for host in ("127.0.0.1", "::1"):
+            conn = http.client.HTTPConnection(host, port, timeout=5)
+            try:
+                conn.request("GET", "/health")
+                resp = conn.getresponse()
+                assert resp.status == 200
+            finally:
+                conn.close()
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

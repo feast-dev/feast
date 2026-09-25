@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import socket
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -24,35 +23,10 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.registry_server import RegistryServer
-from feast.utils import _ipv6_available, _utc_now
+from feast.utils import _make_dual_stack_socket, _utc_now
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def _make_rest_socket(port: int) -> socket.socket:
-    """Build the REST registry server's listening socket, dual-stack ("::")
-    when the host supports IPv6, or IPv4-only otherwise (e.g. ipv6.disable=1
-    kernels), matching the gRPC registry server's "[::]" reachability.
-
-    uvicorn's own ``host="::"`` binds IPv6-only: asyncio's
-    ``loop.create_server`` sets ``IPV6_V6ONLY=1`` on any socket it creates
-    itself from a host string, which would silently drop IPv4 clients on
-    every host, not just IPv6-less ones. So the socket is bound here, with
-    ``IPV6_V6ONLY`` explicitly cleared, and handed to uvicorn pre-built.
-    """
-    if _ipv6_available():
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-        address: tuple = ("::", port)
-    else:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        address = ("0.0.0.0", port)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(address)
-    sock.listen(socket.SOMAXCONN)
-    sock.setblocking(False)
-    return sock
 
 
 class RestRegistryServer:
@@ -357,7 +331,7 @@ class RestRegistryServer:
 
         _sync_protected_project_tag(self.store)
 
-        sock = _make_rest_socket(port)
+        sock = _make_dual_stack_socket(port)
         if tls_key_path and tls_cert_path:
             logger.info("Starting REST registry server in TLS(SSL) mode")
             logger.info(f"REST registry server listening on https://localhost:{port}")
