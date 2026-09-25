@@ -80,6 +80,31 @@ def _ipv6_available() -> bool:
         return False
 
 
+def _make_dual_stack_socket(port: int) -> socket.socket:
+    """Build a listening socket bound dual-stack ("::") when the host supports
+    IPv6, or IPv4-only ("0.0.0.0") otherwise (e.g. ``ipv6.disable=1`` kernels).
+
+    A plain ``host="::"`` passed to a framework's own server (uvicorn's
+    ``uvicorn.run``, asyncio's ``loop.create_server``) gets ``IPV6_V6ONLY=1``
+    set on the socket it creates for itself, which silently drops IPv4
+    clients on every host, not just IPv6-less ones. Binding the socket here,
+    with ``IPV6_V6ONLY`` explicitly cleared, and handing it to the server
+    pre-built avoids that.
+    """
+    if _ipv6_available():
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        address: tuple = ("::", port)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        address = ("0.0.0.0", port)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(socket.SOMAXCONN)
+    sock.setblocking(False)
+    return sock
+
+
 def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
     """Parse 'fv_name[@version][:feature]' into (fv_name, version_number, feature_name).
 

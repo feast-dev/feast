@@ -6,15 +6,16 @@ which converts raw online_read rows into protobuf FeatureVectors and
 populates the GetOnlineFeaturesResponse.
 """
 
+import socket
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.utils import _populate_response_from_feature_data
+from feast.utils import _make_dual_stack_socket, _populate_response_from_feature_data
 
 
 def _make_table(name="test_fv"):
@@ -440,3 +441,28 @@ class TestGetFeatureViewsToUseSharedSource:
                 feature.name for feature in src_entries[0].projection.features
             )
             assert projected == ["a", "b"]
+
+
+def test_make_dual_stack_socket_binds_dual_stack_when_ipv6_available():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            result = _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_any_call(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+    mock_sock.setsockopt.assert_any_call(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    mock_sock.bind.assert_called_once_with(("::", 6580))
+    mock_sock.listen.assert_called_once_with(socket.SOMAXCONN)
+    mock_sock.setblocking.assert_called_once_with(False)
+    assert result is mock_sock
+
+
+def test_make_dual_stack_socket_falls_back_to_ipv4():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=False):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
+    mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
