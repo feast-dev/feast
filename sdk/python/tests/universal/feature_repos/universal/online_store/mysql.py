@@ -54,7 +54,7 @@ class BatchWriteMySQLOnlineStoreCreator(OnlineStoreCreator):
             "database": "test",
             "port": exposed_port,
             "batch_write": "True",
-            "bacth_size": "1000",
+            "batch_size": "1000",
         }
 
     def teardown(self):
