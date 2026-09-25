@@ -1139,6 +1139,22 @@ def _merge(
     return df_to_join
 
 
+def _to_utc(series: dd.Series) -> dd.Series:
+    """Return *series* as tz-aware UTC, correctly for an empty partition.
+
+    The row-wise ``apply`` this replaces declared ``meta="datetime64[ns, UTC]"``
+    but produced whatever the lambda returned. With zero rows the lambda never
+    runs, so the computed partition stayed tz-naive while meta claimed
+    otherwise, and the later tz-aware comparison in ``_filter_ttl`` raised
+    ``TypeError: Invalid comparison``. A column carrying a non-UTC tz hit the
+    same mismatch, since the lambda passed those values through untouched.
+
+    ``to_datetime(..., utc=True)`` localizes tz-naive values, converts tz-aware
+    ones, and yields the right dtype for an empty frame.
+    """
+    return dd.to_datetime(series, utc=True)
+
+
 def _normalize_timestamp(
     df_to_join: dd.DataFrame,
     timestamp_field: str,
@@ -1158,10 +1174,7 @@ def _normalize_timestamp(
             df_to_join = df_to_join.drop(columns=dups)
 
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
-        df_to_join[timestamp_field] = df_to_join[timestamp_field].apply(
-            lambda x: x if x.tzinfo else x.replace(tzinfo=timezone.utc),
-            meta=(timestamp_field, "datetime64[ns, UTC]"),
-        )
+        df_to_join[timestamp_field] = _to_utc(df_to_join[timestamp_field])
 
     # TODO: need to figure out why the value of created_timestamp_column_type.tz is pytz.UTC
     if created_timestamp_column and (
@@ -1173,11 +1186,8 @@ def _normalize_timestamp(
             df_to_join, dups = _df_column_uniquify(df_to_join)
             df_to_join = df_to_join.drop(columns=dups)
 
-        df_to_join[created_timestamp_column] = df_to_join[
-            created_timestamp_column
-        ].apply(
-            lambda x: x if x.tzinfo else x.replace(tzinfo=timezone.utc),
-            meta=(timestamp_field, "datetime64[ns, UTC]"),
+        df_to_join[created_timestamp_column] = _to_utc(
+            df_to_join[created_timestamp_column]
         )
 
     return df_to_join.persist()
