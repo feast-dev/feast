@@ -11,11 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import json
 import logging
 import uuid as uuid_module
 from collections import defaultdict
 from datetime import datetime
+from functools import lru_cache
 from typing import (
     Any,
     Callable,
@@ -58,6 +60,87 @@ from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _infra_object_types() -> Dict[str, Tuple[Any, Any, bool]]:
+    """Map type name -> (feast class, proto class, has_udf) for objects sent to /update-infra.
+
+    Imported lazily: these modules import from `feast` at module scope, and
+    pulling them in at the top of this file would create an import cycle.
+    Cached because `update()` calls this once per object in four lists, and
+    re-running the imports each time is pure overhead.
+
+    `has_udf` marks the types whose `from_proto()` will `dill.loads()` a
+    user-defined function unless told not to via `skip_udf=True`. It exists
+    so `decode_infra_object` cannot forget to set that flag: provisioning
+    never needs the UDF body, and this endpoint decodes payloads an
+    authenticated-but-untrusted client controls, so unpickling it is a
+    remote-code-execution hole (the same reason `registry_server.py` always
+    passes `skip_udf=True` when decoding client-submitted protos).
+    """
+    from feast.labeling.label_view import LabelView
+    from feast.on_demand_feature_view import OnDemandFeatureView
+    from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+    from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+    from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
+    from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+        OnDemandFeatureView as OnDemandFeatureViewProto,
+    )
+    from feast.protos.feast.core.StreamFeatureView_pb2 import (
+        StreamFeatureView as StreamFeatureViewProto,
+    )
+    from feast.stream_feature_view import StreamFeatureView
+
+    return {
+        "FeatureView": (FeatureView, FeatureViewProto, True),
+        "StreamFeatureView": (StreamFeatureView, StreamFeatureViewProto, True),
+        "OnDemandFeatureView": (OnDemandFeatureView, OnDemandFeatureViewProto, True),
+        "LabelView": (LabelView, LabelViewProto, False),
+        "Entity": (Entity, EntityProto, False),
+    }
+
+
+def encode_infra_object(obj: Any) -> Dict[str, str]:
+    """Serialize a feature view or entity for transport to the feature server.
+
+    The registry is not a usable channel here: `FeatureStore.apply()` calls
+    `update_infra()` *before* `registry.commit()`, so the server cannot yet see
+    these objects. They travel in the request body instead.
+    """
+    types = _infra_object_types()
+    type_name = type(obj).__name__
+    if type_name not in types:
+        raise ValueError(
+            f"Cannot send {type_name} to the remote online store; "
+            f"expected one of {sorted(types)}"
+        )
+    return {
+        "type": type_name,
+        "proto": base64.b64encode(obj.to_proto().SerializeToString()).decode("ascii"),
+    }
+
+
+def decode_infra_object(payload: Mapping[str, str]) -> Any:
+    """Inverse of :func:`encode_infra_object`, used by the feature server.
+
+    `payload["proto"]` is client-controlled -- it arrives as a raw HTTP
+    request body, not something the server generated. `skip_udf=True` is
+    passed for every type that supports it so a decoded FeatureView /
+    StreamFeatureView / OnDemandFeatureView never triggers `dill.loads()` on
+    that untrusted input. See `_infra_object_types` for why.
+    """
+    type_name = payload["type"]
+    types = _infra_object_types()
+    if type_name not in types:
+        raise ValueError(
+            f"Unknown object type {type_name!r}; expected one of {sorted(types)}"
+        )
+    feast_class, proto_class, has_udf = types[type_name]
+    proto = proto_class.FromString(base64.b64decode(payload["proto"]))
+    if has_udf:
+        return feast_class.from_proto(proto, skip_udf=True)
+    return feast_class.from_proto(proto)
 
 
 def _json_safe(val: Any) -> Any:
@@ -742,7 +825,33 @@ class RemoteOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        pass
+        """Provision online store infrastructure through the feature server.
+
+        Table creation happens inside the concrete online store's `update()`.
+        In remote mode that store lives server-side, so `feast apply` has to ask
+        the feature server to run it -- otherwise the feature view is registered
+        but its table never exists, and materialization fails with a missing
+        table (#6693).
+        """
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = {
+            "tables_to_delete": [encode_infra_object(t) for t in tables_to_delete],
+            "tables_to_keep": [encode_infra_object(t) for t in tables_to_keep],
+            "entities_to_delete": [encode_infra_object(e) for e in entities_to_delete],
+            "entities_to_keep": [encode_infra_object(e) for e in entities_to_keep],
+            "partial": partial,
+        }
+
+        response = post_remote_update_infra(config=config, req_body=req_body)
+        if response.status_code != 200:
+            error_msg = (
+                "Unable to update online store infrastructure using feature server API. "
+                f"Error_code={response.status_code}, error_message={response.text}"
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     def teardown(
         self,
@@ -750,7 +859,27 @@ class RemoteOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        pass
+        """Drop online store infrastructure through the feature server.
+
+        The mirror of :meth:`update`: without this, `feast teardown` in remote
+        mode leaves every table behind.
+        """
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = {
+            "tables": [encode_infra_object(t) for t in tables],
+            "entities": [encode_infra_object(e) for e in entities],
+        }
+
+        response = post_remote_teardown_infra(config=config, req_body=req_body)
+        if response.status_code != 200:
+            error_msg = (
+                "Unable to teardown online store infrastructure using feature server API. "
+                f"Error_code={response.status_code}, error_message={response.text}"
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     async def close(self) -> None:
         """
@@ -808,6 +937,28 @@ def post_remote_online_write(
     session: requests.Session, config: RepoConfig, req_body: dict
 ) -> requests.Response:
     url = f"{config.online_store.path}/write-to-online-store"
+    if config.online_store.cert:
+        return session.post(url, json=req_body, verify=config.online_store.cert)
+    else:
+        return session.post(url, json=req_body)
+
+
+@rest_error_handling_decorator
+def post_remote_update_infra(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    url = f"{config.online_store.path}/update-infra"
+    if config.online_store.cert:
+        return session.post(url, json=req_body, verify=config.online_store.cert)
+    else:
+        return session.post(url, json=req_body)
+
+
+@rest_error_handling_decorator
+def post_remote_teardown_infra(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    url = f"{config.online_store.path}/teardown-infra"
     if config.online_store.cert:
         return session.post(url, json=req_body, verify=config.online_store.cert)
     else:
