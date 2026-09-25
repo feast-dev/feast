@@ -731,7 +731,7 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	}
 
 	deploySettings := FeastServiceConstants[feastType]
-	deploySettings.Args = append([]string{}, deploySettings.Args...)
+	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
 	// Only inject --metrics CLI flag for the server.metrics bool path.
 	// When serving.metrics.enabled is used, Python reads it from feature_store.yaml
 	// and starts the metrics server itself — no CLI flag needed.
@@ -791,6 +791,25 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	feastCommand = append(feastCommand, deploySettings.Args...)
 
 	return feastCommand
+}
+
+// withBindHost returns a copy of args with the "-h" host set to the IPv6 wildcard when dual-stack is enabled.
+// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage) rejects it.
+func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	out := append([]string{}, args...)
+	if serverConfigs == nil || serverConfigs.DualStack == nil || !*serverConfigs.DualStack {
+		return out
+	}
+	host := hostAllIPv6
+	if feastType == OnlineFeastType || feastType == OfflineFeastType {
+		host = hostAllIPv6Bracketed
+	}
+	for i := 0; i+1 < len(out); i++ {
+		if out[i] == "-h" {
+			out[i+1] = host
+		}
+	}
+	return out
 }
 
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
@@ -1590,7 +1609,7 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	container := corev1.Container{
 		Name:    string(LineageFeastType),
 		Image:   image,
-		Command: append([]string{feastCommand}, svcConsts.Args...),
+		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
 		Args:    []string{"-p", fmt.Sprintf("%d", port)},
 		Ports: []corev1.ContainerPort{
 			{

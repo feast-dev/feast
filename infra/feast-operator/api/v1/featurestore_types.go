@@ -897,6 +897,11 @@ type ServerConfigs struct {
 	LogLevel *string `json:"logLevel,omitempty"`
 	// Metrics exposes Prometheus-compatible metrics for the Feast server when enabled.
 	Metrics *bool `json:"metrics,omitempty"`
+	// DualStack binds the server to the IPv6 wildcard address instead of 0.0.0.0,
+	// which serves both IPv6 and IPv4 clients on Linux. Enable it on IPv6-only or dual-stack clusters.
+	// The registry server always binds dual-stack and ignores this setting.
+	// +optional
+	DualStack *bool `json:"dualStack,omitempty"`
 	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
 	// This allows attaching persistent storage, config files, secrets, or other resources
 	// required by the Feast components. Ensure that each volume mount has a corresponding

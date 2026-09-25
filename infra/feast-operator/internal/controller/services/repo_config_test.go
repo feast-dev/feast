@@ -23,9 +23,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -852,6 +854,40 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OpenLineage).NotTo(BeNil())
 			Expect(repoConfig.OpenLineage.Consumer).NotTo(BeNil())
 			Expect(*repoConfig.OpenLineage.Consumer.StandaloneServer).To(BeTrue())
+		})
+
+		It("should bind the lineage deployment dual-stack when configured", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Server: &feastdevv1.ServerConfigs{DualStack: ptr.To(true)},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore, Scheme: k8sscheme.Scheme},
+			}
+			deploy := &appsv1.Deployment{}
+			Expect(feast.setLineageDeployment(deploy)).To(Succeed())
+
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Command).To(
+				Equal([]string{feastCommand, "serve_lineage", "-h", hostAllIPv6}))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Args).To(Equal([]string{"-p", "6580"}))
 		})
 
 		It("should generate lineage repo config with feastRef remote registry", func() {

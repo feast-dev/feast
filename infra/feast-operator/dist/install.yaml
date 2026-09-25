@@ -1020,6 +1020,10 @@ spec:
                             description: Server configuration (image, resources, env,
                               TLS, etc.).
                             properties:
+                              dualStack:
+                                description: DualStack binds the server to the IPv6
+                                  wildcard address instead of 0.0.0.
+                                type: boolean
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -2417,6 +2421,10 @@ spec:
                       server:
                         description: Creates a remote offline server container
                         properties:
+                          dualStack:
+                            description: DualStack binds the server to the IPv6 wildcard
+                              address instead of 0.0.0.
+                            type: boolean
                           env:
                             items:
                               description: EnvVar represents an environment variable
@@ -2968,6 +2976,10 @@ spec:
                       server:
                         description: Creates a feature server container
                         properties:
+                          dualStack:
+                            description: DualStack binds the server to the IPv6 wildcard
+                              address instead of 0.0.0.
+                            type: boolean
                           env:
                             items:
                               description: EnvVar represents an environment variable
@@ -3629,6 +3641,10 @@ spec:
                           server:
                             description: Creates a registry server container
                             properties:
+                              dualStack:
+                                description: DualStack binds the server to the IPv6
+                                  wildcard address instead of 0.0.0.
+                                type: boolean
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -4998,6 +5014,10 @@ spec:
                   ui:
                     description: Creates a UI server container
                     properties:
+                      dualStack:
+                        description: DualStack binds the server to the IPv6 wildcard
+                          address instead of 0.0.0.
+                        type: boolean
                       env:
                         items:
                           description: EnvVar represents an environment variable present
@@ -7891,6 +7911,10 @@ spec:
                                 description: Server configuration (image, resources,
                                   env, TLS, etc.).
                                 properties:
+                                  dualStack:
+                                    description: DualStack binds the server to the
+                                      IPv6 wildcard address instead of 0.0.0.
+                                    type: boolean
                                   env:
                                     items:
                                       description: EnvVar represents an environment
@@ -9305,6 +9329,10 @@ spec:
                           server:
                             description: Creates a remote offline server container
                             properties:
+                              dualStack:
+                                description: DualStack binds the server to the IPv6
+                                  wildcard address instead of 0.0.0.
+                                type: boolean
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -9864,6 +9892,10 @@ spec:
                           server:
                             description: Creates a feature server container
                             properties:
+                              dualStack:
+                                description: DualStack binds the server to the IPv6
+                                  wildcard address instead of 0.0.0.
+                                type: boolean
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -10539,6 +10571,10 @@ spec:
                               server:
                                 description: Creates a registry server container
                                 properties:
+                                  dualStack:
+                                    description: DualStack binds the server to the
+                                      IPv6 wildcard address instead of 0.0.0.
+                                    type: boolean
                                   env:
                                     items:
                                       description: EnvVar represents an environment
@@ -11926,6 +11962,10 @@ spec:
                       ui:
                         description: Creates a UI server container
                         properties:
+                          dualStack:
+                            description: DualStack binds the server to the IPv6 wildcard
+                              address instead of 0.0.0.
+                            type: boolean
                           env:
                             items:
                               description: EnvVar represents an environment variable
