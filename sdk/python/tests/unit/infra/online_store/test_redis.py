@@ -1,13 +1,25 @@
 import asyncio
+import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from typing import List, Tuple, Union
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast.errors import FeastExtrasDependencyImportError
 from feast.infra.online_stores.helpers import _mmh3
-from feast.infra.online_stores.redis import RedisOnlineStore, RedisOnlineStoreConfig
+from feast.infra.online_stores.redis import (
+    RedisClient,
+    RedisOnlineStore,
+    RedisOnlineStoreConfig,
+    RedisType,
+    _glide_client_config,
+    _glide_hmget_batch,
+    _load_glide_sync,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Int32
@@ -622,3 +634,303 @@ def test_online_write_batch_async_exists_and_is_coroutine():
     store = RedisOnlineStore()
     assert hasattr(store, "online_write_batch_async")
     assert inspect.iscoroutinefunction(store.online_write_batch_async)
+
+
+# ---------------------------------------------------------------------------------
+# GLIDE client (client: glide)
+# ---------------------------------------------------------------------------------
+
+GLIDE_PATH = "feast.infra.online_stores.redis._load_glide_sync"
+GLIDE_BATCH_PATH = "feast.infra.online_stores.redis._glide_hmget_batch"
+
+
+def _online_read_config(client: RedisClient = RedisClient.redis) -> RepoConfig:
+    return RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+        online_store=RedisOnlineStoreConfig(client=client),
+    )
+
+
+def _pipeline_mock(results):
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    pipe.execute.return_value = results
+    return pipe
+
+
+def _two_entity_keys() -> list:
+    return [
+        EntityKeyProto(join_keys=["entity"], entity_values=[ValueProto(int32_val=1)]),
+        EntityKeyProto(join_keys=["entity"], entity_values=[ValueProto(int32_val=2)]),
+    ]
+
+
+def test_client_defaults_to_redis_py():
+    """Default config must keep using redis-py."""
+    assert RedisOnlineStoreConfig().client is RedisClient.redis
+
+
+def test_default_client_reads_through_redis_pipeline(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """Without an opt-in, reads must go through the redis-py pipeline only."""
+    pipe = _pipeline_mock([[None] * 4, [None] * 4])
+    mock_client = MagicMock()
+    mock_client.pipeline.return_value = pipe
+
+    def fail_if_glide_is_loaded():
+        raise AssertionError("glide_sync must not be loaded for the default client")
+
+    with (
+        patch.object(redis_online_store, "_get_client", return_value=mock_client),
+        patch(GLIDE_PATH, side_effect=fail_if_glide_is_loaded),
+    ):
+        redis_online_store.online_read(
+            _online_read_config(), feature_view, _two_entity_keys(), ["feature_10"]
+        )
+
+    assert mock_client.pipeline.call_count == 1
+    assert pipe.hmget.call_count == 2
+
+
+def test_glide_client_is_opt_in_per_config(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """client: glide must select the GLIDE batch and skip the redis-py pipeline."""
+    pipe = _pipeline_mock([[None] * 4, [None] * 4])
+    mock_client = MagicMock()
+    mock_client.pipeline.return_value = pipe
+    fake_glide_batch = MagicMock(return_value=[[None] * 4, [None] * 4])
+
+    with (
+        patch.object(redis_online_store, "_get_client", return_value=mock_client),
+        patch(GLIDE_PATH, return_value=object()) as load_glide,
+        patch.object(redis_online_store, "_get_glide_client", return_value=object()),
+        patch(GLIDE_BATCH_PATH, fake_glide_batch),
+    ):
+        rows = redis_online_store.online_read(
+            _online_read_config(RedisClient.glide),
+            feature_view,
+            _two_entity_keys(),
+            ["feature_10"],
+        )
+
+    load_glide.assert_called_once()
+    glide_commands = fake_glide_batch.call_args.args[2]
+    assert len(glide_commands) == 2
+    assert mock_client.pipeline.call_count == 0
+    # Feature values are still converted with the shared redis-py response handling.
+    assert len(rows) == 2
+
+
+def test_glide_path_issues_same_commands_as_redis_path(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """Both clients must read the same entity keys with the same hashed fields."""
+    entity_keys = _two_entity_keys()
+
+    pipe = _pipeline_mock([[None] * 4, [None] * 4])
+    mock_client = MagicMock()
+    mock_client.pipeline.return_value = pipe
+    with patch.object(redis_online_store, "_get_client", return_value=mock_client):
+        redis_online_store.online_read(
+            _online_read_config(), feature_view, entity_keys, ["feature_10"]
+        )
+    redis_commands = [call.args for call in pipe.hmget.call_args_list]
+    fake_glide_batch = MagicMock(return_value=[[None] * 4, [None] * 4])
+
+    with (
+        patch(GLIDE_PATH, return_value=object()),
+        patch.object(redis_online_store, "_get_glide_client", return_value=object()),
+        patch(GLIDE_BATCH_PATH, fake_glide_batch),
+    ):
+        redis_online_store.online_read(
+            _online_read_config(RedisClient.glide),
+            feature_view,
+            entity_keys,
+            ["feature_10"],
+        )
+
+    glide_commands = fake_glide_batch.call_args.args[2]
+    assert glide_commands == redis_commands
+    # The hashed field names and the _ts field come from the existing helpers.
+    key, fields = glide_commands[0]
+    assert fields[0] == _mmh3(f"{feature_view.name}:feature_10")
+    assert fields[-1] == f"_ts:{feature_view.name}"
+
+
+def test_glide_hmget_batch_is_one_non_atomic_batch():
+    """The GLIDE read must be a single non-atomic batch of HMGET commands."""
+
+    class FakeBatch:
+        def __init__(self, is_atomic):
+            self.is_atomic = is_atomic
+            self.commands = []
+
+        def hmget(self, key, fields):
+            self.commands.append((key, list(fields)))
+            return self
+
+    class FakeGlideClient:
+        def __init__(self):
+            self.exec_calls = []
+
+        def exec(self, batch, raise_on_error):
+            self.exec_calls.append((batch, raise_on_error))
+            return [[b"value", None], [None, None]]
+
+    fake_glide_sync = SimpleNamespace(
+        Batch=FakeBatch,
+        ClusterBatch=FakeBatch,
+        GlideClusterClient=type("FakeGlideClusterClient", (), {}),
+    )
+    glide_client = FakeGlideClient()
+    commands: List[Tuple[bytes, List[Union[str, bytes]]]] = [
+        (b"key1", ["f1", "_ts:fv"]),
+        (b"key2", ["f1", "_ts:fv"]),
+    ]
+
+    result = _glide_hmget_batch(fake_glide_sync, glide_client, commands)
+
+    assert len(glide_client.exec_calls) == 1
+    batch, raise_on_error = glide_client.exec_calls[0]
+    assert batch.is_atomic is False
+    assert raise_on_error is True
+    assert batch.commands == commands
+    assert result == [[b"value", None], [None, None]]
+
+
+def test_glide_hmget_batch_uses_cluster_batch_for_cluster_clients():
+    """Redis Cluster reads must use ClusterBatch, not the standalone Batch."""
+
+    class FakeBatch:
+        def __init__(self, is_atomic):
+            self.is_atomic = is_atomic
+
+        def hmget(self, key, fields):
+            return self
+
+    class FakeClusterBatch(FakeBatch):
+        pass
+
+    class FakeGlideClusterClient:
+        def __init__(self):
+            self.batch_types = []
+
+        def exec(self, batch, raise_on_error):
+            self.batch_types.append(type(batch))
+            return [[None]]
+
+    fake_glide_sync = SimpleNamespace(
+        Batch=FakeBatch,
+        ClusterBatch=FakeClusterBatch,
+        GlideClusterClient=FakeGlideClusterClient,
+    )
+    glide_client = FakeGlideClusterClient()
+
+    _glide_hmget_batch(fake_glide_sync, glide_client, [(b"key1", ["f1"])])
+
+    assert glide_client.batch_types == [FakeClusterBatch]
+
+
+def test_missing_glide_dependency_raises_clear_error(monkeypatch):
+    """Opting in without the extra installed must fail with an actionable error."""
+    monkeypatch.setitem(sys.modules, "glide_sync", None)
+
+    with pytest.raises(FeastExtrasDependencyImportError) as exc_info:
+        _load_glide_sync()
+
+    assert "glide_sync" in str(exc_info.value)
+    assert "pip install 'feast[glide]'" in str(exc_info.value)
+
+
+def test_glide_client_config_parses_connection_string():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            connection_string=(
+                "redis.example.com:6380,db=2,password=hunter2,username=feast,"
+                "ssl=true,socket_timeout=1.5,socket_connect_timeout=2"
+            )
+        ),
+    )
+
+    assert [(address.host, address.port) for address in config.addresses] == [
+        ("redis.example.com", 6380)
+    ]
+    assert config.database_id == 2
+    assert config.use_tls is True
+    assert config.credentials.password == "hunter2"
+    assert config.credentials.username == "feast"
+    # redis-py takes timeouts in seconds, GLIDE in milliseconds.
+    assert config.request_timeout == 1500
+    assert config.advanced_config.connection_timeout == 2000
+
+
+def test_glide_client_config_defaults_tls_and_timeouts_off():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync, RedisOnlineStoreConfig(connection_string="localhost:6379")
+    )
+
+    assert config.use_tls is False
+    assert config.credentials is None
+    assert config.database_id is None
+    assert config.request_timeout is None
+    assert config.advanced_config is None
+
+
+def test_glide_client_config_parses_cluster_connection_string():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            redis_type=RedisType.redis_cluster,
+            connection_string="redis1:6379,redis2:6379,ssl=true,password=hunter2",
+        ),
+    )
+
+    assert [(address.host, address.port) for address in config.addresses] == [
+        ("redis1", 6379),
+        ("redis2", 6379),
+    ]
+    assert config.use_tls is True
+    assert config.credentials.password == "hunter2"
+    # Cluster nodes do not support SELECT, so db is not forwarded.
+    assert config.database_id is None
+
+
+def test_glide_client_config_rejects_sentinel():
+    """GLIDE has no Sentinel support, so the combination must fail loudly."""
+    glide_sync = pytest.importorskip("glide_sync")
+
+    with pytest.raises(ValueError, match="redis_sentinel"):
+        _glide_client_config(
+            glide_sync,
+            RedisOnlineStoreConfig(
+                redis_type=RedisType.redis_sentinel,
+                connection_string="sentinel1:26379",
+            ),
+        )
+
+
+def test_glide_client_config_warns_about_ignored_params(caplog):
+    glide_sync = pytest.importorskip("glide_sync")
+
+    with caplog.at_level("WARNING"):
+        _glide_client_config(
+            glide_sync,
+            RedisOnlineStoreConfig(
+                connection_string="localhost:6379,skip_full_coverage_check=true"
+            ),
+        )
+
+    assert "skip_full_coverage_check" in caplog.text

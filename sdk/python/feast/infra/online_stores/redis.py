@@ -32,6 +32,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig, utils
+from feast.errors import FeastExtrasDependencyImportError
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.helpers import (
     _mmh3,
@@ -51,8 +52,6 @@ try:
     from redis.cluster import ClusterNode, RedisCluster
     from redis.sentinel import Sentinel
 except ImportError as e:
-    from feast.errors import FeastExtrasDependencyImportError
-
     raise FeastExtrasDependencyImportError("redis", str(e))
 
 logger = logging.getLogger(__name__)
@@ -71,6 +70,11 @@ class RedisType(str, Enum):
     redis_sentinel = "redis_sentinel"
 
 
+class RedisClient(str, Enum):
+    redis = "redis"
+    glide = "glide"
+
+
 class RedisOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Redis store"""
 
@@ -79,6 +83,15 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
     redis_type: RedisType = RedisType.redis
     """Redis type: redis or redis_cluster"""
+
+    client: RedisClient = RedisClient.redis
+    """Redis client used for online reads: ``redis`` (redis-py, default) or ``glide``.
+
+    With ``glide``, the synchronous read paths (``online_read`` and the batched read
+    behind ``get_online_features``) issue their HMGET commands as one non-atomic GLIDE
+    batch, so the fetch runs off the GIL. Requires ``pip install 'feast[glide]'``.
+    Writes and async reads always use redis-py. GLIDE has no Sentinel support, so
+    ``client: glide`` cannot be combined with ``redis_type: redis_sentinel``."""
 
     sentinel_master: StrictStr = "mymaster"
     """Sentinel's master name"""
@@ -99,6 +112,115 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     This may cause older feature values to overwrite newer ones under concurrent writers."""
 
 
+def _seconds_to_millis(value: Any) -> Optional[int]:
+    """Convert a redis-py timeout in seconds to GLIDE's millisecond unit."""
+    if value is None:
+        return None
+    return int(float(value) * 1000)
+
+
+def _load_glide_sync():
+    """Import ``valkey-glide-sync`` on demand.
+
+    The native extension is only loaded when ``client: glide`` is configured, so the
+    redis extra keeps working for users who did not opt in.
+    """
+    try:
+        import glide_sync
+    except ImportError as e:
+        raise FeastExtrasDependencyImportError("glide", str(e)) from e
+    return glide_sync
+
+
+_GLIDE_SUPPORTED_CONNECTION_PARAMS = frozenset(
+    {"ssl", "db", "password", "username", "socket_timeout", "socket_connect_timeout"}
+)
+
+
+def _glide_client_config(glide_sync, online_store_config: RedisOnlineStoreConfig):
+    """Translate a Feast Redis connection string into a GLIDE client configuration."""
+    if online_store_config.redis_type == RedisType.redis_sentinel:
+        raise ValueError(
+            "client: glide does not support redis_type: redis_sentinel. "
+            "Use client: redis for Sentinel deployments."
+        )
+
+    startup_nodes, params = RedisOnlineStore._parse_connection_string(
+        online_store_config.connection_string
+    )
+    ignored = sorted(set(params) - _GLIDE_SUPPORTED_CONNECTION_PARAMS)
+    if ignored:
+        logger.warning(
+            "client: glide ignores these Redis connection_string parameters: %s",
+            ", ".join(ignored),
+        )
+
+    credentials = None
+    password = params.get("password")
+    username = params.get("username")
+    if password is not None or username is not None:
+        credentials = glide_sync.ServerCredentials(
+            # _parse_connection_string json-decodes values, so a numeric password can
+            # arrive as an int while GLIDE expects a str.
+            password=None if password is None else str(password),
+            username=None if username is None else str(username),
+        )
+
+    connection_timeout = _seconds_to_millis(params.get("socket_connect_timeout"))
+    kwargs: Dict[str, Any] = {
+        "addresses": [
+            glide_sync.NodeAddress(host=node["host"], port=int(node["port"]))
+            for node in startup_nodes
+        ],
+        "use_tls": bool(params.get("ssl", False)),
+        "credentials": credentials,
+        "request_timeout": _seconds_to_millis(params.get("socket_timeout")),
+        "advanced_config": glide_sync.AdvancedGlideClientConfiguration(
+            connection_timeout=connection_timeout
+        )
+        if connection_timeout is not None
+        else None,
+    }
+
+    if online_store_config.redis_type == RedisType.redis_cluster:
+        # Cluster nodes do not support SELECT, so `db` is not passed along.
+        return glide_sync.GlideClusterClientConfiguration(**kwargs)
+
+    if "db" in params:
+        kwargs["database_id"] = int(params["db"])
+    return glide_sync.GlideClientConfiguration(**kwargs)
+
+
+def _create_glide_client(glide_sync, online_store_config: RedisOnlineStoreConfig):
+    """Connect a GLIDE client built from the Redis online store config."""
+    config = _glide_client_config(glide_sync, online_store_config)
+    if online_store_config.redis_type == RedisType.redis_cluster:
+        return glide_sync.GlideClusterClient.create(config)
+    return glide_sync.GlideClient.create(config)
+
+
+def _glide_hmget_batch(
+    glide_sync,
+    client,
+    commands: List[Tuple[bytes, List[Union[str, bytes]]]],
+) -> List[List[Optional[bytes]]]:
+    """Run one HMGET per ``(key, fields)`` pair in a single non-atomic GLIDE batch.
+
+    Replies keep the order of ``commands``, so callers can slice them exactly like a
+    redis-py pipeline result.
+    """
+    batch = (
+        glide_sync.ClusterBatch(is_atomic=False)
+        if isinstance(client, glide_sync.GlideClusterClient)
+        else glide_sync.Batch(is_atomic=False)
+    )
+    for key, fields in commands:
+        batch.hmget(key, fields)
+
+    result = client.exec(batch, raise_on_error=True)
+    return list(result) if result else []
+
+
 class RedisOnlineStore(OnlineStore):
     """
     Redis implementation of the online store interface.
@@ -114,6 +236,9 @@ class RedisOnlineStore(OnlineStore):
     _client_async: Optional[Union[redis_asyncio.Redis, redis_asyncio.RedisCluster]] = (
         None
     )
+    # Only set when `client: glide` is configured, so the native extension stays
+    # untouched for users who never opt in.
+    _glide_client: Optional[Any] = None
 
     @property
     def async_supported(self) -> SupportedAsyncMethods:
@@ -304,6 +429,14 @@ class RedisOnlineStore(OnlineStore):
                 kwargs["port"] = startup_nodes[0]["port"]
                 self._client_async = redis_asyncio.Redis(**kwargs)
         return self._client_async
+
+    def _get_glide_client(self, online_store_config: RedisOnlineStoreConfig):
+        """Creates and caches a GLIDE client built from the online store config."""
+        if not self._glide_client:
+            self._glide_client = _create_glide_client(
+                _load_glide_sync(), online_store_config
+            )
+        return self._glide_client
 
     def online_write_batch(
         self,
@@ -538,12 +671,14 @@ class RedisOnlineStore(OnlineStore):
         feature_view: FeatureView,
         requested_features: Optional[List[str]] = None,
         fv_name_override: Optional[str] = None,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> Tuple[List[str], List[Union[str, bytes]]]:
         if not requested_features:
             requested_features = [f.name for f in feature_view.features]
 
         fv_name = fv_name_override or feature_view.name
-        hset_keys = [_mmh3(f"{fv_name}:{k}") for k in requested_features]
+        hset_keys: List[Union[str, bytes]] = [
+            _mmh3(f"{fv_name}:{k}") for k in requested_features
+        ]
 
         ts_key = f"_ts:{fv_name}"
         hset_keys.append(ts_key)
@@ -553,7 +688,7 @@ class RedisOnlineStore(OnlineStore):
 
     def _convert_redis_values_to_protobuf(
         self,
-        redis_values: List[List[ByteString]],
+        redis_values: Sequence[Sequence[Optional[ByteString]]],
         feature_view: str,
         requested_features: List[str],
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
@@ -562,6 +697,34 @@ class RedisOnlineStore(OnlineStore):
             for values in redis_values
         ]
 
+    def _read_hash_fields(
+        self,
+        config: RepoConfig,
+        commands: List[Tuple[bytes, List[Union[str, bytes]]]],
+    ) -> List[List[Optional[ByteString]]]:
+        """Fetch one HMGET reply per ``(key, fields)`` pair, in the given order.
+
+        Defaults to a single redis-py pipeline. When ``client: glide`` is configured
+        the same commands run as one non-atomic GLIDE batch, so the fetch runs off the
+        GIL instead of in Python per command.
+        """
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        if online_store_config.client == RedisClient.glide:
+            glide_sync = _load_glide_sync()
+            return _glide_hmget_batch(
+                glide_sync,
+                self._get_glide_client(online_store_config),
+                commands,
+            )
+
+        client = self._get_client(online_store_config)
+        with client.pipeline(transaction=False) as pipe:
+            for redis_key, fields in commands:
+                pipe.hmget(redis_key, fields)
+            return pipe.execute()
+
     def online_read(
         self,
         config: RepoConfig,
@@ -569,10 +732,6 @@ class RedisOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        online_store_config = config.online_store
-        assert isinstance(online_store_config, RedisOnlineStoreConfig)
-
-        client = self._get_client(online_store_config)
         feature_view = table
         fv_name = _versioned_fv_name(table, config)
 
@@ -581,11 +740,9 @@ class RedisOnlineStore(OnlineStore):
         )
         keys = self._generate_redis_keys_for_entities(config, entity_keys)
 
-        with client.pipeline(transaction=False) as pipe:
-            for redis_key_bin in keys:
-                pipe.hmget(redis_key_bin, hset_keys)
-
-            redis_values = pipe.execute()
+        redis_values = self._read_hash_fields(
+            config, [(redis_key, hset_keys) for redis_key in keys]
+        )
 
         return self._convert_redis_values_to_protobuf(
             redis_values, fv_name, requested_features
@@ -648,12 +805,14 @@ class RedisOnlineStore(OnlineStore):
             )
 
         if work_items:
-            client = self._get_client(config.online_store)
-            with client.pipeline(transaction=False) as pipe:
-                for _, _, _, hset_keys, redis_keys, _, _ in work_items:
-                    for redis_key in redis_keys:
-                        pipe.hmget(redis_key, hset_keys)
-                all_results = pipe.execute()
+            all_results = self._read_hash_fields(
+                config,
+                [
+                    (redis_key, hset_keys)
+                    for _, _, _, hset_keys, redis_keys, _, _ in work_items
+                    for redis_key in redis_keys
+                ],
+            )
 
             offset = 0
             for (
@@ -751,7 +910,7 @@ class RedisOnlineStore(OnlineStore):
 
     def _get_features_for_entity(
         self,
-        values: List[ByteString],
+        values: Sequence[Optional[ByteString]],
         feature_view: str,
         requested_features: List[str],
     ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
