@@ -130,3 +130,25 @@ def test_proto_empty_registry():
 
     assert len(result.projects) == 0
     assert len(result.entities) == 0
+
+
+def test_proto_stamps_project_on_each_object():
+    """Each rebuilt object must carry its project (feast#6672).
+
+    ``obj.to_proto()`` does not serialize the project, so without stamping the
+    rebuilt proto has project-less objects and any consumer that looks them up by
+    project (proto_registry_utils -> RemoteRegistry's client cache) never finds
+    them. Project lives at ``spec.project`` for most objects and as a top-level
+    ``project`` field for data sources.
+    """
+    server, _ = _build_server()
+
+    result = server.Proto(Empty(), context=None)
+
+    entity_projects = {e.spec.name: e.spec.project for e in result.entities}
+    assert entity_projects == {
+        "driver": "proj_a",
+        "customer": "proj_a",
+        "merchant": "proj_b",
+    }
+    assert {(d.name, d.project) for d in result.data_sources} == {("src_a", "proj_a")}
