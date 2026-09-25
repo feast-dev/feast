@@ -15,9 +15,11 @@ import {
 } from "@elastic/eui";
 import { CodeBlock, github } from "react-code-blocks";
 import { RegularFeatureViewCustomTabProps } from "../../custom-tabs/types";
+import { getProcessEnv } from "../../utils/environment";
 
 const defaultServerUrl =
-  process.env.REACT_APP_FEAST_FEATURE_SERVER_URL || "http://localhost:6566";
+  getProcessEnv("REACT_APP_FEAST_FEATURE_SERVER_URL") ||
+  "http://localhost:6566";
 
 const CurlGeneratorTab = ({
   feastObjectQuery,
