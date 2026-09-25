@@ -44,6 +44,18 @@ def feature_view_describe(ctx: click.Context, name: str):
         data["enabled"] = feature_view.enabled
     if hasattr(feature_view, "state"):
         data["state"] = feature_view.state.name
+    if feature_view.online_config is not None:
+        online_config = feature_view.online_config
+        data["spec"]["onlineConfig"] = {
+            "mode": online_config.mode,
+            "maxLength": online_config.max_length,
+            "maxAgeSeconds": (
+                int(online_config.max_age.total_seconds())
+                if online_config.max_age is not None
+                else None
+            ),
+            "writeMode": online_config.write_mode,
+        }
     print(yaml.dump(data, default_flow_style=False, sort_keys=False))
 
 
