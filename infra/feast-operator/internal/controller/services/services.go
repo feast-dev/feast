@@ -922,11 +922,13 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 }
 
 // getServiceAppProtocol returns the appProtocol for a Service port.
-// The registry gRPC service uses the gRPC protocol, which requires HTTP/2.
-// Setting appProtocol allows service meshes (e.g. Istio) and load balancers
-// to correctly classify the traffic and avoid downgrading to HTTP/1.1.
+// The registry gRPC service and the offline (Arrow Flight) service use the gRPC
+// protocol, which requires HTTP/2. Setting appProtocol allows service meshes
+// (e.g. Istio) and load balancers to correctly classify the traffic and avoid
+// downgrading to HTTP/1.1.
 func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, isRestService bool) *string {
-	if feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled() {
+	if (feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled()) ||
+		feastType == OfflineFeastType {
 		return ptr.To("grpc")
 	}
 	return nil
