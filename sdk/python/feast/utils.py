@@ -33,6 +33,7 @@ from feast.entity import Entity
 from feast.errors import (
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    MissingJoinKeyValuesException,
     RequestDataNotFoundInEntityRowsException,
 )
 from feast.field import Field
@@ -643,7 +644,8 @@ def _validate_entity_values(join_key_values: Dict[str, List[ValueProto]]):
     set_of_row_lengths = {len(v) for v in join_key_values.values()}
     if len(set_of_row_lengths) > 1:
         raise ValueError("All entity rows must have the same columns.")
-    return set_of_row_lengths.pop()
+    # No columns at all means no rows; popping an empty set would raise here.
+    return set_of_row_lengths.pop() if set_of_row_lengths else 0
 
 
 def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
@@ -1112,11 +1114,13 @@ def _get_unique_entities(
     )
 
     if missing_keys or empty_keys:
-        if not any(table_entity_values.values()):
-            raise KeyError(
-                f"Missing join key values for keys: {missing_keys}. "
-                f"No values provided for keys: {empty_keys}. "
-                f"Provided join_key_values: {list(join_key_values.keys())}"
+        # Columns present but all empty is a well-formed request that simply has
+        # no rows this run; the row-wise conversion below already returns empty
+        # results for it. Only a caller that supplied nothing at all for this
+        # view is reporting an error.
+        if not table_entity_values:
+            raise MissingJoinKeyValuesException(
+                missing_keys, empty_keys, join_key_values.keys()
             )
 
     # Convert the column-oriented table_entity_values into row-wise data.

@@ -166,7 +166,10 @@ class OnlineStore(ABC):
         include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            # An empty batch carries no column names; downstream handles zero rows.
+            columnar: Dict[str, List[Any]] = (
+                {k: [] for k in entity_rows[0].keys()} if entity_rows else {}
+            )
             for entity_row in entity_rows:
                 for key, value in entity_row.items():
                     try:
@@ -450,7 +453,10 @@ class OnlineStore(ABC):
         include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
-            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            # An empty batch carries no column names; downstream handles zero rows.
+            columnar: Dict[str, List[Any]] = (
+                {k: [] for k in entity_rows[0].keys()} if entity_rows else {}
+            )
             for entity_row in entity_rows:
                 for key, value in entity_row.items():
                     try:
