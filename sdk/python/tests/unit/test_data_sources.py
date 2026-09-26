@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 
 from feast.data_format import ProtoFormat
@@ -332,4 +334,48 @@ def test_data_source_eq_cross_type_returns_false():
     # Same-type equality still holds for two independently-built equal instances.
     assert file_source == FileSource(
         name="src", path="/tmp/x.parquet", timestamp_field="ts"
+    )
+
+
+def test_kafka_source_keeps_a_zero_watermark_delay_threshold():
+    """A watermark delay of zero is a value, not an unset option.
+
+    ``KafkaOptions`` stored ``watermark_delay_threshold or None``, so a
+    ``timedelta(0)`` was read as "not given" and never reached the proto. The
+    ``from_proto`` branch that turned an explicit zero ``Duration`` back into
+    ``timedelta(0)`` could therefore never return it.
+    """
+    file_source = FileSource(
+        name="batch", path="/tmp/x.parquet", timestamp_field="event_timestamp"
+    )
+
+    def kafka_source(watermark):
+        return KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            watermark_delay_threshold=watermark,
+            batch_source=file_source,
+        )
+
+    zero = kafka_source(timedelta(0))
+    assert zero.kafka_options.watermark_delay_threshold == timedelta(0)
+
+    zero_proto = zero.to_proto()
+    assert zero_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert KafkaSource.from_proto(
+        zero_proto
+    ).kafka_options.watermark_delay_threshold == timedelta(0)
+
+    # An absent delay stays absent, and is not read as a zero
+    unset = kafka_source(None)
+    assert unset.kafka_options.watermark_delay_threshold is None
+
+    unset_proto = unset.to_proto()
+    assert not unset_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert (
+        KafkaSource.from_proto(unset_proto).kafka_options.watermark_delay_threshold
+        is None
     )
