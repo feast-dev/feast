@@ -922,6 +922,62 @@ var _ = Describe("Repo Config", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		It("should include kubernetes auth config in lineage repo config", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
+			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
+			Expect(repoConfig.Registry.Path).To(Equal(remoteHost))
+		})
+
+		It("should default to kubernetes auth in lineage repo config when authzConfig is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
+		})
+
 		It("should reject lineageServer without any registry when authz is set", func() {
 			featureStore := minimalFeatureStore()
 			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
