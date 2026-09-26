@@ -95,6 +95,13 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
         if storage_options:
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
+    else:
+        raise ValueError(
+            f"Unable to determine the file format for data source "
+            f"'{data_source.name}' with path '{data_source.path}'. Either set "
+            f"'file_format' explicitly on the FileSource (e.g. ParquetFormat()) "
+            f"or use a path with a recognized file extension (e.g. '.parquet')."
+        )
 
 
 def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -> Table:
