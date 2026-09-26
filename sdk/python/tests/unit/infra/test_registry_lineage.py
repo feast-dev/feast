@@ -644,3 +644,329 @@ class TestRegistryLineage:
             entity_name = f"entity_{i}"
             expected_ds = {f"data_source_{i}", "data_source_0"}
             assert entity_ds_connections[entity_name] == expected_ds
+
+    def test_push_source_upstream_lineage(self):
+        """Test Upstream FeatureViews -> PushSource -> Target FeatureView lineage."""
+        registry = Registry()
+
+        # 1. Upstream FeatureViews
+        fv1_spec = FeatureViewSpec(name="user_transaction_stats")
+        fv1 = FeatureView(spec=fv1_spec)
+
+        fv2_spec = FeatureViewSpec(name="user_credit_profile")
+        fv2 = FeatureView(spec=fv2_spec)
+
+        # 2. PushSource
+        push_ds = DataSource()
+        push_ds.name = "risk_calc_pipeline"
+        push_ds.type = DataSource.SourceType.PUSH_SOURCE
+        push_ds.push_options.upstream_feature_view_names.extend(
+            ["user_transaction_stats", "user_credit_profile"]
+        )
+        registry.data_sources.append(push_ds)
+
+        # 3. Downstream Target FeatureView
+        target_fv_spec = FeatureViewSpec(name="user_risk_target_fv")
+        target_fv_spec.stream_source.CopyFrom(push_ds)
+        target_fv = FeatureView(spec=target_fv_spec)
+
+        registry.feature_views.extend([fv1, fv2, target_fv])
+
+        lineage_generator = RegistryLineageGenerator()
+        direct_relationships, indirect_relationships = (
+            lineage_generator.generate_lineage(registry)
+        )
+
+        # Verify direct relationships
+        expected_direct = {
+            (
+                "featureView",
+                "user_transaction_stats",
+                "dataSource",
+                "risk_calc_pipeline",
+            ),
+            ("featureView", "user_credit_profile", "dataSource", "risk_calc_pipeline"),
+            ("dataSource", "risk_calc_pipeline", "featureView", "user_risk_target_fv"),
+        }
+
+        actual_direct = {
+            (
+                rel.source.type.value,
+                rel.source.name,
+                rel.target.type.value,
+                rel.target.name,
+            )
+            for rel in direct_relationships
+        }
+
+        for exp in expected_direct:
+            assert exp in actual_direct, (
+                f"Expected relationship {exp} not found in {actual_direct}"
+            )
+
+        # Test object relationships for push source
+        ps_relationships = lineage_generator.get_object_relationships(
+            registry, "dataSource", "risk_calc_pipeline", include_indirect=False
+        )
+        assert len(ps_relationships) == 3
+
+        # Test object lineage graph for upstream feature view traversing downstream
+        graph = lineage_generator.get_object_lineage_graph(
+            registry, "featureView", "user_transaction_stats", depth=2
+        )
+        assert "nodes" in graph
+        assert "featureView:user_transaction_stats" in graph["nodes"]
+        assert "dataSource:risk_calc_pipeline" in graph["nodes"]
+        assert "featureView:user_risk_target_fv" in graph["nodes"]
+
+    def test_feature_view_stream_sources_without_upstream_views(self):
+        """Test FeatureView with stream sources (PushSource, KafkaSource, KinesisSource)
+        without upstream_feature_view_names specified draws edges from stream_source to FeatureView
+        and batch_source to FeatureView.
+        """
+        registry = Registry()
+
+        # 1. FeatureView with PushSource (no upstream_feature_view_names)
+        push_ds = DataSource()
+        push_ds.name = "user_push_source"
+        push_ds.type = DataSource.SourceType.PUSH_SOURCE
+
+        push_batch_ds = DataSource()
+        push_batch_ds.name = "user_push_batch_source"
+        push_batch_ds.type = DataSource.SourceType.BATCH_FILE
+
+        push_fv_spec = FeatureViewSpec(name="user_push_fv")
+        push_fv_spec.stream_source.CopyFrom(push_ds)
+        push_fv_spec.batch_source.CopyFrom(push_batch_ds)
+        push_fv = FeatureView(spec=push_fv_spec)
+
+        # 2. FeatureView with KafkaSource
+        kafka_ds = DataSource()
+        kafka_ds.name = "user_kafka_source"
+        kafka_ds.type = DataSource.SourceType.STREAM_KAFKA
+        kafka_ds.kafka_options.topic = "user_events"
+
+        kafka_batch_ds = DataSource()
+        kafka_batch_ds.name = "user_kafka_batch_source"
+        kafka_batch_ds.type = DataSource.SourceType.BATCH_FILE
+
+        kafka_fv_spec = FeatureViewSpec(name="user_kafka_fv")
+        kafka_fv_spec.stream_source.CopyFrom(kafka_ds)
+        kafka_fv_spec.batch_source.CopyFrom(kafka_batch_ds)
+        kafka_fv = FeatureView(spec=kafka_fv_spec)
+
+        # 3. FeatureView with KinesisSource
+        kinesis_ds = DataSource()
+        kinesis_ds.name = "user_kinesis_source"
+        kinesis_ds.type = DataSource.SourceType.STREAM_KINESIS
+        kinesis_ds.kinesis_options.stream_name = "user_stream"
+
+        kinesis_batch_ds = DataSource()
+        kinesis_batch_ds.name = "user_kinesis_batch_source"
+        kinesis_batch_ds.type = DataSource.SourceType.BATCH_FILE
+
+        kinesis_fv_spec = FeatureViewSpec(name="user_kinesis_fv")
+        kinesis_fv_spec.stream_source.CopyFrom(kinesis_ds)
+        kinesis_fv_spec.batch_source.CopyFrom(kinesis_batch_ds)
+        kinesis_fv = FeatureView(spec=kinesis_fv_spec)
+
+        registry.feature_views.extend([push_fv, kafka_fv, kinesis_fv])
+
+        lineage_generator = RegistryLineageGenerator()
+        direct_relationships, indirect_relationships = (
+            lineage_generator.generate_lineage(registry)
+        )
+
+        actual_direct = {
+            (
+                rel.source.type.value,
+                rel.source.name,
+                rel.target.type.value,
+                rel.target.name,
+            )
+            for rel in direct_relationships
+        }
+
+        expected_direct = {
+            ("dataSource", "user_push_source", "featureView", "user_push_fv"),
+            ("dataSource", "user_push_batch_source", "featureView", "user_push_fv"),
+            ("dataSource", "user_kafka_source", "featureView", "user_kafka_fv"),
+            ("dataSource", "user_kafka_batch_source", "featureView", "user_kafka_fv"),
+            ("dataSource", "user_kinesis_source", "featureView", "user_kinesis_fv"),
+            (
+                "dataSource",
+                "user_kinesis_batch_source",
+                "featureView",
+                "user_kinesis_fv",
+            ),
+        }
+
+        for exp in expected_direct:
+            assert exp in actual_direct, (
+                f"Expected relationship {exp} not found in {actual_direct}"
+            )
+
+        # Ensure no reverse edges (e.g. featureView -> dataSource) exist since no upstream_feature_view_names are specified
+        reverse_edges = [
+            rel
+            for rel in direct_relationships
+            if rel.source.type == FeastObjectType.FEATURE_VIEW
+            and rel.target.type == FeastObjectType.DATA_SOURCE
+        ]
+        assert len(reverse_edges) == 0
+
+    def test_python_sdk_feature_view_stream_sources_lineage(self):
+        """Test high-level Python SDK FeatureView with PushSource, KafkaSource, and KinesisSource
+        serializes to protobuf and generates expected lineage relationships.
+        """
+        from datetime import timedelta
+
+        from feast import (
+            Entity as FeastEntity,
+        )
+        from feast import (
+            FeatureView as FeastFeatureView,
+        )
+        from feast import (
+            Field as FeastField,
+        )
+        from feast import (
+            FileSource as FeastFileSource,
+        )
+        from feast import (
+            KafkaSource as FeastKafkaSource,
+        )
+        from feast import (
+            KinesisSource as FeastKinesisSource,
+        )
+        from feast import (
+            PushSource as FeastPushSource,
+        )
+        from feast import (
+            ValueType,
+        )
+        from feast.data_format import ProtoFormat
+        from feast.types import Float32, String
+
+        user_entity = FeastEntity(
+            name="user_id", join_keys=["user_id"], value_type=ValueType.STRING
+        )
+        file_source = FeastFileSource(
+            name="batch_file_source", path="data/batch.parquet"
+        )
+
+        # 1. PushSource without upstream_feature_view_names
+        push_source = FeastPushSource(
+            name="sdk_push_source",
+            batch_source=file_source,
+            description="Push source without upstream views",
+        )
+        push_fv = FeastFeatureView(
+            name="sdk_push_fv",
+            entities=[user_entity],
+            ttl=timedelta(days=1),
+            schema=[
+                FeastField(name="user_id", dtype=String),
+                FeastField(name="score", dtype=Float32),
+            ],
+            source=push_source,
+        )
+
+        # 2. KafkaSource
+        kafka_source = FeastKafkaSource(
+            name="sdk_kafka_source",
+            kafka_bootstrap_servers="localhost:9092",
+            topic="events_topic",
+            timestamp_field="event_timestamp",
+            message_format=ProtoFormat("class_path"),
+            batch_source=file_source,
+        )
+        kafka_fv = FeastFeatureView(
+            name="sdk_kafka_fv",
+            entities=[user_entity],
+            ttl=timedelta(days=1),
+            schema=[
+                FeastField(name="user_id", dtype=String),
+                FeastField(name="clicks", dtype=Float32),
+            ],
+            source=kafka_source,
+        )
+
+        # 3. KinesisSource
+        kinesis_source = FeastKinesisSource(
+            name="sdk_kinesis_source",
+            record_format=ProtoFormat("class_path"),
+            region="us-west-2",
+            stream_name="events_stream",
+            timestamp_field="event_timestamp",
+            batch_source=file_source,
+        )
+        kinesis_fv = FeastFeatureView(
+            name="sdk_kinesis_fv",
+            entities=[user_entity],
+            ttl=timedelta(days=1),
+            schema=[
+                FeastField(name="user_id", dtype=String),
+                FeastField(name="views", dtype=Float32),
+            ],
+            source=kinesis_source,
+        )
+
+        registry = Registry()
+        registry.feature_views.extend(
+            [
+                push_fv.to_proto(),
+                kafka_fv.to_proto(),
+                kinesis_fv.to_proto(),
+            ]
+        )
+
+        lineage_generator = RegistryLineageGenerator()
+        direct_relationships, _ = lineage_generator.generate_lineage(registry)
+
+        actual_direct = {
+            (
+                rel.source.type.value,
+                rel.source.name,
+                rel.target.type.value,
+                rel.target.name,
+            )
+            for rel in direct_relationships
+        }
+
+        assert (
+            "dataSource",
+            "sdk_push_source",
+            "featureView",
+            "sdk_push_fv",
+        ) in actual_direct
+        assert (
+            "dataSource",
+            "batch_file_source",
+            "featureView",
+            "sdk_push_fv",
+        ) in actual_direct
+        assert (
+            "dataSource",
+            "sdk_kafka_source",
+            "featureView",
+            "sdk_kafka_fv",
+        ) in actual_direct
+        assert (
+            "dataSource",
+            "batch_file_source",
+            "featureView",
+            "sdk_kafka_fv",
+        ) in actual_direct
+        assert (
+            "dataSource",
+            "sdk_kinesis_source",
+            "featureView",
+            "sdk_kinesis_fv",
+        ) in actual_direct
+        assert (
+            "dataSource",
+            "batch_file_source",
+            "featureView",
+            "sdk_kinesis_fv",
+        ) in actual_direct

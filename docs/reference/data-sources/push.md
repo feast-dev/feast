@@ -84,3 +84,22 @@ streamingDF.writeStream.foreachBatch(feast_writer).start()
 ```
 
 This can also be used under the hood by a contrib stream processor (see [Tutorial: Building streaming features](../../tutorials/building-streaming-features.md))
+
+## External Pipeline Lineage (upstream_feature_view_names)
+
+When feature transformations occurring outside Feast consume upstream Feast feature views before pushing results into Feast, this dependency metadata can be captured by setting `upstream_feature_view_names` on `PushSource` to visualize the relationship in the Feast Web UI lineage graph:
+
+```python
+push_source2 = PushSource(
+    name="push_source2",
+    upstream_feature_view_names=[fv],
+)
+
+fv2 = FeatureView(
+    name="feature view 2",
+    entities=[user],
+    schema=[Field(name="derived_value", dtype=Int64)],
+    source=push_source2,
+)
+```
+
