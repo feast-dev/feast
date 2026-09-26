@@ -112,6 +112,34 @@ Benchmark results against Redis 8.6.2 (localhost, 50 entities, 3 features/FV, 30
 
 The speedup grows with the number of feature views and is most pronounced in production environments with non-trivial network RTT to Redis.
 
+### GLIDE client (`client: glide`)
+
+By default the Redis online store uses redis-py, which packs every command and parses every reply in Python. Each socket receive releases and reacquires the GIL, so in a process running other Python threads each reacquire waits on the switch interval. With many entities and feature views per read, that cost dominates.
+
+Setting `client: glide` runs the same `HMGET` commands as one non-atomic [GLIDE](https://github.com/valkey-io/valkey-glide) batch. GLIDE has a Rust core, so the batch crosses the FFI boundary once and the fetch runs with the GIL released.
+
+```yaml
+online_store:
+  type: redis
+  connection_string: "localhost:6379"
+  client: glide
+```
+
+Install the extra to use it:
+
+```bash
+pip install 'feast[glide]'
+```
+
+Notes:
+
+* GLIDE reads the same keys and hash fields Feast already writes, so an existing store needs no migration and no rewrite of data.
+* The default stays `client: redis`. Writes and `get_online_features_async` keep using redis-py, so only the synchronous read path changes.
+* GLIDE supports `host:port`, `db`, `password`, `username`, `ssl`, `socket_timeout`, and `socket_connect_timeout` from `connection_string`. Other parameters are logged and ignored.
+* GLIDE has no Sentinel support, so `client: glide` cannot be combined with `redis_type: redis_sentinel`. Use `client: redis` for Sentinel deployments.
+
+If `client: glide` is set without the extra installed, Feast raises an import error naming the extra to install.
+
 ### Write path: `skip_dedup` for bulk loads
 
 By default, `online_write_batch()` checks existing timestamps before writing (to avoid overwriting newer data with older data). This requires two pipeline round trips per batch: one to read existing timestamps, one to write new values.
@@ -144,6 +172,7 @@ The Redis online store implements `online_write_batch_async()` using the async R
 | `key_ttl_seconds` | `null` | Redis `EXPIRE` TTL in seconds applied to the entity hash key after each write. Expires all feature views for that entity together. |
 | `full_scan_for_deletion` | `true` | When `true`, deleting or renaming a feature view scans Redis to remove its hash fields. Set `false` to skip deletion scans (faster `feast apply`, but leaves orphaned data). |
 | `skip_dedup` | `false` | When `true`, skips the existing-timestamp read before each write, halving write round trips. Suitable for initial bulk loads; may cause older values to overwrite newer ones under concurrent writers. |
+| `client` | `redis` | Read client: `redis` for redis-py, or `glide` to run the synchronous batched read as one non-atomic GLIDE batch. Requires `pip install 'feast[glide]'`. |
 
 The full set of configuration options is available in [RedisOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.redis.RedisOnlineStoreConfig).
 
@@ -172,5 +201,6 @@ Below is a matrix indicating which functionality is supported by the Redis onlin
 | collocated by entity key                                  | yes   |
 | async batch writes                                        | yes   |
 | batched multi-feature-view reads (single pipeline)        | yes   |
+| optional GLIDE client for synchronous reads               | yes   |
 
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
