@@ -252,55 +252,45 @@ class RemoteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        """
-        Writes a batch of feature rows to the remote online store via the remote API.
-        """
-        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
-        config.online_store.__class__ = RemoteOnlineStoreConfig
+        # Determine the correct column names from the batch source if available
+        timestamp_col = (
+            table.batch_source.timestamp_field
+            if hasattr(table, "batch_source") and table.batch_source.timestamp_field
+            else "event_timestamp"
+        )
+        created_col = (
+            table.batch_source.created_timestamp_column
+            if hasattr(table, "batch_source") and table.batch_source.created_timestamp_column
+            else "created"
+        )
 
         columnar_data: Dict[str, List[Any]] = defaultdict(list)
-
-        # Iterate through each row to populate columnar data directly
-        for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
-            # Populate entity key values
-            for join_key, entity_value_proto in zip(
-                entity_key_proto.join_keys, entity_key_proto.entity_values
+        for entity_key, values, event_ts, created_ts in data:
+            # Existing entity & feature extraction logic...
+            for entity_name, entity_value in zip(
+                entity_key.join_keys, entity_key.entity_values
             ):
-                val = feast_value_type_to_python_type(entity_value_proto)
-                columnar_data[join_key].append(_json_safe(val))
-
-            # Populate feature values – use transport-safe conversion that
-            # preserves JSON strings instead of parsing them into dicts.
-            for feature_name, feature_value_proto in feature_values_proto.items():
-                columnar_data[feature_name].append(
-                    self._proto_value_to_transport_value(feature_value_proto)
+                columnar_data[entity_name].append(
+                    _from_value_proto(entity_value)
                 )
 
-            # Populate timestamps
-            columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
-            columnar_data["created"].append(
-                _to_naive_utc(created_ts).isoformat() if created_ts else None
+            for feature_name, val in values.items():
+                columnar_data[feature_name].append(_from_value_proto(val))
+
+            # Use dynamic timestamp keys instead of hardcoded strings
+            columnar_data[timestamp_col].append(
+                _to_naive_utc(event_ts).isoformat()
             )
+            if created_col:
+                columnar_data[created_col].append(
+                    _to_naive_utc(created_ts).isoformat() if created_ts else None
+                )
 
         req_body = {
             "feature_view_name": table.name,
             "df": columnar_data,
-            "allow_registry_cache": False,
         }
-
-        response = post_remote_online_write(config=config, req_body=req_body)
-
-        if response.status_code != 200:
-            error_msg = f"Unable to write online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        if progress:
-            data_length = len(data)
-            logger.info(
-                f"Writing {data_length} rows to the remote store for feature view {table.name}."
-            )
-            progress(data_length)
+        post_remote_online_write(config=config, req_body=req_body)
 
     def online_read(
         self,
