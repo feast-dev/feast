@@ -146,16 +146,15 @@ def trino_to_pa_value_type(trino_type_as_str: str) -> pa.DataType:
         return pa.list_(trino_to_pa_value_type(array_item_type))
 
     if trino_type_as_str.startswith("decimal"):
-        search_precision = re.search(
-            r"^decimal\((\d+)(?>,\s?\d+)?\)$", trino_type_as_str
+        search_precision_scale = re.search(
+            r"^decimal\((\d+)(?:,\s?(\d+))?\)$", trino_type_as_str
         )
-        if search_precision:
-            precision = int(search_precision.group(1))
-            if precision > 32:
-                return pa.float64()
-            else:
-                return pa.float32()
-        return pa.float64()
+        if search_precision_scale:
+            precision = int(search_precision_scale.group(1))
+            scale = int(search_precision_scale.group(2) or 0)
+            # Trino's DECIMAL precision tops out at 38, which is decimal128's max too.
+            return pa.decimal128(min(precision, 38), scale)
+        return pa.decimal128(38, 0)
 
     if trino_type_as_str.startswith("timestamp"):
         return pa.timestamp("us")
