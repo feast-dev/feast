@@ -385,6 +385,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                quote_char='"',
             )
 
             yield query
@@ -723,6 +724,9 @@ class SnowflakeOfflineStore(OfflineStore):
 
 
 class SnowflakeRetrievalJob(RetrievalJob):
+    # Defaults are COALESCEd into the point-in-time query.
+    _defaults_applied_in_query = True
+
     def __init__(
         self,
         query: Union[str, Callable[[], ContextManager[str]]],
@@ -805,7 +809,7 @@ class SnowflakeRetrievalJob(RetrievalJob):
         self, table_name: str, allow_overwrite: bool = False, temporary: bool = False
     ) -> None:
         """Save dataset as a new Snowflake table"""
-        if self.on_demand_feature_views:
+        if self._requires_python_post_processing:
             transformed_df = self.to_df()
 
             if allow_overwrite:
@@ -1469,7 +1473,7 @@ https://docs.snowflake.com/en/sql-reference/constructs/asof-join#expected-behavi
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT "{{ final_output_feature_names | join('", "')}}"
+SELECT {{ final_output_feature_expressions | join(', ')}}
 FROM "entity_dataframe"
 {% for featureview in featureviews %}
 LEFT JOIN (

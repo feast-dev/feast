@@ -32,6 +32,7 @@ from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
+    _apply_default_values,
 )
 from feast.infra.offline_stores.offline_utils import (
     get_entity_df_timestamp_bounds,
@@ -1040,6 +1041,19 @@ class RayRetrievalJob(RetrievalJob):
             result = self._dataset_or_callable()
         else:
             result = self._dataset_or_callable
+        # Filled here rather than in to_arrow: the Ray paths (to_ray_dataset,
+        # to_feast_df, to_remote_storage, persist) never reach the base class.
+        if self._feature_default_values:
+            defaults = self._feature_default_values
+            if is_ray_data(result):
+                result = result.map_batches(
+                    lambda batch: _apply_default_values(batch, defaults),
+                    batch_format="pyarrow",
+                )
+            elif isinstance(result, pd.DataFrame):
+                result = _apply_default_values(
+                    pa.Table.from_pandas(result), defaults
+                ).to_pandas()
         return result
 
     def _get_ray_dataset(self) -> Dataset:

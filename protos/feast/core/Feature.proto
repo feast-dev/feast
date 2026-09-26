@@ -45,4 +45,8 @@ message FeatureSpecV2 {
 
     // Field indicating the vector length
     int32 vector_length = 7;
+
+    // Value substituted when this feature is missing or null at retrieval time.
+    // Unset means no default. Presence is what separates that from a default of 0.
+    feast.types.Value default_value = 8;
 }
