@@ -18,6 +18,7 @@ from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,
     infer_entity_timestamp_column,
 )
+from feast.infra.data_sources.contrib.iceberg_catalog import IcebergSource
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
@@ -357,10 +358,12 @@ class LocalOutputNode(LocalNode):
         self,
         name: str,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
+        column_info: ColumnInfo,
         inputs=None,
     ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
+        self.column_info = column_info
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
@@ -405,6 +408,22 @@ class LocalOutputNode(LocalNode):
                 feature_view=self.feature_view,
                 table=input_table,
                 progress=lambda x: None,
+            )
+
+        sink_source = getattr(self.feature_view, "batch_source", None)
+        if self.feature_view.source_views and isinstance(sink_source, IcebergSource):
+            timestamp_column = self.column_info.timestamp_column
+            if timestamp_column not in input_table.column_names:
+                raise ValueError(
+                    "Iceberg materialization timestamp column is missing: "
+                    f"{timestamp_column}"
+                )
+            join_cols = list(
+                dict.fromkeys([*self.column_info.join_keys_columns, timestamp_column])
+            )
+            sink_source.write_materialized_table(
+                input_table,
+                join_cols=join_cols,
             )
 
         return output
