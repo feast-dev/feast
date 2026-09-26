@@ -44,6 +44,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "chronon": "feast.infra.chronon_provider.ChrononProvider",
     "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
 }
 
