@@ -1474,7 +1474,16 @@ class FeatureStore:
                 desired_repo_contents.stream_feature_views,
                 desired_repo_contents.label_views,
             )
-        _validate_data_sources(desired_repo_contents.data_sources)
+        all_fvs_for_validation = [
+            *desired_repo_contents.feature_views,
+            *desired_repo_contents.on_demand_feature_views,
+            *desired_repo_contents.stream_feature_views,
+            *desired_repo_contents.label_views,
+        ]
+        _validate_data_sources(
+            desired_repo_contents.data_sources,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
@@ -1749,7 +1758,7 @@ class FeatureStore:
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
-        # Validate all feature views and make inferences.
+        # Validate all feature views and data sources, then make inferences.
         if not skip_feature_view_validation:
             self._validate_all_feature_views(
                 views_to_update,
@@ -1757,6 +1766,16 @@ class FeatureStore:
                 sfvs_to_update,
                 lvs_to_update,
             )
+        all_fvs_for_validation = [
+            *views_to_update,
+            *odfvs_to_update,
+            *sfvs_to_update,
+            *(lvs_to_update or []),
+        ]
+        _validate_data_sources(
+            data_sources_to_update,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
@@ -5096,8 +5115,21 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             fv_by_name[case_insensitive_fv_name] = fv
 
 
-def _validate_data_sources(data_sources: List[DataSource]):
-    """Verify data sources have case-insensitively unique names."""
+def _validate_data_sources(
+    data_sources: List[DataSource],
+    all_feature_views: Optional[
+        Sequence[
+            Union[
+                BaseFeatureView,
+                FeatureView,
+                StreamFeatureView,
+                OnDemandFeatureView,
+                LabelView,
+            ]
+        ]
+    ] = None,
+):
+    """Verify data sources have case-insensitively unique names and validate PushSource upstream references."""
     ds_names = set()
     for ds in data_sources:
         case_insensitive_ds_name = ds.name.lower()
@@ -5105,3 +5137,16 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
+
+    if all_feature_views is not None:
+        known_fv_names = {fv.name for fv in all_feature_views if hasattr(fv, "name")}
+        for ds in data_sources:
+            if isinstance(ds, PushSource) and ds.upstream_feature_view_names:
+                for upstream_name in ds.upstream_feature_view_names:
+                    if upstream_name not in known_fv_names:
+                        warnings.warn(
+                            f"PushSource '{ds.name}' references upstream feature view '{upstream_name}' "
+                            "which was not found in the current feature repository.",
+                            UserWarning,
+                            stacklevel=2,
+                        )

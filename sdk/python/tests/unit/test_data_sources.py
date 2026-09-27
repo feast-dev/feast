@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 
 from feast.data_format import ProtoFormat
@@ -44,6 +46,121 @@ def test_push_source_without_batch_source():
     push_source_unproto = PushSource.from_proto(push_source_proto)
     assert push_source_unproto.batch_source is None
     assert push_source_unproto.name == "test_push_source"
+
+
+def test_push_source_with_upstream_feature_view_names():
+    class DummyFeatureView:
+        def __init__(self, name: str):
+            self.name = name
+
+    fv1 = DummyFeatureView("user_transaction_stats")
+    fv2 = DummyFeatureView("user_credit_profile")
+
+    # Initialize with objects and strings
+    push_source = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[fv1, fv2],
+        description="test push source with lineage",
+    )
+
+    assert push_source.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Convert to proto and verify
+    proto = push_source.to_proto()
+    assert proto.HasField("push_options")
+    assert list(proto.push_options.upstream_feature_view_names) == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Deserialize from proto and verify
+    unproto = PushSource.from_proto(proto)
+    assert unproto.name == "risk_calc_pipeline"
+    assert unproto.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+    assert unproto.description == "test push source with lineage"
+    assert unproto == push_source
+
+    # Verify equality and inequality
+    push_source_same = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[
+            "user_transaction_stats",
+            "user_credit_profile",
+        ],
+        description="test push source with lineage",
+    )
+    assert push_source == push_source_same
+
+    push_source_diff = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=["user_transaction_stats"],
+        description="test push source with lineage",
+    )
+    assert push_source != push_source_diff
+
+
+def test_push_source_upstream_validation():
+    # Invalid type
+    with pytest.raises(TypeError, match="Unsupported type for upstream feature view"):
+        PushSource(
+            name="invalid_type",
+            upstream_feature_view_names=[123],  # type: ignore[list-item]
+        )
+
+    # Empty string
+    with pytest.raises(ValueError, match="Upstream feature view name cannot be empty"):
+        PushSource(
+            name="empty_string",
+            upstream_feature_view_names=[""],
+        )
+
+    # Object with empty name
+    class BadFeatureView:
+        def __init__(self):
+            self.name = "   "
+
+    with pytest.raises(ValueError, match="invalid or empty name"):
+        PushSource(
+            name="bad_fv_obj",
+            upstream_feature_view_names=[BadFeatureView()],
+        )
+
+
+def test_validate_data_sources_upstream_warning():
+    from feast.feature_store import _validate_data_sources
+
+    class DummyFV:
+        def __init__(self, name: str):
+            self.name = name
+
+    ps = PushSource(
+        name="risk_push",
+        upstream_feature_view_names=["existing_fv", "missing_fv"],
+    )
+
+    # Warning expected for "missing_fv"
+    with pytest.warns(
+        UserWarning,
+        match="PushSource 'risk_push' references upstream feature view 'missing_fv'",
+    ):
+        _validate_data_sources([ps], all_feature_views=[DummyFV("existing_fv")])
+
+    # No warning when all are found
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _validate_data_sources(
+            [ps],
+            all_feature_views=[DummyFV("existing_fv"), DummyFV("missing_fv")],
+        )
 
 
 def test_request_source_primitive_type_to_proto():

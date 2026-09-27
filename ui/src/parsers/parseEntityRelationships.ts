@@ -107,6 +107,18 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
         },
       });
     });
+    if (fv.spec?.streamSource) {
+      links.push({
+        source: {
+          type: FEAST_FCO_TYPES["dataSource"],
+          name: fv.spec.streamSource.name || "",
+        },
+        target: {
+          type: FEAST_FCO_TYPES["featureView"],
+          name: fv.spec?.name!,
+        },
+      });
+    }
     if (fv.spec?.batchSource) {
       links.push({
         source: {
@@ -244,17 +256,55 @@ const parseEntityRelationships = (objects: feast.core.Registry) => {
     }
   });
 
-  // Build data source location index for storage-based matching
   const allDataSources = [
     ...((objects as any).dataSources || []),
     ...(objects.featureViews || [])
-      .map((fv: any) => fv.spec?.batchSource)
+      .flatMap((fv: any) => [fv.spec?.batchSource, fv.spec?.streamSource])
       .filter(Boolean),
     ...(objects.streamFeatureViews || [])
       .flatMap((sfv: any) => [sfv.spec?.batchSource, sfv.spec?.streamSource])
       .filter(Boolean),
+    ...(((objects as any).labelViews || []) as any[])
+      .flatMap((lv: any) => [lv.spec?.source, lv.spec?.batchSource])
+      .filter(Boolean),
   ];
+
+  // Build data source location index for storage-based matching
+  // stream sources that don't specify any storage locations are safely skipped
   const dsLocationIndex = buildDataSourceLocationIndex(allDataSources);
+
+  // Upstream FeatureView -> DataSource (PushSource) relationships
+  // Note: BatchSource and non-push StreamSource do not declare upstreamFeatureViewNames.
+  const seenPushEdges = new Set<string>();
+  allDataSources.forEach((ds: any) => {
+    const dsObj = ds.spec || ds;
+    const dsName = dsObj.name;
+    const pushOpts = dsObj.pushOptions || dsObj.push_options;
+    const upstreamFvs =
+      pushOpts?.upstreamFeatureViewNames ||
+      pushOpts?.upstream_feature_view_names;
+    if (dsName && Array.isArray(upstreamFvs)) {
+      upstreamFvs.forEach((upstreamFvName: string) => {
+        const edgeKey = `${upstreamFvName}->${dsName}`;
+        if (!seenPushEdges.has(edgeKey)) {
+          seenPushEdges.add(edgeKey);
+          const isLabelView = labelViewNames.has(upstreamFvName);
+          links.push({
+            source: {
+              type: isLabelView
+                ? FEAST_FCO_TYPES["labelView"]
+                : FEAST_FCO_TYPES["featureView"],
+              name: upstreamFvName,
+            },
+            target: {
+              type: FEAST_FCO_TYPES["dataSource"],
+              name: dsName,
+            },
+          });
+        }
+      });
+    }
+  });
 
   (objects as any).savedDatasets?.forEach((sd: any) => {
     if (sd.spec?.featureServiceName) {
