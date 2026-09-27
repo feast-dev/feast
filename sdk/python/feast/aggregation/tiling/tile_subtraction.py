@@ -11,7 +11,10 @@ from typing import List
 import pandas as pd
 
 from feast.aggregation import Aggregation
-from feast.aggregation.tiling.base import get_ir_metadata_for_aggregation
+from feast.aggregation.tiling.base import (
+    compute_holistic_value_from_irs,
+    get_ir_metadata_for_aggregation,
+)
 
 
 def convert_cumulative_to_windowed(
@@ -124,15 +127,21 @@ def convert_cumulative_to_windowed(
                                 1
                             ]  # e.g., "_tail_avg_amount_3600s_count"
 
+                            sum_sq_col = (
+                                ir_column_names[2]
+                                if len(ir_column_names) >= 3
+                                else None
+                            )
+
                             if sum_col in windowed_row and count_col in windowed_row:
-                                count_val = windowed_row[count_col]
-                                if count_val <= 0:
-                                    windowed_row[feature_name] = 0
-                                else:
-                                    # avg = windowed_sum / windowed_count
-                                    windowed_row[feature_name] = (
-                                        windowed_row[sum_col] / count_val
+                                windowed_row[feature_name] = float(
+                                    compute_holistic_value_from_irs(
+                                        agg,
+                                        windowed_row[sum_col],
+                                        windowed_row[count_col],
+                                        windowed_row.get(sum_sq_col),
                                     )
+                                )
 
             # Set event_timestamp to the tile end time
             windowed_row[timestamp_col] = pd.to_datetime(tile_end, unit="ms")
