@@ -746,3 +746,70 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "online_store, expected_type",
+    [
+        ({}, DataType.VARCHAR),
+        ({"native_numeric_types": True}, DataType.FLOAT),
+        ({"enable_openai_compatible_store": True}, DataType.FLOAT),
+    ],
+)
+def test_native_numeric_types(
+    tmp_path: Path, online_store: Dict[str, Any], expected_type: DataType
+) -> None:
+    config = _lite_config(tmp_path, **online_store)
+    fv = _catalog_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert store.client is not None
+    fields = store.client.describe_collection("test_milvus_products")["fields"]
+    assert {f["name"]: f["type"] for f in fields}["price"] == expected_type
+
+
+def test_native_numeric_range_filter_and_round_trip(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path, native_numeric_types=True)
+    fv = _catalog_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    embedding = ValueProto()
+    embedding.float_list_val.val.extend([1.0, 0.0])
+    now = datetime.now(timezone.utc)
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _product_key(product_id),
+                {
+                    "brand_id": ValueProto(string_val="acme"),
+                    "embedding": embedding,
+                    "title": ValueProto(string_val=title),
+                    "price": ValueProto(float_val=price),
+                },
+                now,
+                now,
+            )
+            for product_id, title, price in [(1, "cheap", 9.0), (2, "pricey", 100.0)]
+        ],
+        progress=None,
+    )
+
+    # As strings, "9.0" > "50" would be true; natively only 100.0 matches.
+    results = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["embedding", "title", "price"],
+        embedding=[1.0, 0.0],
+        top_k=5,
+        distance_metric="COSINE",
+        filters=ComparisonFilter(type="gt", key="price", value=50),
+    )
+    assert [values["title"].string_val for _, _, values in results if values] == [
+        "pricey"
+    ]
+
+    rows = store.online_read(config, fv, [_product_key(1)], ["price", "title"])
+    assert rows[0][1] is not None and rows[0][1]["price"].float_val == 9.0

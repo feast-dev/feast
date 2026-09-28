@@ -99,7 +99,8 @@ online_store:
 | `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
-| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
+| `native_numeric_types` | `false` | Store numeric and bool features as native Milvus types. See [Numeric types](#numeric-types). |
+| `enable_openai_compatible_store` | `false` | Feast's cross-store flag for native numeric storage (see [vector database docs](../alpha-vector-database.md)). Same effect as `native_numeric_types`. |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
 
@@ -177,6 +178,23 @@ The partition key only applies when Feast creates a collection. Existing collect
 changed; Feast logs a warning for them. To add a partition key to an existing feature view, run
 `feast teardown` and `feast apply`, then materialize again.
 {% endhint %}
+
+## Numeric types
+
+By default, numeric and bool features are stored as `VARCHAR`, so range filters (`gt`, `gte`, `lt`,
+`lte`) compare strings: `"9" > "100"` is true. Set `native_numeric_types: true` to store them as
+native Milvus `INT32`, `INT64`, `FLOAT`, `DOUBLE` and `BOOL` fields, which compare numerically.
+`enable_openai_compatible_store: true` has the same effect.
+
+The setting only applies when Feast creates a collection. Feast detects the storage type of each
+existing collection, so reads and writes keep working whichever way the collection was created.
+To migrate an existing feature view:
+
+1. Set `native_numeric_types: true`.
+2. Run `feast teardown` to drop the collections, then `feast apply` to recreate them.
+3. Materialize again to reload the data.
+
+Until a collection is recreated, Feast logs a warning when numeric range filters are used on it.
 
 ## Consistency level
 
