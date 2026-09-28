@@ -198,7 +198,7 @@ class SparkReadNode(DAGNode):
                     self.spark_session.sparkContext.emptyRDD(), schema=spark_schema
                 )
             else:
-                spark_df = self.spark_session.createDataFrame(arrow_table.to_pandas())
+                spark_df = self.spark_session.createDataFrame(arrow_table)
 
         return DAGValue(
             data=spark_df,

@@ -1,5 +1,9 @@
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
+import pyarrow as pa
+import pytest
+from pyspark.sql.pandas.types import from_arrow_schema
 
 from feast.aggregation import Aggregation
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
@@ -9,11 +13,92 @@ from feast.infra.compute_engines.spark.nodes import (
     SparkAggregationNode,
     SparkDedupNode,
     SparkJoinNode,
+    SparkReadNode,
     SparkTransformationNode,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+    SparkRetrievalJob,
 )
 from tests.example_repos.example_feature_repo_with_bfvs import (
     driver,
 )
+
+
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("arrow_enabled", [False, True])
+def test_spark_read_node_preserves_arrow_values_and_schema(
+    spark_session, empty, arrow_enabled
+):
+    schema = pa.schema(
+        [
+            pa.field("id", pa.int64(), nullable=False),
+            pa.field("count", pa.int32()),
+            pa.field("score", pa.float32()),
+            pa.field("name", pa.string()),
+            pa.field("active", pa.bool_()),
+            pa.field("event_timestamp", pa.timestamp("us", tz="UTC")),
+        ]
+    )
+    rows = [
+        {"id": 1, "count": 2, "score": 0.5, "name": "first", "active": True},
+        {"id": 2, "count": None, "score": None, "name": None, "active": None},
+        {"id": 3, "count": -1, "score": 1.5, "name": "last", "active": False},
+    ]
+    for row in rows:
+        row["event_timestamp"] = datetime(
+            2026, 1, 1, 12, 0, 0, 123456, tzinfo=timezone.utc
+        )
+    table = pa.concat_tables(
+        [pa.Table.from_pylist(rows[:1], schema), pa.Table.from_pylist(rows[1:], schema)]
+    )
+    if empty:
+        table = table.slice(0, 0)
+        rows = []
+    job = MagicMock()
+    job.to_arrow.return_value = table
+    node = SparkReadNode(
+        "read",
+        MagicMock(),
+        ColumnInfo(["id"], ["count"], "event_timestamp", None),
+        spark_session,
+    )
+    config_key = "spark.sql.execution.arrow.pyspark.enabled"
+    previous = spark_session.conf.get(config_key)
+    spark_session.conf.set(config_key, str(arrow_enabled).lower())
+    try:
+        with patch(
+            "feast.infra.compute_engines.spark.nodes.create_offline_store_retrieval_job",
+            return_value=job,
+        ):
+            result = node.execute(MagicMock())
+        assert result.format == DAGFormat.SPARK
+        assert result.data.schema == from_arrow_schema(schema)
+        actual_rows = [row.asDict() for row in result.data.orderBy("id").collect()]
+        for row in actual_rows:
+            # Spark collects timestamps as naive datetimes in the local time zone.
+            row["event_timestamp"] = row["event_timestamp"].astimezone(timezone.utc)
+        assert actual_rows == rows
+    finally:
+        spark_session.conf.set(config_key, previous)
+
+
+def test_spark_read_node_keeps_native_spark_dataframe(spark_session):
+    dataframe = spark_session.range(3)
+    job = MagicMock(spec=SparkRetrievalJob)
+    job.to_spark_df.return_value = dataframe
+    node = SparkReadNode(
+        "read",
+        MagicMock(),
+        ColumnInfo(["id"], [], "event_timestamp", None),
+        spark_session,
+    )
+    with patch(
+        "feast.infra.compute_engines.spark.nodes.create_offline_store_retrieval_job",
+        return_value=job,
+    ):
+        result = node.execute(MagicMock())
+    assert result.data is dataframe
+    job.to_arrow.assert_not_called()
 
 
 def test_spark_transformation_node_executes_udf(spark_session):
