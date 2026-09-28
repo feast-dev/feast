@@ -3,7 +3,7 @@ import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import ibis
 import numpy as np
@@ -120,6 +120,27 @@ def _to_utc(entity_df: pd.DataFrame, event_timestamp_col):
     return entity_df
 
 
+def _entity_row_id(entity_table: Table, columns: Iterable[str]):
+    """Build an id that is the same only for rows with equal values in columns.
+
+    Each value is length-prefixed so that different rows cannot concatenate to
+    the same id (e.g. "1" + "11" and "11" + "1"), and a null value gets its own
+    marker instead of turning the whole id into null.
+    """
+    r = ibis.literal("_")
+
+    for e in columns:
+        value = entity_table[e].cast("string")
+        r = r.concat(
+            value.isnull().ifelse(
+                "N",
+                value.length().cast("string").concat(":", value),
+            )
+        )
+
+    return r
+
+
 def _generate_row_id(
     entity_table: Table, feature_views: List[FeatureView], event_timestamp_col
 ) -> Table:
@@ -130,12 +151,9 @@ def _generate_row_id(
         else:
             all_entities.extend([e.name for e in fv.entity_columns])
 
-    r = ibis.literal("_")
-
-    for e in set(all_entities):
-        r = r.concat(entity_table[e].cast("string"))  # type: ignore
-
-    entity_table = entity_table.mutate(entity_row_id=r)
+    entity_table = entity_table.mutate(
+        entity_row_id=_entity_row_id(entity_table, set(all_entities))
+    )
 
     return entity_table
 
@@ -400,12 +418,9 @@ def point_in_time_join(
     ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
-    r = ibis.literal("_")
-
-    for e in set(all_entities):
-        r = r.concat(entity_table[e].cast("string"))  # type: ignore
-
-    entity_table = entity_table.mutate(entity_row_id=r)
+    entity_table = entity_table.mutate(
+        entity_row_id=_entity_row_id(entity_table, set(all_entities))
+    )
 
     acc_table = entity_table
 
