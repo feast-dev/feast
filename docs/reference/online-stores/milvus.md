@@ -58,6 +58,25 @@ online_store:
 ```
 {% endcode %}
 
+Connecting to [Zilliz Cloud](https://zilliz.com/cloud) (managed Milvus) with an API key.
+Read the token from an environment variable rather than committing it:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: milvus
+  uri: "https://<your-cluster-endpoint>"   # Public Endpoint from the Zilliz Cloud console
+  token: ${ZILLIZ_TOKEN}   # pragma: allowlist secret
+  db_name: "default"
+  embedding_dim: 768
+  index_type: "AUTOINDEX"
+  metric_type: "COSINE"
+```
+{% endcode %}
+
 ## Configuration options
 
 | Option | Default | Description |
@@ -65,7 +84,10 @@ online_store:
 | `path` | `""` | Path to a Milvus Lite database file. Used when `provider: local` and `path` is set. |
 | `host` | `http://localhost` | Milvus server host, including the scheme. |
 | `port` | `19530` | Milvus server port. |
+| `uri` | unset | Full endpoint, e.g. `https://<cluster>.zillizcloud.com:19530`. Takes precedence over `host`/`port`, and over `path`. |
 | `username` / `password` | `""` | Credentials, sent as the token `username:password`. |
+| `token` | unset | API key or `username:password`. Takes precedence over `username`/`password`. |
+| `db_name` | unset | Milvus database to use. The database must already exist. Defaults to the server's `default` database. |
 | `embedding_dim` | `128` | Dimension of vector fields. |
 | `index_type` | `FLAT` | Index type for vector fields with `vector_index=True`. |
 | `metric_type` | `COSINE` | Default metric when a field does not set `vector_search_metric`. |
