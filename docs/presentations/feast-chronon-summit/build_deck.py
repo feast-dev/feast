@@ -7,7 +7,7 @@ import json
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 PR = "https://github.com/feast-dev/feast/pull/6188"
-REV = "55873756b36d8b73c277c7971959aa8dc3fb9649"
+REV = "55873756b36d8b73c277c7971959aa8dc3fb9649"  # pragma: allowlist secret
 GH = f"https://github.com/feast-dev/feast/blob/{REV}/"
 S = {
     "feast": (
