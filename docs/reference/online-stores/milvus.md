@@ -76,6 +76,13 @@ online_store:
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
 
+## Collection loading
+
+Feast creates collections together with their indexes, which makes Milvus load them straight away.
+When Feast finds an existing collection it checks its load state and loads it only if needed.
+Reads and searches never load collections, so a collection released outside Feast is only reloaded
+the next time a Feast process first accesses it.
+
 ## Feature views without vectors
 
 Milvus requires every collection to have a vector field. For feature views that have no vector

@@ -12,6 +12,7 @@ from pymilvus import (
     FieldSchema,
     MilvusClient,
 )
+from pymilvus.client.types import LoadState
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -367,13 +368,7 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    dimension=config.online_store.embedding_dim,
-                    schema=schema,
-                )
                 index_params = self.client.prepare_index_params()
-                indices_added = False
                 for vector_field in schema.fields:
                     if vector_field.dtype not in [
                         DataType.FLOAT_VECTOR,
@@ -405,18 +400,30 @@ class MilvusOnlineStore(OnlineStore):
                             index_type="FLAT",
                             index_name=f"vector_index_{vector_field.name}",
                         )
-                    indices_added = True
-                if indices_added:
-                    self.client.create_index(
-                        collection_name=collection_name,
-                        index_params=index_params,
-                    )
+                # Every collection has at least one vector field, and every
+                # vector field is indexed, so passing the index params here
+                # makes Milvus create the indexes and load the collection.
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    dimension=config.online_store.embedding_dim,
+                    schema=schema,
+                    index_params=index_params,
+                )
             else:
-                self.client.load_collection(collection_name)
+                self._ensure_loaded(collection_name)
+            # Collections are only cached once loaded, so reads and searches
+            # don't need to load them again.
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
             )
         return self._collections[collection_name]
+
+    def _ensure_loaded(self, collection_name: str) -> None:
+        """Load an existing collection unless Milvus already has it loaded."""
+        assert self.client is not None, "Milvus client is not initialized"
+        load_state = self.client.get_load_state(collection_name).get("state")
+        if load_state != LoadState.Loaded:
+            self.client.load_collection(collection_name)
 
     def online_write_batch(
         self,
@@ -560,7 +567,6 @@ class MilvusOnlineStore(OnlineStore):
             + ", ".join([f"'{e}'" for e in composite_entities])
             + "]"
         )
-        self.client.load_collection(collection_name)
         results = self.client.query(
             collection_name=collection_name,
             filter=query_filter_for_entities,
@@ -772,8 +778,6 @@ class MilvusOnlineStore(OnlineStore):
                 ):
                     ann_search_field = field["name"]
                     break
-
-        self.client.load_collection(collection_name)
 
         if filters and filters_contain_numeric_comparison(filters):
             collection_field_types = {
