@@ -91,12 +91,44 @@ online_store:
 | `embedding_dim` | `128` | Dimension of vector fields. |
 | `index_type` | `FLAT` | Index type for vector fields with `vector_index=True`. |
 | `metric_type` | `COSINE` | Default metric when a field does not set `vector_search_metric`. |
-| `nlist` | `128` | `nlist` index parameter. |
+| `nlist` | `128` | `nlist` index parameter, used when `index_params` is unset. |
+| `index_params` | unset | Index build parameters passed to Milvus, e.g. `{M: 16, efConstruction: 200}` for HNSW. Defaults to `{nlist: <nlist>}`, or no parameters for `AUTOINDEX`. |
+| `search_params` | unset | Search parameters passed to Milvus, e.g. `{ef: 64}` for HNSW or `{level: 2}` for `AUTOINDEX`. Defaults to `{nprobe: 10}`, or no parameters for `AUTOINDEX`. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
 | `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
+
+## Index and search parameters
+
+`index_type`, `index_params` and `search_params` are passed through to Milvus, so any index type the
+server supports can be used. On Zilliz Cloud, `AUTOINDEX` is recommended; tune the recall/latency
+trade-off with the `level` search parameter:
+
+```yaml
+online_store:
+  type: milvus
+  index_type: "AUTOINDEX"
+  search_params:
+    level: 2
+```
+
+For HNSW:
+
+```yaml
+online_store:
+  type: milvus
+  index_type: "HNSW"
+  index_params:
+    M: 16
+    efConstruction: 200
+  search_params:
+    ef: 64
+```
+
+Index parameters only apply when Feast creates a collection. To change them for an existing
+collection, run `feast teardown` and `feast apply`, then materialize again.
 
 ## Collection loading
 
