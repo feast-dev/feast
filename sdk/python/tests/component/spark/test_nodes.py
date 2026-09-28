@@ -62,9 +62,13 @@ def test_spark_read_node_preserves_arrow_values_and_schema(
         ColumnInfo(["id"], ["count"], "event_timestamp", None),
         spark_session,
     )
-    config_key = "spark.sql.execution.arrow.pyspark.enabled"
-    previous = spark_session.conf.get(config_key)
-    spark_session.conf.set(config_key, str(arrow_enabled).lower())
+    config = {
+        "spark.sql.execution.arrow.pyspark.enabled": str(arrow_enabled).lower(),
+        "spark.sql.session.timeZone": "UTC",
+    }
+    previous = {key: spark_session.conf.get(key) for key in config}
+    for key, value in config.items():
+        spark_session.conf.set(key, value)
     try:
         with patch(
             "feast.infra.compute_engines.spark.nodes.create_offline_store_retrieval_job",
@@ -73,13 +77,11 @@ def test_spark_read_node_preserves_arrow_values_and_schema(
             result = node.execute(MagicMock())
         assert result.format == DAGFormat.SPARK
         assert result.data.schema == from_arrow_schema(schema)
-        actual_rows = [row.asDict() for row in result.data.orderBy("id").collect()]
-        for row in actual_rows:
-            # Spark collects timestamps as naive datetimes in the local time zone.
-            row["event_timestamp"] = row["event_timestamp"].astimezone(timezone.utc)
+        actual_rows = result.data.orderBy("id").toArrow().to_pylist()
         assert actual_rows == rows
     finally:
-        spark_session.conf.set(config_key, previous)
+        for key, value in previous.items():
+            spark_session.conf.set(key, value)
 
 
 def test_spark_read_node_keeps_native_spark_dataframe(spark_session):

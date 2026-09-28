@@ -1256,7 +1256,7 @@ def _register_iceberg_source_as_temp_view(
 
     iceberg_table = _load_pyiceberg_table(data_source)
     arrow_table = iceberg_table.scan().to_arrow()
-    df = spark_session.createDataFrame(arrow_table.to_pandas())
+    df = spark_session.createDataFrame(arrow_table)
     df.createOrReplaceTempView(view_name)
 
 

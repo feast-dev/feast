@@ -6,7 +6,6 @@ from typing import Callable, Dict, List, Optional, Set, Union, cast
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
-from pyspark.sql.pandas.types import from_arrow_schema
 from pyspark.sql.types import (
     ArrayType,
     BinaryType,
@@ -192,13 +191,7 @@ class SparkReadNode(DAGNode):
             spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
         else:
             arrow_table = retrieval_job.to_arrow()
-            if arrow_table.num_rows == 0:
-                spark_schema = from_arrow_schema(arrow_table.schema)
-                spark_df = self.spark_session.createDataFrame(
-                    self.spark_session.sparkContext.emptyRDD(), schema=spark_schema
-                )
-            else:
-                spark_df = self.spark_session.createDataFrame(arrow_table)
+            spark_df = self.spark_session.createDataFrame(arrow_table)
 
         return DAGValue(
             data=spark_df,
