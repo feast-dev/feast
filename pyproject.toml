@@ -239,8 +239,10 @@ name = "Feast"
 [project.scripts]
 feast = "feast.cli.cli:cli"
 
+# MLflow plugin: inject Authorization headers from mlflow_token_scope (ContextVar).
+# Avoids mutating MLFLOW_TRACKING_TOKEN in os.environ under concurrent Feast requests.
 [project.entry-points."mlflow.request_header_provider"]
-unused = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
+feast = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
 
 [build-system]
 requires = [
