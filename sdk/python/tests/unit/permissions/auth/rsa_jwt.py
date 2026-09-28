@@ -4,7 +4,7 @@ from typing import Any
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-ISSUER = "https://expediagroup.oktapreview.com/oauth2/default1"
+ISSUER = "https://idp.example.com/oauth2/default"
 AUDIENCE = "api://registry"
 CLIENT_ID = "placeholder"
 
