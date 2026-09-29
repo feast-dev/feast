@@ -10,6 +10,9 @@ from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.importer import import_class
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetColumn as SavedDatasetColumnProto,
+)
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage as SavedDatasetStorageProto,
@@ -75,6 +78,66 @@ class SavedDatasetStorage(metaclass=_StorageRegistry):
             )
 
 
+class SavedDatasetColumn:
+    """Schema column definition for a SavedDataset (data-registry assets).
+
+    Mirrors OpenAPI ``SchemaField`` (name, type, description, nullable).
+    """
+
+    name: str
+    type: str
+    description: str
+    nullable: bool
+
+    def __init__(
+        self,
+        name: str,
+        type: str,
+        description: str = "",
+        nullable: bool = True,
+    ):
+        self.name = name
+        self.type = type
+        self.description = description
+        self.nullable = nullable
+
+    def __eq__(self, other):
+        if not isinstance(other, SavedDatasetColumn):
+            return False
+        return (
+            self.name == other.name
+            and self.type == other.type
+            and self.description == other.description
+            and self.nullable == other.nullable
+        )
+
+    def __hash__(self):
+        return hash((self.name, self.type, self.description, self.nullable))
+
+    @staticmethod
+    def from_proto(column_proto: SavedDatasetColumnProto) -> "SavedDatasetColumn":
+        # Proto3 scalar bool defaults to false when unset; OpenAPI SchemaField
+        # defaults nullable to true. optional + HasField preserves explicit false.
+        if column_proto.HasField("nullable"):
+            nullable = column_proto.nullable
+        else:
+            nullable = True
+        return SavedDatasetColumn(
+            name=column_proto.name,
+            type=column_proto.type,
+            description=column_proto.description,
+            nullable=nullable,
+        )
+
+    def to_proto(self) -> SavedDatasetColumnProto:
+        return SavedDatasetColumnProto(
+            name=self.name,
+            type=self.type,
+            description=self.description,
+            nullable=self.nullable,
+        )
+
+
 class SavedDataset:
     name: str
     features: List[str]
@@ -86,6 +149,7 @@ class SavedDataset:
     namespace: str = ""
     collection: str = ""
     description: str = ""
+    columns: List[SavedDatasetColumn]
 
     created_timestamp: Optional[datetime] = None
     last_updated_timestamp: Optional[datetime] = None
@@ -107,6 +171,7 @@ class SavedDataset:
         namespace: str = "",
         collection: str = "",
         description: str = "",
+        columns: Optional[List[SavedDatasetColumn]] = None,
     ):
         self.name = name
         self.features = features
@@ -118,6 +183,7 @@ class SavedDataset:
         self.namespace = namespace
         self.collection = collection
         self.description = description
+        self.columns = columns or []
 
         self._retrieval_job = None
 
@@ -146,6 +212,7 @@ class SavedDataset:
             or self.namespace != other.namespace
             or self.collection != other.collection
             or self.description != other.description
+            or self.columns != other.columns
         ):
             return False
 
@@ -169,6 +236,10 @@ class SavedDataset:
             namespace=saved_dataset_proto.spec.namespace,
             collection=saved_dataset_proto.spec.collection,
             description=saved_dataset_proto.spec.description,
+            columns=[
+                SavedDatasetColumn.from_proto(column)
+                for column in saved_dataset_proto.spec.columns
+            ],
         )
 
         if saved_dataset_proto.spec.feature_service_name:
@@ -218,6 +289,7 @@ class SavedDataset:
             namespace=self.namespace,
             collection=self.collection,
             description=self.description,
+            columns=[column.to_proto() for column in self.columns],
         )
         if self.feature_service_name:
             spec.feature_service_name = self.feature_service_name
@@ -321,7 +393,6 @@ class ValidationReference:
                     "Failed to calculate profile: profiler is not set on this "
                     "ValidationReference."
                 )
-
             self._profile = self.profiler.analyze_dataset(self._dataset.to_df())
         return self._profile
 

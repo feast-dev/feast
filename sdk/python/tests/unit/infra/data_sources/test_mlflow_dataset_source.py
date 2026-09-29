@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -719,3 +720,123 @@ class TestSyncFromMlflowDatasetSource:
 
         result = _get_mlflow_dataset_source(store, "test_fv")
         assert result is src
+
+
+class TestSearchTracesForAssessments:
+    def test_prefers_return_type_list(self):
+        from feast.mlflow_integration.dataset_sync import _search_traces_for_assessments
+
+        mock_mlflow = MagicMock()
+        traces = [MagicMock(name="t1")]
+        mock_mlflow.search_traces.return_value = traces
+
+        result = _search_traces_for_assessments(mock_mlflow, {"experiment_ids": ["1"]})
+        assert result == traces
+        mock_mlflow.search_traces.assert_called_once_with(
+            experiment_ids=["1"], return_type="list"
+        )
+
+    def test_falls_back_when_df_lacks_assessments_column(self):
+        from feast.mlflow_integration.dataset_sync import _search_traces_for_assessments
+
+        mock_mlflow = MagicMock()
+        fetched = MagicMock(name="fetched")
+
+        def _search(**kwargs):
+            if kwargs.get("return_type") == "list":
+                raise TypeError("return_type not supported")
+            return pd.DataFrame({"trace_id": ["tr-1"]})
+
+        mock_mlflow.search_traces.side_effect = _search
+        mock_mlflow.get_trace.return_value = fetched
+
+        result = _search_traces_for_assessments(mock_mlflow, {"experiment_ids": ["1"]})
+        assert result == [fetched]
+        mock_mlflow.get_trace.assert_called_once_with("tr-1")
+
+
+class TestResolveLabelsFromFeast:
+    def test_historical_applies_conflict_policy(self):
+        from feast.labeling.conflict_policy import ConflictPolicy
+        from feast.trace_export.label_resolver import resolve_labels_from_feast
+        from feast.trace_export.trace_extractor import TraceExportExample
+
+        examples = [
+            TraceExportExample(
+                trace_id="tr-1", messages=[{"role": "user", "content": "hi"}]
+            ),
+        ]
+
+        label_view = MagicMock()
+        label_view.labeler_field = "labeler"
+        label_view.conflict_policy = ConflictPolicy.LAST_WRITE_WINS
+        label_view.labeler_priorities = None
+        label_view.join_keys = ["trace_id"]
+        label_view.features = [
+            MagicMock(name="corrected_response"),
+            MagicMock(name="labeler"),
+        ]
+        label_view.features[0].name = "corrected_response"
+        label_view.features[1].name = "labeler"
+        batch_source = MagicMock()
+        batch_source.timestamp_field = "event_timestamp"
+        label_view.batch_source = batch_source
+
+        store = MagicMock()
+        store.get_label_view.return_value = label_view
+
+        offline_df = pd.DataFrame(
+            {
+                "trace_id": ["tr-1", "tr-1"],
+                "corrected_response": ["old", "new"],
+                "labeler": ["bot", "human"],
+                "event_timestamp": [
+                    datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    datetime(2026, 1, 2, tzinfo=timezone.utc),
+                ],
+            }
+        )
+        job = MagicMock()
+        job.to_df.return_value = offline_df
+        store._get_provider.return_value.offline_store.pull_all_from_table_or_query.return_value = job
+
+        result = resolve_labels_from_feast(
+            examples,
+            store=store,
+            label_view_name="agent_feedback",
+            label_fields=["corrected_response"],
+            label_source="historical",
+        )
+        assert result[0].corrected_response == "new"
+        assert result[0].labeler == "human"
+
+    def test_online_uses_get_online_features(self):
+        from feast.trace_export.label_resolver import resolve_labels_from_feast
+        from feast.trace_export.trace_extractor import TraceExportExample
+
+        examples = [
+            TraceExportExample(
+                trace_id="tr-1", messages=[{"role": "user", "content": "hi"}]
+            ),
+        ]
+        label_view = MagicMock()
+        label_view.labeler_field = "labeler"
+        store = MagicMock()
+        store.get_label_view.return_value = label_view
+        store.get_online_features.return_value.to_df.return_value = pd.DataFrame(
+            {
+                "trace_id": ["tr-1"],
+                "corrected_response": ["online-answer"],
+                "labeler": ["reviewer"],
+            }
+        )
+
+        result = resolve_labels_from_feast(
+            examples,
+            store=store,
+            label_view_name="agent_feedback",
+            label_fields=["corrected_response"],
+            label_source="online",
+        )
+        assert result[0].corrected_response == "online-answer"
+        store.get_online_features.assert_called_once()
