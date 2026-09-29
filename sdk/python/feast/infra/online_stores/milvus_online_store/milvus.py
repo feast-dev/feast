@@ -12,6 +12,7 @@ from pymilvus import (
     FieldSchema,
     MilvusClient,
 )
+from pymilvus.client.types import LoadState
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -113,6 +114,13 @@ MILVUS_NATIVE_NUMERIC_TYPES = {
     DataType.DOUBLE,
     DataType.BOOL,
 }
+
+# Milvus requires every collection to have a vector field, so feature views
+# without one get a small placeholder vector. Milvus servers reject vectors
+# with fewer than 2 dimensions and non-finite values, and a collection can only
+# be loaded once every vector field is indexed.
+PLACEHOLDER_VECTOR_FIELD = "_placeholder_vector"
+PLACEHOLDER_VECTOR_DIM = 2
 
 
 def _milvus_escape_string(s: str) -> str:
@@ -348,9 +356,9 @@ class MilvusOnlineStore(OnlineStore):
             if not has_vector_field:
                 fields.append(
                     FieldSchema(
-                        name="_placeholder_vector",
+                        name=PLACEHOLDER_VECTOR_FIELD,
                         dtype=DataType.FLOAT_VECTOR,
-                        dim=1,
+                        dim=PLACEHOLDER_VECTOR_DIM,
                     )
                 )
             schema = CollectionSchema(
@@ -360,22 +368,14 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    dimension=config.online_store.embedding_dim,
-                    schema=schema,
-                )
                 index_params = self.client.prepare_index_params()
-                indices_added = False
                 for vector_field in schema.fields:
-                    if (
-                        vector_field.dtype
-                        in [
-                            DataType.FLOAT_VECTOR,
-                            DataType.BINARY_VECTOR,
-                        ]
-                        and vector_field.name in vector_field_dict
-                    ):
+                    if vector_field.dtype not in [
+                        DataType.FLOAT_VECTOR,
+                        DataType.BINARY_VECTOR,
+                    ]:
+                        continue
+                    if vector_field.name in vector_field_dict:
                         metric = vector_field_dict[
                             vector_field.name
                         ].vector_search_metric
@@ -387,18 +387,43 @@ class MilvusOnlineStore(OnlineStore):
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )
-                        indices_added = True
-                if indices_added:
-                    self.client.create_index(
-                        collection_name=collection_name,
-                        index_params=index_params,
-                    )
+                    else:
+                        # Vector fields that aren't searched (the placeholder,
+                        # or arrays without vector_index) still need an index,
+                        # otherwise Milvus servers refuse to load the collection.
+                        index_params.add_index(
+                            collection_name=collection_name,
+                            field_name=vector_field.name,
+                            metric_type="L2"
+                            if vector_field.name == PLACEHOLDER_VECTOR_FIELD
+                            else config.online_store.metric_type,
+                            index_type="FLAT",
+                            index_name=f"vector_index_{vector_field.name}",
+                        )
+                # Every collection has at least one vector field, and every
+                # vector field is indexed, so passing the index params here
+                # makes Milvus create the indexes and load the collection.
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    dimension=config.online_store.embedding_dim,
+                    schema=schema,
+                    index_params=index_params,
+                )
             else:
-                self.client.load_collection(collection_name)
+                self._ensure_loaded(collection_name)
+            # Collections are only cached once loaded, so reads and searches
+            # don't need to load them again.
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
             )
         return self._collections[collection_name]
+
+    def _ensure_loaded(self, collection_name: str) -> None:
+        """Load an existing collection unless Milvus already has it loaded."""
+        assert self.client is not None, "Milvus client is not initialized"
+        load_state = self.client.get_load_state(collection_name).get("state")
+        if load_state != LoadState.Loaded:
+            self.client.load_collection(collection_name)
 
     def online_write_batch(
         self,
@@ -423,6 +448,15 @@ class MilvusOnlineStore(OnlineStore):
         collection_field_types = {
             field["name"]: field["type"] for field in collection["fields"]
         }
+        # Collections created by older Feast versions may use a 1-dim placeholder.
+        placeholder_dim = next(
+            (
+                int(field.get("params", {}).get("dim", PLACEHOLDER_VECTOR_DIM))
+                for field in collection["fields"]
+                if field["name"] == PLACEHOLDER_VECTOR_FIELD
+            ),
+            PLACEHOLDER_VECTOR_DIM,
+        )
         schema_internal_fields = {"event_ts", "created_ts"}
         collection_has_native_numerics = any(
             collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
@@ -472,8 +506,8 @@ class MilvusOnlineStore(OnlineStore):
             for field in required_fields:
                 if field not in single_entity_record:
                     field_type = collection_field_types.get(field, DataType.VARCHAR)
-                    if field == "_placeholder_vector":
-                        single_entity_record[field] = [float("nan")]
+                    if field == PLACEHOLDER_VECTOR_FIELD:
+                        single_entity_record[field] = [0.0] * placeholder_dim
                     else:
                         single_entity_record[field] = _default_for_milvus_type(
                             field_type
@@ -533,7 +567,6 @@ class MilvusOnlineStore(OnlineStore):
             + ", ".join([f"'{e}'" for e in composite_entities])
             + "]"
         )
-        self.client.load_collection(collection_name)
         results = self.client.query(
             collection_name=collection_name,
             filter=query_filter_for_entities,
@@ -745,8 +778,6 @@ class MilvusOnlineStore(OnlineStore):
                 ):
                     ann_search_field = field["name"]
                     break
-
-        self.client.load_collection(collection_name)
 
         if filters and filters_contain_numeric_comparison(filters):
             collection_field_types = {
