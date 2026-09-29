@@ -298,7 +298,9 @@ driver_hourly_stats:
 
 ## Materialize incremental
 
-Load data from feature views into the online store, beginning from either the previous `materialize` or `materialize-incremental` end date, or the beginning of time.
+For regular (non-on-demand) feature views, load data into the online store beginning from each feature view's most recent materialization end date.
+
+For a regular feature view with no previous materialization, the start date is the current time minus its `ttl`. A zero TTL uses a lookback of 52 weeks; a feature view with no TTL must first be materialized with `feast materialize` to establish a start date. The initial lookback is relative to the current time, rather than the supplied end timestamp.
 
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
