@@ -7,3 +7,4 @@ class DAGFormat(str, Enum):
     ARROW = "arrow"
     RAY = "ray"
     FLINK = "flink"
+    TRINO = "trino"
