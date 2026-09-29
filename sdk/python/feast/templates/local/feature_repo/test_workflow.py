@@ -93,8 +93,12 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
             "driver_hourly_stats:conv_rate",
             "driver_hourly_stats:acc_rate",
             "driver_hourly_stats:avg_daily_trips",
+            # Pandas mode on demand transformation
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
+            # Native Python mode on demand transformation
+            "transformed_conv_rate_python:conv_rate_plus_val1_python",
+            "transformed_conv_rate_python:conv_rate_plus_val2_python",
         ],
     ).to_df()
     print(training_df.head())
@@ -124,8 +128,12 @@ def fetch_online_features(store, source: str = ""):
             "driver_hourly_stats:driver_metadata",
             "driver_hourly_stats:driver_config",
             "driver_hourly_stats:driver_profile",
+            # Pandas mode on demand transformation
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
+            # Native Python mode on demand transformation
+            "transformed_conv_rate_python:conv_rate_plus_val1_python",
+            "transformed_conv_rate_python:conv_rate_plus_val2_python",
         ]
     returned_features = store.get_online_features(
         features=features_to_fetch,

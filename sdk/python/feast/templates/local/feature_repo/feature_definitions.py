@@ -1,6 +1,7 @@
 # This is an example feature definition file
 
 from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
@@ -89,7 +90,8 @@ input_request = RequestSource(
 
 
 # Define an on demand feature view which can generate new features based on
-# existing feature views and RequestSource features
+# existing feature views and RequestSource features. By default the transformation
+# runs in Pandas mode (mode="pandas"): the UDF receives and returns a DataFrame.
 @on_demand_feature_view(
     sources=[driver_stats_fv, input_request],
     schema=[
@@ -102,6 +104,37 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df["conv_rate_plus_val1"] = inputs["conv_rate"] + inputs["val_to_add"]
     df["conv_rate_plus_val2"] = inputs["conv_rate"] + inputs["val_to_add_2"]
     return df
+
+
+# The same transformation written in native Python mode (mode="python"). The UDF
+# receives a dict mapping each input feature name to a list of values (one per
+# row) and returns a dict with the same shape. This avoids the Pandas overhead
+# for small online requests and is often easier to reason about.
+#
+# Only the features the UDF needs are selected from the source feature view.
+# This is required here: driver_stats_fv also has Map / Struct / Json fields, and
+# Python mode feature inference cannot generate sample values for those types.
+@on_demand_feature_view(
+    sources=[driver_stats_fv[["conv_rate"]], input_request],
+    schema=[
+        Field(name="conv_rate_plus_val1_python", dtype=Float64),
+        Field(name="conv_rate_plus_val2_python", dtype=Float64),
+    ],
+    mode="python",
+)
+def transformed_conv_rate_python(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "conv_rate_plus_val1_python": [
+            conv_rate + val_to_add
+            for conv_rate, val_to_add in zip(inputs["conv_rate"], inputs["val_to_add"])
+        ],
+        "conv_rate_plus_val2_python": [
+            conv_rate + val_to_add_2
+            for conv_rate, val_to_add_2 in zip(
+                inputs["conv_rate"], inputs["val_to_add_2"]
+            )
+        ],
+    }
 
 
 # This groups features into a model version
