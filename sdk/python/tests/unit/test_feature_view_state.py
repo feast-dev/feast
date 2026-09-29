@@ -481,3 +481,25 @@ class TestServeWhileMaterializingGate:
         )
         with pytest.raises(ValueError, match="cannot serve features"):
             utils._get_feature_views_to_use(registry, "default", ["test_fv:f1"])
+
+
+class TestServeWhileMaterializingRegistryPropagation:
+    def test_base_registry_defaults_to_false(self):
+        from feast.infra.registry.base_registry import BaseRegistry
+
+        assert BaseRegistry.serve_features_while_materializing is False
+
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_remote_registry_reads_flag_from_config(self, enabled):
+        from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
+
+        config = RemoteRegistryConfig(
+            registry_type="remote",
+            path="localhost:6570",
+            serve_features_while_materializing=enabled,
+        )
+        registry = RemoteRegistry(config, project="test", repo_path=None)
+        try:
+            assert registry.serve_features_while_materializing is enabled
+        finally:
+            registry.close()
