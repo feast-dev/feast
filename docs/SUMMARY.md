@@ -222,6 +222,8 @@
 
 ## Project
 
+* [Feast + Chronon: Feature Store Summit presentation](presentations/feast-chronon-summit/README.md)
+
 * [Contribution process](project/contributing.md)
 * [Development guide](project/development-guide.md)
 * [Backwards Compatibility Policy](project/compatibility.md)

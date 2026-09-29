@@ -13,7 +13,7 @@
 # limitations under the License.
 from typing import Literal, Optional
 
-from pydantic import StrictBool, StrictInt
+from pydantic import Field, StrictBool, StrictInt, field_validator
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -58,6 +58,24 @@ class MetricsConfig(FeastConfigBaseModel):
     """Emit per-endpoint request counters and latency histograms
     (feast_feature_server_request_total,
     feast_feature_server_request_latency_seconds)."""
+
+    feature_count_bins: list[int] = Field(default_factory=lambda: [10, 50, 200])
+    """Upper bounds used to bucket the ``feature_count`` label in request latency metrics.
+
+    For example, ``[10, 50, 200]`` produces labels
+    ``1-10``, ``11-50``, ``51-200``, and ``201+``.
+    """
+
+    @field_validator("feature_count_bins")
+    @classmethod
+    def validate_feature_count_bins(cls, bins: list[int]) -> list[int]:
+        if any(bound <= 0 for bound in bins):
+            raise ValueError("feature_count_bins must contain only positive integers")
+
+        if any(lower >= upper for lower, upper in zip(bins, bins[1:])):
+            raise ValueError("feature_count_bins must be strictly increasing")
+
+        return bins
 
     online_features: StrictBool = True
     """Emit online feature retrieval metrics

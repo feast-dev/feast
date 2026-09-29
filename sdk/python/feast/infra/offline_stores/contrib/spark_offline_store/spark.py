@@ -361,7 +361,16 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+
+        if isinstance(feature_view.batch_source, IcebergSource):
+            _iceberg_offline_write_batch(config, feature_view, table)
+            return
+
         assert isinstance(feature_view.batch_source, SparkSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
@@ -1273,6 +1282,28 @@ def _load_pyiceberg_table(data_source: "DataSource"):
             catalog_config["token"] = token
     catalog = load_catalog(data_source.catalog_name, **catalog_config)
     return catalog.load_table(fqn)
+
+
+def _iceberg_offline_write_batch(
+    config: "RepoConfig",
+    feature_view: "FeatureView",
+    table: "pyarrow.Table",
+) -> None:
+    """Write a PyArrow table to an IcebergSource via PyIceberg.
+
+    Uses PyIceberg's append() API which produces proper Iceberg snapshots,
+    handles schema evolution, and updates catalog metadata — making the
+    written data discoverable via any Iceberg-compatible engine.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(feature_view.batch_source, IcebergSource)
+    data_source: IcebergSource = feature_view.batch_source
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    iceberg_table.append(table)
 
 
 def _pull_from_iceberg_source(

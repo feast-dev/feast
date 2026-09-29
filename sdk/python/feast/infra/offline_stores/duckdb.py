@@ -126,6 +126,52 @@ def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -
     return ibis.memtable(table.scan().to_arrow())
 
 
+def _load_pyiceberg_table_for_write(data_source: "IcebergSource"):
+    """Load a PyIceberg table object for write operations.
+
+    Reuses the same catalog resolution logic as ``_read_iceberg_catalog_source``
+    but returns the raw PyIceberg table instead of an ibis memtable, so the
+    caller can use ``table.append()`` or ``table.overwrite()`` for writes.
+    """
+    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
+
+    if data_source.catalog_type != "rest":
+        catalog_client = data_source.get_catalog_client()
+        return catalog_client.load_table(fqn)
+
+    from pyiceberg.catalog import load_catalog
+
+    catalog_config: dict = {
+        "type": "rest",
+        "uri": data_source.endpoint,
+        "warehouse": data_source.warehouse,
+    }
+    if data_source.token_env_var:
+        token = os.environ.get(data_source.token_env_var)
+        if token:
+            catalog_config["token"] = token
+    catalog = load_catalog(data_source.catalog_name, **catalog_config)
+    return catalog.load_table(fqn)
+
+
+def _write_iceberg_data_source(
+    table: Table,
+    data_source: "IcebergSource",
+    mode: str = "append",
+) -> None:
+    """Write an ibis table to an IcebergSource via PyIceberg.
+
+    Converts the ibis table to Arrow and uses PyIceberg's append/overwrite
+    API to produce proper Iceberg snapshots with catalog metadata updates.
+    """
+    iceberg_table = _load_pyiceberg_table_for_write(data_source)
+    arrow_table = table.to_pyarrow()
+    if mode == "overwrite":
+        iceberg_table.overwrite(arrow_table)
+    else:
+        iceberg_table.append(arrow_table)
+
+
 def _write_data_source(
     table: Table,
     data_source: DataSource,
@@ -133,6 +179,14 @@ def _write_data_source(
     mode: str = "append",
     allow_overwrite: bool = False,
 ):
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    if isinstance(data_source, IcebergSource):
+        _write_iceberg_data_source(table, data_source, mode)
+        return
+
     assert isinstance(data_source, FileSource)
 
     file_options = data_source.file_options

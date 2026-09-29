@@ -8,11 +8,13 @@ Engines (Spark, Ray, etc.) just need to convert to/from pandas.
 from datetime import timedelta
 from typing import Any, Callable, Dict, List, Tuple, Union
 
-import numpy as np
 import pandas as pd
 
 from feast.aggregation import Aggregation
-from feast.aggregation.tiling.base import get_ir_metadata_for_aggregation
+from feast.aggregation.tiling.base import (
+    compute_holistic_value_from_irs,
+    get_ir_metadata_for_aggregation,
+)
 
 
 def apply_sawtooth_window_tiling(
@@ -178,12 +180,16 @@ def apply_sawtooth_window_tiling(
                     sum_col = ir_column_names[0]
                     count_col = ir_column_names[1]
 
+                    sum_sq_col = (
+                        ir_column_names[2] if len(ir_column_names) >= 3 else None
+                    )
+
                     if sum_col in result.columns and count_col in result.columns:
-                        # Compute avg = sum / count
-                        result[feature_name] = np.where(
-                            result[count_col] > 0,
-                            result[sum_col] / result[count_col],
-                            0,
+                        result[feature_name] = compute_holistic_value_from_irs(
+                            agg,
+                            result[sum_col],
+                            result[count_col],
+                            result[sum_sq_col] if sum_sq_col else None,
                         )
 
     return result

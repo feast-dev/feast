@@ -66,6 +66,14 @@ class FeastFlightClient(fl.FlightClient):
         return super().do_put(descriptor, schema, options)
 
     @arrow_client_error_handling_decorator
+    def do_exchange(
+        self,
+        descriptor: FlightDescriptor,
+        options: FlightCallOptions = None,
+    ):
+        return super().do_exchange(descriptor, options)
+
+    @arrow_client_error_handling_decorator
     def list_flights(self, criteria: bytes = b"", options: FlightCallOptions = None):
         return super().list_flights(criteria, options)
 
@@ -535,14 +543,42 @@ def _send_retrieve_remote(
     table: Optional[pa.Table],
     client: FeastFlightClient,
 ):
-    command_descriptor = _call_put(
-        api,
-        api_parameters,
-        client,
-        entity_df,
-        table,
-    )
-    return _call_get(client, command_descriptor)
+    return _call_exchange(api, api_parameters, client, entity_df, table)
+
+
+def _call_exchange(
+    api: str,
+    api_parameters: Dict[str, Any],
+    client: FeastFlightClient,
+    entity_df: Optional[Union[pd.DataFrame, str]],
+    table: Optional[pa.Table],
+) -> pa.Table:
+    """Execute a read API via a single ``do_exchange`` bidirectional stream.
+
+    This replaces the legacy two-phase ``do_put`` → ``get_flight_info`` →
+    ``do_get`` flow that relied on in-memory state (``self.flights``) on the
+    server.  Because both the upload and the result download happen on the
+    same gRPC stream, the request is always handled by the same server pod —
+    making the remote offline server compatible with HPA / multiple replicas.
+    """
+    command_id = str(uuid.uuid4())
+    command = {"command_id": command_id, "api": api, **api_parameters}
+
+    descriptor = fl.FlightDescriptor.for_command(json.dumps(command))
+
+    upload_table: pa.Table
+    if entity_df is not None and not isinstance(entity_df, str):
+        upload_table = pa.Table.from_pandas(entity_df)
+    elif table is not None:
+        upload_table = table
+    else:
+        upload_table = _create_empty_table()
+
+    writer, reader = client.do_exchange(descriptor)
+    writer.begin(upload_table.schema)
+    writer.write_table(upload_table)
+    writer.done_writing()
+    return read_all(reader)
 
 
 def _call_get(
