@@ -36,7 +36,7 @@ class InMemorySink(AuditSink):
 
 def _run(coro):
     """Helper to run an async function synchronously in tests."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _make_real_mcp(app: FastAPI | None = None):
