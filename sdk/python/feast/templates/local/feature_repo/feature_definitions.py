@@ -201,6 +201,39 @@ driver_activity_v3 = FeatureService(
     features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
 )
 
+
+# The on demand feature views above run their transformation at read time, i.e.
+# every time get_online_features() / get_historical_features() is called. Setting
+# write_to_online_store=True instead runs the transformation at write time: the
+# derived features are computed once when data is materialized or written to the
+# online store, and are then served like any other pre-computed feature. This
+# trades some ingestion cost for lower online retrieval latency.
+#
+# Because the results are persisted, the view must declare its entities and can
+# only depend on other feature views (not on request-time data).
+@on_demand_feature_view(
+    entities=[driver],
+    sources=[driver_stats_fv[["conv_rate", "acc_rate", "avg_daily_trips"]]],
+    schema=[
+        Field(name="conv_rate_x_acc_rate", dtype=Float64),
+        Field(name="expected_daily_conversions", dtype=Float64),
+    ],
+    mode="pandas",
+    write_to_online_store=True,
+)
+def transformed_conv_rate_on_write(inputs: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    # Cast explicitly so the output dtypes match the Float64 fields declared above
+    # (conv_rate and acc_rate are Float32 in the source feature view).
+    df["conv_rate_x_acc_rate"] = (inputs["conv_rate"] * inputs["acc_rate"]).astype(
+        "float64"
+    )
+    df["expected_daily_conversions"] = (
+        inputs["avg_daily_trips"] * inputs["conv_rate"]
+    ).astype("float64")
+    return df
+
+
 # --- Label Views ---
 # Label views manage mutable human labels for training data, RLHF, and evaluation.
 # They use PushSources so labels can be submitted from the UI or external tools.
