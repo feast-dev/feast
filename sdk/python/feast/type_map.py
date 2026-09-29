@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 # null timestamps get converted to -9223372036854775808
-NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
+NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT", "ns").astype(int)
 
 logger = logging.getLogger(__name__)
 

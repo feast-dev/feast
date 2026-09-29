@@ -17,7 +17,7 @@ dependencies = [
     "attrs",
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
-    "dill~=0.3.0",
+    "dill>=0.3.0,<0.5",
     "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "mmh3",
@@ -238,6 +238,11 @@ name = "Feast"
 
 [project.scripts]
 feast = "feast.cli.cli:cli"
+
+# MLflow plugin: inject Authorization headers from mlflow_token_scope (ContextVar).
+# Avoids mutating MLFLOW_TRACKING_TOKEN in os.environ under concurrent Feast requests.
+[project.entry-points."mlflow.request_header_provider"]
+feast = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
 
 [build-system]
 requires = [

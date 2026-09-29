@@ -14,7 +14,7 @@ The release step will trigger an automated chore commit by the CI-bot ([example]
 
 After the `release` step and release commit, the `publish` step will be triggered ([example](https://github.com/feast-dev/feast/actions/runs/13143995111)). 
 
-The `publish` worfklow triggers this flow:
+The `publish` workflow triggers this flow:
 
 ```mermaid
 graph TD
