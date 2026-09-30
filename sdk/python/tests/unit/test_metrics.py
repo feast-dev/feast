@@ -2025,20 +2025,32 @@ def test_metrics_httpd_falls_back_to_ipv4_without_ipv6():
 def test_ipv6_available_false_when_af_inet6_unsupported():
     from feast.utils import _ipv6_available
 
-    with patch(
-        "socket.socket", side_effect=OSError(97, "Address family not supported")
-    ):
-        assert _ipv6_available() is False
+    # _ipv6_available is @lru_cache'd (IPv6 support can't change mid-process).
+    # Clear before *and* after: before, so this test isn't seeing another
+    # test's cached result; after, so this test's mocked result doesn't leak
+    # into a later test that expects a real, uncached probe.
+    _ipv6_available.cache_clear()
+    try:
+        with patch(
+            "socket.socket", side_effect=OSError(97, "Address family not supported")
+        ):
+            assert _ipv6_available() is False
+    finally:
+        _ipv6_available.cache_clear()
 
 
 def test_ipv6_available_true_uses_v6only_off_and_wildcard_bind():
     from feast.utils import _ipv6_available
 
+    _ipv6_available.cache_clear()
     mock_sock = MagicMock()
     mock_sock.__enter__.return_value = mock_sock
     mock_sock.__exit__.return_value = False
-    with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
-        assert _ipv6_available() is True
+    try:
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            assert _ipv6_available() is True
+    finally:
+        _ipv6_available.cache_clear()
 
     mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
     mock_sock.setsockopt.assert_called_once_with(

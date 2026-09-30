@@ -484,6 +484,18 @@ def test_make_dual_stack_socket_falls_back_to_ipv4():
     mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
 
 
+@pytest.mark.parametrize("ipv6_available", [True, False])
+def test_make_dual_stack_socket_closes_on_bind_failure(ipv6_available):
+    mock_sock = MagicMock()
+    mock_sock.bind.side_effect = OSError("address in use")
+    with patch("feast.utils._ipv6_available", return_value=ipv6_available):
+        with patch("socket.socket", return_value=mock_sock):
+            with pytest.raises(OSError):
+                _make_dual_stack_socket(6580)
+
+    mock_sock.close.assert_called_once()
+
+
 def test_make_dual_stack_socket_is_reachable_on_both_families():
     # Regression test: a framework's own host="::" (uvicorn.run,
     # asyncio.loop.create_server) binds IPv6-only, because IPV6_V6ONLY=1

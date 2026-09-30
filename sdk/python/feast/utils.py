@@ -1,4 +1,5 @@
 import copy
+import functools
 import itertools
 import logging
 import os
@@ -64,13 +65,9 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
+@functools.lru_cache()
 def _ipv6_available() -> bool:
-    """True if this host can bind a dual-stack IPv6 wildcard socket.
-
-    Some kernels (e.g. booted with ``ipv6.disable=1``) raise ``EAFNOSUPPORT``
-    for ``socket.AF_INET6``, so servers that want to bind dual-stack must
-    probe first and fall back to IPv4-only.
-    """
+    """Whether this process can bind AF_INET6 (cached: can't change at runtime)."""
     try:
         with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
             sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
@@ -81,27 +78,30 @@ def _ipv6_available() -> bool:
 
 
 def _make_dual_stack_socket(port: int) -> socket.socket:
-    """Build a listening socket bound dual-stack ("::") when the host supports
-    IPv6, or IPv4-only ("0.0.0.0") otherwise (e.g. ``ipv6.disable=1`` kernels).
+    """Pre-bind a non-blocking dual-stack socket for a server to adopt.
 
-    A plain ``host="::"`` passed to a framework's own server (uvicorn's
-    ``uvicorn.run``, asyncio's ``loop.create_server``) gets ``IPV6_V6ONLY=1``
-    set on the socket it creates for itself, which silently drops IPv4
-    clients on every host, not just IPv6-less ones. Binding the socket here,
-    with ``IPV6_V6ONLY`` explicitly cleared, and handing it to the server
-    pre-built avoids that.
+    A framework handed host="::" directly (uvicorn.run, loop.create_server)
+    sets IPV6_V6ONLY=1 on its own socket, silently dropping IPv4 clients.
+    Binding here with V6ONLY cleared avoids that; falls back to IPv4-only
+    when the host can't bind AF_INET6.
     """
-    if _ipv6_available():
+    dual_stack = _ipv6_available()
+    if dual_stack:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
         address: tuple = ("::", port)
     else:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         address = ("0.0.0.0", port)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(address)
-    sock.listen(socket.SOMAXCONN)
-    sock.setblocking(False)
+    try:
+        if dual_stack:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(address)
+        sock.listen(socket.SOMAXCONN)
+        sock.setblocking(False)
+    except Exception:
+        sock.close()
+        raise
     return sock
 
 
