@@ -121,6 +121,26 @@ def test_python_values_to_proto_values_int_list_with_null_not_supported():
         _ = python_values_to_proto_values(arr, ValueType.INT32_LIST)
 
 
+@pytest.mark.parametrize(
+    "timestamps",
+    [
+        pd.Series(pd.to_datetime(["2024-01-01"])).astype("datetime64[us]"),
+        pd.Series(pd.to_datetime(["2024-01-01"], utc=True)).astype(
+            "datetime64[ms, UTC]"
+        ),
+        pd.Series(pd.to_datetime(["2024-01-01"], utc=True)).dt.tz_convert(
+            "America/New_York"
+        ),
+    ],
+)
+def test_python_type_to_feast_value_type_timestamp_dtypes(timestamps):
+    """A datetime column is a timestamp whatever its unit or timezone."""
+    value_type = python_type_to_feast_value_type(
+        "ts", value=timestamps.iloc[0], type_name=str(timestamps.dtype)
+    )
+    assert value_type == ValueType.UNIX_TIMESTAMP
+
+
 class TestMapTypes:
     """Test cases for MAP and MAP_LIST value types."""
 
