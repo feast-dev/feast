@@ -883,7 +883,12 @@ def _augment_response_with_on_demand_transforms(
     """
     from feast.online_response import OnlineResponse
 
-    requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
+    # Feature refs name an ODFV by its alias when it was added to a
+    # FeatureService with ``with_name``, so key the lookup the same way.
+    requested_odfv_map = {
+        (odfv.projection.name_alias if odfv.projection else None) or odfv.name: odfv
+        for odfv in requested_on_demand_feature_views
+    }
     requested_odfv_feature_names = requested_odfv_map.keys()
 
     odfv_feature_refs = defaultdict(list)
