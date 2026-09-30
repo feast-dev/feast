@@ -1,4 +1,4 @@
-# Redis online store
+# Milvus online store
 
 ## Description
 
@@ -19,11 +19,11 @@ Feast supports both milvus-lite 2.x and 3.x. However, if you upgrade from milvus
 See the [milvus-lite GitHub page](https://github.com/milvus-io/milvus-lite) for more details.
 {% endhint %}
 
-You can get started by using any of the other templates (e.g. `feast init -t gcp` or `feast init -t snowflake` or `feast init -t aws`), and then swapping in Redis as the online store as seen below in the examples.
+You can get started by using any of the other templates (e.g. `feast init -t gcp` or `feast init -t snowflake` or `feast init -t aws`), and then swapping in Milvus as the online store as seen below in the examples.
 
 ## Examples
 
-Connecting to a local MilvusDB instance:
+Using Milvus Lite, which stores data in a local file:
 
 {% code title="feature_store.yaml" %}
 ```yaml
@@ -33,17 +33,61 @@ provider: local
 online_store:
   type: milvus
   path: "data/online_store.db"
-  connection_string: "localhost:6379"
   embedding_dim: 128
   index_type: "FLAT"
   metric_type: "COSINE"
-  username: "username"
-  password: "password"
 ```
 {% endcode %}
 
+Connecting to a self-hosted Milvus server:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: milvus
+  host: "http://localhost"
+  port: 19530
+  username: "username"
+  password: "password"
+  embedding_dim: 128
+  index_type: "IVF_FLAT"
+  metric_type: "COSINE"
+```
+{% endcode %}
+
+## Configuration options
+
+| Option | Default | Description |
+|:-------|:--------|:------------|
+| `path` | `""` | Path to a Milvus Lite database file. Used when `provider: local` and `path` is set. |
+| `host` | `http://localhost` | Milvus server host, including the scheme. |
+| `port` | `19530` | Milvus server port. |
+| `username` / `password` | `""` | Credentials, sent as the token `username:password`. |
+| `embedding_dim` | `128` | Dimension of vector fields. |
+| `index_type` | `FLAT` | Index type for vector fields with `vector_index=True`. |
+| `metric_type` | `COSINE` | Default metric when a field does not set `vector_search_metric`. |
+| `nlist` | `128` | `nlist` index parameter. |
+| `vector_enabled` | `true` | Enables vector search. |
+| `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
+| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
+
+## Collection loading
+
+Feast creates collections together with their indexes, which makes Milvus load them straight away.
+When Feast finds an existing collection it checks its load state and loads it only if needed.
+Reads and searches never load collections, so a collection released outside Feast is only reloaded
+the next time a Feast process first accesses it.
+
+## Feature views without vectors
+
+Milvus requires every collection to have a vector field. For feature views that have no vector
+feature, Feast adds a 2-dimensional `_placeholder_vector` field with a FLAT index and fills it with zeros.
+It is never returned or searched.
 
 ## Functionality Matrix
 
