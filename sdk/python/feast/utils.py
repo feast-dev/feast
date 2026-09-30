@@ -571,6 +571,8 @@ def _convert_arrow_fv_to_proto(
             f"Feature view '{feature_view.name}' has no batch_source and cannot be converted to proto."
         )
 
+    _validate_vector_field_lengths(table, feature_view)
+
     # TODO: This will break if the feature view has aggregations or transformations
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
@@ -2013,6 +2015,69 @@ def _get_feature_view_vector_field_metadata(
     if not vector_fields:
         return None
     return vector_fields[0]
+
+
+def _validate_vector_field_lengths(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view,
+) -> None:
+    """Check an Arrow table's vector column against the declared ``vector_length``.
+
+    Called on the materialization path, where every compute engine funnels through
+    ``_convert_arrow_to_proto``. The check is O(1) for fixed-size lists and a single
+    vectorized pass for variable-size lists, so it is safe to leave on.
+
+    A declared ``vector_length`` is a contract: a mismatch is an error, never a
+    silent truncation or a silently different response shape.
+
+    Args:
+        table: The Arrow table or record batch about to be converted.
+        feature_view: The feature view whose schema declares the vector field.
+
+    Raises:
+        ValueError: If the vector column's width disagrees with ``vector_length``.
+    """
+    vector_field = _get_feature_view_vector_field_metadata(feature_view)
+    if vector_field is None or not vector_field.vector_length:
+        return
+
+    name = vector_field.name
+    if name not in table.schema.names:
+        return
+
+    expected = vector_field.vector_length
+    column = table.column(name)
+    column_type = column.type
+
+    def _fail(actual, row: Optional[int] = None) -> None:
+        where = f"Row {row}: " if row is not None else ""
+        raise ValueError(
+            f"{where}Vector length {actual} does not match expected {expected} "
+            f"for feature '{name}' in feature view '{feature_view.name}'."
+        )
+
+    if pyarrow.types.is_fixed_size_list(column_type):
+        if column_type.list_size != expected:
+            _fail(column_type.list_size)
+        return
+
+    if pyarrow.types.is_list(column_type) or pyarrow.types.is_large_list(column_type):
+        lengths = pyarrow.compute.list_value_length(column)
+        # Nulls have no length to compare; only non-null rows carry the contract.
+        mismatched = pyarrow.compute.and_kleene(
+            pyarrow.compute.is_valid(lengths),
+            pyarrow.compute.not_equal(lengths, expected),
+        )
+        if pyarrow.compute.any(mismatched).as_py():
+            row = pyarrow.compute.index(mismatched, True).as_py()
+            _fail(lengths[row].as_py(), row=row)
+        return
+
+    # Any other type cannot hold a vector of the declared width.
+    raise ValueError(
+        f"Vector feature '{name}' in feature view '{feature_view.name}' declares "
+        f"vector_length={expected} but has non-list Arrow type {column_type}."
+    )
 
 
 def _distance_to_score(distance: float, metric: Optional[str] = None) -> float:

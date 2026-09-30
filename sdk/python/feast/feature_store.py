@@ -3619,6 +3619,9 @@ class FeatureStore:
         """
         Validates vector features in the DataFrame against the feature view specifications.
 
+        Resolves the vector field from the feature view schema rather than assuming it is
+        the first feature, and checks lengths in a single pass over the column.
+
         Args:
             feature_view: The feature view containing vector feature specifications
             df: The DataFrame to validate
@@ -3626,20 +3629,35 @@ class FeatureStore:
         Raises:
             ValueError: If vector dimension constraints are violated
         """
-        if feature_view.features and feature_view.features[0].vector_index:
-            fv_vector_feature_name = feature_view.features[0].name
-            if feature_view.features[0].vector_length != 0:
-                for i, row in df.iterrows():
-                    vector = row[fv_vector_feature_name]
-                    if not hasattr(vector, "__len__"):
-                        raise ValueError(
-                            f"Row {i}: Vector feature '{fv_vector_feature_name}' is not a sequence. Got: {type(vector)}"
-                        )
-                    if len(vector) != feature_view.features[0].vector_length:
-                        raise ValueError(
-                            f"Row {i}: Vector length {len(vector)} does not match expected {feature_view.features[0].vector_length} "
-                            f"for feature '{fv_vector_feature_name}' in feature view '{feature_view.name}'."
-                        )
+        vector_field = _get_feature_view_vector_field_metadata(feature_view)
+        if vector_field is None or not vector_field.vector_length:
+            return
+
+        name = vector_field.name
+        if name not in df.columns:
+            return
+
+        expected = vector_field.vector_length
+        column = df[name]
+
+        # Single pass over the column. Sequences report their length, anything else
+        # reports None so the two failure modes stay distinguishable.
+        lengths = column.map(lambda v: len(v) if hasattr(v, "__len__") else None)
+
+        not_a_sequence = lengths.isna()
+        if not_a_sequence.any():
+            i = not_a_sequence.idxmax()
+            raise ValueError(
+                f"Row {i}: Vector feature '{name}' is not a sequence. Got: {type(column[i])}"
+            )
+
+        mismatched = lengths != expected
+        if mismatched.any():
+            i = mismatched.idxmax()
+            raise ValueError(
+                f"Row {i}: Vector length {lengths[i]} does not match expected {expected} "
+                f"for feature '{name}' in feature view '{feature_view.name}'."
+            )
 
     def _get_feature_view_and_df_for_online_write(
         self,
