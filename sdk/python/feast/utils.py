@@ -937,6 +937,18 @@ def _augment_response_with_on_demand_transforms(
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
                     odfv_input_dict
                 )
+                if full_feature_names:
+                    # The UDF returns short output names, but the requested refs
+                    # use "<view>__<feature>" (transform_arrow renames the same way).
+                    odfv_output_names = {f.name for f in odfv.features}
+                    transformed_features_dict = {
+                        (
+                            odfv._get_projected_feature_name(name)
+                            if name in odfv_output_names
+                            else name
+                        ): values
+                        for name, values in transformed_features_dict.items()
+                    }
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()
@@ -978,6 +990,13 @@ def _augment_response_with_on_demand_transforms(
 
             proto_values = []
             schema_dict = {k.name: k.dtype for k in odfv.schema}
+            if full_feature_names:
+                schema_dict.update(
+                    {
+                        odfv._get_projected_feature_name(k.name): k.dtype
+                        for k in odfv.schema
+                    }
+                )
             for selected_feature in selected_subset:
                 feature_vector = transformed_features[selected_feature]
                 selected_feature_type = schema_dict.get(selected_feature, None)
