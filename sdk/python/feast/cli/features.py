@@ -43,7 +43,7 @@ def features_list(ctx: click.Context, output: str):
     if output == "json":
         json_output = [
             {"feature_name": fn, "feature_view": fv, "dtype": dt}
-            for fv, fn, dt in feature_list
+            for fn, fv, dt in feature_list
         ]
         click.echo(json.dumps(json_output, indent=4))
     else:
@@ -83,12 +83,15 @@ def describe_feature(ctx: click.Context, feature_name: str):
                         "Data Type": str(feature.dtype),
                         "Description": getattr(feature, "description", "N/A"),
                         "Online Store": getattr(fv, "online", "N/A"),
-                        "Source": json.loads(str(getattr(fv, "batch_source", "N/A"))),
+                        "Source": json.loads(str(getattr(fv, "batch_source", None)))
+                        if getattr(fv, "batch_source", None) is not None
+                        else None,
                     }
                 )
     if not feature_details:
-        click.echo(f"Feature '{feature_name}' not found in any feature view.")
-        return
+        raise click.ClickException(
+            f"Feature '{feature_name}' not found in any feature view."
+        )
 
     click.echo(json.dumps(feature_details, indent=4))
 
@@ -114,20 +117,25 @@ def get_online_features(ctx: click.Context, entities: List[str], features: List[
     """
     Fetch online feature values for a given entity ID
     """
-    store = create_feature_store(ctx)
     entity_dict: dict[str, List[str]] = {}
     for entity in entities:
         try:
-            key, value = entity.split("=")
+            key, value = entity.split("=", 1)
+            if not key or not value:
+                raise ValueError("Empty entity key or value")
             if key not in entity_dict:
                 entity_dict[key] = []
             entity_dict[key].append(value)
-        except ValueError:
-            click.echo(f"Invalid entity format: {entity}. Use key=value format.")
-            return
+        except ValueError as e:
+            raise click.UsageError(
+                "Invalid entity format. Use key=value format."
+            ) from e
+    if len({len(values) for values in entity_dict.values()}) > 1:
+        raise click.UsageError("Each entity key must have the same number of values.")
     entity_rows = [
         dict(zip(entity_dict.keys(), values)) for values in zip(*entity_dict.values())
     ]
+    store = create_feature_store(ctx)
     feature_vector = store.get_online_features(
         features=list(features),
         entity_rows=entity_rows,
@@ -172,16 +180,17 @@ def get_historical_features(
     """
     Fetch historical feature values for a given entity ID
     """
-    store = create_feature_store(ctx)
     if not dataframe and not start_date and not end_date:
-        click.echo(
+        raise click.UsageError(
             "Either --dataframe or --start-date and/or --end-date must be provided."
         )
-        return
 
     if dataframe and (start_date or end_date):
-        click.echo("Cannot specify both --dataframe and --start-date/--end-date.")
-        return
+        raise click.UsageError(
+            "Cannot specify both --dataframe and --start-date/--end-date."
+        )
+    if not features:
+        raise click.UsageError("At least one --features value is required.")
 
     entity_df = None
     if dataframe:
@@ -193,17 +202,24 @@ def get_historical_features(
             entity_df = pd.DataFrame(entity_list)
             entity_df["event_timestamp"] = pd.to_datetime(entity_df["event_timestamp"])
 
-        except Exception as e:
-            click.echo(f"Error parsing entities JSON: {e}", err=True)
-            return
+        except (ValueError, TypeError, KeyError) as e:
+            raise click.UsageError("Invalid entities JSON or event_timestamp.") from e
 
+    try:
+        parsed_start = (
+            datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S") if start_date else None
+        )
+        parsed_end = (
+            datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S") if end_date else None
+        )
+    except ValueError as e:
+        raise click.UsageError("Dates must use YYYY-MM-DD HH:MM:SS format.") from e
+    store = create_feature_store(ctx)
     feature_vector = store.get_historical_features(
         entity_df=entity_df,
         features=list(features),
-        start_date=datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-        if start_date
-        else None,
-        end_date=datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S") if end_date else None,
+        start_date=parsed_start,
+        end_date=parsed_end,
     ).to_df()
 
     click.echo(feature_vector.to_json(orient="records", indent=4))

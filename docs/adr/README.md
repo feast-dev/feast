@@ -22,6 +22,10 @@ An Architecture Decision Record captures a single architectural decision, includ
 | [ADR-0010](ADR-0010-vector-database-integration.md) | Vector Database Integration for LLM/RAG Support | Accepted | RFC-040 |
 | [ADR-0011](ADR-0011-data-quality-monitoring.md) | Data Quality Monitoring | Accepted | RFC-027 |
 
+## Proposed RFCs
+
+- [Agent-friendly Feast CLI](rfc-agent-friendly-cli.md): structured output, command discovery, and safe automation (P0–P3 roadmap).
+
 ## Creating a New ADR
 
 1. Copy the [ADR template](ADR-TEMPLATE.md) to a new file with the next sequential number.
