@@ -81,7 +81,7 @@ def sync_mlflow_dataset_to_feast(
     except ImportError as e:
         raise ImportError(
             "The 'mlflow' package is required for dataset sync. "
-            "Install it with: pip install 'feast[mlflow]'"
+            "Install the 'feast[mlflow]' extra in your environment."
         ) from e
 
     result = SyncResult()
