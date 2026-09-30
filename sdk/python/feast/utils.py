@@ -77,13 +77,17 @@ def _ipv6_available() -> bool:
         return False
 
 
-def _make_dual_stack_socket(port: int) -> socket.socket:
-    """Pre-bind a non-blocking dual-stack socket for a server to adopt.
+def _make_dual_stack_socket(port: int, blocking: bool = False) -> socket.socket:
+    """Pre-bind a dual-stack socket for a server to adopt.
 
     A framework handed host="::" directly (uvicorn.run, loop.create_server)
     sets IPV6_V6ONLY=1 on its own socket, silently dropping IPv4 clients.
     Binding here with V6ONLY cleared avoids that; falls back to IPv4-only
     when the host can't bind AF_INET6.
+
+    Non-blocking by default since every current caller hands the socket to
+    an asyncio-based server (uvicorn.Server(...).run(sockets=[sock])), which
+    requires that; pass blocking=True for a synchronous server instead.
     """
     dual_stack = _ipv6_available()
     if dual_stack:
@@ -98,7 +102,7 @@ def _make_dual_stack_socket(port: int) -> socket.socket:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(address)
         sock.listen(socket.SOMAXCONN)
-        sock.setblocking(False)
+        sock.setblocking(blocking)
     except Exception:
         sock.close()
         raise

@@ -484,6 +484,15 @@ def test_make_dual_stack_socket_falls_back_to_ipv4():
     mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
 
 
+def test_make_dual_stack_socket_blocking_true_is_passed_through():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock):
+            _make_dual_stack_socket(6580, blocking=True)
+
+    mock_sock.setblocking.assert_called_once_with(True)
+
+
 @pytest.mark.parametrize("ipv6_available", [True, False])
 def test_make_dual_stack_socket_closes_on_bind_failure(ipv6_available):
     mock_sock = MagicMock()
