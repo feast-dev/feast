@@ -417,6 +417,11 @@ def python_type_to_feast_value_type(
     if type_name in type_map:
         return type_map[type_name]
 
+    # datetimes in any other unit or timezone, e.g. "datetime64[us]" or
+    # "datetime64[ns, america/new_york]"
+    if type_name.startswith("datetime64"):
+        return ValueType.UNIX_TIMESTAMP
+
     # Handle pandas "object" dtype by inspecting the actual value
     if type_name == "object" and value is not None:
         # Check the actual type of the value
