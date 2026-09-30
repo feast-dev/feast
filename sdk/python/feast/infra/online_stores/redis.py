@@ -239,6 +239,7 @@ class RedisOnlineStore(OnlineStore):
     # Only set when `client: glide` is configured, so the native extension stays
     # untouched for users who never opt in.
     _glide_client: Optional[Any] = None
+    _glide_sync: Optional[Any] = None
 
     @property
     def async_supported(self) -> SupportedAsyncMethods:
@@ -350,6 +351,12 @@ class RedisOnlineStore(OnlineStore):
         for join_keys in join_keys_to_delete:
             self.delete_entity_values(config, list(join_keys))
 
+        # Release the native GLIDE client, if one was ever opened, so teardown does
+        # not leave its Rust-side resources and file descriptors behind.
+        if self._glide_client:
+            self._glide_client.close()
+            self._glide_client = None
+
     @staticmethod
     def _parse_connection_string(connection_string: str):
         """
@@ -430,11 +437,17 @@ class RedisOnlineStore(OnlineStore):
                 self._client_async = redis_asyncio.Redis(**kwargs)
         return self._client_async
 
+    def _get_glide_sync(self):
+        """Returns the cached ``glide_sync`` module, importing it on first use."""
+        if self._glide_sync is None:
+            self._glide_sync = _load_glide_sync()
+        return self._glide_sync
+
     def _get_glide_client(self, online_store_config: RedisOnlineStoreConfig):
         """Creates and caches a GLIDE client built from the online store config."""
         if not self._glide_client:
             self._glide_client = _create_glide_client(
-                _load_glide_sync(), online_store_config
+                self._get_glide_sync(), online_store_config
             )
         return self._glide_client
 
@@ -712,9 +725,8 @@ class RedisOnlineStore(OnlineStore):
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
 
         if online_store_config.client == RedisClient.glide:
-            glide_sync = _load_glide_sync()
             return _glide_hmget_batch(
-                glide_sync,
+                self._get_glide_sync(),
                 self._get_glide_client(online_store_config),
                 commands,
             )

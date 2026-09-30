@@ -866,7 +866,7 @@ def test_glide_client_config_parses_connection_string():
     ]
     assert config.database_id == 2
     assert config.use_tls is True
-    assert config.credentials.password == "hunter2"
+    assert config.credentials.password == "hunter2"  # pragma: allowlist secret
     assert config.credentials.username == "feast"
     # redis-py takes timeouts in seconds, GLIDE in milliseconds.
     assert config.request_timeout == 1500
@@ -903,7 +903,7 @@ def test_glide_client_config_parses_cluster_connection_string():
         ("redis2", 6379),
     ]
     assert config.use_tls is True
-    assert config.credentials.password == "hunter2"
+    assert config.credentials.password == "hunter2"  # pragma: allowlist secret
     # Cluster nodes do not support SELECT, so db is not forwarded.
     assert config.database_id is None
 
@@ -934,3 +934,45 @@ def test_glide_client_config_warns_about_ignored_params(caplog):
         )
 
     assert "skip_full_coverage_check" in caplog.text
+
+
+def test_glide_module_is_imported_once_per_store(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """The glide_sync module is cached on the store, not re-imported per read."""
+    with (
+        patch(GLIDE_PATH, return_value=object()) as load_glide,
+        patch.object(redis_online_store, "_get_glide_client", return_value=object()),
+        patch(GLIDE_BATCH_PATH, MagicMock(return_value=[[None] * 4])),
+    ):
+        for _ in range(2):
+            redis_online_store.online_read(
+                _online_read_config(RedisClient.glide),
+                feature_view,
+                _two_entity_keys()[:1],
+                ["feature_10"],
+            )
+
+    load_glide.assert_called_once()
+
+
+def test_teardown_closes_the_glide_client(
+    redis_online_store: RedisOnlineStore, repo_config: RepoConfig
+):
+    """teardown must release the native GLIDE client and clear the cache."""
+    glide_client = MagicMock()
+    redis_online_store._glide_client = glide_client
+
+    redis_online_store.teardown(repo_config, [], [])
+
+    glide_client.close.assert_called_once()
+    assert redis_online_store._glide_client is None
+
+
+def test_teardown_without_a_glide_client_does_not_raise(
+    redis_online_store: RedisOnlineStore, repo_config: RepoConfig
+):
+    """A store that never opted into GLIDE must tear down cleanly."""
+    redis_online_store.teardown(repo_config, [], [])
+
+    assert redis_online_store._glide_client is None
