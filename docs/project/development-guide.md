@@ -239,7 +239,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   ```
   Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
   ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"` to add the application credentials to your .zshrc or .bashrc.
 5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
 6. Running `gcloud config list` should give you something like this:
   ```sh
@@ -307,7 +307,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
   export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
   export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
-  export BLOB_EXPORT_URI='[your data unloading blob uri]`
+  export BLOB_EXPORT_URI='[your data unloading blob uri]'
   ```
 7. Once everything is setup, running snowflake integration tests should pass without failures.
 
