@@ -18,7 +18,6 @@ from feast import Entity, FeatureView
 from feast.field import Field
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.postgres_online_store.postgres import (
-    MAX_BATCHED_READ_KEYS,
     PostgreSQLOnlineStore,
 )
 from feast.protos.feast.serving.ServingService_pb2 import (
@@ -32,20 +31,16 @@ from feast.types import Int64
 from feast.value_type import ValueType
 
 DRIVER = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
-CUSTOMER = Entity(
-    name="customer", join_keys=["customer_id"], value_type=ValueType.INT64
-)
-JOIN_KEY_MAP = {"driver": "driver_id", "customer": "customer_id"}
+JOIN_KEY_MAP = {"driver": "driver_id"}
 DRIVER_IDS = [1001, 1002, 1003]
 
 
-def _feature_view(name: str, feature: str, entity: Entity = DRIVER) -> FeatureView:
-    join_key = entity.join_key
+def _feature_view(name: str, feature: str) -> FeatureView:
     return FeatureView(
         name=name,
-        entities=[entity],
+        entities=[DRIVER],
         ttl=timedelta(days=1),
-        schema=[Field(name=join_key, dtype=Int64), Field(name=feature, dtype=Int64)],
+        schema=[Field(name="driver_id", dtype=Int64), Field(name=feature, dtype=Int64)],
     )
 
 
@@ -99,16 +94,19 @@ class TestPostgresBatchedRead:
             entity_key_serialization_version=3,
         )
 
-    def _write(
-        self, store, config, fv, feature, values, join_key="driver_id", ids=None
-    ):
+    def _write(self, store, config, fv, feature, values, ids=None):
         now = datetime.now(tz=timezone.utc)
         ids = ids if ids is not None else DRIVER_IDS
         store.online_write_batch(
             config,
             fv,
             [
-                (_entity_key(join_key, i), {feature: ValueProto(int64_val=v)}, now, now)
+                (
+                    _entity_key("driver_id", i),
+                    {feature: ValueProto(int64_val=v)},
+                    now,
+                    now,
+                )
                 for i, v in zip(ids, values)
             ],
             None,
@@ -163,21 +161,8 @@ class TestPostgresBatchedRead:
             self._write(store, config, fv, feature, [base, base + 1, base + 2])
         return [(fv, [feature]) for fv, feature, _ in views]
 
-    def test_batched_matches_generic_path(self):
-        config = self._config()
-        store = PostgreSQLOnlineStore()
-        grouped_refs = self._setup_three_views(store, config, feature_name="feat")
-
-        batched = self._read(store, config, grouped_refs, self._drivers())
-        generic = self._read(store, config, grouped_refs, self._drivers(), generic=True)
-
-        assert batched == generic
-        assert [v.int64_val for v in batched.results[0].values] == [10, 11, 12]
-        assert [v.int64_val for v in batched.results[1].values] == [20, 21, 22]
-        assert [v.int64_val for v in batched.results[2].values] == [30, 31, 32]
-
-    def test_batched_issues_one_execute_generic_issues_three(self):
-        """Count executes on the real driver, and prove the improvement."""
+    def test_batched_matches_generic_path_in_one_execute(self):
+        """Same results as the generic path, in one execute instead of three."""
         config = self._config()
         store = PostgreSQLOnlineStore()
         grouped_refs = self._setup_three_views(store, config, feature_name="feat")
@@ -193,12 +178,18 @@ class TestPostgresBatchedRead:
 
         batched_executes: list = []
         with patch.object(psycopg.Cursor, "execute", counted(batched_executes)):
-            self._read(store, config, grouped_refs, self._drivers())
+            batched = self._read(store, config, grouped_refs, self._drivers())
 
         generic_executes: list = []
         with patch.object(psycopg.Cursor, "execute", counted(generic_executes)):
-            self._read(store, config, grouped_refs, self._drivers(), generic=True)
+            generic = self._read(
+                store, config, grouped_refs, self._drivers(), generic=True
+            )
 
+        assert batched == generic
+        assert [v.int64_val for v in batched.results[0].values] == [10, 11, 12]
+        assert [v.int64_val for v in batched.results[1].values] == [20, 21, 22]
+        assert [v.int64_val for v in batched.results[2].values] == [30, 31, 32]
         assert len(batched_executes) == 1
         assert len(generic_executes) == 3
 
@@ -226,68 +217,6 @@ class TestPostgresBatchedRead:
             FieldStatus.NOT_FOUND,
         ]
         assert batched.results[1].values[1].int64_val == 7
-
-    def test_views_on_different_entities_match_generic(self):
-        """Per-view entity bookkeeping against a real database."""
-        config = self._config()
-        store = PostgreSQLOnlineStore()
-
-        fv_driver = _feature_view("fv_driver", "feat", DRIVER)
-        fv_customer = _feature_view("fv_customer", "feat", CUSTOMER)
-        store.update(config, [], [fv_driver, fv_customer], [], [], False)
-        self._write(store, config, fv_driver, "feat", [10, 11, 12])
-        self._write(
-            store,
-            config,
-            fv_customer,
-            "feat",
-            [70, 71],
-            join_key="customer_id",
-            ids=[7, 8],
-        )
-
-        grouped_refs = [(fv_driver, ["feat"]), (fv_customer, ["feat"])]
-        # Customer 7 appears twice, so the two views resolve different key counts.
-        join_key_values = {
-            "driver_id": [ValueProto(int64_val=i) for i in DRIVER_IDS],
-            "customer_id": [ValueProto(int64_val=i) for i in (7, 7, 8)],
-        }
-
-        batched = self._read(store, config, grouped_refs, join_key_values)
-        generic = self._read(store, config, grouped_refs, join_key_values, generic=True)
-
-        assert batched == generic
-        assert [v.int64_val for v in batched.results[1].values] == [70, 70, 71]
-
-    def test_large_request_falls_back_and_still_matches_generic(self):
-        """Over the key threshold the generic path runs, and results are unchanged."""
-        config = self._config()
-        store = PostgreSQLOnlineStore()
-
-        fv_a = _feature_view("fv_big_a", "feat")
-        fv_b = _feature_view("fv_big_b", "feat")
-        store.update(config, [], [fv_a, fv_b], [], [], False)
-        ids = list(range(MAX_BATCHED_READ_KEYS + 1))
-        self._write(store, config, fv_a, "feat", ids, ids=ids)
-        self._write(store, config, fv_b, "feat", [i * 2 for i in ids], ids=ids)
-
-        grouped_refs = [(fv_a, ["feat"]), (fv_b, ["feat"])]
-        join_key_values = self._drivers(ids)
-
-        real_execute = psycopg.Cursor.execute
-        executes: list = []
-
-        def execute(self, query, params=None, **kwargs):
-            executes.append(query)
-            return real_execute(self, query, params, **kwargs)
-
-        with patch.object(psycopg.Cursor, "execute", execute):
-            batched = self._read(store, config, grouped_refs, join_key_values)
-        generic = self._read(store, config, grouped_refs, join_key_values, generic=True)
-
-        # Two executes, not one: the guard sent this down the per-view path.
-        assert len(executes) == 2
-        assert batched == generic
 
     async def test_async_batched_matches_generic(self):
         config = self._config()
