@@ -20,6 +20,7 @@ from typing import (
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
+from pydantic import NonNegativeInt
 
 from feast import Entity, FeatureView, ValueType, utils
 from feast.filter_models import (
@@ -56,14 +57,17 @@ SUPPORTED_DISTANCE_METRICS_DICT = {
     "inner_product": "<#>",
 }
 
-# Above this many entity keys in a request, batching stops paying for itself: the
-# saved round trips are amortized away by the payload, while holding every feature
-# view's rows at once makes peak memory grow with the number of views. Measured
-# against Postgres 16, a 10-view request is ~3-5x faster at 1-100 entities and a
-# wash at 5000, where the combined result costs tens of MB per in-flight request.
-# Past the threshold the generic one-query-per-view path is used instead, which
-# processes and releases a single view at a time.
-MAX_BATCHED_READ_KEYS = 2048
+# Default for ``max_batched_result_rows``: the largest request, measured as entity
+# rows x feature views, that is read in one batched query. Past that, batching stops
+# paying for itself: the saved round trips are amortized away by the payload, while
+# holding every feature view's rows at once makes peak memory grow with the number of
+# views. The measure is a proxy taken from the request shape; the rows actually
+# returned also scale with the number of requested features. Measured against
+# Postgres 16, a 10-view request is ~3-5x faster at 1-100 entities and a wash at
+# 5000, where the combined result costs tens of MB per in-flight request. Past the
+# limit the generic one-query-per-view path is used instead, which processes and
+# releases a single view at a time.
+MAX_BATCHED_RESULT_ROWS = 2048
 
 _PG_COMPARISON_OPS: Dict[str, str] = {
     "eq": "=",
@@ -179,6 +183,9 @@ def _pg_filter_col_and_val(value: Any) -> Tuple[str, Any]:
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig, VectorStoreConfig):
     type: Literal["postgres"] = "postgres"
     enable_openai_compatible_store: Optional[bool] = False
+    max_batched_result_rows: NonNegativeInt = MAX_BATCHED_RESULT_ROWS
+    """Largest request, as entity rows x feature views, read in one batched query.
+    Set to 0 to always read one feature view per query."""
 
 
 class PostgreSQLOnlineStore(OnlineStore):
@@ -481,7 +488,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         in its own table here, so the per-view reads can be combined with UNION ALL
         and split apart again afterwards.
         """
-        if self._too_large_to_batch(grouped_refs, join_key_values):
+        if not self._should_batch(config, grouped_refs, join_key_values):
             return super()._read_features_per_fv(
                 config,
                 grouped_refs,
@@ -495,8 +502,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         reads = self._prepare_batched_reads(
             config, grouped_refs, join_key_values, entity_name_to_join_key_map
         )
-        if not reads:
-            return
 
         query, params = self._construct_batched_query_and_params(config, reads)
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
@@ -526,7 +531,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         The generic async path issues the per-view queries concurrently. Combining
         them still replaces those N queries with one.
         """
-        if self._too_large_to_batch(grouped_refs, join_key_values):
+        if not self._should_batch(config, grouped_refs, join_key_values):
             return await super()._read_features_per_fv_async(
                 config,
                 grouped_refs,
@@ -540,8 +545,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         reads = self._prepare_batched_reads(
             config, grouped_refs, join_key_values, entity_name_to_join_key_map
         )
-        if not reads:
-            return
 
         query, params = self._construct_batched_query_and_params(config, reads)
         async with self._get_conn_async(config, autocommit=True) as conn:
@@ -622,18 +625,26 @@ class PostgreSQLOnlineStore(OnlineStore):
         return sql.SQL(" UNION ALL ").join(branches), params
 
     @staticmethod
-    def _too_large_to_batch(grouped_refs: List, join_key_values: Dict) -> bool:
-        """Whether this request is big enough that batching would cost more than it saves.
+    def _should_batch(
+        config: RepoConfig, grouped_refs: List, join_key_values: Dict
+    ) -> bool:
+        """Whether to read this request's feature views in one batched query.
 
-        Estimated from the request shape rather than from the resolved keys, so that
-        deciding against batching costs nothing. The number of entity rows in the
-        request is an upper bound on the unique keys any one view will read.
-        See :data:`MAX_BATCHED_READ_KEYS`.
+        A single view has no round trips to save, so it keeps the generic path. The
+        size check is estimated from the request shape rather than from the resolved
+        keys, so that deciding against batching costs nothing. The number of entity
+        rows in the request is an upper bound on the unique keys any one view will
+        read. See :data:`MAX_BATCHED_RESULT_ROWS`.
         """
+        if len(grouped_refs) < 2:
+            return False
+        limit = getattr(
+            config.online_store, "max_batched_result_rows", MAX_BATCHED_RESULT_ROWS
+        )
         entity_rows = max(
             (len(values) for values in join_key_values.values()), default=0
         )
-        return entity_rows * len(grouped_refs) > MAX_BATCHED_READ_KEYS
+        return entity_rows * len(grouped_refs) <= limit
 
     @staticmethod
     def _bucket_row(buckets: List[Dict[bytes, List[Tuple]]], row: Tuple) -> None:
