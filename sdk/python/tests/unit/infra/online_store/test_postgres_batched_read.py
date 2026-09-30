@@ -6,11 +6,12 @@ from typing import List, Tuple
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from feast import Entity, FeatureView
 from feast.field import Field
 from feast.infra.online_stores.postgres_online_store.postgres import (
-    MAX_BATCHED_READ_KEYS,
+    MAX_BATCHED_RESULT_ROWS,
     PostgreSQLOnlineStore,
 )
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
@@ -36,7 +37,7 @@ def _feature_view(name: str, feature: str, entity: Entity = DRIVER) -> FeatureVi
     )
 
 
-def _config() -> RepoConfig:
+def _config(**online_store) -> RepoConfig:
     return RepoConfig(
         project="proj",
         provider="local",
@@ -49,6 +50,7 @@ def _config() -> RepoConfig:
             "db_schema": "public",
             "user": "root",
             "password": "test",  # pragma: allowlist secret
+            **online_store,
         },
         entity_key_serialization_version=3,
     )
@@ -120,9 +122,9 @@ async def _fake_conn_async(rows: List[Tuple], executed: List):
     yield _AsyncFakeConnection(rows, executed)
 
 
-def _args(grouped_refs, join_key_values, response):
+def _args(grouped_refs, join_key_values, response, config=None):
     return dict(
-        config=_config(),
+        config=config or _config(),
         grouped_refs=grouped_refs,
         join_key_values=join_key_values,
         entity_name_to_join_key_map=JOIN_KEY_MAP,
@@ -136,7 +138,7 @@ def _drivers(*ids) -> dict:
     return {"driver_id": [ValueProto(int64_val=i) for i in ids]}
 
 
-def _read(store, grouped_refs, rows, join_key_values=None):
+def _read(store, grouped_refs, rows, join_key_values=None, config=None):
     """Drive the sync override against a fake connection."""
     executed: List = []
     response = GetOnlineFeaturesResponse()
@@ -146,12 +148,12 @@ def _read(store, grouped_refs, rows, join_key_values=None):
         lambda self, cfg, autocommit=False: _fake_conn(rows, executed),
     ):
         store._read_features_per_fv(
-            **_args(grouped_refs, join_key_values or _drivers(1, 2), response)
+            **_args(grouped_refs, join_key_values or _drivers(1, 2), response, config)
         )
     return executed, response
 
 
-async def _read_async(store, grouped_refs, rows, join_key_values=None):
+async def _read_async(store, grouped_refs, rows, join_key_values=None, config=None):
     """Drive the async override against a fake connection."""
     executed: List = []
     response = GetOnlineFeaturesResponse()
@@ -161,25 +163,27 @@ async def _read_async(store, grouped_refs, rows, join_key_values=None):
         lambda self, cfg, autocommit=False: _fake_conn_async(rows, executed),
     ):
         await store._read_features_per_fv_async(
-            **_args(grouped_refs, join_key_values or _drivers(1, 2), response)
+            **_args(grouped_refs, join_key_values or _drivers(1, 2), response, config)
         )
     return executed, response
 
 
-async def _read_sync(store, grouped_refs, rows, join_key_values=None):
+async def _read_sync(store, grouped_refs, rows, join_key_values=None, config=None):
     """Await-compatible wrapper so both overrides share one test body."""
-    return _read(store, grouped_refs, rows, join_key_values)
+    return _read(store, grouped_refs, rows, join_key_values, config)
 
 
 READERS = [pytest.param(_read_sync, id="sync"), pytest.param(_read_async, id="async")]
 
 
-def _two_views_same_feature_name(store):
-    """Two views exposing the SAME feature name, both keyed on the same entity.
+@pytest.mark.parametrize("read", READERS)
+async def test_views_read_in_one_query_and_demultiplexed_by_tag(read):
+    """Two views sharing an entity key AND a feature name come back in one query.
 
     Distinct feature names make a demux failure invisible: _process_rows keys values
     by feature name, so a cross-contaminated bucket still yields the right value.
     """
+    store = PostgreSQLOnlineStore()
     grouped_refs = [
         (_feature_view("fv_a", "feat"), ["feat"]),
         (_feature_view("fv_b", "feat"), ["feat"]),
@@ -193,36 +197,14 @@ def _two_views_same_feature_name(store):
         (0, shared_key, "feat", _int(11), TS),
         (1, shared_key, "feat", _int(22), TS),
     ]
-    return grouped_refs, rows
 
-
-@pytest.mark.parametrize("read", READERS)
-async def test_single_round_trip_for_multiple_feature_views(read):
-    """Three feature views must produce one execute, not three."""
-    store = PostgreSQLOnlineStore()
-    grouped_refs = [
-        (_feature_view("fv_a", "feat_a"), ["feat_a"]),
-        (_feature_view("fv_b", "feat_b"), ["feat_b"]),
-        (_feature_view("fv_c", "feat_c"), ["feat_c"]),
-    ]
-
-    executed, _ = await read(store, grouped_refs, rows=[])
+    executed, response = await read(store, grouped_refs, rows)
 
     assert len(executed) == 1
     statement = executed[0][0].as_string(None)
-    assert statement.count("UNION ALL") == 2
-    for table in ("proj_fv_a", "proj_fv_b", "proj_fv_c"):
+    assert statement.count("UNION ALL") == 1
+    for table in ("proj_fv_a", "proj_fv_b"):
         assert table in statement
-
-
-@pytest.mark.parametrize("read", READERS)
-async def test_rows_are_demultiplexed_by_tag(read):
-    """Two views sharing an entity key AND a feature name must not cross."""
-    store = PostgreSQLOnlineStore()
-    grouped_refs, rows = _two_views_same_feature_name(store)
-
-    _, response = await read(store, grouped_refs, rows)
-
     assert response.results[0].values[0].int64_val == 11
     assert response.results[1].values[0].int64_val == 22
 
@@ -260,38 +242,67 @@ def test_per_view_entity_bookkeeping_is_not_shared():
     assert [v.int64_val for v in response.results[1].values] == [70, 70, 71]
 
 
+@pytest.mark.parametrize("read", READERS)
 @pytest.mark.parametrize(
-    ("entity_rows", "exp_executes"),
-    [(2, 1), (MAX_BATCHED_READ_KEYS, 0)],
-    ids=["under_threshold", "over_threshold"],
+    ("views", "entity_rows", "online_store", "exp_batched"),
+    [
+        (2, 2, {}, True),
+        (2, MAX_BATCHED_RESULT_ROWS, {}, False),
+        (1, 2, {}, False),
+        (2, 2, {"max_batched_result_rows": 4}, True),
+        (2, 2, {"max_batched_result_rows": 3}, False),
+        (2, 2, {"max_batched_result_rows": 0}, False),
+    ],
+    ids=[
+        "under_default_limit",
+        "over_default_limit",
+        "single_view",
+        "at_configured_limit",
+        "over_configured_limit",
+        "zero_disables_batching",
+    ],
 )
-def test_batching_is_gated_by_the_key_threshold(entity_rows, exp_executes):
-    """Past the key threshold, batching is skipped rather than ballooning memory.
+async def test_when_batching_applies(
+    read, views, entity_rows, online_store, exp_batched
+):
+    """Batching needs at least two views and a request within the row limit.
 
-    Two views, so the row count only has to reach the limit to exceed it. A batched
-    request issues exactly one statement; the generic fallback issues none, because
-    it reads each view through online_read instead.
+    A batched request issues one statement and never calls online_read; the generic
+    path issues none itself and reads each view through online_read instead.
     """
     store = PostgreSQLOnlineStore()
-    grouped_refs = [
-        (_feature_view("fv_a", "feat_a"), ["feat_a"]),
-        (_feature_view("fv_b", "feat_b"), ["feat_b"]),
-    ]
-    join_key_values = _drivers(*range(entity_rows))
+    names = [f"fv_{i}" for i in range(views)]
+    grouped_refs = [(_feature_view(n, f"feat_{n}"), [f"feat_{n}"]) for n in names]
+    per_view_reads: List[str] = []
 
     def one_row_per_key(self, config, table, entity_keys, requested_features=None):
+        per_view_reads.append(table.name)
         return [(None, None)] * len(entity_keys)
 
-    with patch.object(PostgreSQLOnlineStore, "online_read", one_row_per_key):
-        executed, _ = _read(store, grouped_refs, [], join_key_values)
+    async def one_row_per_key_async(self, *args, **kwargs):
+        return one_row_per_key(self, *args, **kwargs)
 
-    assert len(executed) == exp_executes
+    with (
+        patch.object(PostgreSQLOnlineStore, "online_read", one_row_per_key),
+        patch.object(PostgreSQLOnlineStore, "online_read_async", one_row_per_key_async),
+    ):
+        executed, _ = await read(
+            store,
+            grouped_refs,
+            [],
+            _drivers(*range(entity_rows)),
+            _config(**online_store),
+        )
+
+    assert len(executed) == (1 if exp_batched else 0)
+    assert sorted(per_view_reads) == ([] if exp_batched else names)
 
 
-def test_empty_grouped_refs_issues_no_query():
-    store = PostgreSQLOnlineStore()
-    executed, _ = _read(store, grouped_refs=[], rows=[])
-    assert executed == []
+def test_max_batched_result_rows_config():
+    """Defaults to 2048, and rejects negatives rather than silently never batching."""
+    assert _config().online_store.max_batched_result_rows == 2048
+    with pytest.raises(ValidationError):
+        _config(max_batched_result_rows=-1)
 
 
 @pytest.mark.parametrize(
