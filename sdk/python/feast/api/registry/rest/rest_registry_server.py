@@ -322,26 +322,40 @@ class RestRegistryServer:
     def start_server(
         self,
         port: int,
+        host: str = "::",
         tls_key_path: str = "",
         tls_cert_path: str = "",
     ):
+        """Start the REST registry server. host="::" (default) binds dual-stack
+        via a pre-built socket; any other host falls back to plain uvicorn.run."""
         import uvicorn
 
         from feast.registry_server import _sync_protected_project_tag
 
         _sync_protected_project_tag(self.store)
 
-        sock = _make_dual_stack_socket(port)
+        ssl_kwargs: dict = {}
         if tls_key_path and tls_cert_path:
-            logger.info("Starting REST registry server in TLS(SSL) mode")
-            logger.info(f"REST registry server listening on https://localhost:{port}")
-            config = uvicorn.Config(
-                self.app,
-                ssl_keyfile=tls_key_path,
-                ssl_certfile=tls_cert_path,
-            )
+            ssl_kwargs = {"ssl_keyfile": tls_key_path, "ssl_certfile": tls_cert_path}
+            scheme = "https"
         else:
-            logger.info("Starting REST registry server in non-TLS(SSL) mode")
-            logger.info(f"REST registry server listening on http://localhost:{port}")
-            config = uvicorn.Config(self.app)
-        uvicorn.Server(config).run(sockets=[sock])
+            scheme = "http"
+
+        if host == "::":
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
+            )
+            logger.info(
+                f"REST registry server listening on {scheme}://localhost:{port}"
+            )
+            sock = _make_dual_stack_socket(port)
+            config = uvicorn.Config(self.app, **ssl_kwargs)
+            uvicorn.Server(config).run(sockets=[sock])
+        else:
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
+            )
+            logger.info(f"REST registry server listening on {scheme}://{host}:{port}")
+            uvicorn.run(self.app, host=host, port=port, **ssl_kwargs)
