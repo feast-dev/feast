@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import uuid
 
 import numpy as np
@@ -2340,3 +2342,26 @@ class TestZonedTimestamp:
             Array(ZonedTimestamp)
         with pytest.raises(ValueError):
             Set(ZonedTimestamp)
+
+
+def test_import_does_not_emit_numpy_deprecation_warning():
+    # A unit-less np.datetime64("NaT") uses NumPy's deprecated "generic" unit,
+    # which would make importing feast fail under -W error::DeprecationWarning.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "error::DeprecationWarning:feast.type_map",
+            "-c",
+            "import feast.type_map",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_null_timestamp_int_value():
+    from feast.type_map import NULL_TIMESTAMP_INT_VALUE
+
+    assert NULL_TIMESTAMP_INT_VALUE == np.iinfo(np.int64).min

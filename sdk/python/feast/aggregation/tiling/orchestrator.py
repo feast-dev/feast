@@ -6,13 +6,15 @@ Engines (Spark, Ray, etc.) just need to convert to/from pandas.
 """
 
 from datetime import timedelta
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
-import numpy as np
 import pandas as pd
 
 from feast.aggregation import Aggregation
-from feast.aggregation.tiling.base import get_ir_metadata_for_aggregation
+from feast.aggregation.tiling.base import (
+    compute_holistic_value_from_irs,
+    get_ir_metadata_for_aggregation,
+)
 
 
 def apply_sawtooth_window_tiling(
@@ -59,6 +61,9 @@ def apply_sawtooth_window_tiling(
     # Step 2: Group by entity keys + hop interval and aggregate
     agg_dict: Dict[str, Tuple[str, Union[str, Callable[[Any], Any]]]] = {}
     ir_metadata_dict = {}
+    # max/min cannot be undone by subtraction, so these columns keep per-hop
+    # values instead of cumulative ones (reduced over the window later).
+    per_hop_columns: Set[str] = set()
 
     for agg in aggregations:
         feature_name = agg.resolved_name(window_size)
@@ -74,8 +79,10 @@ def apply_sawtooth_window_tiling(
                 agg_dict[f"_tail_{feature_name}"] = (agg.column, "count")
             elif agg.function == "max":
                 agg_dict[f"_tail_{feature_name}"] = (agg.column, "max")
+                per_hop_columns.add(f"_tail_{feature_name}")
             elif agg.function == "min":
                 agg_dict[f"_tail_{feature_name}"] = (agg.column, "min")
+                per_hop_columns.add(f"_tail_{feature_name}")
 
         elif metadata.type in ("holistic", "avg", "std", "var"):
             # Holistic aggregations: compute IRs
@@ -139,15 +146,11 @@ def apply_sawtooth_window_tiling(
                 group_df, on=group_by_keys + ["_hop_interval"], how="left"
             )
 
-            # Fill NaN with 0 for IR columns
+            # Fill NaN with 0 and compute cumulative sum for IR columns
+            # (empty hops stay NaN for per-hop max/min columns)
             for col in ir_columns:
-                if col in merged.columns:
-                    merged[col] = merged[col].fillna(0)
-
-            # Compute cumulative sum for IR columns
-            for col in ir_columns:
-                if col in merged.columns:
-                    merged[col] = merged[col].cumsum()
+                if col in merged.columns and col not in per_hop_columns:
+                    merged[col] = merged[col].fillna(0).cumsum()
 
             cumulative_results.append(merged)
 
@@ -178,12 +181,16 @@ def apply_sawtooth_window_tiling(
                     sum_col = ir_column_names[0]
                     count_col = ir_column_names[1]
 
+                    sum_sq_col = (
+                        ir_column_names[2] if len(ir_column_names) >= 3 else None
+                    )
+
                     if sum_col in result.columns and count_col in result.columns:
-                        # Compute avg = sum / count
-                        result[feature_name] = np.where(
-                            result[count_col] > 0,
-                            result[sum_col] / result[count_col],
-                            0,
+                        result[feature_name] = compute_holistic_value_from_irs(
+                            agg,
+                            result[sum_col],
+                            result[count_col],
+                            result[sum_sq_col] if sum_sq_col else None,
                         )
 
     return result

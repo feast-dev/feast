@@ -59,6 +59,7 @@ from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.feature_servers.base_config import MetricsConfig
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -238,6 +239,21 @@ def _resolve_feature_counts(
     return str(feat_count), str(len(fv_names))
 
 
+def bin_feature_count(count: int, bins: List[int]) -> str:
+    """Map a raw feature count to an inclusive range label."""
+    if count == 0:
+        return "0"
+
+    lower = 1
+
+    for upper in bins:
+        if count <= upper:
+            return f"{lower}-{upper}"
+        lower = upper + 1
+
+    return f"{lower}+"
+
+
 def _emit_online_audit(
     request: GetOnlineFeaturesRequest,
     features: Union[List[str], "feast.FeatureService"],
@@ -246,6 +262,8 @@ def _emit_online_audit(
     latency_ms: float,
 ):
     """Best-effort audit log emission for online feature requests."""
+    if not feast_metrics._config.audit_logging:
+        return
     try:
         from feast.permissions.security_manager import get_security_manager
 
@@ -632,6 +650,16 @@ def get_app(
 
         app.add_middleware(AuditLoggingMiddleware)
 
+    fs_cfg = getattr(store.config, "feature_server", None)
+    metrics_cfg = getattr(fs_cfg, "metrics", None)
+
+    default_feature_count_bins = MetricsConfig().feature_count_bins
+    feature_count_bins = (
+        getattr(metrics_cfg, "feature_count_bins", default_feature_count_bins)
+        if metrics_cfg is not None
+        else default_feature_count_bins
+    )
+
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
@@ -643,7 +671,11 @@ def get_app(
         ) as metrics_ctx:
             features = await _get_features(request, store)
             feat_count, fv_count = _resolve_feature_counts(features)
-            metrics_ctx.feature_count = feat_count
+
+            metrics_ctx.feature_count = bin_feature_count(
+                int(feat_count),
+                feature_count_bins,
+            )
             metrics_ctx.feature_view_count = fv_count
 
             entity_count = len(next(iter(request.entities.values()), []))
@@ -656,9 +688,11 @@ def get_app(
                 include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
-            audit_start_ms = time.monotonic() * 1000
+            audit_start_ms = 0.0
             audit_status = "success"
             try:
+                if feast_metrics._config.audit_logging:
+                    audit_start_ms = time.monotonic() * 1000
                 if store._get_provider().async_supported.online.read:
                     response = await store.get_online_features_async(**read_params)  # type: ignore
                 else:
@@ -669,10 +703,11 @@ def get_app(
                 audit_status = "error"
                 raise
             finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
-                )
+                if feast_metrics._config.audit_logging:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
 
             response_dict = await run_in_threadpool(
                 convert_response_to_dict, response.proto
@@ -1288,6 +1323,7 @@ def start_server(
 
     fs_cfg = getattr(store.config, "feature_server", None)
     metrics_cfg = getattr(fs_cfg, "metrics", None)
+
     metrics_from_config = getattr(metrics_cfg, "enabled", False)
     metrics_active = metrics or metrics_from_config
     uses_gunicorn = sys.platform != "win32"

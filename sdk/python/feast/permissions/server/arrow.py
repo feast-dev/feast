@@ -80,6 +80,7 @@ def inject_user_details(context: ServerCallContext):
         logger.debug(f"User extracted: {current_user}")
 
         sm.set_current_user(current_user)
+        sm.set_current_request_token(auth_middleware.access_token)
 
 
 def inject_user_details_decorator(func):
