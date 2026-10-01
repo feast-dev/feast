@@ -15,6 +15,7 @@ from feast.infra.ray_shared_utils import (
     _is_nested_arrow_dtype,
     _is_ray_extension_dtype,
     normalize_arrow_dtypes,
+    pandas_to_arrow_with_list_types,
 )
 
 
@@ -130,13 +131,39 @@ def test_is_nested_arrow_dtype():
 
 
 def test_cell_to_python_converts_array_likes():
-    assert _cell_to_python(np.array([1, 2])) == [1, 2]
+    assert isinstance(_cell_to_python(np.array([1, 2])), np.ndarray)
+    np.testing.assert_array_equal(_cell_to_python(np.array([1, 2])), np.array([1, 2]))
     value = FakeTensorElement([1, 1])
     assert not isinstance(value, (np.ndarray, list))
-    assert _cell_to_python(value) == [1, 1]
-    assert isinstance(_cell_to_python(value), list)
+    converted = _cell_to_python(value)
+    assert isinstance(converted, np.ndarray)
+    np.testing.assert_array_equal(converted, np.array([1, 1]))
     assert _cell_to_python([3, 4]) == [3, 4]
     assert _cell_to_python(None) is None
+
+
+def test_cell_to_python_preserves_typed_empty_ndarray():
+    empty = np.empty(0, dtype=np.int32)
+    out = _cell_to_python(empty)
+    assert isinstance(out, np.ndarray)
+    assert out.dtype == np.int32
+    assert len(out) == 0
+
+
+def test_pandas_to_arrow_casts_null_list_using_feature_types():
+    df = pd.DataFrame({"value": [[], []]})
+    table = pandas_to_arrow_with_list_types(df, {"value": pa.list_(pa.int32())})
+    assert pa.types.is_list(table.schema.field("value").type)
+    assert pa.types.is_int32(table.schema.field("value").type.value_type)
+
+
+def test_pandas_to_arrow_infers_from_typed_empty_ndarray():
+    df = pd.DataFrame(
+        {"value": [np.empty(0, dtype=np.int32), np.empty(0, dtype=np.int32)]}
+    )
+    table = pandas_to_arrow_with_list_types(df)
+    assert pa.types.is_list(table.schema.field("value").type)
+    assert pa.types.is_int32(table.schema.field("value").type.value_type)
 
 
 def test_normalize_ray_tensor_column_end_to_end():
@@ -150,8 +177,8 @@ def test_normalize_ray_tensor_column_end_to_end():
 
     out = normalize_arrow_dtypes(df)
     assert pd.api.types.is_object_dtype(out["value"].dtype)
-    assert isinstance(out["value"].iloc[0], list)
-    assert out["value"].iloc[0] == [1, 1]
+    assert isinstance(out["value"].iloc[0], (np.ndarray, list))
+    np.testing.assert_array_equal(np.asarray(out["value"].iloc[0]), np.array([1, 1]))
 
     table = pa.Table.from_pandas(out)
     assert pa.types.is_list(table.schema.field("value").type)

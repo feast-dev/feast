@@ -36,33 +36,82 @@ def _is_nested_arrow_dtype(dtype: Any) -> bool:
 
 
 def _cell_to_python(value: Any) -> Any:
-    """Convert a list/array-like cell to a plain Python object.
+    """Convert a Ray extension cell to a plain Python / NumPy object.
 
     Ray's ``TensorDtype`` yields ``TensorArrayElement`` values that print like
-    ``array([...])`` but are *not* ``isinstance(..., np.ndarray)``.  Using
-    ``.tolist()`` / ``np.asarray(...).tolist()`` produces real Python lists so
-    that:
-      * ``isinstance(v, (np.ndarray, list))`` succeeds via ``list``
-      * ``pa.Table.from_pandas`` infers a proper Arrow list type
+    ``array([...])`` but are *not* ``isinstance(..., np.ndarray)``.
+
+    Empty list features are stored by Feast as typed empty NumPy arrays
+    (see ``convert_array_column``) so that Arrow can infer ``list<item: T>``
+    rather than ``list<item: null>``.  Therefore we prefer keeping values as
+    ``np.ndarray`` (including empty ones) over calling ``.tolist()``, which
+    would turn ``np.empty(0, dtype=int32)`` into a typeless ``[]``.
     """
-    if value is None or isinstance(value, (list, tuple, str, bytes, dict)):
-        return list(value) if isinstance(value, tuple) else value
+    if value is None or isinstance(value, (str, bytes, dict)):
+        return value
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
     if isinstance(value, np.ndarray):
-        return value.tolist()
+        return value
     # Ray TensorArrayElement and similar array-likes
+    if hasattr(value, "__array__") and not isinstance(value, (pd.Timestamp,)):
+        try:
+            arr = np.asarray(value)
+            if getattr(arr, "ndim", 0) >= 1:
+                return arr
+        except Exception:
+            pass
     if hasattr(value, "tolist") and not isinstance(value, (pd.Timestamp,)):
         try:
             return value.tolist()
         except Exception:
             pass
-    if hasattr(value, "__array__"):
-        try:
-            arr = np.asarray(value)
-            if getattr(arr, "ndim", 0) > 0:
-                return arr.tolist()
-        except Exception:
-            pass
     return value
+
+
+def pandas_to_arrow_with_list_types(
+    df: pd.DataFrame,
+    column_pa_types: Optional[Dict[str, pa.DataType]] = None,
+) -> pa.Table:
+    """Convert a DataFrame to Arrow, preserving list value types when possible.
+
+    ``pa.Table.from_pandas`` infers ``list<item: null>`` when a list column
+    contains only empty Python lists.  When ``column_pa_types`` provides the
+    Feast-declared Arrow type for a column (e.g. ``list<int32>``), that type
+    is used to cast the column after conversion.
+
+    List columns inferred as ``list<float32>`` are promoted to ``list<float64>``
+    to match the historical pandas materialization path that universal type
+    tests assert against.
+    """
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    column_pa_types = column_pa_types or {}
+
+    arrays = []
+    fields = []
+    for field in table.schema:
+        col = table.column(field.name)
+        target = column_pa_types.get(field.name)
+        col_type = field.type
+
+        if (
+            target is not None
+            and pa.types.is_list(target)
+            and pa.types.is_list(col_type)
+            and pa.types.is_null(col_type.value_type)
+            and not pa.types.is_null(target.value_type)
+        ):
+            col = col.cast(target)
+            col_type = target
+        elif pa.types.is_list(col_type) and pa.types.is_float32(col_type.value_type):
+            col_type = pa.list_(pa.float64())
+            col = col.cast(col_type)
+
+        arrays.append(col)
+        fields.append(pa.field(field.name, col_type, nullable=field.nullable))
+    return pa.Table.from_arrays(arrays, schema=pa.schema(fields))
 
 
 def normalize_arrow_dtypes(df: pd.DataFrame) -> pd.DataFrame:
