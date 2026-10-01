@@ -12,6 +12,7 @@ from pymilvus import (
     FieldSchema,
     MilvusClient,
 )
+from pymilvus.client.types import LoadState
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -114,6 +115,13 @@ MILVUS_NATIVE_NUMERIC_TYPES = {
     DataType.BOOL,
 }
 
+# Milvus requires every collection to have a vector field, so feature views
+# without one get a small placeholder vector. Milvus servers reject vectors
+# with fewer than 2 dimensions and non-finite values, and a collection can only
+# be loaded once every vector field is indexed.
+PLACEHOLDER_VECTOR_FIELD = "_placeholder_vector"
+PLACEHOLDER_VECTOR_DIM = 2
+
 
 def _milvus_escape_string(s: str) -> str:
     """Escape a string for safe use inside a Milvus single-quoted literal.
@@ -204,12 +212,24 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: Optional[StrictStr] = ""
     host: Optional[StrictStr] = "http://localhost"
     port: Optional[int] = 19530
+    # Full endpoint, e.g. a Zilliz Cloud https URI. Takes precedence over host/port.
+    uri: Optional[StrictStr] = None
+    # API key or "username:password". Takes precedence over username/password.
+    token: Optional[StrictStr] = None
+    # Milvus database to use. The database must already exist.
+    db_name: Optional[StrictStr] = None
     index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
     text_search_enabled: Optional[bool] = False
     nlist: Optional[int] = 128
+    # Index build params for vector fields, e.g. {"M": 16, "efConstruction": 200}.
+    # Defaults to {"nlist": nlist}, or {} for AUTOINDEX.
+    index_params: Optional[Dict[str, Any]] = None
+    # Search params, e.g. {"ef": 64}, or {"level": 2} for AUTOINDEX.
+    # Defaults to {"nprobe": 10}, or {} for AUTOINDEX.
+    search_params: Optional[Dict[str, Any]] = None
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
@@ -250,22 +270,25 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            if config.provider == "local" and config.online_store.path:
+            online_config = config.online_store
+            if (
+                config.provider == "local"
+                and online_config.path
+                and not online_config.uri
+            ):
                 db_path = self._get_db_path(config)
                 logger.info("Connecting to Milvus in local mode using %s", db_path)
                 self.client = MilvusClient(db_path)
             else:
-                logger.info(
-                    "Connecting to Milvus remotely at %s:%s",
-                    config.online_store.host,
-                    config.online_store.port,
-                )
-                self.client = MilvusClient(
-                    uri=f"{config.online_store.host}:{config.online_store.port}",
-                    token=f"{config.online_store.username}:{config.online_store.password}"
-                    if config.online_store.username and config.online_store.password
-                    else "",
-                )
+                uri = online_config.uri or f"{online_config.host}:{online_config.port}"
+                logger.info("Connecting to Milvus remotely at %s", uri)
+                client_kwargs: Dict[str, Any] = {
+                    "uri": uri,
+                    "token": _milvus_token(online_config),
+                }
+                if online_config.db_name:
+                    client_kwargs["db_name"] = online_config.db_name
+                self.client = MilvusClient(**client_kwargs)
         return self.client
 
     def _get_or_create_collection(
@@ -348,9 +371,9 @@ class MilvusOnlineStore(OnlineStore):
             if not has_vector_field:
                 fields.append(
                     FieldSchema(
-                        name="_placeholder_vector",
+                        name=PLACEHOLDER_VECTOR_FIELD,
                         dtype=DataType.FLOAT_VECTOR,
-                        dim=1,
+                        dim=PLACEHOLDER_VECTOR_DIM,
                     )
                 )
             schema = CollectionSchema(
@@ -360,45 +383,60 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    dimension=config.online_store.embedding_dim,
-                    schema=schema,
-                )
                 index_params = self.client.prepare_index_params()
-                indices_added = False
                 for vector_field in schema.fields:
-                    if (
-                        vector_field.dtype
-                        in [
-                            DataType.FLOAT_VECTOR,
-                            DataType.BINARY_VECTOR,
-                        ]
-                        and vector_field.name in vector_field_dict
-                    ):
+                    if vector_field.dtype not in [
+                        DataType.FLOAT_VECTOR,
+                        DataType.BINARY_VECTOR,
+                    ]:
+                        continue
+                    if vector_field.name in vector_field_dict:
                         metric = vector_field_dict[
                             vector_field.name
                         ].vector_search_metric
                         index_params.add_index(
-                            collection_name=collection_name,
                             field_name=vector_field.name,
                             metric_type=metric or config.online_store.metric_type,
                             index_type=config.online_store.index_type,
                             index_name=f"vector_index_{vector_field.name}",
-                            params={"nlist": config.online_store.nlist},
+                            params=_index_build_params(config.online_store),
                         )
-                        indices_added = True
-                if indices_added:
-                    self.client.create_index(
-                        collection_name=collection_name,
-                        index_params=index_params,
-                    )
+                    else:
+                        # Vector fields that aren't searched (the placeholder,
+                        # or arrays without vector_index) still need an index,
+                        # otherwise Milvus servers refuse to load the collection.
+                        index_params.add_index(
+                            field_name=vector_field.name,
+                            metric_type="L2"
+                            if vector_field.name == PLACEHOLDER_VECTOR_FIELD
+                            else config.online_store.metric_type,
+                            index_type="FLAT",
+                            index_name=f"vector_index_{vector_field.name}",
+                        )
+                # Every collection has at least one vector field, and every
+                # vector field is indexed, so passing the index params here
+                # makes Milvus create the indexes and load the collection.
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    dimension=config.online_store.embedding_dim,
+                    schema=schema,
+                    index_params=index_params,
+                )
             else:
-                self.client.load_collection(collection_name)
+                self._ensure_loaded(collection_name)
+            # Collections are only cached once loaded, so reads and searches
+            # don't need to load them again.
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
             )
         return self._collections[collection_name]
+
+    def _ensure_loaded(self, collection_name: str) -> None:
+        """Load an existing collection unless Milvus already has it loaded."""
+        assert self.client is not None, "Milvus client is not initialized"
+        load_state = self.client.get_load_state(collection_name).get("state")
+        if load_state != LoadState.Loaded:
+            self.client.load_collection(collection_name)
 
     def online_write_batch(
         self,
@@ -423,6 +461,15 @@ class MilvusOnlineStore(OnlineStore):
         collection_field_types = {
             field["name"]: field["type"] for field in collection["fields"]
         }
+        # Collections created by older Feast versions may use a 1-dim placeholder.
+        placeholder_dim = next(
+            (
+                int(field.get("params", {}).get("dim", PLACEHOLDER_VECTOR_DIM))
+                for field in collection["fields"]
+                if field["name"] == PLACEHOLDER_VECTOR_FIELD
+            ),
+            PLACEHOLDER_VECTOR_DIM,
+        )
         schema_internal_fields = {"event_ts", "created_ts"}
         collection_has_native_numerics = any(
             collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
@@ -472,8 +519,8 @@ class MilvusOnlineStore(OnlineStore):
             for field in required_fields:
                 if field not in single_entity_record:
                     field_type = collection_field_types.get(field, DataType.VARCHAR)
-                    if field == "_placeholder_vector":
-                        single_entity_record[field] = [float("nan")]
+                    if field == PLACEHOLDER_VECTOR_FIELD:
+                        single_entity_record[field] = [0.0] * placeholder_dim
                     else:
                         single_entity_record[field] = _default_for_milvus_type(
                             field_type
@@ -533,7 +580,6 @@ class MilvusOnlineStore(OnlineStore):
             + ", ".join([f"'{e}'" for e in composite_entities])
             + "]"
         )
-        self.client.load_collection(collection_name)
         results = self.client.query(
             collection_name=collection_name,
             filter=query_filter_for_entities,
@@ -746,8 +792,6 @@ class MilvusOnlineStore(OnlineStore):
                     ann_search_field = field["name"]
                     break
 
-        self.client.load_collection(collection_name)
-
         if filters and filters_contain_numeric_comparison(filters):
             collection_field_types = {
                 f["name"]: f["type"] for f in collection["fields"]
@@ -808,7 +852,7 @@ class MilvusOnlineStore(OnlineStore):
 
             search_params = {
                 "metric_type": distance_metric or config.online_store.metric_type,
-                "params": {"nprobe": 10},
+                "params": _search_params(config.online_store),
             }
 
             results = self.client.search(
@@ -825,7 +869,7 @@ class MilvusOnlineStore(OnlineStore):
             # Vector search only
             search_params = {
                 "metric_type": distance_metric or config.online_store.metric_type,
-                "params": {"nprobe": 10},
+                "params": _search_params(config.online_store),
             }
 
             results = self.client.search(
@@ -986,6 +1030,36 @@ class MilvusOnlineStore(OnlineStore):
 
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
+
+
+def _is_autoindex(online_config: MilvusOnlineStoreConfig) -> bool:
+    return (online_config.index_type or "").upper() == "AUTOINDEX"
+
+
+def _index_build_params(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """Build params for vector indexes. AUTOINDEX accepts none besides the metric."""
+    if online_config.index_params is not None:
+        return dict(online_config.index_params)
+    if _is_autoindex(online_config):
+        return {}
+    return {"nlist": online_config.nlist}
+
+
+def _search_params(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    if online_config.search_params is not None:
+        return dict(online_config.search_params)
+    if _is_autoindex(online_config):
+        return {}
+    return {"nprobe": 10}
+
+
+def _milvus_token(online_config: MilvusOnlineStoreConfig) -> str:
+    """Return the token to authenticate with: ``token``, else ``username:password``."""
+    if online_config.token:
+        return online_config.token
+    if online_config.username and online_config.password:
+        return f"{online_config.username}:{online_config.password}"
+    return ""
 
 
 def _get_composite_key_name(table: FeatureView) -> str:

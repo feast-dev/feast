@@ -1,4 +1,7 @@
-from feast.infra.registry.proto_registry_utils import list_saved_datasets
+from unittest.mock import patch
+
+from feast import Entity
+from feast.infra.registry.proto_registry_utils import list_entities, list_saved_datasets
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -6,6 +9,30 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDatasetStorage,
 )
 from feast.saved_dataset import SavedDataset
+from feast.value_type import ValueType
+
+
+def test_equivalent_tag_filters_reuse_cached_entities() -> None:
+    registry = RegistryProto(version_id="test_version")
+    entity = Entity(
+        name="driver",
+        value_type=ValueType.INT64,
+        tags={"environment": "production", "team": "ml"},
+    ).to_proto()
+    entity.spec.project = "test_project"
+    registry.entities.append(entity)
+
+    with patch.object(Entity, "from_proto", wraps=Entity.from_proto) as from_proto:
+        first = list_entities(
+            registry, "test_project", {"environment": "production", "team": "ml"}
+        )
+        second = list_entities(
+            registry, "test_project", {"team": "ml", "environment": "production"}
+        )
+
+        assert [obj.name for obj in first] == ["driver"]
+        assert [obj.name for obj in second] == ["driver"]
+        from_proto.assert_called_once()
 
 
 class TestRegistryProto:

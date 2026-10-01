@@ -361,7 +361,16 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+
+        if isinstance(feature_view.batch_source, IcebergSource):
+            _iceberg_offline_write_batch(config, feature_view, table)
+            return
+
         assert isinstance(feature_view.batch_source, SparkSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
@@ -929,29 +938,33 @@ def _spark_sql_categorical_stats(
 ) -> Dict[str, Any]:
     q_col = f"`{col_name}`"
 
-    query = (
-        f"WITH filtered AS ("
-        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
-        f") "
+    counts_query = (
         f"SELECT "
-        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
-        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
-        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
-        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
-        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
-        f"FROM filtered WHERE {q_col} IS NOT NULL "
-        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {ts_clause}"
     )
-
-    rows = spark_session.sql(query).collect()
-    if not rows:
+    rows = spark_session.sql(counts_query).collect()
+    if not rows or rows[0][0] is None or int(rows[0][0]) == 0:
         return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
     unique_count = int(rows[0][2] or 0)
 
-    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+            f"FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        top_rows = spark_session.sql(top_n_query).collect()
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
     top_total = sum(e["count"] for e in top_entries)
     other_count = (row_count - null_count) - top_total
 
@@ -1243,7 +1256,7 @@ def _register_iceberg_source_as_temp_view(
 
     iceberg_table = _load_pyiceberg_table(data_source)
     arrow_table = iceberg_table.scan().to_arrow()
-    df = spark_session.createDataFrame(arrow_table.to_pandas())
+    df = spark_session.createDataFrame(arrow_table)
     df.createOrReplaceTempView(view_name)
 
 
@@ -1273,6 +1286,28 @@ def _load_pyiceberg_table(data_source: "DataSource"):
             catalog_config["token"] = token
     catalog = load_catalog(data_source.catalog_name, **catalog_config)
     return catalog.load_table(fqn)
+
+
+def _iceberg_offline_write_batch(
+    config: "RepoConfig",
+    feature_view: "FeatureView",
+    table: "pyarrow.Table",
+) -> None:
+    """Write a PyArrow table to an IcebergSource via PyIceberg.
+
+    Uses PyIceberg's append() API which produces proper Iceberg snapshots,
+    handles schema evolution, and updates catalog metadata — making the
+    written data discoverable via any Iceberg-compatible engine.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(feature_view.batch_source, IcebergSource)
+    data_source: IcebergSource = feature_view.batch_source
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    iceberg_table.append(table)
 
 
 def _pull_from_iceberg_source(

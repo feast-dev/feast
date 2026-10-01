@@ -98,6 +98,7 @@
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 * [Starting Feast servers in TLS(SSL) Mode](how-to-guides/starting-feast-servers-tls-mode.md)
 * [Importing Features from dbt](how-to-guides/dbt-integration.md)
+* [Using MLflow as a Data Source](how-to-guides/mlflow-datasource.md)
 * [Entity Key Serialization (v2 to v3)](how-to-guides/entity-reserialization-of-from-v2-to-v3.md)
 * [Feature Quality Monitoring](how-to-guides/feature-monitoring.md)
 
@@ -221,6 +222,8 @@
 * [Usage](reference/usage.md)
 
 ## Project
+
+* [Feast + Chronon: Feature Store Summit presentation](presentations/feast-chronon-summit/README.md)
 
 * [Contribution process](project/contributing.md)
 * [Development guide](project/development-guide.md)

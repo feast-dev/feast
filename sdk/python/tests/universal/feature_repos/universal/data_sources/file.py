@@ -151,7 +151,7 @@ class DeltaFileSourceCreator(FileDataSourceCreator):
 class DeltaS3FileSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        self.minio = MinioContainer()
+        self.minio = MinioContainer(image="pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
         self.minio.start()
         client = self.minio.get_client()
         if not client.bucket_exists("test"):
@@ -255,7 +255,7 @@ class S3FileDataSourceCreator(DataSourceCreator):
     bucket = "feast-test"
     access_key = "AKIAIOSFODNN7EXAMPLE"
     secret = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-    minio_image = "minio/minio:RELEASE.2021-08-17T20-53-08Z"
+    minio_image = "pgsty/minio:RELEASE.2026-08-04T00-00-00Z"
 
     def __init__(self, _: str):
         self._setup_minio()

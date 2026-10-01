@@ -63,8 +63,14 @@ def registry_proto_cache_with_tags(func):
         nonlocal cache_key, cache_value
 
         kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
-        key = tuple(
-            [id(registry_proto), registry_proto.version_id, project, tags, kwargs_key]
+        # Snapshot the filter so caller mutations cannot change a cached key.
+        tags_key = frozenset(tags.items()) if tags is not None else None
+        key = (
+            id(registry_proto),
+            registry_proto.version_id,
+            project,
+            tags_key,
+            kwargs_key,
         )
 
         if key == cache_key:
