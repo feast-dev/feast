@@ -324,3 +324,88 @@ def test_registry_refresh_endpoint_error(mock_feature_store):
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post("/api/v1/registry/refresh")
         assertpy.assert_that(resp.status_code).is_equal_to(500)
+
+
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_dual_stack_binds_prebuilt_socket(mock_get_app, mock_uvicorn):
+    """host="::" must go through a pre-bound dual-stack socket, not
+    uvicorn.run(host="::"), which binds IPv6-only and drops IPv4 clients."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+    mock_sock = MagicMock()
+
+    with patch(
+        "feast.utils._make_dual_stack_socket", return_value=mock_sock
+    ) as mock_make_sock:
+        start_server(
+            MagicMock(),
+            host="::",
+            port=8888,
+            project_id=TEST_PROJECT_NAME,
+            tls_key_path="key.pem",
+            tls_cert_path="cert.pem",
+        )
+
+    mock_make_sock.assert_called_once_with(8888)
+    mock_uvicorn.Config.assert_called_once_with(
+        mock_app, ssl_keyfile="key.pem", ssl_certfile="cert.pem"
+    )
+    mock_uvicorn.Server.assert_called_once_with(mock_uvicorn.Config.return_value)
+    mock_uvicorn.Server.return_value.run.assert_called_once_with(sockets=[mock_sock])
+    mock_uvicorn.run.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_plain_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A non dual-stack host keeps today's plain uvicorn.run behavior. Also
+    mocks _make_dual_stack_socket so a broken host comparison fails fast on
+    an assertion instead of hanging in a real uvicorn.Server.run()."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="0.0.0.0",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="0.0.0.0", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_non_wildcard_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A host that sorts after "::" (e.g. starting with a letter) must still
+    take the plain uvicorn.run path -- regression test for a comparison
+    mutant (host == "::" weakened to >=) that a "0.0.0.0"-only test can't
+    catch, since "0.0.0.0" < "::" either way."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="example.com",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="example.com", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()

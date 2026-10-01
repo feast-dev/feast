@@ -1,7 +1,9 @@
 import copy
+import functools
 import itertools
 import logging
 import os
+import socket
 import threading
 import typing
 import warnings
@@ -61,6 +63,50 @@ if typing.TYPE_CHECKING:
 
 APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+@functools.lru_cache()
+def _ipv6_available() -> bool:
+    """Whether this process can bind AF_INET6 (cached: can't change at runtime)."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            sock.bind(("::", 0))
+        return True
+    except OSError:
+        return False
+
+
+def _make_dual_stack_socket(port: int, blocking: bool = False) -> socket.socket:
+    """Pre-bind a dual-stack socket for a server to adopt.
+
+    A framework handed host="::" directly (uvicorn.run, loop.create_server)
+    sets IPV6_V6ONLY=1 on its own socket, silently dropping IPv4 clients.
+    Binding here with V6ONLY cleared avoids that; falls back to IPv4-only
+    when the host can't bind AF_INET6.
+
+    Non-blocking by default since every current caller hands the socket to
+    an asyncio-based server (uvicorn.Server(...).run(sockets=[sock])), which
+    requires that; pass blocking=True for a synchronous server instead.
+    """
+    dual_stack = _ipv6_available()
+    if dual_stack:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        address: tuple = ("::", port)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        address = ("0.0.0.0", port)
+    try:
+        if dual_stack:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(address)
+        sock.listen(socket.SOMAXCONN)
+        sock.setblocking(blocking)
+    except Exception:
+        sock.close()
+        raise
+    return sock
 
 
 def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:

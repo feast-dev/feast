@@ -4765,15 +4765,20 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         rest_api: bool = False,
+        host: str = "::",
     ) -> None:
-        """Start registry server locally on a given port."""
+        """Start registry server locally on a given port. `host` only applies
+        to the REST server (rest_api=True); defaults to dual-stack "::"."""
         if rest_api:
             from feast.api.registry.rest import rest_registry_server
 
             server = rest_registry_server.RestRegistryServer(self)
 
             server.start_server(
-                port=port, tls_key_path=tls_key_path, tls_cert_path=tls_cert_path
+                port=port,
+                host=host,
+                tls_key_path=tls_key_path,
+                tls_cert_path=tls_cert_path,
             )
         else:
             from feast import registry_server
