@@ -106,7 +106,7 @@
     "jest-watch-typeahead": "^2.2.2",
     "mini-css-extract-plugin": "^2.4.5",
     "minimatch": "^10.0.3",
-    "msw": "^2.7.0",
+    "msw": "2.12.2",
     "postcss": "^8.4.4",
     "postcss-flexbugs-fixes": "^5.0.2",
     "postcss-loader": "^6.2.1",
@@ -140,7 +140,12 @@
     "workbox-webpack-plugin": "^6.4.1"
   },
   "resolutions": {
-    "nwsapi": "2.2.13"
+    "nwsapi": "2.2.13",
+    "js-yaml": "5.4.2",
+    "fast-uri": "4.2.1",
+    "msw": "2.12.2",
+    "rettime": "0.7.0",
+    "node-releases": "2.0.44"
   },
   "description": "Web UI for the [Feast Feature Store](https://feast.dev/)",
   "repository": {

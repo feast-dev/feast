@@ -49,5 +49,12 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "resolutions": {
+    "js-yaml": "5.4.2",
+    "fast-uri": "4.2.1",
+    "@types/jest": "27.5.2",
+    "expect": "27.5.1",
+    "node-releases": "2.0.44"
   }
 }
