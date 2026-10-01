@@ -1118,24 +1118,13 @@ class RayRetrievalJob(RetrievalJob):
                 validation_reference=validation_reference, timeout=timeout
             )
 
-        if self._prefer_ray_datasets:
-            try:
-                import ray as _ray
-
-                ray_ds = self._get_ray_dataset()
-                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
-            except Exception:
-                df = self.to_df(
-                    validation_reference=validation_reference, timeout=timeout
-                )
-                return pa.Table.from_pandas(df)
-        else:
-            result = self._resolve()
-            if isinstance(result, pd.DataFrame):
-                return pa.Table.from_pandas(result)
-            else:
-                df = result.to_pandas()
-                return pa.Table.from_pandas(df)
+        # Always go through the normalized pandas path.  Ray's
+        # Dataset.to_arrow_refs() preserves TensorDtype / PythonObjectDtype as
+        # ArrowPythonObjectType(large_binary), which breaks list-feature type
+        # contracts.  normalize_arrow_dtypes() in to_df() restores plain Python
+        # lists so pa.Table.from_pandas infers real Arrow list types.
+        df = self.to_df(validation_reference=validation_reference, timeout=timeout)
+        return pa.Table.from_pandas(df)
 
     def to_feast_df(
         self,
@@ -1197,22 +1186,7 @@ class RayRetrievalJob(RetrievalJob):
             return self._resolve().to_pandas()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
-        if self._prefer_ray_datasets:
-            try:
-                import ray as _ray
-
-                ray_ds = self._get_ray_dataset()
-                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
-            except Exception:
-                ray_ds = self._get_ray_dataset()
-                return pa.Table.from_pandas(ray_ds.to_pandas())
-        else:
-            result = self._resolve()
-            if isinstance(result, pd.DataFrame):
-                return pa.Table.from_pandas(result)
-            else:
-                df = result.to_pandas()
-                return pa.Table.from_pandas(df)
+        return pa.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
     def persist(
         self,

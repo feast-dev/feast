@@ -7,74 +7,97 @@ import ray
 from ray.data import Dataset
 
 
+def _is_ray_extension_dtype(dtype: Any) -> bool:
+    """Return True for Ray-specific pandas extension dtypes.
+
+    Ray Data registers custom extension types such as ``TensorDtype`` and
+    ``PythonObjectDtype``.  These must *not* be identified via
+    ``pd.api.types.is_numeric_dtype`` / ``is_object_dtype`` because
+    ``TensorDtype(dtype=int64)`` reports as numeric and would otherwise be
+    skipped.
+    """
+    module = type(dtype).__module__
+    return module.startswith("ray.") or ".ray." in module
+
+
+def _is_nested_arrow_dtype(dtype: Any) -> bool:
+    """Return True for ArrowDtype columns that hold list/struct/map values."""
+    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
+    if arrow_dtype_cls is None or not isinstance(dtype, arrow_dtype_cls):
+        return False
+    pa_type = dtype.pyarrow_dtype
+    return (
+        pa.types.is_list(pa_type)
+        or pa.types.is_large_list(pa_type)
+        or pa.types.is_fixed_size_list(pa_type)
+        or pa.types.is_struct(pa_type)
+        or pa.types.is_map(pa_type)
+    )
+
+
+def _cell_to_python(value: Any) -> Any:
+    """Convert a list/array-like cell to a plain Python object.
+
+    Ray's ``TensorDtype`` yields ``TensorArrayElement`` values that print like
+    ``array([...])`` but are *not* ``isinstance(..., np.ndarray)``.  Using
+    ``.tolist()`` / ``np.asarray(...).tolist()`` produces real Python lists so
+    that:
+      * ``isinstance(v, (np.ndarray, list))`` succeeds via ``list``
+      * ``pa.Table.from_pandas`` infers a proper Arrow list type
+    """
+    if value is None or isinstance(value, (list, tuple, str, bytes, dict)):
+        return list(value) if isinstance(value, tuple) else value
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    # Ray TensorArrayElement and similar array-likes
+    if hasattr(value, "tolist") and not isinstance(value, (pd.Timestamp,)):
+        try:
+            return value.tolist()
+        except Exception:
+            pass
+    if hasattr(value, "__array__"):
+        try:
+            arr = np.asarray(value)
+            if getattr(arr, "ndim", 0) > 0:
+                return arr.tolist()
+        except Exception:
+            pass
+    return value
+
+
 def normalize_arrow_dtypes(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert non-standard extension dtypes from Ray to traditional types.
+    """Convert Ray/Arrow nested extension dtypes to traditional object columns.
 
     Ray Data >= 2.58 with pyarrow >= 25 may produce extension dtype columns
     from ``Dataset.to_pandas()``:
 
-    * ``pd.ArrowDtype`` — Arrow-backed types (list, int, float, …)
+    * ``pd.ArrowDtype(list<...>)`` — Arrow-backed list types
     * ``PythonObjectDtype`` — Ray's generic object extension for ragged lists
     * ``TensorDtype`` — Ray's fixed-shape tensor extension for uniform lists
 
-    Downstream Feast code expects traditional numpy-backed dtypes (``object``
-    for list columns, ``float64`` with ``NaN`` for nullable numerics).  This
-    function detects columns with non-standard extension dtypes and converts
-    list/array-like columns to ``object`` dtype with pure Python objects.
+    Downstream Feast code and universal type tests expect list feature columns
+    as plain ``object`` dtype containing Python ``list`` / ``np.ndarray``
+    values, and Arrow tables with real ``list`` types (not
+    ``ArrowPythonObjectType(large_binary)``).
 
-    Extension dtypes that pandas already recognises as scalar types (numeric,
-    string, datetime, boolean) are left untouched — this preserves both
-    ``pd.ArrowDtype(pa.int64())`` and pandas nullable dtypes like
-    ``pd.Int64Dtype()``.
-
-    On older pandas or when no conversion is needed the function is a
-    fast no-op.
+    Scalar pandas / Arrow extension dtypes (``Int64Dtype``,
+    ``ArrowDtype(int64)``, etc.) are left untouched.
     """
-    # Well-known pandas extension dtypes that should always be preserved
-    _KEEP: tuple = (pd.CategoricalDtype,)
-    for attr in ("DatetimeTZDtype",):
-        cls = getattr(pd, attr, None)
-        if cls is not None:
-            _KEEP = (*_KEEP, cls)
-
-    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
-
-    cols_to_fix = []
-    for c in df.columns:
-        dtype = df[c].dtype
-        if not isinstance(dtype, pd.api.extensions.ExtensionDtype):
-            continue
-        if isinstance(dtype, _KEEP):
-            continue
-        # Skip extension dtypes that pandas recognises as standard scalar
-        # categories.  This preserves pd.ArrowDtype(int64), pd.Int64Dtype(),
-        # pd.ArrowDtype(float64), pd.Float64Dtype(), pd.StringDtype(), etc.
-        if (
-            pd.api.types.is_numeric_dtype(dtype)
-            or pd.api.types.is_string_dtype(dtype)
-            or pd.api.types.is_datetime64_any_dtype(dtype)
-            or pd.api.types.is_object_dtype(dtype)
-        ):
-            continue
-        # For ArrowDtype, also preserve timestamp/date types that the
-        # generic checkers above may not recognise.
-        if arrow_dtype_cls and isinstance(dtype, arrow_dtype_cls):
-            pa_type = dtype.pyarrow_dtype
-            if pa.types.is_timestamp(pa_type) or pa.types.is_date(pa_type):
-                continue
-        cols_to_fix.append(c)
-
+    cols_to_fix = [
+        c
+        for c in df.columns
+        if isinstance(df[c].dtype, pd.api.extensions.ExtensionDtype)
+        and (
+            _is_ray_extension_dtype(df[c].dtype) or _is_nested_arrow_dtype(df[c].dtype)
+        )
+    ]
     if not cols_to_fix:
         return df
 
     df = df.copy()
     for col in cols_to_fix:
-        # Convert each element to a pure Python object.  numpy arrays from
-        # Ray's TensorDtype are converted to Python lists via .tolist() so
-        # that downstream isinstance checks against (np.ndarray, list) and
-        # pa.Table.from_pandas() type inference both work correctly.
         df[col] = pd.Series(
-            [v.tolist() if isinstance(v, np.ndarray) else v for v in df[col]],
+            [_cell_to_python(v) for v in df[col]],
             index=df.index,
             dtype=object,
         )
