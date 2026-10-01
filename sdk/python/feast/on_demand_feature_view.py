@@ -1345,16 +1345,9 @@ class OnDemandFeatureView(BaseFeatureView):
     def get_requested_odfvs(
         feature_refs, project, registry
     ) -> list["OnDemandFeatureView"]:
-        all_on_demand_feature_views = registry.list_on_demand_feature_views(
-            project, allow_cache=True
-        )
-        requested_on_demand_feature_views: list[OnDemandFeatureView] = []
-        for odfv in all_on_demand_feature_views:
-            for feature in odfv.features:
-                if f"{odfv.name}:{feature.name}" in feature_refs:
-                    requested_on_demand_feature_views.append(odfv)
-                    break
-        return requested_on_demand_feature_views
+        from feast.utils import _get_requested_on_demand_feature_views
+
+        return _get_requested_on_demand_feature_views(feature_refs, project, registry)
 
 
 def on_demand_feature_view(

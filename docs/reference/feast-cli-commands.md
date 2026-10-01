@@ -298,7 +298,9 @@ driver_hourly_stats:
 
 ## Materialize incremental
 
-Load data from feature views into the online store, beginning from either the previous `materialize` or `materialize-incremental` end date, or the beginning of time.
+For regular (non-on-demand) feature views, load data into the online store beginning from each feature view's most recent materialization end date.
+
+For a regular feature view with no previous materialization, the start date is the current time minus its `ttl`. A zero TTL uses a lookback of 52 weeks; a feature view with no TTL must first be materialized with `feast materialize` to establish a start date. The initial lookback is relative to the current time, rather than the supplied end timestamp.
 
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
@@ -495,6 +497,24 @@ feast registry create-schema
 ```
 
 This command only applies to SQL-based registries (`registry_type: sql`). It is safe to run multiple times — existing tables are not modified.
+
+## MLflow
+
+MLflow integration utilities for GenAI dataset sync and DataSource validation. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+
+```bash
+# Sync MLflow GenAI EvaluationDataset → FeatureView (via MlflowDatasetSource)
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Preview flattened dataset records
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+
+# Validate an MlflowDatasetSource-backed FeatureView
+feast mlflow validate-source eval_records
+
+# List all FeatureViews backed by MlflowDatasetSource
+feast mlflow list-sources
+```
 
 ## Teardown
 

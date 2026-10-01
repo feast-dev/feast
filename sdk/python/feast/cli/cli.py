@@ -660,5 +660,12 @@ cli.add_command(serve_transformations_command)
 cli.add_command(dbt_cmd)
 cli.add_command(monitor_cmd)
 
+try:
+    from feast.cli.mlflow_cmd import mlflow_cmd
+
+    cli.add_command(mlflow_cmd)
+except ImportError:
+    pass
+
 if __name__ == "__main__":
     cli()
