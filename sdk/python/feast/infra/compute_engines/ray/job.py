@@ -24,6 +24,7 @@ from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.ray_initializer import get_ray_wrapper
+from feast.infra.ray_shared_utils import normalize_arrow_dtypes
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -121,7 +122,9 @@ class RayDAGRetrievalJob(RetrievalJob):
                 assert self._result_dataset is not None, (
                     "Dataset should not be None after execution"
                 )
-                self._result_df = self._result_dataset.to_pandas()
+                self._result_df = normalize_arrow_dtypes(
+                    self._result_dataset.to_pandas()
+                )
 
         # Handle validation if provided
         if validation_reference:
@@ -157,7 +160,9 @@ class RayDAGRetrievalJob(RetrievalJob):
                 assert self._result_dataset is not None, (
                     "Dataset should not be None after execution"
                 )
-                self._result_arrow = self._result_dataset.to_pandas().to_arrow()
+                self._result_arrow = pa.Table.from_pandas(
+                    normalize_arrow_dtypes(self._result_dataset.to_pandas())
+                )
 
         # Handle validation if provided
         if validation_reference:
@@ -249,7 +254,7 @@ class RayDAGRetrievalJob(RetrievalJob):
         assert self._result_dataset is not None, (
             "Dataset should not be None after execution"
         )
-        return self._result_dataset.to_pandas()
+        return normalize_arrow_dtypes(self._result_dataset.to_pandas())
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         """Internal method to get Arrow Table (used by parent class)."""
@@ -257,7 +262,9 @@ class RayDAGRetrievalJob(RetrievalJob):
         assert self._result_dataset is not None, (
             "Dataset should not be None after execution"
         )
-        return self._result_dataset.to_pandas().to_arrow()
+        return pa.Table.from_pandas(
+            normalize_arrow_dtypes(self._result_dataset.to_pandas())
+        )
 
 
 @dataclass
