@@ -301,3 +301,77 @@ def test_load_collection_not_called_per_query(tmp_path: Path) -> None:
             )
 
     assert load_spy.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "online_store, expected_kwargs",
+    [
+        # Existing configs build exactly the same client arguments as before.
+        ({}, {"uri": "http://localhost:19530", "token": ""}),
+        (
+            {
+                "host": "https://milvus.internal",
+                "port": 443,
+                "username": "u",
+                "password": "p",
+            },
+            {"uri": "https://milvus.internal:443", "token": "u:p"},
+        ),
+        # token takes precedence over username/password.
+        (
+            {"username": "u", "password": "p", "token": "api-key"},
+            {"uri": "http://localhost:19530", "token": "api-key"},
+        ),
+        # uri takes precedence over host/port.
+        (
+            {
+                "uri": "https://in01-abc.zillizcloud.com",
+                "host": "http://ignored",
+                "token": "k",
+            },
+            {"uri": "https://in01-abc.zillizcloud.com", "token": "k"},
+        ),
+        (
+            {
+                "uri": "https://in01-abc.zillizcloud.com",
+                "token": "k",
+                "db_name": "catalog",
+            },
+            {
+                "uri": "https://in01-abc.zillizcloud.com",
+                "token": "k",
+                "db_name": "catalog",
+            },
+        ),
+    ],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_remote_client_arguments(
+    mock_client_cls: MagicMock,
+    online_store: Dict[str, Any],
+    expected_kwargs: Dict[str, Any],
+) -> None:
+    config = _mock_config(**online_store)
+    config.provider = "gcp"
+
+    MilvusOnlineStore()._connect(config)
+
+    mock_client_cls.assert_called_once_with(**expected_kwargs)
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_uri_takes_precedence_over_lite_path(mock_client_cls: MagicMock) -> None:
+    config = _mock_config(path="online_store.db", uri="http://milvus:19530", token="k")
+
+    MilvusOnlineStore()._connect(config)
+
+    mock_client_cls.assert_called_once_with(uri="http://milvus:19530", token="k")
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_lite_path_used_without_uri(mock_client_cls: MagicMock) -> None:
+    config = _mock_config(path="/tmp/online_store.db", token="ignored")
+
+    MilvusOnlineStore()._connect(config)
+
+    mock_client_cls.assert_called_once_with("/tmp/online_store.db")

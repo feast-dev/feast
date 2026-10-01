@@ -239,3 +239,52 @@ def test_tiled_max_min_aggregation_matches_pandas(function):
             & (df["event_timestamp"] < tile_end)
         ]["trips"]
         assert row[feature_name] == getattr(in_window, function)()
+
+
+@pytest.mark.parametrize("dtype", ["datetime64[us]", "datetime64[ms, UTC]"])
+def test_tiled_aggregation_does_not_depend_on_timestamp_resolution(dtype):
+    """Timestamps stored in a non-nanosecond unit give the same tiles."""
+    from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+    from feast.aggregation.tiling.tile_subtraction import (
+        convert_cumulative_to_windowed,
+    )
+
+    start = pd.Timestamp("2024-01-01")
+    minutes = [0, 5, 10, 30, 35]
+    df = pd.DataFrame(
+        {
+            "driver_id": [1] * len(minutes),
+            "event_timestamp": [start + timedelta(minutes=m) for m in minutes],
+            "trips": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
+    window = timedelta(minutes=20)
+    agg = Aggregation(column="trips", function="sum", time_window=window)
+
+    def windowed(frame):
+        tiles = apply_sawtooth_window_tiling(
+            df=frame,
+            aggregations=[agg],
+            group_by_keys=["driver_id"],
+            timestamp_col="event_timestamp",
+            window_size=window,
+            hop_size=timedelta(minutes=5),
+        )
+        return convert_cumulative_to_windowed(
+            tiles_df=tiles,
+            entity_keys=["driver_id"],
+            timestamp_col="event_timestamp",
+            window_size=window,
+            aggregations=[agg],
+        )
+
+    expected = windowed(df.copy())
+    ts = df["event_timestamp"]
+    if "UTC" in dtype:
+        ts = ts.dt.tz_localize("UTC")
+    result = windowed(df.assign(event_timestamp=ts.astype(dtype)))
+
+    feature_name = agg.resolved_name(window)
+    assert len(expected) == 8
+    assert result["event_timestamp"].tolist() == expected["event_timestamp"].tolist()
+    assert result[feature_name].tolist() == expected[feature_name].tolist()

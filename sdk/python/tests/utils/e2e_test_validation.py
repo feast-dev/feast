@@ -1,4 +1,3 @@
-import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -159,18 +158,16 @@ def _check_offline_and_online_features(
                     < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
-                    df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                )
+                val_list = df.to_dict(orient="list")[f"{fv.name}__value"]
+                assert not val_list or pd.isna(val_list[0])
         else:
             if expected_value:
                 assert (
                     abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")["value"] or math.isnan(
-                    df.to_dict(orient="list")["value"][0]
-                )
+                val_list = df.to_dict(orient="list")["value"]
+                assert not val_list or pd.isna(val_list[0])
 
 
 def make_feature_store_yaml(

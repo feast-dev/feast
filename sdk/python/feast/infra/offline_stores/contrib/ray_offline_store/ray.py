@@ -47,7 +47,9 @@ from feast.infra.ray_shared_utils import (
     apply_field_mapping,
     ensure_timestamp_compatibility,
     is_ray_data,
+    normalize_arrow_dtypes,
     normalize_timestamp_columns,
+    pandas_to_arrow_with_list_types,
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -59,6 +61,7 @@ from feast.type_map import (
     feast_value_type_to_pandas_type,
     pa_to_feast_value_type,
 )
+from feast.types import from_feast_to_pyarrow_type
 from feast.utils import (
     _get_column_names,
     compute_non_entity_date_range,
@@ -988,6 +991,7 @@ class RayRetrievalJob(RetrievalJob):
         self._feature_refs: List[str] = []
         self._entity_df: Optional[pd.DataFrame] = None
         self._prefer_ray_datasets: bool = True
+        self._feature_pa_types: Dict[str, pa.DataType] = {}
 
     def _create_metadata(self) -> RetrievalMetadata:
         """Create metadata from the entity DataFrame and feature references."""
@@ -1084,7 +1088,7 @@ class RayRetrievalJob(RetrievalJob):
             else:
                 if self._prefer_ray_datasets:
                     ray_ds = self._get_ray_dataset()
-                    df = ray_ds.to_pandas()
+                    df = normalize_arrow_dtypes(ray_ds.to_pandas())
                 else:
                     result = self._resolve()
                     if isinstance(result, pd.DataFrame):
@@ -1117,24 +1121,14 @@ class RayRetrievalJob(RetrievalJob):
                 validation_reference=validation_reference, timeout=timeout
             )
 
-        if self._prefer_ray_datasets:
-            try:
-                import ray as _ray
-
-                ray_ds = self._get_ray_dataset()
-                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
-            except Exception:
-                df = self.to_df(
-                    validation_reference=validation_reference, timeout=timeout
-                )
-                return pa.Table.from_pandas(df)
-        else:
-            result = self._resolve()
-            if isinstance(result, pd.DataFrame):
-                return pa.Table.from_pandas(result)
-            else:
-                df = result.to_pandas()
-                return pa.Table.from_pandas(df)
+        # Always go through the normalized pandas path.  Ray's
+        # Dataset.to_arrow_refs() preserves TensorDtype / PythonObjectDtype as
+        # ArrowPythonObjectType(large_binary), which breaks list-feature type
+        # contracts.  normalize_arrow_dtypes() in to_df() restores plain Python
+        # lists / ndarrays; feature Arrow types (when set) recover list value
+        # types for all-empty list columns (list<item: null> → list<item: T>).
+        df = self.to_df(validation_reference=validation_reference, timeout=timeout)
+        return pandas_to_arrow_with_list_types(df, self._feature_pa_types)
 
     def to_feast_df(
         self,
@@ -1191,27 +1185,14 @@ class RayRetrievalJob(RetrievalJob):
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         if self._prefer_ray_datasets:
             ray_ds = self._get_ray_dataset()
-            return ray_ds.to_pandas()
+            return normalize_arrow_dtypes(ray_ds.to_pandas())
         else:
             return self._resolve().to_pandas()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
-        if self._prefer_ray_datasets:
-            try:
-                import ray as _ray
-
-                ray_ds = self._get_ray_dataset()
-                return pa.concat_tables(_ray.get(ray_ds.to_arrow_refs()))
-            except Exception:
-                ray_ds = self._get_ray_dataset()
-                return pa.Table.from_pandas(ray_ds.to_pandas())
-        else:
-            result = self._resolve()
-            if isinstance(result, pd.DataFrame):
-                return pa.Table.from_pandas(result)
-            else:
-                df = result.to_pandas()
-                return pa.Table.from_pandas(df)
+        return pandas_to_arrow_with_list_types(
+            self._to_df_internal(timeout=timeout), self._feature_pa_types
+        )
 
     def persist(
         self,
@@ -2628,5 +2609,25 @@ class RayOfflineStore(OfflineStore):
         job._on_demand_feature_views = on_demand_feature_views
         job._feature_refs = feature_refs
         job._entity_df = entity_df_sample
+        # Preserve Feast-declared Arrow types so to_arrow() can recover
+        # list<item: T> when a result column only contains empty lists.
+        # Promote list<float32> → list<float64>: the pandas materialization
+        # path historically returns float64 for float features, and the
+        # universal type tests assert pa.types.is_float64.
+        feature_pa_types: Dict[str, pa.DataType] = {}
+        for fv in regular_feature_views:
+            for feature in fv.features:
+                try:
+                    pa_type = from_feast_to_pyarrow_type(feature.dtype)
+                except (ValueError, KeyError, TypeError):
+                    continue
+                if pa.types.is_list(pa_type) and pa.types.is_float32(
+                    pa_type.value_type
+                ):
+                    pa_type = pa.list_(pa.float64())
+                feature_pa_types[feature.name] = pa_type
+                if full_feature_names:
+                    feature_pa_types[f"{fv.name}__{feature.name}"] = pa_type
+        job._feature_pa_types = feature_pa_types
         job._metadata = job._create_metadata()
         return job

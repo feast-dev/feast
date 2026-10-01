@@ -212,6 +212,12 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: Optional[StrictStr] = ""
     host: Optional[StrictStr] = "http://localhost"
     port: Optional[int] = 19530
+    # Full endpoint, e.g. a Zilliz Cloud https URI. Takes precedence over host/port.
+    uri: Optional[StrictStr] = None
+    # API key or "username:password". Takes precedence over username/password.
+    token: Optional[StrictStr] = None
+    # Milvus database to use. The database must already exist.
+    db_name: Optional[StrictStr] = None
     index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
@@ -258,22 +264,25 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            if config.provider == "local" and config.online_store.path:
+            online_config = config.online_store
+            if (
+                config.provider == "local"
+                and online_config.path
+                and not online_config.uri
+            ):
                 db_path = self._get_db_path(config)
                 logger.info("Connecting to Milvus in local mode using %s", db_path)
                 self.client = MilvusClient(db_path)
             else:
-                logger.info(
-                    "Connecting to Milvus remotely at %s:%s",
-                    config.online_store.host,
-                    config.online_store.port,
-                )
-                self.client = MilvusClient(
-                    uri=f"{config.online_store.host}:{config.online_store.port}",
-                    token=f"{config.online_store.username}:{config.online_store.password}"
-                    if config.online_store.username and config.online_store.password
-                    else "",
-                )
+                uri = online_config.uri or f"{online_config.host}:{online_config.port}"
+                logger.info("Connecting to Milvus remotely at %s", uri)
+                client_kwargs: Dict[str, Any] = {
+                    "uri": uri,
+                    "token": _milvus_token(online_config),
+                }
+                if online_config.db_name:
+                    client_kwargs["db_name"] = online_config.db_name
+                self.client = MilvusClient(**client_kwargs)
         return self.client
 
     def _get_or_create_collection(
@@ -1017,6 +1026,15 @@ class MilvusOnlineStore(OnlineStore):
 
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
+
+
+def _milvus_token(online_config: MilvusOnlineStoreConfig) -> str:
+    """Return the token to authenticate with: ``token``, else ``username:password``."""
+    if online_config.token:
+        return online_config.token
+    if online_config.username and online_config.password:
+        return f"{online_config.username}:{online_config.password}"
+    return ""
 
 
 def _get_composite_key_name(table: FeatureView) -> str:
