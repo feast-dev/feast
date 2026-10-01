@@ -5,7 +5,7 @@ import os
 import sys
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, Iterator, List, Optional, Union, cast
 
 _FIPS_CIPHER_SUITES = ":".join(
     [
@@ -78,6 +78,30 @@ logger.setLevel(logging.INFO)
 
 if _fips_configured:
     logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
+
+
+# Arrow Flight/IPC refuses to send any single RecordBatch above 2GiB
+# ("Cannot send record batches exceeding 2GiB yet"); stay well under it.
+_MAX_BATCH_BYTES = 1_500_000_000
+
+
+def _split_oversized(batch: pa.RecordBatch) -> Iterator[pa.RecordBatch]:
+    if batch.num_rows <= 1 or pa.ipc.get_record_batch_size(batch) <= _MAX_BATCH_BYTES:
+        yield batch
+        return
+    half = batch.num_rows // 2
+    yield from _split_oversized(batch.slice(0, half))
+    yield from _split_oversized(batch.slice(half))
+
+
+def _bounded_reader(
+    data: Union[pa.Table, pa.RecordBatchReader],
+) -> pa.RecordBatchReader:
+    """Re-batch a result so no single RecordBatch exceeds _MAX_BATCH_BYTES."""
+    batches = data.to_batches() if isinstance(data, pa.Table) else data
+    return pa.RecordBatchReader.from_batches(
+        data.schema, (part for batch in batches for part in _split_oversized(batch))
+    )
 
 
 class OfflineServer(fl.FlightServerBase):
@@ -293,7 +317,7 @@ class OfflineServer(fl.FlightServerBase):
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
-        return fl.RecordBatchStream(table)
+        return fl.RecordBatchStream(_bounded_reader(table))
 
     @inject_user_details_decorator
     @arrow_server_error_handling_decorator
@@ -334,7 +358,7 @@ class OfflineServer(fl.FlightServerBase):
                     entity_df = command["entity_df_sql"]
                 table = self._get_historical_features_direct(
                     command, entity_df
-                ).to_arrow()
+                ).to_arrow_reader()
             else:
                 table = self._execute_read_api(api, command, key=None)
         except Exception as e:
@@ -342,19 +366,21 @@ class OfflineServer(fl.FlightServerBase):
             traceback.print_exc()
             raise e
 
-        writer.begin(table.schema)
-        writer.write_table(table)
+        bounded = _bounded_reader(table)
+        writer.begin(bounded.schema)
+        for batch in bounded:
+            writer.write_batch(batch)
 
     def _execute_read_api(
         self, api: str, command: dict, key: Optional[str] = None
-    ) -> pa.Table:
-        """Dispatch a read API call and return the result as an Arrow table."""
+    ) -> Union[pa.Table, pa.RecordBatchReader]:
+        """Dispatch a read API call and return the result as an Arrow table or reader."""
         if api == OfflineServer.get_historical_features.__name__:
-            return self.get_historical_features(command, key).to_arrow()
+            return self.get_historical_features(command, key).to_arrow_reader()
         elif api == OfflineServer.pull_all_from_table_or_query.__name__:
-            return self.pull_all_from_table_or_query(command).to_arrow()
+            return self.pull_all_from_table_or_query(command).to_arrow_reader()
         elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
-            return self.pull_latest_from_table_or_query(command).to_arrow()
+            return self.pull_latest_from_table_or_query(command).to_arrow_reader()
         elif (
             api
             == OfflineServer.get_table_column_names_and_types_from_data_source.__name__

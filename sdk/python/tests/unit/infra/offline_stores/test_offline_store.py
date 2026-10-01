@@ -249,6 +249,96 @@ def test_to_arrow_timeout(retrieval_job, timeout: Optional[int]):
         mock_to_arrow_internal.assert_called_once_with(timeout=timeout)
 
 
+def test_default_to_arrow_reader_matches_to_arrow():
+    table = pyarrow.table({"a": [1, 2, 3]})
+
+    class _Job(RetrievalJob):
+        def _to_df_internal(self, timeout=None):
+            return table.to_pandas()
+
+        def _to_arrow_internal(self, timeout=None):
+            return table
+
+        @property
+        def full_feature_names(self):
+            return False
+
+        @property
+        def on_demand_feature_views(self):
+            return []
+
+        @property
+        def metadata(self):
+            return None
+
+    reader = _Job().to_arrow_reader()
+
+    assert isinstance(reader, pyarrow.RecordBatchReader)
+    assert reader.read_all().equals(table)
+
+
+def test_default_to_arrow_reader_passes_through_timeout():
+    """The default to_arrow_reader() must forward `timeout` to to_arrow(),
+    not silently drop it (e.g. under a mutant that hardcodes None)."""
+    table = pyarrow.table({"a": [1]})
+
+    class _Job(RetrievalJob):
+        def _to_df_internal(self, timeout=None):
+            return table.to_pandas()
+
+        def _to_arrow_internal(self, timeout=None):
+            return table
+
+        @property
+        def full_feature_names(self):
+            return False
+
+        @property
+        def on_demand_feature_views(self):
+            return []
+
+        @property
+        def metadata(self):
+            return None
+
+    job = _Job()
+    with patch.object(job, "to_arrow", wraps=job.to_arrow) as mock_to_arrow:
+        job.to_arrow_reader(timeout=42)
+
+    mock_to_arrow.assert_called_once_with(timeout=42)
+
+
+def test_default_to_arrow_reader_yields_empty_table_as_one_empty_batch():
+    """An empty result must still produce a valid (zero-row) reader rather
+    than raising, so `RecordBatchReader.from_batches` gets a non-empty
+    batches iterable even for `table.to_batches()` on 0 rows."""
+    table = pyarrow.table({"a": pyarrow.array([], type=pyarrow.int64())})
+
+    class _Job(RetrievalJob):
+        def _to_df_internal(self, timeout=None):
+            return table.to_pandas()
+
+        def _to_arrow_internal(self, timeout=None):
+            return table
+
+        @property
+        def full_feature_names(self):
+            return False
+
+        @property
+        def on_demand_feature_views(self):
+            return []
+
+        @property
+        def metadata(self):
+            return None
+
+    reader = _Job().to_arrow_reader()
+
+    assert reader.schema == table.schema
+    assert reader.read_all().num_rows == 0
+
+
 @pytest.mark.parametrize(
     "repo_path, uri, expected",
     [

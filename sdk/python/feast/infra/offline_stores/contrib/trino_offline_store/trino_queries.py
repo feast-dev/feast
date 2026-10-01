@@ -4,7 +4,7 @@ import signal
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -112,6 +112,32 @@ class Query(object):
             query = self._cursor._query
             assert query is not None, "Cursor query should not be None after execute"
             return Results(data=rows, columns=query.columns)
+        except TrinoQueryError as error:
+            self.status = QueryStatus.ERROR
+            raise error
+        finally:
+            self.close()
+
+    def start(self) -> List[Dict]:
+        """Execute the query and return its column metadata without fetching rows."""
+        self.status = QueryStatus.RUNNING
+        self._start_time = _utc_now()
+        self._cursor.execute(operation=self.query_text)
+        query = self._cursor._query
+        assert query is not None, "Cursor query should not be None after execute"
+        self._columns: List[Dict] = query.columns
+        return self._columns
+
+    def iterate_pages(self, batch_size: int) -> Iterator["Results"]:
+        """Yield result pages via cursor.fetchmany(); closes the cursor when done."""
+        try:
+            while True:
+                rows = self._cursor.fetchmany(batch_size)
+                if not rows:
+                    break
+                yield Results(data=rows, columns=self._columns)
+            self.status = QueryStatus.COMPLETED
+            self.execution_time = _utc_now() - self._start_time
         except TrinoQueryError as error:
             self.status = QueryStatus.ERROR
             raise error

@@ -46,7 +46,7 @@ Below is a matrix indicating which `RetrievalJob`s support what functionality.
 || --------------------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 || export to dataframe                                   | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | 
 || export to arrow table                                 | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-|| export to arrow batches                               | no  | no  | no  | yes | no  | no  | no  | no  | no  | no  |
+|| export to arrow batches                               | no  | no  | no  | yes | no  | no  | yes | no  | no  | no  |
 || export to SQL                                         | no  | yes | yes | yes | yes | no  | yes | no  | yes | no  |
 || export to data lake (S3, GCS, etc.)                   | no  | no  | yes | no  | yes | no  | no  | no  | yes | yes |
 || export to data warehouse                              | no  | yes | yes | yes | yes | no  | no  | no  | yes | no  |

@@ -29,6 +29,8 @@ offline_store:
 	ssl-verify: false
 	catalog: hive
 	dataset: ${DATASET_NAME}
+	# Rows per page when the offline server streams Trino results; default 200000
+	streaming_batch_size: 200000
     # Hive connection as example
 	connector:
 		type: hive
@@ -99,7 +101,7 @@ Below is a matrix indicating which functionality is supported by `TrinoRetrieval
 | ----------------------------------------------------- | ----- |
 | export to dataframe                                   | yes   |
 | export to arrow table                                 | yes   |
-| export to arrow batches                               | no    |
+| export to arrow batches                               | yes   |
 | export to SQL                                         | yes   |
 | export to data lake (S3, GCS, etc.)                   | no    |
 | export to data warehouse                              | no    |
