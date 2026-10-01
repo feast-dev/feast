@@ -47,6 +47,7 @@ from feast.infra.ray_shared_utils import (
     apply_field_mapping,
     ensure_timestamp_compatibility,
     is_ray_data,
+    normalize_arrow_dtypes,
     normalize_timestamp_columns,
 )
 from feast.infra.registry.base_registry import BaseRegistry
@@ -1084,7 +1085,7 @@ class RayRetrievalJob(RetrievalJob):
             else:
                 if self._prefer_ray_datasets:
                     ray_ds = self._get_ray_dataset()
-                    df = ray_ds.to_pandas()
+                    df = normalize_arrow_dtypes(ray_ds.to_pandas())
                 else:
                     result = self._resolve()
                     if isinstance(result, pd.DataFrame):
@@ -1191,7 +1192,7 @@ class RayRetrievalJob(RetrievalJob):
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         if self._prefer_ray_datasets:
             ray_ds = self._get_ray_dataset()
-            return ray_ds.to_pandas()
+            return normalize_arrow_dtypes(ray_ds.to_pandas())
         else:
             return self._resolve().to_pandas()
 

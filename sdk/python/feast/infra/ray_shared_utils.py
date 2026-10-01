@@ -7,6 +7,80 @@ import ray
 from ray.data import Dataset
 
 
+def normalize_arrow_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert non-standard extension dtypes from Ray to traditional types.
+
+    Ray Data >= 2.58 with pyarrow >= 25 may produce extension dtype columns
+    from ``Dataset.to_pandas()``:
+
+    * ``pd.ArrowDtype`` — Arrow-backed types (list, int, float, …)
+    * ``PythonObjectDtype`` — Ray's generic object extension for ragged lists
+    * ``TensorDtype`` — Ray's fixed-shape tensor extension for uniform lists
+
+    Downstream Feast code expects traditional numpy-backed dtypes (``object``
+    for list columns, ``float64`` with ``NaN`` for nullable numerics).  This
+    function detects columns with non-standard extension dtypes and converts
+    list/array-like columns to ``object`` dtype with pure Python objects.
+
+    Extension dtypes that pandas already recognises as scalar types (numeric,
+    string, datetime, boolean) are left untouched — this preserves both
+    ``pd.ArrowDtype(pa.int64())`` and pandas nullable dtypes like
+    ``pd.Int64Dtype()``.
+
+    On older pandas or when no conversion is needed the function is a
+    fast no-op.
+    """
+    # Well-known pandas extension dtypes that should always be preserved
+    _KEEP: tuple = (pd.CategoricalDtype,)
+    for attr in ("DatetimeTZDtype",):
+        cls = getattr(pd, attr, None)
+        if cls is not None:
+            _KEEP = (*_KEEP, cls)
+
+    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
+
+    cols_to_fix = []
+    for c in df.columns:
+        dtype = df[c].dtype
+        if not isinstance(dtype, pd.api.extensions.ExtensionDtype):
+            continue
+        if isinstance(dtype, _KEEP):
+            continue
+        # Skip extension dtypes that pandas recognises as standard scalar
+        # categories.  This preserves pd.ArrowDtype(int64), pd.Int64Dtype(),
+        # pd.ArrowDtype(float64), pd.Float64Dtype(), pd.StringDtype(), etc.
+        if (
+            pd.api.types.is_numeric_dtype(dtype)
+            or pd.api.types.is_string_dtype(dtype)
+            or pd.api.types.is_datetime64_any_dtype(dtype)
+            or pd.api.types.is_object_dtype(dtype)
+        ):
+            continue
+        # For ArrowDtype, also preserve timestamp/date types that the
+        # generic checkers above may not recognise.
+        if arrow_dtype_cls and isinstance(dtype, arrow_dtype_cls):
+            pa_type = dtype.pyarrow_dtype
+            if pa.types.is_timestamp(pa_type) or pa.types.is_date(pa_type):
+                continue
+        cols_to_fix.append(c)
+
+    if not cols_to_fix:
+        return df
+
+    df = df.copy()
+    for col in cols_to_fix:
+        # Convert each element to a pure Python object.  numpy arrays from
+        # Ray's TensorDtype are converted to Python lists via .tolist() so
+        # that downstream isinstance checks against (np.ndarray, list) and
+        # pa.Table.from_pandas() type inference both work correctly.
+        df[col] = pd.Series(
+            [v.tolist() if isinstance(v, np.ndarray) else v for v in df[col]],
+            index=df.index,
+            dtype=object,
+        )
+    return df
+
+
 class RemoteDatasetProxy:
     """Proxy class that executes Ray Data operations remotely on cluster workers."""
 
