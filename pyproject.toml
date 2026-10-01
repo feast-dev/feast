@@ -80,6 +80,7 @@ gcp = [
     "fsspec>=2024.1.0",
 ]
 ge = ["great_expectations>=0.15.41,<1"]
+glide = ["valkey-glide-sync>=2.5,<3"]
 go = ["cffi>=1.15.0"]
 grpcio = [
     "grpcio>=1.56.2",
@@ -166,7 +167,7 @@ test = [
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
     "virtualenv==20.23.0",
     "dbt-artifacts-parser",
