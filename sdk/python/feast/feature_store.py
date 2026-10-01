@@ -3640,24 +3640,40 @@ class FeatureStore:
         expected = vector_field.vector_length
         column = df[name]
 
-        # Single pass over the column. Sequences report their length, anything else
-        # reports None so the two failure modes stay distinguishable.
-        lengths = column.map(lambda v: len(v) if hasattr(v, "__len__") else None)
+        # Null vectors carry no length to compare. Skipping them keeps this
+        # consistent with the Arrow path, which also tolerates null rows, and
+        # stops a genuine null being reported as "not a sequence".
+        is_null = column.isna()
 
-        not_a_sequence = lengths.isna()
-        if not_a_sequence.any():
-            i = not_a_sequence.idxmax()
+        # Single pass over the column. na_action leaves nulls as NaN, so a NaN
+        # length that is not null means the value was not a sequence at all.
+        lengths = column.map(
+            lambda v: len(v) if hasattr(v, "__len__") else None, na_action="ignore"
+        )
+
+        not_a_sequence = lengths.isna() & ~is_null
+        mismatched = lengths.notna() & (lengths != expected)
+        offending = not_a_sequence | mismatched
+        if not offending.any():
+            return
+
+        # Report the first offending row across both failure modes, by position,
+        # so the message is right regardless of which failure comes first and
+        # correct even when the index has duplicates.
+        position = int(offending.to_numpy().argmax())
+        label = column.index[position]
+
+        if bool(not_a_sequence.to_numpy()[position]):
             raise ValueError(
-                f"Row {i}: Vector feature '{name}' is not a sequence. Got: {type(column[i])}"
+                f"Row {label}: Vector feature '{name}' is not a sequence. "
+                f"Got: {type(column.iloc[position])}"
             )
 
-        mismatched = lengths != expected
-        if mismatched.any():
-            i = mismatched.idxmax()
-            raise ValueError(
-                f"Row {i}: Vector length {lengths[i]} does not match expected {expected} "
-                f"for feature '{name}' in feature view '{feature_view.name}'."
-            )
+        raise ValueError(
+            f"Row {label}: Vector length {int(lengths.iloc[position])} does not match "
+            f"expected {expected} for feature '{name}' in feature view "
+            f"'{feature_view.name}'."
+        )
 
     def _get_feature_view_and_df_for_online_write(
         self,

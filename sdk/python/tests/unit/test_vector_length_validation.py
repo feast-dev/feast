@@ -11,10 +11,10 @@ import pandas as pd
 import pyarrow
 import pytest
 
-from feast import Entity, FeatureView, Field, FileSource
+from feast import Entity, FeatureView, Field, FileSource, RequestSource
 from feast.feature_store import FeatureStore
 from feast.types import Array, Float32, String
-from feast.utils import _validate_vector_field_lengths
+from feast.utils import _convert_arrow_to_proto, _validate_vector_field_lengths
 from feast.value_type import ValueType
 
 VECTOR_LENGTH = 4
@@ -172,3 +172,81 @@ class TestDataFrameVectorLengthValidation:
             }
         )
         _validate_df(_feature_view(), df)
+
+
+class TestReviewFeedback:
+    """Cases raised in review of #6909."""
+
+    def test_null_vectors_are_tolerated_on_the_dataframe_path(self):
+        """A genuine null has no length, and must not be called 'not a sequence'.
+
+        Matches the Arrow path, which already tolerates null rows.
+        """
+        df = pd.DataFrame(
+            {
+                "embedding": [[0.0] * VECTOR_LENGTH, None, np.nan],
+                "label": list("abc"),
+            }
+        )
+        _validate_df(_feature_view(), df)
+
+    def test_first_offending_row_wins_across_both_failure_modes(self):
+        """A bad length in row 0 outranks a non-sequence in row 1."""
+        df = pd.DataFrame(
+            {"embedding": [[0.0] * 9, 3.14, [0.0] * 4], "label": list("abc")}
+        )
+        with pytest.raises(ValueError, match="Row 0: Vector length 9"):
+            _validate_df(_feature_view(), df)
+
+    def test_non_sequence_wins_when_it_comes_first(self):
+        df = pd.DataFrame(
+            {"embedding": [3.14, [0.0] * 9, [0.0] * 4], "label": list("abc")}
+        )
+        with pytest.raises(
+            ValueError, match="Row 0: Vector feature .* is not a sequence"
+        ):
+            _validate_df(_feature_view(), df)
+
+    def test_duplicate_index_reports_a_scalar_type_not_a_series(self):
+        """Positional access keeps a duplicate index from yielding a Series."""
+        df = pd.DataFrame(
+            {"embedding": [[0.0] * 4, 3.14, [0.0] * 4], "label": list("abc")},
+            index=[7, 7, 7],
+        )
+        with pytest.raises(ValueError, match=r"Got: <class 'float'>"):
+            _validate_df(_feature_view(), df)
+
+    def test_on_demand_feature_view_output_is_validated(self):
+        """_convert_arrow_to_proto must validate before it branches to the ODFV path."""
+        from feast.on_demand_feature_view import on_demand_feature_view
+
+        request_source = RequestSource(
+            name="req",
+            schema=[Field(name="raw", dtype=String)],
+        )
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[
+                Field(
+                    name="embedding",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_length=VECTOR_LENGTH,
+                )
+            ],
+            mode="python",
+            write_to_online_store=True,
+        )
+        def odfv(inputs):
+            return {"embedding": inputs["raw"]}
+
+        # Width 8 against a declared 4 must be rejected on the ODFV branch too.
+        table = pyarrow.table(
+            {
+                "embedding": _fixed_size_list(8, num_rows=2),
+                "req": pyarrow.array(["a", "b"]),
+            }
+        )
+        with pytest.raises(ValueError, match="does not match expected 4"):
+            _convert_arrow_to_proto(table, odfv, {})

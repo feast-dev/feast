@@ -548,6 +548,9 @@ def _convert_arrow_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
+    # Validate before branching so both regular and on-demand feature views are covered.
+    _validate_vector_field_lengths(table, feature_view)
+
     if (
         getattr(feature_view, "source_request_sources", None) is not None
         or getattr(feature_view, "source_feature_view_projections", None) is not None
@@ -570,8 +573,6 @@ def _convert_arrow_fv_to_proto(
         raise ValueError(
             f"Feature view '{feature_view.name}' has no batch_source and cannot be converted to proto."
         )
-
-    _validate_vector_field_lengths(table, feature_view)
 
     # TODO: This will break if the feature view has aggregations or transformations
     columns = [
