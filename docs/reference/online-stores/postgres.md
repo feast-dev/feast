@@ -8,6 +8,8 @@ The PostgreSQL online store provides support for materializing feature values in
 
 * `sslmode` defaults to `require`, which encrypts the connection without certificate verification. To disable SSL (e.g. for local development), set `sslmode: disable`. For certificate verification, set `sslmode` to `verify-ca` or `verify-full` and provide the corresponding `sslrootcert_path` (and optionally `sslcert_path` and `sslkey_path` for mutual TLS)
 
+* Reads that span several feature views are combined into one query. `max_batched_result_rows` (default 2048) caps the request size, in entity rows × feature views, that is batched this way; set it to `0` to always issue one query per feature view
+
 ## Getting started
 In order to use this online store, you'll need to run `pip install 'feast[postgres]'`. You can get started by then running `feast init -t postgres`.
 
