@@ -27,6 +27,7 @@ from feast.infra.compute_engines.trino.utils import (
     _trino_sql_literal,
     quote_identifier,
     stream_trino_arrow_batches,
+    unique_ordered,
     write_arrow_batches_to_online_store,
 )
 from feast.infra.compute_engines.utils import (
@@ -92,7 +93,7 @@ class TrinoReadNode(DAGNode):
         except (ValueError, AttributeError):
             created_ts_col = None
         join_keys = self.column_info.join_keys
-        field_mapping = self.column_info.field_mapping or {}
+        field_mapping: dict[str, str] = self.column_info.field_mapping or {}
 
         cols_to_select = set(join_keys)
         if timestamp_col:
@@ -109,8 +110,13 @@ class TrinoReadNode(DAGNode):
                 for col in sorted(cols_to_select, key=str)
             ]
             select_clause = ", ".join(projections)
+            output_cols = tuple(
+                field_mapping.get(str(col), str(col))
+                for col in sorted(cols_to_select, key=str)
+            )
         else:
             select_clause = "*"
+            output_cols = None
 
         filters = []
         if timestamp_col and self.start_time:
@@ -129,7 +135,7 @@ class TrinoReadNode(DAGNode):
         plan = TrinoQueryPlan(
             ctes=((cte_name, query),),
             current_from=cte_name,
-            columns=None,  # SELECT * from current CTE
+            columns=output_cols,
             join_keys=tuple(join_keys),
             timestamp_col=timestamp_col,
             created_timestamp_col=created_ts_col,
@@ -233,6 +239,17 @@ class TrinoDedupNode(DAGNode):
         if not join_keys or not ts_col:
             return input_value
 
+        candidate_cols = (
+            *join_keys,
+            *(c for c in (ts_col, created_ts_col) if c),
+            *self.column_info.feature_cols,
+        )
+        columns = upstream_plan.columns or unique_ordered(candidate_cols)
+        clean_cols = tuple(c for c in columns if c != "_feast_rn")
+        select_clause = (
+            ", ".join(quote_identifier(c) for c in clean_cols) if clean_cols else "*"
+        )
+
         partition_clause = ", ".join(quote_identifier(k) for k in join_keys)
         order_clauses = [f"{quote_identifier(ts_col)} DESC"]
         if created_ts_col:
@@ -240,7 +257,7 @@ class TrinoDedupNode(DAGNode):
 
         cte_name = f"_dedup_{self.name.replace(':', '_')}"
         query = (
-            f"SELECT * FROM (\n"
+            f"SELECT {select_clause} FROM (\n"
             f"    SELECT *,\n"
             f"           ROW_NUMBER() OVER (\n"
             f"               PARTITION BY {partition_clause}\n"
@@ -254,6 +271,7 @@ class TrinoDedupNode(DAGNode):
         plan = upstream_plan.add_cte(
             name=cte_name,
             query=query,
+            columns=clean_cols,
             metadata={"deduped": True},
         )
         return DAGValue(data=plan, format=DAGFormat.TRINO)
@@ -318,6 +336,17 @@ class TrinoAggregationNode(DAGNode):
             )
             group_by_all = tuple(group_by_clauses)
 
+        agg_cols = (
+            *self.group_by_keys,
+            self.timestamp_col,
+            *(
+                agg.resolved_name(agg.time_window)
+                if has_time_windows
+                else agg.resolved_name()
+                for agg in self.aggregations
+            ),
+        )
+
         cte_name = f"_agg_{self.name.replace(':', '_')}"
         query = (
             f"SELECT {', '.join(projections)}\n"
@@ -328,6 +357,7 @@ class TrinoAggregationNode(DAGNode):
         plan = upstream_plan.add_cte(
             name=cte_name,
             query=query,
+            columns=agg_cols,
             metadata={"aggregated": True},
         )
         return DAGValue(data=plan, format=DAGFormat.TRINO)
@@ -382,9 +412,14 @@ class TrinoJoinNode(DAGNode):
         join_suffix = f" {' '.join(join_steps)}" if join_steps else ""
         query = f"SELECT * FROM {curr_from}{join_suffix}"
 
+        upstream_cols = unique_ordered(
+            c for p in upstream_plans if p.columns for c in p.columns
+        )
+
         final_plan = TrinoQueryPlan(
             ctes=(*combined_ctes, (cte_name, query)),
             current_from=cte_name,
+            columns=upstream_cols or None,
             join_keys=tuple(join_keys),
             timestamp_col=base_plan.timestamp_col,
             created_timestamp_col=base_plan.created_timestamp_col,
@@ -457,8 +492,21 @@ class TrinoJoinNode(DAGNode):
             f"{join_clause}"
         )
 
+        entity_cols = (
+            tuple(entity_df.columns) if isinstance(entity_df, pd.DataFrame) else ()
+        )
+        feature_cols = tuple(
+            c
+            for c in (plan.columns or ())
+            if c not in entity_cols and c not in join_keys
+        )
+        joined_cols = (*entity_cols, *feature_cols) if entity_cols else plan.columns
+
         return plan.add_cte(
-            name=cte_name, query=query, metadata={"entity_joined": True}
+            name=cte_name,
+            query=query,
+            columns=joined_cols,
+            metadata={"entity_joined": True},
         )
 
 

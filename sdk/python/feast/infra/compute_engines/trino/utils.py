@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    TypeVar,
 )
 
 import numpy as np
@@ -37,6 +38,13 @@ if TYPE_CHECKING:
     from feast.repo_config import RepoConfig
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def unique_ordered(items: Iterable[T]) -> tuple[T, ...]:
+    """Return unique elements from an iterable, preserving first-seen insertion order."""
+    return tuple(dict.fromkeys(items))
 
 
 def quote_identifier(name: str) -> str:

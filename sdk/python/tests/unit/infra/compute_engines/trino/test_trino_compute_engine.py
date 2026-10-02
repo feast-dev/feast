@@ -38,6 +38,7 @@ from feast.infra.compute_engines.trino.utils import (
     _trino_sql_literal,
     from_feast_to_trino_type,
     quote_identifier,
+    unique_ordered,
 )
 from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoOfflineStoreConfig,
@@ -397,6 +398,51 @@ class TestTrinoDAGCompilation:
         assert 'PARTITION BY "driver_id"' in sql
         assert 'ORDER BY "event_timestamp" DESC, "created_timestamp" DESC' in sql
         assert "_feast_rn = 1" in sql
+        # Assert _feast_rn column does NOT leak into output projection
+        assert "SELECT * FROM (" not in sql
+        assert (
+            'SELECT "driver_id", "event_timestamp", "created_timestamp" FROM (' in sql
+        )
+        assert "_feast_rn" not in val.data.columns
+
+    def test_trino_dedup_node_uses_upstream_plan_columns(self):
+        plan = TrinoQueryPlan(
+            ctes=[
+                (
+                    "_source",
+                    'SELECT "driver_id", "event_timestamp", "conv_rate" FROM "driver_stats"',
+                )
+            ],
+            current_from="_source",
+            columns=("driver_id", "event_timestamp", "conv_rate"),
+            join_keys=["driver_id"],
+            timestamp_col="event_timestamp",
+        )
+        input_node = MagicMock()
+        input_node.name = "source"
+
+        col_info = ColumnInfo(
+            join_keys=["driver_id"],
+            feature_cols=["conv_rate"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        )
+        node = TrinoDedupNode(
+            name="dedup",
+            column_info=col_info,
+            client=MagicMock(),
+            inputs=[input_node],
+        )
+
+        context = MagicMock()
+        context.node_outputs = {"source": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        val = node.execute(context)
+        sql = val.data.to_sql()
+
+        assert 'SELECT "driver_id", "event_timestamp", "conv_rate" FROM (' in sql
+        assert "_feast_rn" not in val.data.columns
+        assert val.data.columns == ("driver_id", "event_timestamp", "conv_rate")
 
     def test_trino_aggregation_node_generates_group_by_sql(self):
         plan = TrinoQueryPlan(
@@ -1438,3 +1484,9 @@ class TestTrinoUtilsStreamingAndOnlineWrite:
         )
         assert online_store.online_write_batch.called
         assert progress.called
+
+
+def test_unique_ordered():
+    assert unique_ordered([1, 2, 2, 3, 1, 4]) == (1, 2, 3, 4)
+    assert unique_ordered(("a", "b", "a", "c")) == ("a", "b", "c")
+    assert unique_ordered([]) == ()
