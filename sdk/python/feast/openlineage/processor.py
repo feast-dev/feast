@@ -19,10 +19,11 @@ Parses incoming OpenLineage events (RunEvent, DatasetEvent, JobEvent),
 extracts metadata, and builds the lineage graph in the store.
 """
 
+import json
 import logging
 import re
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
 
 from feast.openlineage.store import OpenLineageStore
@@ -158,8 +159,18 @@ class OpenLineageProcessor:
 
         self._store.upsert_job(job_namespace, job_name, job, producer=producer)
 
+        # Extract execution hierarchy from ParentRunFacet
         run_facets = run.get("facets", {})
-        self._store.upsert_run(run_id, job_namespace, job_name, event_type, run_facets)
+        parent_run_id, root_run_id = self._extract_parent_hierarchy(run_facets, run_id)
+        self._store.upsert_run(
+            run_id,
+            job_namespace,
+            job_name,
+            event_type,
+            run_facets,
+            parent_run_id=parent_run_id,
+            root_run_id=root_run_id,
+        )
 
         # Parent/child job link (e.g. Feast materialize → SparkApplication)
         parent = run_facets.get("parent") or run_facets.get("parentRun")
@@ -194,6 +205,7 @@ class OpenLineageProcessor:
             )
             self._store.store_run_io(run_id, ds_namespace, ds_name, "INPUT", ds_facets)
             self._process_dataset_symlinks(ds_namespace, ds_name, ds_facets)
+            self._process_column_lineage(ds_namespace, ds_name, ds_facets, run_id)
 
             self._store.upsert_lineage_edge(
                 source_type="dataset",
@@ -218,6 +230,7 @@ class OpenLineageProcessor:
             )
             self._store.store_run_io(run_id, ds_namespace, ds_name, "OUTPUT", ds_facets)
             self._process_dataset_symlinks(ds_namespace, ds_name, ds_facets)
+            self._process_column_lineage(ds_namespace, ds_name, ds_facets, run_id)
 
             self._store.upsert_lineage_edge(
                 source_type="job",
@@ -228,6 +241,23 @@ class OpenLineageProcessor:
                 target_name=ds_name,
                 edge_type="output",
             )
+
+            # Create dataset version snapshot on COMPLETE events
+            if event_type == "COMPLETE" and run_id:
+                schema = ds_facets.get("schema")
+                try:
+                    self._store.create_dataset_version(
+                        namespace=ds_namespace,
+                        name=ds_name,
+                        run_id=run_id,
+                        schema_json=json.dumps(schema) if schema else None,
+                        facets_json=json.dumps(ds_facets) if ds_facets else None,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to create dataset version for "
+                        f"{ds_namespace}/{ds_name}: {e}"
+                    )
 
         self._build_dataset_to_dataset_edges(inputs, outputs, job_namespace)
 
@@ -434,6 +464,104 @@ class OpenLineageProcessor:
                         target_namespace=ds_namespace,
                         target_name=ds_name,
                         edge_type="symlink",
+                    )
+
+    def _extract_parent_hierarchy(
+        self,
+        run_facets: Dict[str, Any],
+        run_id: str,
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Extract parent_run_id and root_run_id from ParentRunFacet.
+
+        The OL spec defines ``parent`` (or ``parentRun``) as::
+
+            { "run": {"runId": "..."}, "job": {...},
+              "_producer": "...", "_schemaURL": "..." }
+
+        Returns (parent_run_id, root_run_id).  When a ``root`` key is
+        present inside the parent facet, its ``runId`` is used as the
+        root; otherwise the parent is also the root.
+        """
+        parent = run_facets.get("parent") or run_facets.get("parentRun")
+        if not isinstance(parent, dict):
+            return None, None
+
+        p_run = parent.get("run") or {}
+        parent_run_id = p_run.get("runId")
+
+        root = parent.get("root") or {}
+        root_run = root.get("run") or {} if isinstance(root, dict) else {}
+        root_run_id = root_run.get("runId") or parent_run_id
+
+        return parent_run_id, root_run_id
+
+    def _process_column_lineage(
+        self,
+        ds_namespace: str,
+        ds_name: str,
+        ds_facets: Dict[str, Any],
+        run_id: Optional[str] = None,
+    ):
+        """Extract and store ColumnLineageDatasetFacet entries.
+
+        OL spec ``columnLineage``::
+
+            { "fields": {
+                "output_col": {
+                    "inputFields": [
+                        { "namespace": "...", "name": "...", "field": "...",
+                          "transformations": [{"type": "...", "description": "..."}] }
+                    ]
+                }
+            }}
+        """
+        cl = ds_facets.get("columnLineage", {})
+        if not isinstance(cl, dict):
+            return
+        fields = cl.get("fields", {})
+        if not isinstance(fields, dict):
+            return
+
+        for output_field, field_info in fields.items():
+            if not isinstance(field_info, dict):
+                continue
+            input_fields = field_info.get("inputFields", [])
+            if not isinstance(input_fields, list):
+                continue
+            for inp in input_fields:
+                if not isinstance(inp, dict):
+                    continue
+                inp_ns = inp.get("namespace", ds_namespace)
+                inp_name = inp.get("name", "")
+                inp_field = inp.get("field", "")
+                if not inp_name or not inp_field:
+                    continue
+
+                xform_type = None
+                xform_desc = None
+                transformations = inp.get("transformations", [])
+                if isinstance(transformations, list) and transformations:
+                    first_xform = transformations[0]
+                    if isinstance(first_xform, dict):
+                        xform_type = first_xform.get("type")
+                        xform_desc = first_xform.get("description")
+
+                try:
+                    self._store.upsert_column_lineage(
+                        dataset_namespace=ds_namespace,
+                        dataset_name=ds_name,
+                        output_field=output_field,
+                        input_namespace=inp_ns,
+                        input_name=inp_name,
+                        input_field=inp_field,
+                        transformation_type=xform_type,
+                        transformation_description=xform_desc,
+                        run_id=run_id,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to store column lineage "
+                        f"{ds_namespace}/{ds_name}.{output_field}: {e}"
                     )
 
     def _resolve_feast_mapping(

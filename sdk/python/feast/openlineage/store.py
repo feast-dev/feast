@@ -177,6 +177,22 @@ class OpenLineageStore:
         if "dataSource" in facets:
             source_type = facets["dataSource"].get("name")
 
+        # Extract ownership facet (first owner as primary)
+        owner_name = None
+        owner_type = None
+        ownership = facets.get("ownership", {})
+        if isinstance(ownership, dict):
+            owners = ownership.get("owners", [])
+            if owners and isinstance(owners, list) and len(owners) > 0:
+                owner_name = owners[0].get("name")
+                owner_type = owners[0].get("type")
+
+        # Extract lifecycle state
+        lifecycle_state = None
+        lsc = facets.get("lifecycleStateChange", {})
+        if isinstance(lsc, dict) and lsc.get("lifecycleStateChange"):
+            lifecycle_state = lsc["lifecycleStateChange"]
+
         feast_obj_type = feast_mapping.get("type") if feast_mapping else None
         feast_obj_name = feast_mapping.get("name") if feast_mapping else None
         feast_project = feast_mapping.get("project") if feast_mapping else None
@@ -212,6 +228,12 @@ class OpenLineageStore:
                 values["description"] = description
                 values["schema_json"] = schema_json
 
+            if owner_name:
+                values["owner_name"] = owner_name
+                values["owner_type"] = owner_type
+            if lifecycle_state:
+                values["lifecycle_state"] = lifecycle_state
+
             if feast_obj_type and feast_obj_type != "unknown":
                 values["feast_object_type"] = feast_obj_type
                 if feast_obj_name:
@@ -238,6 +260,12 @@ class OpenLineageStore:
                 values["dataset_name"] = name
                 conn.execute(tbl.insert().values(**values))
 
+        # Persist all owners from OwnershipDatasetFacet
+        if isinstance(ownership, dict):
+            owners = ownership.get("owners", [])
+            if owners:
+                self._upsert_dataset_owners(namespace, name, owners)
+
     def upsert_run(
         self,
         run_id: str,
@@ -245,6 +273,8 @@ class OpenLineageStore:
         job_name: str,
         state: str,
         facets: Optional[Dict] = None,
+        parent_run_id: Optional[str] = None,
+        root_run_id: Optional[str] = None,
     ):
         now = int(time.time() * 1000)
         tbl = OL_TABLES["runs"]
@@ -258,6 +288,10 @@ class OpenLineageStore:
                     update_vals["ended_at"] = now
                 if facets:
                     update_vals["facets_json"] = json.dumps(facets)
+                if parent_run_id:
+                    update_vals["parent_run_id"] = parent_run_id
+                if root_run_id:
+                    update_vals["root_run_id"] = root_run_id
                 conn.execute(
                     tbl.update().where(tbl.c.run_id == run_id).values(**update_vals)
                 )
@@ -273,6 +307,8 @@ class OpenLineageStore:
                         if state in ("COMPLETE", "FAIL", "ABORT")
                         else None,
                         facets_json=json.dumps(facets) if facets else None,
+                        parent_run_id=parent_run_id,
+                        root_run_id=root_run_id,
                         updated_at=now,
                     )
                 )
@@ -717,6 +753,395 @@ class OpenLineageStore:
             rows = conn.execute(select(tbl)).fetchall()
             return [dict(r._mapping) for r in rows]
 
+    # ── Dataset versioning ──
+
+    def create_dataset_version(
+        self,
+        namespace: str,
+        name: str,
+        run_id: Optional[str] = None,
+        schema_json: Optional[str] = None,
+        facets_json: Optional[str] = None,
+    ) -> int:
+        """Create a new version snapshot for a dataset.
+
+        Returns the new version number.
+        """
+        now = int(time.time() * 1000)
+        tbl = OL_TABLES["dataset_versions"]
+        tbl_ds = OL_TABLES["datasets"]
+
+        with self._engine.begin() as conn:
+            max_ver = conn.execute(
+                select(func.max(tbl.c.version)).where(
+                    tbl.c.dataset_namespace == namespace,
+                    tbl.c.dataset_name == name,
+                )
+            ).scalar()
+            new_version = (max_ver or 0) + 1
+
+            conn.execute(
+                tbl.insert().values(
+                    dataset_namespace=namespace,
+                    dataset_name=name,
+                    version=new_version,
+                    created_by_run_id=run_id,
+                    schema_json=schema_json,
+                    facets_json=facets_json,
+                    created_at=now,
+                )
+            )
+
+            conn.execute(
+                tbl_ds.update()
+                .where(
+                    tbl_ds.c.dataset_namespace == namespace,
+                    tbl_ds.c.dataset_name == name,
+                )
+                .values(current_version=new_version, updated_at=now)
+            )
+
+        return new_version
+
+    def get_dataset_versions(
+        self,
+        namespace: str,
+        name: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """Get version history for a dataset."""
+        tbl = OL_TABLES["dataset_versions"]
+        query = (
+            select(tbl)
+            .where(
+                tbl.c.dataset_namespace == namespace,
+                tbl.c.dataset_name == name,
+            )
+            .order_by(tbl.c.version.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        with self._engine.connect() as conn:
+            rows = conn.execute(query).fetchall()
+            return [dict(r._mapping) for r in rows]
+
+    def get_dataset_version(
+        self,
+        namespace: str,
+        name: str,
+        version: int,
+    ) -> Optional[Dict[str, Any]]:
+        """Get a specific dataset version."""
+        tbl = OL_TABLES["dataset_versions"]
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                select(tbl).where(
+                    tbl.c.dataset_namespace == namespace,
+                    tbl.c.dataset_name == name,
+                    tbl.c.version == version,
+                )
+            ).first()
+            return dict(row._mapping) if row else None
+
+    # ── Column-level lineage ──
+
+    def upsert_column_lineage(
+        self,
+        dataset_namespace: str,
+        dataset_name: str,
+        output_field: str,
+        input_namespace: str,
+        input_name: str,
+        input_field: str,
+        transformation_type: Optional[str] = None,
+        transformation_description: Optional[str] = None,
+        run_id: Optional[str] = None,
+    ):
+        """Store a column-level lineage mapping."""
+        now = int(time.time() * 1000)
+        tbl = OL_TABLES["column_lineage"]
+        with self._engine.begin() as conn:
+            existing = conn.execute(
+                select(tbl).where(
+                    tbl.c.dataset_namespace == dataset_namespace,
+                    tbl.c.dataset_name == dataset_name,
+                    tbl.c.output_field == output_field,
+                    tbl.c.input_namespace == input_namespace,
+                    tbl.c.input_name == input_name,
+                    tbl.c.input_field == input_field,
+                )
+            ).first()
+
+            if existing:
+                conn.execute(
+                    tbl.update()
+                    .where(
+                        tbl.c.dataset_namespace == dataset_namespace,
+                        tbl.c.dataset_name == dataset_name,
+                        tbl.c.output_field == output_field,
+                        tbl.c.input_namespace == input_namespace,
+                        tbl.c.input_name == input_name,
+                        tbl.c.input_field == input_field,
+                    )
+                    .values(
+                        transformation_type=transformation_type,
+                        transformation_description=transformation_description,
+                        run_id=run_id,
+                        updated_at=now,
+                    )
+                )
+            else:
+                conn.execute(
+                    tbl.insert().values(
+                        dataset_namespace=dataset_namespace,
+                        dataset_name=dataset_name,
+                        output_field=output_field,
+                        input_namespace=input_namespace,
+                        input_name=input_name,
+                        input_field=input_field,
+                        transformation_type=transformation_type,
+                        transformation_description=transformation_description,
+                        run_id=run_id,
+                        updated_at=now,
+                    )
+                )
+
+    def get_column_lineage(
+        self,
+        namespace: str,
+        name: str,
+        direction: str = "both",
+    ) -> List[Dict[str, Any]]:
+        """Get column-level lineage for a dataset.
+
+        direction: "upstream" (inputs to this dataset), "downstream"
+            (where this dataset's fields go), or "both".
+        """
+        tbl = OL_TABLES["column_lineage"]
+        results = []
+
+        with self._engine.connect() as conn:
+            if direction in ("both", "upstream"):
+                rows = conn.execute(
+                    select(tbl).where(
+                        tbl.c.dataset_namespace == namespace,
+                        tbl.c.dataset_name == name,
+                    )
+                ).fetchall()
+                for r in rows:
+                    entry = dict(r._mapping)
+                    entry["direction"] = "upstream"
+                    results.append(entry)
+
+            if direction in ("both", "downstream"):
+                rows = conn.execute(
+                    select(tbl).where(
+                        tbl.c.input_namespace == namespace,
+                        tbl.c.input_name == name,
+                    )
+                ).fetchall()
+                for r in rows:
+                    entry = dict(r._mapping)
+                    entry["direction"] = "downstream"
+                    results.append(entry)
+
+        return results
+
+    # ── Dataset ownership ──
+
+    def _upsert_dataset_owners(
+        self,
+        namespace: str,
+        name: str,
+        owners: List[Dict[str, str]],
+    ):
+        """Persist all owners from an OwnershipDatasetFacet."""
+        now = int(time.time() * 1000)
+        tbl = OL_TABLES["dataset_ownership"]
+
+        with self._engine.begin() as conn:
+            for owner in owners:
+                o_name = owner.get("name", "")
+                o_type = owner.get("type", "")
+                if not o_name:
+                    continue
+
+                existing = conn.execute(
+                    select(tbl).where(
+                        tbl.c.dataset_namespace == namespace,
+                        tbl.c.dataset_name == name,
+                        tbl.c.owner_name == o_name,
+                    )
+                ).first()
+
+                if existing:
+                    conn.execute(
+                        tbl.update()
+                        .where(
+                            tbl.c.dataset_namespace == namespace,
+                            tbl.c.dataset_name == name,
+                            tbl.c.owner_name == o_name,
+                        )
+                        .values(owner_type=o_type, updated_at=now)
+                    )
+                else:
+                    conn.execute(
+                        tbl.insert().values(
+                            dataset_namespace=namespace,
+                            dataset_name=name,
+                            owner_name=o_name,
+                            owner_type=o_type,
+                            updated_at=now,
+                        )
+                    )
+
+    def get_dataset_owners(
+        self,
+        namespace: str,
+        name: str,
+    ) -> List[Dict[str, str]]:
+        """Get all owners for a dataset."""
+        tbl = OL_TABLES["dataset_ownership"]
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                select(tbl).where(
+                    tbl.c.dataset_namespace == namespace,
+                    tbl.c.dataset_name == name,
+                )
+            ).fetchall()
+            return [
+                {"name": r._mapping["owner_name"], "type": r._mapping["owner_type"]}
+                for r in rows
+            ]
+
+    # ── Execution hierarchy ──
+
+    def get_child_runs(
+        self,
+        parent_run_id: str,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """Get all child runs of a given parent run."""
+        tbl = OL_TABLES["runs"]
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                select(tbl)
+                .where(tbl.c.parent_run_id == parent_run_id)
+                .order_by(tbl.c.updated_at.desc())
+                .limit(limit)
+            ).fetchall()
+            return [dict(r._mapping) for r in rows]
+
+    def get_run_tree(self, root_run_id: str) -> List[Dict[str, Any]]:
+        """Get all runs in an execution tree (sharing the same root)."""
+        tbl = OL_TABLES["runs"]
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                select(tbl)
+                .where(
+                    (tbl.c.root_run_id == root_run_id) | (tbl.c.run_id == root_run_id)
+                )
+                .order_by(tbl.c.started_at.asc().nulls_last())
+            ).fetchall()
+            return [dict(r._mapping) for r in rows]
+
+    # ── Assurance level (computed) ──
+
+    def compute_assurance_level(
+        self,
+        namespace: str,
+        name: str,
+    ) -> Dict[str, Any]:
+        """Compute the assurance level for a dataset based on facet presence.
+
+        Levels (cumulative):
+          - Linked: dataset is in the lineage graph
+          - Observed: has source evidence (dataSource URI, ETag, hash, etc.)
+          - Reproducible: inputs+outputs have immutable identifiers or
+            version snapshots sufficient to reconstruct the run
+        """
+        tbl_ds = OL_TABLES["datasets"]
+        tbl_ver = OL_TABLES["dataset_versions"]
+        tbl_edges = OL_TABLES["lineage_edges"]
+
+        result: Dict[str, Any] = {
+            "namespace": namespace,
+            "name": name,
+            "level": "none",
+            "details": {},
+        }
+
+        with self._engine.connect() as conn:
+            ds_row = conn.execute(
+                select(tbl_ds).where(
+                    tbl_ds.c.dataset_namespace == namespace,
+                    tbl_ds.c.dataset_name == name,
+                )
+            ).first()
+            if not ds_row:
+                return result
+
+            # Level 1: Linked — exists in the graph
+            has_edges = conn.execute(
+                select(func.count())
+                .select_from(tbl_edges)
+                .where(
+                    (
+                        (tbl_edges.c.source_namespace == namespace)
+                        & (tbl_edges.c.source_name == name)
+                    )
+                    | (
+                        (tbl_edges.c.target_namespace == namespace)
+                        & (tbl_edges.c.target_name == name)
+                    )
+                )
+            ).scalar()
+
+            if has_edges and has_edges > 0:
+                result["level"] = "linked"
+                result["details"]["edge_count"] = has_edges
+            else:
+                return result
+
+            # Level 2: Observed — has source evidence
+            facets = _safe_parse_json(ds_row._mapping.get("facets_json"))
+            has_source_evidence = False
+            evidence_indicators = []
+            if facets:
+                if facets.get("dataSource", {}).get("uri"):
+                    has_source_evidence = True
+                    evidence_indicators.append("dataSource.uri")
+                if facets.get("storage", {}).get("storageLayer"):
+                    has_source_evidence = True
+                    evidence_indicators.append("storage")
+                for key in ("dataQualityMetrics", "dataQualityAssertions"):
+                    if key in facets:
+                        has_source_evidence = True
+                        evidence_indicators.append(key)
+
+            if has_source_evidence:
+                result["level"] = "observed"
+                result["details"]["evidence"] = evidence_indicators
+
+            # Level 3: Reproducible — has versioned snapshots
+            version_count = conn.execute(
+                select(func.count())
+                .select_from(tbl_ver)
+                .where(
+                    tbl_ver.c.dataset_namespace == namespace,
+                    tbl_ver.c.dataset_name == name,
+                )
+            ).scalar()
+
+            if version_count and version_count > 0:
+                has_schema = ds_row._mapping.get("schema_json") is not None
+                if has_source_evidence and has_schema:
+                    result["level"] = "reproducible"
+                    result["details"]["version_count"] = version_count
+
+        return result
+
     # ── Cleanup methods ──
 
     def delete_dataset(self, namespace: str, name: str):
@@ -755,6 +1180,35 @@ class OpenLineageStore:
                 tbl_rio.delete().where(
                     (tbl_rio.c.dataset_namespace == namespace)
                     & (tbl_rio.c.dataset_name == name)
+                )
+            )
+
+            # Clean extended tables
+            tbl_ver = OL_TABLES["dataset_versions"]
+            conn.execute(
+                tbl_ver.delete().where(
+                    (tbl_ver.c.dataset_namespace == namespace)
+                    & (tbl_ver.c.dataset_name == name)
+                )
+            )
+            tbl_cl = OL_TABLES["column_lineage"]
+            conn.execute(
+                tbl_cl.delete().where(
+                    (
+                        (tbl_cl.c.dataset_namespace == namespace)
+                        & (tbl_cl.c.dataset_name == name)
+                    )
+                    | (
+                        (tbl_cl.c.input_namespace == namespace)
+                        & (tbl_cl.c.input_name == name)
+                    )
+                )
+            )
+            tbl_own = OL_TABLES["dataset_ownership"]
+            conn.execute(
+                tbl_own.delete().where(
+                    (tbl_own.c.dataset_namespace == namespace)
+                    & (tbl_own.c.dataset_name == name)
                 )
             )
 
@@ -815,6 +1269,9 @@ class OpenLineageStore:
     def purge_all(self):
         """Delete all data from all OpenLineage tables."""
         table_order = [
+            "column_lineage",
+            "dataset_ownership",
+            "dataset_versions",
             "run_io",
             "runs",
             "lineage_edges",
@@ -858,6 +1315,23 @@ class OpenLineageStore:
                     (tbl_sym.c.dataset_namespace == namespace)
                     | (tbl_sym.c.linked_namespace == namespace)
                 )
+            )
+
+            # Purge extended tables for this namespace
+            tbl_ver = OL_TABLES["dataset_versions"]
+            conn.execute(
+                tbl_ver.delete().where(tbl_ver.c.dataset_namespace == namespace)
+            )
+            tbl_cl = OL_TABLES["column_lineage"]
+            conn.execute(
+                tbl_cl.delete().where(
+                    (tbl_cl.c.dataset_namespace == namespace)
+                    | (tbl_cl.c.input_namespace == namespace)
+                )
+            )
+            tbl_own = OL_TABLES["dataset_ownership"]
+            conn.execute(
+                tbl_own.delete().where(tbl_own.c.dataset_namespace == namespace)
             )
 
             tbl_ds = OL_TABLES["datasets"]
@@ -969,6 +1443,13 @@ class OpenLineageStore:
                 tbl_ev.delete().where(tbl_ev.c.created_at < cutoff_ms)
             )
             deleted["events"] = result.rowcount
+
+            # 5. Delete expired dataset versions
+            tbl_ver = OL_TABLES["dataset_versions"]
+            result = conn.execute(
+                tbl_ver.delete().where(tbl_ver.c.created_at < cutoff_ms)
+            )
+            deleted["dataset_versions"] = result.rowcount
 
         total = sum(deleted.values())
         if total > 0:

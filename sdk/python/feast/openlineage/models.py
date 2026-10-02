@@ -17,12 +17,25 @@ SQLAlchemy table definitions for the OpenLineage consumer lineage store.
 
 Uses SQLAlchemy Core (Table + Column) pattern consistent with Feast's
 existing SQL registry in feast/infra/registry/sql.py.
+
+Tables
+------
+Core:
+  openlineage_events, openlineage_jobs, openlineage_datasets,
+  openlineage_runs, openlineage_run_io, openlineage_lineage_edges,
+  openlineage_dataset_symlinks
+
+Extended (OL spec facets):
+  openlineage_dataset_versions   – per-run snapshots of dataset state
+  openlineage_column_lineage     – column-level field transformations
+  openlineage_dataset_ownership  – extracted OwnershipDatasetFacet rows
 """
 
 from sqlalchemy import (
     BigInteger,
     Column,
     Index,
+    Integer,
     MetaData,
     String,
     Text,
@@ -71,6 +84,11 @@ openlineage_datasets = (
     Column("feast_object_type", String(100), nullable=True),
     Column("feast_object_name", String(255), nullable=True),
     Column("feast_project", String(255), nullable=True),
+    # Extended: ownership, lifecycle, version tracking
+    Column("owner_name", String(512), nullable=True),
+    Column("owner_type", String(100), nullable=True),
+    Column("lifecycle_state", String(50), nullable=True),
+    Column("current_version", Integer, nullable=True),
     Column("updated_at", BigInteger, nullable=False),
 )
 
@@ -84,6 +102,9 @@ openlineage_runs = (
     Column("started_at", BigInteger, nullable=True),
     Column("ended_at", BigInteger, nullable=True),
     Column("facets_json", Text, nullable=True),
+    # Extended: execution hierarchy from ParentRunFacet
+    Column("parent_run_id", String(255), nullable=True),
+    Column("root_run_id", String(255), nullable=True),
     Column("updated_at", BigInteger, nullable=False),
 )
 
@@ -145,6 +166,66 @@ openlineage_dataset_symlinks = (
 )
 
 
+openlineage_dataset_versions = (
+    "openlineage_dataset_versions",
+    ol_metadata,
+    Column("version_id", Integer, primary_key=True, autoincrement=True),
+    Column("dataset_namespace", String(512), nullable=False),
+    Column("dataset_name", String(512), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("created_by_run_id", String(255), nullable=True),
+    Column("schema_json", Text, nullable=True),
+    Column("facets_json", Text, nullable=True),
+    Column("created_at", BigInteger, nullable=False),
+    UniqueConstraint(
+        "dataset_namespace",
+        "dataset_name",
+        "version",
+        name="uq_dataset_version",
+    ),
+)
+
+openlineage_column_lineage = (
+    "openlineage_column_lineage",
+    ol_metadata,
+    Column("dataset_namespace", String(512), nullable=False),
+    Column("dataset_name", String(512), nullable=False),
+    Column("output_field", String(512), nullable=False),
+    Column("input_namespace", String(512), nullable=False),
+    Column("input_name", String(512), nullable=False),
+    Column("input_field", String(512), nullable=False),
+    Column("transformation_type", String(100), nullable=True),
+    Column("transformation_description", Text, nullable=True),
+    Column("run_id", String(255), nullable=True),
+    Column("updated_at", BigInteger, nullable=False),
+    UniqueConstraint(
+        "dataset_namespace",
+        "dataset_name",
+        "output_field",
+        "input_namespace",
+        "input_name",
+        "input_field",
+        name="uq_column_lineage",
+    ),
+)
+
+openlineage_dataset_ownership = (
+    "openlineage_dataset_ownership",
+    ol_metadata,
+    Column("dataset_namespace", String(512), nullable=False),
+    Column("dataset_name", String(512), nullable=False),
+    Column("owner_name", String(512), nullable=False),
+    Column("owner_type", String(100), nullable=True),
+    Column("updated_at", BigInteger, nullable=False),
+    UniqueConstraint(
+        "dataset_namespace",
+        "dataset_name",
+        "owner_name",
+        name="uq_dataset_owner",
+    ),
+)
+
+
 def _build_tables():
     """Build Table objects from the tuple definitions above."""
     from sqlalchemy import Table
@@ -158,6 +239,9 @@ def _build_tables():
         ("run_io", openlineage_run_io),
         ("lineage_edges", openlineage_lineage_edges),
         ("dataset_symlinks", openlineage_dataset_symlinks),
+        ("dataset_versions", openlineage_dataset_versions),
+        ("column_lineage", openlineage_column_lineage),
+        ("dataset_ownership", openlineage_dataset_ownership),
     ]:
         tbl_name = tbl_def[0]
         meta = tbl_def[1]
@@ -215,4 +299,41 @@ idx_symlinks_linked = Index(
     "idx_ol_symlinks_linked",
     OL_TABLES["dataset_symlinks"].c.linked_namespace,
     OL_TABLES["dataset_symlinks"].c.linked_name,
+)
+
+idx_dataset_versions_ds = Index(
+    "idx_ol_dv_dataset",
+    OL_TABLES["dataset_versions"].c.dataset_namespace,
+    OL_TABLES["dataset_versions"].c.dataset_name,
+)
+idx_dataset_versions_run = Index(
+    "idx_ol_dv_run",
+    OL_TABLES["dataset_versions"].c.created_by_run_id,
+)
+idx_column_lineage_ds = Index(
+    "idx_ol_cl_dataset",
+    OL_TABLES["column_lineage"].c.dataset_namespace,
+    OL_TABLES["column_lineage"].c.dataset_name,
+)
+idx_column_lineage_input = Index(
+    "idx_ol_cl_input",
+    OL_TABLES["column_lineage"].c.input_namespace,
+    OL_TABLES["column_lineage"].c.input_name,
+)
+idx_dataset_ownership_ds = Index(
+    "idx_ol_do_dataset",
+    OL_TABLES["dataset_ownership"].c.dataset_namespace,
+    OL_TABLES["dataset_ownership"].c.dataset_name,
+)
+idx_runs_parent = Index(
+    "idx_ol_runs_parent",
+    OL_TABLES["runs"].c.parent_run_id,
+)
+idx_runs_root = Index(
+    "idx_ol_runs_root",
+    OL_TABLES["runs"].c.root_run_id,
+)
+idx_datasets_lifecycle = Index(
+    "idx_ol_datasets_lifecycle",
+    OL_TABLES["datasets"].c.lifecycle_state,
 )
