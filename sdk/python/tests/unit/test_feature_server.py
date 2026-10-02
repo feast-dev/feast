@@ -764,3 +764,21 @@ def test_gunicorn_post_worker_init_starts_resource_and_freshness_monitoring():
 
     mock_fm.init_worker_monitoring.assert_called_once()
     mock_fm.init_worker_freshness_monitoring.assert_called_once_with(mock_store)
+
+
+def test_get_online_features_returns_feature_view_version_metadata(test_client):
+    """``include_feature_view_version_metadata=True`` must surface the
+    ``feature_view_metadata`` block over REST, like it does on the proto."""
+    push_response = test_client.post("/push", json=push_body())
+    assert push_response.status_code == 200
+
+    request_payload = get_online_features_body()
+    request_payload["include_feature_view_version_metadata"] = True
+    response = test_client.post("/get-online-features", json=request_payload)
+    assert response.status_code == 200
+
+    metadata = response.json()["metadata"]
+    assert "feature_view_metadata" in metadata, metadata
+    assert [m["name"] for m in metadata["feature_view_metadata"]] == [
+        "pushed_driver_locations"
+    ]
