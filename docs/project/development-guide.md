@@ -132,7 +132,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 
 ### Quick start
 - create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version)
-- activate the venv: `source venv/bin/activate`
+- activate the venv: `source .venv/bin/activate`
 - Install dependencies `make install-python-dependencies-dev`
 
 ### Building the UI
