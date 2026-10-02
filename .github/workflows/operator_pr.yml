@@ -1,6 +1,10 @@
 name: operator-pr
 
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - 'infra/feast-operator/**'
+      - '.github/workflows/operator_pr.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
