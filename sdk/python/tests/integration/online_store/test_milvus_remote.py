@@ -289,3 +289,26 @@ def test_db_name(tmp_path: Path, project: str, store: MilvusOnlineStore) -> None
     db_client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN, db_name=db_name)
     assert collection_name in db_client.list_collections()
     assert collection_name not in admin.list_collections()
+
+
+def test_autoindex_with_search_level(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path, project, index_type="AUTOINDEX", search_params={"level": 2}
+    )
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _vector_rows())
+
+    assert store.client is not None
+    index = store.client.describe_index(
+        f"{project}_{fv.name}", "vector_index_embedding"
+    )
+    assert index["index_type"] == "AUTOINDEX"
+
+    hits = _eventually(
+        lambda: _search(store, config, fv, [1.0, 0.0]),
+        lambda hits: len(hits) == 1,
+    )
+    assert hits[0]["city"].string_val == "Paris"
