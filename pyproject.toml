@@ -45,10 +45,9 @@ dependencies = [
     "prometheus_client",
     "psutil",
     "bigtree>=0.19.2",
-    "pyjwt",
+    "pyjwt[crypto]",
     "httpx>=0.23.3",
     "bigtree>=0.19.2",
-    "pyjwt",
 ]
 
 [project.optional-dependencies]
