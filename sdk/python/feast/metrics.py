@@ -54,7 +54,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
-from wsgiref.simple_server import WSGIServer, make_server
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import psutil
 
@@ -585,6 +585,22 @@ def init_worker_freshness_monitoring(store: "FeatureStore"):
         t.start()
 
 
+class _QuietWSGIRequestHandler(WSGIRequestHandler):
+    """Request handler that does not log each scrape to stderr.
+
+    The metrics server runs as a thread in the Gunicorn master, which forks
+    the workers. The default handler writes an access-log line to stderr for
+    every request; a fork while that thread holds the stderr buffer lock
+    leaves the new worker with the lock held forever, and the worker hangs
+    on its first log line ("Booting worker") before it serves anything.
+    Same class of problem as #6647. prometheus_client's own server uses a
+    silent handler for the same reason.
+    """
+
+    def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+        pass
+
+
 def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIServer:
     """Build the metrics HTTP server, dual-stack ("::") when the host
     supports IPv6, or IPv4-only (falls back to `make_server`'s default
@@ -593,7 +609,7 @@ def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIS
     from feast import utils
 
     if not utils._ipv6_available():
-        return make_server("", port, app)
+        return make_server("", port, app, handler_class=_QuietWSGIRequestHandler)
 
     class DualStackWSGIServer(WSGIServer):
         address_family = socket.AF_INET6
@@ -602,7 +618,13 @@ def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIS
             self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
             super().server_bind()
 
-    return make_server("::", port, app, server_class=DualStackWSGIServer)
+    return make_server(
+        "::",
+        port,
+        app,
+        server_class=DualStackWSGIServer,
+        handler_class=_QuietWSGIRequestHandler,
+    )
 
 
 def start_metrics_server(
