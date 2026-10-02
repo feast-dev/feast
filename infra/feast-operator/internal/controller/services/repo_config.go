@@ -108,6 +108,64 @@ func (feast *FeastServices) getLineageRepoConfig() (RepoConfig, error) {
 		}
 	}
 
+	// Apply auth configuration so the lineage server enforces the same
+	// authentication as the other Feast servers.  Without this the
+	// standalone lineage endpoints would be unauthenticated even when
+	// Kubernetes or OIDC auth is configured on the FeatureStore CR.
+	if applied.AuthzConfig != nil && applied.AuthzConfig.OidcAuthz != nil {
+		repoConfig.AuthzConfig = AuthzConfig{Type: OidcAuthType}
+		oidcAuthz := applied.AuthzConfig.OidcAuthz
+		oidcParameters := map[string]interface{}{}
+
+		var secretProperties map[string]interface{}
+		if oidcAuthz.SecretRef != nil {
+			var err error
+			secretProperties, err = feast.extractConfigFromSecret("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
+			if err != nil {
+				return repoConfig, err
+			}
+			for _, prop := range OidcOptionalSecretProperties {
+				if val, exists := secretProperties[string(prop)]; exists {
+					if prop == OidcAudience || prop == OidcIssuer {
+						if _, isString := val.(string); !isString {
+							val = fmt.Sprintf("%v", val)
+						}
+					}
+					oidcParameters[string(prop)] = val
+				}
+			}
+		}
+
+		discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+		if err != nil {
+			return repoConfig, err
+		}
+		oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
+
+		if oidcAuthz.VerifySSL != nil {
+			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
+		}
+		if oidcAuthz.JwksCacheLifespanSeconds != nil {
+			oidcParameters[string(OidcJwksCacheLifespanSeconds)] = *oidcAuthz.JwksCacheLifespanSeconds
+		}
+		if oidcAuthz.JwksRequestTimeoutSeconds != nil {
+			oidcParameters[string(OidcJwksRequestTimeoutSeconds)] = *oidcAuthz.JwksRequestTimeoutSeconds
+		}
+		odhCaBundleExists := feast.GetCustomCertificatesBundle().IsDefined
+		if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
+			oidcParameters[string(OidcCaCertPath)] = caCertPath
+		}
+		repoConfig.AuthzConfig.OidcParameters = oidcParameters
+	} else if applied.AuthzConfig != nil {
+		if applied.AuthzConfig.NoAuth != nil && *applied.AuthzConfig.NoAuth {
+			repoConfig.AuthzConfig = AuthzConfig{Type: NoAuthAuthType}
+		} else if applied.AuthzConfig.KubernetesAuthz != nil {
+			repoConfig.AuthzConfig = AuthzConfig{Type: KubernetesAuthType}
+		}
+	} else {
+		repoConfig.AuthzConfig = defaultAuthzConfig
+	}
+
 	return repoConfig, nil
 }
 
