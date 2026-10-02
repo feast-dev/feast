@@ -5,10 +5,72 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+    MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+    build_point_in_time_query,
+)
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client, thread_local
 
 logger = logging.getLogger(__name__)
+
+
+def _feature_view_query_context(name, entities):
+    return {
+        "name": name,
+        "ttl": 3600,
+        "entities": entities,
+        "features": ["feature1"],
+        "field_mapping": {},
+        "timestamp_field": "event_timestamp",
+        "created_timestamp_column": None,
+        "table_subquery": f"{name}_table",
+        "entity_selections": [f'"{entity}" as "{entity}"' for entity in entities],
+        "min_event_timestamp": None,
+        "max_event_timestamp": "2023-01-01",
+        "date_partition_column": None,
+        "timestamp_field_type": None,
+    }
+
+
+class TestMultipleFeatureViewPointInTimeJoinQuery:
+    """
+    ClickHouse rejects `ON TRUE` (INVALID_JOIN_ON_EXPRESSION) and rejects more than
+    one `USING` clause per query (Code: 48). Both appeared in the multi-feature-view
+    point-in-time join template, breaking any query that joined 2+ FeatureViews, as
+    well as every single-FeatureView query via the `ON TRUE` clause.
+    """
+
+    def test_no_on_true_or_multiple_using_with_entities(self):
+        query = build_point_in_time_query(
+            [
+                _feature_view_query_context("fv1", ["driver_id"]),
+                _feature_view_query_context("fv2", ["driver_id"]),
+            ],
+            left_table_query_string="entity_table",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns=["driver_id", "event_timestamp"],
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+        )
+
+        assert "ON TRUE" not in query
+        assert 'ON "fv1"."fv1__entity_row_unique_id"' in query
+        assert 'ON "fv2"."fv2__entity_row_unique_id"' in query
+        assert 'USING ("fv1__entity_row_unique_id")' not in query
+        assert 'USING ("fv2__entity_row_unique_id")' not in query
+
+    def test_no_on_true_with_no_entities(self):
+        """Non-entity FeatureViews (entities=[]) must still produce a valid ON clause."""
+        query = build_point_in_time_query(
+            [_feature_view_query_context("fv1", [])],
+            left_table_query_string="entity_table",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns=["event_timestamp"],
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+        )
+
+        assert "ON TRUE" not in query
+        assert "ON 1 = 1" in query
 
 
 @pytest.fixture

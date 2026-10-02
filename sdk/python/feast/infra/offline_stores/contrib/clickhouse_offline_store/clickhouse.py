@@ -533,10 +533,13 @@ WITH entity_dataframe AS (
         entity_dataframe."{{featureview.name}}__entity_row_unique_id"
     FROM "{{ featureview.name }}__subquery" AS subquery
     INNER JOIN "{{ featureview.name }}__entity_dataframe" AS entity_dataframe
-    ON TRUE
+    {% if featureview.entities %}
         {% for entity in featureview.entities %}
-        AND subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
+        {% if loop.first %}ON{% else %}AND{% endif %} subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
         {% endfor %}
+    {% else %}
+    ON 1 = 1
+    {% endif %}
     WHERE TRUE
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
 
@@ -625,6 +628,6 @@ LEFT JOIN (
             ,"{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"
         {% endfor %}
     FROM "{{ featureview.name }}__cleaned"
-) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
+) AS "{{featureview.name}}" ON "{{featureview.name}}"."{{featureview.name}}__entity_row_unique_id" = entity_dataframe."{{featureview.name}}__entity_row_unique_id"
 {% endfor %}
 """
