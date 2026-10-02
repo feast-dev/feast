@@ -19,7 +19,9 @@ package services
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -841,8 +843,8 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 			createCommand = strings.Join(initSlice, " ")
 		} else if feastProjectDir.Git != nil {
 			gitSlice := []string{"git"}
-			for key, value := range feastProjectDir.Git.Configs {
-				gitSlice = append(gitSlice, "-c", key+"="+value)
+			for _, key := range slices.Sorted(maps.Keys(feastProjectDir.Git.Configs)) {
+				gitSlice = append(gitSlice, "-c", key+"="+feastProjectDir.Git.Configs[key])
 			}
 			gitSlice = append(gitSlice, "clone", feastProjectDir.Git.URL, projectPath)
 

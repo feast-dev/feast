@@ -18,6 +18,8 @@ package services
 
 import (
 	"context"
+	"strings"
+	"testing"
 
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
@@ -1035,3 +1037,28 @@ var _ = Describe("Pod Container Failure Messages", func() {
 		Expect(containerFailureMessage(pod)).To(BeEmpty())
 	})
 })
+
+func TestSetInitContainerSortsGitConfigs(t *testing.T) {
+	fs := minimalFeatureStore()
+	fs.Spec.FeastProjectDir = &feastdevv1.FeastProjectDir{
+		Git: &feastdevv1.GitCloneOptions{
+			URL: "https://github.com/feast-dev/feast",
+			Configs: map[string]string{
+				"http.sslVerify": "false",
+				"core.longpaths": "true",
+				"http.proxy":     "http://proxy:3128",
+			},
+		},
+	}
+	ApplyDefaultsToStatus(fs)
+	feast := FeastServices{Handler: handler.FeastHandler{FeatureStore: fs}}
+
+	want := "git -c core.longpaths=true -c http.proxy=http://proxy:3128 -c http.sslVerify=false clone"
+	for i := 0; i < 20; i++ {
+		podSpec := &corev1.PodSpec{}
+		feast.setInitContainer(podSpec, "")
+		if got := podSpec.InitContainers[0].Args[0]; !strings.Contains(got, want) {
+			t.Fatalf("got %q, want it to contain %q", got, want)
+		}
+	}
+}
