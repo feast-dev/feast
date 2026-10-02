@@ -258,6 +258,14 @@ The system checks for tokens in this order:
 3. **Service account token**: `/var/run/secrets/kubernetes.io/serviceaccount/token` (for pods)
 4. **Environment variable**: `LOCAL_K8S_TOKEN`
 
+The intra-communication token is not a user credential. It is a shared secret that
+Feast servers sign their calls to each other with, and a caller able to produce it is
+trusted by the RBAC layer without any further permission check. Give it a value that is
+private to the installation and carries at least 32 bytes of entropy, and point every
+Feast release that has to reach another one at that same value (`intraCommunicationSecret`
+in the Helm chart). Leaving it unset disables intra-server communication rather than
+falling back to a default.
+
 
 ## Troubleshooting
 
