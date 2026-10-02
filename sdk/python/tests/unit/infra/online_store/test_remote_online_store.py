@@ -779,3 +779,106 @@ class TestRemoteOnlineStoreWriteBatch:
 
         # Event timestamps should be ISO strings as before
         assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+
+    @pytest.fixture
+    def feature_view_custom_timestamps(self):
+        """A feature view whose batch source uses non-default timestamp columns."""
+        entity = Entity(
+            name="user_id", description="User ID", value_type=ValueType.INT64
+        )
+        source = FileSource(
+            path="test.parquet",
+            timestamp_field="ingested_at",
+            created_timestamp_column="created_at",
+        )
+        return FeatureView(
+            name="test_feature_view",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="user_id", dtype=Int64),
+                Field(name="feature1", dtype=String),
+            ],
+            source=source,
+        )
+
+    @patch("feast.infra.online_stores.remote.post_remote_online_write")
+    def test_timestamp_columns_use_batch_source_names(
+        self, mock_post, remote_store, config, feature_view_custom_timestamps
+    ):
+        """The request body must label the timestamps with the batch source's
+        configured column names, since that is how the server resolves them."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        data = [
+            (
+                EntityKeyProto(
+                    join_keys=["user_id"], entity_values=[ValueProto(int64_val=42)]
+                ),
+                {"feature1": ValueProto(string_val="hello")},
+                datetime(2023, 11, 15, 0, 0, 0),
+                datetime(2023, 11, 14, 0, 0, 0),
+            )
+        ]
+
+        remote_store.online_write_batch(
+            config=config,
+            table=feature_view_custom_timestamps,
+            data=data,
+            progress=None,
+        )
+
+        df = mock_post.call_args[1]["req_body"]["df"]
+        assert df["ingested_at"] == ["2023-11-15T00:00:00"]
+        assert df["created_at"] == ["2023-11-14T00:00:00"]
+
+    @patch("feast.infra.online_stores.remote.post_remote_online_write")
+    def test_write_batch_payload_round_trips_through_server_conversion(
+        self, mock_post, remote_store, config, feature_view_custom_timestamps
+    ):
+        """The payload this client sends must be convertible by the server, which
+        rebuilds the frame and calls `_convert_arrow_fv_to_proto` on it."""
+        import pandas as pd
+        import pyarrow as pa
+
+        from feast.utils import _convert_arrow_fv_to_proto
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        event_ts = datetime(2023, 11, 15, 0, 0, 0)
+        created_ts = datetime(2023, 11, 14, 0, 0, 0)
+        data = [
+            (
+                EntityKeyProto(
+                    join_keys=["user_id"], entity_values=[ValueProto(int64_val=42)]
+                ),
+                {"feature1": ValueProto(string_val="hello")},
+                event_ts,
+                created_ts,
+            )
+        ]
+
+        remote_store.online_write_batch(
+            config=config,
+            table=feature_view_custom_timestamps,
+            data=data,
+            progress=None,
+        )
+
+        # Mirror the server: rebuild the frame and run the standard conversion.
+        server_df = pd.DataFrame(mock_post.call_args[1]["req_body"]["df"])
+        rows = _convert_arrow_fv_to_proto(
+            pa.Table.from_pandas(server_df),
+            feature_view_custom_timestamps,
+            {"user_id": ValueType.INT64},
+        )
+
+        assert len(rows) == 1
+        _, features, out_event_ts, out_created_ts = rows[0]
+        assert features["feature1"].string_val == "hello"
+        assert out_event_ts.replace(tzinfo=None) == event_ts
+        assert out_created_ts.replace(tzinfo=None) == created_ts

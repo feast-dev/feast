@@ -260,6 +260,16 @@ class RemoteOnlineStore(OnlineStore):
 
         columnar_data: Dict[str, List[Any]] = defaultdict(list)
 
+        # The server resolves the timestamp columns by the names the batch source
+        # configures, so label them the same way here rather than with literals.
+        batch_source = getattr(table, "batch_source", None)
+        event_timestamp_column = (
+            getattr(batch_source, "timestamp_field", None) or "event_timestamp"
+        )
+        created_timestamp_column = (
+            getattr(batch_source, "created_timestamp_column", None) or "created"
+        )
+
         # Iterate through each row to populate columnar data directly
         for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
             # Populate entity key values
@@ -277,8 +287,10 @@ class RemoteOnlineStore(OnlineStore):
                 )
 
             # Populate timestamps
-            columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
-            columnar_data["created"].append(
+            columnar_data[event_timestamp_column].append(
+                _to_naive_utc(event_ts).isoformat()
+            )
+            columnar_data[created_timestamp_column].append(
                 _to_naive_utc(created_ts).isoformat() if created_ts else None
             )
 
