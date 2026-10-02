@@ -27,6 +27,7 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.online_config import OnlineConfig
 from feast.proto_utils import (
     mode_to_string,
     serialize_data_source,
@@ -129,6 +130,8 @@ class FeatureView(BaseFeatureView):
             can be inferred from the underlying data source.
         online: A boolean indicating whether online retrieval is enabled for this feature
             view.
+        online_config: Optional online retention and write semantics. Sequence mode is
+            declarative until implemented by an online store.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
@@ -149,6 +152,7 @@ class FeatureView(BaseFeatureView):
     entity_columns: List[Field]
     features: List[Field]
     online: bool
+    online_config: Optional[OnlineConfig]
     offline: bool
     description: str
     tags: Dict[str, str]
@@ -171,6 +175,7 @@ class FeatureView(BaseFeatureView):
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
         online: bool = True,
+        online_config: Optional[OnlineConfig] = None,
         offline: bool = False,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
@@ -198,6 +203,8 @@ class FeatureView(BaseFeatureView):
                 can result in extremely computationally intensive queries.
             online (optional): A boolean indicating whether online retrieval is enabled for
                 this feature view.
+            online_config (optional): Online retention and write semantics for this feature
+                view. Defaults to the current latest-value behavior when omitted.
             offline (optional): A boolean indicating whether write to offline store is enabled for
                 this feature view.
             description (optional): A human-readable description.
@@ -223,6 +230,7 @@ class FeatureView(BaseFeatureView):
         self.enable_validation = enable_validation
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+        self.online_config = online_config
         schema = schema or []
         self.mode = mode
 
@@ -353,6 +361,7 @@ class FeatureView(BaseFeatureView):
             schema=self.schema,
             tags=self.tags,
             online=self.online,
+            online_config=self.online_config,
             offline=self.offline,
             sink_source=self.batch_source if self.source_views else None,
             enable_validation=self.enable_validation,
@@ -389,7 +398,7 @@ class FeatureView(BaseFeatureView):
 
         # Skip UDF-related data source fields: batch_source, stream_source
         # (treat as deployment configuration, not schema changes)
-        # Skip configuration: ttl, online, offline, enable_validation
+        # Skip configuration: ttl, online, online_config, offline, enable_validation
         # Skip metadata: materialization_intervals (excluded in current equality)
         return False
 
@@ -404,6 +413,7 @@ class FeatureView(BaseFeatureView):
             sorted(self.entities) != sorted(other.entities)
             or self.ttl != other.ttl
             or self.online != other.online
+            or self.online_config != other.online_config
             or self.offline != other.offline
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
@@ -436,6 +446,9 @@ class FeatureView(BaseFeatureView):
             ValueError: The feature view does not have a name or does not have entities.
         """
         super().ensure_valid()
+
+        if self.online_config is not None:
+            self.online_config.validate()
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")
@@ -549,6 +562,11 @@ class FeatureView(BaseFeatureView):
             org=self.org,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
+            online_config=(
+                self.online_config.to_proto()
+                if self.online_config is not None
+                else None
+            ),
             offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
@@ -633,6 +651,11 @@ class FeatureView(BaseFeatureView):
             )
             for view_spec in feature_view_proto.spec.source_views
         ]
+        online_config = (
+            OnlineConfig.from_proto(feature_view_proto.spec.online_config)
+            if feature_view_proto.spec.HasField("online_config")
+            else None
+        )
 
         has_transformation = feature_view_proto.spec.HasField("feature_transformation")
 
@@ -682,6 +705,7 @@ class FeatureView(BaseFeatureView):
                 owner=feature_view_proto.spec.owner,
                 org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
+                online_config=online_config,
                 offline=feature_view_proto.spec.offline,
                 ttl=(
                     timedelta(days=0)
@@ -711,6 +735,7 @@ class FeatureView(BaseFeatureView):
                 owner=feature_view_proto.spec.owner,
                 org=feature_view_proto.spec.org,
                 online=feature_view_proto.spec.online,
+                online_config=online_config,
                 offline=feature_view_proto.spec.offline,
                 ttl=(
                     timedelta(days=0)
