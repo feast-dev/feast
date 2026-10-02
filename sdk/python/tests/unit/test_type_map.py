@@ -1898,6 +1898,85 @@ class TestNestedCollectionTypes:
         )
 
 
+class TestPyArrowListTypeStrings:
+    """PyArrow spells list types several ways; Parquet round-trips (pyarrow >= 13)
+    name the child field ``element`` instead of ``item``. Schema inference and
+    ``write_to_offline_store`` used to raise ``KeyError: 'list<element: string>'``.
+    """
+
+    @pytest.mark.parametrize(
+        "pa_type_str, expected",
+        [
+            ("list<element: string>", ValueType.STRING_LIST),
+            ("list<element: binary>", ValueType.BYTES_LIST),
+            ("list<element: int64>", ValueType.INT64_LIST),
+            ("list<element: double>", ValueType.DOUBLE_LIST),
+            ("list<element: timestamp[us, tz=UTC]>", ValueType.UNIX_TIMESTAMP_LIST),
+            ("list<element: struct<a: int64 not null>>", ValueType.STRUCT_LIST),
+            ("large_list<item: string>", ValueType.STRING_LIST),
+            ("large_list<element: binary>", ValueType.BYTES_LIST),
+            ("list<item: int64 not null>", ValueType.INT64_LIST),
+            ("list<item: string>", ValueType.STRING_LIST),
+            ("list<item: large_string>", ValueType.JSON_LIST),
+            ("list<element: list<element: int64>>", ValueType.VALUE_LIST),
+            ("list<item: list<item: int64> not null>", ValueType.VALUE_LIST),
+            ("large_list<item: list<element: string>>", ValueType.VALUE_LIST),
+        ],
+    )
+    def test_pa_to_feast_value_type_list_spellings(self, pa_type_str, expected):
+        assert pa_to_feast_value_type(pa_type_str) == expected
+
+    @pytest.mark.parametrize(
+        "pa_type_str, expected",
+        [
+            (
+                "list<element: list<element: int64>>",
+                pyarrow.list_(pyarrow.list_(pyarrow.int64())),
+            ),
+            (
+                "list<item: list<item: string not null> not null>",
+                pyarrow.list_(pyarrow.list_(pyarrow.string())),
+            ),
+            (
+                "large_list<item: list<element: double>>",
+                pyarrow.list_(pyarrow.list_(pyarrow.float64())),
+            ),
+        ],
+    )
+    def test_parse_pa_type_str_list_spellings(self, pa_type_str, expected):
+        from feast.infra.offline_stores.offline_utils import _parse_pa_type_str
+
+        assert _parse_pa_type_str(pa_type_str) == expected
+
+    def test_file_source_parquet_list_columns(self, tmp_path):
+        from feast.infra.offline_stores.file_source import FileSource
+        from feast.infra.offline_stores.offline_utils import (
+            get_pyarrow_schema_from_batch_source,
+        )
+        from feast.repo_config import RepoConfig
+
+        path = tmp_path / "features.parquet"
+        pd.DataFrame(
+            {"tags": [["a", "b"], ["c"]], "nested": [[[1, 2]], [[3]]]}
+        ).to_parquet(path)
+        source = FileSource(path=str(path), timestamp_field="event_timestamp")
+        config = RepoConfig(
+            project="test", registry=str(tmp_path / "registry.db"), provider="local"
+        )
+
+        column_types = dict(source.get_table_column_names_and_types(config))
+        assert column_types["tags"] == "list<element: string>"
+        to_value_type = source.source_datatype_to_feast_value_type()
+        assert to_value_type(column_types["tags"]) == ValueType.STRING_LIST
+        assert to_value_type(column_types["nested"]) == ValueType.VALUE_LIST
+
+        pa_schema, _ = get_pyarrow_schema_from_batch_source(config, source)
+        assert pa_schema.field("tags").type == pyarrow.list_(pyarrow.string())
+        assert pa_schema.field("nested").type == pyarrow.list_(
+            pyarrow.list_(pyarrow.int64())
+        )
+
+
 class TestEmptyArrayAsNull:
     """Regression tests for https://github.com/feast-dev/feast/issues/6255
     Ensure that an empty numpy array in a scalar feature column is treated as
