@@ -120,6 +120,62 @@ driver_stats_fv = FeatureView(
 )
 ```
 
+## Local Materialization Sink
+
+Install the Iceberg integration before using an Iceberg table as a sink:
+
+```bash
+pip install "feast[iceberg]"
+```
+
+The local compute engine can materialize a derived Feature View into an
+`IcebergSource`. The catalog namespace must exist, but Feast creates the table
+when it is missing.
+
+```python
+from feast import FeatureView, Field
+from feast.infra.data_sources.contrib.iceberg_catalog import IcebergSource
+from feast.types import Float64
+
+driver_stats_transformed = FeatureView(
+    name="driver_stats_transformed",
+    entities=[driver],
+    schema=[Field(name="adjusted_conv_rate", dtype=Float64)],
+    source=driver_stats_fv,
+    sink_source=IcebergSource(
+        catalog_type="sql",
+        catalog_name="local",
+        catalog_properties={"uri": "sqlite:////tmp/iceberg_catalog.db"},
+        warehouse="file:///tmp/iceberg_warehouse",
+        namespace="features",
+        table="driver_stats_transformed",
+        timestamp_field="event_timestamp",
+    ),
+    online=False,
+    offline=False,
+)
+```
+
+With `compute_engine.type: local` in `feature_store.yaml`, materialize the view
+normally:
+
+```bash
+feast materialize 2026-08-15T00:00:00 2026-08-16T00:00:00
+```
+
+PyIceberg upserts each computed Arrow batch. The upsert key is the mapped entity
+join-key columns plus the mapped event-timestamp column. Entityless views use
+the event timestamp alone. Incoming null or duplicate keys are rejected.
+
+Repeated materialization of identical data is idempotent. An existing target
+table must have exactly the same column names and compatible types; Feast does
+not evolve Iceberg schemas automatically.
+
+This sink is currently supported only by the local compute engine. Online-store,
+offline-store, and Iceberg writes are sequential and independent, not a single
+transaction. Spark support will use a distributed Iceberg `MERGE INTO` path in
+a separate change.
+
 ## Configuration Reference
 
 ### IcebergSource
