@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
+
+import pandas as pd
 
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
@@ -38,6 +40,49 @@ class TrinoFeatureBuilder(FeatureBuilder):
     ) -> None:
         super().__init__(registry, task.feature_view, task)
         self.client = client
+
+    def _should_join_entity_df(self) -> bool:
+        return isinstance(self.task, HistoricalRetrievalTask) and (
+            isinstance(self.task.entity_df, pd.DataFrame)
+            or (
+                isinstance(self.task.entity_df, str)
+                and bool(self.task.entity_df.strip())
+            )
+        )
+
+    def _build(
+        self,
+        view: Union[BatchFeatureView, StreamFeatureView, FeatureView, Any],
+        input_nodes: Optional[List[DAGNode]],
+    ) -> DAGNode:
+        if getattr(view, "batch_source", None) or getattr(view, "data_source", None):
+            last_node: DAGNode = self.build_source_node(view)
+
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, [last_node])
+
+            if self._should_join_entity_df():
+                last_node = self.build_join_node(view, [last_node])
+
+        elif input_nodes:
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, input_nodes)
+            else:
+                last_node = self.build_join_node(view, input_nodes)
+        else:
+            raise ValueError(f"FeatureView {view.name} has no valid source or inputs")
+
+        last_node = self.build_filter_node(view, last_node)
+
+        if self._should_aggregate(view):
+            last_node = self.build_aggregation_node(view, last_node)
+        elif self._should_dedupe(view):
+            last_node = self.build_dedup_node(view, last_node)
+
+        if self._should_validate(view):
+            last_node = self.build_validation_node(view, last_node)
+
+        return last_node
 
     def build_source_node(
         self, view: Union[BatchFeatureView, StreamFeatureView, FeatureView]

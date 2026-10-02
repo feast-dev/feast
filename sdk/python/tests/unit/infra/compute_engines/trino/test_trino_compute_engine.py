@@ -812,6 +812,123 @@ class TestTrinoFeatureBuilderDirect:
             val_node = builder.build_validation_node(view, src_node)
             assert val_node.name == "v1:validate"
 
+    def test_should_join_entity_df(self):
+        from feast.infra.common.materialization_job import MaterializationTask
+        from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+        from feast.infra.compute_engines.trino.feature_builder import (
+            TrinoFeatureBuilder,
+        )
+
+        client = MagicMock()
+        registry = MagicMock()
+
+        # 1. MaterializationTask -> False
+        mat_task = MagicMock(spec=MaterializationTask)
+        mat_task.feature_view = MagicMock()
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=([], [], "ts", None),
+        ):
+            b_mat = TrinoFeatureBuilder(registry, client, mat_task)
+            assert b_mat._should_join_entity_df() is False
+
+        # 2. HistoricalRetrievalTask with DataFrame -> True
+        ret_task_df = MagicMock(spec=HistoricalRetrievalTask)
+        ret_task_df.feature_view = MagicMock()
+        ret_task_df.entity_df = pd.DataFrame({"id": [1]})
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=([], [], "ts", None),
+        ):
+            b_df = TrinoFeatureBuilder(registry, client, ret_task_df)
+            assert b_df._should_join_entity_df() is True
+
+        # 3. HistoricalRetrievalTask with SQL query string -> True
+        ret_task_sql = MagicMock(spec=HistoricalRetrievalTask)
+        ret_task_sql.feature_view = MagicMock()
+        ret_task_sql.entity_df = "SELECT * FROM entities"
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=([], [], "ts", None),
+        ):
+            b_sql = TrinoFeatureBuilder(registry, client, ret_task_sql)
+            assert b_sql._should_join_entity_df() is True
+
+        # 4. HistoricalRetrievalTask with empty / whitespace string -> False
+        ret_task_empty = MagicMock(spec=HistoricalRetrievalTask)
+        ret_task_empty.feature_view = MagicMock()
+        ret_task_empty.entity_df = "   "
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=([], [], "ts", None),
+        ):
+            b_empty = TrinoFeatureBuilder(registry, client, ret_task_empty)
+            assert b_empty._should_join_entity_df() is False
+
+        # 5. HistoricalRetrievalTask with None -> False
+        ret_task_none = MagicMock(spec=HistoricalRetrievalTask)
+        ret_task_none.feature_view = MagicMock()
+        ret_task_none.entity_df = None
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=([], [], "ts", None),
+        ):
+            b_none = TrinoFeatureBuilder(registry, client, ret_task_none)
+            assert b_none._should_join_entity_df() is False
+
+    def test_build_single_feature_view_with_entity_df_injects_join_node(self):
+        from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+        from feast.infra.compute_engines.trino.feature_builder import (
+            TrinoFeatureBuilder,
+        )
+        from feast.infra.compute_engines.trino.nodes import (
+            TrinoDedupNode,
+            TrinoFilterNode,
+            TrinoJoinNode,
+            TrinoReadNode,
+        )
+
+        client = MagicMock()
+        registry = MagicMock()
+
+        view = MagicMock()
+        view.name = "single_fv"
+        view.batch_source = MagicMock()
+        view.batch_source.timestamp_field = "ts"
+        view.batch_source.field_mapping = {}
+        view.stream_source = None
+        view.entities = ["id"]
+        view.features = []
+        view.aggregations = []
+        view.filter = None
+        view.ttl = None
+        view.feature_transformation = None
+        view.enable_validation = False
+
+        # When entity_df is provided for HistoricalRetrievalTask:
+        task = MagicMock(spec=HistoricalRetrievalTask)
+        task.feature_view = view
+        task.entity_df = pd.DataFrame({"id": [1], "ts": [datetime.now()]})
+        task.project = "test_p"
+        task.start_time = None
+        task.end_time = None
+
+        with patch(
+            "feast.infra.compute_engines.feature_builder._get_column_names",
+            return_value=(["id"], [], "ts", None),
+        ):
+            builder = TrinoFeatureBuilder(registry, client, task)
+            last_node = builder._build(view, input_nodes=None)
+
+            # Traverse the DAG inputs backwards from the final dedup node
+            assert isinstance(last_node, TrinoDedupNode)
+            filter_node = last_node.inputs[0]
+            assert isinstance(filter_node, TrinoFilterNode)
+            join_node = filter_node.inputs[0]
+            assert isinstance(join_node, TrinoJoinNode)
+            source_node = join_node.inputs[0]
+            assert isinstance(source_node, TrinoReadNode)
+
 
 class TestTrinoJobsAndEngineMethods:
     def test_materialization_job_properties(self):

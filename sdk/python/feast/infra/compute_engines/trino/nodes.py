@@ -379,7 +379,8 @@ class TrinoJoinNode(DAGNode):
                 join_steps.append(f"CROSS JOIN {next_cte}")
 
         cte_name = f"_join_{self.name.replace(':', '_')}"
-        query = f"SELECT * FROM {curr_from} {' '.join(join_steps)}"
+        join_suffix = f" {' '.join(join_steps)}" if join_steps else ""
+        query = f"SELECT * FROM {curr_from}{join_suffix}"
 
         final_plan = TrinoQueryPlan(
             ctes=(*combined_ctes, (cte_name, query)),
@@ -415,6 +416,8 @@ class TrinoJoinNode(DAGNode):
                 "connector",
                 {"type": "memory"},
             )
+            if not isinstance(connector, dict) or "type" not in connector:
+                connector = {"type": "memory"}
             upload_pandas_dataframe_to_trino(
                 client=self.client,
                 df=entity_df,

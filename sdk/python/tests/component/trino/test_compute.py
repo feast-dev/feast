@@ -130,11 +130,29 @@ def test_trino_compute_engine_get_historical_features(driver_entity, trino_sourc
     )
     compiled_sql = job.to_sql()
 
-    # Assert SQL structure
+    # Assert SQL structure includes entity_df join and point-in-time condition
     assert "WITH" in compiled_sql
     assert "iceberg.feast.driver_hourly_stats" in compiled_sql
     assert "GROUP BY" in compiled_sql
     assert "conv_rate * 2.0" in compiled_sql
+    assert "_entity" in compiled_sql
+    assert "LEFT JOIN" in compiled_sql
+    assert "_pit_join_driver_hourly_stats_join" in compiled_sql
+    assert (
+        '_join_driver_hourly_stats_join."driver_id" = _entity."driver_id"'
+        in compiled_sql
+    )
+    assert '<= _entity."event_timestamp"' in compiled_sql
+
+    # Assert entity table was created and rows uploaded to Trino
+    executed_queries = [call[0][0] for call in mock_client.execute_query.call_args_list]
+    assert any(
+        "CREATE TABLE IF NOT EXISTS iceberg.feast.feast_entity_df_" in q
+        for q in executed_queries
+    )
+    assert any(
+        "INSERT INTO iceberg.feast.feast_entity_df_" in q for q in executed_queries
+    )
 
     # Assert lazy evaluation works
     df_out = job.to_df()
