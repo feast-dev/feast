@@ -321,6 +321,43 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
         )
 
+    def test_python_views_with_full_feature_names(self):
+        online_response = self.store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "pandas_view:conv_rate_plus_acc_pandas",
+                "python_demo_view:conv_rate_plus_val1_python",
+                "python_singleton_view:conv_rate_plus_acc_python_singleton",
+            ],
+            full_feature_names=True,
+        ).to_dict()
+
+        assert sorted(online_response.keys()) == sorted(
+            [
+                "driver_id",
+                "driver_hourly_stats__conv_rate",
+                "driver_hourly_stats__acc_rate",
+                "pandas_view__conv_rate_plus_acc_pandas",
+                "python_demo_view__conv_rate_plus_val1_python",
+                "python_singleton_view__conv_rate_plus_acc_python_singleton",
+            ]
+        )
+        expected = (
+            online_response["driver_hourly_stats__conv_rate"][0]
+            + online_response["driver_hourly_stats__acc_rate"][0]
+        )
+        assert online_response["pandas_view__conv_rate_plus_acc_pandas"] == [
+            pytest.approx(expected)
+        ]
+        assert online_response["python_demo_view__conv_rate_plus_val1_python"] == [
+            pytest.approx(expected)
+        ]
+        assert online_response[
+            "python_singleton_view__conv_rate_plus_acc_python_singleton"
+        ] == [pytest.approx(expected)]
+
     def test_python_docs_demo(self):
         entity_rows = [
             {
