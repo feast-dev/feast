@@ -250,3 +250,79 @@ class TestReviewFeedback:
         )
         with pytest.raises(ValueError, match="does not match expected 4"):
             _convert_arrow_to_proto(table, odfv, {})
+
+
+class TestUndeclaredVectorLength:
+    """When vector_length is unset, the width is inferred rather than unchecked.
+
+    vector_length defaults to 0, including in the bundled RAG templates and several
+    examples, so skipping validation left the common case unprotected. An ANN index
+    requires a fixed width, so a ragged column is a defect either way.
+    """
+
+    def test_arrow_ragged_column_is_rejected_without_a_declaration(self):
+        table = _table(_variable_list([4, 4, 7, 4]))
+        with pytest.raises(ValueError, match="inferred from the first row"):
+            _validate_vector_field_lengths(table, _feature_view(vector_length=0))
+
+    def test_arrow_uniform_column_passes_without_a_declaration(self):
+        table = _table(_variable_list([5, 5, 5]))
+        _validate_vector_field_lengths(table, _feature_view(vector_length=0))
+
+    def test_arrow_fixed_size_list_is_uniform_by_construction(self):
+        """A fixed-size list cannot be ragged, so any width is acceptable."""
+        _validate_vector_field_lengths(
+            _table(_fixed_size_list(99)), _feature_view(vector_length=0)
+        )
+
+    def test_arrow_declaration_still_wins_over_inference(self):
+        table = _table(_variable_list([5, 5, 5]))
+        with pytest.raises(ValueError, match="expected 4 for feature"):
+            _validate_vector_field_lengths(table, _feature_view())
+
+    def test_arrow_nulls_do_not_become_the_inferred_width(self):
+        table = _table(_variable_list([None, 6, 6]))
+        _validate_vector_field_lengths(table, _feature_view(vector_length=0))
+
+    def test_arrow_all_null_column_is_a_no_op(self):
+        table = _table(_variable_list([None, None]))
+        _validate_vector_field_lengths(table, _feature_view(vector_length=0))
+
+    def test_dataframe_ragged_column_is_rejected_without_a_declaration(self):
+        df = pd.DataFrame(
+            {"embedding": [[0.0] * 4, [0.0] * 4, [0.0] * 7], "label": list("abc")}
+        )
+        with pytest.raises(ValueError, match="inferred from the first row"):
+            _validate_df(_feature_view(vector_length=0), df)
+
+    def test_dataframe_uniform_column_passes_without_a_declaration(self):
+        df = pd.DataFrame({"embedding": [[0.0] * 9] * 3, "label": list("abc")})
+        _validate_df(_feature_view(vector_length=0), df)
+
+    def test_dataframe_non_sequence_still_caught_without_a_declaration(self):
+        df = pd.DataFrame({"embedding": [[0.0] * 4, 3.14], "label": list("ab")})
+        with pytest.raises(ValueError, match="is not a sequence"):
+            _validate_df(_feature_view(vector_length=0), df)
+
+    def test_dataframe_all_null_column_is_a_no_op(self):
+        df = pd.DataFrame({"embedding": [None, np.nan], "label": list("ab")})
+        _validate_df(_feature_view(vector_length=0), df)
+
+    def test_non_vector_field_is_untouched(self):
+        """vector_index=False means the field is not a vector at all."""
+        fv = FeatureView(
+            name="fv",
+            entities=[
+                Entity(
+                    name="item_id", join_keys=["item_id"], value_type=ValueType.INT64
+                )
+            ],
+            schema=[
+                Field(name="embedding", dtype=Array(Float32)),
+                Field(name="label", dtype=String),
+            ],
+            source=FileSource(
+                path="/tmp/unused.parquet", timestamp_field="event_timestamp"
+            ),
+        )
+        _validate_vector_field_lengths(_table(_variable_list([4, 9, 2])), fv)
