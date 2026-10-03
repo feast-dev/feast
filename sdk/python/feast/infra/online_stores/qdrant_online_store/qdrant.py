@@ -14,6 +14,7 @@ from feast.infra.key_encoding_utils import (
     get_list_val_str,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -26,6 +27,21 @@ from feast.utils import (
 )
 
 SCROLL_SIZE = 1000
+
+
+def _collection_name(config: RepoConfig, table: FeatureView) -> str:
+    """Qdrant collection backing a feature view, suffixed with ``_v{N}`` when
+    online feature view versioning is enabled.
+
+    Deliberately built from ``compute_versioned_name`` rather than
+    ``compute_table_id``: Qdrant collections have always been named by the bare
+    feature view name, so adding the ``{project}_`` prefix that other stores use
+    would orphan every existing collection.
+    """
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
+
 
 DISTANCE_MAPPING = {
     "cosine": models.Distance.COSINE,
@@ -139,7 +155,7 @@ class QdrantOnlineStore(OnlineStore):
                 )
 
         self._get_client(config).upload_points(
-            collection_name=table.name,
+            collection_name=_collection_name(config, table),
             batch_size=config.online_store.write_batch_size,
             points=points,
             wait=True,
@@ -172,7 +188,7 @@ class QdrantOnlineStore(OnlineStore):
         stop_scrolling = False
         while not stop_scrolling:
             records, next_offset = self._get_client(config).scroll(
-                collection_name=config.online_store.collection_name,
+                collection_name=_collection_name(config, table),
                 limit=SCROLL_SIZE,
                 offset=next_offset,
                 with_payload=True,
@@ -209,7 +225,7 @@ class QdrantOnlineStore(OnlineStore):
         client: QdrantClient = self._get_client(config)
 
         client.create_collection(
-            collection_name=table.name,
+            collection_name=_collection_name(config, table),
             vectors_config={
                 config.online_store.vector_name: models.VectorParams(
                     size=vector_field_length,
@@ -218,12 +234,12 @@ class QdrantOnlineStore(OnlineStore):
             },
         )
         client.create_payload_index(
-            collection_name=table.name,
+            collection_name=_collection_name(config, table),
             field_name="entity_key",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
         client.create_payload_index(
-            collection_name=table.name,
+            collection_name=_collection_name(config, table),
             field_name="feature_name",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
@@ -238,7 +254,9 @@ class QdrantOnlineStore(OnlineStore):
         partial: bool,
     ):
         for table in tables_to_delete:
-            self._get_client(config).delete_collection(collection_name=table.name)
+            self._get_client(config).delete_collection(
+                collection_name=_collection_name(config, table)
+            )
         for table in tables_to_keep:
             self.create_collection(config, table)
 
@@ -251,7 +269,9 @@ class QdrantOnlineStore(OnlineStore):
         project = config.project
         try:
             for table in tables:
-                self._get_client(config).delete_collection(collection_name=table.name)
+                self._get_client(config).delete_collection(
+                    collection_name=_collection_name(config, table)
+                )
         except Exception as e:
             logging.exception(f"Error deleting collection in project {project}: {e}")
             raise
@@ -288,7 +308,7 @@ class QdrantOnlineStore(OnlineStore):
         points = (
             self._get_client(config)
             .query_points(
-                collection_name=table.name,
+                collection_name=_collection_name(config, table),
                 query=embedding,
                 limit=top_k,
                 with_payload=True,
