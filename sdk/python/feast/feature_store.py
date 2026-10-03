@@ -3630,15 +3630,15 @@ class FeatureStore:
             ValueError: If vector dimension constraints are violated
         """
         vector_field = _get_feature_view_vector_field_metadata(feature_view)
-        if vector_field is None or not vector_field.vector_length:
+        if vector_field is None or not vector_field.vector_index:
             return
 
         name = vector_field.name
         if name not in df.columns:
             return
 
-        expected = vector_field.vector_length
         column = df[name]
+        declared = vector_field.vector_length or None
 
         # Null vectors carry no length to compare. Skipping them keeps this
         # consistent with the Arrow path, which also tolerates null rows, and
@@ -3652,6 +3652,21 @@ class FeatureStore:
         )
 
         not_a_sequence = lengths.isna() & ~is_null
+
+        expected = declared
+        if expected is None:
+            # No declared width, so take the contract from the first usable row.
+            # An ANN index needs a fixed width, so a ragged column is a defect
+            # regardless of whether anyone declared vector_length.
+            usable = lengths.notna()
+            if not usable.any():
+                # Nothing to infer from, so only the type check below applies.
+                if not not_a_sequence.any():
+                    return
+                expected = -1
+            else:
+                expected = int(lengths[usable].iloc[0])
+
         mismatched = lengths.notna() & (lengths != expected)
         offending = not_a_sequence | mismatched
         if not offending.any():
@@ -3669,10 +3684,14 @@ class FeatureStore:
                 f"Got: {type(column.iloc[position])}"
             )
 
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
         raise ValueError(
             f"Row {label}: Vector length {int(lengths.iloc[position])} does not match "
-            f"expected {expected} for feature '{name}' in feature view "
-            f"'{feature_view.name}'."
+            f"{source} for feature '{name}' in feature view '{feature_view.name}'."
         )
 
     def _get_feature_view_and_df_for_online_write(
