@@ -104,6 +104,22 @@ class MlflowConfig(FeastBaseModel):
     """ str: Suffix appended to the project name to form the MLflow
         experiment name for operation logs. Defaults to '-feast-ops'. """
 
+    enable_distributed_tracing: StrictBool = True
+    """ bool: When True and mlflow.enabled=True, server-side API calls
+        create MLflow trace spans via mlflow.start_span().  Spans appear
+        in the MLflow UI Traces tab and support parent-child linking via
+        traceparent headers.  Defaults to True. """
+
+    trace_sampling_ratio: float = 1.0
+    """ float: Fraction of requests to trace (0.0–1.0).  Set below 1.0
+        for high-volume production to reduce overhead.  Defaults to 1.0
+        (trace every request). Maps to MLFLOW_TRACE_SAMPLING_RATIO. """
+
+    redact_entity_pii: StrictBool = False
+    """ bool: When True, entity values in span inputs are replaced with
+        ``[REDACTED]`` before the span is sent to MLflow.  Useful when
+        entity keys contain PII.  Defaults to False. """
+
     dataset_sync: DatasetSyncConfig = DatasetSyncConfig()
     """ DatasetSyncConfig: Configuration for the ``feast mlflow sync-dataset``
         command (field mapping, watermark key, batch size). """

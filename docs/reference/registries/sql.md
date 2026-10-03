@@ -93,9 +93,36 @@ registry:
 
 | Value | Behavior |
 |---|---|
-| `auto` (default) | Creates tables if they don't exist. Current behavior, no breaking change. |
-| `verify` | Skips DDL. Checks that all expected tables exist on startup; raises an error listing missing tables if any are absent. When a separate `read_path` is configured, the read replica is also verified — a lagging replica (e.g. mid-migration) will block startup. Note: this is a table-level check only — it does not verify individual columns. A schema created by an older Feast version (missing newer columns) will pass verification but may fail at query time. |
-| `skip` | Skips both creation and verification. Use when schema is managed entirely outside Feast (e.g. by a migration tool). |
+| `auto` (default) | Creates tables if they don't exist. Also runs an additive migration on existing `saved_datasets` tables to add denormalized `namespace` / `collection` columns and `idx_saved_datasets_project_namespace`, then backfills **empty** hierarchy columns from the proto blob (rows that already have non-empty values are left alone). Concurrent startups on a shared Postgres/MySQL DB serialize this migration (advisory / `GET_LOCK`) and use idempotent DDL where the dialect supports it. **Rollback / downgrade:** Feast does not drop hierarchy columns automatically. Before downgrading to a build that does not expect them, operators may manually `DROP INDEX idx_saved_datasets_project_namespace` and `DROP COLUMN namespace` / `collection` if desired. |
+| `verify` | Skips DDL. Checks that all expected tables **and** SavedDataset hierarchy columns/index exist on startup; raises if any are absent. When a separate `read_path` is configured, the read replica is also verified — a lagging replica (e.g. mid-migration) will block startup. |
+| `skip` | Skips both creation and verification. Use when schema is managed entirely outside Feast (e.g. by a migration tool). Hierarchy presence is still resolved at init (see below). |
+
+### SavedDataset hierarchy columns (`namespace` / `collection`)
+
+> **SQL registry only.** Hierarchy denormalization (`namespace` / `collection`
+> columns, index, create-schema migration, and SQL list filters) applies only
+> when `registry_type: sql`. File, Snowflake, and remote registries are unchanged.
+
+`saved_datasets` includes denormalized `namespace` and `collection` columns (plus index `idx_saved_datasets_project_namespace`) so list filters can use SQL `WHERE` instead of scanning every proto.
+
+Supported ways to add the hierarchy schema on an existing database:
+
+1. `schema_mode: auto` (adds columns on registry startup), or
+2. `feast registry create-schema` (DDL user; also adds columns on existing tables)
+
+Do not hand-write `ALTER TABLE` / `CREATE INDEX` for this migration — use one of the paths above so dialects and backfill stay consistent.
+
+| Situation | Behavior |
+|---|---|
+| `schema_mode=auto` | Feast adds missing hierarchy columns/index and backfills empty `namespace`/`collection` values from proto. |
+| `schema_mode=verify` | Feast does **not** ALTER. Startup **requires** hierarchy columns/index (write and read engines). Migrate first with `feast registry create-schema` or `schema_mode=auto`. |
+| `schema_mode=skip` | Feast does **not** ALTER or verify tables. |
+| `DATACATALOG_ENABLED=true` and hierarchy schema missing (`auto`/`skip`) | Startup raises — catalog requires hierarchy SQL filters. |
+| Catalog disabled, hierarchy missing, `schema_mode=auto`/`skip` | Startup logs a warning and continues. `list_saved_datasets(namespace=…)` falls back to proto-side filtering. |
+
+Proto / SDK fields (`namespace`, `collection`, `columns`) are always available regardless of `DATACATALOG_ENABLED`.
+
+Catalog fail-fast is controlled by the process environment variable `DATACATALOG_ENABLED` (set by the catalog deployment). It is intentionally **not** a `feature_store.yaml` field — catalog mode is a deployment concern, not a per-repo registry setting.
 
 ### Pre-creating the schema
 
@@ -105,7 +132,7 @@ When using `verify` or `skip` mode, run the following CLI command with a user th
 feast registry create-schema
 ```
 
-This reads `feature_store.yaml`, connects to the configured database, and creates all required tables. It is safe to run multiple times — existing tables are not modified.
+This reads `feature_store.yaml`, connects to the configured database, creates all required tables, and runs the additive SavedDataset hierarchy migration on existing `saved_datasets` tables (`create_all` alone does not `ALTER`). It is safe to run multiple times. This is the supported non-`auto` migration path; operators should not apply hierarchy `ALTER`/`CREATE INDEX` by hand.
 
 There are some things to note about how the SQL registry works:
 - When `schema_mode` is `auto` (the default), the Registry ensures the tables needed to store data exist, and creates them if they do not.

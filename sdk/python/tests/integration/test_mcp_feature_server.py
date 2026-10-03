@@ -60,8 +60,14 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
                 # Verify successful integration
                 self.assertIsNotNone(result)
                 self.assertEqual(result, mock_mcp_instance)
-                mock_fast_api_mcp.assert_called_once()
-                mock_mcp_instance.mount_sse.assert_called_once()
+                mock_fast_api_mcp.assert_called_once_with(
+                    mock_app,
+                    name="test-feast-server",
+                    description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+                    headers=["authorization", "mcp-session-id"],
+                )
+                with TestClient(mock_app):
+                    mock_mcp_instance.mount_sse.assert_called_once()
 
     @patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
@@ -92,8 +98,10 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
             app,
             name="e2e-test-server",
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
+            headers=["authorization", "mcp-session-id"],
         )
-        mock_mcp_instance.mount_sse.assert_called_once()
+        with TestClient(app):
+            mock_mcp_instance.mount_sse.assert_called_once()
         self.assertEqual(result, mock_mcp_instance)
 
     @pytest.mark.skipif(
