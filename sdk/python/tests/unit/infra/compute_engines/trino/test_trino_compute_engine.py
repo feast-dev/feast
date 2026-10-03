@@ -62,6 +62,7 @@ class TestTrinoComputeEngineConfig:
         assert config.verify is True
         assert config.batch_size == 10000
         assert config.write_concurrency == 4
+        assert config.offline_write_mode == "append"
 
     def test_custom_config(self):
         config = TrinoComputeEngineConfig(
@@ -263,6 +264,7 @@ class TestTrinoWriteNode:
             current_from="_source",
         )
         context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "overwrite"
         context.node_outputs = {}
 
         input_node = MagicMock()
@@ -284,7 +286,7 @@ class TestTrinoWriteNode:
         )
         # Staging table cleanup must have been called
         assert any(
-            "DROP TABLE IF EXISTS iceberg.feast.my_fv_offline__staging" in q
+            'DROP TABLE IF EXISTS iceberg.feast."my_fv_offline__staging"' in q
             for q in executed_queries
         )
 
@@ -1424,6 +1426,310 @@ class TestTrinoNodesEdgeCases:
         }
         # Should return silently without raising
         node.execute(context)
+
+    def test_write_node_offline_append_existing_table(self):
+        client = MagicMock()
+        client.execute_query.return_value = MagicMock()
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = "feast.driver_features"
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+            columns=("driver_id", "feature_val"),
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "append"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            "SELECT 1 FROM feast.driver_features WHERE 1 = 0" in q
+            for q in executed_queries
+        )
+        assert any(
+            'INSERT INTO feast.driver_features ("driver_id", "feature_val")' in q
+            for q in executed_queries
+        )
+        assert not any("DROP TABLE" in q for q in executed_queries)
+
+    def test_write_node_offline_append_new_table(self):
+        client = MagicMock()
+
+        def mock_query(q):
+            if "SELECT 1 FROM" in q:
+                raise TrinoQueryError(
+                    {"errorName": "TABLE_NOT_FOUND", "message": "Table not found"}
+                )
+            return MagicMock()
+
+        client.execute_query.side_effect = mock_query
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = "feast.new_features"
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+            columns=("driver_id", "feature_val"),
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "append"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any("CREATE TABLE feast.new_features AS" in q for q in executed_queries)
+        assert not any("INSERT INTO" in q for q in executed_queries)
+
+    def test_write_node_offline_overwrite_safe_swap(self):
+        client = MagicMock()
+        client.execute_query.return_value = MagicMock()
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = "feast.driver_features"
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "overwrite"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            'CREATE TABLE feast."driver_features__staging" AS' in q
+            for q in executed_queries
+        )
+        assert any(
+            'ALTER TABLE feast.driver_features RENAME TO "driver_features__backup"' in q
+            for q in executed_queries
+        )
+        assert any(
+            'ALTER TABLE feast."driver_features__staging" RENAME TO driver_features'
+            in q
+            for q in executed_queries
+        )
+        assert any(
+            'DROP TABLE IF EXISTS feast."driver_features__backup"' in q
+            for q in executed_queries
+        )
+        assert not any(
+            "DROP TABLE IF EXISTS feast.driver_features" == q for q in executed_queries
+        )
+
+    def test_write_node_offline_overwrite_rollback_on_failure(self):
+        client = MagicMock()
+
+        def mock_query(q):
+            if 'ALTER TABLE feast."driver_features__staging" RENAME' in q:
+                raise TrinoQueryError(
+                    {"errorName": "GENERIC_INTERNAL_ERROR", "message": "Rename failed"}
+                )
+            return MagicMock()
+
+        client.execute_query.side_effect = mock_query
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = "feast.driver_features"
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "overwrite"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        with pytest.raises(TrinoQueryError):
+            node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            'ALTER TABLE feast."driver_features__backup" RENAME TO driver_features' in q
+            for q in executed_queries
+        )
+        assert any(
+            'DROP TABLE IF EXISTS feast."driver_features__staging"' in q
+            for q in executed_queries
+        )
+
+    def test_write_node_offline_merge_existing_table(self):
+        client = MagicMock()
+        client.execute_query.return_value = MagicMock()
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = (
+            "iceberg.feast.driver_features"
+        )
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+            join_keys=("driver_id",),
+            timestamp_col="event_timestamp",
+            columns=("driver_id", "event_timestamp", "feature_val"),
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "merge"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            "MERGE INTO iceberg.feast.driver_features AS target" in q
+            for q in executed_queries
+        )
+        assert any("USING (\nWITH\n_src AS (" in q for q in executed_queries)
+        assert any(
+            'ON target."driver_id" = stage."driver_id" AND target."event_timestamp" = stage."event_timestamp"'
+            in q
+            for q in executed_queries
+        )
+        assert any(
+            'UPDATE SET "feature_val" = stage."feature_val"' in q
+            for q in executed_queries
+        )
+        assert any(
+            'INSERT ("driver_id", "event_timestamp", "feature_val")' in q
+            for q in executed_queries
+        )
+        assert not any("CREATE TABLE" in q for q in executed_queries)
+        assert not any("DROP TABLE" in q for q in executed_queries)
+
+    def test_write_node_offline_merge_new_table(self):
+        client = MagicMock()
+
+        def mock_query(q):
+            if "SELECT 1 FROM" in q:
+                raise TrinoQueryError(
+                    {"errorName": "TABLE_NOT_FOUND", "message": "Table not found"}
+                )
+            return MagicMock()
+
+        client.execute_query.side_effect = mock_query
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = "iceberg.feast.new_features"
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+            join_keys=("driver_id",),
+            timestamp_col="event_timestamp",
+            columns=("driver_id", "event_timestamp", "feature_val"),
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "merge"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            "CREATE TABLE iceberg.feast.new_features AS" in q for q in executed_queries
+        )
+        assert not any("MERGE INTO" in q for q in executed_queries)
+
+    def test_write_node_offline_merge_fallback_on_missing_keys(self):
+        client = MagicMock()
+        client.execute_query.return_value = MagicMock()
+
+        fv = MagicMock()
+        fv.online = False
+        fv.offline = True
+        batch_source = MagicMock()
+        batch_source.get_table_query_string.return_value = (
+            "iceberg.feast.driver_features"
+        )
+        fv.batch_source = batch_source
+
+        node = TrinoWriteNode(name="out", feature_view=fv, client=client)
+        input_node = MagicMock()
+        input_node.name = "src"
+        node.inputs = [input_node]
+
+        plan = TrinoQueryPlan(
+            ctes=[("_src", "SELECT 1")],
+            current_from="_src",
+            join_keys=(),
+            timestamp_col=None,
+            columns=("val1",),
+        )
+        context = MagicMock()
+        context.repo_config.batch_engine.offline_write_mode = "merge"
+        context.node_outputs = {"src": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        node.execute(context)
+
+        executed_queries = [call[0][0] for call in client.execute_query.call_args_list]
+        assert any(
+            'INSERT INTO iceberg.feast.driver_features ("val1")' in q
+            for q in executed_queries
+        )
+        assert not any("MERGE INTO" in q for q in executed_queries)
 
 
 class TestTrinoUtilsStreamingAndOnlineWrite:

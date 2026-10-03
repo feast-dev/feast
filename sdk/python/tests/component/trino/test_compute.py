@@ -237,18 +237,12 @@ def test_trino_compute_engine_materialize(driver_entity, trino_source):
     # Verify online store was called with batch writes
     assert mock_online_store.online_write_batch.called
 
-    # Verify offline staging + swap queries were executed
+    # Verify offline append query was executed (default offline_write_mode='append')
     executed_queries = [call[0][0] for call in mock_client.execute_query.call_args_list]
     assert any(
-        "CREATE TABLE iceberg.feast.driver_hourly_stats__staging" in q
-        for q in executed_queries
+        "INSERT INTO iceberg.feast.driver_hourly_stats" in q for q in executed_queries
     )
-    assert any(
-        "DROP TABLE IF EXISTS iceberg.feast.driver_hourly_stats" in q
-        for q in executed_queries
-    )
-    assert any(
-        "ALTER TABLE iceberg.feast.driver_hourly_stats__staging RENAME TO driver_hourly_stats"
-        in q
+    assert not any(
+        "DROP TABLE IF EXISTS iceberg.feast.driver_hourly_stats" == q
         for q in executed_queries
     )

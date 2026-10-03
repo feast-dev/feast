@@ -644,37 +644,167 @@ class TrinoWriteNode(DAGNode):
     def _execute_offline_write(
         self, plan: TrinoQueryPlan, context: ExecutionContext
     ) -> None:
-        """Execute atomic materialization to an offline table via staging + rename-swap."""
+        """Execute materialization to an offline table.
+
+        - 'append' (default): Appends new rows into the existing target table via
+          INSERT INTO, or creates it via CTAS if it does not yet exist.
+        - 'merge': Idempotently upserts rows using MERGE INTO (Iceberg/Delta Lake),
+          matching on (join_keys, timestamp_col).
+        - 'overwrite': Atomically replaces the target table using a safe 3-step
+          staging + backup-swap pattern (staging -> backup -> target) with rollback.
+        """
         target_source = getattr(self.feature_view, "batch_source", None)
         if target_source is None:
             return
 
         target_table = target_source.get_table_query_string()
-        staging_table = f"{target_table}__staging"
+        repo_config = getattr(context, "repo_config", None)
+        batch_engine = getattr(repo_config, "batch_engine", None)
+        write_mode = getattr(batch_engine, "offline_write_mode", "append")
 
+        match write_mode:
+            case "merge":
+                self._execute_offline_merge(plan, target_table)
+            case "overwrite":
+                self._execute_offline_overwrite(plan, target_table)
+            case _:
+                self._execute_offline_append(plan, target_table)
+
+    def _execute_offline_merge(self, plan: TrinoQueryPlan, target_table: str) -> None:
+        """Upsert features using Trino MERGE INTO (Iceberg/Delta Lake).
+
+        Updates matching (join_keys, timestamp_col) records in place and inserts
+        new records. If the target table does not yet exist, creates it via CTAS.
+        """
+        if not self._table_exists(target_table):
+            create_sql = f"CREATE TABLE {target_table} AS (\n{plan.to_sql()}\n)"
+            self.client.execute_query(create_sql)
+            return
+
+        join_keys = plan.join_keys or ()
+        ts_col = plan.timestamp_col
+        all_cols = plan.columns or ()
+
+        if not join_keys or not ts_col:
+            self._execute_offline_append(plan, target_table)
+            return
+
+        match_keys = (*join_keys, ts_col)
+        update_cols = tuple(c for c in all_cols if c not in match_keys)
+
+        on_clause = " AND ".join(
+            f"target.{quote_identifier(k)} = stage.{quote_identifier(k)}"
+            for k in match_keys
+        )
+        matched_clause = (
+            f"WHEN MATCHED THEN\n    UPDATE SET {', '.join(f'{quote_identifier(c)} = stage.{quote_identifier(c)}' for c in update_cols)}\n"
+            if update_cols
+            else ""
+        )
+        insert_cols = ", ".join(quote_identifier(c) for c in all_cols)
+        insert_vals = ", ".join(f"stage.{quote_identifier(c)}" for c in all_cols)
+
+        merge_sql = (
+            f"MERGE INTO {target_table} AS target\n"
+            f"USING (\n{plan.to_sql()}\n) AS stage\n"
+            f"ON {on_clause}\n"
+            f"{matched_clause}"
+            f"WHEN NOT MATCHED THEN\n"
+            f"    INSERT ({insert_cols})\n"
+            f"    VALUES ({insert_vals})"
+        )
+        self.client.execute_query(merge_sql)
+
+    def _execute_offline_append(self, plan: TrinoQueryPlan, target_table: str) -> None:
+        """Append features to offline target table using INSERT INTO, or CTAS if new."""
+        if self._table_exists(target_table):
+            col_clause = (
+                f" ({', '.join(quote_identifier(c) for c in plan.columns)})"
+                if plan.columns
+                else ""
+            )
+            insert_sql = f"INSERT INTO {target_table}{col_clause}\n{plan.to_sql()}"
+            self.client.execute_query(insert_sql)
+        else:
+            create_sql = f"CREATE TABLE {target_table} AS (\n{plan.to_sql()}\n)"
+            self.client.execute_query(create_sql)
+
+    def _execute_offline_overwrite(
+        self, plan: TrinoQueryPlan, target_table: str
+    ) -> None:
+        """Safely overwrite target table: staging -> backup -> target -> drop backup."""
+        target_prefix = (
+            target_table.rsplit(".", 1)[0] + "." if "." in target_table else ""
+        )
+        target_simple = target_table.rsplit(".", 1)[-1]
+        unquoted_simple = target_simple.strip('"')
+
+        staging_simple = quote_identifier(f"{unquoted_simple}__staging")
+        backup_simple = quote_identifier(f"{unquoted_simple}__backup")
+
+        staging_table = f"{target_prefix}{staging_simple}"
+        backup_table = f"{target_prefix}{backup_simple}"
+
+        # Clean up any leftover staging table
         try:
             self.client.execute_query(f"DROP TABLE IF EXISTS {staging_table}")
         except TrinoQueryError as e:
             logger.debug("Failed to drop staging table %s: %s", staging_table, e)
 
-        # Step 1: Create staging table directly from compiled plan
+        # Step 1: Create staging table from compiled plan
         create_sql = f"CREATE TABLE {staging_table} AS (\n{plan.to_sql()}\n)"
+        self.client.execute_query(create_sql)
+
+        target_backed_up = False
         try:
-            self.client.execute_query(create_sql)
-            # Step 2: Atomic swap
-            self.client.execute_query(f"DROP TABLE IF EXISTS {target_table}")
-            tbl_simple_name = target_table.split(".")[-1]
+            # Step 2: If target exists, rename target -> backup
+            if self._table_exists(target_table):
+                try:
+                    self.client.execute_query(f"DROP TABLE IF EXISTS {backup_table}")
+                except TrinoQueryError:
+                    pass
+                self.client.execute_query(
+                    f"ALTER TABLE {target_table} RENAME TO {backup_simple}"
+                )
+                target_backed_up = True
+
+            # Step 3: Rename staging -> target
             self.client.execute_query(
-                f"ALTER TABLE {staging_table} RENAME TO {tbl_simple_name}"
+                f"ALTER TABLE {staging_table} RENAME TO {target_simple}"
             )
+
+            # Step 4: Drop backup now that target is safely replaced
+            if target_backed_up:
+                try:
+                    self.client.execute_query(f"DROP TABLE IF EXISTS {backup_table}")
+                except TrinoQueryError as e:
+                    logger.debug("Failed to drop backup table %s: %s", backup_table, e)
+
         except Exception:
-            # Clean up staging table on failure; original target remains untouched
+            # Rollback: restore backup -> target if backup was created
+            if target_backed_up:
+                try:
+                    self.client.execute_query(
+                        f"ALTER TABLE {backup_table} RENAME TO {target_simple}"
+                    )
+                except TrinoQueryError as rollback_err:
+                    logger.error(
+                        "Failed to restore backup table %s to %s: %s",
+                        backup_table,
+                        target_table,
+                        rollback_err,
+                    )
+            # Clean up staging table
             try:
                 self.client.execute_query(f"DROP TABLE IF EXISTS {staging_table}")
-            except TrinoQueryError as cleanup_err:
-                logger.debug(
-                    "Staging table cleanup error on %s: %s",
-                    staging_table,
-                    cleanup_err,
-                )
+            except TrinoQueryError:
+                pass
             raise
+
+    def _table_exists(self, table_name: str) -> bool:
+        """Check whether a Trino table exists."""
+        try:
+            self.client.execute_query(f"SELECT 1 FROM {table_name} WHERE 1 = 0")
+            return True
+        except Exception:
+            return False

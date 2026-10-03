@@ -90,6 +90,9 @@ class TrinoComputeEngineConfig(FeastConfigBaseModel):
     write_concurrency: int = 4
     """ Number of concurrent threads used when writing batches to online store """
 
+    offline_write_mode: Literal["append", "overwrite", "merge"] = "append"
+    """ Write mode for offline feature view materialization ('append', 'overwrite', or 'merge') """
+
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
