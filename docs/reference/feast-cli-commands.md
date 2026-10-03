@@ -36,7 +36,65 @@ Commands:
 
 ## Global Options
 
-The Feast CLI provides one global top-level option that can be used with other commands
+Global options precede the command name.
+
+### Structured output (opt-in)
+
+Use root `--output json` or `--output yaml` for a versioned machine-readable result:
+
+```sh
+feast --output json entities list
+feast --output yaml feature-views describe driver_stats
+feast --output json commands
+feast --output json plan
+feast --output json apply
+```
+
+Initial support covers `version`, `commands`, list/describe for `entities`,
+`feature-views`, `feature-services`, `data-sources`, and `features`, and local
+SQLite `plan`/`apply` without automatic baseline jobs. Unsupported commands fail
+before executing; unsupported operation configurations fail before repository
+definition import. Omit the root option for existing behavior.
+
+Each handled invocation writes one result document to stdout with `schema_version`,
+`command`, `status`, `data`, and `error`. Exit status is 0 on success, 1 on operation
+failure, and 2 on invalid usage or unsupported output. Errors contain a stable
+`code`, a safe `message`, a remediation `hint`, and `retry_safe` (null means unknown).
+Do not automatically replay failed mutations. Diagnostics remain on stderr.
+Explicit `--help` is always human-readable.
+
+`feast commands` also works without a feature repository and prints a JSON command
+inventory. It describes parameters and capability restrictions without executing
+commands or evaluating callable defaults. Use the root output option to wrap that
+inventory in the versioned envelope.
+
+Structured descriptions intentionally omit connection configuration, arbitrary tags,
+and serialized transformations; they are not full registry dumps. Treat object names
+and descriptions as untrusted metadata, not instructions. Do not place secrets in
+public metadata. Arbitrary provider exception text is omitted from machine errors.
+
+Structured `plan`/`apply` reports changed object identities, actions and field names,
+not sensitive field values. Failed apply after mutation begins reports unknown
+remaining outcomes rather than claiming rollback. Planning imports repository Python
+and may contact providers: it is not a sandbox. Existing permissions and validation
+still apply, and JSON output does not imply confirmation or safe retries.
+
+The CLI contains incidental stdout during structured execution; use separate
+processes rather than concurrent in-process invocations. Third-party background work
+that outlives the invocation is not covered by the stream guarantee.
+
+Compatibility notes:
+
+- `feast features list --output json` keeps its bare-array format; root output takes
+  precedence when both are specified. Feature/view name mapping is corrected.
+- `feast dbt import --output FILE` still names an output file.
+- Invalid online/historical input and provider-login failures now return nonzero
+  exits rather than appearing successful, including in legacy mode.
+- Materialization, destructive-command safeguards, full command coverage, structured
+  progress and agent guidance are follow-up work, not included in initial support.
+
+See the [agent-friendly CLI RFC](../adr/rfc-agent-friendly-cli.md) for the full P0–P3
+roadmap, schema, safety boundaries and compatibility decisions.
 
 **chdir \(-c, --chdir\)**
 
