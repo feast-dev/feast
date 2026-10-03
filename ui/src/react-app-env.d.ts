@@ -9,6 +9,16 @@ declare namespace NodeJS {
   }
 }
 
+interface ImportMetaEnv {
+  readonly BASE_URL?: string;
+  readonly VITE_PUBLIC_URL?: string;
+  readonly [key: string]: string | boolean | undefined;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare module "*.avif" {
   const src: string;
   export default src;
