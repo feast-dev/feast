@@ -304,6 +304,7 @@ Thanks goes to these incredible people:
   <img src="https://contrib.rocks/image?repo=feast-dev/feast" />
 </a>
 
+
 ## LocalCloud tests
 
 See [LocalCloud integration](docs/how-to-guides/localcloud.md) for laptop and optional GitHub Actions testing.
