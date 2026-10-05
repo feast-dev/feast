@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import http.client
+import socket
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -741,6 +745,82 @@ class TestResolveFeatureCounts:
         assert fv_count == "2"
 
 
+class TestBinFeatureCount:
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (0, "0"),
+            (1, "1-10"),
+            (10, "1-10"),
+            (11, "11-50"),
+            (50, "11-50"),
+            (51, "51-200"),
+            (200, "51-200"),
+            (201, "201+"),
+        ],
+    )
+    def test_default_boundaries(self, count, expected):
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [10, 50, 200]) == expected
+
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (1, "1-5"),
+            (5, "1-5"),
+            (6, "6-20"),
+            (20, "6-20"),
+            (21, "21+"),
+        ],
+    )
+    def test_custom_boundaries(self, count, expected):
+
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [5, 20]) == expected
+
+
+class TestMetricsConfig:
+    def test_feature_count_bins_default(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig()
+        assert config.feature_count_bins == [10, 50, 200]
+
+    def test_feature_count_bins_custom(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig(feature_count_bins=[5, 20])
+        assert config.feature_count_bins == [5, 20]
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [0, 10, 50],
+            [-1, 10, 50],
+        ],
+    )
+    def test_feature_count_bins_must_be_positive(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="positive"):
+            MetricsConfig(feature_count_bins=bins)
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [50, 10, 200],
+            [10, 10, 200],
+        ],
+    )
+    def test_feature_count_bins_must_be_strictly_increasing(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            MetricsConfig(feature_count_bins=bins)
+
+
 class TestFeatureServerMetricsIntegration:
     """Test that feature server endpoints record metrics."""
 
@@ -751,6 +831,11 @@ class TestFeatureServerMetricsIntegration:
         def builder(**async_support):
             provider = FooProvider.with_async_support(**async_support)
             fs = MagicMock()
+
+            from feast.infra.feature_servers.base_config import MetricsConfig
+
+            fs.config.feature_server.metrics = MetricsConfig()
+
             fs._get_provider.return_value = provider
             from feast.online_response import OnlineResponse
             from feast.protos.feast.serving.ServingService_pb2 import (
@@ -798,20 +883,30 @@ class TestFeatureServerMetricsIntegration:
     @pytest.mark.parametrize(
         "features,expected_feat_count,expected_fv_count",
         [
-            (["fv1:a"], "1", "1"),
-            (["fv1:a", "fv1:b", "fv2:c"], "3", "2"),
+            (["fv1:a"], "1-10", "1"),
+            (["fv1:a", "fv1:b", "fv2:c"], "1-10", "2"),
             (
                 ["fv1:a", "fv1:b", "fv2:c", "fv2:d", "fv3:e"],
-                "5",
+                "1-10",
                 "3",
             ),
+            (
+                [f"fv1:f{i}" for i in range(11)],
+                "11-50",
+                "1",
+            ),
         ],
-        ids=["1_feat_1_fv", "3_feats_2_fvs", "5_feats_3_fvs"],
+        ids=[
+            "1_feat_1_fv",
+            "3_feats_2_fvs",
+            "5_feats_3_fvs",
+            "11_feats_1_fv",
+        ],
     )
     def test_latency_labels_with_varying_request_sizes(
         self, mock_fs_factory, features, expected_feat_count, expected_fv_count
     ):
-        """Verify feature_count and feature_view_count labels change with request size."""
+        """Verify feature_count is bucketed while feature_view_count remains exact."""
         from fastapi.testclient import TestClient
 
         from feast.feature_server import get_app
@@ -830,6 +925,35 @@ class TestFeatureServerMetricsIntegration:
             "/get-online-features",
             json={
                 "features": features,
+                "entities": {"id": [1]},
+            },
+        )
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_latency_labels_use_custom_feature_count_bins(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        fs = mock_fs_factory(online_read=False)
+        fs.config.feature_server.metrics = MetricsConfig(feature_count_bins=[2, 4])
+
+        client = TestClient(get_app(fs))
+
+        label_set = dict(
+            endpoint="/get-online-features",
+            feature_count="3-4",
+            feature_view_count="1",
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        client.post(
+            "/get-online-features",
+            json={
+                "features": ["fv:a", "fv:b", "fv:c"],
                 "entities": {"id": [1]},
             },
         )
@@ -1727,6 +1851,31 @@ class TestParseFeatureInfo:
 class TestEmitOnlineAudit:
     """Tests for the _emit_online_audit helper in feature_server."""
 
+    def test_skips_when_audit_logging_disabled(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_metrics,
+            patch(
+                "feast.permissions.security_manager.get_security_manager",
+            ) as mock_sm,
+        ):
+            mock_metrics._config.audit_logging = False
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=1,
+                status="success",
+                latency_ms=10.0,
+            )
+            mock_metrics.emit_online_audit_log.assert_not_called()
+            mock_sm.assert_not_called()
+
     def test_emits_audit_log_with_anonymous_user(self):
         from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
 
@@ -1805,3 +1954,134 @@ class TestEmitOnlineAudit:
                 status="error",
                 latency_ms=5.0,
             )
+
+
+def _ok_app(environ, start_response):
+    start_response("200 OK", [("Content-Type", "text/plain")])
+    return [b"ok"]
+
+
+def _serve(httpd):
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    return t
+
+
+def _http_get_ok(host, port):
+    # Use http.client directly, not urllib, so a corporate/system HTTP proxy
+    # can't intercept the loopback request and mask a real bind failure.
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", "/")
+        resp = conn.getresponse()
+        return resp.read()
+    finally:
+        conn.close()
+
+
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
+
+
+def test_metrics_httpd_is_dual_stack_when_ipv6_available():
+    from feast.metrics import _make_metrics_httpd
+
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+    httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET6
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+        assert _http_get_ok("::1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_metrics_httpd_falls_back_to_ipv4_without_ipv6():
+    from feast.metrics import _make_metrics_httpd
+
+    with patch("feast.utils._ipv6_available", return_value=False):
+        httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_ipv6_available_false_when_af_inet6_unsupported():
+    from feast.utils import _ipv6_available
+
+    # _ipv6_available is @lru_cache'd (IPv6 support can't change mid-process).
+    # Clear before *and* after: before, so this test isn't seeing another
+    # test's cached result; after, so this test's mocked result doesn't leak
+    # into a later test that expects a real, uncached probe.
+    _ipv6_available.cache_clear()
+    try:
+        with patch(
+            "socket.socket", side_effect=OSError(97, "Address family not supported")
+        ):
+            assert _ipv6_available() is False
+    finally:
+        _ipv6_available.cache_clear()
+
+
+def test_ipv6_available_true_uses_v6only_off_and_wildcard_bind():
+    from feast.utils import _ipv6_available
+
+    _ipv6_available.cache_clear()
+    mock_sock = MagicMock()
+    mock_sock.__enter__.return_value = mock_sock
+    mock_sock.__exit__.return_value = False
+    try:
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            assert _ipv6_available() is True
+    finally:
+        _ipv6_available.cache_clear()
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_called_once_with(
+        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0
+    )
+    mock_sock.bind.assert_called_once_with(("::", 0))
+
+
+def test_start_metrics_server_wires_make_metrics_httpd(mocker):
+    from feast.metrics import _MetricsFlags, start_metrics_server
+
+    mock_httpd = MagicMock()
+    mock_make_metrics_httpd = mocker.patch(
+        "feast.metrics._make_metrics_httpd", return_value=mock_httpd
+    )
+
+    start_metrics_server(
+        MagicMock(),
+        port=9999,
+        metrics_config=_MetricsFlags(),
+        start_resource_monitoring=False,
+        start_freshness_monitoring=False,
+    )
+
+    mock_make_metrics_httpd.assert_called_once()
+    args, _ = mock_make_metrics_httpd.call_args
+    assert args[0] == 9999
+
+    # The httpd is served on a daemon thread; poll briefly for it to run.
+    for _ in range(100):
+        if mock_httpd.serve_forever.called:
+            break
+        time.sleep(0.01)
+    assert mock_httpd.serve_forever.called
