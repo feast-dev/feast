@@ -97,11 +97,14 @@ jobs:
             pkg-config \
             python3-pip \
             python3-venv
-          curl -fsSL "https://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz" -o /tmp/thrift.tar.gz
+          curl -fsSL --retry 3 --connect-timeout 15 \
+            "https://github.com/apache/thrift/archive/refs/tags/v0.13.0.tar.gz" \
+            -o /tmp/thrift.tar.gz
           sudo rm -rf /usr/src/thrift
           sudo mkdir -p /usr/src/thrift
           sudo tar zxf /tmp/thrift.tar.gz -C /usr/src/thrift --strip-components=1
           cd /usr/src/thrift
+          sudo ./bootstrap.sh
           sudo ./configure --disable-libs --disable-tests --disable-tutorial
           sudo make -j2
           sudo make install
