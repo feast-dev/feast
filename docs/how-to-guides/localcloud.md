@@ -32,9 +32,9 @@ python3 scripts/localcloud-test.py
 python3 scripts/localcloud-test.py --full-suite
 ```
 
-The launcher uses the pinned public image in `.localcloud/tests.json`, starts only the services above, maps their ports automatically, and creates a unique project when `GOOGLE_CLOUD_PROJECT` is unset. Each run owns a separate container and volume; both are removed even after test failures. No Google Cloud credentials or separate service emulators are used.
+The launcher embeds the pinned public image and tested settings, starts only the services above, maps their ports automatically, and creates a unique project when `GOOGLE_CLOUD_PROJECT` is unset. Each run owns a separate container and volume; both are removed even after test failures. No Google Cloud credentials or separate service emulators are used.
 
-Build and test commands are recorded in `.localcloud/tests.json`. Use `--skip-build` after dependencies are installed, or `--existing http://127.0.0.1:5380` to borrow a LocalCloud instance with the same enabled services. A supplied project on a borrowed instance is retained; an automatically created project is removed.
+Build and test commands are embedded in `scripts/localcloud-test.py`. Use `--skip-build` after dependencies are installed, or `--existing http://127.0.0.1:5380` to borrow a LocalCloud instance with the same enabled services. A supplied project on a borrowed instance is retained; an automatically created project is removed.
 
 ## GitHub Actions (optional)
 

@@ -303,4 +303,4 @@ Thanks goes to these incredible people:
 
 ## LocalCloud tests
 
-See [LocalCloud integration](LOCALCLOUD_INTEGRATION.md) for laptop and optional GitHub Actions testing.
+See [LocalCloud integration](docs/how-to-guides/localcloud.md) for laptop and optional GitHub Actions testing.

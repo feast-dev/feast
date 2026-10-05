@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -16,6 +17,131 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[1]
+TEST_SPEC_JSON = r"""
+{
+  "image": "agentcloud/localcloud@sha256:2fcfda7f9d39a2228b73ae8313b3c011dc0cb17340344b300da4a3c0c4e6f5b8",
+  "services": [
+    "bigquery",
+    "bigtable",
+    "gcs"
+  ],
+  "gateway_port": 5380,
+  "ports": [
+    5380,
+    5382,
+    5385,
+    5388
+  ],
+  "endpoint_variables": [
+    "BIGQUERY_EMULATOR_HOST",
+    "BIGTABLE_EMULATOR_HOST",
+    "STORAGE_EMULATOR_HOST"
+  ],
+  "build": [
+    {
+      "cwd": ".",
+      "command": [
+        "uv",
+        "venv",
+        "--python",
+        "3.12",
+        ".venv"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
+        "make",
+        "PYTHON_VERSION=3.12",
+        "install-python-dependencies-ci"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
+        ".venv/bin/ruff",
+        "check",
+        "sdk/python/feast/infra/offline_stores/bigquery.py",
+        "sdk/python/feast/infra/offline_stores/bigquery_source.py",
+        "sdk/python/tests/localcloud/test_localcloud_gcp.py",
+        "sdk/python/tests/unit/test_bigquery_local_endpoint.py",
+        "scripts/localcloud-test.py"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
+        ".venv/bin/ruff",
+        "format",
+        "--check",
+        "sdk/python/feast/infra/offline_stores/bigquery.py",
+        "sdk/python/feast/infra/offline_stores/bigquery_source.py",
+        "sdk/python/tests/localcloud/test_localcloud_gcp.py",
+        "sdk/python/tests/unit/test_bigquery_local_endpoint.py",
+        "scripts/localcloud-test.py"
+      ]
+    }
+  ],
+  "dedicated_lane": {
+    "cwd": ".",
+    "command": [
+      ".venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "--tb=short",
+      "sdk/python/tests/localcloud/test_localcloud_gcp.py"
+    ]
+  },
+  "full_suite": {
+    "cwd": ".",
+    "command": [
+      "env",
+      "-u",
+      "SPARK_HOME",
+      "-u",
+      "PYSPARK_PYTHON",
+      "-u",
+      "PYSPARK_DRIVER_PYTHON",
+      "uv",
+      "run",
+      "--no-sync",
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "--tb=short",
+      "-n",
+      "8",
+      "--ignore=sdk/python/tests/unit/infra/offline_stores/contrib/mongodb_offline_store",
+      "sdk/python/tests/unit"
+    ]
+  },
+  "config": {
+    "version": 1,
+    "context": {
+      "project": "repository-tests"
+    },
+    "host": {
+      "docker_socket": false
+    },
+    "server": {
+      "persistence": true,
+      "auto_seed": false
+    },
+    "updater": {
+      "enabled": false
+    },
+    "services": {
+      "enabled": [
+        "bigquery",
+        "bigtable",
+        "gcs"
+      ]
+    }
+  }
+}
+"""
 
 
 def docker(*args: str, check: bool = True) -> str:
@@ -45,7 +171,7 @@ def main() -> int:
         help="dependencies/build were already prepared",
     )
     args = parser.parse_args()
-    manifest = json.loads((ROOT / ".localcloud/tests.json").read_text())
+    manifest = json.loads(TEST_SPEC_JSON)
     ident = "lc-tests-" + uuid.uuid4().hex[:12]
     container_created = False
     volume_created = False
@@ -118,11 +244,12 @@ def main() -> int:
             command.append(manifest["image"])
             docker(*command)
             container_created = True
-            docker(
-                "cp",
-                str(ROOT / ".localcloud/config.json"),
-                ident + ":/etc/localcloud/localcloud.yaml",
-            )
+            with tempfile.TemporaryDirectory(prefix="localcloud-tests-") as temporary:
+                config_path = Path(temporary) / "config.json"
+                config_path.write_text(json.dumps(manifest["config"]))
+                docker(
+                    "cp", str(config_path), ident + ":/etc/localcloud/localcloud.yaml"
+                )
             docker("start", ident)
             info = json.loads(docker("inspect", ident))[0]
             ports = {
