@@ -32,6 +32,8 @@ from feast.field import Field
 from feast.infra.offline_stores.duckdb import (
     DuckDBOfflineStore,
     DuckDBOfflineStoreConfig,
+    _read_data_source,
+    _write_lance_data_source,
 )
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -44,6 +46,7 @@ lance_namespace = pytest.importorskip("lance_namespace")
 from feast.infra.data_sources.contrib.lance.lance_source import (  # noqa: E402
     LanceSource,
     validate_lance_source_schema,
+    validate_lance_write_shape,
 )
 
 # --------------------------------------------------------------------- helpers
@@ -753,3 +756,258 @@ def test_a_string_column_survives_the_round_trip(tmp_path):
     fv = _feature_view(source, schema=[Field(name="city", dtype=String)])
     validate_lance_source_schema(fv)
     assert source.to_arrow().column("city").to_pylist() == ["cupertino"]
+
+
+# ------------------------------------------------------------- the write path
+
+
+def _ibis_table(arrow_table):
+    import ibis
+
+    return ibis.memtable(arrow_table)
+
+
+def test_get_existing_schema_is_none_for_an_absent_dataset(tmp_path):
+    source = LanceSource(uri=str(tmp_path / "absent.lance"))
+    assert source.get_existing_schema() is None
+
+
+def test_get_write_target_omits_the_version(tmp_path):
+    """``write_dataset`` has no ``version``; a write always makes a new one."""
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats())
+    source = LanceSource(uri=uri, table_format=LanceFormat(version=1))
+    assert "version" not in source.get_write_target()
+
+
+def test_write_creates_an_absent_path_based_dataset(tmp_path):
+    uri = str(tmp_path / "new.lance")
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=3)), source)
+
+    assert lance.dataset(uri).count_rows() == 3
+    assert lance.dataset(uri).version == 1
+
+
+def test_write_appends_to_an_existing_path_based_dataset(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats(n_rows=3))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=2, base_hour=12)), source)
+
+    dataset = lance.dataset(uri)
+    assert dataset.count_rows() == 5
+    assert dataset.version == 2
+
+
+def test_write_creates_an_absent_catalog_based_dataset(dir_namespace):
+    _, properties = dir_namespace
+    source = LanceSource(
+        table="brand_new",
+        namespace_impl="dir",
+        namespace_properties=properties,
+        timestamp_field="event_timestamp",
+    )
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=4)), source)
+
+    assert source.to_arrow().num_rows == 4
+
+
+def test_write_appends_to_an_existing_catalog_based_dataset(dir_namespace):
+    client, properties = dir_namespace
+    _write(client, _driver_stats(n_rows=3), table_id=["driver"])
+    source = LanceSource(
+        table="driver",
+        namespace_impl="dir",
+        namespace_properties=properties,
+        timestamp_field="event_timestamp",
+    )
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=2, base_hour=12)), source)
+
+    assert source.to_arrow().num_rows == 5
+
+
+def test_write_through_a_version_pin_is_refused(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats())
+    source = LanceSource(uri=uri, table_format=LanceFormat(version=1))
+
+    with pytest.raises(ValueError, match="pinned to version 1"):
+        _write_lance_data_source(_ibis_table(_driver_stats()), source)
+
+
+def test_write_through_a_tag_pin_is_refused(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats())
+    lance.dataset(uri).tags.create("prod", 1)
+    source = LanceSource(uri=uri, table_format=LanceFormat(tag="prod"))
+
+    with pytest.raises(ValueError, match="pinned to tag 'prod'"):
+        _write_lance_data_source(_ibis_table(_driver_stats()), source)
+
+
+def test_a_refused_pinned_write_leaves_the_dataset_untouched(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats(n_rows=3))
+    source = LanceSource(uri=uri, table_format=LanceFormat(version=1))
+
+    with pytest.raises(ValueError):
+        _write_lance_data_source(_ibis_table(_driver_stats(n_rows=9)), source)
+
+    assert lance.dataset(uri).version == 1
+    assert lance.dataset(uri).count_rows() == 3
+
+
+def test_an_append_is_invisible_to_an_earlier_pin(tmp_path):
+    """Why a pinned write is refused: the pin would not show the write."""
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats(n_rows=3))
+    unpinned = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    pinned = LanceSource(
+        uri=uri, table_format=LanceFormat(version=1), timestamp_field="event_timestamp"
+    )
+
+    _write_lance_data_source(
+        _ibis_table(_driver_stats(n_rows=2, base_hour=12)), unpinned
+    )
+
+    assert unpinned.to_arrow().num_rows == 5
+    assert pinned.to_arrow().num_rows == 3
+
+
+def test_overwrite_without_allow_overwrite_is_refused(tmp_path):
+    from feast.errors import SavedDatasetLocationAlreadyExists
+
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats(n_rows=3))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    with pytest.raises(SavedDatasetLocationAlreadyExists):
+        _write_lance_data_source(_ibis_table(_driver_stats()), source, mode="overwrite")
+    assert lance.dataset(uri).count_rows() == 3
+
+
+def test_overwrite_with_allow_overwrite_replaces_the_data(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    _write(uri, _driver_stats(n_rows=5))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    _write_lance_data_source(
+        _ibis_table(_driver_stats(n_rows=2)),
+        source,
+        mode="overwrite",
+        allow_overwrite=True,
+    )
+
+    assert lance.dataset(uri).count_rows() == 2
+
+
+def test_overwrite_changing_a_vector_width_is_refused(tmp_path):
+    """Lance permits this silently; Feast must not.
+
+    An ``overwrite`` that replaces a 8-wide embedding column with a 32-wide one
+    succeeds in Lance and leaves a version history whose vectors cannot be
+    compared with each other, invalidating every index built on the old width.
+    """
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _vector_table(8))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    with pytest.raises(ValueError, match="would change the width"):
+        _write_lance_data_source(
+            _ibis_table(_vector_table(32)),
+            source,
+            mode="overwrite",
+            allow_overwrite=True,
+        )
+
+    assert lance.dataset(uri).schema.field("embedding").type.list_size == 8
+    assert lance.dataset(uri).version == 1
+
+
+def test_overwrite_keeping_the_vector_width_is_allowed(tmp_path):
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _vector_table(8))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    _write_lance_data_source(
+        _ibis_table(_vector_table(8)), source, mode="overwrite", allow_overwrite=True
+    )
+
+    assert lance.dataset(uri).schema.field("embedding").type.list_size == 8
+    assert lance.dataset(uri).version == 2
+
+
+def test_a_non_vector_type_change_is_left_to_lance(tmp_path):
+    """The width guard is narrow on purpose: only vectors are policed."""
+    uri = str(tmp_path / "d.lance")
+    _write(uri, pa.table({"a": pa.array([1], pa.int64())}))
+    source = LanceSource(uri=uri)
+
+    _write_lance_data_source(
+        _ibis_table(pa.table({"a": pa.array(["x"], pa.string())})),
+        source,
+        mode="overwrite",
+        allow_overwrite=True,
+    )
+
+    assert lance.dataset(uri).schema.field("a").type == pa.string()
+
+
+def test_a_width_guard_ignores_a_column_absent_from_the_write(tmp_path):
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _vector_table(8))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    validate_lance_write_shape(
+        pa.table({"item_id": pa.array([1], pa.int64())}),
+        source,
+        lance.dataset(uri).schema,
+    )
+
+
+def test_write_then_read_round_trips_through_the_offline_store(tmp_path):
+    uri = str(tmp_path / "d.lance")
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=3)), source)
+    read_back = _read_data_source(source, str(tmp_path))
+
+    assert read_back.to_pyarrow().num_rows == 3
+
+
+def test_offline_write_batch_rejects_a_width_other_than_the_declared_one(tmp_path):
+    """The declared vector_length is enforced at the write, not at the next read.
+
+    Checked at the store entry point because the writer callback is handed a
+    DataSource and cannot see the declared schema.
+    """
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _vector_table(8))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    fv = _vector_feature_view(source, declared_width=8)
+
+    with pytest.raises(ValueError):
+        DuckDBOfflineStore.offline_write_batch(
+            _repo_config(tmp_path), fv, _vector_table(32), None
+        )
+
+    assert lance.dataset(uri).count_rows() == 2
+
+
+def test_offline_write_batch_appends_a_declared_width_batch(tmp_path):
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _vector_table(8))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    fv = _vector_feature_view(source, declared_width=8)
+
+    DuckDBOfflineStore.offline_write_batch(
+        _repo_config(tmp_path), fv, _vector_table(8), None
+    )
+
+    assert lance.dataset(uri).count_rows() == 4
+    assert lance.dataset(uri).version == 2
