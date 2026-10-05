@@ -1,6 +1,8 @@
 import subprocess
 import sys
+import time
 import uuid
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -51,6 +53,41 @@ def test_null_unix_timestamp_list():
     converted = feast_value_type_to_python_type(protos[0])
 
     assert converted[0] is None
+
+
+@pytest.fixture
+def non_utc_local_timezone(monkeypatch):
+    """Run the test with a local timezone that is not UTC, where tzset exists."""
+    if hasattr(time, "tzset"):
+        monkeypatch.setenv("TZ", "America/Los_Angeles")
+        time.tzset()
+    yield
+    if hasattr(time, "tzset"):
+        monkeypatch.undo()
+        time.tzset()
+
+
+@pytest.mark.parametrize(
+    "value_type",
+    [
+        ValueType.UNIX_TIMESTAMP,
+        ValueType.UNIX_TIMESTAMP_LIST,
+        ValueType.UNIX_TIMESTAMP_SET,
+    ],
+)
+def test_naive_datetime_unix_timestamp_is_utc(non_utc_local_timezone, value_type):
+    """A naive datetime is read as UTC, not in the local timezone."""
+    naive = datetime(2024, 7, 1, 12, 0, 0)
+    value = naive if value_type == ValueType.UNIX_TIMESTAMP else [naive]
+
+    proto = python_values_to_proto_values([value], value_type)[0]
+    converted = feast_value_type_to_python_type(proto)
+
+    expected = naive.replace(tzinfo=timezone.utc)
+    if value_type == ValueType.UNIX_TIMESTAMP:
+        assert converted == expected
+    else:
+        assert list(converted) == [expected]
 
 
 @pytest.mark.parametrize(
