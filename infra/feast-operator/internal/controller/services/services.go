@@ -731,7 +731,7 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	}
 
 	deploySettings := FeastServiceConstants[feastType]
-	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
+	deploySettings.Args = append([]string{}, deploySettings.Args...)
 	// Only inject --metrics CLI flag for the server.metrics bool path.
 	// When serving.metrics.enabled is used, Python reads it from feature_store.yaml
 	// and starts the metrics server itself — no CLI flag needed.
@@ -750,12 +750,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 		if feast.isRegistryRestEnabled() {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
-			// Registry REST defaults to dual-stack; only render -h to opt out.
-			if ds := feast.getServerConfigs(feastType).DualStack; ds != nil && !*ds {
-				deploySettings.Args = append(deploySettings.Args, "-h", hostAllIPv4)
-			}
+			deploySettings.Args = append(deploySettings.Args, "-h", hostAllIPv4)
 		}
 	}
+	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
 
 	// Add worker configuration options for online store (feast serve)
 	if feastType == OnlineFeastType {

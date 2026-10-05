@@ -45,29 +45,26 @@ func TestRegistryContainerCommandHostFlag(t *testing.T) {
 		name        string
 		restEnabled bool
 		dualStack   *bool
-		wantHostArg bool
+		wantHost    string // empty: no -h expected
 	}{
-		{"unset defaults to dual-stack, no -h", true, nil, false},
-		{"explicit true stays dual-stack, no -h", true, ptr.To(true), false},
-		{"explicit false opts out to 0.0.0.0", true, ptr.To(false), true},
-		{"rest disabled never renders -h", false, ptr.To(false), false},
+		{"unset keeps ipv4", true, nil, hostAllIPv4},
+		{"explicit false keeps ipv4", true, ptr.To(false), hostAllIPv4},
+		{"explicit true binds bare ipv6 wildcard", true, ptr.To(true), hostAllIPv6},
+		{"rest disabled never renders -h", false, ptr.To(true), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			feast := registryFeastServices(tc.restEnabled, tc.dualStack)
 			args := feast.getContainerCommand(RegistryFeastType)
 
-			gotHostArg := false
+			gotHost := ""
 			for i, a := range args {
 				if a == "-h" && i+1 < len(args) {
-					gotHostArg = true
-					if args[i+1] != hostAllIPv4 {
-						t.Fatalf("got -h %s, want %s", args[i+1], hostAllIPv4)
-					}
+					gotHost = args[i+1]
 				}
 			}
-			if gotHostArg != tc.wantHostArg {
-				t.Fatalf("got args %v, want -h present=%v", args, tc.wantHostArg)
+			if gotHost != tc.wantHost {
+				t.Fatalf("got args %v, want -h %q", args, tc.wantHost)
 			}
 		})
 	}
