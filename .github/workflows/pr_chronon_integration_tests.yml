@@ -102,7 +102,7 @@ jobs:
           sudo mkdir -p /usr/src/thrift
           sudo tar zxf /tmp/thrift.tar.gz -C /usr/src/thrift --strip-components=1
           cd /usr/src/thrift
-          sudo ./configure --without-python --without-cpp
+          sudo ./configure --disable-libs --disable-tests --disable-tutorial
           sudo make -j2
           sudo make install
           python3 -m pip install --break-system-packages build

@@ -13,6 +13,11 @@ uv run python examples/chronon/run_demo.py --offline-only
 
 ## Live Chronon Service
 
+The pinned quickstart Docker image is ARM64. Use an ARM64 Docker host (as in
+the integration workflow), or provide a compatible image for your host with
+`CHRONON_QUICKSTART_IMAGE`. Docker must be running and accessible to your user.
+The launcher uses MongoDB 7.0; `CHRONON_MONGO_IMAGE` overrides that image.
+
 Install `sbt` and a JDK. On macOS with Homebrew, this is enough:
 
 ```bash

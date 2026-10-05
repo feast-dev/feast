@@ -14,6 +14,8 @@ SERVICE_PID_FILE="${CHRONON_SERVICE_PID_FILE:-/tmp/chronon-service.pid}"
 SERVICE_LOG_FILE="${CHRONON_SERVICE_LOG_FILE:-/tmp/chronon-service.log}"
 JAVA_BIN="${JAVA_BIN:-java}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+QUICKSTART_IMAGE="${CHRONON_QUICKSTART_IMAGE:-ezvz/chronon@sha256:a3f6b5e1aa85bb23269ebd67fc7e4b0fb2d0cf3e53bc2a45abdc23c95769415c}"
+MONGO_IMAGE="${CHRONON_MONGO_IMAGE:-mongo:7.0@sha256:1f995ad6fdb93244a1addab1b58f934a0bc2f5643c38e02f5e9d7f0c7d227a7b}"
 CHRONON_PREFLIGHT_ONLY="${CHRONON_PREFLIGHT_ONLY:-0}"
 MONGO_IMPL_JAR="${CHRONON_DIR}/quickstart/mongo-online-impl/target/scala-2.12/mongo-online-impl-assembly-0.1.0-SNAPSHOT.jar"
 SERVICE_TARGET_DIR="${CHRONON_DIR}/service/target/scala-2.12"
@@ -94,6 +96,11 @@ cleanup_stale_service() {
 wait_for_mongo() {
   local attempts=60
   until docker exec "${MONGO_CONTAINER}" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' >/dev/null 2>&1; do
+    if [[ "$(docker inspect --format '{{.State.Running}}' "${MONGO_CONTAINER}")" != "true" ]]; then
+      echo "Mongo container exited before becoming ready." >&2
+      docker logs "${MONGO_CONTAINER}" >&2 || true
+      exit 1
+    fi
     attempts=$((attempts - 1))
     if [[ "${attempts}" -le 0 ]]; then
       echo "Mongo did not become ready in time." >&2
@@ -163,7 +170,7 @@ docker run -d \
   -p 27017:27017 \
   -e MONGO_INITDB_ROOT_USERNAME=admin \
   -e MONGO_INITDB_ROOT_PASSWORD=admin \
-  mongo:latest >/dev/null
+  "${MONGO_IMAGE}" >/dev/null
 
 wait_for_mongo
 
@@ -184,7 +191,7 @@ docker run -d \
   -e CHRONON_ONLINE_CLASS=ai.chronon.quickstart.online.ChrononMongoOnlineImpl \
   -e "CHRONON_ONLINE_ARGS=-Zuser=admin -Zpassword=admin -Zhost=${MONGO_CONTAINER} -Zport=27017 -Zdatabase=admin" \
   -v "${CHRONON_DIR}/quickstart/mongo-online-impl:/srv/onlineImpl" \
-  ezvz/chronon \
+  "${QUICKSTART_IMAGE}" \
   bash -lc '/opt/spark/bin/spark-shell -i scripts/data-loader.scala && touch /tmp/chronon-data-load.complete && tail -f /dev/null' >/dev/null
 
 wait_for_data_load
