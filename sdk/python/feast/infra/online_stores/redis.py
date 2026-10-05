@@ -89,7 +89,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
 
     With ``glide``, the synchronous read paths (``online_read`` and the batched read
     behind ``get_online_features``) issue their HMGET commands as one non-atomic GLIDE
-    batch, so the fetch runs off the GIL. Requires ``pip install 'feast[glide]'``.
+    batch, so the fetch runs off the GIL. Requires the ``glide`` extra (``feast[glide]``).
     Writes and async reads always use redis-py. GLIDE has no Sentinel support, so
     ``client: glide`` cannot be combined with ``redis_type: redis_sentinel``."""
 
