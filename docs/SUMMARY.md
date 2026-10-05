@@ -245,3 +245,5 @@
   * [ADR-0010: Vector Database Integration](adr/ADR-0010-vector-database-integration.md)
   * [ADR-0011: Data Quality Monitoring](adr/ADR-0011-data-quality-monitoring.md)
   * [ADR-0012: LabelView](adr/ADR-0012-label-view.md)
+
+* [LocalCloud tests](how-to-guides/localcloud.md)
