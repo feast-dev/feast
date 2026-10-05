@@ -12,6 +12,9 @@ on:
       - "sdk/python/feast/infra/chronon_provider.py"
       - "sdk/python/tests/unit/infra/online_stores/chronon_online_store/**"
       - "sdk/python/tests/unit/infra/offline_stores/contrib/chronon_offline_store/**"
+      - "sdk/python/tests/unit/examples/test_chronon_demo.py"
+      - "sdk/python/tests/unit/infra/scripts/test_chronon_local_service_script.py"
+      - "examples/chronon/**"
       - "sdk/python/tests/integration/online_store/test_chronon_online_store.py"
       - "sdk/python/tests/integration/online_store/test_chronon_online_store_real_service.py"
       - "sdk/python/tests/integration/offline_store/test_chronon_offline_store.py"
@@ -29,7 +32,8 @@ jobs:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
       github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
-    runs-on: ubuntu-latest
+    # The Chronon quickstart image is published for ARM64 only.
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,7 +44,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          architecture: x64
+          architecture: arm64
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -50,8 +54,23 @@ jobs:
         with:
           distribution: temurin
           java-version: "8"
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
       - name: Install dependencies
         run: make install-python-dependencies-ci
+      - name: Run Chronon unit tests
+        run: |
+          uv run pytest -c sdk/python/pytest.ini \
+            sdk/python/tests/unit/infra/online_stores/chronon_online_store \
+            sdk/python/tests/unit/infra/offline_stores/contrib/chronon_offline_store \
+            sdk/python/tests/unit/examples/test_chronon_demo.py \
+            sdk/python/tests/unit/infra/scripts/test_chronon_local_service_script.py
+      - name: Run Chronon stub integration tests
+        run: |
+          uv run pytest -c sdk/python/pytest.ini \
+            sdk/python/tests/integration/online_store/test_chronon_online_store.py \
+            sdk/python/tests/integration/offline_store/test_chronon_offline_store.py \
+            --integration
       - name: Checkout Chronon
         env:
           CHRONON_REPO: ${{ github.workspace }}/.chronon
@@ -78,11 +97,7 @@ jobs:
             pkg-config \
             python3-pip \
             python3-venv
-          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-          curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add -
-          sudo apt-get update
-          sudo apt-get install -y sbt
-          curl -sSL "http://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz" -o /tmp/thrift.tar.gz
+          curl -fsSL "https://archive.apache.org/dist/thrift/0.13.0/thrift-0.13.0.tar.gz" -o /tmp/thrift.tar.gz
           sudo rm -rf /usr/src/thrift
           sudo mkdir -p /usr/src/thrift
           sudo tar zxf /tmp/thrift.tar.gz -C /usr/src/thrift --strip-components=1
@@ -100,14 +115,6 @@ jobs:
           sbt assembly
           cd "${CHRONON_REPO}"
           sbt "project service" assembly
-      - name: Run Chronon unit and stub integration tests
-        run: |
-          uv run pytest -c sdk/python/pytest.ini \
-            sdk/python/tests/unit/infra/online_stores/chronon_online_store \
-            sdk/python/tests/unit/infra/offline_stores/contrib/chronon_offline_store \
-            sdk/python/tests/integration/online_store/test_chronon_online_store.py \
-            sdk/python/tests/integration/offline_store/test_chronon_offline_store.py \
-            --integration
       - name: Start live Chronon service
         env:
           CHRONON_REPO: ${{ github.workspace }}/.chronon

@@ -308,6 +308,8 @@ class ChrononOfflineStore(OfflineStore):
                 )
                 merge_frame = merge_frame.rename(columns=rename_map)
                 row_id_col = "__chronon_row_id"
+                while row_id_col in result.columns or row_id_col in merge_frame.columns:
+                    row_id_col += "_"
                 result = result.assign(**{row_id_col: range(len(result))})
                 if result.empty:
                     for feature in selected_features:
@@ -322,18 +324,26 @@ class ChrononOfflineStore(OfflineStore):
                         result[output_column] = pd.Series(dtype=dtype)
                     result = result.drop(columns=[row_id_col])
                     continue
+                right_frames = (
+                    merge_frame.groupby(
+                        left_keys, sort=False, dropna=False, observed=True
+                    )
+                    if left_keys
+                    else [((), merge_frame)]
+                )
                 right_groups = {
                     key if isinstance(key, tuple) else (key,): group.drop(
                         columns=left_keys, errors="ignore"
                     )
-                    for key, group in merge_frame.groupby(
-                        left_keys, sort=False, dropna=False
-                    )
+                    for key, group in right_frames
                 }
                 joined_frames = []
-                for key, left_group in result.groupby(
-                    left_keys, sort=False, dropna=False
-                ):
+                left_frames = (
+                    result.groupby(left_keys, sort=False, dropna=False, observed=True)
+                    if left_keys
+                    else [((), result)]
+                )
+                for key, left_group in left_frames:
                     group_key = key if isinstance(key, tuple) else (key,)
                     right_group = right_groups.get(group_key, merge_frame.iloc[0:0])
                     right_group = right_group.drop(columns=left_keys, errors="ignore")

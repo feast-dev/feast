@@ -76,6 +76,58 @@ def test_historical_retrieval_infers_entity_timestamp(tmp_path: Path) -> None:
     pd.testing.assert_series_equal(result["request_time"], entity_df["request_time"])
 
 
+def test_historical_retrieval_preserves_internal_named_request_columns(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path, timedelta(days=1))
+    entity_df = _entities().assign(
+        __chronon_row_id=[10, 20], __chronon_row_id_=[30, 40]
+    )
+    result = store.get_historical_features(
+        entity_df=entity_df, features=["profile:feature_a"]
+    ).to_df()
+    pd.testing.assert_frame_equal(result[entity_df.columns], entity_df)
+    assert result["feature_a"].tolist() == [4.0, 2.0]
+
+
+def test_historical_retrieval_without_entities(tmp_path: Path) -> None:
+    store = _store(tmp_path, timedelta(days=1))
+    path = tmp_path / "global.parquet"
+    pd.DataFrame(
+        {
+            "event_timestamp": pd.to_datetime(["2024-01-01", "2024-01-03"], utc=True),
+            "value": [2.0, 4.0],
+        }
+    ).to_parquet(path)
+    store.apply(
+        FeatureView(
+            name="global_stats",
+            entities=[],
+            ttl=timedelta(days=1),
+            schema=[Field(name="value", dtype=Float32)],
+            source=ChrononSource(
+                materialization_path=str(path), timestamp_field="event_timestamp"
+            ),
+            online=False,
+        )
+    )
+    entity_df = pd.DataFrame(
+        {
+            "event_timestamp": pd.to_datetime(
+                ["2024-01-03", "2024-01-02", "2024-01-06"], utc=True
+            )
+        }
+    )
+    result = store.get_historical_features(
+        entity_df=entity_df, features=["global_stats:value"]
+    ).to_df()
+    assert result["value"].iloc[:2].tolist() == [4.0, 2.0]
+    assert pd.isna(result["value"].iloc[2])
+    pd.testing.assert_series_equal(
+        result["event_timestamp"], entity_df["event_timestamp"]
+    )
+
+
 def test_historical_retrieval_infers_partitioned_entity(tmp_path: Path) -> None:
     store = _store(tmp_path, timedelta(days=1), partitioned=True)
     assert store.get_feature_view("profile").join_keys == ["user_id"]
