@@ -174,8 +174,14 @@ class FeatureVectorResponse(BaseModel):
     event_timestamps: List[str] = []
 
 
+class FeatureViewMetadataResponse(BaseModel):
+    name: str = ""
+    version: int = 0
+
+
 class OnlineFeaturesMetadataResponse(BaseModel):
     feature_names: List[str] = []
+    feature_view_metadata: List[FeatureViewMetadataResponse] = []
 
     @field_validator("feature_names", mode="before")
     @classmethod

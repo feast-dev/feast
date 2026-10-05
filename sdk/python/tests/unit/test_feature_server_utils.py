@@ -692,3 +692,46 @@ class TestStatusNames:
 
     def test_unknown_status_returns_invalid(self):
         assert _STATUS_NAMES.get(999, "INVALID") == "INVALID"
+
+
+class TestFeatureViewVersionMetadata:
+    """``feature_view_metadata`` is part of the response metadata and must
+    survive ``convert_response_to_dict`` exactly as MessageToDict emits it."""
+
+    @pytest.fixture(autouse=True)
+    def setup_proto_json_patch(self):
+        proto_json.patch()
+
+    def test_feature_view_metadata_matches_message_to_dict(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+        fv_meta = response.metadata.feature_view_metadata.add()
+        fv_meta.name = "driver_stats"
+        fv_meta.version = 2
+        fv = response.results.add()
+        fv.values.append(Value(int64_val=7))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert "feature_view_metadata" in standard_result["metadata"]
+        assert fast_result["metadata"] == standard_result["metadata"]
+
+    def test_feature_view_metadata_version_zero_matches_message_to_dict(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+        response.metadata.feature_view_metadata.add(name="driver_stats", version=0)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert fast_result["metadata"] == standard_result["metadata"]
+
+    def test_feature_view_metadata_omitted_when_not_requested(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+
+        fast_result = convert_response_to_dict(response)
+
+        assert "feature_view_metadata" not in fast_result["metadata"]

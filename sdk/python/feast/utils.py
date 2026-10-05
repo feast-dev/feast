@@ -883,7 +883,12 @@ def _augment_response_with_on_demand_transforms(
     """
     from feast.online_response import OnlineResponse
 
-    requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
+    # Feature refs name an ODFV by its alias when it was added to a
+    # FeatureService with ``with_name``, so key the lookup the same way.
+    requested_odfv_map = {
+        (odfv.projection.name_alias if odfv.projection else None) or odfv.name: odfv
+        for odfv in requested_on_demand_feature_views
+    }
     requested_odfv_feature_names = requested_odfv_map.keys()
 
     odfv_feature_refs = defaultdict(list)
@@ -2022,62 +2027,86 @@ def _validate_vector_field_lengths(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view,
 ) -> None:
-    """Check an Arrow table's vector column against the declared ``vector_length``.
+    """Check an Arrow table's vector column for a consistent width.
 
     Called on the materialization path, where every compute engine funnels through
     ``_convert_arrow_to_proto``. The check is O(1) for fixed-size lists and a single
     vectorized pass for variable-size lists, so it is safe to leave on.
 
-    A declared ``vector_length`` is a contract: a mismatch is an error, never a
-    silent truncation or a silently different response shape.
+    When the field declares a ``vector_length``, that is the contract and a mismatch
+    is an error, never a silent truncation or a silently different response shape.
+
+    When it does not, the width of the first non-null row is used as the contract for
+    the rest of the table. An approximate nearest neighbour index requires a fixed
+    width, so a ragged vector column is a defect either way, and inferring is strictly
+    better than skipping. ``vector_length`` is unset by default, including in the
+    bundled RAG templates, so skipping would leave the common case unchecked.
 
     Args:
         table: The Arrow table or record batch about to be converted.
         feature_view: The feature view whose schema declares the vector field.
 
     Raises:
-        ValueError: If the vector column's width disagrees with ``vector_length``.
+        ValueError: If the vector column's width is inconsistent, or disagrees with
+            a declared ``vector_length``.
     """
     vector_field = _get_feature_view_vector_field_metadata(feature_view)
-    if vector_field is None or not vector_field.vector_length:
+    if vector_field is None or not vector_field.vector_index:
         return
 
     name = vector_field.name
     if name not in table.schema.names:
         return
 
-    expected = vector_field.vector_length
     column = table.column(name)
     column_type = column.type
+    declared = vector_field.vector_length or None
 
-    def _fail(actual, row: Optional[int] = None) -> None:
+    def _fail(actual, expected: int, row: Optional[int] = None) -> None:
         where = f"Row {row}: " if row is not None else ""
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
         raise ValueError(
-            f"{where}Vector length {actual} does not match expected {expected} "
+            f"{where}Vector length {actual} does not match {source} "
             f"for feature '{name}' in feature view '{feature_view.name}'."
         )
 
     if pyarrow.types.is_fixed_size_list(column_type):
-        if column_type.list_size != expected:
-            _fail(column_type.list_size)
+        # The width is a property of the type, so an undeclared column is uniform
+        # by construction and there is nothing left to check.
+        if declared and column_type.list_size != declared:
+            _fail(column_type.list_size, declared)
         return
 
     if pyarrow.types.is_list(column_type) or pyarrow.types.is_large_list(column_type):
         lengths = pyarrow.compute.list_value_length(column)
+        valid = pyarrow.compute.is_valid(lengths)
+
+        expected = declared
+        if expected is None:
+            # Nulls carry no width, so take the contract from the first row that does.
+            first = pyarrow.compute.index(valid, True).as_py()
+            if first == -1:
+                return
+            expected = lengths[first].as_py()
+
         # Nulls have no length to compare; only non-null rows carry the contract.
         mismatched = pyarrow.compute.and_kleene(
-            pyarrow.compute.is_valid(lengths),
-            pyarrow.compute.not_equal(lengths, expected),
+            valid, pyarrow.compute.not_equal(lengths, expected)
         )
         if pyarrow.compute.any(mismatched).as_py():
             row = pyarrow.compute.index(mismatched, True).as_py()
-            _fail(lengths[row].as_py(), row=row)
+            _fail(lengths[row].as_py(), expected, row=row)
         return
 
-    # Any other type cannot hold a vector of the declared width.
+    # Any other type cannot hold a vector.
+    declared_note = f" declares vector_length={declared} but" if declared else ""
     raise ValueError(
-        f"Vector feature '{name}' in feature view '{feature_view.name}' declares "
-        f"vector_length={expected} but has non-list Arrow type {column_type}."
+        f"Vector feature '{name}' in feature view '{feature_view.name}'{declared_note} "
+        f"has non-list Arrow type {column_type}."
     )
 
 
