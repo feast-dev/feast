@@ -539,6 +539,7 @@ class KafkaSource(DataSource):
             or self.kafka_options.topic != other.kafka_options.topic
             or self.kafka_options.watermark_delay_threshold
             != other.kafka_options.watermark_delay_threshold
+            or self.batch_source != other.batch_source
         ):
             return False
 
@@ -831,6 +832,7 @@ class KinesisSource(DataSource):
             self.kinesis_options.record_format != other.kinesis_options.record_format
             or self.kinesis_options.region != other.kinesis_options.region
             or self.kinesis_options.stream_name != other.kinesis_options.stream_name
+            or self.batch_source != other.batch_source
         ):
             return False
 
