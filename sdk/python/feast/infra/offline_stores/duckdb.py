@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
     )
+    from feast.infra.data_sources.contrib.lance.lance_source import LanceSource
     from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
         MlflowDatasetSource,
     )
@@ -59,6 +60,20 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
 
     if isinstance(data_source, IcebergSource):
         return _read_iceberg_catalog_source(data_source, repo_path)
+
+    lance_source: Optional["LanceSource"] = None
+    try:
+        from feast.infra.data_sources.contrib.lance.lance_source import LanceSource
+
+        if isinstance(data_source, LanceSource):
+            lance_source = data_source
+    except ImportError:
+        pass
+    # Deliberately outside the try: an ImportError raised by the read itself (a
+    # missing pylance, say) must surface rather than fall through to the
+    # FileSource assert below and be reported as the wrong source type.
+    if lance_source is not None:
+        return _read_lance_source(lance_source)
 
     try:
         from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
@@ -195,6 +210,35 @@ def _read_mlflow_source(data_source: "MlflowDatasetSource") -> Table:
     """
     arrow_table = data_source.to_arrow()
     return ibis.memtable(arrow_table)
+
+
+def _read_lance_source(data_source: "LanceSource") -> Table:
+    """Read a Lance dataset without Spark.
+
+    ``LanceSource`` resolves either a uri or a ``namespace_client`` + ``table_id``
+    and applies the ``version``/``tag`` pin from its ``LanceFormat``, so the pin
+    is honoured before any data crosses into ibis. The declared-schema contract
+    is enforced separately, by ``validate_lance_source_schema``, because the
+    reader callback is handed a ``DataSource`` without its feature view.
+    """
+    return ibis.memtable(data_source.to_arrow())
+
+
+def _validate_lance_feature_views(feature_views: List[FeatureView]) -> None:
+    """Enforce the Lance pin contract on every Lance-backed feature view.
+
+    Runs before a retrieval plan is built. It reads schemas only, so a mismatch
+    is reported up front instead of surfacing as a short or mis-shaped result.
+    """
+    try:
+        from feast.infra.data_sources.contrib.lance.lance_source import (
+            validate_lance_source_schema,
+        )
+    except ImportError:
+        return
+
+    for feature_view in feature_views:
+        validate_lance_source_schema(feature_view)
 
 
 def _write_data_source(
@@ -640,6 +684,9 @@ class DuckDBOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
+        # A Lance pin selects data, never shape: reject a pinned version whose
+        # schema cannot satisfy the declared schema before planning any reads.
+        _validate_lance_feature_views(feature_views)
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
