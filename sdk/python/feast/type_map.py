@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 # null timestamps get converted to -9223372036854775808
-NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
+NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT", "ns").astype(int)
 
 logger = logging.getLogger(__name__)
 
@@ -416,6 +416,11 @@ def python_type_to_feast_value_type(
 
     if type_name in type_map:
         return type_map[type_name]
+
+    # datetimes in any other unit or timezone, e.g. "datetime64[us]" or
+    # "datetime64[ns, america/new_york]"
+    if type_name.startswith("datetime64"):
+        return ValueType.UNIX_TIMESTAMP
 
     # Handle pandas "object" dtype by inspecting the actual value
     if type_name == "object" and value is not None:
@@ -1590,8 +1595,22 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
+_FIXED_SIZE_LIST_PREFIX = "fixed_size_list<item: "
+
+
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
+    if pa_type_as_str.startswith(_FIXED_SIZE_LIST_PREFIX):
+        # A fixed-width vector is a list whose width happens to be fixed, and is
+        # how Arrow-native stores represent embeddings. Feast value types do not
+        # encode a width -- Field.vector_length carries it -- so this decodes to
+        # the same value type as the variable-width spelling, and is rewritten
+        # into that spelling so the list handling below stays single-sourced.
+        inner = pa_type_as_str[len(_FIXED_SIZE_LIST_PREFIX) :]
+        closing = inner.rfind(">")
+        if closing != -1:
+            pa_type_as_str = f"list<item: {inner[:closing]}>"
+
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
         inner_str = pa_type_as_str[len("list<item: ") : -1]

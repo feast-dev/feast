@@ -17,6 +17,7 @@ from feast.api.registry.rest.permissions import get_permission_router
 from feast.api.registry.rest.projects import get_project_router, get_registry_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
 from feast.api.registry.rest.search import get_search_router
+from feast.api.registry.rest.system import get_system_router
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ def get_ol_processor() -> Optional[Any]:
 
 
 def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
+    app.include_router(get_system_router())
     app.include_router(get_entity_router(grpc_handler))
     app.include_router(get_data_source_router(grpc_handler))
     app.include_router(get_feature_service_router(grpc_handler))

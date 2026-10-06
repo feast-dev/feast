@@ -501,7 +501,7 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
+We now serialize the latest values of features from the materialization window to prepare for serving. `materialize-incremental` starts from each feature view's most recent materialization end date. On the first run, it starts from the current time minus the feature view's `ttl`. In this example, the initial lookback is one day (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
 
 {% tabs %}
 {% tab title="Bash (with timestamp)" %}

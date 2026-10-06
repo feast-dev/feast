@@ -128,7 +128,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 - [uv](https://docs.astral.sh/) for managing python dependencies. [installation instructions](https://docs.astral.sh/uv/getting-started/installation/)
 - (M1 Mac only): Follow the [dev guide if you have issues](https://github.com/feast-dev/feast/issues/2105)
 - (Optional): Node & Yarn (needed for building the feast UI)
-- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versioons.
+- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versions.
 
 ### Quick start
 - create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version)
@@ -239,7 +239,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   ```
   Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
   ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"` to add the application credentials to your .zshrc or .bashrc.
 5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
 6. Running `gcloud config list` should give you something like this:
   ```sh
@@ -307,7 +307,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
   export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
   export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
-  export BLOB_EXPORT_URI='[your data unloading blob uri]`
+  export BLOB_EXPORT_URI='[your data unloading blob uri]'
   ```
 7. Once everything is setup, running snowflake integration tests should pass without failures.
 

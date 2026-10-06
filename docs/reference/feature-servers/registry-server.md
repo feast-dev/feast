@@ -48,6 +48,27 @@ Most endpoints support these common query parameters:
 - `sort_by` (optional): Field to sort by
 - `sort_order` (optional): Sort order: "asc" or "desc" (default: "asc")
 
+### System
+
+#### Get Runtime Version
+
+- **Endpoint**: `GET /api/v1/version`
+- **Description**: Return the Feast package version installed in the running server process
+- **Example**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/version"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "version": "0.66.0"
+  }
+  ```
+
+The endpoint returns `"unknown"` when the running process cannot resolve installed package
+metadata.
+
 ### Entities
 
 #### List Entities
@@ -1418,4 +1439,3 @@ feature_server:
 - Only the most recent `limit` visits per user are stored
 - Metrics endpoints (`/metrics/*`) are automatically excluded from logging to prevent circular references
 - Visit data is stored per user and per project in the registry metadata
-
