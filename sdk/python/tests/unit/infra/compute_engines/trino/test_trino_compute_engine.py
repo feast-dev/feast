@@ -1245,7 +1245,7 @@ class TestTrinoComputeEngineAdditional:
         )
         assert engine_str.config.port == 8080
 
-    def test_materialize_one_generic_exception(self):
+    def test_materialize_one_trino_clint_not_configured(self):
         engine = TrinoComputeEngine(
             repo_config=MagicMock(),
             offline_store=MagicMock(),
@@ -1257,13 +1257,9 @@ class TestTrinoComputeEngineAdditional:
         task.end_time = datetime(2025, 1, 2, tzinfo=timezone.utc)
         registry = MagicMock()
 
-        with patch(
-            "feast.infra.compute_engines.trino.compute.TrinoFeatureBuilder",
-            side_effect=Exception("Unexpected build failure"),
-        ):
-            job = engine._materialize_one(registry, task)
-            assert job.status() == MaterializationJobStatus.ERROR
-            assert "Unexpected build failure" in str(job.error())
+        job = engine._materialize_one(registry, task)
+        assert job.status() == MaterializationJobStatus.ERROR
+        assert "Trino client is not configured." in str(job.error())
 
     def test_materialize_from_offline_store(self):
         repo_cfg = MagicMock()
