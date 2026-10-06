@@ -144,6 +144,17 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp", "mcp>=1.0,<1.30"]
+# Runtime dependencies of the standalone `feast mcp` server (feast.mcp), which
+# proxies to a running feature server / registry server. Deliberately separate
+# from the `mcp` extra above: that one powers the in-process fastapi_mcp
+# endpoint on `feast serve`, a different server built on different libraries.
+# `minimal` pulls this one in as well, because the feast-mcp image is built
+# FROM the feature-server image and runs `feast mcp` as its entrypoint.
+mcp-server = [
+    "fastmcp>=3.0",
+    "httpx>=0.24",
+    "python-dotenv>=1.0",
+]
 mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
@@ -162,21 +173,23 @@ test = [
     "py>=1.11.0",
     "testcontainers>=4.15.0rc2",
     "minio==7.2.11",
-    "python-keycloak==4.2.2",
+    "python-keycloak>=4.7.3,<5",
     "cryptography>=43.0",
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, mcp-server, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
-    "virtualenv==20.23.0",
+    "virtualenv>=20.26,<21",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
     "grpcio-tools>=1.56.2",
     "grpcio-testing>=1.56.2",
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx==0.27.2",
+    # fastmcp requires >=0.28.1. Was pinned to 0.27.2 because python-keycloak
+    # <4.7.3 passed the `proxies` argument httpx removed in 0.28
+    # (python-keycloak#623); the floor on python-keycloak above fixes that.
+    "httpx>=0.28.1",
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
@@ -203,7 +216,7 @@ nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus, mcp-server]"]
 minimal-sdist-build = [
     "feast[minimal]",
     "feast[ibis]",
@@ -239,6 +252,9 @@ name = "Feast"
 
 [project.scripts]
 feast = "feast.cli.cli:cli"
+# Standalone entry point for the MCP server; equivalent to `feast mcp`,
+# but skips loading the rest of the Feast CLI.
+feast-mcp = "feast.mcp.server:main"
 
 # MLflow plugin: inject Authorization headers from mlflow_token_scope (ContextVar).
 # Avoids mutating MLFLOW_TRACKING_TOKEN in os.environ under concurrent Feast requests.

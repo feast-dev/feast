@@ -176,6 +176,14 @@ test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter test
 		--cov-report=term-missing \
 		sdk/python/tests/unit
 
+# Standalone `feast mcp` server (feast[mcp-server] extra). Already covered by
+# test-python-unit; this target is for iterating on the MCP server alone.
+test-python-unit-mcp: ## Run unit tests for the standalone `feast mcp` server
+	uv run python -m pytest -n 4 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--cov=sdk/python/feast/mcp \
+		--cov-report=term-missing \
+		sdk/python/tests/unit/mcp
+
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
 	uv run python -m pytest sdk/python/tests/unit -n auto -x --tb=short
