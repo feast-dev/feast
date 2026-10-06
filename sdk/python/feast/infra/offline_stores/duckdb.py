@@ -257,8 +257,16 @@ def _write_lance_data_source(
 
     Mirrors ``_read_lance_source``: the source resolves either a uri or a
     ``namespace_client`` + ``table_id``, and the same resolution is reused for
-    the write so that a catalog-addressed dataset is committed through its
-    namespace rather than behind its back.
+    the write, so a catalog-addressed dataset is written to the location its
+    namespace resolves rather than to one assembled here.
+
+    How far the namespace is involved depends on the operation. Creating a table
+    declares it through the namespace; appending only describes the table to
+    resolve its location, and the version the append produces is not reported
+    back. A Lance namespace therefore records that a table exists and where it
+    lives, and does not track its versions. That is why a pin is a Lance-level
+    concern that ``assert_writable`` has to enforce here: no catalog is going to
+    reject the write on the pin's behalf.
 
     Three things are settled before Lance is called. A pinned source is refused,
     because a commit produces a new version that the pin would not read. An

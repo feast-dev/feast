@@ -1011,3 +1011,50 @@ def test_offline_write_batch_appends_a_declared_width_batch(tmp_path):
 
     assert lance.dataset(uri).count_rows() == 4
     assert lance.dataset(uri).version == 2
+
+
+def test_a_namespace_resolves_a_write_but_does_not_track_its_versions(dir_namespace):
+    """Pins how far a Lance namespace is involved in a write.
+
+    Creating a table declares it through the namespace. Appending only describes
+    the table, to resolve its location; the version the append produces is not
+    reported back. So a namespace records that a table exists and where it
+    lives, and is not a version coordinator -- which is why `assert_writable`
+    has to enforce the pin contract locally.
+    """
+    client, properties = dir_namespace
+    calls: list[str] = []
+
+    class RecordingNamespace:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            attribute = getattr(self._inner, name)
+            if not callable(attribute):
+                return attribute
+
+            def recorded(*args, **kwargs):
+                calls.append(name)
+                return attribute(*args, **kwargs)
+
+            return recorded
+
+    source = LanceSource(
+        table="tracked",
+        namespace_impl="dir",
+        namespace_properties=properties,
+        timestamp_field="event_timestamp",
+    )
+    spy = RecordingNamespace(client)
+    source.get_namespace_client = lambda: spy  # type: ignore[method-assign]
+
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=3)), source)
+    assert "declare_table" in calls
+
+    calls.clear()
+    _write_lance_data_source(_ibis_table(_driver_stats(n_rows=2, base_hour=12)), source)
+    assert "declare_table" not in calls
+    assert "describe_table" in calls
+
+    assert source.to_arrow().num_rows == 5
