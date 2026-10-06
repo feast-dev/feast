@@ -223,33 +223,29 @@ def stream_trino_arrow_batches(
     Maintains a strictly bounded memory footprint O(batch_size) without
     accumulating the entire dataset in Python memory.
     """
-    cursor = client._get_cursor()
+    cursor = client.get_cursor()
     try:
         cursor.execute(query_text)
-        query = cursor._query
-        if query is None or not query.columns:
+
+        if not cursor.description:
             return
 
         arrow_schema = pa.schema(
             [
-                pa.field(col["name"], trino_to_pa_value_type(col["type"]))
-                for col in query.columns
+                pa.field(str(col[0]), trino_to_pa_value_type(str(col[1])))
+                for col in cursor.description
             ]
         )
 
-        while True:
-            rows = cursor.fetchmany(batch_size)
-            if not rows:
-                break
-
-            # Convert row list of tuples into PyArrow RecordBatch
-            arrays = []
-            for col_idx, col in enumerate(query.columns):
-                col_data = [row[col_idx] for row in rows]
-                arrays.append(pa.array(col_data, type=arrow_schema.field(col_idx).type))
-
-            batch = pa.RecordBatch.from_arrays(arrays, schema=arrow_schema)
-            yield batch
+        while rows := cursor.fetchmany(batch_size):
+            arrays = [
+                pa.array(
+                    [row[col_idx] for row in rows],
+                    type=arrow_schema.field(col_idx).type,
+                )
+                for col_idx in range(len(cursor.description))
+            ]
+            yield pa.RecordBatch.from_arrays(arrays, schema=arrow_schema)
     except TrinoConnectionError:
         # Never swallow connection errors; bubble up immediately to caller
         logger.error("Trino connection dropped while streaming batches.")

@@ -180,13 +180,11 @@ def test_trino_compute_engine_materialize(driver_entity, trino_source):
     mock_client = MagicMock()
     # Mock cursor for streaming online writes
     mock_cursor = MagicMock()
-    mock_query = MagicMock()
-    mock_query.columns = [
-        {"name": "driver_id", "type": "integer"},
-        {"name": "event_timestamp", "type": "timestamp"},
-        {"name": "sum_conv_rate", "type": "real"},
+    mock_cursor.description = [
+        ("driver_id", "integer", None, None, None, None, None),
+        ("event_timestamp", "timestamp", None, None, None, None, None),
+        ("sum_conv_rate", "real", None, None, None, None, None),
     ]
-    mock_cursor._query = mock_query
     # Return 1 batch of rows then empty
     mock_cursor.fetchmany.side_effect = [
         [
@@ -195,7 +193,7 @@ def test_trino_compute_engine_materialize(driver_entity, trino_source):
         ],
         [],
     ]
-    mock_client._get_cursor.return_value = mock_cursor
+    mock_client.get_cursor.return_value = mock_cursor
 
     repo_config = MagicMock()
     repo_config.batch_engine = TrinoComputeEngineConfig(

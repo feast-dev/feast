@@ -122,7 +122,7 @@ class TestTrinoComputeEngine:
 
     def test_materialize_job_captures_connection_error(self):
         mock_client = MagicMock()
-        mock_client._get_cursor.side_effect = TrinoConnectionError("Trino unreachable")
+        mock_client.get_cursor.side_effect = TrinoConnectionError("Trino unreachable")
 
         repo_config = MagicMock()
         repo_config.batch_engine = TrinoComputeEngineConfig(
@@ -1790,8 +1790,9 @@ class TestTrinoUtilsStreamingAndOnlineWrite:
 
         mock_client = MagicMock()
         mock_cursor = MagicMock()
+        mock_cursor.description = None
         mock_cursor._query = None
-        mock_client._get_cursor.return_value = mock_cursor
+        mock_client.get_cursor.return_value = mock_cursor
 
         batches = list(stream_trino_arrow_batches(mock_client, "SELECT 1"))
         assert len(batches) == 0
@@ -1801,17 +1802,16 @@ class TestTrinoUtilsStreamingAndOnlineWrite:
 
         mock_client = MagicMock()
         mock_cursor = MagicMock()
-        mock_query = MagicMock()
-        mock_query.columns = [{"name": "id", "type": "bigint"}]
-        mock_cursor._query = mock_query
+        mock_cursor.description = [("id", "bigint", None, None, None, None, None)]
         mock_cursor.fetchmany.side_effect = [[(1,), (2,)], []]
-        mock_client._get_cursor.return_value = mock_cursor
+        mock_client.get_cursor.return_value = mock_cursor
 
         batches = list(
             stream_trino_arrow_batches(mock_client, "SELECT id FROM tbl", batch_size=2)
         )
         assert len(batches) == 1
         assert batches[0].num_rows == 2
+        mock_client.get_cursor.assert_called_once()
 
     def test_write_arrow_batches_to_online_store(self):
         from feast.infra.compute_engines.trino.utils import (
