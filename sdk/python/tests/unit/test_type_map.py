@@ -16,6 +16,7 @@ from feast.type_map import (
     arrow_to_pg_type,
     feast_value_type_to_pa,
     feast_value_type_to_python_type,
+    mssql_to_feast_value_type,
     pa_to_athena_value_type,
     pa_to_feast_value_type,
     pa_to_redshift_value_type,
@@ -587,6 +588,14 @@ class TestMapArrowTypeSupport:
         """Postgres real is single-precision (float4), so it maps to FLOAT, not DOUBLE."""
         assert pg_type_to_feast_value_type("real") == ValueType.FLOAT
         assert pg_type_to_feast_value_type("real[]") == ValueType.FLOAT_LIST
+
+    def test_mssql_to_feast_value_type_numeric_widths(self):
+        """SQL Server bigint is a 64-bit integer and float defaults to float(53),
+        an 8-byte double, so neither may be narrowed to a 32-bit float."""
+        assert mssql_to_feast_value_type("bigint") == ValueType.INT64
+        assert mssql_to_feast_value_type("float") == ValueType.DOUBLE
+        assert mssql_to_feast_value_type("real") == ValueType.FLOAT
+        assert mssql_to_feast_value_type("int") == ValueType.INT32
 
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""

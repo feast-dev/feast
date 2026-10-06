@@ -1687,14 +1687,14 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
 def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     type_map = {
-        "bigint": ValueType.FLOAT,
+        "bigint": ValueType.INT64,
         "binary": ValueType.BYTES,
         "bit": ValueType.BOOL,
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
-        "float": ValueType.FLOAT,
+        "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
