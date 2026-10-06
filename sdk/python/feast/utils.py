@@ -1,7 +1,9 @@
 import copy
+import functools
 import itertools
 import logging
 import os
+import socket
 import threading
 import typing
 import warnings
@@ -61,6 +63,50 @@ if typing.TYPE_CHECKING:
 
 APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
+
+
+@functools.lru_cache()
+def _ipv6_available() -> bool:
+    """Whether this process can bind AF_INET6 (cached: can't change at runtime)."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            sock.bind(("::", 0))
+        return True
+    except OSError:
+        return False
+
+
+def _make_dual_stack_socket(port: int, blocking: bool = False) -> socket.socket:
+    """Pre-bind a dual-stack socket for a server to adopt.
+
+    A framework handed host="::" directly (uvicorn.run, loop.create_server)
+    sets IPV6_V6ONLY=1 on its own socket, silently dropping IPv4 clients.
+    Binding here with V6ONLY cleared avoids that; falls back to IPv4-only
+    when the host can't bind AF_INET6.
+
+    Non-blocking by default since every current caller hands the socket to
+    an asyncio-based server (uvicorn.Server(...).run(sockets=[sock])), which
+    requires that; pass blocking=True for a synchronous server instead.
+    """
+    dual_stack = _ipv6_available()
+    if dual_stack:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        address: tuple = ("::", port)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        address = ("0.0.0.0", port)
+    try:
+        if dual_stack:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(address)
+        sock.listen(socket.SOMAXCONN)
+        sock.setblocking(blocking)
+    except Exception:
+        sock.close()
+        raise
+    return sock
 
 
 def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
@@ -502,6 +548,9 @@ def _convert_arrow_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
+    # Validate before branching so both regular and on-demand feature views are covered.
+    _validate_vector_field_lengths(table, feature_view)
+
     if (
         getattr(feature_view, "source_request_sources", None) is not None
         or getattr(feature_view, "source_feature_view_projections", None) is not None
@@ -834,7 +883,12 @@ def _augment_response_with_on_demand_transforms(
     """
     from feast.online_response import OnlineResponse
 
-    requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
+    # Feature refs name an ODFV by its alias when it was added to a
+    # FeatureService with ``with_name``, so key the lookup the same way.
+    requested_odfv_map = {
+        (odfv.projection.name_alias if odfv.projection else None) or odfv.name: odfv
+        for odfv in requested_on_demand_feature_views
+    }
     requested_odfv_feature_names = requested_odfv_map.keys()
 
     odfv_feature_refs = defaultdict(list)
@@ -1967,6 +2021,93 @@ def _get_feature_view_vector_field_metadata(
     if not vector_fields:
         return None
     return vector_fields[0]
+
+
+def _validate_vector_field_lengths(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view,
+) -> None:
+    """Check an Arrow table's vector column for a consistent width.
+
+    Called on the materialization path, where every compute engine funnels through
+    ``_convert_arrow_to_proto``. The check is O(1) for fixed-size lists and a single
+    vectorized pass for variable-size lists, so it is safe to leave on.
+
+    When the field declares a ``vector_length``, that is the contract and a mismatch
+    is an error, never a silent truncation or a silently different response shape.
+
+    When it does not, the width of the first non-null row is used as the contract for
+    the rest of the table. An approximate nearest neighbour index requires a fixed
+    width, so a ragged vector column is a defect either way, and inferring is strictly
+    better than skipping. ``vector_length`` is unset by default, including in the
+    bundled RAG templates, so skipping would leave the common case unchecked.
+
+    Args:
+        table: The Arrow table or record batch about to be converted.
+        feature_view: The feature view whose schema declares the vector field.
+
+    Raises:
+        ValueError: If the vector column's width is inconsistent, or disagrees with
+            a declared ``vector_length``.
+    """
+    vector_field = _get_feature_view_vector_field_metadata(feature_view)
+    if vector_field is None or not vector_field.vector_index:
+        return
+
+    name = vector_field.name
+    if name not in table.schema.names:
+        return
+
+    column = table.column(name)
+    column_type = column.type
+    declared = vector_field.vector_length or None
+
+    def _fail(actual, expected: int, row: Optional[int] = None) -> None:
+        where = f"Row {row}: " if row is not None else ""
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
+        raise ValueError(
+            f"{where}Vector length {actual} does not match {source} "
+            f"for feature '{name}' in feature view '{feature_view.name}'."
+        )
+
+    if pyarrow.types.is_fixed_size_list(column_type):
+        # The width is a property of the type, so an undeclared column is uniform
+        # by construction and there is nothing left to check.
+        if declared and column_type.list_size != declared:
+            _fail(column_type.list_size, declared)
+        return
+
+    if pyarrow.types.is_list(column_type) or pyarrow.types.is_large_list(column_type):
+        lengths = pyarrow.compute.list_value_length(column)
+        valid = pyarrow.compute.is_valid(lengths)
+
+        expected = declared
+        if expected is None:
+            # Nulls carry no width, so take the contract from the first row that does.
+            first = pyarrow.compute.index(valid, True).as_py()
+            if first == -1:
+                return
+            expected = lengths[first].as_py()
+
+        # Nulls have no length to compare; only non-null rows carry the contract.
+        mismatched = pyarrow.compute.and_kleene(
+            valid, pyarrow.compute.not_equal(lengths, expected)
+        )
+        if pyarrow.compute.any(mismatched).as_py():
+            row = pyarrow.compute.index(mismatched, True).as_py()
+            _fail(lengths[row].as_py(), expected, row=row)
+        return
+
+    # Any other type cannot hold a vector.
+    declared_note = f" declares vector_length={declared} but" if declared else ""
+    raise ValueError(
+        f"Vector feature '{name}' in feature view '{feature_view.name}'{declared_note} "
+        f"has non-list Arrow type {column_type}."
+    )
 
 
 def _distance_to_score(distance: float, metric: Optional[str] = None) -> float:

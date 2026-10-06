@@ -5,7 +5,8 @@ These tests only run when ``ZILLIZ_URI`` and ``ZILLIZ_TOKEN`` are set, e.g.::
     ZILLIZ_URI=https://<cluster>.zillizcloud.com ZILLIZ_TOKEN=<user:password> \
         pytest --integration sdk/python/tests/integration/online_store/test_milvus_remote.py
 
-They also run against a self-hosted Milvus server, e.g.
+``ZILLIZ_TOKEN`` can be an API key or ``username:password``. The tests also run
+against a self-hosted Milvus server, e.g.
 ``ZILLIZ_URI=http://localhost:19530 ZILLIZ_TOKEN=root:Milvus``.
 """
 
@@ -16,7 +17,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar
 from unittest.mock import patch
-from urllib.parse import urlparse
 
 import pytest
 
@@ -44,16 +44,7 @@ pytestmark = [
 
 
 def _connection_config() -> Dict[str, Any]:
-    assert ZILLIZ_URI and ZILLIZ_TOKEN
-    parsed = urlparse(ZILLIZ_URI)
-    default_port = 443 if parsed.scheme == "https" else 19530
-    username, _, password = ZILLIZ_TOKEN.partition(":")
-    return {
-        "host": f"{parsed.scheme}://{parsed.hostname}",
-        "port": parsed.port or default_port,
-        "username": username,
-        "password": password,
-    }
+    return {"uri": ZILLIZ_URI, "token": ZILLIZ_TOKEN}
 
 
 def _repo_config(tmp_path: Path, project: str, **online_store: Any) -> RepoConfig:
@@ -277,3 +268,95 @@ def test_released_collection_is_loaded_once(
 
     assert rows[0] is not None and rows[0]["city"].string_val == "Paris"
     assert load_spy.call_count == 1
+
+
+def test_db_name(tmp_path: Path, project: str, store: MilvusOnlineStore) -> None:
+    from pymilvus import MilvusClient
+
+    db_name = os.environ.get("ZILLIZ_DB_NAME", "feast_it_db")
+    admin = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
+    try:
+        if db_name not in admin.list_databases():
+            admin.create_database(db_name)
+    except Exception as e:
+        pytest.skip(f"Cannot create database {db_name!r} on this cluster: {e}")
+
+    config = _repo_config(tmp_path, project, db_name=db_name)
+    fv = _scalar_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    collection_name = f"{project}_{fv.name}"
+    db_client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN, db_name=db_name)
+    assert collection_name in db_client.list_collections()
+    assert collection_name not in admin.list_collections()
+
+
+def test_autoindex_with_search_level(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path, project, index_type="AUTOINDEX", search_params={"level": 2}
+    )
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _vector_rows())
+
+    assert store.client is not None
+    index = store.client.describe_index(
+        f"{project}_{fv.name}", "vector_index_embedding"
+    )
+    assert index["index_type"] == "AUTOINDEX"
+
+    hits = _eventually(
+        lambda: _search(store, config, fv, [1.0, 0.0]),
+        lambda hits: len(hits) == 1,
+    )
+    assert hits[0]["city"].string_val == "Paris"
+
+
+@pytest.mark.parametrize(
+    "collection_consistency_level, consistency_level",
+    [(None, None), ("Strong", None), (None, "Strong")],
+)
+def test_consistency_level(
+    tmp_path: Path,
+    project: str,
+    store: MilvusOnlineStore,
+    collection_consistency_level: Optional[str],
+    consistency_level: Optional[str],
+) -> None:
+    online_store = {
+        key: value
+        for key, value in {
+            "collection_consistency_level": collection_consistency_level,
+            "consistency_level": consistency_level,
+        }.items()
+        if value
+    }
+    config = _repo_config(tmp_path, project, **online_store)
+    fv = _scalar_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert store.client is not None
+    description = store.client.describe_collection(f"{project}_{fv.name}")
+    # Only collection_consistency_level sets the collection's level; Milvus
+    # defaults to Bounded.
+    assert description["consistency_level_name"] == (
+        collection_consistency_level or "Bounded"
+    )
+
+    if consistency_level == "Strong":
+        # A Strong read sees the previous write, even on a Bounded collection.
+        _write_rows(
+            store,
+            config,
+            fv,
+            {
+                1: {
+                    "trips_today": ValueProto(float_val=1.0),
+                    "city": ValueProto(string_val="Oslo"),
+                }
+            },
+        )
+        rows = _read(store, config, fv, [1], ["city"])
+        assert rows[0] is not None and rows[0]["city"].string_val == "Oslo"
