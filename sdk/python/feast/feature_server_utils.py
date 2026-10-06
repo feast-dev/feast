@@ -94,9 +94,9 @@ def _value_to_native(v: Value) -> Optional[Any]:
     elif which in _FLOAT_SCALAR_FIELDS:
         return _float_to_native(getattr(v, which))
     elif which in _FLOAT_COLLECTION_FIELDS:
-        vals = getattr(v, which).val
+        vals = list(getattr(v, which).val)
         if all(map(math.isfinite, vals)):
-            return list(vals)
+            return vals
         return [_float_to_native(f) for f in vals]
     # bytes must be base64-encoded for JSON serialization
     elif which == "bytes_val":
