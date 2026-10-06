@@ -25,7 +25,7 @@ import pytest
 from feast import Field
 from feast.data_source import PushSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames
+from feast.errors import ConflictingFeatureViewNames, PermissionNotFoundException
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.sql import (
@@ -38,6 +38,9 @@ from feast.infra.registry.sql import (
 from feast.infra.registry.sql import (
     metadata as registry_metadata,
 )
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2,
     UserDefinedFunctionV2,
@@ -345,6 +348,37 @@ def test_sql_registry(sqlite_registry):
     sqlite_registry.delete_entity("test_entity", "test_project")
     with pytest.raises(Exception):
         sqlite_registry.get_entity("test_entity", "test_project")
+
+
+def test_delete_permission_refreshes_cache(sqlite_registry):
+    permission = Permission(
+        name="reader",
+        types=FeatureView,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        actions=[AuthzedAction.DESCRIBE],
+    )
+    sqlite_registry.apply_permission(permission, "test_project")
+    assert [
+        p.name
+        for p in sqlite_registry.list_permissions("test_project", allow_cache=True)
+    ] == ["reader"]
+
+    sqlite_registry.delete_permission("reader", "test_project")
+
+    assert sqlite_registry.list_permissions("test_project", allow_cache=True) == []
+    with pytest.raises(PermissionNotFoundException):
+        sqlite_registry.delete_permission("reader", "test_project")
+
+
+def test_delete_entity_refreshes_cache(sqlite_registry):
+    sqlite_registry.apply_entity(Entity(name="driver"), "test_project")
+    assert [
+        e.name for e in sqlite_registry.list_entities("test_project", allow_cache=True)
+    ] == ["driver"]
+
+    sqlite_registry.delete_entity("driver", "test_project")
+
+    assert sqlite_registry.list_entities("test_project", allow_cache=True) == []
 
 
 def _build_feature_view(name: str, entity: Entity, source: FileSource) -> FeatureView:
