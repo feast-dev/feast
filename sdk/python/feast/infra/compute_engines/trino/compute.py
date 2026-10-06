@@ -288,9 +288,14 @@ class TrinoComputeEngine(ComputeEngine):
         context = self.get_execution_context(registry, task)
 
         try:
+            if self.client is None:
+                raise RuntimeError(
+                    "Trino client is not configured. Set host, catalog, and user "
+                    "in batch_engine config or use a TrinoOfflineStoreConfig."
+                )
             builder = TrinoFeatureBuilder(
                 registry=registry,
-                client=self.client,  # type: ignore[arg-type]
+                client=self.client,
                 task=task,
             )
             plan = builder.build()

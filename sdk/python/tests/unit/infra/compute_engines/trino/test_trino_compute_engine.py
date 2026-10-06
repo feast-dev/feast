@@ -1256,7 +1256,7 @@ class TestTrinoComputeEngineAdditional:
         )
         assert engine_str.config.port == 8080
 
-    def test_materialize_one_trino_clint_not_configured(self):
+    def test_materialize_one_trino_client_not_configured(self):
         engine = TrinoComputeEngine(
             repo_config=MagicMock(),
             offline_store=MagicMock(),
@@ -1357,6 +1357,7 @@ class TestTrinoComputeEngineAdditional:
             offline_store=MagicMock(),
             online_store=MagicMock(),
         )
+        engine.client = MagicMock()
         task = MagicMock()
         task.full_feature_name = False
         with patch(
@@ -1367,6 +1368,18 @@ class TestTrinoComputeEngineAdditional:
             assert job.error() is not None
             with pytest.raises(ValueError, match="DAG build error"):
                 job.to_arrow()
+
+    def test_get_historical_features_trino_client_not_configured(self):
+        engine = TrinoComputeEngine(
+            repo_config=MagicMock(),
+            offline_store=MagicMock(),
+            online_store=MagicMock(),
+        )
+        task = MagicMock()
+        task.full_feature_name = False
+        job = engine.get_historical_features(MagicMock(), task)
+        assert job.error() is not None
+        assert "Trino client is not configured." in str(job.error())
 
 
 class TestTrinoNodesEdgeCases:
