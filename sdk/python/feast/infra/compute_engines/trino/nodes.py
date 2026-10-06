@@ -96,14 +96,14 @@ class TrinoReadNode(DAGNode):
         join_keys = self.column_info.join_keys
         field_mapping: dict[str, str] = self.column_info.field_mapping or {}
 
-        cols_to_select = set(join_keys)
-        if timestamp_col:
-            cols_to_select.add(timestamp_col)
-        if created_ts_col:
-            cols_to_select.add(created_ts_col)
-        cols_to_select.update(self.column_info.feature_cols)
+        if self.column_info.feature_cols:
+            cols_to_select = set(join_keys)
+            if timestamp_col:
+                cols_to_select.add(timestamp_col)
+            if created_ts_col:
+                cols_to_select.add(created_ts_col)
+            cols_to_select.update(self.column_info.feature_cols)
 
-        if cols_to_select:
             projections = [
                 f"{quote_identifier(str(col))} AS {quote_identifier(field_mapping[str(col)])}"
                 if str(col) in field_mapping and field_mapping[str(col)] != str(col)
@@ -196,7 +196,11 @@ class TrinoFilterNode(DAGNode):
                 ts_col = None
 
         conditions = []
-        if ts_col:
+        has_entity_ts = bool(
+            upstream_plan.metadata.get("entity_joined")
+            or (upstream_plan.columns and ENTITY_TS_ALIAS in upstream_plan.columns)
+        )
+        if ts_col and has_entity_ts:
             conditions.append(
                 f"{quote_identifier(ts_col)} <= {quote_identifier(ENTITY_TS_ALIAS)}"
             )
@@ -281,7 +285,10 @@ class TrinoDedupNode(DAGNode):
             ", ".join(quote_identifier(c) for c in clean_cols) if clean_cols else "*"
         )
 
-        partition_clause = ", ".join(quote_identifier(k) for k in join_keys)
+        partition_keys = [quote_identifier(k) for k in join_keys]
+        if ENTITY_TS_ALIAS in (upstream_plan.columns or ()):
+            partition_keys.append(quote_identifier(ENTITY_TS_ALIAS))
+        partition_clause = ", ".join(partition_keys)
         order_clauses = [f"{quote_identifier(ts_col)} DESC"]
         if created_ts_col:
             order_clauses.append(f"{quote_identifier(created_ts_col)} DESC")
@@ -476,6 +483,16 @@ class TrinoJoinNode(DAGNode):
             tbl_name = get_temp_entity_table_name()
             full_tbl = f"{catalog}.{dataset}.{tbl_name}"
 
+            entity_ts_col = infer_entity_timestamp_column(
+                dict(zip(entity_df.columns, entity_df.dtypes))
+            )
+            # Rename entity timestamp column to ENTITY_TS_ALIAS to prevent collisions
+            # and provide explicit binding for point-in-time filtering.
+            if entity_ts_col and entity_ts_col != ENTITY_TS_ALIAS:
+                upload_df = entity_df.rename(columns={entity_ts_col: ENTITY_TS_ALIAS})
+            else:
+                upload_df = entity_df
+
             # Upload entity dataframe to Trino
             connector = getattr(
                 context.repo_config.offline_store,
@@ -486,18 +503,16 @@ class TrinoJoinNode(DAGNode):
                 connector = {"type": "memory"}
             upload_pandas_dataframe_to_trino(
                 client=self.client,
-                df=entity_df,
+                df=upload_df,
                 table=full_tbl,
                 connector_args=connector,
             )
 
             entity_source_ref = full_tbl
-            entity_ts_col = infer_entity_timestamp_column(
-                dict(zip(entity_df.columns, entity_df.dtypes))
-            )
         else:
             entity_source_ref = f"({entity_df})"
             entity_ts_col = ENTITY_TS_ALIAS
+            upload_df = None
 
         latest_cte = plan.get_latest_cte_name()
         join_keys = plan.join_keys or self.column_info.join_keys
@@ -508,7 +523,7 @@ class TrinoJoinNode(DAGNode):
         ]
         if plan.timestamp_col:
             on_cond.append(
-                f"{latest_cte}.{quote_identifier(plan.timestamp_col)} <= _entity.{quote_identifier(entity_ts_col)}"
+                f"{latest_cte}.{quote_identifier(plan.timestamp_col)} <= _entity.{quote_identifier(ENTITY_TS_ALIAS)}"
             )
 
         if on_cond:
@@ -516,28 +531,37 @@ class TrinoJoinNode(DAGNode):
         else:
             join_clause = f"CROSS JOIN {latest_cte}"
 
-        cte_name = f"_pit_join_{self.name.replace(':', '_')}"
-        query = (
-            f"SELECT _entity.*, {latest_cte}.*\n"
-            f"FROM {entity_source_ref} AS _entity\n"
-            f"{join_clause}"
-        )
-
         entity_cols = (
-            tuple(entity_df.columns) if isinstance(entity_df, pd.DataFrame) else ()
+            tuple(upload_df.columns) if isinstance(upload_df, pd.DataFrame) else ()
         )
-        feature_cols = tuple(
+        rhs_cols = tuple(
             c
             for c in (plan.columns or ())
             if c not in entity_cols and c not in join_keys
         )
-        joined_cols = (*entity_cols, *feature_cols) if entity_cols else plan.columns
+
+        if rhs_cols:
+            rhs_select = ", ".join(
+                f"{latest_cte}.{quote_identifier(c)}" for c in rhs_cols
+            )
+            select_clause = f"_entity.*, {rhs_select}"
+        else:
+            select_clause = f"_entity.*, {latest_cte}.*"
+
+        cte_name = f"_pit_join_{self.name.replace(':', '_')}"
+        query = (
+            f"SELECT {select_clause}\n"
+            f"FROM {entity_source_ref} AS _entity\n"
+            f"{join_clause}"
+        )
+
+        joined_cols = (*entity_cols, *rhs_cols) if entity_cols else plan.columns
 
         return plan.add_cte(
             name=cte_name,
             query=query,
             columns=joined_cols,
-            metadata={"entity_joined": True},
+            metadata={"entity_joined": True, "entity_ts_col": entity_ts_col},
         )
 
 

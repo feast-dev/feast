@@ -142,7 +142,7 @@ def test_trino_compute_engine_get_historical_features(driver_entity, trino_sourc
         '_join_driver_hourly_stats_join."driver_id" = _entity."driver_id"'
         in compiled_sql
     )
-    assert '<= _entity."event_timestamp"' in compiled_sql
+    assert '<= _entity."__entity_event_timestamp"' in compiled_sql
 
     # Assert entity table was created and rows uploaded to Trino
     executed_queries = [call[0][0] for call in mock_client.execute_query.call_args_list]

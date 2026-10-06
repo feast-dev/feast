@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
+from feast.infra.compute_engines.trino.utils import quote_identifier
+from feast.infra.compute_engines.utils import ENTITY_TS_ALIAS
+
 
 @dataclass(frozen=True)
 class TrinoQueryPlan:
@@ -53,15 +56,32 @@ class TrinoQueryPlan:
 
     def to_sql(self) -> str:
         """Compile the CTE chain into a single executable ANSI SQL statement."""
+        entity_ts_col = self.metadata.get("entity_ts_col")
+        if self.columns:
+            if (
+                entity_ts_col
+                and entity_ts_col != ENTITY_TS_ALIAS
+                and ENTITY_TS_ALIAS in self.columns
+            ):
+                projected = [
+                    f"{quote_identifier(c)} AS {quote_identifier(entity_ts_col)}"
+                    if c == ENTITY_TS_ALIAS
+                    else c
+                    for c in self.columns
+                    if c != entity_ts_col
+                ]
+                cols = ", ".join(projected)
+            else:
+                cols = ", ".join(self.columns)
+        else:
+            cols = "*"
+
         if not self.ctes:
             if self.current_from:
-                cols = ", ".join(self.columns) if self.columns else "*"
                 return f"SELECT {cols} FROM {self.current_from}"
             return "SELECT 1"
 
         cte_parts = [f"{name} AS (\n{query}\n)" for name, query in self.ctes]
-
-        cols = ", ".join(self.columns) if self.columns else "*"
         with_clause = "WITH\n" + ",\n".join(cte_parts)
         return f"{with_clause}\nSELECT {cols}\nFROM {self.current_from}"
 

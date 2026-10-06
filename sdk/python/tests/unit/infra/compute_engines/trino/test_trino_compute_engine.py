@@ -346,7 +346,9 @@ class TestTrinoDAGCompilation:
         plan = TrinoQueryPlan(
             ctes=[("_source", 'SELECT * FROM "iceberg"."feast"."driver_stats"')],
             current_from="_source",
+            columns=("driver_id", "event_timestamp", "__entity_event_timestamp"),
             timestamp_col="event_timestamp",
+            metadata={"entity_joined": True},
         )
         input_node = MagicMock()
         input_node.name = "source"
@@ -694,7 +696,7 @@ class TestTrinoJoinNodeExecution:
                 'LEFT JOIN _join_join_entity ON _join_join_entity."user_id" = _entity."user_id"'
                 in sql
             )
-            assert '_join_join_entity."ts" <= _entity."event_timestamp"' in sql
+            assert '_join_join_entity."ts" <= _entity."__entity_event_timestamp"' in sql
 
 
 class TestTrinoTransformationNodeVariations:

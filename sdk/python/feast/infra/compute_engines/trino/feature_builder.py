@@ -55,7 +55,7 @@ class TrinoFeatureBuilder(FeatureBuilder):
         view: Union[BatchFeatureView, StreamFeatureView, FeatureView, Any],
         input_nodes: Optional[List[DAGNode]],
     ) -> DAGNode:
-        if getattr(view, "batch_source", None) or getattr(view, "data_source", None):
+        if getattr(view, "data_source", None):
             last_node: DAGNode = self.build_source_node(view)
 
             if self._should_transform(view):
