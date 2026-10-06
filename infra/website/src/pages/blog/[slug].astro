@@ -55,6 +55,7 @@ const socialImage = heroImage ? toAbsoluteUrl(heroImage) : undefined;
           {date && (
             <time datetime={date}>
               {new Date(date).toLocaleDateString('en-US', {
+                timeZone: 'UTC',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
