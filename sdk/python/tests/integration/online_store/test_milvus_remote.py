@@ -289,3 +289,74 @@ def test_db_name(tmp_path: Path, project: str, store: MilvusOnlineStore) -> None
     db_client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN, db_name=db_name)
     assert collection_name in db_client.list_collections()
     assert collection_name not in admin.list_collections()
+
+
+def test_autoindex_with_search_level(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path, project, index_type="AUTOINDEX", search_params={"level": 2}
+    )
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _vector_rows())
+
+    assert store.client is not None
+    index = store.client.describe_index(
+        f"{project}_{fv.name}", "vector_index_embedding"
+    )
+    assert index["index_type"] == "AUTOINDEX"
+
+    hits = _eventually(
+        lambda: _search(store, config, fv, [1.0, 0.0]),
+        lambda hits: len(hits) == 1,
+    )
+    assert hits[0]["city"].string_val == "Paris"
+
+
+@pytest.mark.parametrize(
+    "collection_consistency_level, consistency_level",
+    [(None, None), ("Strong", None), (None, "Strong")],
+)
+def test_consistency_level(
+    tmp_path: Path,
+    project: str,
+    store: MilvusOnlineStore,
+    collection_consistency_level: Optional[str],
+    consistency_level: Optional[str],
+) -> None:
+    online_store = {
+        key: value
+        for key, value in {
+            "collection_consistency_level": collection_consistency_level,
+            "consistency_level": consistency_level,
+        }.items()
+        if value
+    }
+    config = _repo_config(tmp_path, project, **online_store)
+    fv = _scalar_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert store.client is not None
+    description = store.client.describe_collection(f"{project}_{fv.name}")
+    # Only collection_consistency_level sets the collection's level; Milvus
+    # defaults to Bounded.
+    assert description["consistency_level_name"] == (
+        collection_consistency_level or "Bounded"
+    )
+
+    if consistency_level == "Strong":
+        # A Strong read sees the previous write, even on a Bounded collection.
+        _write_rows(
+            store,
+            config,
+            fv,
+            {
+                1: {
+                    "trips_today": ValueProto(float_val=1.0),
+                    "city": ValueProto(string_val="Oslo"),
+                }
+            },
+        )
+        rows = _read(store, config, fv, [1], ["city"])
+        assert rows[0] is not None and rows[0]["city"].string_val == "Oslo"

@@ -173,6 +173,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Vector Search (Alpha release. See [RFC](https://docs.google.com/document/d/18IWzLEA9i2lDWnbfbwXnMCg3StlqaLVI-uRpQjr_Vos/edit#heading=h.9gaqqtox9jg6))
   * [ ] [Enhanced Feature Server and SDK for native support for NLP](https://github.com/feast-dev/feast/issues/4964)
 * **Data Sources**
+  * [x] [Chronon source (contrib)](https://docs.feast.dev/reference/data-sources/chronon)
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
   * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
@@ -189,6 +190,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Ray source (contrib plugin)](https://docs.feast.dev/reference/data-sources/ray)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
 * **Offline Stores**
+  * [x] [Chronon (contrib)](https://docs.feast.dev/reference/offline-stores/chronon)
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
@@ -209,6 +211,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hybrid](https://docs.feast.dev/reference/offline-stores/hybrid)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-a-new-offline-store)
 * **Online Stores**
+  * [x] [Chronon](https://docs.feast.dev/reference/online-stores/chronon)
   * [x] [Snowflake](https://docs.feast.dev/reference/online-stores/snowflake)
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)

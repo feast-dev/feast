@@ -2397,6 +2397,7 @@ spec:
                                 - ray
                                 - oracle
                                 - hybrid
+                                - chronon
                                 type: string
                             required:
                             - secretRef
@@ -2948,6 +2949,7 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+                                - chronon
                                 type: string
                             required:
                             - secretRef
@@ -9284,6 +9286,7 @@ spec:
                                     - ray
                                     - oracle
                                     - hybrid
+                                    - chronon
                                     type: string
                                 required:
                                 - secretRef
@@ -9843,6 +9846,7 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+                                    - chronon
                                     type: string
                                 required:
                                 - secretRef
@@ -14892,6 +14896,7 @@ spec:
                                 - clickhouse
                                 - ray
                                 - hybrid
+                                - chronon
                                 type: string
                             required:
                             - secretRef
@@ -15438,6 +15443,7 @@ spec:
                                 - mongodb
                                 - aerospike
                                 - scylladb
+                                - chronon
                                 type: string
                             required:
                             - secretRef
@@ -19460,6 +19466,7 @@ spec:
                                     - clickhouse
                                     - ray
                                     - hybrid
+                                    - chronon
                                     type: string
                                 required:
                                 - secretRef
@@ -20014,6 +20021,7 @@ spec:
                                     - mongodb
                                     - aerospike
                                     - scylladb
+                                    - chronon
                                     type: string
                                 required:
                                 - secretRef

@@ -2,10 +2,11 @@
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 from pymilvus import DataType, MilvusClient
 from pymilvus.client.types import LoadState
 
@@ -20,7 +21,7 @@ from feast.infra.online_stores.milvus_online_store.milvus import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Float32, Int64, String
+from feast.types import Array, Float32, Int64, String
 from feast.value_type import ValueType
 
 MILVUS_MODULE = "feast.infra.online_stores.milvus_online_store.milvus"
@@ -375,3 +376,206 @@ def test_lite_path_used_without_uri(mock_client_cls: MagicMock) -> None:
     MilvusOnlineStore()._connect(config)
 
     mock_client_cls.assert_called_once_with("/tmp/online_store.db")
+
+
+def _vector_feature_view(name: str = "driver_embeddings") -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="city", dtype=String),
+        ],
+    )
+
+
+def _vector_rows() -> Dict[int, Dict[str, ValueProto]]:
+    def embedding(x: float, y: float) -> ValueProto:
+        value = ValueProto()
+        value.float_list_val.val.extend([x, y])
+        return value
+
+    return {
+        1: {"embedding": embedding(1.0, 0.0), "city": ValueProto(string_val="Paris")},
+        2: {"embedding": embedding(0.0, 1.0), "city": ValueProto(string_val="Rome")},
+    }
+
+
+def _search_with_mock(**online_store: Any) -> Dict[str, Any]:
+    """Create a collection and search it with a mocked client.
+
+    Returns the index definition of the embedding field and the search kwargs.
+    """
+    with patch(f"{MILVUS_MODULE}.MilvusClient") as mock_client_cls:
+        mock_client = _mock_client(mock_client_cls, has_collection=False)
+        mock_client.describe_collection.return_value = {
+            "collection_name": "test_milvus_driver_embeddings",
+            "fields": [
+                {"name": "driver_id_pk", "type": DataType.VARCHAR, "params": {}},
+                {"name": "event_ts", "type": DataType.INT64, "params": {}},
+                {"name": "created_ts", "type": DataType.INT64, "params": {}},
+                {
+                    "name": "embedding",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"dim": 2},
+                },
+                {"name": "city", "type": DataType.VARCHAR, "params": {}},
+            ],
+        }
+        mock_client.search.return_value = [[]]
+
+        store = MilvusOnlineStore()
+        store.retrieve_online_documents_v2(
+            _mock_config(embedding_dim=2, **online_store),
+            _vector_feature_view(),
+            ["embedding", "city"],
+            embedding=[1.0, 0.0],
+            top_k=1,
+        )
+        return {
+            "index": _created_indexes(mock_client)["embedding"],
+            "search": mock_client.search.call_args.kwargs,
+        }
+
+
+def test_default_index_and_search_params_unchanged() -> None:
+    result = _search_with_mock(index_type="IVF_FLAT")
+
+    assert result["index"]["index_type"] == "IVF_FLAT"
+    assert result["index"]["nlist"] == 128
+    assert result["search"]["search_params"]["params"] == {"nprobe": 10}
+
+
+def test_autoindex_gets_no_index_or_search_params_by_default() -> None:
+    result = _search_with_mock(index_type="AUTOINDEX")
+
+    # Milvus servers reject AUTOINDEX with any build param besides the metric.
+    assert result["index"] == {
+        "field_name": "embedding",
+        "index_type": "AUTOINDEX",
+        "index_name": "vector_index_embedding",
+        "metric_type": "COSINE",
+    }
+    assert result["search"]["search_params"]["params"] == {}
+
+
+def test_index_and_search_params_pass_through() -> None:
+    result = _search_with_mock(
+        index_type="HNSW",
+        index_params={"M": 16, "efConstruction": 200},
+        search_params={"ef": 64},
+    )
+
+    assert result["index"]["M"] == 16
+    assert result["index"]["efConstruction"] == 200
+    assert "nlist" not in result["index"]
+    assert result["search"]["search_params"]["params"] == {"ef": 64}
+
+
+def test_autoindex_search_with_level(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path, index_type="AUTOINDEX", search_params={"level": 2})
+    fv = _vector_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _vector_rows())
+
+    results = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["embedding", "city"],
+        embedding=[1.0, 0.0],
+        top_k=1,
+        distance_metric="COSINE",
+    )
+
+    assert len(results) == 1
+    assert results[0][2] is not None and results[0][2]["city"].string_val == "Paris"
+
+
+def _consistency_calls(
+    **online_store: Any,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Return the kwargs of create_collection calls and of query/search calls."""
+    with patch(f"{MILVUS_MODULE}.MilvusClient") as mock_client_cls:
+        mock_client = _mock_client(mock_client_cls, has_collection=False)
+        mock_client.describe_collection.return_value = {
+            "collection_name": "test_milvus_driver_embeddings",
+            "fields": [
+                {"name": "driver_id_pk", "type": DataType.VARCHAR, "params": {}},
+                {"name": "event_ts", "type": DataType.INT64, "params": {}},
+                {"name": "created_ts", "type": DataType.INT64, "params": {}},
+                {
+                    "name": "embedding",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"dim": 2},
+                },
+                {"name": "city", "type": DataType.VARCHAR, "params": {}},
+            ],
+        }
+        mock_client.search.return_value = [[]]
+        mock_client.query.return_value = []
+
+        store = MilvusOnlineStore()
+        config = _mock_config(embedding_dim=2, **online_store)
+        fv = _vector_feature_view()
+        store.online_read(config, fv, [_entity_key(1)], ["city"])
+        store.retrieve_online_documents_v2(
+            config, fv, ["embedding", "city"], embedding=[1.0, 0.0], top_k=1
+        )
+        store.retrieve_online_documents_v2(
+            config, fv, ["city"], embedding=None, top_k=1, query_string="Paris"
+        )
+        create_calls = [
+            call.kwargs for call in mock_client.create_collection.call_args_list
+        ]
+        read_calls = [
+            call.kwargs
+            for call in mock_client.query.call_args_list
+            + mock_client.search.call_args_list
+        ]
+        return create_calls, read_calls
+
+
+def test_consistency_levels_not_sent_when_unset() -> None:
+    create_calls, read_calls = _consistency_calls()
+
+    assert len(create_calls) == 1 and len(read_calls) == 3
+    assert all("consistency_level" not in kwargs for kwargs in create_calls)
+    assert all("consistency_level" not in kwargs for kwargs in read_calls)
+
+
+def test_consistency_level_applied_to_reads_and_searches_only() -> None:
+    create_calls, read_calls = _consistency_calls(consistency_level="Strong")
+
+    assert "consistency_level" not in create_calls[0]
+    assert len(read_calls) == 3
+    assert all(kwargs["consistency_level"] == "Strong" for kwargs in read_calls)
+
+
+def test_collection_consistency_level_applied_on_create_only() -> None:
+    create_calls, read_calls = _consistency_calls(collection_consistency_level="Strong")
+
+    assert create_calls[0]["consistency_level"] == "Strong"
+    assert all("consistency_level" not in kwargs for kwargs in read_calls)
+
+
+def test_collection_and_read_consistency_levels_independent() -> None:
+    create_calls, read_calls = _consistency_calls(
+        collection_consistency_level="Session", consistency_level="Strong"
+    )
+
+    assert create_calls[0]["consistency_level"] == "Session"
+    assert all(kwargs["consistency_level"] == "Strong" for kwargs in read_calls)
+
+
+@pytest.mark.parametrize("field", ["consistency_level", "collection_consistency_level"])
+def test_invalid_consistency_level_rejected(field: str) -> None:
+    with pytest.raises(ValidationError):
+        MilvusOnlineStoreConfig(**{field: "Immediate"})
