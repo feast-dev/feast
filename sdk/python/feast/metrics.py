@@ -46,13 +46,15 @@ import json
 import logging
 import os
 import shutil
+import socket
 import tempfile
 import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
+from wsgiref.simple_server import WSGIServer, make_server
 
 import psutil
 
@@ -583,6 +585,26 @@ def init_worker_freshness_monitoring(store: "FeatureStore"):
         t.start()
 
 
+def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIServer:
+    """Build the metrics HTTP server, dual-stack ("::") when the host
+    supports IPv6, or IPv4-only (falls back to `make_server`'s default
+    behavior) otherwise.
+    """
+    from feast import utils
+
+    if not utils._ipv6_available():
+        return make_server("", port, app)
+
+    class DualStackWSGIServer(WSGIServer):
+        address_family = socket.AF_INET6
+
+        def server_bind(self) -> None:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            super().server_bind()
+
+    return make_server("::", port, app, server_class=DualStackWSGIServer)
+
+
 def start_metrics_server(
     store: "FeatureStore",
     port: int = 8000,
@@ -633,9 +655,7 @@ def start_metrics_server(
     registry = CollectorRegistry()
     MultiProcessCollector(registry)
 
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server("", port, make_wsgi_app(registry))
+    httpd = _make_metrics_httpd(port, make_wsgi_app(registry))
     metrics_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     metrics_thread.start()
     logger.info(

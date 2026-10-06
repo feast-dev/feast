@@ -256,4 +256,15 @@ def start_lineage_server(
     import uvicorn
 
     logger.info(f"Starting Feast OpenLineage server on {scheme}://{host}:{port}")
-    uvicorn.run(app, host=host, port=port, **ssl_kwargs)
+
+    if host == "::":
+        # Plain uvicorn.run(host="::") binds IPv6-only (see
+        # feast.utils._make_dual_stack_socket), which would drop IPv4
+        # clients on every host, not just IPv6-less ones.
+        from feast.utils import _make_dual_stack_socket
+
+        sock = _make_dual_stack_socket(port)
+        config = uvicorn.Config(app, **ssl_kwargs)
+        uvicorn.Server(config).run(sockets=[sock])
+    else:
+        uvicorn.run(app, host=host, port=port, **ssl_kwargs)

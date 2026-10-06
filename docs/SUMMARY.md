@@ -98,6 +98,7 @@
 * [Adding or reusing tests](how-to-guides/adding-or-reusing-tests.md)
 * [Starting Feast servers in TLS(SSL) Mode](how-to-guides/starting-feast-servers-tls-mode.md)
 * [Importing Features from dbt](how-to-guides/dbt-integration.md)
+* [Using MLflow as a Data Source](how-to-guides/mlflow-datasource.md)
 * [Entity Key Serialization (v2 to v3)](how-to-guides/entity-reserialization-of-from-v2-to-v3.md)
 * [Feature Quality Monitoring](how-to-guides/feature-monitoring.md)
 
@@ -125,6 +126,7 @@
   * [Clickhouse (contrib)](reference/data-sources/clickhouse.md)
   * [Ray (contrib)](reference/data-sources/ray.md)
   * [MongoDB (contrib)](reference/data-sources/mongodb.md)
+  * [Chronon (contrib)](reference/data-sources/chronon.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [Overview](reference/offline-stores/overview.md)
   * [Dask](reference/offline-stores/dask.md)
@@ -142,6 +144,7 @@
   * [Oracle (contrib)](reference/offline-stores/oracle.md)
   * [Athena (contrib)](reference/offline-stores/athena.md)
   * [MongoDB (contrib)](reference/offline-stores/mongodb.md)
+  * [Chronon (contrib)](reference/offline-stores/chronon.md)
   * [Remote Offline](reference/offline-stores/remote-offline-store.md)
   * [Hybrid](reference/offline-stores/hybrid.md)
 * [Online stores](reference/online-stores/README.md)
@@ -165,6 +168,7 @@
   * [SingleStore](reference/online-stores/singlestore.md)
   * [Milvus](reference/online-stores/milvus.md)
   * [MongoDB](reference/online-stores/mongodb.md)
+  * [Chronon (contrib)](reference/online-stores/chronon.md)
   * [Aerospike](reference/online-stores/aerospike.md)
   * [Elasticsearch](reference/online-stores/elasticsearch.md)
   * [Qdrant](reference/online-stores/qdrant.md)
@@ -221,6 +225,8 @@
 * [Usage](reference/usage.md)
 
 ## Project
+
+* [Feast + Chronon: Feature Store Summit presentation](presentations/feast-chronon-summit/README.md)
 
 * [Contribution process](project/contributing.md)
 * [Development guide](project/development-guide.md)

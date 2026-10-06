@@ -42,7 +42,7 @@ feast apply                  # Detects change → v2
 {% hint style="info" %}
 Version history tracking is **always active** — no configuration needed. Every `feast apply` that changes a feature view automatically records a version snapshot.
 
-To enable **versioned online reads** (e.g., `fv@v2:feature`), add `enable_online_feature_view_versioning: true` to your registry config in `feature_store.yaml`:
+To enable **versioned reads** (e.g., `fv@v2:feature`), add `enable_online_feature_view_versioning: true` to your registry config in `feature_store.yaml`:
 
 ```yaml
 registry:
@@ -50,7 +50,7 @@ registry:
   enable_online_feature_view_versioning: true
 ```
 
-When this flag is off, version-qualified refs (e.g., `fv@v2:feature`) in online reads will raise errors, but version history, version listing, version pinning, and version lookups all work normally.
+Despite the `online` in its name, this flag gates **both** online (`get_online_features`) and offline (`get_historical_features`) versioned resolution — they share the same code path. When it is off, version-qualified refs (e.g., `fv@v2:feature`) raise errors, but version history, version listing, version pinning, and version lookups all work normally.
 {% endhint %}
 
 ## Pinning to a Specific Version
@@ -91,6 +91,50 @@ After reverting with a pin, you can go back to normal auto-incrementing behavior
 | `"latest"` (or omitted) | Always use the latest version (auto-increments on changes) |
 | `"v0"`, `"v1"`, `"v2"`, ... | Pin to a specific version number |
 | `"version0"`, `"version1"`, ... | Equivalent long form (case-insensitive) |
+
+## Pinning a Version in a Feature Service
+
+A `FeatureService` freezes the exact feature definitions a model was trained and
+served on, so it can pin a specific historical feature view version. Two ways to
+do this:
+
+**1. String feature references (recommended).** A `FeatureService` entry may be a
+string using the same `<feature_view>[@<version>][:<feature>]` syntax as
+`get_historical_features`/`get_online_features`. No need to import or reconstruct
+the historical feature view object — the pin is resolved against the registry at
+`feast apply` time:
+
+```python
+from feast import FeatureService
+
+pinned_service = FeatureService(
+    name="model_v1_service",
+    features=[
+        "driver_stats@v0:trips_today",   # pinned version, single feature
+        "driver_stats@v1",               # pinned version, whole view
+        "driver_stats",                  # latest (unpinned), whole view
+    ],
+)
+```
+
+**2. A version-pinned feature view object.** Passing a `FeatureView(version="v2")`
+object (or a slice of it) into `features` carries its version into the service:
+
+```python
+driver_stats_v2 = FeatureView(name="driver_stats", version="v2", ...)
+pinned_service = FeatureService(
+    name="model_v1_service",
+    features=[driver_stats_v2[["trips_today"]]],
+)
+```
+
+Either way, the resolved projection renders as `driver_stats@v2` and both online
+(`get_online_features`) and offline (`get_historical_features`) retrieval return
+the pinned snapshot instead of the promoted version. An unversioned entry
+(`"driver_stats"` or a `version="latest"` object) behaves exactly as before.
+Requires `enable_online_feature_view_versioning: true` (see
+[Configuration](#configuration)); a pinned string ref only resolves once that
+version exists in the registry's history.
 
 ## Staged Publishing (`--no-promote`)
 
@@ -223,7 +267,6 @@ ambiguity, the following characters are reserved and must not appear in feature 
 ## Known Limitations
 
 - **Online store coverage** — Version-qualified reads (`@v<N>`) are SQLite-only today. Other online stores are follow-up work.
-- **Offline store versioning** — Versioned historical retrieval is not yet supported.
+- **Offline store versioning** — Version-qualified historical retrieval (`get_historical_features`) is supported, including through a version-pinned feature service (see [Pinning a Version in a Feature Service](#pinning-a-version-in-a-feature-service)). It requires `enable_online_feature_view_versioning: true`.
 - **Version deletion** — There is no mechanism to prune old versions from the registry.
 - **Cross-version joins** — Joining features from different versions of the same feature view in `get_historical_features` is not supported.
-- **Feature services** — Feature services always resolve to the active (promoted) version. `--no-promote` versions are not served until promoted.
