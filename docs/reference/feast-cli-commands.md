@@ -272,7 +272,7 @@ Load data from feature views into the online store.
 feast materialize 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
 
-**Without timestamps (uses current datetime):**
+**Without timestamps (materializes all available data):**
 ```bash
 feast materialize --disable-event-timestamp
 ```
@@ -287,7 +287,7 @@ feast materialize -v driver_hourly_stats 2020-01-01T00:00:00 2022-01-01T00:00:00
 feast materialize --disable-event-timestamp -v driver_hourly_stats
 ```
 
-The `--disable-event-timestamp` flag is useful when your source data lacks event timestamp columns, allowing you to materialize all available data using the current datetime as the event timestamp.
+The `--disable-event-timestamp` flag lets you materialize all available data (from 1970-01-01 up to the current UTC time) without specifying start and end timestamps. Rows keep the event timestamps from the source.
 
 ```text
 Materializing 1 feature views from 2020-01-01 to 2022-01-01
