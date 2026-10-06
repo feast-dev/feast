@@ -1,5 +1,6 @@
 """Tests for pre-computed feature vectors (issue #6185)."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -272,13 +273,15 @@ class TestSchemaMismatchFallback:
     def _fast_path(self, blobs, expected_names, grouped_refs=None, num_rows=None):
         from feast.infra.online_stores.online_store import OnlineStore
 
+        resolved_num_rows = num_rows or len(blobs)
         response = GetOnlineFeaturesResponse(results=[])
         result = OnlineStore._try_precomputed_fast_path(
             blobs=blobs,
             expected_feature_names=expected_names,
             online_features_response=response,
             full_feature_names=True,
-            num_rows=num_rows or len(blobs),
+            num_rows=resolved_num_rows,
+            entity_row_indices=tuple([i] for i in range(len(blobs))),
             grouped_refs=grouped_refs or [],
             registry=MagicMock(),
             project="test",
@@ -370,8 +373,19 @@ class TestSchemaMismatchFallback:
 
 
 class TestFastPathMultiEntity:
-    def _fast_path(self, blobs, expected_names, grouped_refs=None, num_rows=None):
+    def _fast_path(
+        self,
+        blobs,
+        expected_names,
+        grouped_refs=None,
+        num_rows=None,
+        entity_row_indices=None,
+    ):
         from feast.infra.online_stores.online_store import OnlineStore
+
+        resolved_num_rows = num_rows or len(blobs)
+        if entity_row_indices is None:
+            entity_row_indices = tuple([i] for i in range(len(blobs)))
 
         response = GetOnlineFeaturesResponse(results=[])
         result = OnlineStore._try_precomputed_fast_path(
@@ -379,7 +393,8 @@ class TestFastPathMultiEntity:
             expected_feature_names=expected_names,
             online_features_response=response,
             full_feature_names=True,
-            num_rows=num_rows or len(blobs),
+            num_rows=resolved_num_rows,
+            entity_row_indices=entity_row_indices,
             grouped_refs=grouped_refs or [],
             registry=MagicMock(),
             project="test",
@@ -418,6 +433,39 @@ class TestFastPathMultiEntity:
         assert a_values == pytest.approx([1.0, 2.0, 3.0])
         assert b_values == pytest.approx([10.0, 20.0, 30.0])
 
+    def test_restores_original_order_and_duplicate_entities(self):
+        timestamps = [
+            _make_timestamp(datetime(2025, 1, day, tzinfo=timezone.utc))
+            for day in (1, 2, 3)
+        ]
+        vectors = [
+            _make_vector(
+                feature_names=["fv1__a"],
+                values=[ValueProto(float_val=float(entity_id))],
+                precomputed_at=timestamps[entity_id - 1],
+            )
+            for entity_id in (1, 2, 3)
+        ]
+
+        ok, response = self._fast_path(
+            [vector.SerializeToString() for vector in vectors],
+            ["fv1__a"],
+            num_rows=4,
+            entity_row_indices=([1], [3], [0, 2]),
+        )
+
+        assert ok is True
+        assert [value.float_val for value in response.results[0].values] == [
+            3.0,
+            1.0,
+            3.0,
+            2.0,
+        ]
+        assert list(response.results[0].statuses) == [FieldStatus.PRESENT] * 4
+        assert [
+            timestamp.seconds for timestamp in response.results[0].event_timestamps
+        ] == [timestamps[index].seconds for index in (2, 0, 2, 1)]
+
     def test_statuses_are_present(self):
         vec = _make_vector(
             feature_names=["fv1__a"],
@@ -437,6 +485,89 @@ class TestFastPathMultiEntity:
         ok, response = self._fast_path([vec.SerializeToString()], ["fv1__x", "fv2__y"])
         assert ok is True
         assert list(response.metadata.feature_names.val) == ["fv1__x", "fv2__y"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Public online retrieval: entity row ordering
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+def test_precomputed_retrieval_preserves_entity_order_and_duplicates(use_async):
+    from feast import Entity
+    from feast.infra.online_stores.online_store import OnlineStore
+    from feast.value_type import ValueType
+
+    entity = Entity(
+        name="driver",
+        join_keys=["driver_id"],
+        value_type=ValueType.INT64,
+    )
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[entity],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="score", dtype=Float32),
+        ],
+        source=_make_file_source("driver_stats_src"),
+    )
+    feature_service = FeatureService(
+        name="driver_service",
+        features=[feature_view],
+        precompute_online=True,
+    )
+
+    class PrecomputedStore(OnlineStore):
+        def online_write_batch(self, config, table, data, progress):
+            pass
+
+        def online_read(self, config, table, entity_keys, requested_features=None):
+            raise AssertionError("regular online reads should not be used")
+
+        def update(self, *args, **kwargs):
+            pass
+
+        def teardown(self, *args, **kwargs):
+            pass
+
+        def read_precomputed_vectors(
+            self, config, feature_service_name, project, entity_keys
+        ):
+            blobs = []
+            for entity_key in entity_keys:
+                entity_id = entity_key.entity_values[0].int64_val
+                vector = _make_vector(
+                    feature_names=["driver_stats__score"],
+                    values=[ValueProto(float_val=float(entity_id * 10))],
+                )
+                blobs.append(vector.SerializeToString())
+            return blobs
+
+    registry = MagicMock()
+    registry.cached_registry_proto_created = None
+    registry.enable_online_versioning = False
+    registry.get_feature_service.return_value = feature_service
+    registry.get_any_feature_view.return_value = feature_view
+    registry.list_entities.return_value = [entity]
+
+    request_kwargs = {
+        "config": MagicMock(),
+        "features": feature_service,
+        "entity_rows": {"driver_id": [3, 1, 3, 2]},
+        "registry": registry,
+        "project": "test",
+        "full_feature_names": True,
+    }
+    store = PrecomputedStore()
+    if use_async:
+        response = asyncio.run(store.get_online_features_async(**request_kwargs))
+    else:
+        response = store.get_online_features(**request_kwargs)
+
+    result = response.to_dict()
+    assert result["driver_id"] == [3, 1, 3, 2]
+    assert result["driver_stats__score"] == [30.0, 10.0, 30.0, 20.0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -472,6 +603,7 @@ class TestFastPathTTLEnforcement:
             online_features_response=response,
             full_feature_names=True,
             num_rows=1,
+            entity_row_indices=([0],),
             grouped_refs=grouped_refs,
             registry=MagicMock(),
             project="test",
@@ -515,6 +647,7 @@ class TestFastPathTTLEnforcement:
             online_features_response=response,
             full_feature_names=True,
             num_rows=1,
+            entity_row_indices=([0],),
             grouped_refs=[(fv, ["f1"])],
             registry=MagicMock(),
             project="test",
@@ -548,6 +681,7 @@ class TestFastPathTTLEnforcement:
             online_features_response=response,
             full_feature_names=True,
             num_rows=1,
+            entity_row_indices=([0],),
             grouped_refs=[(fv1, ["f1"]), (fv2, ["f2"])],
             registry=MagicMock(),
             project="test",

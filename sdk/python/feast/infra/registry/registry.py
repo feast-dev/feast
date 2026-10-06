@@ -247,6 +247,12 @@ class Registry(BaseRegistry):
             else False
         )
 
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+            if registry_config is not None
+            else False
+        )
+
         self.cache_mode = (
             registry_config.cache_mode if registry_config is not None else "sync"
         )

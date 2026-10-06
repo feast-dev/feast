@@ -157,4 +157,14 @@ def _metadata_to_dict(metadata) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     if metadata.HasField("feature_names"):
         result["feature_names"] = list(metadata.feature_names.val)
+    if metadata.feature_view_metadata:
+        fv_metadata = []
+        for fvm in metadata.feature_view_metadata:
+            entry: Dict[str, Any] = {}
+            if fvm.name:
+                entry["name"] = fvm.name
+            if fvm.version:
+                entry["version"] = fvm.version
+            fv_metadata.append(entry)
+        result["feature_view_metadata"] = fv_metadata
     return result

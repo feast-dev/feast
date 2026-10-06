@@ -462,6 +462,7 @@ class StreamFeatureView(FeatureView):
             ttl=self.ttl,
             tags=self.tags,
             online=self.online,
+            offline=self.offline,
             description=self.description,
             owner=self.owner,
             org=self.org,
@@ -472,6 +473,9 @@ class StreamFeatureView(FeatureView):
             udf=self.udf,
             udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
+            stream_engine=self.stream_engine,
+            enable_tiling=self.enable_tiling,
+            tiling_hop_size=self.tiling_hop_size,
             enable_validation=self.enable_validation,
             version=self.version,
         )

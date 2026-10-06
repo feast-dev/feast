@@ -700,6 +700,8 @@ def _initialize_local_ray(config: Any, enable_logging: bool = False) -> None:
     ctx = DatasetContext.get_current()
     ctx.shuffle_strategy = "sort"  # type: ignore
     ctx.enable_tensor_extension_casting = False
+    if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+        ctx.enable_arrow_backed_pandas_conversion = False
 
     # Log cluster info
     if enable_logging:
@@ -760,6 +762,8 @@ def _initialize_remote_ray(config: Any, enable_logging: bool = False) -> None:
     ctx = DatasetContext.get_current()
     ctx.shuffle_strategy = "sort"  # type: ignore
     ctx.enable_tensor_extension_casting = False
+    if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+        ctx.enable_arrow_backed_pandas_conversion = False
 
     # Log cluster info
     if enable_logging:
@@ -853,6 +857,8 @@ def ensure_ray_initialized(
         ctx = DatasetContext.get_current()
         ctx.shuffle_strategy = "sort"  # type: ignore
         ctx.enable_tensor_extension_casting = False
+        if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+            ctx.enable_arrow_backed_pandas_conversion = False
         if not enable_logging:
             _suppress_ray_logging()
         _ray_initialized = True
