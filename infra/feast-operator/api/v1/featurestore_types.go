@@ -38,6 +38,7 @@ const (
 	RegistryReadyType      = "Registry"
 	UIReadyType            = "UI"
 	LineageReadyType       = "Lineage"
+	McpServerReadyType     = "McpServer"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 	CronJobReadyType       = "CronJob"
@@ -51,6 +52,7 @@ const (
 	RegistryFailedReason         = "RegistryDeploymentFailed"
 	UIFailedReason               = "UIDeploymentFailed"
 	LineageFailedReason          = "LineageDeploymentFailed"
+	McpServerFailedReason        = "McpServerDeploymentFailed"
 	ClientFailedReason           = "ClientDeploymentFailed"
 	CronJobFailedReason          = "CronJobDeploymentFailed"
 	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
@@ -63,6 +65,7 @@ const (
 	RegistryReadyMessage          = "Registry installation complete"
 	UIReadyMessage                = "UI installation complete"
 	LineageReadyMessage           = "Lineage server installation complete"
+	McpServerReadyMessage         = "MCP Server installation complete"
 	ClientReadyMessage            = "Client installation complete"
 	CronJobReadyMessage           = "CronJob installation complete"
 	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
@@ -495,12 +498,16 @@ type JobSpec struct {
 }
 
 // FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
+// +kubebuilder:validation:XValidation:rule="!has(self.mcpServer) || !has(self.onlineStore) || !has(self.onlineStore.disabled) || !self.onlineStore.disabled || (has(self.registry) && has(self.registry.local) && has(self.registry.local.server) && has(self.registry.local.server.restAPI) && self.registry.local.server.restAPI == true)",message="mcpServer requires at least one upstream: either onlineStore must not be disabled, or registry must have restAPI enabled."
 type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
 	Registry     *Registry     `json:"registry,omitempty"`
 	// Creates a UI server container
-	UI                 *ServerConfigs             `json:"ui,omitempty"`
+	UI *ServerConfigs `json:"ui,omitempty"`
+	// McpServer deploys a standalone Feast MCP (Model Context Protocol) server container (`feast mcp`). It is separate from the embedded MCP of services.onlineStore.serving.mcp and services.registry.local.server.mcp.
+	// +optional
+	McpServer          *McpServerConfig           `json:"mcpServer,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	SecurityContext    *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 	// PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
@@ -728,6 +735,35 @@ type McpConfig struct {
 	// +kubebuilder:validation:Enum=sse;http
 	// +optional
 	Transport *string `json:"transport,omitempty"`
+}
+
+// McpServerConfig configures a standalone Feast MCP server container (the `feast mcp` command).
+// The server proxies to the online feature server and/or REST registry server over HTTP. Its
+// transport, upstream URLs, authentication and observability are read from a feast_mcp.yaml
+// config file supplied via a ConfigMap. The operator owns the container's bind host and port
+// (used for the generated Service). The container image defaults to the shared feature-server
+// image (which already includes `feast mcp` via the `minimal` extra).
+//
+// NOTE: the following embedded ServerConfigs fields are ignored for mcpServer:
+// `tls` (operator-managed TLS is not supported yet), `metrics`, and `workerConfigs`.
+// To run multiple gunicorn workers, set `server.workers` in the feast_mcp.yaml ConfigMap.
+type McpServerConfig struct {
+	ServerConfigs `json:",inline"`
+
+	// Config references a ConfigMap holding the feast_mcp.yaml file passed to `feast mcp --config`. Its transport must be http, streamable-http or sse, because the stdio default cannot serve the Service. If omitted, the operator passes `--transport http` unless FEAST_MCP_TRANSPORT is set in env.
+	// +optional
+	Config *McpServerConfigSource `json:"config,omitempty"`
+}
+
+// McpServerConfigSource references a ConfigMap key holding the feast_mcp.yaml content.
+// +kubebuilder:validation:XValidation:rule="has(self.configMapRef.name) && size(self.configMapRef.name) > 0",message="configMapRef.name is required"
+type McpServerConfigSource struct {
+	// ConfigMapRef is a reference to a ConfigMap in the same namespace containing the MCP config.
+	ConfigMapRef corev1.LocalObjectReference `json:"configMapRef"`
+	// ConfigMapKey is the key in the ConfigMap holding the feast_mcp.yaml content.
+	// +kubebuilder:default="feast_mcp.yaml"
+	// +optional
+	ConfigMapKey string `json:"configMapKey,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -1134,6 +1170,7 @@ type ServiceHostnames struct {
 	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
 	Lineage      string `json:"lineage,omitempty"`
+	McpServer    string `json:"mcpServer,omitempty"`
 }
 
 // +kubebuilder:object:root=true
