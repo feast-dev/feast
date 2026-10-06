@@ -534,10 +534,9 @@ class TrinoJoinNode(DAGNode):
         entity_cols = (
             tuple(upload_df.columns) if isinstance(upload_df, pd.DataFrame) else ()
         )
+        candidate_cols = plan.columns or tuple(self.column_info.feature_cols or ())
         rhs_cols = tuple(
-            c
-            for c in (plan.columns or ())
-            if c not in entity_cols and c not in join_keys
+            c for c in candidate_cols if c not in entity_cols and c not in join_keys
         )
 
         if rhs_cols:

@@ -662,10 +662,16 @@ class TestTrinoJoinNodeExecution:
 
     def test_join_with_entity_df_pandas(self):
         plan1 = TrinoQueryPlan(
-            ctes=(("_p1", "SELECT 1"),), current_from="_p1", timestamp_col="ts"
+            ctes=(("_p1", "SELECT 1"),),
+            current_from="_p1",
+            columns=("user_id", "feature_val", "ts"),
+            timestamp_col="ts",
         )
         col_info = ColumnInfo(
-            join_keys=["user_id"], feature_cols=[], ts_col="ts", created_ts_col=None
+            join_keys=["user_id"],
+            feature_cols=["feature_val"],
+            ts_col="ts",
+            created_ts_col=None,
         )
         n1 = MagicMock()
         n1.name = "n1"
@@ -697,6 +703,9 @@ class TestTrinoJoinNodeExecution:
                 in sql
             )
             assert '_join_join_entity."ts" <= _entity."__entity_event_timestamp"' in sql
+            # Verify join key 'user_id' is excluded from the feature side select to prevent duplicate columns
+            assert '_join_join_entity."user_id"' not in sql.split("FROM")[0]
+            assert '_join_join_entity."feature_val"' in sql
 
 
 class TestTrinoTransformationNodeVariations:
