@@ -35,6 +35,7 @@ from feast.infra.compute_engines.trino.nodes import (
 )
 from feast.infra.compute_engines.trino.sql_builder import TrinoQueryPlan
 from feast.infra.compute_engines.trino.utils import (
+    _has_unquoted_semicolon,
     _trino_sql_literal,
     from_feast_to_trino_type,
     quote_identifier,
@@ -180,6 +181,16 @@ class TestTrinoSqlFormattingAndTypes:
     def test_quote_identifier(self):
         assert quote_identifier("user_id") == '"user_id"'
         assert quote_identifier('col"with"quote') == '"col""with""quote"'
+
+    def test_has_unquoted_semicolon(self):
+        assert not _has_unquoted_semicolon('"conv_rate" > 0.5')
+        assert not _has_unquoted_semicolon("status = 'active;pending'")
+        assert not _has_unquoted_semicolon('status = "active;pending"')
+        assert not _has_unquoted_semicolon("status = 'escaped\\'quote;still_in_quotes'")
+        assert _has_unquoted_semicolon('"conv_rate" > 0.5;')
+        assert _has_unquoted_semicolon('"conv_rate" > 0.5;   ')
+        assert _has_unquoted_semicolon('"conv_rate" > 0.5; DROP TABLE foo')
+        assert _has_unquoted_semicolon(";")
 
     def test_from_feast_to_trino_type(self):
         assert from_feast_to_trino_type(Int64) == "BIGINT"
@@ -365,6 +376,49 @@ class TestTrinoDAGCompilation:
         assert '"event_timestamp" <= "__entity_event_timestamp"' in sql
         assert "INTERVAL '86400' SECOND" in sql
         assert '("conv_rate" > 0.5)' in sql
+
+    def test_trino_filter_node_semicolon_handling(self):
+        plan = TrinoQueryPlan(
+            ctes=[("_source", 'SELECT * FROM "iceberg"."feast"."driver_stats"')],
+            current_from="_source",
+            columns=("driver_id", "conv_rate"),
+        )
+        input_node = MagicMock()
+        input_node.name = "source"
+
+        col_info = ColumnInfo(
+            join_keys=["driver_id"],
+            feature_cols=["conv_rate"],
+            ts_col=None,
+            created_ts_col=None,
+        )
+
+        # 1. Unquoted semicolon must raise ValueError
+        node_invalid = TrinoFilterNode(
+            name="filter",
+            column_info=col_info,
+            client=MagicMock(),
+            filter_condition='"conv_rate" > 0.5;',
+            inputs=[input_node],
+        )
+        context = MagicMock()
+        context.node_outputs = {"source": DAGValue(data=plan, format=DAGFormat.TRINO)}
+
+        with pytest.raises(ValueError, match="prohibited semicolon"):
+            node_invalid.execute(context)
+
+        # 2. Semicolon inside string literal is permitted
+        node_valid = TrinoFilterNode(
+            name="filter",
+            column_info=col_info,
+            client=MagicMock(),
+            filter_condition="status = 'foo;bar'",
+            inputs=[input_node],
+        )
+        val = node_valid.execute(context)
+        sql = val.data.to_sql()
+
+        assert "WHERE (status = 'foo;bar')" in sql
 
     def test_trino_dedup_node_generates_row_number_sql(self):
         plan = TrinoQueryPlan(

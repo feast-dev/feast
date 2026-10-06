@@ -24,6 +24,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.trino.sql_builder import TrinoQueryPlan
 from feast.infra.compute_engines.trino.utils import (
+    _has_unquoted_semicolon,
     _trino_sql_literal,
     quote_identifier,
     stream_trino_arrow_batches,
@@ -146,7 +147,14 @@ class TrinoReadNode(DAGNode):
 
 
 class TrinoFilterNode(DAGNode):
-    """Appends a Trino SQL CTE applying point-in-time, TTL, and custom filters."""
+    """Appends a Trino SQL CTE applying point-in-time, TTL, and custom filters.
+
+    .. warning::
+        ``filter_condition`` is rendered directly into the generated SQL ``WHERE`` clause
+        without parameterization, matching Feast's standard design for developer-authored
+        feature view definitions. It must be trusted developer input; do not pass unsanitized
+        user input into feature view filter expressions.
+    """
 
     def __init__(
         self,
@@ -157,6 +165,17 @@ class TrinoFilterNode(DAGNode):
         filter_condition: Optional[str] = None,
         inputs: Optional[Sequence[DAGNode]] = None,
     ):
+        """Initialize TrinoFilterNode.
+
+        Args:
+            name: Identifier for the DAG node.
+            column_info: Column schema information for timestamp and entity keys.
+            client: Trino client instance.
+            ttl: Optional time-to-live timedelta for point-in-time expiration.
+            filter_condition: Optional raw SQL boolean expression string (e.g. from
+                ``FeatureView.filter``). Must be trusted developer-authored input.
+            inputs: Upstream DAG nodes providing input query plans.
+        """
         super().__init__(name, inputs=list(inputs) if inputs else None)
         self.column_info = column_info
         self.client = client
@@ -169,8 +188,12 @@ class TrinoFilterNode(DAGNode):
         upstream_plan: TrinoQueryPlan = input_value.data
 
         upstream_cte = upstream_plan.get_latest_cte_name()
-        ts_col = upstream_plan.timestamp_col or self.column_info.timestamp_column
-        ttl_seconds = int(self.ttl.total_seconds()) if self.ttl else None
+        ts_col = upstream_plan.timestamp_col
+        if not ts_col:
+            try:
+                ts_col = self.column_info.timestamp_column
+            except (ValueError, AttributeError):
+                ts_col = None
 
         conditions = []
         if ts_col:
@@ -183,7 +206,15 @@ class TrinoFilterNode(DAGNode):
                     f"{quote_identifier(ts_col)} >= {quote_identifier(ENTITY_TS_ALIAS)} - INTERVAL '{ttl_seconds}' SECOND"
                 )
         if self.filter_condition:
-            conditions.append(f"({self.filter_condition})")
+            if _has_unquoted_semicolon(self.filter_condition):
+                raise ValueError(
+                    f"Feature view filter condition contains prohibited semicolon (';'): "
+                    f"{self.filter_condition!r}. Semicolons are statement terminators and "
+                    f"cannot be used inside filter expressions."
+                )
+            clean_filter = self.filter_condition.strip()
+            if clean_filter:
+                conditions.append(f"({clean_filter})")
 
         where_clause = f"\nWHERE {' AND '.join(conditions)}" if conditions else ""
         cte_name = f"_filter_{self.name.replace(':', '_')}"

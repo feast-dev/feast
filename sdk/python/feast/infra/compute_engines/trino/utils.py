@@ -53,6 +53,34 @@ def quote_identifier(name: str) -> str:
     return f'"{escaped}"'
 
 
+def _has_unquoted_semicolon(sql: str) -> bool:
+    """Return True if sql contains a semicolon outside of quotes."""
+    in_quote = False
+    quote_char: Optional[str] = None
+    is_escaped = False
+
+    for char in sql:
+        if is_escaped:
+            is_escaped = False
+            continue
+
+        if char == "\\":
+            is_escaped = True
+            continue
+
+        if char in ("'", '"'):
+            if not in_quote:
+                in_quote = True
+                quote_char = char
+            elif char == quote_char:
+                in_quote = False
+                quote_char = None
+        elif char == ";" and not in_quote:
+            return True
+
+    return False
+
+
 def from_feast_to_trino_type(feast_type: Any) -> Optional[str]:
     """Convert a Feast data type to an explicit Trino SQL type string.
 

@@ -153,6 +153,12 @@ class TrinoFeatureBuilder(FeatureBuilder):
         view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
         input_node: DAGNode,
     ) -> TrinoFilterNode:
+        """Build filter node applying TTL and feature view filter expression.
+
+        Note:
+            ``view.filter`` is rendered directly into the Trino SQL WHERE clause and
+            must be trusted developer-authored input.
+        """
         filter_expr = getattr(view, "filter", None)
         ttl = getattr(view, "ttl", None)
         column_info = self.get_column_info(view)
