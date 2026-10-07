@@ -2274,6 +2274,62 @@ def test_apply_and_delete_feature_service_via_rest(fastapi_test_app):
     assert response.status_code == 200
 
 
+def _apply_permission_body(**overrides):
+    body = {
+        "name": "fv_reader",
+        "project": "demo_project",
+        "types": ["FEATURE_VIEW"],
+        "actions": ["DESCRIBE"],
+        "policy": {"role_based_policy": {"roles": ["reader"]}},
+    }
+    body.update(overrides)
+    return body
+
+
+def test_apply_and_delete_permission_via_rest(fastapi_test_app):
+    """Test POST /permissions and DELETE /permissions/{name} endpoints."""
+    response = fastapi_test_app.post("/permissions", json=_apply_permission_body())
+    assert response.status_code == 201
+    assert response.json()["status"] == "applied"
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+    spec = response.json()["spec"]
+    assert spec["types"] == ["FEATURE_VIEW"]
+    assert spec["actions"] == ["DESCRIBE"]
+
+    response = fastapi_test_app.delete("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "overrides, invalid_name",
+    [
+        ({"types": ["feature_view"]}, "feature_view"),
+        ({"types": ["FEATURE_VIEW", "FEATURE_VIWE"]}, "FEATURE_VIWE"),
+        ({"actions": ["describe"]}, "describe"),
+        ({"actions": ["DESCRIBE", "READ"]}, "READ"),
+    ],
+)
+def test_apply_permission_rejects_unknown_names_via_rest(
+    fastapi_test_app, overrides, invalid_name
+):
+    """Unknown types or actions must be rejected instead of silently dropped."""
+    response = fastapi_test_app.post(
+        "/permissions", json=_apply_permission_body(**overrides)
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert invalid_name in detail
+    assert "Valid options are" in detail
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
 def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     """Test /metrics/resource_counts with a non-existent project returns empty data."""
     response = fastapi_test_app.get(

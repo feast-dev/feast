@@ -1751,9 +1751,11 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
-            if self.cache_mode == "sync":
-                self.refresh()
-            return rows.rowcount
+        # Refresh only after the transaction commits, otherwise the cache is
+        # rebuilt from a snapshot that still contains the deleted object.
+        if self.cache_mode == "sync":
+            self.refresh()
+        return rows.rowcount
 
     def _get_object(
         self,
@@ -1927,14 +1929,9 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(permissions).where(
-                permissions.c.permission_name == name,
-                permissions.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise PermissionNotFoundException(name, project)
+        return self._delete_object(
+            permissions, name, project, "permission_name", PermissionNotFoundException
+        )
 
     def _list_projects(
         self,

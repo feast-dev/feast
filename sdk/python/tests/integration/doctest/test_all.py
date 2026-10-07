@@ -95,7 +95,7 @@ def test_docstrings():
                             and "qdrant" not in full_name
                         ):
                             temp_module = importlib.import_module(full_name)
-                            if is_pkg:
+                            if is_pkg and hasattr(temp_module, "__path__"):
                                 next_packages.append(temp_module)
                     except Exception:  # noqa: BLE001
                         # Gracefully skip modules that fail to import due to:

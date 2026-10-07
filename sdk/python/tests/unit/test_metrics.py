@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from feast.metrics import (
+    _make_metrics_httpd,
     emit_offline_audit_log,
     emit_online_audit_log,
     feature_freshness_seconds,
@@ -2085,3 +2086,26 @@ def test_start_metrics_server_wires_make_metrics_httpd(mocker):
             break
         time.sleep(0.01)
     assert mock_httpd.serve_forever.called
+
+
+class TestMetricsHttpdDoesNotLog:
+    """The metrics server must not write to stderr per request (fork safety, see _QuietWSGIRequestHandler)."""
+
+    def test_scrape_writes_nothing_to_stderr(self, capsys):
+        def app(environ, start_response):
+            start_response("200 OK", [("Content-Type", "text/plain")])
+            return [b"ok"]
+
+        httpd = _make_metrics_httpd(0, app)
+        port = httpd.server_address[1]
+        server = threading.Thread(target=httpd.handle_request, daemon=True)
+        server.start()
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", "/metrics")
+            assert conn.getresponse().status == 200
+            server.join(timeout=5)
+        finally:
+            httpd.server_close()
+
+        assert "GET /metrics" not in capsys.readouterr().err

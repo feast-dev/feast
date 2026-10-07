@@ -6,6 +6,10 @@ Please see [Offline Store](../../getting-started/components/offline-store.md) fo
 [overview.md](overview.md)
 {% endcontent-ref %}
 
+{% content-ref url="chronon.md" %}
+[chronon.md](chronon.md)
+{% endcontent-ref %}
+
 {% content-ref url="dask.md" %}
 [dask.md](dask.md)
 {% endcontent-ref %}

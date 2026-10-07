@@ -1599,8 +1599,22 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
+_FIXED_SIZE_LIST_PREFIX = "fixed_size_list<item: "
+
+
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
+    if pa_type_as_str.startswith(_FIXED_SIZE_LIST_PREFIX):
+        # A fixed-width vector is a list whose width happens to be fixed, and is
+        # how Arrow-native stores represent embeddings. Feast value types do not
+        # encode a width -- Field.vector_length carries it -- so this decodes to
+        # the same value type as the variable-width spelling, and is rewritten
+        # into that spelling so the list handling below stays single-sourced.
+        inner = pa_type_as_str[len(_FIXED_SIZE_LIST_PREFIX) :]
+        closing = inner.rfind(">")
+        if closing != -1:
+            pa_type_as_str = f"list<item: {inner[:closing]}>"
+
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
         inner_str = pa_type_as_str[len("list<item: ") : -1]
@@ -1677,14 +1691,14 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
 def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     type_map = {
-        "bigint": ValueType.FLOAT,
+        "bigint": ValueType.INT64,
         "binary": ValueType.BYTES,
         "bit": ValueType.BOOL,
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
-        "float": ValueType.FLOAT,
+        "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,

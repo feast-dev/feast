@@ -18,6 +18,7 @@ from feast.type_map import (
     arrow_to_pg_type,
     feast_value_type_to_pa,
     feast_value_type_to_python_type,
+    mssql_to_feast_value_type,
     pa_to_athena_value_type,
     pa_to_feast_value_type,
     pa_to_redshift_value_type,
@@ -643,6 +644,14 @@ class TestMapArrowTypeSupport:
         """Postgres real is single-precision (float4), so it maps to FLOAT, not DOUBLE."""
         assert pg_type_to_feast_value_type("real") == ValueType.FLOAT
         assert pg_type_to_feast_value_type("real[]") == ValueType.FLOAT_LIST
+
+    def test_mssql_to_feast_value_type_numeric_widths(self):
+        """SQL Server bigint is a 64-bit integer and float defaults to float(53),
+        an 8-byte double, so neither may be narrowed to a 32-bit float."""
+        assert mssql_to_feast_value_type("bigint") == ValueType.INT64
+        assert mssql_to_feast_value_type("float") == ValueType.DOUBLE
+        assert mssql_to_feast_value_type("real") == ValueType.FLOAT
+        assert mssql_to_feast_value_type("int") == ValueType.INT32
 
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""
@@ -2441,3 +2450,60 @@ def test_null_timestamp_int_value():
     from feast.type_map import NULL_TIMESTAMP_INT_VALUE
 
     assert NULL_TIMESTAMP_INT_VALUE == np.iinfo(np.int64).min
+
+
+def test_pa_to_feast_value_type_fixed_size_list():
+    """A fixed-width vector decodes to the same list type as a variable-width one.
+
+    ``fixed_size_list`` is how Arrow-native stores spell an embedding column, and
+    is the type ``Field.vector_length`` validation reads a width from. Feast value
+    types carry no width, so the two spellings must agree.
+    """
+    assert pa_to_feast_value_type("fixed_size_list<item: float>[8]") == (
+        ValueType.FLOAT_LIST
+    )
+    assert pa_to_feast_value_type("fixed_size_list<item: double>[1536]") == (
+        ValueType.DOUBLE_LIST
+    )
+    assert pa_to_feast_value_type("fixed_size_list<item: int64>[4]") == (
+        ValueType.INT64_LIST
+    )
+    assert pa_to_feast_value_type("fixed_size_list<item: int32>[4]") == (
+        ValueType.INT32_LIST
+    )
+    assert pa_to_feast_value_type("fixed_size_list<item: string>[2]") == (
+        ValueType.STRING_LIST
+    )
+    assert pa_to_feast_value_type("fixed_size_list<item: bool>[2]") == (
+        ValueType.BOOL_LIST
+    )
+
+
+def test_pa_to_feast_value_type_fixed_size_list_matches_variable_width():
+    for fixed, variable in [
+        ("fixed_size_list<item: float>[8]", "list<item: float>"),
+        ("fixed_size_list<item: double>[1536]", "list<item: double>"),
+        ("fixed_size_list<item: int64>[4]", "list<item: int64>"),
+        ("fixed_size_list<item: bool>[2]", "list<item: bool>"),
+    ]:
+        assert pa_to_feast_value_type(fixed) == pa_to_feast_value_type(variable)
+
+
+def test_pa_to_feast_value_type_nested_fixed_size_list():
+    assert pa_to_feast_value_type("fixed_size_list<item: list<item: float>>[8]") == (
+        ValueType.VALUE_LIST
+    )
+
+
+def test_pa_to_feast_value_type_fixed_size_list_width_is_not_encoded():
+    """The width is carried by Field.vector_length, not by the value type."""
+    assert pa_to_feast_value_type("fixed_size_list<item: float>[8]") == (
+        pa_to_feast_value_type("fixed_size_list<item: float>[1536]")
+    )
+
+
+def test_pa_to_feast_value_type_decodes_a_real_arrow_vector_type():
+    """Guard the parser against the exact string PyArrow produces."""
+    pa_type = pyarrow.list_(pyarrow.float32(), 8)
+    assert str(pa_type) == "fixed_size_list<item: float>[8]"
+    assert pa_to_feast_value_type(str(pa_type)) == ValueType.FLOAT_LIST
