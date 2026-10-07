@@ -25,6 +25,7 @@ from unittest.mock import MagicMock
 import pyarrow as pa
 import pytest
 
+from feast.credentials import ConnectionRef
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -133,6 +134,14 @@ def test_rejects_a_non_lance_table_format():
 
     with pytest.raises(ValueError, match="requires a LanceFormat"):
         LanceSource(uri="/tmp/x.lance", table_format=IcebergFormat())
+
+
+def test_rejects_an_unimplemented_connection_ref():
+    with pytest.raises(TypeError, match="unexpected keyword argument 'connection_ref'"):
+        LanceSource(
+            uri="s3://bucket/emb.lance",
+            connection_ref=ConnectionRef(provider="env", name="LANCE"),
+        )
 
 
 def test_default_name_is_the_uri_for_a_path_based_source():
@@ -257,6 +266,17 @@ def test_path_based_read_projects_columns(tmp_path):
     _write(uri, _driver_stats())
     source = LanceSource(uri=uri, timestamp_field="event_timestamp")
     assert source.to_arrow(columns=["driver_id"]).column_names == ["driver_id"]
+
+
+def test_projection_validates_the_full_source_schema(tmp_path):
+    uri = str(tmp_path / "emb.lance")
+    _write(uri, _driver_stats())
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    feature_view = _feature_view(source)
+
+    table = source.to_arrow(columns=["driver_id"], feature_view=feature_view)
+
+    assert table.column_names == ["driver_id"]
 
 
 def test_path_based_schema_inference(tmp_path):

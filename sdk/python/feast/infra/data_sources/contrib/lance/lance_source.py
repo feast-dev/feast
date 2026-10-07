@@ -31,7 +31,6 @@ different width. See :func:`validate_lance_source_schema`.
 import json
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -126,7 +125,6 @@ class LanceSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
-        connection_ref: Optional[ConnectionRef] = None,
     ):
         if table_format is not None and not isinstance(table_format, LanceFormat):
             raise ValueError(
@@ -162,7 +160,6 @@ class LanceSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
-            connection_ref=connection_ref,
         )
         self.uri = uri
         self.lance_table = table
@@ -282,9 +279,11 @@ class LanceSource(DataSource):
                 of the result.
         """
         dataset = self.get_dataset()
+        if feature_view is not None:
+            _validate_against_feature_view(self, dataset.schema, feature_view)
+
         table = dataset.to_table(columns=columns)
         if feature_view is not None:
-            _validate_against_feature_view(self, table.schema, feature_view)
             from feast.utils import _validate_vector_field_lengths
 
             _validate_vector_field_lengths(table, feature_view)
@@ -395,7 +394,6 @@ class LanceSource(DataSource):
             description=data_source.description,
             tags=tags,
             owner=data_source.owner,
-            connection_ref=ConnectionRef.from_tags(tags),
         )
 
 
