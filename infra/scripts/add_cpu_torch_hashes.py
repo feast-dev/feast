@@ -22,6 +22,17 @@ def add_cpu_hashes(requirements: str, cpu_requirements: str) -> str:
 
     def add_hashes(match: re.Match[str]) -> str:
         name, version = match[1], match[2]
+        if version.endswith("+cpu"):
+            # A universal resolve splits torch by marker, so the lock already
+            # holds a `+cpu` pin of its own alongside the PyPI one:
+            #
+            #   torch==2.14.1 ; sys_platform == 'darwin'
+            #   torch==2.14.1+cpu ; sys_platform != 'darwin'
+            #
+            # That entry is the CPU wheel, so it needs nothing added. Appending
+            # `+cpu` to its version to look it up would ask for `2.14.1+cpu+cpu`
+            # and fail, which is why this returns the entry untouched.
+            return match[0]
         hashes = cpu_hashes.get((name, f"{version}+cpu"))
         if not hashes:
             raise ValueError(f"Missing CPU hashes for {name}=={version}")
