@@ -2536,3 +2536,22 @@ def test_spark_to_feast_value_type_small_ints(spark_type, expected):
     """SparkSource passes ``DataType.simpleString()``, which spells ShortType and
     ByteType as ``smallint`` and ``tinyint``."""
     assert spark_to_feast_value_type(spark_type) == expected
+
+
+@pytest.mark.parametrize(
+    "pa_type, expected",
+    [
+        (pyarrow.int8(), ValueType.INT32),
+        (pyarrow.int16(), ValueType.INT32),
+        (pyarrow.uint8(), ValueType.INT32),
+        (pyarrow.uint16(), ValueType.INT32),
+        (pyarrow.uint32(), ValueType.INT64),
+        (pyarrow.uint64(), ValueType.INT64),
+        (pyarrow.list_(pyarrow.int16()), ValueType.INT32_LIST),
+        (pyarrow.list_(pyarrow.uint32()), ValueType.INT64_LIST),
+    ],
+)
+def test_pa_to_feast_value_type_small_and_unsigned_ints(pa_type, expected):
+    """Narrow and unsigned Arrow integers, e.g. Parquet int16 columns, widen to
+    the smallest Feast integer type that holds every value."""
+    assert pa_to_feast_value_type(str(pa_type)) == expected
