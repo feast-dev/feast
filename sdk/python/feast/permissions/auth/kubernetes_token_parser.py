@@ -1,5 +1,5 @@
 import logging
-import os
+from typing import Optional
 
 import jwt
 from kubernetes import client, config
@@ -7,6 +7,10 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    get_intra_comm_secret,
+)
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.user import User
 
@@ -55,9 +59,9 @@ class KubernetesTokenParser(TokenParser):
                 f"Request received from ServiceAccount: {sa_name} in namespace: {sa_namespace}"
             )
 
-            intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-            if sa_name is not None and sa_name == intra_communication_base64:
-                return User(username=sa_name, roles=[], groups=[], namespaces=[])
+            intra_comm_user = _get_intra_comm_user(access_token)
+            if intra_comm_user is not None:
+                return intra_comm_user
             else:
                 current_namespace = self._read_namespace_from_file()
                 logger.info(
@@ -451,6 +455,39 @@ class KubernetesTokenParser(TokenParser):
             )
 
         return False
+
+
+def _get_intra_comm_user(access_token: str) -> Optional[User]:
+    """
+    Return the intra-server communication user for a token that proves knowledge of
+    the shared secret.
+
+    The signature is verified against the shared secret before the subject is read,
+    so a caller that does not hold the secret cannot assume the internal identity.
+
+    Returns:
+        Optional[User]: the internal user, or `None` when the token is not an
+            intra-server communication token.
+    """
+    intra_communication_base64 = get_intra_comm_secret()
+    if not intra_communication_base64:
+        return None
+
+    claims = decode_intra_comm_token(access_token, intra_communication_base64)
+    if claims is None:
+        return None
+
+    subject = claims.get("sub")
+    if not isinstance(subject, str):
+        return None
+
+    parts = subject.split(":")
+    if len(parts) == 4 and parts[3] == intra_communication_base64:
+        return User(
+            username=intra_communication_base64, roles=[], groups=[], namespaces=[]
+        )
+
+    return None
 
 
 def _decode_token(access_token: str) -> tuple[str, str]:

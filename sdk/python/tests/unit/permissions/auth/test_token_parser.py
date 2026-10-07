@@ -13,12 +13,22 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
-from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    encode_intra_comm_token,
+)
+from feast.permissions.auth.kubernetes_token_parser import (
+    KubernetesTokenParser,
+)
+from feast.permissions.auth.kubernetes_token_parser import (
+    _get_intra_comm_user as _k8s_get_intra_comm_user,
+)
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.user import User
 
 _CLIENT_ID = "test"
+_INTRA_COMM_SECRET = "test1234"  # pragma: allowlist secret
 
 
 @patch(
@@ -446,12 +456,18 @@ def test_oidc_inter_server_comm(
             },
         )
 
-    monkeypatch.setattr(
-        "feast.permissions.auth.oidc_token_parser.jwt.decode",
-        lambda self, *args, **kwargs: user_data,
-    )
+    if is_intra_server:
+        # A real intra-server token, signed with the shared secret so the parser can
+        # verify it. A token that merely asserts the claim is covered by
+        # test_oidc_intra_comm_rejects_forged_token.
+        access_token = encode_intra_comm_token(user_data, _INTRA_COMM_SECRET)
+    else:
+        monkeypatch.setattr(
+            "feast.permissions.auth.oidc_token_parser.jwt.decode",
+            lambda self, *args, **kwargs: user_data,
+        )
+        access_token = "aaa-bbb-ccc"
 
-    access_token = "aaa-bbb-ccc"
     token_parser = OidcTokenParser(auth_config=oidc_config)
     user = asyncio.run(
         token_parser.user_details_from_access_token(access_token=access_token)
@@ -950,7 +966,13 @@ def test_k8s_inter_server_comm(
 
     roles = rolebindings["roles"]
 
-    access_token = "aaa-bbb-ccc"
+    if is_intra_server:
+        # A real intra-server token, signed with the shared secret so the parser can
+        # verify it before trusting the subject.
+        access_token = encode_intra_comm_token({"sub": subject}, _INTRA_COMM_SECRET)
+    else:
+        access_token = "aaa-bbb-ccc"
+
     token_parser = KubernetesTokenParser()
     user = asyncio.run(
         token_parser.user_details_from_access_token(access_token=access_token)
@@ -1047,3 +1069,117 @@ def test_oidc_parser_routes_keycloak_token_normally(
     assertpy.assert_that(user.username).is_equal_to("testuser")
     assertpy.assert_that(user.roles).is_equal_to(["reader"])
     assertpy.assert_that(user.groups).is_equal_to(["data-team"])
+
+
+def _forged_intra_comm_tokens(claims: dict) -> list:
+    """
+    Tokens that assert the intra-server identity without holding the shared secret.
+
+    The unsigned variant is exactly what a caller can mint from public information,
+    which is what made the intra-server identity forgeable before it was signed.
+    """
+    return [
+        pytest.param(jwt.encode(claims, "", algorithm="none"), id="unsigned"),
+        pytest.param(
+            jwt.encode(claims, "not-the-shared-secret", algorithm="HS256"),
+            id="signed-with-another-secret",
+        ),
+    ]
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+@pytest.mark.parametrize(
+    "forged_token",
+    _forged_intra_comm_tokens({"preferred_username": _INTRA_COMM_SECRET}),
+)
+def test_oidc_intra_comm_rejects_forged_token(forged_token, oidc_config):
+    """Claiming the intra-server username is not enough without the secret."""
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+
+    assertpy.assert_that(token_parser._get_intra_comm_user(forged_token)).is_none()
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+@pytest.mark.parametrize(
+    "forged_token",
+    _forged_intra_comm_tokens({"sub": f":::{_INTRA_COMM_SECRET}"}),
+)
+def test_k8s_intra_comm_rejects_forged_token(forged_token):
+    """Claiming the intra-server subject is not enough without the secret."""
+    assertpy.assert_that(_k8s_get_intra_comm_user(forged_token)).is_none()
+
+
+@pytest.mark.parametrize("secret_env", [None, ""], ids=["unset", "empty"])
+def test_intra_comm_disabled_without_secret(secret_env, oidc_config, monkeypatch):
+    """Without a configured secret there is no internal identity to hand out."""
+    if secret_env is None:
+        monkeypatch.delenv("INTRA_COMMUNICATION_BASE64", raising=False)
+    else:
+        monkeypatch.setenv("INTRA_COMMUNICATION_BASE64", secret_env)
+
+    token = encode_intra_comm_token(
+        {"preferred_username": _INTRA_COMM_SECRET}, _INTRA_COMM_SECRET
+    )
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+
+    assertpy.assert_that(token_parser._get_intra_comm_user(token)).is_none()
+
+
+def test_intra_comm_token_verifies_only_with_its_own_secret():
+    """A token signed with one secret does not verify against another."""
+    secret = "a-shared-secret-value"  # pragma: allowlist secret
+    token = encode_intra_comm_token({"preferred_username": secret}, secret)
+
+    assertpy.assert_that(decode_intra_comm_token(token, secret)).is_not_none()
+    assertpy.assert_that(decode_intra_comm_token(token, "another-secret")).is_none()
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+def test_intra_comm_client_token_is_accepted_by_oidc_parser(oidc_config):
+    """The token minted by the intra-server client verifies in the parser."""
+    from feast.permissions.client.intra_comm_authentication_client_manager import (
+        IntraCommAuthClientManager,
+    )
+
+    client_manager = IntraCommAuthClientManager(oidc_config, _INTRA_COMM_SECRET)
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+
+    user = token_parser._get_intra_comm_user(client_manager.get_token())
+
+    assertpy.assert_that(user).is_not_none()
+    assertpy.assert_that(user.username).is_equal_to(_INTRA_COMM_SECRET)
+    assertpy.assert_that(user.roles).is_equal_to([])
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param({}, id="no-sub"),
+        pytest.param({"sub": None}, id="null-sub"),
+        pytest.param({"sub": 42}, id="non-string-sub"),
+        pytest.param({"sub": f"::{_INTRA_COMM_SECRET}"}, id="too-few-segments"),
+        pytest.param({"sub": f":::{_INTRA_COMM_SECRET}:x"}, id="too-many-segments"),
+        pytest.param({"sub": ":::another-account"}, id="another-service-account"),
+    ],
+)
+def test_k8s_intra_comm_rejects_a_signed_token_with_an_unusable_subject(claims):
+    """
+    Holding the shared secret is necessary but not sufficient. The subject still has to
+    carry the intra-server service-account name in the shape the client sends, so a
+    holder of the secret cannot reach the internal identity with a malformed token.
+    """
+    token = encode_intra_comm_token(claims, _INTRA_COMM_SECRET)
+
+    assertpy.assert_that(_k8s_get_intra_comm_user(token)).is_none()
+
+
+@mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": _INTRA_COMM_SECRET})
+def test_oidc_intra_comm_rejects_a_signed_token_for_another_username(oidc_config):
+    """The same, for the OIDC parser's `preferred_username` claim."""
+    token = encode_intra_comm_token(
+        {"preferred_username": "another-user"}, _INTRA_COMM_SECRET
+    )
+    token_parser = OidcTokenParser(auth_config=oidc_config)
+
+    assertpy.assert_that(token_parser._get_intra_comm_user(token)).is_none()
