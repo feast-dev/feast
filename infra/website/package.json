@@ -13,5 +13,12 @@
     "astro": "^5.16.10",
     "d3": "^7.9.0",
     "shiki": "^1.29.2"
+  },
+  "overrides": {
+    "http-cache-semantics": "4.3.0",
+    "nanoid": "3.3.20",
+    "js-yaml": "5.4.3",
+    "postcss": "8.5.29",
+    "source-map-js": "1.2.2"
   }
 }

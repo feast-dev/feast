@@ -145,7 +145,13 @@
     "fast-uri": "4.2.1",
     "msw": "2.12.2",
     "rettime": "0.7.0",
-    "node-releases": "2.0.44"
+    "node-releases": "2.0.44",
+    "node-forge": "1.4.0",
+    "http-cache-semantics": "4.3.0",
+    "qs": "6.16.0",
+    "compression": "1.8.2",
+    "webpack-dev-middleware": "5.3.4",
+    "source-map-js": "1.2.2"
   },
   "description": "Web UI for the [Feast Feature Store](https://feast.dev/)",
   "repository": {
