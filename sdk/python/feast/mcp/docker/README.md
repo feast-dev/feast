@@ -32,6 +32,21 @@ Add `--platform linux/amd64,linux/arm64 --push` for a multi-arch build.
 The base tag must be a feature-server build whose `minimal` extra already
 includes `mcp-server`; older tags have no `feast mcp` command.
 
+## Publishing
+
+`make build-feast-mcp-docker` wraps the same command and is what CI calls.
+`BASE_TAG` defaults to `VERSION`:
+
+```bash
+make build-feast-mcp-docker REGISTRY=quay.io/feastdev VERSION=0.66.0 \
+  DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
+```
+
+Releases publish `quay.io/feastdev/feast-mcp` from the
+`build-publish-feast-mcp-image` job in `.github/workflows/publish_images.yml`.
+It runs after the image matrix rather than inside it, because the
+feature-server image it wraps has to be pushed first.
+
 ## Configuration
 
 Everything — transport, host, port, and the Feast server URLs — comes from

@@ -763,6 +763,20 @@ build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
 push-go-feature-server-docker: ## Push Go Feature Server Docker image
 	docker push $(REGISTRY)/go-feature-server:$(VERSION)
 
+push-feast-mcp-docker: ## Push Feast MCP Server Docker image
+	docker push $(REGISTRY)/feast-mcp:$(VERSION)
+
+# Wraps an already-published feature-server image, so that image must exist
+# before this builds. BASE_TAG defaults to VERSION; override it to wrap an
+# older feature-server release.
+build-feast-mcp-docker: ## Build Feast MCP Server Docker image
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
+		--build-arg BASE_IMAGE=$(REGISTRY)/feature-server \
+		--build-arg BASE_TAG=$(if $(BASE_TAG),$(BASE_TAG),$(VERSION)) \
+		-t $(REGISTRY)/feast-mcp:$(VERSION) \
+		-f sdk/python/feast/mcp/docker/Dockerfile \
+		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) sdk/python/feast/mcp/docker
+
 ##@ Dev images
 
 build-feature-server-dev: ## Build Feature Server Dev Docker image
