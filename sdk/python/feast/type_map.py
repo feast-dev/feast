@@ -727,7 +727,7 @@ def _python_datetime_to_int_timestamp(
         if isinstance(value, datetime):
             # A naive datetime is UTC, as everywhere else in Feast. Without this,
             # datetime.timestamp() would read it in the machine's local timezone.
-            if value.tzinfo is None:
+            if value.utcoffset() is None:
                 value = value.replace(tzinfo=timezone.utc)
             int_timestamps.append(int(value.timestamp()))
         elif isinstance(value, Timestamp):
