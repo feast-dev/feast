@@ -8,6 +8,29 @@ Feast supports modern table formats to enable data lakehouse architectures with 
 
 ## Supported Table Formats
 
+### Lance
+
+[Lance](https://lancedb.github.io/lance/) is an Arrow-native table format with
+versioned datasets and vector indexing. Install Feast's native Lance reader and
+namespace client with:
+
+```bash
+pip install 'feast[lance]'
+```
+
+Use `LanceFormat` to select a namespace and optionally pin reads to a dataset
+version or tag:
+
+```python
+from feast.table_format import LanceFormat
+
+lance_format = LanceFormat(
+    catalog="my_catalog",
+    namespace="features",
+    tag="candidate",
+)
+```
+
 ### Apache Iceberg
 
 [Apache Iceberg](https://iceberg.apache.org/) is an open table format designed for huge analytic datasets. It provides:
