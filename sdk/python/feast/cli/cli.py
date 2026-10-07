@@ -363,7 +363,7 @@ def registry_dump_command(ctx: click.Context):
 @click.option(
     "--disable-event-timestamp",
     is_flag=True,
-    help="Materialize all available data without specifying START_TS and END_TS (rows keep their source event timestamps)",
+    help="Materialize all available data, from 1970-01-01 up to the current UTC time, without specifying START_TS and END_TS (rows keep their source event timestamps)",
 )
 @click.option(
     "--version",
@@ -388,7 +388,7 @@ def materialize_command(
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
 
-    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized. Rows keep their source event timestamps.
+    If --disable-event-timestamp is used, timestamps are not required and all available data (from 1970-01-01 up to the current UTC time) will be materialized. Rows keep their source event timestamps.
     """
     store = create_feature_store(ctx)
 

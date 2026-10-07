@@ -2855,7 +2855,7 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            disable_event_timestamp (bool): If True, materializes all available data. Rows keep their source event timestamps.
+            disable_event_timestamp (bool): If True, materializes all available data (from 1970-01-01 up to the current UTC time). Rows keep their source event timestamps.
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
