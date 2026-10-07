@@ -1,7 +1,7 @@
 import click
 from sqlalchemy import create_engine
 
-from feast.infra.registry.sql import SqlRegistryConfig, metadata
+from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig, metadata
 from feast.repo_config import load_repo_config
 from feast.repo_operations import cli_check_repo
 
@@ -22,6 +22,10 @@ def registry_create_schema(ctx: click.Context) -> None:
 
     Use this when schema_mode is set to 'verify' or 'skip' so the application
     does not need DDL privileges at runtime.
+
+    Also runs the additive SavedDataset hierarchy migration (namespace /
+    collection columns + index) — create_all alone does not ALTER existing
+    saved_datasets tables.
     """
     repo = ctx.obj["CHDIR"]
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
@@ -42,5 +46,6 @@ def registry_create_schema(ctx: click.Context) -> None:
         registry_config.path, **registry_config.sqlalchemy_config_kwargs
     )
     metadata.create_all(engine)
+    SqlRegistry._ensure_saved_dataset_hierarchy_columns(engine)
     engine.dispose()
     click.echo("SQL registry schema created successfully.")
