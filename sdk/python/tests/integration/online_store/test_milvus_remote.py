@@ -22,6 +22,7 @@ import pytest
 
 from feast import Entity, FeatureView
 from feast.field import Field
+from feast.filter_models import ComparisonFilter
 from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -360,3 +361,49 @@ def test_consistency_level(
         )
         rows = _read(store, config, fv, [1], ["city"])
         assert rows[0] is not None and rows[0]["city"].string_val == "Oslo"
+
+
+def test_partition_key_filtering(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(tmp_path, project, consistency_level="Strong")
+    fv = FeatureView(
+        name="products",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="brand_id", dtype=String),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="city", dtype=String),
+        ],
+        tags={"milvus.partition_key": "brand_id"},
+    )
+    store.update(config, [], [fv], [], [], partial=False)
+    rows = _vector_rows()
+    rows[1]["brand_id"] = ValueProto(string_val="acme")
+    rows[2]["brand_id"] = ValueProto(string_val="globex")
+    _write_rows(store, config, fv, rows)
+
+    assert store.client is not None
+    fields = store.client.describe_collection(f"{project}_{fv.name}")["fields"]
+    assert [f["name"] for f in fields if f.get("is_partition_key")] == ["brand_id"]
+
+    hits = _search(
+        store,
+        config,
+        fv,
+        [1.0, 0.0],
+        top_k=5,
+        filters=ComparisonFilter(type="eq", key="brand_id", value="globex"),
+    )
+    assert [hit["city"].string_val for hit in hits] == ["Rome"]
