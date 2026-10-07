@@ -34,18 +34,20 @@ includes `mcp-server`; older tags have no `feast mcp` command.
 
 ## Publishing
 
-`make build-feast-mcp-docker` wraps the same command and is what CI calls.
-`BASE_TAG` defaults to `VERSION`:
+CI calls `make build-feast-mcp-docker`. `BASE_TAG` defaults to `VERSION`:
 
 ```bash
 make build-feast-mcp-docker REGISTRY=quay.io/feastdev VERSION=0.66.0 \
   DOCKER_PUSH=true DOCKER_PLATFORMS=linux/amd64,linux/arm64
 ```
 
-Releases publish `quay.io/feastdev/feast-mcp` from the
-`build-publish-feast-mcp-image` job in `.github/workflows/publish_images.yml`.
-It runs after the image matrix rather than inside it, because the
-feature-server image it wraps has to be pushed first.
+| Trigger | Workflow | Repository | Tags |
+| --- | --- | --- | --- |
+| Release tag `v*.*.*` | `publish_images.yml` | `quay.io/feastdev/feast-mcp` | version, `latest` |
+| Merge to `master` | `master_only.yml` | `quay.io/feastdev-ci/feast-mcp` | commit SHA, `develop` |
+
+Both run after the image matrix, not inside it, since the feature-server image
+they wrap has to be pushed first.
 
 ## Configuration
 
