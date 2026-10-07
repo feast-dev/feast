@@ -847,7 +847,7 @@ var _ = Describe("Repo Config", func() {
 			feast := FeastServices{
 				Handler: handler.FeastHandler{FeatureStore: featureStore},
 			}
-			repoConfig, err := feast.getLineageRepoConfig()
+			repoConfig, err := feast.getLineageRepoConfig(false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
 			Expect(repoConfig.Registry.Path).To(Equal(remoteHost))
@@ -879,7 +879,12 @@ var _ = Describe("Repo Config", func() {
 			featureStore.Status.ServiceHostnames.Registry = remoteHost
 
 			feast := FeastServices{
-				Handler: handler.FeastHandler{FeatureStore: featureStore, Scheme: k8sscheme.Scheme},
+				Handler: handler.FeastHandler{
+					Client:       fake.NewClientBuilder().WithScheme(k8sscheme.Scheme).Build(),
+					Context:      context.Background(),
+					FeatureStore: featureStore,
+					Scheme:       k8sscheme.Scheme,
+				},
 			}
 			deploy := &appsv1.Deployment{}
 			Expect(feast.setLineageDeployment(deploy)).To(Succeed())
@@ -918,7 +923,7 @@ var _ = Describe("Repo Config", func() {
 			feast := FeastServices{
 				Handler: handler.FeastHandler{FeatureStore: featureStore},
 			}
-			repoConfig, err := feast.getLineageRepoConfig()
+			repoConfig, err := feast.getLineageRepoConfig(false)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
 			Expect(repoConfig.Registry.Path).To(Equal(resolvedHost))
@@ -956,6 +961,125 @@ var _ = Describe("Repo Config", func() {
 			}
 			err := feast.validateLineageServerConfig()
 			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should include kubernetes auth config in lineage repo config", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig(false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
+			Expect(repoConfig.Registry.RegistryType).To(Equal(RegistryRemoteConfigType))
+			Expect(repoConfig.Registry.Path).To(Equal(remoteHost))
+		})
+
+		It("should default to kubernetes auth in lineage repo config when authzConfig is nil", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig(false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
+		})
+
+		It("should include no_auth config in lineage repo config when NoAuth is set", func() {
+			featureStore := minimalFeatureStore()
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				NoAuth: boolPtr(true),
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig(false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
+		})
+
+		It("should include OIDC auth config in lineage repo config with issuerUrl", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.AuthzConfig = &feastdevv1.AuthzConfig{
+				OidcAuthz: &feastdevv1.OidcAuthz{
+					IssuerUrl: "https://keycloak.example.com/realms/test",
+				},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Replicas: ptr.To[int32](1),
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{FeatureStore: featureStore},
+			}
+			repoConfig, err := feast.getLineageRepoConfig(false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(OidcAuthType))
+			Expect(repoConfig.AuthzConfig.OidcParameters).To(HaveKeyWithValue(
+				string(OidcAuthDiscoveryUrl),
+				"https://keycloak.example.com/realms/test/.well-known/openid-configuration",
+			))
 		})
 
 		It("should reject lineageServer without any registry when authz is set", func() {

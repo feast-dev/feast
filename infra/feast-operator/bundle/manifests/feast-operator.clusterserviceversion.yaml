@@ -80,6 +80,35 @@ metadata:
           "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
+            "name": "sample-mcpserver"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "mcpServer": {
+                "config": {
+                  "configMapRef": {
+                    "name": "sample-mcpserver-config"
+                  }
+                }
+              },
+              "onlineStore": {
+                "server": {}
+              },
+              "registry": {
+                "local": {
+                  "server": {
+                    "restAPI": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
             "name": "sample-remote-servers"
           },
           "spec": {
