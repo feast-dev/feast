@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Callable, List, Optional
 
 import click
 import yaml
@@ -27,6 +27,7 @@ from pygments import formatters, highlight, lexers
 from feast import utils
 from feast.cli.data_sources import data_sources_cmd
 from feast.cli.dbt_import import dbt_cmd
+from feast.cli.discovery import command_inventory, install_dispatch
 from feast.cli.entities import entities_cmd
 from feast.cli.feature_services import feature_services_cmd
 from feast.cli.feature_views import feature_views_cmd
@@ -38,6 +39,12 @@ from feast.cli.features import (
 from feast.cli.label_views import label_views_cmd
 from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
+from feast.cli.output import (
+    StructuredError,
+    StructuredGroup,
+    invocation,
+    machine_output,
+)
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
 from feast.cli.registry import registry_cmd
@@ -54,6 +61,7 @@ from feast.cli.ui import ui
 from feast.cli.validation_references import validation_references_cmd
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.errors import FeastProviderLoginError
+from feast.operation_report import OperationReport, StructuredOperationUnsupported
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -83,7 +91,13 @@ class NoOptionDefaultFormat(click.Command):
                 formatter.write_dl(opts)
 
 
-@click.group()
+@click.group(cls=StructuredGroup)
+@click.option(
+    "--output",
+    type=click.Choice(["json", "yaml"], case_sensitive=False),
+    default=None,
+    help="Opt in to versioned machine-readable output (supported commands only).",
+)
 @click.option(
     "--chdir",
     "-c",
@@ -106,6 +120,7 @@ def cli(
     chdir: Optional[str],
     log_level: str,
     feature_store_yaml: Optional[str],
+    output: Optional[str] = None,
 ):
     """
     Feast CLI
@@ -120,7 +135,9 @@ def cli(
         else utils.get_default_yaml_file_path(ctx.obj["CHDIR"])
     )
     try:
-        level = getattr(logging, log_level.upper())
+        level = getattr(logging, log_level.upper(), None)
+        if not isinstance(level, int):
+            raise click.BadParameter("Unknown logging level", param_hint="--log-level")
         logging.basicConfig(
             format="%(asctime)s %(name)s %(levelname)s: %(message)s",
             datefmt="%m/%d/%Y %I:%M:%S %p",
@@ -138,6 +155,12 @@ def cli(
     except Exception as e:
         raise e
     pass
+
+
+@cli.command()
+def commands() -> None:
+    """Discover command parameters and structured-output capabilities."""
+    click.echo(json.dumps(command_inventory(cli), indent=2))
 
 
 @cli.command()
@@ -258,10 +281,19 @@ def plan_command(
     fs_yaml_file = ctx.obj["FS_YAML_FILE"]
     cli_check_repo(repo, fs_yaml_file)
     repo_config = load_repo_config(repo, fs_yaml_file)
+    if machine_output():
+        _structured_operation(
+            plan,
+            repo_config,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
+        )
+        return
     try:
         plan(repo_config, repo, skip_source_validation, skip_feature_view_validation)
     except FeastProviderLoginError as e:
-        print(str(e))
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command("apply", cls=NoOptionDefaultFormat)
@@ -304,6 +336,17 @@ def apply_total_command(
 
     repo_config = load_repo_config(repo, fs_yaml_file)
 
+    if machine_output():
+        _structured_operation(
+            apply_total,
+            repo_config,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
+            no_promote=no_promote,
+        )
+        return
+
     # Set environment variable to disable progress if requested
     if no_progress:
         import os
@@ -319,7 +362,27 @@ def apply_total_command(
             no_promote=no_promote,
         )
     except FeastProviderLoginError as e:
-        print(str(e))
+        raise click.ClickException(str(e)) from e
+
+
+def _structured_operation(
+    operation: Callable[..., Any], *args: Any, **kwargs: Any
+) -> None:
+    state = invocation.get()
+    assert state is not None
+    report = OperationReport()
+    try:
+        operation(*args, **kwargs, report=report)
+        state.data = {"projects": report.projects}
+    except StructuredOperationUnsupported as e:
+        raise StructuredError(
+            "UNSUPPORTED_CAPABILITY",
+            "Structured planning/apply is not supported by this configuration.",
+            "Use the local provider with SQLite and disable automatic baselines, or omit --output.",
+        ) from e
+    finally:
+        state.operation_started = report.mutation_started
+        state.completed_projects = report.projects
 
 
 @cli.command("teardown", cls=NoOptionDefaultFormat)
@@ -666,6 +729,8 @@ try:
     cli.add_command(mlflow_cmd)
 except ImportError:
     pass
+
+install_dispatch(cli)
 
 if __name__ == "__main__":
     cli()

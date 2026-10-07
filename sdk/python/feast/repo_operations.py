@@ -30,6 +30,11 @@ from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
 from feast.labeling.label_view import LabelView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.operation_report import (
+    OperationReport,
+    RepositoryConfigurationMissing,
+    StructuredOperationUnsupported,
+)
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.repo_config import RepoConfig
@@ -246,9 +251,14 @@ def plan(
     repo_path: Path,
     skip_source_validation: bool,
     skip_feature_view_validation: bool = False,
+    report: Optional[OperationReport] = None,
 ):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
+    if report is not None:
+        _check_structured_operation(repo_config)
+    repo = _get_repo_contents(
+        repo_path, repo_config.project, repo_config, quiet=report is not None
+    )
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
@@ -265,23 +275,28 @@ def plan(
         registry_diff, infra_diff, _ = store.plan(
             repo, skip_feature_view_validation=skip_feature_view_validation
         )
-        click.echo(registry_diff.to_string())
-        click.echo(infra_diff.to_string())
+        if report is None:
+            click.echo(registry_diff.to_string())
+            click.echo(infra_diff.to_string())
+        else:
+            report.record(project.name, registry_diff, infra_diff)
 
 
 def _get_repo_contents(
     repo_path,
     project_name: Optional[str] = None,
     repo_config: Optional[RepoConfig] = None,
+    quiet: bool = False,
 ):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
 
     if len(repo.projects) < 1:
         if project_name:
-            print(
-                f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
-            )
+            if not quiet:
+                print(
+                    f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
+                )
             project_description = (
                 repo_config.project_description if repo_config else None
             )
@@ -366,7 +381,10 @@ def apply_total_with_repo_instance(
     skip_source_validation: bool,
     skip_feature_view_validation: bool = False,
     no_promote: bool = False,
+    report: Optional[OperationReport] = None,
 ):
+    if report is not None:
+        _check_structured_operation(store.config)
     if not skip_source_validation:
         provider = store._get_provider()
         data_sources = [
@@ -391,17 +409,20 @@ def apply_total_with_repo_instance(
                 repo,
                 skip_feature_view_validation=skip_feature_view_validation,
             )
-            click.echo(registry_diff.to_string())
+            if report is None:
+                click.echo(registry_diff.to_string())
 
             # Only show progress bars if there are actual infrastructure changes
             progress_ctx = None
-            if len(infra_diff.infra_object_diffs) > 0:
+            if report is None and len(infra_diff.infra_object_diffs) > 0:
                 from feast.diff.apply_progress import ApplyProgressContext
 
                 progress_ctx = ApplyProgressContext()
                 progress_ctx.start_overall_progress()
 
             # Apply phase
+            if report is not None:
+                report.mutation_started = True
             store._apply_diffs(
                 registry_diff,
                 infra_diff,
@@ -409,7 +430,10 @@ def apply_total_with_repo_instance(
                 progress_ctx=progress_ctx,
                 no_promote=no_promote,
             )
-            click.echo(infra_diff.to_string())
+            if report is None:
+                click.echo(infra_diff.to_string())
+            else:
+                report.record(project_name, registry_diff, infra_diff)
         else:
             # Legacy apply path - no progress bars for legacy path
             store.apply(
@@ -511,9 +535,14 @@ def apply_total(
     skip_source_validation: bool,
     skip_feature_view_validation: bool = False,
     no_promote: bool = False,
+    report: Optional[OperationReport] = None,
 ):
     os.chdir(repo_path)
-    repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
+    if report is not None:
+        _check_structured_operation(repo_config)
+    repo = _get_repo_contents(
+        repo_path, repo_config.project, repo_config, quiet=report is not None
+    )
     for project in repo.projects:
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
@@ -524,7 +553,8 @@ def apply_total(
             )
             sys.exit(1)
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
-        print(f"Applying changes for project {project.name}")
+        if report is None:
+            print(f"Applying changes for project {project.name}")
         apply_total_with_repo_instance(
             store,
             project.name,
@@ -533,7 +563,20 @@ def apply_total(
             skip_source_validation,
             skip_feature_view_validation,
             no_promote=no_promote,
+            report=report,
         )
+
+
+def _check_structured_operation(config: RepoConfig) -> None:
+    """Fail before importing repository code or mutating infrastructure."""
+    dqm = config.data_quality_monitoring_config
+    if (
+        config.provider != "local"
+        or config.online_store is None
+        or config.online_store.type != "sqlite"
+        or (dqm is not None and dqm.auto_baseline)
+    ):
+        raise StructuredOperationUnsupported()
 
 
 def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
@@ -553,11 +596,10 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
 def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
     sys.path.append(str(repo_path))
     if not fs_yaml_file.exists():
-        print(
+        raise RepositoryConfigurationMissing(
             f"Can't find feature repo configuration file at {fs_yaml_file}. "
             "Make sure you're running feast from an initialized feast repository."
         )
-        sys.exit(1)
 
 
 def init_repo(repo_name: str, template: str, repo_path: Optional[str] = None):
