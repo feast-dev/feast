@@ -2555,3 +2555,16 @@ def test_pa_to_feast_value_type_small_and_unsigned_ints(pa_type, expected):
     """Narrow and unsigned Arrow integers, e.g. Parquet int16 columns, widen to
     the smallest Feast integer type that holds every value."""
     assert pa_to_feast_value_type(str(pa_type)) == expected
+
+
+@pytest.mark.parametrize(
+    "dtype", ["int8", "int16", "uint8", "uint16", "uint32", "uint64"]
+)
+def test_pandas_and_arrow_int_inference_agree(dtype):
+    """A column infers the same Feast type from its pandas dtype and its Arrow type."""
+    values = pd.Series([1, 2], dtype=dtype)
+    from_pandas = python_type_to_feast_value_type(
+        "f", value=values.iloc[0], type_name=str(values.dtype)
+    )
+    from_arrow = pa_to_feast_value_type(str(pyarrow.array(values).type))
+    assert from_pandas == from_arrow

@@ -394,7 +394,7 @@ def python_type_to_feast_value_type(
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
+        "uint32": ValueType.INT64,
         "int16": ValueType.INT32,
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
