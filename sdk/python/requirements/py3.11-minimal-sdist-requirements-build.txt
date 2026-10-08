@@ -1018,9 +1018,9 @@ pybind11==3.1.0 \
     --hash=sha256:a1cc06b524ab3edca51f8ad3895f9c4fa20b8b19283173dff4ae781449dc9639 \
     --hash=sha256:b8488090f8acffbcb6b5d6a85571a6827a0a2981ffb75e5a0b27b87c4a6b7dd0
     # via duckdb
-pycparser==3.0 \
-    --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
-    --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
+pycparser==3.1 \
+    --hash=sha256:b3fc6dec06a8b2fefa0ed4ff92285306a5e3be9987bc5603c9edbdc4e492418f \
+    --hash=sha256:f09d358c840bd147b79e55f2bc494f18ea869dc897f5852a8f5766b74f787882
     # via cffi
 pyproject-metadata==0.12.1 \
     --hash=sha256:8809a4df6fe08279b39a8890669506ed3158e0617855ac9aff098fcbe772ae4c \
@@ -1306,7 +1306,6 @@ wheel==0.48.0 \
     #   psycopg
     #   psycopg-c
     #   psycopg-pool
-    #   pycparser
     #   python-dateutil
     #   setuptools-git-versioning
     #   shellingham
