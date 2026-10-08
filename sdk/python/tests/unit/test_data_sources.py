@@ -379,3 +379,41 @@ def test_kafka_source_keeps_a_zero_watermark_delay_threshold():
         KafkaSource.from_proto(unset_proto).kafka_options.watermark_delay_threshold
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "stream_source",
+    [
+        KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+        ),
+        KinesisSource(
+            name="test_source",
+            region="test_region",
+            record_format=ProtoFormat("class_path"),
+            stream_name="test_stream",
+            timestamp_field="event_timestamp",
+        ),
+    ],
+    ids=["kafka", "kinesis"],
+)
+def test_stream_source_without_batch_source_round_trips(stream_source):
+    """``batch_source`` is optional on Kafka and Kinesis sources.
+
+    ``from_proto`` checked ``if data_source.batch_source``, but an unset proto
+    sub-message is still truthy, so the empty message was parsed as a data
+    source and failed with "Could not identify the source type being added."
+    That made these sources impossible to read back from the registry.
+    """
+    proto = stream_source.to_proto()
+    assert not proto.HasField("batch_source")
+
+    restored = DataSource.from_proto(proto)
+
+    assert isinstance(restored, type(stream_source))
+    assert restored.batch_source is None
+    assert restored.name == stream_source.name

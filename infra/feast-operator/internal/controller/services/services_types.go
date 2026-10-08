@@ -81,15 +81,16 @@ const (
 	DefaultRegistryStorageRequest       = "5Gi"
 	MetricsPort                   int32 = 8000
 
-	AuthzFeastType    FeastServiceType = "authorization"
-	OfflineFeastType  FeastServiceType = "offline"
-	OnlineFeastType   FeastServiceType = "online"
-	RegistryFeastType FeastServiceType = "registry"
-	UIFeastType       FeastServiceType = "ui"
-	LineageFeastType  FeastServiceType = "lineage"
-	ClientFeastType   FeastServiceType = "client"
-	ClientCaFeastType FeastServiceType = "client-ca"
-	CronJobFeastType  FeastServiceType = "cronjob"
+	AuthzFeastType     FeastServiceType = "authorization"
+	OfflineFeastType   FeastServiceType = "offline"
+	OnlineFeastType    FeastServiceType = "online"
+	RegistryFeastType  FeastServiceType = "registry"
+	UIFeastType        FeastServiceType = "ui"
+	LineageFeastType   FeastServiceType = "lineage"
+	McpServerFeastType FeastServiceType = "mcpserver"
+	ClientFeastType    FeastServiceType = "client"
+	ClientCaFeastType  FeastServiceType = "client-ca"
+	CronJobFeastType   FeastServiceType = "cronjob"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
@@ -139,6 +140,12 @@ const (
 	registryName            = "registry"
 	feastInitContainerName  = "feast-init"
 	feastApplyContainerName = "feast-apply"
+
+	// MCP server (standalone `feast mcp`) constants
+	mcpServerConfigVolumeName = "mcp-server-config"
+	mcpServerConfigMountPath  = "/etc/feast/mcp"
+	mcpServerConfigDefaultKey = "feast_mcp.yaml"
+	mcpServerTransportEnvVar  = "FEAST_MCP_TRANSPORT"
 
 	// Test-specific constants
 	dataOnlineDbPath              = "/data/online.db"
@@ -210,6 +217,11 @@ var (
 			TargetHttpPort:  6580,
 			TargetHttpsPort: 6581,
 		},
+		McpServerFeastType: {
+			Args:            []string{"mcp"},
+			TargetHttpPort:  8100,
+			TargetHttpsPort: 8101,
+		},
 	}
 
 	FeastServiceConditions = map[FeastServiceType]map[metav1.ConditionStatus]metav1.Condition{
@@ -276,6 +288,19 @@ var (
 				Type:   feastdevv1.LineageReadyType,
 				Status: metav1.ConditionFalse,
 				Reason: feastdevv1.LineageFailedReason,
+			},
+		},
+		McpServerFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1.McpServerReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1.ReadyReason,
+				Message: feastdevv1.McpServerReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1.McpServerReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1.McpServerFailedReason,
 			},
 		},
 		ClientFeastType: {
