@@ -16,6 +16,7 @@ from feast.repo_config import FeastConfigBaseModel
 
 
 class FaissOnlineStoreConfig(FeastConfigBaseModel):
+    type: str = "feast.infra.online_stores.faiss_online_store.FaissOnlineStore"
     dimension: int
     index_path: str
     index_type: str = "IVFFlat"
