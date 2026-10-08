@@ -156,14 +156,14 @@ const DataSourceOverviewTab = () => {
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={
-                          data?.requestDataOptions?.schema!.map((obj: any) => {
+                        fields={data?.requestDataOptions?.schema!.map(
+                          (obj: any) => {
                             return {
                               fieldName: obj.name!,
                               valueType: obj.valueType!,
                             };
-                          })!
-                        }
+                          },
+                        )!}
                       />
                     </EuiPanel>
                   ) : (
