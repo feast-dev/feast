@@ -358,7 +358,7 @@ class OfflineServer(fl.FlightServerBase):
                     entity_df = command["entity_df_sql"]
                 table = self._get_historical_features_direct(
                     command, entity_df
-                ).to_arrow()
+                ).to_arrow_reader()
             else:
                 table = self._execute_read_api(api, command, key=None)
         except Exception as e:
@@ -373,14 +373,14 @@ class OfflineServer(fl.FlightServerBase):
 
     def _execute_read_api(
         self, api: str, command: dict, key: Optional[str] = None
-    ) -> pa.Table:
-        """Dispatch a read API call and return the result as an Arrow table."""
+    ) -> Union[pa.Table, pa.RecordBatchReader]:
+        """Dispatch a read API call and return the result as an Arrow table or reader."""
         if api == OfflineServer.get_historical_features.__name__:
-            return self.get_historical_features(command, key).to_arrow()
+            return self.get_historical_features(command, key).to_arrow_reader()
         elif api == OfflineServer.pull_all_from_table_or_query.__name__:
-            return self.pull_all_from_table_or_query(command).to_arrow()
+            return self.pull_all_from_table_or_query(command).to_arrow_reader()
         elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
-            return self.pull_latest_from_table_or_query(command).to_arrow()
+            return self.pull_latest_from_table_or_query(command).to_arrow_reader()
         elif (
             api
             == OfflineServer.get_table_column_names_and_types_from_data_source.__name__
