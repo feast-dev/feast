@@ -41,7 +41,7 @@ A `feast-mcp` console script is also installed. It is equivalent to `feast mcp`,
 
 **Server options:**
 * `--transport`: MCP transport to serve: `stdio`, `http`, `streamable-http`, or `sse` (default: `stdio`)
-* `--host`: Bind address for HTTP transports (default: `0.0.0.0`)
+* `--host`: Bind address for HTTP transports (default: `0.0.0.0`). Use `::` to serve both IPv6 and IPv4 clients; it falls back to `0.0.0.0` where IPv6 is unavailable.
 * `--port`: Bind port for HTTP transports (default: 8000)
 * `--workers`: Run under gunicorn with this many workers. Not supported by the `sse` transport
 

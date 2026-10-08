@@ -109,7 +109,25 @@ def _run_uvicorn(mcp: FastMCP, cfg: Config) -> None:
     import uvicorn
 
     app = _build_http_app(mcp, cfg)
-    uvicorn.run(app, host=cfg.server.host, port=cfg.server.port)
+    if cfg.server.host == "::":
+        # uvicorn.run(host="::") binds IPv6-only, which drops IPv4 clients
+        # (see feast.utils._make_dual_stack_socket).
+        from feast.utils import _make_dual_stack_socket
+
+        sock = _make_dual_stack_socket(cfg.server.port)
+        uvicorn.Server(uvicorn.Config(app)).run(sockets=[sock])
+    else:
+        uvicorn.run(app, host=cfg.server.host, port=cfg.server.port)
+
+
+def _gunicorn_bind(cfg: Config) -> str:
+    """Bind address for gunicorn: ``::`` becomes the bracketed ``[::]`` (dual-stack), or ``0.0.0.0`` where IPv6 is unavailable."""
+    host = cfg.server.host
+    if host == "::":
+        from feast.utils import _ipv6_available
+
+        host = "[::]" if _ipv6_available() else "0.0.0.0"
+    return f"{host}:{cfg.server.port}"
 
 
 def _run_gunicorn(mcp: FastMCP, cfg: Config) -> None:
@@ -119,7 +137,7 @@ def _run_gunicorn(mcp: FastMCP, cfg: Config) -> None:
 
     class FeastMCPApplication(BaseApplication):
         def load_config(self) -> None:
-            self.cfg.set("bind", f"{cfg.server.host}:{cfg.server.port}")
+            self.cfg.set("bind", _gunicorn_bind(cfg))
             self.cfg.set("workers", cfg.server.workers)
             self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
             self.cfg.set("accesslog", "-")
@@ -225,7 +243,7 @@ def run_server(
 @click.option(
     "--host",
     default=None,
-    help="Bind address for HTTP transports.  [default: 0.0.0.0]",
+    help="Bind address for HTTP transports; '::' serves IPv6 and IPv4.  [default: 0.0.0.0]",
 )
 @click.option(
     "--port",
