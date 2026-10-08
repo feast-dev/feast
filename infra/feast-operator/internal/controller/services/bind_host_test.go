@@ -42,6 +42,8 @@ func TestWithBindHost(t *testing.T) {
 		{"-h as first arg is still replaced", LineageFeastType, []string{"-h", hostAllIPv4}, dual, []string{"-h", "::"}},
 		{"-h with no following value does not panic or get touched", OnlineFeastType, []string{"serve", "-h"}, dual, []string{"serve", "-h"}},
 		{"lineage bare", LineageFeastType, []string{"serve_lineage", "-h", hostAllIPv4}, dual, []string{"serve_lineage", "-h", "::"}},
+		{"mcp --host bare", McpServerFeastType, []string{"feast", "mcp", "--host", hostAllIPv4, "--port", "8100"}, dual, []string{"feast", "mcp", "--host", "::", "--port", "8100"}},
+		{"mcp --host unset keeps ipv4", McpServerFeastType, []string{"feast", "mcp", "--host", hostAllIPv4, "--port", "8100"}, &feastdevv1.ServerConfigs{}, []string{"feast", "mcp", "--host", hostAllIPv4, "--port", "8100"}},
 		{"registry has no host flag", RegistryFeastType, []string{"serve_registry"}, dual, []string{"serve_registry"}},
 	}
 	for _, tc := range cases {

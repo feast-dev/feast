@@ -815,8 +815,8 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	return feastCommand
 }
 
-// withBindHost returns a copy of args with the "-h" host set to the IPv6 wildcard when dual-stack is enabled.
-// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage) rejects it.
+// withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
+// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage, mcp) rejects it.
 func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feastdevv1.ServerConfigs) []string {
 	out := append([]string{}, args...)
 	if serverConfigs == nil || serverConfigs.DualStack == nil || !*serverConfigs.DualStack {
@@ -827,7 +827,7 @@ func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feas
 		host = hostAllIPv6Bracketed
 	}
 	for i := 0; i+1 < len(out); i++ {
-		if out[i] == "-h" {
+		if out[i] == "-h" || out[i] == "--host" {
 			out[i+1] = host
 		}
 	}
@@ -851,7 +851,7 @@ func (feast *FeastServices) getMcpServerCommand() []string {
 	} else if !feast.hasMcpServerTransportEnv() {
 		cmd = append(cmd, "--transport", "http")
 	}
-	return cmd
+	return withBindHost(McpServerFeastType, cmd, feast.getServerConfigs(McpServerFeastType))
 }
 
 // hasMcpServerTransportEnv reports whether the user set the MCP transport through mcpServer.env.
