@@ -2531,7 +2531,7 @@ packages:
   - cryptography>=43.0 ; extra == 'test'
   - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,glide,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,mcp-server,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
-  - virtualenv>=20.26,<21 ; extra == 'ci'
+  - virtualenv==21.14.1 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
   - ruff>=0.8.0 ; extra == 'ci'
   - mypy-protobuf>=3.1 ; extra == 'ci'

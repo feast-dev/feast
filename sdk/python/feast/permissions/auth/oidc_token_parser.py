@@ -1,8 +1,11 @@
 import logging
 import os
 import ssl
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock
+
+if TYPE_CHECKING:
+    from kubernetes.client import AuthenticationV1Api
 
 import jwt
 from fastapi import Request
@@ -40,7 +43,7 @@ class OidcTokenParser(TokenParser):
             verify_ssl=self._auth_config.verify_ssl,
             ca_cert_path=self._auth_config.ca_cert_path,
         )
-        self._k8s_auth_api = None
+        self._k8s_auth_api: Optional["AuthenticationV1Api"] = None
         self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
 
     def _get_jwks_client(self) -> PyJWKClient:
@@ -293,15 +296,13 @@ class OidcTokenParser(TokenParser):
         token_review = client.V1TokenReview(
             spec=client.V1TokenReviewSpec(token=access_token)
         )
-        auth_api: client.AuthenticationV1Api = self._k8s_auth_api
-        response = auth_api.create_token_review(token_review)
+        response = self._k8s_auth_api.create_token_review(token_review)
+        status = response.status
+        if status is None or not status.authenticated:
+            error = getattr(status, "error", None) if status is not None else None
+            raise AuthenticationError(f"Kubernetes token validation failed: {error}")
 
-        if not response.status.authenticated:
-            raise AuthenticationError(
-                f"Kubernetes token validation failed: {response.status.error}"
-            )
-
-        username = getattr(response.status.user, "username", "") or ""
+        username = getattr(status.user, "username", "") or ""
         namespaces = []
         if username.startswith("system:serviceaccount:") and username.count(":") >= 3:
             namespaces.append(username.split(":")[2])
