@@ -2507,3 +2507,18 @@ def test_pa_to_feast_value_type_decodes_a_real_arrow_vector_type():
     pa_type = pyarrow.list_(pyarrow.float32(), 8)
     assert str(pa_type) == "fixed_size_list<item: float>[8]"
     assert pa_to_feast_value_type(str(pa_type)) == ValueType.FLOAT_LIST
+
+
+@pytest.mark.parametrize(
+    "spark_type, expected",
+    [
+        ("smallint", ValueType.INT32),
+        ("tinyint", ValueType.INT32),
+        ("array<smallint>", ValueType.INT32_LIST),
+        ("array<tinyint>", ValueType.INT32_LIST),
+    ],
+)
+def test_spark_to_feast_value_type_small_ints(spark_type, expected):
+    """SparkSource passes ``DataType.simpleString()``, which spells ShortType and
+    ByteType as ``smallint`` and ``tinyint``."""
+    assert spark_to_feast_value_type(spark_type) == expected
