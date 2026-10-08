@@ -989,20 +989,8 @@ def _augment_response_with_on_demand_transforms(
                     if k not in undeclared_columns
                 }
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    odfv_input_dict
+                    odfv_input_dict, full_feature_names
                 )
-                if full_feature_names:
-                    # The UDF returns short output names, but the requested refs
-                    # use "<view>__<feature>" (transform_arrow renames the same way).
-                    odfv_output_names = {f.name for f in odfv.features}
-                    transformed_features_dict = {
-                        (
-                            odfv._get_projected_feature_name(name)
-                            if name in odfv_output_names
-                            else name
-                        ): values
-                        for name, values in transformed_features_dict.items()
-                    }
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
                     initial_response_arrow = initial_response.to_arrow()

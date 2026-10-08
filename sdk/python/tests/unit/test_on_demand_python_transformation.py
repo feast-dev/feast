@@ -805,6 +805,53 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
         assert result["achieved_ranks"] == expected_ranks
 
 
+@pytest.mark.parametrize("singleton", [False, True])
+def test_transform_dict_full_feature_names(singleton):
+    """transform_dict names its outputs like transform_arrow: short names by
+    default, ``<view>__<feature>`` (alias included) with full_feature_names."""
+    request_source = RequestSource(
+        name="request_source", schema=[Field(name="val", dtype=Int64)]
+    )
+
+    if singleton:
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[Field(name="val_plus_one", dtype=Int64)],
+            mode="python",
+            singleton=True,
+        )
+        def plus_one(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"val_plus_one": inputs["val"] + 1}
+
+    else:
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[Field(name="val_plus_one", dtype=Int64)],
+            mode="python",
+        )
+        def plus_one(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"val_plus_one": [v + 1 for v in inputs["val"]]}
+
+    inputs: dict[str, Any] = {"val": [1]} if singleton else {"val": [1, 2]}
+    expected = 2 if singleton else [2, 3]
+
+    short = plus_one.transform_dict(inputs)
+    assert short["val_plus_one"] == expected
+    assert "plus_one__val_plus_one" not in short
+
+    full = plus_one.transform_dict(inputs, full_feature_names=True)
+    assert full["plus_one__val_plus_one"] == expected
+    assert "val_plus_one" not in full
+
+    aliased = plus_one.with_name("alias").transform_dict(
+        inputs, full_feature_names=True
+    )
+    assert aliased["alias__val_plus_one"] == expected
+    assert "val_plus_one" not in aliased
+
+
 def test_invalid_python_transformation_raises_type_error_on_apply():
     with tempfile.TemporaryDirectory() as data_dir:
         store = FeatureStore(
