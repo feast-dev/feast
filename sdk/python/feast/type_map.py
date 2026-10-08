@@ -725,6 +725,10 @@ def _python_datetime_to_int_timestamp(
     int_timestamps = []
     for value in values:
         if isinstance(value, datetime):
+            # A naive datetime is UTC, as everywhere else in Feast. Without this,
+            # datetime.timestamp() would read it in the machine's local timezone.
+            if value.utcoffset() is None:
+                value = value.replace(tzinfo=timezone.utc)
             int_timestamps.append(int(value.timestamp()))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
@@ -1964,6 +1968,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "string": ValueType.STRING,
         "int": ValueType.INT32,
         "short": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -1975,6 +1981,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<byte>": ValueType.BYTES_LIST,
         "array<string>": ValueType.STRING_LIST,
         "array<int>": ValueType.INT32_LIST,
+        "array<smallint>": ValueType.INT32_LIST,
+        "array<tinyint>": ValueType.INT32_LIST,
         "array<bigint>": ValueType.INT64_LIST,
         "array<double>": ValueType.DOUBLE_LIST,
         "array<decimal>": ValueType.DOUBLE_LIST,

@@ -322,7 +322,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2e/c3/94ade4906a2f88bc935772f59c934013b4205e773bcb4239db114a6da136/pyarrow_hotfix-0.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -382,6 +381,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a6/7c/da97476f3c2e90e9f00bfb19def7cbb5f841b7661e3cd09c6a89beaa5b98/grpcio-1.84.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/cd/ce6e848bbf2c32314c9b237839119c5a564a59725b53157c856e90937b7a/markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
@@ -451,7 +451,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2e/c3/94ade4906a2f88bc935772f59c934013b4205e773bcb4239db114a6da136/pyarrow_hotfix-0.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -511,6 +510,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a7/4f/4af258e1ce388eb64be82d6466b7d0b3bc3eede154e14c3360a76a759b71/greenlet-3.5.6-cp310-cp310-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/54/f67120006fc73a55b6d057d4662d061fbb4eceafce3047c76ca8b382eb11/ast_serialize-0.11.2-cp39-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
@@ -581,7 +581,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2e/c3/94ade4906a2f88bc935772f59c934013b4205e773bcb4239db114a6da136/pyarrow_hotfix-0.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -641,6 +640,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl
@@ -725,7 +725,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/cd/4f564b8f132de25db594efc706897069f016790cea63a5669c9df2675f64/charset_normalizer-3.5.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -786,6 +785,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/cd/ce6e848bbf2c32314c9b237839119c5a564a59725b53157c856e90937b7a/markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/f6/21657bb3beb5f8c57ce8be3b83f653dd7933c2fd00545ed1b092d464799a/uvloop-0.22.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -864,7 +864,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/72/98342feb672507c8f3a69e34b4fa8961f608edba5c1a48a6f47156d92cb5/protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl
@@ -929,6 +928,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/4f/4af258e1ce388eb64be82d6466b7d0b3bc3eede154e14c3360a76a759b71/greenlet-3.5.6-cp310-cp310-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/54/f67120006fc73a55b6d057d4662d061fbb4eceafce3047c76ca8b382eb11/ast_serialize-0.11.2-cp39-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b6/9e/8d9f6b9746f8ede78b0a4e4b8908e4d80bd609fca0b3e3195a07dda29534/minio-7.2.11-py3-none-any.whl
@@ -1003,7 +1003,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2c/58/ca301544e1fa93ed4f80d724bf5b194f6e4b945841c5bfd555878eea9fcb/referencing-0.37.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/41/760f9a076085d043d9fbb8f840436e1d21e47682c976d3620efbf02a3b9e/ray-2.58.0-cp310-cp310-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -1065,6 +1064,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ae/de/4204e6646e278b1cd4a9cf73ebe8b7cfcf16693f1249b324eb273d67602a/yarl-1.25.1-cp310-cp310-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/b3/55/ecca97ae19075f1fac62def77731e7f535e6c1fb8f92ff08160c5e6dade8/importlib_metadata-9.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b6/9e/8d9f6b9746f8ede78b0a4e4b8908e4d80bd609fca0b3e3195a07dda29534/minio-7.2.11-py3-none-any.whl
@@ -1161,7 +1161,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/64/fc977715bb54d78e4863d705eb6013241ade24247f1373a2be20e05cf6e3/google_cloud_bigquery-3.45.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/c2/32bd222eb73f2e72c471c106a1ca4090f66870f6c7fa95269e6d09eb1b72/snowflake_connector_python-4.7.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
@@ -1242,6 +1241,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/4b/0a906d8184f011ff8dbd4722743783867589b33269d2c5fff238d636fdcb/pymysql-1.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/cd/ce6e848bbf2c32314c9b237839119c5a564a59725b53157c856e90937b7a/markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/af/f3/75928f071b26151423e7a681defd6eee6fa8181de70cb22ea2211c295d39/types_pymysql-1.2.0.20260923-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b2/c9/1dc5941062fd196959ab343174d91f132cb2308cc3c80deb7dd194543977/google_cloud_bigquery_storage-2.41.0-py3-none-any.whl
@@ -1336,7 +1336,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/64/fc977715bb54d78e4863d705eb6013241ade24247f1373a2be20e05cf6e3/google_cloud_bigquery-3.45.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -1421,6 +1420,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/4f/4af258e1ce388eb64be82d6466b7d0b3bc3eede154e14c3360a76a759b71/greenlet-3.5.6-cp310-cp310-macosx_11_0_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/a9/4b/0a906d8184f011ff8dbd4722743783867589b33269d2c5fff238d636fdcb/pymysql-1.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/f3/75928f071b26151423e7a681defd6eee6fa8181de70cb22ea2211c295d39/types_pymysql-1.2.0.20260923-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/54/f67120006fc73a55b6d057d4662d061fbb4eceafce3047c76ca8b382eb11/ast_serialize-0.11.2-cp39-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b2/c9/1dc5941062fd196959ab343174d91f132cb2308cc3c80deb7dd194543977/google_cloud_bigquery_storage-2.41.0-py3-none-any.whl
@@ -1514,7 +1514,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/60/423a63fb190a0483d049786a121bd3dfd7d93bb5ff1bb5b5cd13e5df99a7/pytest_benchmark-3.4.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/a1/2f2c1c2353350d66c4d110d283e422e4943eb5ad10effa9357ba66f7b5b9/pytest_lazy_fixture-0.6.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/64/fc977715bb54d78e4863d705eb6013241ade24247f1373a2be20e05cf6e3/google_cloud_bigquery-3.45.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/43/8deecb4c123bbc16d25666f1a6d241109c97aeb2e50806b952661c8e4b95/pytest_mock-1.10.4-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl
@@ -1597,6 +1596,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/4b/0a906d8184f011ff8dbd4722743783867589b33269d2c5fff238d636fdcb/pymysql-1.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ae/de/4204e6646e278b1cd4a9cf73ebe8b7cfcf16693f1249b324eb273d67602a/yarl-1.25.1-cp310-cp310-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/af/f3/75928f071b26151423e7a681defd6eee6fa8181de70cb22ea2211c295d39/types_pymysql-1.2.0.20260923-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b2/c9/1dc5941062fd196959ab343174d91f132cb2308cc3c80deb7dd194543977/google_cloud_bigquery_storage-2.41.0-py3-none-any.whl
@@ -2509,6 +2509,9 @@ packages:
   - sqlite-vec==0.1.6 ; extra == 'sqlite-vec'
   - fastapi-mcp ; extra == 'mcp'
   - mcp>=1.0,<1.30 ; extra == 'mcp'
+  - fastmcp>=3.0 ; extra == 'mcp-server'
+  - httpx>=0.24 ; extra == 'mcp-server'
+  - python-dotenv>=1.0 ; extra == 'mcp-server'
   - mlflow>=2.10.0 ; extra == 'mlflow'
   - dbt-artifacts-parser ; extra == 'dbt'
   - pytest>=6.0.0,<8 ; extra == 'test'
@@ -2524,17 +2527,17 @@ packages:
   - py>=1.11.0 ; extra == 'test'
   - testcontainers>=4.15.0rc2 ; extra == 'test'
   - minio==7.2.11 ; extra == 'test'
-  - python-keycloak==4.2.2 ; extra == 'test'
+  - python-keycloak>=4.7.3,<5 ; extra == 'test'
   - cryptography>=43.0 ; extra == 'test'
-  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,glide,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
+  - feast[aws,azure,cassandra,clickhouse,couchbase,delta,docling,duckdb,elasticsearch,faiss,gcp,ge,glide,go,grpcio,hazelcast,hbase,ibis,iceberg,image,k8s,mcp,mcp-server,milvus,mlflow,mongodb,mssql,mysql,openlineage,opentelemetry,oracle,postgres,pytorch,qdrant,rag,ray,redis,scylladb,singlestore,snowflake,spark,sqlite-vec,test,trino] ; extra == 'ci'
   - build ; extra == 'ci'
-  - virtualenv==20.23.0 ; extra == 'ci'
+  - virtualenv>=20.26,<21 ; extra == 'ci'
   - dbt-artifacts-parser ; extra == 'ci'
   - ruff>=0.8.0 ; extra == 'ci'
   - mypy-protobuf>=3.1 ; extra == 'ci'
   - grpcio-tools>=1.56.2 ; extra == 'ci'
   - grpcio-testing>=1.56.2 ; extra == 'ci'
-  - httpx==0.27.2 ; extra == 'ci'
+  - httpx>=0.28.1 ; extra == 'ci'
   - mock==2.0.0 ; extra == 'ci'
   - moto<5 ; extra == 'ci'
   - mypy>=1.4.1,<1.11.3 ; extra == 'ci'
@@ -2559,7 +2562,7 @@ packages:
   - feast[docling,image,milvus,pytorch,rag] ; extra == 'nlp'
   - feast[ci] ; extra == 'dev'
   - feast[ci] ; extra == 'docs'
-  - feast[aws,duckdb,gcp,go,grpcio,k8s,mcp,milvus,mysql,opentelemetry,postgres-c,redis,snowflake] ; extra == 'minimal'
+  - feast[aws,duckdb,gcp,go,grpcio,k8s,mcp,mcp-server,milvus,mysql,opentelemetry,postgres-c,redis,snowflake] ; extra == 'minimal'
   - feast[minimal] ; extra == 'minimal-sdist-build'
   - feast[ibis] ; extra == 'minimal-sdist-build'
   - meson<1.7.2 ; extra == 'minimal-sdist-build'
@@ -3379,18 +3382,6 @@ packages:
   sha256: e0b379f38299ff27a653f03eaa69b08a6fd4484e46fd1c9907d984b9f9daeda6
   requires_dist:
   - pytest>=3.2.5
-- pypi: https://files.pythonhosted.org/packages/2e/2e/dfbd2c9b3edf6a5a8cd9e66090221046839b488ea27824970426bf06b242/python_keycloak-4.2.2-py3-none-any.whl
-  name: python-keycloak
-  version: 4.2.2
-  sha256: 5137fd87c69031a372a578df96bae96b9aead2c9dad976613bc978e9e0246a1e
-  requires_dist:
-  - async-property>=0.2.2
-  - deprecation>=2.1.0
-  - httpx>=0.23.2
-  - jwcrypto>=1.5.4
-  - requests>=2.20.0
-  - requests-toolbelt>=0.6.0
-  requires_python: '>=3.8,<4.0'
 - pypi: https://files.pythonhosted.org/packages/2e/c3/94ade4906a2f88bc935772f59c934013b4205e773bcb4239db114a6da136/pyarrow_hotfix-0.7-py3-none-any.whl
   name: pyarrow-hotfix
   version: '0.7'
@@ -6083,6 +6074,18 @@ packages:
   - pytest ; extra == 'testing'
   - tox ; extra == 'testing'
   requires_python: '>=3.8'
+- pypi: https://files.pythonhosted.org/packages/ab/a8/3812b0604b0aac1d6c190baa2b7d46ff50ef67d0ac94d64e39bd0e448188/python_keycloak-4.7.3-py3-none-any.whl
+  name: python-keycloak
+  version: 4.7.3
+  sha256: 638a21a450a525989733299b6db1627a0656e770b6cadb2c1d21edb2244df3ce
+  requires_dist:
+  - async-property>=0.2.2
+  - deprecation>=2.1.0
+  - httpx>=0.23.2
+  - jwcrypto>=1.5.4
+  - requests>=2.20.0
+  - requests-toolbelt>=0.6.0
+  requires_python: '>=3.9,<4.0'
 - pypi: https://files.pythonhosted.org/packages/ae/d5/d8a4eb6d6c7f66b91dd37c576d76e9e60fba900caf5372c17bcf949febc2/pydantic_core-2.46.5-cp314-cp314-macosx_11_0_arm64.whl
   name: pydantic-core
   version: 2.46.5

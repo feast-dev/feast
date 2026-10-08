@@ -1,6 +1,8 @@
 import subprocess
 import sys
+import time
 import uuid
+from datetime import datetime, timedelta, timezone, tzinfo
 
 import numpy as np
 import pandas as pd
@@ -51,6 +53,60 @@ def test_null_unix_timestamp_list():
     converted = feast_value_type_to_python_type(protos[0])
 
     assert converted[0] is None
+
+
+@pytest.fixture
+def non_utc_local_timezone(monkeypatch):
+    """Run the test with a local timezone that is not UTC."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("Changing the process timezone requires time.tzset")
+    # POSIX fixed offset (UTC-8), so no timezone database is needed.
+    monkeypatch.setenv("TZ", "UTC+8")
+    time.tzset()
+    assert datetime.now().astimezone().utcoffset() != timedelta(0)
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+class _NoOffsetTimezone(tzinfo):
+    """A tzinfo whose utcoffset() is None, so datetimes using it are naive."""
+
+    def utcoffset(self, dt):
+        return None
+
+    def dst(self, dt):
+        return None
+
+    def tzname(self, dt):
+        return None
+
+
+@pytest.mark.parametrize("naive_tzinfo", [None, _NoOffsetTimezone()])
+@pytest.mark.parametrize(
+    "value_type",
+    [
+        ValueType.UNIX_TIMESTAMP,
+        ValueType.UNIX_TIMESTAMP_LIST,
+        ValueType.UNIX_TIMESTAMP_SET,
+    ],
+)
+def test_naive_datetime_unix_timestamp_is_utc(
+    non_utc_local_timezone, value_type, naive_tzinfo
+):
+    """A naive datetime is read as UTC, not in the local timezone."""
+    naive = datetime(2024, 7, 1, 12, 0, 0, tzinfo=naive_tzinfo)
+    assert naive.utcoffset() is None
+    value = naive if value_type == ValueType.UNIX_TIMESTAMP else [naive]
+
+    proto = python_values_to_proto_values([value], value_type)[0]
+    converted = feast_value_type_to_python_type(proto)
+
+    expected = datetime(2024, 7, 1, 12, 0, 0, tzinfo=timezone.utc)
+    if value_type == ValueType.UNIX_TIMESTAMP:
+        assert converted == expected
+    else:
+        assert list(converted) == [expected]
 
 
 @pytest.mark.parametrize(
@@ -2451,3 +2507,18 @@ def test_pa_to_feast_value_type_decodes_a_real_arrow_vector_type():
     pa_type = pyarrow.list_(pyarrow.float32(), 8)
     assert str(pa_type) == "fixed_size_list<item: float>[8]"
     assert pa_to_feast_value_type(str(pa_type)) == ValueType.FLOAT_LIST
+
+
+@pytest.mark.parametrize(
+    "spark_type, expected",
+    [
+        ("smallint", ValueType.INT32),
+        ("tinyint", ValueType.INT32),
+        ("array<smallint>", ValueType.INT32_LIST),
+        ("array<tinyint>", ValueType.INT32_LIST),
+    ],
+)
+def test_spark_to_feast_value_type_small_ints(spark_type, expected):
+    """SparkSource passes ``DataType.simpleString()``, which spells ShortType and
+    ByteType as ``smallint`` and ``tinyint``."""
+    assert spark_to_feast_value_type(spark_type) == expected

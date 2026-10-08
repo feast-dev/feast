@@ -17,3 +17,11 @@ Feast users can choose to retrieve features from a feature server, as opposed to
 {% content-ref url="registry-server.md" %}
 [registry-server.md](registry-server.md)
 {% endcontent-ref %}
+
+{% content-ref url="mcp-feature-server.md" %}
+[mcp-feature-server.md](mcp-feature-server.md)
+{% endcontent-ref %}
+
+{% content-ref url="mcp-server.md" %}
+[mcp-server.md](mcp-server.md)
+{% endcontent-ref %}
