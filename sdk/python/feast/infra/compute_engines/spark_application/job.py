@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional
+from typing import Any, Optional, cast
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
@@ -135,12 +135,15 @@ class SparkApplicationMaterializationJob(MaterializationJob):
         last_exc = None
         for attempt in range(_MAX_RETRIES):
             try:
-                return self.custom_api.get_namespaced_custom_object(
-                    group="sparkoperator.k8s.io",
-                    version="v1beta2",
-                    namespace=self.namespace,
-                    plural="sparkapplications",
-                    name=f"feast-sa-{self._job_id}",
+                return cast(
+                    Optional[dict[Any, Any]],
+                    self.custom_api.get_namespaced_custom_object(
+                        group="sparkoperator.k8s.io",
+                        version="v1beta2",
+                        namespace=self.namespace,
+                        plural="sparkapplications",
+                        name=f"feast-sa-{self._job_id}",
+                    ),
                 )
             except ApiException as e:
                 if e.status == 404:
