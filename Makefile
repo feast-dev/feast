@@ -170,7 +170,8 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+	# --no-sync: CI installs via hashed uv pip sync first; re-sync can downgrade protobuf.
+	uv run --no-sync python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
 		--cov=feast \
 		--cov-report=xml \
 		--cov-report=term-missing \
@@ -200,7 +201,7 @@ test-python-smoke: ## Quick smoke test for development
 		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not snowflake" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/integration/registration \
@@ -218,7 +219,7 @@ test-python-integration-parallel: ## Run integration tests with enhanced paralle
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/component/ray \
@@ -229,7 +230,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test and not ray_offline_stores_only" \
 		--log-cli-level=INFO -s \

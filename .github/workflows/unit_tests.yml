@@ -62,7 +62,9 @@ jobs:
           export PATH="${{ github.workspace }}/.venv/bin:$PATH"
 
           # Dynamically detect site-packages for uv env
-          SITE_PACKAGES=$(uv run python -c "import site; print(site.getsitepackages()[0])")
+          # --no-sync: env was already installed via hashed uv pip sync; a fresh
+          # uv sync can downgrade protobuf and break grpcio-health-checking.
+          SITE_PACKAGES=$(uv run --no-sync python -c "import site; print(site.getsitepackages()[0])")
 
           # Preserve any existing PYTHONPATH and add repo + site-packages
           export PYTHONPATH="${{ github.workspace }}/sdk/python:${PYTHONPATH}:$SITE_PACKAGES"
