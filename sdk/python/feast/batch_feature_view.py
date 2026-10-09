@@ -2,7 +2,7 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import dill
 
@@ -162,11 +162,13 @@ class BatchFeatureView(FeatureView):
             version=version,
         )
 
-    def __copy__(self):
+    def __copy__(self) -> "BatchFeatureView":
         fv = BatchFeatureView(
             name=self.name,
-            mode=self.mode,
-            source=self.source_views if self.source_views else self.batch_source,
+            mode=cast(Union[TransformationMode, str], self.mode),
+            source=cast(List["BatchFeatureView"], self.source_views)
+            if self.source_views
+            else self.batch_source,
             sink_source=self.batch_source if self.source_views else None,
             schema=self.schema,
             ttl=self.ttl,
