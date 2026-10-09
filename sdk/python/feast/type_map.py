@@ -15,6 +15,7 @@
 import decimal
 import json
 import logging
+import math
 import re
 import uuid as uuid_module
 from collections import defaultdict
@@ -732,7 +733,9 @@ def _python_datetime_to_int_timestamp(
             # datetime.timestamp() would read it in the machine's local timezone.
             if value.utcoffset() is None:
                 value = value.replace(tzinfo=timezone.utc)
-            int_timestamps.append(int(value.timestamp()))
+            # Floor fractional seconds consistently with protobuf and NumPy,
+            # including datetimes before the Unix epoch.
+            int_timestamps.append(math.floor(value.timestamp()))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
