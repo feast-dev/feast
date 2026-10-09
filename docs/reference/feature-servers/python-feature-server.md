@@ -286,7 +286,7 @@ curl -X POST "http://localhost:6566/materialize" -d '{
 }' | jq
 ```
 
-When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data is materialized using the current datetime as the event timestamp. This is useful when your source data lacks proper event timestamp columns.
+When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data (from 1970-01-01 up to the current UTC time) is materialized. Rows keep the event timestamps from the source.
 
 Or from Python:
 ```python

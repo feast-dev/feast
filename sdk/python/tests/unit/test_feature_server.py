@@ -232,6 +232,22 @@ def test_materialize_request_model():
     assert req2.end_ts == "2021-01-02T00:00:00"
 
 
+def test_parse_materialize_timestamps_disable_event_timestamp_uses_utc():
+    """The full-window bounds must be tz-aware UTC, not naive local time."""
+    from datetime import datetime, timedelta, timezone
+
+    from feast.feature_server import MaterializeRequest, _parse_materialize_timestamps
+
+    req = MaterializeRequest(feature_views=["test"], disable_event_timestamp=True)
+    before = datetime.now(timezone.utc)
+    start_date, end_date = _parse_materialize_timestamps(req)
+    after = datetime.now(timezone.utc)
+
+    assert start_date == datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert end_date.utcoffset() == timedelta(0)
+    assert before <= end_date <= after
+
+
 def _enable_offline_batching_config(
     fs, enabled: bool = True, batch_size: int = 1, batch_interval_seconds: int = 60
 ):

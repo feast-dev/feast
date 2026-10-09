@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
@@ -363,7 +363,7 @@ def registry_dump_command(ctx: click.Context):
 @click.option(
     "--disable-event-timestamp",
     is_flag=True,
-    help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
+    help="Materialize all available data, from 1970-01-01 up to the current UTC time, without specifying START_TS and END_TS (rows keep their source event timestamps)",
 )
 @click.option(
     "--version",
@@ -388,7 +388,7 @@ def materialize_command(
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
 
-    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized using the current datetime as the event timestamp.
+    If --disable-event-timestamp is used, timestamps are not required and all available data (from 1970-01-01 up to the current UTC time) will be materialized. Rows keep their source event timestamps.
     """
     store = create_feature_store(ctx)
 
@@ -397,12 +397,9 @@ def materialize_command(
             raise click.UsageError(
                 "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
             )
-        now = datetime.now()
-        # Query all available data and use current datetime as event timestamp
-        start_date = datetime(
-            1970, 1, 1
-        )  # Beginning of time to capture all historical data
-        end_date = now
+        # Query all available data, from the beginning of time up to now (UTC)
+        start_date = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        end_date = utils._utc_now()
     else:
         if not start_ts or not end_ts:
             raise click.UsageError(
