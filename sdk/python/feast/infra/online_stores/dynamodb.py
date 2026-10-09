@@ -164,9 +164,11 @@ class DynamoDBOnlineStore(OnlineStore):
         if online_config.warmup_connections:
             # Concurrent calls, so that each one needs its own connection; a
             # sequential call would reuse the connection of the previous one.
+            # describe_endpoints is not tied to a table and, unlike
+            # describe_limits, has no documented once-a-minute call limit.
             results = await asyncio.gather(
                 *(
-                    client.describe_limits()
+                    client.describe_endpoints()
                     for _ in range(online_config.max_pool_connections)
                 ),
                 return_exceptions=True,

@@ -109,7 +109,7 @@ async def test_dynamodb_online_store_warmup_connections(caplog):
 
     # Mock _get_aiodynamodb_client to return a mock client
     mock_client = AsyncMock()
-    mock_client.describe_limits = AsyncMock()
+    mock_client.describe_endpoints = AsyncMock()
     online_store._get_aiodynamodb_client = AsyncMock(return_value=mock_client)
 
     # Test case 1: warmup_connections=True warms the whole pool. The calls
@@ -118,14 +118,14 @@ async def test_dynamodb_online_store_warmup_connections(caplog):
     in_flight = 0
     max_in_flight = 0
 
-    async def describe_limits():
+    async def describe_endpoints():
         nonlocal in_flight, max_in_flight
         in_flight += 1
         max_in_flight = max(max_in_flight, in_flight)
         await asyncio.sleep(0)
         in_flight -= 1
 
-    mock_client.describe_limits.side_effect = describe_limits
+    mock_client.describe_endpoints.side_effect = describe_endpoints
     config_warmup = RepoConfig(
         registry=REGISTRY,
         project=PROJECT,
@@ -137,11 +137,11 @@ async def test_dynamodb_online_store_warmup_connections(caplog):
         entity_key_serialization_version=3,
     )
     await online_store.initialize(config_warmup)
-    assert mock_client.describe_limits.call_count == pool_size
+    assert mock_client.describe_endpoints.call_count == pool_size
     assert max_in_flight == pool_size
 
     # Test case 2: warmup_connections=False
-    mock_client.describe_limits.reset_mock()
+    mock_client.describe_endpoints.reset_mock()
     config_no_warmup = RepoConfig(
         registry=REGISTRY,
         project=PROJECT,
@@ -151,16 +151,16 @@ async def test_dynamodb_online_store_warmup_connections(caplog):
         entity_key_serialization_version=3,
     )
     await online_store.initialize(config_no_warmup)
-    mock_client.describe_limits.assert_not_called()
+    mock_client.describe_endpoints.assert_not_called()
 
     # Test case 3: a failed warmup call is logged, and the other calls still run
-    mock_client.describe_limits.reset_mock()
-    mock_client.describe_limits.side_effect = [Exception("Connection failed")] + [
+    mock_client.describe_endpoints.reset_mock()
+    mock_client.describe_endpoints.side_effect = [Exception("Connection failed")] + [
         None
     ] * (pool_size - 1)
     with caplog.at_level("WARNING"):
         await online_store.initialize(config_warmup)
-    assert mock_client.describe_limits.call_count == pool_size
+    assert mock_client.describe_endpoints.call_count == pool_size
     assert f"Failed to warmup 1 of {pool_size} DynamoDB connections" in caplog.text
 
 
