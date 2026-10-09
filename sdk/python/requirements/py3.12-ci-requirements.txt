@@ -3091,6 +3091,16 @@ kubernetes==37.0.0 \
     #   feast (pyproject.toml)
     #   codeflare-sdk
     #   kube-authkit
+lance-namespace==0.11.1 \
+    --hash=sha256:07643fce9a42ad4d58cc8bf91e3f592bc7f4cbd8d0ad5233223506debf67551c \
+    --hash=sha256:f67cfbbe0647b7cb42f23b673e7edf8a75b7d8a047265a916492f8d247ee1bc2
+    # via
+    #   feast (pyproject.toml)
+    #   pylance
+lance-namespace-urllib3-client==0.11.1 \
+    --hash=sha256:145a9e9424d7597487249b5b95ee274423bf2910e1a9160b6a07b676b61ea46a \
+    --hash=sha256:36537f529294da6d884ba0fe783704483f0a75463497c7705fd083a4d0257990
+    # via lance-namespace
 langcodes==3.5.1 \
     --hash=sha256:40bff315e01b01d11c2ae3928dd4f5cbd74dd38f9bd912c12b9a3606c143f731 \
     --hash=sha256:b6a9c25c603804e2d169165091d0cdb23934610524a21d226e4f463e8e958a72
@@ -4281,6 +4291,7 @@ numpy==2.5.3 \
     #   opencv-python
     #   pandas
     #   pandas-gbq
+    #   pylance
     #   qdrant-client
     #   rapidocr
     #   ray
@@ -5181,6 +5192,7 @@ pyarrow==23.0.1 \
     #   milvus-lite
     #   mlflow
     #   pandas-gbq
+    #   pylance
     #   ray
     #   snowflake-connector-python
 pyarrow-hotfix==0.7 \
@@ -5301,6 +5313,7 @@ pydantic[email]==2.13.5 \
     #   fastmcp-slim
     #   great-expectations
     #   kubernetes
+    #   lance-namespace-urllib3-client
     #   mcp
     #   mlflow-skinny
     #   mlflow-tracing
@@ -5504,6 +5517,14 @@ pyjwt[crypto]==2.15.1 \
     #   msal
     #   singlestoredb
     #   snowflake-connector-python
+pylance==13.0.0 \
+    --hash=sha256:22a37a0af446964e79cfd6046f9ea2735fcb42f8020eab63947b2bdca04989c2 \
+    --hash=sha256:22e47adcc2c7300ff876fb398ee9c625973932163ec055adae14871f8a09d7b0 \
+    --hash=sha256:2c94649a35161c6100ed822ac022756bfefb840b7e01cf491505c5245186f7b4 \
+    --hash=sha256:38cbe8d204785e697909e8faca91adb3b00a2f6a865c425987cb232d0865c010 \
+    --hash=sha256:8a340dcf750171dd6386db0b6ed303bb22594e1c1b266b7fe149ea1684bf4a9a \
+    --hash=sha256:a54496c4e6c01a8c3d49479fce98474c95a265515091d173aa9e16df271d837d
+    # via feast (pyproject.toml)
 pylatexenc==2.11 \
     --hash=sha256:305a072a99ce736246049c9da05841b9d718c0f7ea8888f5f596cf15cb621053 \
     --hash=sha256:e78e7391d6c104f1ed150e21cfaa58016cdb50aa54406a2eecb793649ffdfdd0
@@ -5976,6 +5997,7 @@ python-dateutil==2.9.0 \
     #   ibis-framework
     #   jupyter-client
     #   kubernetes
+    #   lance-namespace-urllib3-client
     #   matplotlib
     #   moto
     #   openlineage-python
@@ -7839,6 +7861,7 @@ typing-extensions==4.16.0 \
     #   jupyter-client
     #   jwcrypto
     #   kubernetes
+    #   lance-namespace-urllib3-client
     #   mcp
     #   minio
     #   mlflow-skinny
@@ -7912,6 +7935,7 @@ urllib3==2.8.0 \
     #   great-expectations
     #   kube-authkit
     #   kubernetes
+    #   lance-namespace-urllib3-client
     #   minio
     #   qdrant-client
     #   requests

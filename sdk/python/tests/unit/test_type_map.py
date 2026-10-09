@@ -166,6 +166,15 @@ def test_python_values_to_proto_values_bytes_to_list(values, value_type, expecte
     assert converted == expected
 
 
+@pytest.mark.parametrize(
+    "value_type", [ValueType.BYTES, ValueType.PDF_BYTES, ValueType.IMAGE_BYTES]
+)
+def test_python_values_to_proto_values_binary(value_type):
+    protos = python_values_to_proto_values([b"%PDF-1.3", None], value_type)
+    assert feast_value_type_to_python_type(protos[0]) == b"%PDF-1.3"
+    assert feast_value_type_to_python_type(protos[1]) is None
+
+
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
