@@ -77,7 +77,8 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """Whether to read from Dynamodb by forcing consistent reads"""
 
     warmup_connections: StrictBool = False
-    """Whether to warm up the connection pool with a lightweight call on initialization"""
+    """Whether to warm up the connection pool on initialization, with
+    max_pool_connections concurrent lightweight calls"""
 
     tags: Union[Dict[str, str], None] = None
     """AWS resource tags added to each table"""
@@ -161,11 +162,22 @@ class DynamoDBOnlineStore(OnlineStore):
         )
 
         if online_config.warmup_connections:
-            try:
-                await client.describe_limits()
-            except Exception:
+            # Concurrent calls, so that each one needs its own connection; a
+            # sequential call would reuse the connection of the previous one.
+            results = await asyncio.gather(
+                *(
+                    client.describe_limits()
+                    for _ in range(online_config.max_pool_connections)
+                ),
+                return_exceptions=True,
+            )
+            errors = [r for r in results if isinstance(r, BaseException)]
+            if errors:
                 logger.warning(
-                    "Failed to warmup DynamoDB connection pool", exc_info=True
+                    "Failed to warmup %d of %d DynamoDB connections",
+                    len(errors),
+                    len(results),
+                    exc_info=errors[0],
                 )
 
     async def close(self):

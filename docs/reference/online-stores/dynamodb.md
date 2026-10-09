@@ -50,7 +50,7 @@ online_store:
 | `batch_size` | int | `100` | Number of items per BatchGetItem/BatchWriteItem request (max 100) |
 | `max_read_workers` | int | `10` | Maximum parallel threads for batch read operations. Higher values improve throughput for large batch reads but increase resource usage |
 | `consistent_reads` | bool | `false` | Whether to use strongly consistent reads (higher latency, guaranteed latest data) |
-| `warmup_connections` | bool | `false` | Whether to pre-warm the async connection pool on startup with a lightweight call (`describe_limits`) |
+| `warmup_connections` | bool | `false` | Whether to pre-warm the async connection pool on startup with `max_pool_connections` concurrent lightweight calls (`describe_limits`) |
 | `tags` | dict | `null` | AWS resource tags added to each table |
 | `session_based_auth` | bool | `false` | Use AWS session-based client authentication |
 
@@ -65,7 +65,7 @@ For high-throughput workloads with large entity counts, increase `max_read_worke
 
 **Batch Size**: Increase `batch_size` up to 100 to reduce the number of API calls. However, larger batches may hit DynamoDB's 16MB response limit for tables with large feature values.
 
-**Connection Warmup**: The DynamoDB async client does not establish actual TCP/TLS connections to the AWS endpoint on initialization. The very first feature retrieval request is penalized with a cold-start overhead (~20ms). Setting `warmup_connections: true` establishes the TCP connection pool during server startup.
+**Connection Warmup**: The DynamoDB async client does not establish actual TCP/TLS connections to the AWS endpoint on initialization. The very first feature retrieval request is penalized with a cold-start overhead (~20ms). Setting `warmup_connections: true` opens up to `max_pool_connections` connections during server startup, one per concurrent `describe_limits` call.
 
 ## Permissions
 
