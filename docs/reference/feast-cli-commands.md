@@ -36,7 +36,7 @@ Commands:
 
 ## Global Options
 
-The Feast CLI provides one global top-level option that can be used with other commands
+The Feast CLI provides the following global options. Place them before the subcommand.
 
 **chdir \(-c, --chdir\)**
 
@@ -44,6 +44,26 @@ This command allows users to run Feast CLI commands in a different folder from t
 
 ```text
 feast -c path/to/my/feature/repo apply
+```
+
+The repository directory can also be set with the `FEATURE_REPO_DIR_ENV_VAR` environment variable. An explicit `--chdir` option takes precedence.
+
+**feature-store-yaml \(-f, --feature-store-yaml\)**
+
+Use a specific YAML configuration file instead of the default `feature_store.yaml` in the feature repository. Pass the path to the file, not its containing directory.
+
+```text
+feast -c path/to/my/feature/repo -f path/to/config/production.yaml configuration
+```
+
+An explicit relative `--feature-store-yaml` path is resolved from the current working directory, independently of `--chdir`. The `FEAST_FS_YAML_FILE_PATH` environment variable provides a fallback configuration file path when `--feature-store-yaml` is omitted.
+
+**log-level \(--log-level\)**
+
+Set the logging level to `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case-insensitive). The default is `warning`.
+
+```text
+feast --log-level info -c path/to/my/feature/repo apply
 ```
 
 ## Apply
@@ -90,11 +110,13 @@ The `--skip-feature-view-validation` flag is particularly useful for On-Demand F
 
 ## Configuration
 
-Display the actual configuration being used by Feast, including both user-provided configurations and default configurations applied by Feast.
+Display the repository configuration as YAML, including defaults populated when the configuration is loaded. The output is not an exhaustive list of effective defaults: fields that have not been set are omitted. For example, `entity_key_serialization_version` can be absent from the output when it is omitted from `feature_store.yaml`, even though Feast uses its default value of `3`.
 
 ```bash
 feast configuration
 ```
+
+For a repository that explicitly configures the following values, an excerpt of the output looks like:
 
 ```yaml
 project: foo
