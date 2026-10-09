@@ -247,3 +247,32 @@ class TestFaissOnlineStoreVersionedReadWrite:
 
         results = store.online_read(config, fv, [entity_key])
         assert results == [(None, None)]
+
+
+class TestFaissConfig:
+    """The documented store selector must be accepted and retained."""
+
+    def test_documented_config(self):
+        from feast.infra.online_stores.faiss_online_store import FaissOnlineStoreConfig
+
+        config = FaissOnlineStoreConfig(
+            type="feast.infra.online_stores.faiss_online_store.FaissOnlineStore",
+            dimension=128,
+            index_path="data/faiss_index",
+            index_type="IVFFlat",
+            nlist=100,
+        )
+
+        assert config.model_dump()["type"] == (
+            "feast.infra.online_stores.faiss_online_store.FaissOnlineStore"
+        )
+
+    def test_config_roundtrip(self):
+        from feast.infra.online_stores.faiss_online_store import FaissOnlineStoreConfig
+
+        config = FaissOnlineStoreConfig(dimension=128, index_path="data/faiss_index")
+
+        assert config.type == (
+            "feast.infra.online_stores.faiss_online_store.FaissOnlineStore"
+        )
+        assert FaissOnlineStoreConfig(**config.model_dump()) == config
