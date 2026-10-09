@@ -1,9 +1,11 @@
+import copy
 from datetime import timedelta
 
 import pandas as pd
 import pytest
 from typeguard import TypeCheckError
 
+from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
@@ -402,6 +404,46 @@ def test_batch_feature_view_serialization_deserialization():
     assert isinstance(second_deserialized, BatchFeatureView)
     assert second_deserialized.name == original_bfv.name
     assert second_deserialized.feature_transformation is not None
+
+
+def test_batch_feature_view_copy():
+    def transform_udf(df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+    bfv = BatchFeatureView(
+        name="test_batch_feature_view",
+        entities=[Entity(name="test_entity", join_keys=["entity_id"])],
+        schema=[
+            Field(name="entity_id", dtype=String),
+            Field(name="input_feature", dtype=Int64),
+        ],
+        source=FileSource(
+            name="test-source",
+            path="test_data.parquet",
+            timestamp_field="event_timestamp",
+        ),
+        udf=transform_udf,
+        mode="pandas",
+        batch_engine={"spark.sql.shuffle.partitions": "4"},
+        aggregations=[
+            Aggregation(
+                column="input_feature", function="sum", time_window=timedelta(days=1)
+            )
+        ],
+    )
+
+    bfv_copy = copy.copy(bfv)
+    assert isinstance(bfv_copy, BatchFeatureView)
+    assert bfv_copy == bfv
+    assert bfv_copy.mode == "pandas"
+    assert bfv_copy.udf is transform_udf
+    assert bfv_copy.feature_transformation is bfv.feature_transformation
+    assert bfv_copy.batch_engine == {"spark.sql.shuffle.partitions": "4"}
+    assert bfv_copy.aggregations == bfv.aggregations
+
+    projected = bfv[["input_feature"]]
+    assert isinstance(projected, BatchFeatureView)
+    assert projected.to_proto().spec.HasField("feature_transformation")
 
 
 def test_transformation_mode_serialization():

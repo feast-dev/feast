@@ -1,3 +1,4 @@
+import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
@@ -160,6 +161,37 @@ class BatchFeatureView(FeatureView):
             enable_validation=enable_validation,
             version=version,
         )
+
+    def __copy__(self):
+        fv = BatchFeatureView(
+            name=self.name,
+            mode=self.mode,
+            source=self.source_views if self.source_views else self.batch_source,
+            sink_source=self.batch_source if self.source_views else None,
+            schema=self.schema,
+            ttl=self.ttl,
+            tags=self.tags,
+            online=self.online,
+            offline=self.offline,
+            description=self.description,
+            owner=self.owner,
+            org=self.org,
+            udf=self.udf,
+            udf_string=self.udf_string,
+            feature_transformation=self.feature_transformation,
+            batch_engine=self.batch_engine,
+            aggregations=self.aggregations,
+            enable_validation=self.enable_validation,
+            version=self.version,
+        )
+        fv.enabled = self.enabled
+        fv.state = self.state
+        fv.entities = self.entities
+        fv.features = copy.copy(self.features)
+        fv.entity_columns = copy.copy(self.entity_columns)
+        fv.projection = copy.copy(self.projection)
+        fv._raw_feature_transformation_proto = self._raw_feature_transformation_proto
+        return fv
 
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
