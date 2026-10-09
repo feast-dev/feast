@@ -615,6 +615,11 @@ class TestMapArrowTypeSupport:
         """Test that 'MAP_LIST' string converts to ValueType.MAP_LIST."""
         assert _convert_value_type_str_to_value_type("MAP_LIST") == ValueType.MAP_LIST
 
+    @pytest.mark.parametrize("value_type", list(ValueType), ids=lambda v: v.name)
+    def test_convert_value_type_str_round_trips_every_name(self, value_type):
+        """Every ValueType name converts back to that ValueType."""
+        assert _convert_value_type_str_to_value_type(value_type.name) == value_type
+
     def test_arrow_to_pg_type_map(self):
         """Test that Arrow map type converts to Postgres jsonb."""
         assert arrow_to_pg_type("map<string, string>") == "jsonb"

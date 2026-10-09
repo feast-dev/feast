@@ -57,6 +57,15 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
+        env:
+          # The exact dependency set is installed by `uv pip sync` from the
+          # pinned pyXX-ci-requirements.txt above (compatible protobuf +
+          # grpcio-health-checking). uv.lock is not committed, so letting
+          # `uv run` auto-sync here would re-resolve the uncapped pyproject
+          # deps and downgrade protobuf below grpcio's generated-code version,
+          # breaking the protobuf gencode/runtime check at import time. Use the
+          # already-installed environment instead of re-resolving.
+          UV_NO_SYNC: "1"
         run: |
           # Set up environment for Ray workers to access packages
           export PATH="${{ github.workspace }}/.venv/bin:$PATH"

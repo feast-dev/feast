@@ -21,6 +21,16 @@ TOOL_DIR := $(ROOT_DIR)/tools
 export GOBIN=$(TOOL_DIR)/bin
 export PATH := $(TOOL_DIR)/bin:$(PATH)
 
+# CI installs the exact, mutually compatible dependency set via
+# `uv pip sync` from the pinned sdk/python/requirements/pyXX-ci-requirements.txt
+# (install-python-dependencies-ci). uv.lock is not committed, so a plain
+# `uv run` would auto-sync and re-resolve the uncapped pyproject dependencies,
+# which can install an inconsistent set -- e.g. protobuf older than the gencode
+# baked into grpcio's health_pb2, which then fails the protobuf gencode/runtime
+# check at import time. Run every `uv run` target against the already-installed
+# environment instead of re-resolving. (pixi-based targets are unaffected.)
+export UV_NO_SYNC := 1
+
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
 OS := linux
 ifeq ($(shell uname -s), Darwin)
