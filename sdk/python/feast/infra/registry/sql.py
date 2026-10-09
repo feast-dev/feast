@@ -1089,14 +1089,13 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(data_sources).where(
-                data_sources.c.data_source_name == name,
-                data_sources.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise DataSourceObjectNotFoundException(name, project)
+        return self._delete_object(
+            data_sources,
+            name,
+            project,
+            "data_source_name",
+            DataSourceObjectNotFoundException,
+        )
 
     def _list_feature_services(
         self, project: str, tags: Optional[dict[str, str]], **kwargs
