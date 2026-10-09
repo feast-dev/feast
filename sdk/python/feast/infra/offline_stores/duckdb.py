@@ -53,8 +53,11 @@ from feast.monitoring.monitoring_utils import (
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
-def _as_lance_source(data_source: DataSource) -> Optional["LanceSource"]:
+def _as_lance_source(data_source: Optional[DataSource]) -> Optional["LanceSource"]:
     """Narrow a DataSource to a LanceSource, or ``None`` if it is not one.
+
+    ``None`` is accepted so that a caller holding an optional source, such as
+    ``FeatureView.batch_source``, can ask the question without narrowing first.
 
     The import is guarded because the Lance extra is optional: a repo that does
     not install it must still be able to read and write every other source
