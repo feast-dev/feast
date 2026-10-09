@@ -397,6 +397,25 @@ def test_cors_never_uses_wildcard(mock_feature_store):
         ).is_none()
 
 
+def test_wildcard_cors_origin_is_allowed_but_warns(mock_feature_store, caplog):
+    """An explicit '*' is honored (informed opt-in) but logs a warning.
+
+    We intentionally do not reject '*': it is a deliberate, documented operator
+    choice for local development (mirroring Feast's own `auth_type=no_auth`).
+    The warning makes the risk visible so it can't be set unknowingly.
+    """
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="feast.ui_server"):
+        with _cors_client(mock_feature_store, cors_origins=["*"]) as client:
+            response = client.get(
+                "/health", headers={"Origin": "https://any.example.com"}
+            )
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(caplog.text.lower()).contains("allow all origins")
+
+
 @patch("feast.ui_server.uvicorn")
 @patch("feast.ui_server.get_app")
 def test_start_server_dual_stack_binds_prebuilt_socket(mock_get_app, mock_uvicorn):

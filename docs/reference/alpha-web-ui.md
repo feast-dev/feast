@@ -58,7 +58,16 @@ export FEAST_UI_CORS_ALLOWED_ORIGINS="https://feast.example.com,https://app.exam
 feast ui
 ```
 
-Do not use `*`; always list the exact origins you trust.
+Each value must be a bare origin — scheme and host with an optional port, and
+**no path, query, or trailing slash** (e.g. `https://app.example.com` or
+`http://localhost:3000`, not `https://app.example.com/ui`). Browsers send the
+`Origin` header without a path, so a value that includes one never matches and
+the request is silently rejected.
+
+For production, list the exact origins you trust. Passing `*` is accepted but
+**allows credentialed cross-origin requests from any site** (the CVE-2024-11602
+pattern) and is intended for local development only; the server logs a warning
+when it is used.
 
 #### Curl Generator Feature Server URL
 

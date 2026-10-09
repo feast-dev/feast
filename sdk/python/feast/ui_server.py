@@ -885,8 +885,19 @@ def get_app(
     # user visits issue authenticated cross-origin requests to this server
     # (CVE-2024-11602 / CWE-346), so it is disabled by default. Operators who
     # need cross-origin access must opt in with an explicit list of trusted
-    # origins via ``feast ui --cors-origins``.
+    # origins via ``feast ui --cors-allowed-origins``.
     if cors_origins:
+        if "*" in cors_origins:
+            # Honor an explicit wildcard (an informed, opt-in operator choice,
+            # like Feast's own ``auth_type=no_auth``), but make the risk loud:
+            # with credentials, Starlette reflects the caller's origin for any
+            # site, which is the CVE-2024-11602 pattern. Not a safe default.
+            logger.warning(
+                "CORS is configured to allow all origins ('*'). This permits "
+                "credentialed cross-origin requests from any site and is "
+                "intended for development only. Configure an explicit list of "
+                "trusted origins for production deployments."
+            )
         app.add_middleware(
             CORSMiddleware,
             allow_origins=cors_origins,
