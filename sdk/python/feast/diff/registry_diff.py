@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, cast
 
+from google.protobuf.message import Message
+
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.diff.property_diff import PropertyDiff, TransitionType
@@ -123,6 +125,38 @@ FeastObjectProto = TypeVar(
 FIELDS_TO_IGNORE = {"project"}
 
 
+def _clear_data_source_meta(message: Message) -> None:
+    """Clears `meta` on every DataSource in `message`, including nested ones.
+
+    A data source's meta holds its created/last updated timestamps, which are
+    reset whenever the object is constructed, so comparing it would report a
+    change for every source embedded in an object that is being updated.
+    """
+    if isinstance(message, DataSourceProto):
+        message.ClearField("meta")
+    for _, value in message.ListFields():
+        if isinstance(value, Message):
+            values = [value]
+        elif isinstance(value, (str, bytes)):
+            continue
+        elif hasattr(value, "values"):  # map field
+            values = list(value.values())
+        elif hasattr(value, "__iter__"):  # repeated field
+            values = list(value)
+        else:
+            continue
+        for v in values:
+            if isinstance(v, Message):
+                _clear_data_source_meta(v)
+
+
+def _without_data_source_meta(spec: FeastObjectSpecProto) -> FeastObjectSpecProto:
+    stripped = type(spec)()
+    stripped.CopyFrom(spec)
+    _clear_data_source_meta(stripped)
+    return stripped
+
+
 def diff_registry_objects(
     current: FeastObject, new: FeastObject, object_type: FeastObjectType
 ) -> FeastObjectDiff:
@@ -143,6 +177,8 @@ def diff_registry_objects(
     else:
         current_spec = current_proto.spec
         new_spec = new_proto.spec
+    current_spec = _without_data_source_meta(current_spec)
+    new_spec = _without_data_source_meta(new_spec)
     if current != new:
         for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
