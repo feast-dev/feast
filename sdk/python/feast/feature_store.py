@@ -4794,6 +4794,7 @@ class FeatureStore:
         root_path: str = "",
         tls_key_path: str = "",
         tls_cert_path: str = "",
+        cors_origins: Optional[List[str]] = None,
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -4810,6 +4811,7 @@ class FeatureStore:
             root_path=root_path,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
+            cors_origins=cors_origins,
         )
 
     def serve_registry(
