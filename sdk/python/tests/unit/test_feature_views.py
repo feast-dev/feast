@@ -406,7 +406,7 @@ def test_batch_feature_view_serialization_deserialization():
     assert second_deserialized.feature_transformation is not None
 
 
-def test_batch_feature_view_copy():
+def test_batch_feature_view_copy() -> None:
     def transform_udf(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
