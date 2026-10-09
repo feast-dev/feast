@@ -289,6 +289,70 @@ class LanceSource(DataSource):
             _validate_vector_field_lengths(table, feature_view)
         return table
 
+    # --------------------------------------------------------------- writing
+
+    def get_write_target(self) -> Dict[str, Any]:
+        """Keyword arguments addressing this source for ``lance.write_dataset``.
+
+        Deliberately omits ``version``. A Lance commit always produces a new
+        version, so there is no argument that writes *into* an existing one;
+        ``write_dataset`` has no ``version`` parameter at all. Callers must
+        reject a pinned source before reaching a write, which
+        ``assert_writable`` does.
+        """
+        kwargs: Dict[str, Any] = {}
+        if self.storage_options:
+            kwargs["storage_options"] = dict(self.storage_options)
+
+        if self.is_catalog_based:
+            kwargs["namespace_client"] = self.get_namespace_client()
+            kwargs["table_id"] = self.table_id
+        else:
+            kwargs["uri"] = self.uri
+        return kwargs
+
+    def assert_writable(self) -> None:
+        """Refuse to write through a pinned source.
+
+        A write commits a new version, which a source pinned to an older version
+        or to a tag does not read. The write would therefore succeed and then be
+        invisible through the very source that performed it, so the only honest
+        outcome is to refuse up front.
+        """
+        if self.pin is None:
+            return
+        raise ValueError(
+            f"LanceSource '{self.name}' is pinned to {self.pin_description} and "
+            f"cannot be written through. A Lance write commits a new version, so "
+            f"it would not be visible through this pin. Write through an unpinned "
+            f"LanceSource addressing the same dataset, then move the tag or re-pin "
+            f"to the version the write produced."
+        )
+
+    def get_existing_schema(self) -> Optional["pyarrow.Schema"]:
+        """Schema of the dataset this source addresses, or ``None`` if absent.
+
+        Used to choose between creating and appending, and to compare shapes
+        before handing data to Lance. A failure to open is reported as absent
+        rather than raised, because the only distinction the caller draws is
+        whether there is an existing shape to honour.
+        """
+        import lance
+
+        kwargs = self.get_write_target()
+        try:
+            if self.is_catalog_based:
+                return lance.dataset(
+                    namespace_client=kwargs["namespace_client"],
+                    table_id=kwargs["table_id"],
+                    storage_options=kwargs.get("storage_options"),
+                ).schema
+            return lance.dataset(
+                uri=kwargs["uri"], storage_options=kwargs.get("storage_options")
+            ).schema
+        except Exception:
+            return None
+
     # ----------------------------------------------------------- DataSource
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
@@ -469,3 +533,60 @@ def validate_lance_source_schema(feature_view: "FeatureView") -> None:
     from feast.utils import _validate_vector_field_lengths
 
     _validate_vector_field_lengths(schema.empty_table(), feature_view)
+
+
+def _vector_widths(schema: "pyarrow.Schema") -> Dict[str, int]:
+    """Width of every fixed-width vector column in an Arrow schema."""
+    import pyarrow
+
+    widths: Dict[str, int] = {}
+    for field in schema:
+        if pyarrow.types.is_fixed_size_list(field.type):
+            widths[field.name] = field.type.list_size
+    return widths
+
+
+def validate_lance_write_shape(
+    table: "pyarrow.Table",
+    source: LanceSource,
+    existing_schema: Optional["pyarrow.Schema"],
+) -> None:
+    """Refuse a write that would change an existing vector column's width.
+
+    Lance rejects an ``append`` whose schema disagrees with the dataset, but it
+    accepts an ``overwrite`` that replaces a vector column with one of a
+    different width, silently rewriting the declared shape and leaving a version
+    history whose vectors are not mutually comparable. Every ANN index and every
+    downstream consumer built against the old width is invalidated by such a
+    write, and no legitimate schema evolution changes an embedding's dimension,
+    so this is reported as an error rather than carried out.
+
+    Only vector widths are policed here. Other kinds of type change remain
+    Lance's business, because for those an ``overwrite`` is a defensible
+    evolution.
+    """
+    if existing_schema is None:
+        return
+
+    existing = _vector_widths(existing_schema)
+    incoming = _vector_widths(table.schema)
+
+    changed = {
+        name: (existing[name], incoming[name])
+        for name in existing.keys() & incoming.keys()
+        if existing[name] != incoming[name]
+    }
+    if not changed:
+        return
+
+    detail = ", ".join(
+        f"'{name}' is {was} in the dataset but {now} in the data being written"
+        for name, (was, now) in sorted(changed.items())
+    )
+    raise ValueError(
+        f"Write to Lance dataset '{source.name}' would change the width of "
+        f"vector column(s): {detail}. A width change invalidates every index and "
+        f"consumer built against the current width, and leaves a version history "
+        f"whose vectors cannot be compared with each other. Write the re-embedded "
+        f"data to a new dataset instead of overwriting this one."
+    )
