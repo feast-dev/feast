@@ -326,6 +326,77 @@ def test_registry_refresh_endpoint_error(mock_feature_store):
         assertpy.assert_that(resp.status_code).is_equal_to(500)
 
 
+# ---------- CORS tests (CVE-2024-11602) ----------
+
+
+@contextlib.contextmanager
+def _cors_client(mock_feature_store, cors_origins):
+    """Yield a TestClient for a UI app built with the given cors_origins.
+
+    The static-files directory is only valid while the TemporaryDirectory is
+    open, so the client must be used inside this context.
+    """
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                cors_origins=cors_origins,
+            )
+        yield TestClient(app)
+
+
+def test_cors_disabled_by_default(mock_feature_store):
+    """Without cors_origins, no cross-origin request is granted.
+
+    Regression test for CVE-2024-11602: the server used to send
+    ``Access-Control-Allow-Origin: *`` with credentials, letting any website a
+    user visits read authenticated responses from this server. The CVE's
+    proof of concept is exactly this -- a cross-origin GET carrying an Origin
+    header.
+    """
+    with _cors_client(mock_feature_store, cors_origins=None) as client:
+        response = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+        assertpy.assert_that(response.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_allows_only_configured_origins(mock_feature_store):
+    """With an explicit allowlist, only trusted origins are echoed back."""
+    trusted = "https://feast.example.com"
+    with _cors_client(mock_feature_store, cors_origins=[trusted]) as client:
+        allowed = client.get("/health", headers={"Origin": trusted})
+        assertpy.assert_that(
+            allowed.headers.get("access-control-allow-origin")
+        ).is_equal_to(trusted)
+
+        denied = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(denied.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_never_uses_wildcard(mock_feature_store):
+    """An untrusted origin is never reflected even when an allowlist is set."""
+    with _cors_client(
+        mock_feature_store, cors_origins=["https://feast.example.com"]
+    ) as client:
+        response = client.get(
+            "/health", headers={"Origin": "https://attacker.example.com"}
+        )
+        assertpy.assert_that(
+            response.headers.get("access-control-allow-origin")
+        ).is_none()
+
+
 @patch("feast.ui_server.uvicorn")
 @patch("feast.ui_server.get_app")
 def test_start_server_dual_stack_binds_prebuilt_socket(mock_get_app, mock_uvicorn):
