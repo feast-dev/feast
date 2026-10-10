@@ -174,9 +174,7 @@ class SavedDatasetClickhouseStorage(SavedDatasetStorage):
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
-        return SavedDatasetStorageProto(
-            custom_storage=self.clickhouse_options.to_proto()
-        )
+        return self._custom_storage_proto(self.clickhouse_options.to_proto())
 
     def to_data_source(self) -> DataSource:
         return ClickhouseSource(table=self.clickhouse_options._table)
