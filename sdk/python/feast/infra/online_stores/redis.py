@@ -743,7 +743,15 @@ class RedisOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    feat/expose-ingestion-timestamp
+    ) -> List[
+        Tuple[Optional[datetime], Optional[Dict[str, ValueProto]], Optional[datetime]]
+    ]:
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = self._get_client(online_store_config)
+
         feature_view = table
         fv_name = _versioned_fv_name(table, config)
 
