@@ -1297,7 +1297,7 @@ activity_features = FeatureView(
     entities=[user_entity],
     source=RedshiftSource(                                 # Routes to Redshift
         table="user_activity",
-        event_timestamp_column="event_ts",
+        timestamp_field="event_ts",
     ),
 )
 ```
