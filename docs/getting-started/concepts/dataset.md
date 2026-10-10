@@ -28,7 +28,7 @@ historical_job = store.get_historical_features(
 dataset = store.create_saved_dataset(
     from_=historical_job,
     name='my_training_dataset',
-    storage=SavedDatasetBigQueryStorage(table_ref='<gcp-project>.<gcp-dataset>.my_training_dataset'),
+    storage=SavedDatasetBigQueryStorage(table='<gcp-project>.<gcp-dataset>.my_training_dataset'),
     tags={'author': 'oleksii'}
 )
 
