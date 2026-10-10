@@ -303,3 +303,8 @@ Thanks goes to these incredible people:
 <a href="https://github.com/feast-dev/feast/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=feast-dev/feast" />
 </a>
+
+
+## LocalCloud tests
+
+See [LocalCloud integration](docs/how-to-guides/localcloud.md) for laptop and optional GitHub Actions testing.
