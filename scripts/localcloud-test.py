@@ -61,6 +61,19 @@ TEST_SPEC_JSON = r"""
     {
       "cwd": ".",
       "command": [
+        "uv",
+        "pip",
+        "install",
+        "protobuf==6.33.6",
+        "grpcio-health-checking==1.75.1",
+        "grpcio-reflection==1.75.1",
+        "grpcio-testing==1.75.1",
+        "grpcio-tools==1.75.1"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
         ".venv/bin/ruff",
         "check",
         "sdk/python/feast/infra/offline_stores/bigquery.py",
@@ -81,6 +94,22 @@ TEST_SPEC_JSON = r"""
         "sdk/python/tests/localcloud/test_localcloud_gcp.py",
         "sdk/python/tests/unit/test_bigquery_local_endpoint.py",
         "scripts/localcloud-test.py"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
+        "uv",
+        "pip",
+        "check"
+      ]
+    },
+    {
+      "cwd": ".",
+      "command": [
+        "git",
+        "diff",
+        "--check"
       ]
     }
   ],

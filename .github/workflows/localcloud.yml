@@ -60,16 +60,32 @@ jobs:
       env:
         LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
     - name: Build project (3)
+      run: uv pip install protobuf==6.33.6 grpcio-health-checking==1.75.1 grpcio-reflection==1.75.1
+        grpcio-testing==1.75.1 grpcio-tools==1.75.1
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (4)
       run: .venv/bin/ruff check sdk/python/feast/infra/offline_stores/bigquery.py
         sdk/python/feast/infra/offline_stores/bigquery_source.py sdk/python/tests/localcloud/test_localcloud_gcp.py
         sdk/python/tests/unit/test_bigquery_local_endpoint.py scripts/localcloud-test.py
       working-directory: .
       env:
         LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
-    - name: Build project (4)
+    - name: Build project (5)
       run: .venv/bin/ruff format --check sdk/python/feast/infra/offline_stores/bigquery.py
         sdk/python/feast/infra/offline_stores/bigquery_source.py sdk/python/tests/localcloud/test_localcloud_gcp.py
         sdk/python/tests/unit/test_bigquery_local_endpoint.py scripts/localcloud-test.py
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (6)
+      run: uv pip check
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (7)
+      run: git diff --check
       working-directory: .
       env:
         LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}

@@ -70,7 +70,11 @@ def test_bigtable_online_store_round_trip() -> None:
     client = store._get_client(config.online_store, admin=True)
     instance = client.instance(instance_id)
     instance.create(
-        clusters=[instance.cluster("local", location_id="us-central1-a", serve_nodes=1)]
+        clusters=[
+            instance.cluster(
+                "local-cluster", location_id="us-central1-a", serve_nodes=1
+            )
+        ]
     ).result(timeout=60)
     try:
         feature_view = SimpleNamespace(name="localcloud_fv", features=[object()])
