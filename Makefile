@@ -21,6 +21,16 @@ TOOL_DIR := $(ROOT_DIR)/tools
 export GOBIN=$(TOOL_DIR)/bin
 export PATH := $(TOOL_DIR)/bin:$(PATH)
 
+# CI installs the exact, mutually compatible dependency set via
+# `uv pip sync` from the pinned sdk/python/requirements/pyXX-ci-requirements.txt
+# (install-python-dependencies-ci). uv.lock is not committed, so a plain
+# `uv run` would auto-sync and re-resolve the uncapped pyproject dependencies,
+# which can install an inconsistent set -- e.g. protobuf older than the gencode
+# baked into grpcio's health_pb2, which then fails the protobuf gencode/runtime
+# check at import time. Run every `uv run` target against the already-installed
+# environment instead of re-resolving. (pixi-based targets are unaffected.)
+export UV_NO_SYNC := 1
+
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
 OS := linux
 ifeq ($(shell uname -s), Darwin)
@@ -175,6 +185,14 @@ test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter test
 		--cov-report=xml \
 		--cov-report=term-missing \
 		sdk/python/tests/unit
+
+# Standalone `feast mcp` server (feast[mcp-server] extra). Already covered by
+# test-python-unit; this target is for iterating on the MCP server alone.
+test-python-unit-mcp: ## Run unit tests for the standalone `feast mcp` server
+	uv run python -m pytest -n 4 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--cov=sdk/python/feast/mcp \
+		--cov-report=term-missing \
+		sdk/python/tests/unit/mcp
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
@@ -754,6 +772,20 @@ build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
 
 push-go-feature-server-docker: ## Push Go Feature Server Docker image
 	docker push $(REGISTRY)/go-feature-server:$(VERSION)
+
+push-feast-mcp-docker: ## Push Feast MCP Server Docker image
+	docker push $(REGISTRY)/feast-mcp:$(VERSION)
+
+# Wraps an already-published feature-server image, so that image must exist
+# before this builds. BASE_TAG defaults to VERSION; override it to wrap an
+# older feature-server release.
+build-feast-mcp-docker: ## Build Feast MCP Server Docker image
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
+		--build-arg BASE_IMAGE=$(REGISTRY)/feature-server \
+		--build-arg BASE_TAG=$(if $(BASE_TAG),$(BASE_TAG),$(VERSION)) \
+		-t $(REGISTRY)/feast-mcp:$(VERSION) \
+		-f sdk/python/feast/mcp/docker/Dockerfile \
+		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) sdk/python/feast/mcp/docker
 
 ##@ Dev images
 

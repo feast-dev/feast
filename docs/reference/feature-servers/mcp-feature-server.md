@@ -4,6 +4,8 @@
 
 Feast can expose the Python Feature Server as an MCP (Model Context Protocol) server using `fastapi_mcp`. When enabled, MCP clients can discover and call Feast tools such as online feature retrieval.
 
+This mounts MCP inside the feature server process. For a separately deployable MCP server that proxies both the feature server and the registry, see the [Standalone MCP server](mcp-server.md), started with `feast mcp`.
+
 ## Installation
 
 ```bash

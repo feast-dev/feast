@@ -80,6 +80,35 @@ metadata:
           "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
+            "name": "sample-mcpserver"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "mcpServer": {
+                "config": {
+                  "configMapRef": {
+                    "name": "sample-mcpserver-config"
+                  }
+                }
+              },
+              "onlineStore": {
+                "server": {}
+              },
+              "registry": {
+                "local": {
+                  "server": {
+                    "restAPI": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
             "name": "sample-remote-servers"
           },
           "spec": {
@@ -147,7 +176,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-08-21T03:30:58Z"
+    createdAt: "2026-09-25T01:00:43Z"
     operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.66.0

@@ -931,6 +931,21 @@ const NodeDetailPanel: React.FC<{
           {node.source_type}
         </EuiBadge>
       )}
+      {node.current_version != null && (
+        <EuiBadge color="accent" style={{ marginLeft: 4 }}>
+          v{node.current_version}
+        </EuiBadge>
+      )}
+      {node.lifecycle_state && (
+        <EuiBadge color="warning" style={{ marginLeft: 4 }}>
+          {node.lifecycle_state}
+        </EuiBadge>
+      )}
+      {node.owner && (
+        <EuiBadge color="primary" style={{ marginLeft: 4 }}>
+          {node.owner}
+        </EuiBadge>
+      )}
 
       <div style={{ marginTop: 12, fontSize: 12, color: "#888" }}>
         {node.namespace}

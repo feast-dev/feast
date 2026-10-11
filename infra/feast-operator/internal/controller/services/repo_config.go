@@ -52,7 +52,8 @@ func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
 }
 
 func (feast *FeastServices) getLineageFeatureStoreYamlBase64() (string, error) {
-	repoConfig, err := feast.getLineageRepoConfig()
+	odhCaBundleExists := feast.GetCustomCertificatesBundle().IsDefined
+	repoConfig, err := feast.getLineageRepoConfig(odhCaBundleExists)
 	if err != nil {
 		return "", err
 	}
@@ -63,7 +64,7 @@ func (feast *FeastServices) getLineageFeatureStoreYamlBase64() (string, error) {
 	return base64.StdEncoding.EncodeToString(yamlBytes), nil
 }
 
-func (feast *FeastServices) getLineageRepoConfig() (RepoConfig, error) {
+func (feast *FeastServices) getLineageRepoConfig(odhCaBundleExists bool) (RepoConfig, error) {
 	cr := feast.Handler.FeatureStore
 	applied := cr.Status.Applied
 
@@ -106,6 +107,28 @@ func (feast *FeastServices) getLineageRepoConfig() (RepoConfig, error) {
 				Path:         fmt.Sprintf("%s:%d", registryUrl, grpcPort),
 			}
 		}
+	}
+
+	// Apply auth configuration so the lineage server enforces the same
+	// authentication as the other Feast servers.  Without this the
+	// standalone lineage endpoints would be unauthenticated even when
+	// Kubernetes or OIDC auth is configured on the FeatureStore CR.
+	if applied.AuthzConfig != nil && applied.AuthzConfig.OidcAuthz != nil {
+		authzConfig, err := resolveOidcServerAuthzConfig(applied.AuthzConfig.OidcAuthz, feast.extractConfigFromSecret, odhCaBundleExists)
+		if err != nil {
+			return repoConfig, err
+		}
+		repoConfig.AuthzConfig = authzConfig
+	} else if applied.AuthzConfig != nil {
+		if applied.AuthzConfig.NoAuth != nil && *applied.AuthzConfig.NoAuth {
+			repoConfig.AuthzConfig = AuthzConfig{Type: NoAuthAuthType}
+		} else if applied.AuthzConfig.KubernetesAuthz != nil {
+			repoConfig.AuthzConfig = AuthzConfig{Type: KubernetesAuthType}
+		} else {
+			return repoConfig, fmt.Errorf("authzConfig must specify OIDC, Kubernetes, or no-auth")
+		}
+	} else {
+		repoConfig.AuthzConfig = defaultAuthzConfig
 	}
 
 	return repoConfig, nil
@@ -190,59 +213,75 @@ func getBaseServiceRepoConfig(
 	}
 	appliedSpec := featureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
-		repoConfig.AuthzConfig = AuthzConfig{Type: OidcAuthType}
-		oidcAuthz := appliedSpec.AuthzConfig.OidcAuthz
-		oidcParameters := map[string]interface{}{}
-
-		var secretProperties map[string]interface{}
-		if oidcAuthz.SecretRef != nil {
-			var err error
-			secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
-			if err != nil {
-				return repoConfig, err
-			}
-			for _, prop := range OidcOptionalSecretProperties {
-				if val, exists := secretProperties[string(prop)]; exists {
-					// Secret values are YAML-parsed on extraction, so an
-					// all-digits audience or issuer arrives as an int and
-					// would render unquoted, which the SDK's OidcAuthConfig
-					// rejects (Optional[str]). Coerce the claim keys back to
-					// strings; the five original keys keep their historical
-					// typing.
-					if prop == OidcAudience || prop == OidcIssuer {
-						if _, isString := val.(string); !isString {
-							val = fmt.Sprintf("%v", val)
-						}
-					}
-					oidcParameters[string(prop)] = val
-				}
-			}
-		}
-
-		discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+		authzConfig, err := resolveOidcServerAuthzConfig(appliedSpec.AuthzConfig.OidcAuthz, secretExtractionFunc, odhCaBundleExists)
 		if err != nil {
 			return repoConfig, err
 		}
-		oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
-
-		if oidcAuthz.VerifySSL != nil {
-			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
-		}
-		if oidcAuthz.JwksCacheLifespanSeconds != nil {
-			oidcParameters[string(OidcJwksCacheLifespanSeconds)] = *oidcAuthz.JwksCacheLifespanSeconds
-		}
-		if oidcAuthz.JwksRequestTimeoutSeconds != nil {
-			oidcParameters[string(OidcJwksRequestTimeoutSeconds)] = *oidcAuthz.JwksRequestTimeoutSeconds
-		}
-		if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
-			oidcParameters[string(OidcCaCertPath)] = caCertPath
-		}
-		repoConfig.AuthzConfig.OidcParameters = oidcParameters
+		repoConfig.AuthzConfig = authzConfig
 	} else {
 		repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 	}
 
 	return repoConfig, nil
+}
+
+// resolveOidcServerAuthzConfig builds the server-side OIDC AuthzConfig from the
+// CR's OidcAuthz spec.  Used by both getBaseServiceRepoConfig and
+// getLineageRepoConfig to avoid duplicating the secret extraction, discovery
+// URL resolution, and TLS/CA logic.
+func resolveOidcServerAuthzConfig(
+	oidcAuthz *feastdevv1.OidcAuthz,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	odhCaBundleExists bool,
+) (AuthzConfig, error) {
+	authzConfig := AuthzConfig{Type: OidcAuthType}
+	oidcParameters := map[string]interface{}{}
+
+	var secretProperties map[string]interface{}
+	if oidcAuthz.SecretRef != nil {
+		var err error
+		secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
+		if err != nil {
+			return authzConfig, err
+		}
+		for _, prop := range OidcOptionalSecretProperties {
+			if val, exists := secretProperties[string(prop)]; exists {
+				// Secret values are YAML-parsed on extraction, so an
+				// all-digits audience or issuer arrives as an int and
+				// would render unquoted, which the SDK's OidcAuthConfig
+				// rejects (Optional[str]). Coerce the claim keys back to
+				// strings; the five original keys keep their historical
+				// typing.
+				if prop == OidcAudience || prop == OidcIssuer {
+					if _, isString := val.(string); !isString {
+						val = fmt.Sprintf("%v", val)
+					}
+				}
+				oidcParameters[string(prop)] = val
+			}
+		}
+	}
+
+	discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+	if err != nil {
+		return authzConfig, err
+	}
+	oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
+
+	if oidcAuthz.VerifySSL != nil {
+		oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
+	}
+	if oidcAuthz.JwksCacheLifespanSeconds != nil {
+		oidcParameters[string(OidcJwksCacheLifespanSeconds)] = *oidcAuthz.JwksCacheLifespanSeconds
+	}
+	if oidcAuthz.JwksRequestTimeoutSeconds != nil {
+		oidcParameters[string(OidcJwksRequestTimeoutSeconds)] = *oidcAuthz.JwksRequestTimeoutSeconds
+	}
+	if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
+		oidcParameters[string(OidcCaCertPath)] = caCertPath
+	}
+	authzConfig.OidcParameters = oidcParameters
+	return authzConfig, nil
 }
 
 // resolveAuthDiscoveryUrl determines the OIDC discovery URL from the first available source.

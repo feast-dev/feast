@@ -1,4 +1,4 @@
-FROM golang:1.25
+FROM golang:1.26
 ENV GOTOOLCHAIN=auto
 
 # Update the package list and install the ca-certificates package

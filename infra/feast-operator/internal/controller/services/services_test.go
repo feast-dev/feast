@@ -588,6 +588,25 @@ var _ = Describe("Registry Service", func() {
 			}))
 		})
 
+		It("should bind the online service dual-stack when configured", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true), DualStack: ptr.To(true)},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+			Expect(onlineContainer.Command).To(Equal([]string{feastCommand, "serve", "--metrics", "-h", "[::]", "-p", "6566"}))
+		})
+
 		It("should handle empty NodeSelector gracefully", func() {
 			// Set empty NodeSelector
 			emptyNodeSelector := map[string]string{}

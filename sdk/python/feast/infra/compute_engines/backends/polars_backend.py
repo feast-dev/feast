@@ -26,7 +26,7 @@ class PolarsBackend(DataFrameBackend):
             getattr(pl.col(col), self._POLARS_FUNC_MAP.get(func, func))().alias(alias)
             for alias, (func, col) in agg_ops.items()
         ]
-        return df.groupby(group_keys).agg(agg_exprs)
+        return df.group_by(group_keys).agg(agg_exprs)
 
     def filter(self, df: pl.DataFrame, expr: str) -> pl.DataFrame:
         return df.filter(pl.sql_expr(expr))

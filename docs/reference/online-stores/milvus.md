@@ -96,6 +96,7 @@ online_store:
 | `search_params` | unset | Search parameters passed to Milvus, e.g. `{ef: 64}` for HNSW or `{level: 2}` for `AUTOINDEX`. Defaults to `{nprobe: 10}`, or no parameters for `AUTOINDEX`. |
 | `consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Sent with every read and search. When unset, Milvus uses the collection's level. |
 | `collection_consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Set when Feast creates a collection. When unset, Milvus uses its default (`Bounded`). |
+| `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
 | `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
@@ -131,6 +132,51 @@ online_store:
 
 Index parameters only apply when Feast creates a collection. To change them for an existing
 collection, run `feast teardown` and `feast apply`, then materialize again.
+
+## Partition key
+
+A [partition key](https://milvus.io/docs/use-partition-key.md) makes Milvus group rows by the key's
+value, so searches filtered on it only scan the matching partitions. This suits multi-tenant data,
+such as a catalogue shared by many brands.
+
+Set the partition key per feature view with the `milvus.partition_key` tag:
+
+```python
+products = FeatureView(
+    name="products",
+    entities=[product],
+    schema=[
+        Field(name="product_id", dtype=Int64),
+        Field(name="brand_id", dtype=String),
+        Field(name="embedding", dtype=Array(Float32), vector_index=True),
+        Field(name="title", dtype=String),
+    ],
+    source=products_source,
+    tags={"milvus.partition_key": "brand_id"},
+)
+```
+
+or for every feature view that has the field, with `partition_key: brand_id` in the online store
+config. The tag takes precedence. Then filter on the key when retrieving:
+
+```python
+store.retrieve_online_documents_v2(
+    features=["products:embedding", "products:title"],
+    query=query_embedding,
+    top_k=10,
+    filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+)
+```
+
+The partition key field must be stored as `VARCHAR` or `INT64`. String fields are always `VARCHAR`,
+and integer fields are `VARCHAR` unless native numeric types are enabled, in which case `Int64` works
+and `Int32` does not.
+
+{% hint style="warning" %}
+The partition key only applies when Feast creates a collection. Existing collections are not
+changed; Feast logs a warning for them. To add a partition key to an existing feature view, run
+`feast teardown` and `feast apply`, then materialize again.
+{% endhint %}
 
 ## Consistency level
 

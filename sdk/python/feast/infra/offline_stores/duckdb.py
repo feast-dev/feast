@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
     )
+    from feast.infra.data_sources.contrib.lance.lance_source import LanceSource
     from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
         MlflowDatasetSource,
     )
@@ -52,6 +53,25 @@ from feast.monitoring.monitoring_utils import (
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
+def _as_lance_source(data_source: Optional[DataSource]) -> Optional["LanceSource"]:
+    """Narrow a DataSource to a LanceSource, or ``None`` if it is not one.
+
+    ``None`` is accepted so that a caller holding an optional source, such as
+    ``FeatureView.batch_source``, can ask the question without narrowing first.
+
+    The import is guarded because the Lance extra is optional: a repo that does
+    not install it must still be able to read and write every other source
+    type. Only the ``isinstance`` check is guarded, never the caller's
+    subsequent work, so an ImportError raised by a Lance read or write itself
+    surfaces instead of being mistaken for "not a Lance source".
+    """
+    try:
+        from feast.infra.data_sources.contrib.lance.lance_source import LanceSource
+    except ImportError:
+        return None
+    return data_source if isinstance(data_source, LanceSource) else None
+
+
 def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
     from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
         IcebergSource,
@@ -59,6 +79,10 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
 
     if isinstance(data_source, IcebergSource):
         return _read_iceberg_catalog_source(data_source, repo_path)
+
+    lance_source = _as_lance_source(data_source)
+    if lance_source is not None:
+        return _read_lance_source(lance_source)
 
     try:
         from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
@@ -197,6 +221,87 @@ def _read_mlflow_source(data_source: "MlflowDatasetSource") -> Table:
     return ibis.memtable(arrow_table)
 
 
+def _read_lance_source(data_source: "LanceSource") -> Table:
+    """Read a Lance dataset without Spark.
+
+    ``LanceSource`` resolves either a uri or a ``namespace_client`` + ``table_id``
+    and applies the ``version``/``tag`` pin from its ``LanceFormat``, so the pin
+    is honoured before any data crosses into ibis. The declared-schema contract
+    is enforced separately, by ``validate_lance_source_schema``, because the
+    reader callback is handed a ``DataSource`` without its feature view.
+    """
+    return ibis.memtable(data_source.to_arrow())
+
+
+def _validate_lance_feature_views(feature_views: List[FeatureView]) -> None:
+    """Enforce the Lance pin contract on every Lance-backed feature view.
+
+    Runs before a retrieval plan is built. It reads schemas only, so a mismatch
+    is reported up front instead of surfacing as a short or mis-shaped result.
+    """
+    try:
+        from feast.infra.data_sources.contrib.lance.lance_source import (
+            validate_lance_source_schema,
+        )
+    except ImportError:
+        return
+
+    for feature_view in feature_views:
+        validate_lance_source_schema(feature_view)
+
+
+def _write_lance_data_source(
+    table: Table,
+    data_source: "LanceSource",
+    mode: str = "append",
+    allow_overwrite: bool = False,
+) -> None:
+    """Write an ibis table to a LanceSource without Spark.
+
+    Mirrors ``_read_lance_source``: the source resolves either a uri or a
+    ``namespace_client`` + ``table_id``, and the same resolution is reused for
+    the write, so a catalog-addressed dataset is written to the location its
+    namespace resolves rather than to one assembled here.
+
+    How far the namespace is involved depends on the operation. Creating a table
+    declares it through the namespace; appending only describes the table to
+    resolve its location, and the version the append produces is not reported
+    back. A Lance namespace therefore records that a table exists and where it
+    lives, and does not track its versions. That is why a pin is a Lance-level
+    concern that ``assert_writable`` has to enforce here: no catalog is going to
+    reject the write on the pin's behalf.
+
+    Three things are settled before Lance is called. A pinned source is refused,
+    because a commit produces a new version that the pin would not read. An
+    absent dataset is created rather than appended to, since Lance has no
+    create-or-append mode. An existing dataset's vector widths are compared
+    against the incoming data, which closes the one case Lance itself permits
+    silently.
+    """
+    import lance
+
+    from feast.infra.data_sources.contrib.lance.lance_source import (
+        validate_lance_write_shape,
+    )
+
+    data_source.assert_writable()
+
+    arrow_table = table.to_pyarrow()
+    existing_schema = data_source.get_existing_schema()
+
+    if existing_schema is None:
+        lance_mode = "create"
+    else:
+        if mode == "overwrite" and not allow_overwrite:
+            raise SavedDatasetLocationAlreadyExists(
+                location=data_source.uri or ".".join(data_source.table_id)
+            )
+        validate_lance_write_shape(arrow_table, data_source, existing_schema)
+        lance_mode = mode
+
+    lance.write_dataset(arrow_table, mode=lance_mode, **data_source.get_write_target())
+
+
 def _write_data_source(
     table: Table,
     data_source: DataSource,
@@ -210,6 +315,11 @@ def _write_data_source(
 
     if isinstance(data_source, IcebergSource):
         _write_iceberg_data_source(table, data_source, mode)
+        return
+
+    lance_source = _as_lance_source(data_source)
+    if lance_source is not None:
+        _write_lance_data_source(table, lance_source, mode, allow_overwrite)
         return
 
     assert isinstance(data_source, FileSource)
@@ -640,6 +750,9 @@ class DuckDBOfflineStore(OfflineStore):
         full_feature_names: bool = False,
         filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
+        # A Lance pin selects data, never shape: reject a pinned version whose
+        # schema cannot satisfy the declared schema before planning any reads.
+        _validate_lance_feature_views(feature_views)
         return get_historical_features_ibis(
             config=config,
             feature_views=feature_views,
@@ -688,6 +801,15 @@ class DuckDBOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        # Checked here rather than in the writer callback, which is handed a
+        # DataSource and so cannot see the declared schema. Creating a Lance
+        # dataset whose vectors are a different width from the declared
+        # vector_length would otherwise succeed and fail only on the next read.
+        if _as_lance_source(feature_view.batch_source) is not None:
+            from feast.utils import _validate_vector_field_lengths
+
+            _validate_vector_field_lengths(table, feature_view)
+
         offline_write_batch_ibis(
             config=config,
             feature_view=feature_view,

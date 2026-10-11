@@ -570,7 +570,7 @@ class KafkaSource(DataSource):
             owner=data_source.owner,
             batch_source=(
                 DataSource.from_proto(data_source.batch_source)
-                if data_source.batch_source
+                if data_source.HasField("batch_source")
                 else None
             ),
         )
@@ -757,7 +757,7 @@ class KinesisSource(DataSource):
             owner=data_source.owner,
             batch_source=(
                 DataSource.from_proto(data_source.batch_source)
-                if data_source.batch_source
+                if data_source.HasField("batch_source")
                 else None
             ),
         )
