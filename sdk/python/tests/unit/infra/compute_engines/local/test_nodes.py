@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pyarrow as pa
+import pytest
 
 from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
@@ -102,6 +103,34 @@ def test_local_aggregation_node():
     result_df = result.data.to_pandas()
     assert result_df["sum_value"].iloc[0] == 30
     assert result_df["sum_value"].iloc[1] == 70
+
+
+def test_local_aggregation_node_polars_backend():
+    pytest.importorskip("polars")
+    from feast.infra.compute_engines.backends.polars_backend import PolarsBackend
+
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+
+    agg_ops = {
+        "sum_value": ("sum", "value"),
+        "unique_value": ("nunique", "value"),
+    }
+    agg_node = LocalAggregationNode(
+        name="agg",
+        backend=PolarsBackend(),
+        group_keys=["entity_id"],
+        agg_ops=agg_ops,
+    )
+    agg_node.add_input(MagicMock())
+    agg_node.inputs[0].name = "source"
+
+    result = agg_node.execute(context)
+    assert isinstance(result, ArrowTableValue)
+    result_df = result.data.to_pandas().sort_values("entity_id")
+    assert result_df["sum_value"].tolist() == [30, 70]
+    assert result_df["unique_value"].tolist() == [2, 2]
 
 
 def test_local_join_node():

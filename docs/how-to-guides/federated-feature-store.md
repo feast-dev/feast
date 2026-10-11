@@ -73,7 +73,7 @@ online_store:
     type: dynamodb
     region: us-west-2
 offline_store:
-    type: snowflake
+    type: snowflake.offline
     account: my_account
     database: FEAST_DB
     warehouse: FEAST_WH
@@ -207,7 +207,7 @@ online_store:
     type: dynamodb
     region: us-west-2
 offline_store:
-    type: snowflake
+    type: snowflake.offline
     account: my_account
     database: FEAST_DB
     warehouse: FEAST_WH
@@ -404,7 +404,7 @@ project: my_feast_project
 registry: s3://my-bucket/feast-registry/registry.db
 provider: aws
 offline_store:
-    type: snowflake
+    type: snowflake.offline
     account: my_account
     database: FEAST_DB
     schema: PLATFORM  # Platform schema
@@ -419,7 +419,7 @@ project: my_feast_project
 registry: s3://my-bucket/feast-registry/registry.db
 provider: aws
 offline_store:
-    type: snowflake
+    type: snowflake.offline
     account: my_account
     database: FEAST_DB
     schema: TEAM_A  # Team-specific schema

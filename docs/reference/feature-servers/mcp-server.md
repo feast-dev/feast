@@ -41,7 +41,7 @@ A `feast-mcp` console script is also installed. It is equivalent to `feast mcp`,
 
 **Server options:**
 * `--transport`: MCP transport to serve: `stdio`, `http`, `streamable-http`, or `sse` (default: `stdio`)
-* `--host`: Bind address for HTTP transports (default: `0.0.0.0`)
+* `--host`: Bind address for HTTP transports (default: `0.0.0.0`). Use `::` to serve both IPv6 and IPv4 clients; it falls back to `0.0.0.0` where IPv6 is unavailable.
 * `--port`: Bind port for HTTP transports (default: 8000)
 * `--workers`: Run under gunicorn with this many workers. Not supported by the `sse` transport
 
@@ -218,7 +218,7 @@ See [sdk/python/feast/mcp/docker/README.md](https://github.com/feast-dev/feast/b
 
 ## Deploying with the Feast Operator
 
-Setting `spec.services.mcpServer` adds a dedicated `feast mcp` container to the FeatureStore deployment, exposed on its own Service on port 8100. The operator sets `--host` and `--port` so that they match the generated Service. Every other setting comes from a `feast_mcp.yaml` supplied in a ConfigMap, which the operator mounts read-only at `/etc/feast/mcp`.
+Setting `spec.services.mcpServer` adds a dedicated `feast mcp` container to the FeatureStore deployment, exposed on its own Service on port 8100. The operator sets `--host` and `--port` so that they match the generated Service. `--host` is `0.0.0.0` unless `spec.services.mcpServer.dualStack` is `true`, which sets it to `::` and needs an image with `feast mcp --host ::` support (#6977). Every other setting comes from a `feast_mcp.yaml` supplied in a ConfigMap, which the operator mounts read-only at `/etc/feast/mcp`.
 
 The ConfigMap must set `server.transport` to `http`, `streamable-http` or `sse`, because the default `stdio` cannot serve the Service. Without a ConfigMap, the operator passes `--transport http`, unless `FEAST_MCP_TRANSPORT` is set in the container `env`.
 

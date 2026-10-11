@@ -394,7 +394,7 @@ def python_type_to_feast_value_type(
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
+        "uint32": ValueType.INT64,
         "int16": ValueType.INT32,
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
@@ -567,7 +567,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "BYTES_LIST": ValueType.BYTES_LIST,
         "STRING_LIST": ValueType.STRING_LIST,
-        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT32_LIST": ValueType.INT32_LIST,
         "INT64_LIST": ValueType.INT64_LIST,
         "DOUBLE_LIST": ValueType.DOUBLE_LIST,
         "FLOAT_LIST": ValueType.FLOAT_LIST,
@@ -600,6 +600,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL_SET": ValueType.DECIMAL_SET,
         "SCALAR_MAP": ValueType.SCALAR_MAP,
         "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
+        "PDF_BYTES": ValueType.PDF_BYTES,
+        "IMAGE_BYTES": ValueType.IMAGE_BYTES,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -1634,8 +1636,14 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
         value_type = ValueType.STRUCT
     else:
         type_map = {
+            "int8": ValueType.INT32,
+            "int16": ValueType.INT32,
             "int32": ValueType.INT32,
             "int64": ValueType.INT64,
+            "uint8": ValueType.INT32,
+            "uint16": ValueType.INT32,
+            "uint32": ValueType.INT64,
+            "uint64": ValueType.INT64,
             "double": ValueType.DOUBLE,
             "float": ValueType.FLOAT,
             "string": ValueType.STRING,
