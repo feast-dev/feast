@@ -568,30 +568,7 @@ class SqliteOnlineStore(OnlineStore):
         )
         vector_field = _get_vector_field(table)
 
-        cur.execute(
-            f"""
-            CREATE VIRTUAL TABLE vec_table using vec0(
-                vector_value float[{vector_field_length}]
-        );
-        """
-        )
-
-        # Currently I can only insert the embedding value without crashing SQLite, will report a bug
-        cur.execute(
-            f"""
-            INSERT INTO vec_table(rowid, vector_value)
-            select rowid, vector_value from {_quote_id(table_name)}
-            where feature_name = ?
-        """,
-            (vector_field,),
-        )
-        cur.execute(
-            f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
-                vector_value float[{vector_field_length}]
-            );
-            """
-        )
+        _build_vec_table(conn, table_name, vector_field, vector_field_length)
 
         # Have to join this with the main table to get the feature name and entity_key
         # Also the `top_k` doesn't appear to be working for some reason
@@ -720,21 +697,7 @@ class SqliteOnlineStore(OnlineStore):
 
         if online_store.vector_enabled:
             query_embedding_bin = serialize_f32(embedding, vector_field_length)  # type: ignore
-            cur.execute(
-                f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
-                    vector_value float[{vector_field_length}]
-                );
-                """
-            )
-            cur.execute(
-                f"""
-                INSERT INTO vec_table (rowid, vector_value)
-                select rowid, vector_value from {_quote_id(table_name)}
-                where feature_name = ?
-                """,
-                (vector_field,),
-            )
+            _build_vec_table(conn, table_name, vector_field, vector_field_length)
         elif online_store.text_search_enabled:
             string_field_list = [
                 f.name for f in table.features if f.dtype == PrimitiveFeastType.STRING
@@ -747,17 +710,7 @@ class SqliteOnlineStore(OnlineStore):
                     if f.dtype == PrimitiveFeastType.STRING
                 ]
             )
-            cur.execute(
-                f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS search_table using fts5(
-                    entity_key, fv_rowid, {string_fields}, tokenize="porter unicode61"
-                );
-                """
-            )
-            insert_query = _generate_bm25_search_insert_query(
-                table_name, string_field_list
-            )
-            cur.execute(insert_query)
+            _build_search_table(conn, table_name, string_field_list)
             filter_clause, filter_params = SqliteFilterTranslator(
                 table_name, alias="fv"
             ).translate(filters)
@@ -1065,6 +1018,51 @@ def _get_vector_field(table: FeatureView) -> str:
     return vector_field
 
 
+def _build_vec_table(
+    conn: sqlite3.Connection,
+    table_name: str,
+    vector_field: str,
+    vector_length: int,
+) -> None:
+    """
+    Index the stored vectors of a feature view table in `temp.vec_table`.
+
+    The index is rebuilt from the current rows for every search, so rows copied
+    by earlier searches are never searched again. It lives in the connection's
+    temp schema and is committed right away, so a search neither writes to the
+    online store database nor keeps it locked.
+    """
+    with conn:
+        conn.execute("DROP TABLE IF EXISTS temp.vec_table")
+        conn.execute(
+            f"CREATE VIRTUAL TABLE temp.vec_table "
+            f"USING vec0(vector_value float[{vector_length}])"
+        )
+        conn.execute(
+            f"INSERT INTO temp.vec_table (rowid, vector_value) "
+            f"SELECT rowid, vector_value FROM {_quote_id(table_name)} "
+            f"WHERE feature_name = ?",
+            (vector_field,),
+        )
+
+
+def _build_search_table(
+    conn: sqlite3.Connection, table_name: str, string_field_list: List[str]
+) -> None:
+    """
+    Index the stored string features of a feature view table in
+    `temp.search_table`, rebuilt for every search like `_build_vec_table`.
+    """
+    with conn:
+        conn.execute("DROP TABLE IF EXISTS temp.search_table")
+        conn.execute(
+            f"CREATE VIRTUAL TABLE temp.search_table USING fts5("
+            f"entity_key, fv_rowid, {', '.join(string_field_list)}, "
+            f'tokenize="porter unicode61")'
+        )
+        conn.execute(_generate_bm25_search_insert_query(table_name, string_field_list))
+
+
 def _generate_bm25_search_insert_query(
     table_name: str, string_field_list: List[str]
 ) -> str:
@@ -1079,7 +1077,7 @@ def _generate_bm25_search_insert_query(
         str: The generated SQL insertion query.
     """
     _string_fields = ", ".join(string_field_list)
-    query = f"INSERT INTO search_table (entity_key, fv_rowid, {_string_fields})\nSELECT\n\tDISTINCT fv0.entity_key,\n\tfv0.rowid as fv_rowid"
+    query = f"INSERT INTO temp.search_table (entity_key, fv_rowid, {_string_fields})\nSELECT\n\tDISTINCT fv0.entity_key,\n\tfv0.rowid as fv_rowid"
     quoted_table = _quote_id(table_name)
     from_query = f"\nFROM (select rowid, * from {quoted_table} where feature_name = '{string_field_list[0]}') fv0"
 
