@@ -19,7 +19,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 ROOT = Path(__file__).resolve().parents[1]
 TEST_SPEC_JSON = r"""
 {
-  "image": "agentcloud/localcloud@sha256:2fcfda7f9d39a2228b73ae8313b3c011dc0cb17340344b300da4a3c0c4e6f5b8",
+  "image": "agentcloud/localcloud@sha256:88e85b86b294e1e4f71b8c63ec43de79d170946ff39556f0e2709f66aa0d368c",
   "services": [
     "bigquery",
     "bigtable",
@@ -30,7 +30,9 @@ TEST_SPEC_JSON = r"""
     5380,
     5382,
     5385,
-    5388
+    5388,
+    5389,
+    5392
   ],
   "endpoint_variables": [
     "BIGQUERY_EMULATOR_HOST",
@@ -82,6 +84,29 @@ TEST_SPEC_JSON = r"""
       ]
     }
   ],
+  "config": {
+    "version": 1,
+    "context": {
+      "project": "repository-tests"
+    },
+    "host": {
+      "docker_socket": false
+    },
+    "server": {
+      "persistence": true,
+      "auto_seed": false
+    },
+    "updater": {
+      "enabled": false
+    },
+    "services": {
+      "enabled": [
+        "bigquery",
+        "bigtable",
+        "gcs"
+      ]
+    }
+  },
   "dedicated_lane": {
     "cwd": ".",
     "command": [
@@ -116,29 +141,6 @@ TEST_SPEC_JSON = r"""
       "--ignore=sdk/python/tests/unit/infra/offline_stores/contrib/mongodb_offline_store",
       "sdk/python/tests/unit"
     ]
-  },
-  "config": {
-    "version": 1,
-    "context": {
-      "project": "repository-tests"
-    },
-    "host": {
-      "docker_socket": false
-    },
-    "server": {
-      "persistence": true,
-      "auto_seed": false
-    },
-    "updater": {
-      "enabled": false
-    },
-    "services": {
-      "enabled": [
-        "bigquery",
-        "bigtable",
-        "gcs"
-      ]
-    }
   }
 }
 """
