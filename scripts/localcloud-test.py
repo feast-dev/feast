@@ -39,6 +39,9 @@ TEST_SPEC_JSON = r"""
     "BIGTABLE_EMULATOR_HOST",
     "STORAGE_EMULATOR_HOST"
   ],
+  "project_variables": [
+    "GOOGLE_CLOUD_PROJECT"
+  ],
   "build": [
     {
       "cwd": ".",
@@ -351,6 +354,8 @@ def main() -> int:
                 "LOCALCLOUD_TEST": "1",
             }
         )
+        for variable in manifest.get("project_variables", ["GOOGLE_CLOUD_PROJECT"]):
+            env[variable] = project
         for variable in manifest["endpoint_variables"]:
             if not advertised.get(variable):
                 raise RuntimeError("LocalCloud did not advertise " + variable)

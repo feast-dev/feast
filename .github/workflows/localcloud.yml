@@ -33,6 +33,7 @@ jobs:
           --health-start-period 30s
     env:
       LOCALCLOUD_TEST: '1'
+      GOOGLE_CLOUD_PROJECT: localcloud-ci
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
