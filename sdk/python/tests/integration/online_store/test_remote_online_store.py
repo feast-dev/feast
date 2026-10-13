@@ -102,8 +102,7 @@ def test_remote_online_store_read(auth_config, tls_mode):
     "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
 )
 def test_remote_online_store_read_composite_key(auth_config, tls_mode):
-    """Regression test for #6488: a composite entity key must round-trip
-    through a real remote feature server, not just a mocked HTTP layer."""
+    """A composite entity key must round-trip through a real remote feature server."""
     with (
         tempfile.TemporaryDirectory() as remote_server_tmp_dir,
         tempfile.TemporaryDirectory() as remote_client_tmp_dir,
@@ -148,8 +147,6 @@ def test_remote_online_store_read_composite_key(auth_config, tls_mode):
         client_result = client_store.get_online_features(
             features=features, entity_rows=entity_rows
         ).to_dict()
-        # The regression this guards against: every join key must reach the
-        # request, keyed by name -- not just the first one.
         assert client_result["driver_id"] == [1001, 1002]
         assert client_result["customer_id"] == [5001, 5002]
         assert client_result["conv_rate"] == pytest.approx([0.5, 0.6])

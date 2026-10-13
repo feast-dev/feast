@@ -983,10 +983,7 @@ class TestRemoteOnlineStoreOnlineRead:
         assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
 
     def test_get_event_ts_none_when_requested_feature_absent(self, remote_store):
-        """No requested feature appearing in feature_names must return None,
-        not fall back to the single-join-key positional lookup -- results[1]
-        below carries a real timestamp so a missing guard would wrongly
-        return it instead of None."""
+        """No requested feature appearing in feature_names must return None, not a stale timestamp from results[1]."""
         response_json = {
             "metadata": {"feature_names": ["driver_id", "customer_id"]},
             "results": [
@@ -1000,8 +997,7 @@ class TestRemoteOnlineStoreOnlineRead:
     def test_get_event_ts_empty_requested_features_uses_legacy_fallback(
         self, remote_store
     ):
-        """An empty (not None) requested_features list must behave like
-        None -- the legacy positional lookup -- not silently return None."""
+        """An empty requested_features list must behave like None, not silently return None."""
         response_json = {
             "metadata": {"feature_names": ["driver_id", "conv_rate"]},
             "results": [
@@ -1015,8 +1011,7 @@ class TestRemoteOnlineStoreOnlineRead:
         )
 
     def test_get_event_ts_skips_out_of_bounds_result_index(self, remote_store):
-        """A matched feature name past the end of results (malformed
-        response) must not raise IndexError."""
+        """A matched feature name past the end of results must not raise IndexError."""
         response_json = {
             "metadata": {"feature_names": ["driver_id", "conv_rate"]},
             "results": [
@@ -1032,8 +1027,7 @@ class TestRemoteOnlineStoreOnlineRead:
     def test_online_read_round_trip_with_composite_key(
         self, mock_get, remote_store, config, composite_key_feature_view
     ):
-        """A composite key must preserve every join key and still return the
-        real feature's event timestamp, not an entity column's blank one."""
+        """A composite key must preserve every join key and return the real feature's event timestamp, not an entity column's blank one."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.text = json.dumps(
