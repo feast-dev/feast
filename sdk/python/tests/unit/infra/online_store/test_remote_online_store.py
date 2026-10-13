@@ -1030,6 +1030,25 @@ class TestRemoteOnlineStoreOnlineRead:
 
         assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
 
+    def test_get_event_ts_no_requested_features_single_result_is_none(
+        self, remote_store
+    ):
+        """No requested_features and a single result must return None, not read results[1]."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["2024-01-01T10:00:00Z"]}
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json) is None
+
+    def test_get_event_ts_no_requested_features_empty_results_is_none(
+        self, remote_store
+    ):
+        """No requested_features and no results must return None."""
+        assert remote_store._get_event_ts({"metadata": {}, "results": []}) is None
+
     # ── online_read round trip ──────────────────────────────────────────
 
     @patch("feast.infra.online_stores.remote.get_remote_online_features")
