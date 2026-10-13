@@ -211,6 +211,37 @@ def test_local_join_node():
     assert "__entity_event_timestamp" in result_df.columns
 
 
+@pytest.mark.parametrize("backend_name", ["pandas", "polars"])
+def test_local_join_node_infers_entity_timestamp_column(backend_name):
+    """The entity timestamp column is found by dtype when it has another name."""
+    if backend_name == "polars":
+        pytest.importorskip("polars")
+    from feast.infra.compute_engines.backends.factory import BackendFactory
+
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+    context.entity_df = pd.DataFrame({"entity_id": [1, 2], "ts": [now, now]})
+
+    join_node = LocalJoinNode(
+        name="join",
+        backend=BackendFactory.from_name(backend_name),
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        ),
+    )
+    join_node.add_input(MagicMock())
+    join_node.inputs[0].name = "source"
+
+    result_df = join_node.execute(context).data.to_pandas()
+    assert len(result_df) == 4
+    assert "ts" not in result_df.columns
+    assert (result_df[ENTITY_TS_ALIAS] == now).all()
+
+
 def test_local_dedup_node():
     # Duplicate rows for each entity with different event and created timestamps
     df = pd.DataFrame(
