@@ -1,6 +1,6 @@
 import inspect
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -682,9 +682,9 @@ class TestRemoteOnlineStoreGetOnlineFeatures:
             "full_feature_names",
             "include_feature_view_version_metadata",
         }
-        assert expected_keys.issubset(req_body.keys()), (
-            f"Missing keys in req_body: {expected_keys - req_body.keys()}"
-        )
+        assert expected_keys.issubset(
+            req_body.keys()
+        ), f"Missing keys in req_body: {expected_keys - req_body.keys()}"
 
 
 class TestProtoValueToTransportValue:
@@ -803,3 +803,260 @@ class TestRemoteOnlineStoreWriteBatch:
 
         # Event timestamps should be ISO strings as before
         assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+
+
+class TestRemoteOnlineStoreOnlineRead:
+    """Tests for RemoteOnlineStore._construct_online_read_api_json_request,
+    _get_event_ts, and online_read -- regression coverage for #6488, where
+    every join key past the first was silently dropped from the request."""
+
+    @pytest.fixture
+    def remote_store(self):
+        return RemoteOnlineStore()
+
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            online_store=RemoteOnlineStoreConfig(
+                type="remote", path="http://localhost:6566"
+            ),
+            registry="dummy_registry",
+        )
+
+    @pytest.fixture
+    def composite_key_feature_view(self):
+        driver = Entity(name="driver_id", value_type=ValueType.INT64)
+        customer = Entity(name="customer_id", value_type=ValueType.INT64)
+        source = FileSource(path="test.parquet", timestamp_field="event_timestamp")
+        return FeatureView(
+            name="driver_customer_stats",
+            entities=[driver, customer],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="customer_id", dtype=Int64),
+                Field(name="conv_rate", dtype=Float32),
+            ],
+            source=source,
+        )
+
+    # ── _construct_online_read_api_json_request ───────────────────────
+
+    def test_preserves_every_join_key(self, remote_store, composite_key_feature_view):
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1002),
+                    ValueProto(int64_val=5002),
+                ],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {
+            "driver_id": [1001, 1002],
+            "customer_id": [5001, 5002],
+        }
+
+    def test_single_join_key_unchanged(self, remote_store, composite_key_feature_view):
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1001)]
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {"driver_id": [1001]}
+
+    def test_unset_entity_value_becomes_none(
+        self, remote_store, composite_key_feature_view
+    ):
+        """An EntityKeyProto whose value has no oneof set (WhichOneof
+        returns None) must map to None, not raise TypeError -- the review
+        comment that blocked feast-dev/feast#6603."""
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[ValueProto(int64_val=1001), ValueProto()],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {"driver_id": [1001], "customer_id": [None]}
+
+    def test_unix_timestamp_join_key_sent_as_int(
+        self, remote_store, composite_key_feature_view
+    ):
+        """A UnixTimestamp-typed join key must be sent as a raw int, not a
+        non-JSON-serializable datetime."""
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "as_of"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(unix_timestamp_val=1700000000),
+                ],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"]["as_of"] == [1700000000]
+        assert isinstance(req_body["entities"]["as_of"][0], int)
+        json.dumps(req_body)  # must not raise
+
+    def test_mismatched_join_keys_and_values_raises(
+        self, remote_store, composite_key_feature_view
+    ):
+        too_few_values = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[ValueProto(int64_val=1001)],
+            ),
+        ]
+        with pytest.raises(ValueError):
+            remote_store._construct_online_read_api_json_request(
+                too_few_values, composite_key_feature_view, ["conv_rate"]
+            )
+
+        too_few_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+        ]
+        with pytest.raises(ValueError):
+            remote_store._construct_online_read_api_json_request(
+                too_few_keys, composite_key_feature_view, ["conv_rate"]
+            )
+
+    # ── _get_event_ts ────────────────────────────────────────────────────
+
+    def test_get_event_ts_none_when_requested_feature_has_no_timestamps(
+        self, remote_store
+    ):
+        """A matched requested feature with no event_timestamps must return
+        None rather than raise or fall back to a different column."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+                {"values": [0.5], "event_timestamps": []},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_none_when_requested_feature_absent(self, remote_store):
+        """No requested feature appearing in feature_names must return None,
+        not fall back to the single-join-key positional lookup."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    # ── online_read round trip ──────────────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_online_read_round_trip_with_composite_key(
+        self, mock_get, remote_store, config, composite_key_feature_view
+    ):
+        """End-to-end regression test for #6488: a composite-key online_read
+        call must preserve every join key in the request, and must still
+        return the correct feature value and event timestamp -- not an
+        entity column's own timestamp -- now that the response carries more
+        than one entity column ahead of the real feature column."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        # The real feature server echoes every entity (join key) column
+        # back ahead of the requested feature columns.
+        mock_response.text = json.dumps(
+            {
+                "metadata": {
+                    "feature_names": ["driver_id", "customer_id", "conv_rate"]
+                },
+                "results": [
+                    {
+                        "values": [1001, 1002],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": ["1999-01-01T00:00:00Z"],
+                    },
+                    {
+                        "values": [5001, 5002],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": ["1999-01-01T00:00:00Z"],
+                    },
+                    {
+                        "values": [0.5, 0.6],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": ["2024-01-01T12:00:00Z"],
+                    },
+                ],
+            }
+        )
+        mock_get.return_value = mock_response
+
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1002),
+                    ValueProto(int64_val=5002),
+                ],
+            ),
+        ]
+
+        result = remote_store.online_read(
+            config=config,
+            table=composite_key_feature_view,
+            entity_keys=entity_keys,
+            requested_features=["conv_rate"],
+        )
+
+        mock_get.assert_called_once()
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["entities"] == {
+            "driver_id": [1001, 1002],
+            "customer_id": [5001, 5002],
+        }
+
+        assert len(result) == 2
+        event_ts_0, features_0 = result[0]
+        # Must come from the conv_rate column's own timestamp, not the
+        # second entity column's (customer_id) timestamp.
+        assert event_ts_0 == datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        assert features_0["conv_rate"].float_val == pytest.approx(0.5)
