@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Type, cast
@@ -9,6 +10,7 @@ from google.protobuf.json_format import MessageToJson
 from feast.data_source import DataSource
 from feast.dqm.profilers.profiler import Profile, Profiler
 from feast.importer import import_class
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDatasetMeta, SavedDatasetSpec
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -24,12 +26,61 @@ if TYPE_CHECKING:
 
 class _StorageRegistry(type):
     classes_by_proto_attr_name: Dict[str, Type["SavedDatasetStorage"]] = {}
+    # Several storage classes share the ``custom_storage`` oneof field, so the
+    # mapping above cannot identify them. Every claimant is recorded here in
+    # registration order so that dispatch can tell "one obvious class" apart
+    # from "several, pick deliberately".
+    all_classes_by_proto_attr_name: Dict[str, List[Type["SavedDatasetStorage"]]] = {}
 
     def __new__(cls, name, bases, dct):
         kls = type.__new__(cls, name, bases, dct)
-        if dct.get("_proto_attr_name"):
-            cls.classes_by_proto_attr_name[dct["_proto_attr_name"]] = kls
+        proto_attr_name = dct.get("_proto_attr_name")
+        if proto_attr_name:
+            cls.classes_by_proto_attr_name[proto_attr_name] = kls
+            claimants = cls.all_classes_by_proto_attr_name.setdefault(
+                proto_attr_name, []
+            )
+            if kls not in claimants:
+                claimants.append(kls)
         return kls
+
+
+# Key under which a custom_storage payload records the concrete storage class
+# that wrote it. CustomSourceOptions.configuration is an opaque byte string the
+# implementer owns, and every claimant already reads it as JSON by explicit key,
+# so an extra key is ignored by older readers.
+CUSTOM_STORAGE_CLASS_KEY = "saved_dataset_storage_class"
+
+
+def _class_path(cls: type) -> str:
+    return f"{cls.__module__}.{cls.__qualname__}"
+
+
+def _read_custom_storage_class(
+    options_proto: DataSourceProto.CustomSourceOptions,
+) -> Optional[Type["SavedDatasetStorage"]]:
+    """Resolve the class recorded in a custom_storage payload, if it has one.
+
+    Returns ``None`` for a payload written before this key existed, or one whose
+    configuration is not the JSON object the claimants write, so the caller can
+    fall back instead of failing on data it could previously read.
+    """
+    try:
+        config = json.loads(options_proto.configuration.decode("utf8"))
+    except (UnicodeDecodeError, ValueError):
+        return None
+    if not isinstance(config, dict):
+        return None
+    class_path = config.get(CUSTOM_STORAGE_CLASS_KEY)
+    if not isinstance(class_path, str) or not class_path:
+        return None
+    try:
+        return get_saved_dataset_storage_class_from_path(class_path)
+    except Exception:
+        # A recorded path can be unresolvable here: the class may live in an
+        # extra that is not installed, or may not be importable at all. Fall
+        # back rather than turn a readable payload into an import failure.
+        return None
 
 
 _DATA_SOURCE_TO_SAVED_DATASET_STORAGE = {
@@ -49,8 +100,46 @@ class SavedDatasetStorage(metaclass=_StorageRegistry):
     @staticmethod
     def from_proto(storage_proto: SavedDatasetStorageProto) -> "SavedDatasetStorage":
         proto_attr_name = cast(str, storage_proto.WhichOneof("kind"))
+
+        if proto_attr_name == "custom_storage":
+            recorded = _read_custom_storage_class(storage_proto.custom_storage)
+            if recorded is not None:
+                return recorded.from_proto(storage_proto)
+
+        claimants = _StorageRegistry.all_classes_by_proto_attr_name.get(
+            proto_attr_name, []
+        )
+        if len(claimants) > 1:
+            raise ValueError(
+                f"{len(claimants)} storage classes claim the "
+                f"'{proto_attr_name}' field and this payload does not record "
+                f"which one wrote it, so it cannot be read back unambiguously: "
+                f"{', '.join(sorted(_class_path(c) for c in claimants))}. "
+                f"Saved datasets written after this version record their class "
+                f"under the '{CUSTOM_STORAGE_CLASS_KEY}' key; this one predates "
+                f"that, and the payloads of these classes are not otherwise "
+                f"distinguishable. Call the intended class's from_proto directly."
+            )
+
         return _StorageRegistry.classes_by_proto_attr_name[proto_attr_name].from_proto(
             storage_proto
+        )
+
+    def _custom_storage_proto(
+        self, options_proto: DataSourceProto.CustomSourceOptions
+    ) -> SavedDatasetStorageProto:
+        """Wrap custom source options, recording which class wrote them.
+
+        Classes that share the ``custom_storage`` field must use this instead of
+        constructing the proto directly, otherwise ``from_proto`` has nothing to
+        dispatch on and has to guess from import order.
+        """
+        config = json.loads(options_proto.configuration.decode("utf8"))
+        config[CUSTOM_STORAGE_CLASS_KEY] = _class_path(type(self))
+        return SavedDatasetStorageProto(
+            custom_storage=DataSourceProto.CustomSourceOptions(
+                configuration=json.dumps(config).encode()
+            )
         )
 
     @abstractmethod
