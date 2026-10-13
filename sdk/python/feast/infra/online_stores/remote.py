@@ -324,7 +324,7 @@ class RemoteOnlineStore(OnlineStore):
         if response.status_code == 200:
             logger.debug("Able to retrieve the online features from feature server.")
             response_json = json.loads(response.text)
-            event_ts = self._get_event_ts(response_json)
+            event_ts = self._get_event_ts(response_json, requested_features)
             # Build feature name -> ValueType mapping so we can reconstruct
             # complex types (nested collections, sets, etc.) that cannot be
             # inferred from raw JSON values alone.
@@ -625,17 +625,21 @@ class RemoteOnlineStore(OnlineStore):
             for requested_feature in requested_features:
                 api_requested_features.append(f"{table.name}:{requested_feature}")
 
-        entity_values = []
-        entity_key = ""
+        entity_columns: Dict[str, List[Any]] = {}
         for row in entity_keys:
-            entity_key = row.join_keys[0]
-            entity_values.append(
-                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))  # type: ignore[arg-type]
-            )
+            if len(row.join_keys) != len(row.entity_values):
+                raise ValueError(
+                    f"Entity key has {len(row.join_keys)} join keys but "
+                    f"{len(row.entity_values)} values; these must be the same length."
+                )
+            for join_key, value in zip(row.join_keys, row.entity_values):
+                entity_columns.setdefault(join_key, []).append(
+                    self._proto_value_to_transport_value(value)
+                )
 
         return {
             "features": api_requested_features,
-            "entities": {entity_key: entity_values},
+            "entities": entity_columns,
         }
 
     def _construct_online_documents_api_json_request(
@@ -686,8 +690,27 @@ class RemoteOnlineStore(OnlineStore):
             body["filters"] = filters.model_dump()
         return body
 
-    def _get_event_ts(self, response_json) -> Optional[datetime]:
+    def _get_event_ts(
+        self,
+        response_json,
+        requested_features: Optional[List[str]] = None,
+    ) -> Optional[datetime]:
         results = response_json.get("results") or []
+        if requested_features is not None:
+            # Entity (join key) columns precede feature columns in the
+            # response, and there can be more than one of them -- look up
+            # the first *requested* feature by name instead of assuming a
+            # fixed index, which only held with a single join key.
+            feature_names = response_json.get("metadata", {}).get("feature_names") or []
+            for index, feature_name in enumerate(feature_names):
+                if feature_name in requested_features:
+                    event_timestamps = results[index].get("event_timestamps") or []
+                    if event_timestamps:
+                        return datetime.fromisoformat(
+                            event_timestamps[0].replace("Z", "+00:00")
+                        )
+                    return None
+            return None
         if len(results) > 1:
             event_timestamps = results[1].get("event_timestamps") or []
             if event_timestamps:
