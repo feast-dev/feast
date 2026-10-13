@@ -691,7 +691,8 @@ class RemoteOnlineStore(OnlineStore):
         return body
 
     @staticmethod
-    def _parse_event_ts(event_timestamps: List[str]) -> Optional[datetime]:
+    def _parse_event_ts(result: dict) -> Optional[datetime]:
+        event_timestamps = result.get("event_timestamps") or []
         if not event_timestamps:
             return None
         return datetime.fromisoformat(event_timestamps[0].replace("Z", "+00:00"))
@@ -704,15 +705,15 @@ class RemoteOnlineStore(OnlineStore):
         results = response_json.get("results") or []
         if requested_features:
             # Entity columns may precede more than one feature column; match by name.
-            feature_names = response_json.get("metadata", {}).get("feature_names") or []
-            for index, feature_name in enumerate(feature_names):
-                if feature_name in requested_features and index < len(results):
-                    return self._parse_event_ts(
-                        results[index].get("event_timestamps") or []
-                    )
+            feature_names = (response_json.get("metadata") or {}).get(
+                "feature_names"
+            ) or []
+            for feature_name, result in zip(feature_names, results):
+                if feature_name in requested_features:
+                    return self._parse_event_ts(result)
             return None
         if len(results) > 1:
-            return self._parse_event_ts(results[1].get("event_timestamps") or [])
+            return self._parse_event_ts(results[1])
         return None
 
     def _construct_entity_key_from_response(
