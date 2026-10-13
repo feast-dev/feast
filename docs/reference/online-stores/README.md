@@ -6,6 +6,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [overview.md](overview.md)
 {% endcontent-ref %}
 
+{% content-ref url="chronon.md" %}
+[chronon.md](chronon.md)
+{% endcontent-ref %}
+
 {% content-ref url="sqlite.md" %}
 [sqlite.md](sqlite.md)
 {% endcontent-ref %}

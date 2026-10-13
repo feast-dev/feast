@@ -230,6 +230,19 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     # Search params, e.g. {"ef": 64}, or {"level": 2} for AUTOINDEX.
     # Defaults to {"nprobe": 10}, or {} for AUTOINDEX.
     search_params: Optional[Dict[str, Any]] = None
+    # Sent with every read and search. When unset, Milvus uses the
+    # collection's level.
+    consistency_level: Optional[
+        Literal["Strong", "Bounded", "Session", "Eventually"]
+    ] = None
+    # Set when Feast creates a collection. When unset, Milvus uses its
+    # default (Bounded).
+    collection_consistency_level: Optional[
+        Literal["Strong", "Bounded", "Session", "Eventually"]
+    ] = None
+    # Field to use as the Milvus partition key in feature views that contain it.
+    # A feature view's "milvus.partition_key" tag takes precedence.
+    partition_key: Optional[StrictStr] = None
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
@@ -376,6 +389,9 @@ class MilvusOnlineStore(OnlineStore):
                         dim=PLACEHOLDER_VECTOR_DIM,
                     )
                 )
+            partition_key = _partition_key_name(config.online_store, table)
+            if partition_key:
+                _mark_partition_key(fields, partition_key, table.name)
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
@@ -421,6 +437,7 @@ class MilvusOnlineStore(OnlineStore):
                     dimension=config.online_store.embedding_dim,
                     schema=schema,
                     index_params=index_params,
+                    **_collection_consistency_kwargs(config.online_store),
                 )
             else:
                 self._ensure_loaded(collection_name)
@@ -429,6 +446,10 @@ class MilvusOnlineStore(OnlineStore):
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
             )
+            if collection_exists and partition_key:
+                _warn_if_partition_key_missing(
+                    self._collections[collection_name], partition_key
+                )
         return self._collections[collection_name]
 
     def _ensure_loaded(self, collection_name: str) -> None:
@@ -584,6 +605,7 @@ class MilvusOnlineStore(OnlineStore):
             collection_name=collection_name,
             filter=query_filter_for_entities,
             output_fields=output_fields,
+            **_consistency_kwargs(config.online_store),
         )
         # Group hits by composite key.
         grouped_hits: Dict[str, Any] = {}
@@ -863,6 +885,7 @@ class MilvusOnlineStore(OnlineStore):
                 limit=top_k,
                 output_fields=output_fields,
                 filter=combined_filter,
+                **_consistency_kwargs(config.online_store),
             )
 
         elif embedding is not None and config.online_store.vector_enabled:
@@ -880,6 +903,7 @@ class MilvusOnlineStore(OnlineStore):
                 limit=top_k,
                 output_fields=output_fields,
                 filter=metadata_filter_expr,
+                **_consistency_kwargs(config.online_store),
             )
 
         elif query_string is not None:
@@ -915,6 +939,7 @@ class MilvusOnlineStore(OnlineStore):
                 filter=combined_filter or text_filter,
                 output_fields=output_fields,
                 limit=top_k,
+                **_consistency_kwargs(config.online_store),
             )
 
             results = [
@@ -1051,6 +1076,79 @@ def _search_params(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
     if _is_autoindex(online_config):
         return {}
     return {"nprobe": 10}
+
+
+PARTITION_KEY_TAG = "milvus.partition_key"
+PARTITION_KEY_TYPES = {DataType.INT64, DataType.VARCHAR}
+
+
+def _partition_key_name(
+    online_config: MilvusOnlineStoreConfig, table: FeatureView
+) -> Optional[str]:
+    """Return the partition key field for a feature view, if one is configured.
+
+    The feature view's ``milvus.partition_key`` tag takes precedence over the
+    store-level ``partition_key``, which only applies to feature views that
+    contain that field.
+    """
+    tagged = table.tags.get(PARTITION_KEY_TAG)
+    if tagged:
+        return tagged
+    configured = online_config.partition_key
+    if configured and any(field.name == configured for field in table.schema):
+        return configured
+    return None
+
+
+def _mark_partition_key(
+    fields: List[FieldSchema], partition_key: str, table_name: str
+) -> None:
+    field = next((f for f in fields if f.name == partition_key), None)
+    if field is None:
+        raise ValueError(
+            f"Partition key '{partition_key}' is not a field of feature view "
+            f"'{table_name}'."
+        )
+    if field.dtype not in PARTITION_KEY_TYPES:
+        raise ValueError(
+            f"Partition key '{partition_key}' of feature view '{table_name}' is "
+            f"stored as {field.dtype.name}, but Milvus partition keys must be "
+            "INT64 or VARCHAR."
+        )
+    field.is_partition_key = True
+
+
+def _warn_if_partition_key_missing(
+    collection: Dict[str, Any], partition_key: str
+) -> None:
+    has_key = any(
+        field["name"] == partition_key and field.get("is_partition_key")
+        for field in collection["fields"]
+    )
+    if not has_key:
+        logger.warning(
+            "Collection '%s' was created without partition key '%s'. The partition "
+            "key only applies when a collection is created: run `feast teardown` "
+            "and `feast apply`, then materialize again to use it.",
+            collection["collection_name"],
+            partition_key,
+        )
+
+
+def _consistency_kwargs(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """Read and search kwargs; only pass a level when configured."""
+    if online_config.consistency_level:
+        return {"consistency_level": online_config.consistency_level}
+    return {}
+
+
+def _collection_consistency_kwargs(
+    online_config: MilvusOnlineStoreConfig,
+) -> Dict[str, Any]:
+    """create_collection kwargs; only pass a level when configured."""
+    if online_config.collection_consistency_level:
+        return {"consistency_level": online_config.collection_consistency_level}
+    return {}
 
 
 def _milvus_token(online_config: MilvusOnlineStoreConfig) -> str:
