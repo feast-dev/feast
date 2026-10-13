@@ -1101,6 +1101,7 @@ class OnDemandFeatureView(BaseFeatureView):
     def transform_dict(
         self,
         feature_dict: dict[str, Any],  # type: ignore
+        full_feature_names: bool = False,
     ) -> dict[str, Any]:
         """
         Transform a dictionary of features using the configured transformation.
@@ -1108,6 +1109,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
         Args:
             feature_dict: Dictionary containing input features
+            full_feature_names: Whether to return output features as
+                "<view>__<feature>", like transform_arrow does.
 
         Returns:
             Dictionary with transformed features
@@ -1126,12 +1129,36 @@ class OnDemandFeatureView(BaseFeatureView):
         else:
             output_dict = self.feature_transformation.transform(preprocessed_dict)
 
-        # Clean up temporary columns
+        # Clean up temporary columns and apply final renaming
+        return self._postprocess_feature_dict(
+            output_dict, columns_to_cleanup, full_feature_names
+        )
+
+    def _postprocess_feature_dict(
+        self,
+        output_dict: dict[str, Any],
+        columns_to_cleanup: list[str],
+        full_feature_names: bool,
+    ) -> dict[str, Any]:
+        """
+        Clean up temporary keys and apply final feature renaming.
+        Mirrors _postprocess_arrow_table so python and pandas modes agree.
+        """
+        rename_columns: dict[str, str] = {}
+        for feature in self.features:
+            short_name = feature.name
+            long_name = self._get_projected_feature_name(feature.name)
+
+            if short_name in output_dict and full_feature_names:
+                rename_columns[short_name] = long_name
+            elif long_name in output_dict and not full_feature_names:
+                rename_columns[long_name] = short_name
+
         for feature_name in columns_to_cleanup:
             if feature_name in output_dict:
                 del output_dict[feature_name]
 
-        return output_dict
+        return {rename_columns.get(k, k): v for k, v in output_dict.items()}
 
     def _preprocess_feature_dict(
         self, feature_dict: dict[str, Any]
