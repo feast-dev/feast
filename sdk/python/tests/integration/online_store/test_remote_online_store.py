@@ -24,9 +24,11 @@ from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.types import Float32, Int64
 from feast.utils import _utc_now
+from feast.value_type import ValueType
 from tests.utils.auth_permissions_util import (
     PROJECT_NAME,
     default_store,
+    include_auth_config,
     start_feature_server,
 )
 from tests.utils.cli_repo_creator import CliRunner
@@ -92,6 +94,125 @@ def test_remote_online_store_read(auth_config, tls_mode):
         _assert_non_existing_feature_views(
             client_store=client_store, server_store=server_store
         )
+
+
+@pytest.mark.integration
+@pytest.mark.rbac_remote_integration_test
+@pytest.mark.parametrize(
+    "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
+)
+def test_remote_online_store_read_composite_key(auth_config, tls_mode):
+    """Regression test for #6488: a composite entity key must round-trip
+    through a real remote feature server, not just a mocked HTTP layer."""
+    with (
+        tempfile.TemporaryDirectory() as remote_server_tmp_dir,
+        tempfile.TemporaryDirectory() as remote_client_tmp_dir,
+    ):
+        permissions_list = [
+            Permission(
+                name="online_list_fv_perm",
+                types=FeatureView,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ_ONLINE],
+            ),
+        ]
+        server_store, server_url, registry_path = (
+            _create_composite_key_server_store_spin_feature_server(
+                temp_dir=remote_server_tmp_dir,
+                auth_config=auth_config,
+                permissions_list=permissions_list,
+                tls_mode=tls_mode,
+            )
+        )
+
+        client_store = _create_remote_client_feature_store(
+            temp_dir=remote_client_tmp_dir,
+            server_registry_path=str(registry_path),
+            feature_server_url=server_url,
+            auth_config=auth_config,
+            tls_mode=tls_mode,
+        )
+
+        features = ["driver_customer_stats:conv_rate"]
+        entity_rows = [
+            {"driver_id": 1001, "customer_id": 5001},
+            {"driver_id": 1002, "customer_id": 5002},
+        ]
+        _assert_client_server_online_stores_are_matching(
+            client_store=client_store,
+            server_store=server_store,
+            features=features,
+            entity_rows=entity_rows,
+        )
+
+        client_result = client_store.get_online_features(
+            features=features, entity_rows=entity_rows
+        ).to_dict()
+        # The regression this guards against: every join key must reach the
+        # request, keyed by name -- not just the first one.
+        assert client_result["driver_id"] == [1001, 1002]
+        assert client_result["customer_id"] == [5001, 5002]
+        assert client_result["conv_rate"] == pytest.approx([0.5, 0.6])
+
+
+def _create_composite_key_server_store_spin_feature_server(
+    temp_dir, auth_config: str, permissions_list, tls_mode
+):
+    """Like default_store(), but registers a composite-key (driver_id,
+    customer_id) feature view instead of feast init's single-key default."""
+    runner = CliRunner()
+    result = runner.run(["init", PROJECT_NAME], cwd=temp_dir)
+    assert result.returncode == 0
+    repo_path = os.path.join(temp_dir, PROJECT_NAME, "feature_repo")
+    include_auth_config(
+        file_path=f"{repo_path}/feature_store.yaml", auth_config=auth_config
+    )
+    store = FeatureStore(repo_path=repo_path)
+
+    driver = Entity(name="driver_id", value_type=ValueType.INT64)
+    customer = Entity(name="customer_id", value_type=ValueType.INT64)
+    source = FileSource(
+        path=os.path.join(temp_dir, "driver_customer_stats.parquet"),
+        timestamp_field="event_timestamp",
+    )
+    feature_view = FeatureView(
+        name="driver_customer_stats",
+        entities=[driver, customer],
+        ttl=timedelta(days=1),
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        source=source,
+    )
+    store.apply([driver, customer, feature_view, *permissions_list])
+
+    now = _utc_now()
+    store.write_to_online_store(
+        "driver_customer_stats",
+        df=pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "customer_id": [5001, 5002],
+                "conv_rate": [0.5, 0.6],
+                "event_timestamp": [now, now],
+            }
+        ),
+    )
+
+    feast_server_port = free_port()
+    is_tls_mode, tls_key_path, tls_cert_path, ca_trust_store_path = tls_mode
+    server_url = next(
+        start_feature_server(
+            repo_path=str(store.repo_path),
+            server_port=feast_server_port,
+            tls_key_path=tls_key_path,
+            tls_cert_path=tls_cert_path,
+            ca_trust_store_path=ca_trust_store_path,
+        )
+    )
+    return (
+        store,
+        server_url,
+        os.path.join(store.repo_path, "data", "registry.db"),
+    )
 
 
 def _assert_non_existing_entity_feature_views_entity(

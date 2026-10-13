@@ -682,9 +682,9 @@ class TestRemoteOnlineStoreGetOnlineFeatures:
             "full_feature_names",
             "include_feature_view_version_metadata",
         }
-        assert expected_keys.issubset(
-            req_body.keys()
-        ), f"Missing keys in req_body: {expected_keys - req_body.keys()}"
+        assert expected_keys.issubset(req_body.keys()), (
+            f"Missing keys in req_body: {expected_keys - req_body.keys()}"
+        )
 
 
 class TestProtoValueToTransportValue:
@@ -984,11 +984,43 @@ class TestRemoteOnlineStoreOnlineRead:
 
     def test_get_event_ts_none_when_requested_feature_absent(self, remote_store):
         """No requested feature appearing in feature_names must return None,
-        not fall back to the single-join-key positional lookup."""
+        not fall back to the single-join-key positional lookup -- results[1]
+        below carries a real timestamp so a missing guard would wrongly
+        return it instead of None."""
         response_json = {
-            "metadata": {"feature_names": ["driver_id"]},
+            "metadata": {"feature_names": ["driver_id", "customer_id"]},
             "results": [
                 {"values": [1001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+                {"values": [5001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_empty_requested_features_uses_legacy_fallback(
+        self, remote_store
+    ):
+        """An empty (not None) requested_features list must behave like
+        None -- the legacy positional lookup -- not silently return None."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": []},
+                {"values": [0.5], "event_timestamps": ["2024-01-01T10:00:00Z"]},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, []) == datetime(
+            2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc
+        )
+
+    def test_get_event_ts_skips_out_of_bounds_result_index(self, remote_store):
+        """A matched feature name past the end of results (malformed
+        response) must not raise IndexError."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": []},
             ],
         }
 
