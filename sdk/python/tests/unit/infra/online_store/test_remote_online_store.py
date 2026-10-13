@@ -1021,6 +1021,15 @@ class TestRemoteOnlineStoreOnlineRead:
 
         assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
 
+    def test_get_event_ts_none_metadata_must_not_raise(self, remote_store):
+        """An explicit null metadata key must not raise AttributeError."""
+        response_json = {
+            "metadata": None,
+            "results": [{"values": [1001], "event_timestamps": []}],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
     # ── online_read round trip ──────────────────────────────────────────
 
     @patch("feast.infra.online_stores.remote.get_remote_online_features")
