@@ -166,6 +166,15 @@ def test_python_values_to_proto_values_bytes_to_list(values, value_type, expecte
     assert converted == expected
 
 
+@pytest.mark.parametrize(
+    "value_type", [ValueType.BYTES, ValueType.PDF_BYTES, ValueType.IMAGE_BYTES]
+)
+def test_python_values_to_proto_values_binary(value_type):
+    protos = python_values_to_proto_values([b"%PDF-1.3", None], value_type)
+    assert feast_value_type_to_python_type(protos[0]) == b"%PDF-1.3"
+    assert feast_value_type_to_python_type(protos[1]) is None
+
+
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
@@ -605,6 +614,11 @@ class TestMapArrowTypeSupport:
     def test_convert_value_type_str_map_list(self):
         """Test that 'MAP_LIST' string converts to ValueType.MAP_LIST."""
         assert _convert_value_type_str_to_value_type("MAP_LIST") == ValueType.MAP_LIST
+
+    @pytest.mark.parametrize("value_type", list(ValueType), ids=lambda v: v.name)
+    def test_convert_value_type_str_round_trips_every_name(self, value_type):
+        """Every ValueType name converts back to that ValueType."""
+        assert _convert_value_type_str_to_value_type(value_type.name) == value_type
 
     def test_arrow_to_pg_type_map(self):
         """Test that Arrow map type converts to Postgres jsonb."""
@@ -2522,3 +2536,35 @@ def test_spark_to_feast_value_type_small_ints(spark_type, expected):
     """SparkSource passes ``DataType.simpleString()``, which spells ShortType and
     ByteType as ``smallint`` and ``tinyint``."""
     assert spark_to_feast_value_type(spark_type) == expected
+
+
+@pytest.mark.parametrize(
+    "pa_type, expected",
+    [
+        (pyarrow.int8(), ValueType.INT32),
+        (pyarrow.int16(), ValueType.INT32),
+        (pyarrow.uint8(), ValueType.INT32),
+        (pyarrow.uint16(), ValueType.INT32),
+        (pyarrow.uint32(), ValueType.INT64),
+        (pyarrow.uint64(), ValueType.INT64),
+        (pyarrow.list_(pyarrow.int16()), ValueType.INT32_LIST),
+        (pyarrow.list_(pyarrow.uint32()), ValueType.INT64_LIST),
+    ],
+)
+def test_pa_to_feast_value_type_small_and_unsigned_ints(pa_type, expected):
+    """Narrow and unsigned Arrow integers, e.g. Parquet int16 columns, widen to
+    the smallest Feast integer type that holds every value."""
+    assert pa_to_feast_value_type(str(pa_type)) == expected
+
+
+@pytest.mark.parametrize(
+    "dtype", ["int8", "int16", "uint8", "uint16", "uint32", "uint64"]
+)
+def test_pandas_and_arrow_int_inference_agree(dtype):
+    """A column infers the same Feast type from its pandas dtype and its Arrow type."""
+    values = pd.Series([1, 2], dtype=dtype)
+    from_pandas = python_type_to_feast_value_type(
+        "f", value=values.iloc[0], type_name=str(values.dtype)
+    )
+    from_arrow = pa_to_feast_value_type(str(pyarrow.array(values).type))
+    assert from_pandas == from_arrow

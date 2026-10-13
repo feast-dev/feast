@@ -94,9 +94,9 @@ class SparkApplicationComputeEngine(ComputeEngine):
         # Defer kubeconfig load until materialize/cleanup — feast apply only
         # constructs the engine and calls update() (a no-op), so it must not
         # require a cluster.
-        self._k8s_client = None
-        self._core_v1 = None
-        self._custom_api = None
+        self._k8s_client: Optional[client.ApiClient] = None
+        self._core_v1: Optional[client.CoreV1Api] = None
+        self._custom_api: Optional[client.CustomObjectsApi] = None
         self._server_id = uuid.uuid4().hex[:8]
 
     def _ensure_k8s(self) -> None:

@@ -622,15 +622,18 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
 			FailureThreshold: 40,
+			TimeoutSeconds:   5,
 		}
 		container.LivenessProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    20,
 			FailureThreshold: 6,
+			TimeoutSeconds:   5,
 		}
 		container.ReadinessProbe = &corev1.Probe{
-			ProbeHandler:  probeHandler,
-			PeriodSeconds: 10,
+			ProbeHandler:   probeHandler,
+			PeriodSeconds:  10,
+			TimeoutSeconds: 5,
 		}
 		volumeMounts := feast.getVolumeMounts(feastType)
 		if len(volumeMounts) > 0 {
@@ -770,8 +773,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 		if feast.isRegistryRestEnabled() {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
+			deploySettings.Args = append(deploySettings.Args, "-h", hostAllIPv4)
 		}
 	}
+	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
 
 	// Add worker configuration options for online store (feast serve)
 	if feastType == OnlineFeastType {
@@ -813,6 +818,25 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	return feastCommand
 }
 
+// withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
+// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage, mcp) rejects it.
+func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	out := append([]string{}, args...)
+	if serverConfigs == nil || serverConfigs.DualStack == nil || !*serverConfigs.DualStack {
+		return out
+	}
+	host := hostAllIPv6
+	if feastType == OnlineFeastType || feastType == OfflineFeastType {
+		host = hostAllIPv6Bracketed
+	}
+	for i := 0; i+1 < len(out); i++ {
+		if out[i] == "-h" || out[i] == "--host" {
+			out[i+1] = host
+		}
+	}
+	return out
+}
+
 // getMcpServerCommand builds the `feast mcp` command for the standalone MCP server container.
 // The operator owns the bind host/port (so they match the generated Service); everything else
 // (transport, upstream feature/registry URLs, auth, observability) is read from the mounted
@@ -830,7 +854,7 @@ func (feast *FeastServices) getMcpServerCommand() []string {
 	} else if !feast.hasMcpServerTransportEnv() {
 		cmd = append(cmd, "--transport", "http")
 	}
-	return cmd
+	return withBindHost(McpServerFeastType, cmd, feast.getServerConfigs(McpServerFeastType))
 }
 
 // hasMcpServerTransportEnv reports whether the user set the MCP transport through mcpServer.env.
@@ -1696,7 +1720,7 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	container := corev1.Container{
 		Name:    string(LineageFeastType),
 		Image:   image,
-		Command: append([]string{feastCommand}, svcConsts.Args...),
+		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
 		Args:    []string{"-p", fmt.Sprintf("%d", port)},
 		Ports: []corev1.ContainerPort{
 			{

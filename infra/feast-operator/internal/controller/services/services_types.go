@@ -133,6 +133,8 @@ const (
 	stringTrue              = "true"
 	stringFalse             = "false"
 	hostAllIPv4             = "0.0.0.0"
+	hostAllIPv6             = "::"
+	hostAllIPv6Bracketed    = "[::]"
 	tlsCertKey              = "tls.crt"
 	DefaultNs               = "default"
 	feastCommand            = "feast"
@@ -184,7 +186,7 @@ const (
 
 var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
-	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"
+	DefaultCronJobImage   = "registry.k8s.io/kubectl:v1.35.9"
 	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	NameLabelKey          = feastdevv1.GroupVersion.Group + "/name"
 	ServiceTypeLabelKey   = feastdevv1.GroupVersion.Group + "/service-type"
@@ -208,12 +210,12 @@ var (
 			TargetRestHttpsPort: 6573,
 		},
 		UIFeastType: {
-			Args:            []string{"ui", "-h", "0.0.0.0"},
+			Args:            []string{"ui", "-h", hostAllIPv4},
 			TargetHttpPort:  8888,
 			TargetHttpsPort: 8443,
 		},
 		LineageFeastType: {
-			Args:            []string{"serve_lineage", "-h", "0.0.0.0"},
+			Args:            []string{"serve_lineage", "-h", hostAllIPv4},
 			TargetHttpPort:  6580,
 			TargetHttpsPort: 6581,
 		},

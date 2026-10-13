@@ -25,7 +25,11 @@ import pytest
 from feast import Field
 from feast.data_source import PushSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames, PermissionNotFoundException
+from feast.errors import (
+    ConflictingFeatureViewNames,
+    DataSourceObjectNotFoundException,
+    PermissionNotFoundException,
+)
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.sql import (
@@ -379,6 +383,25 @@ def test_delete_entity_refreshes_cache(sqlite_registry):
     sqlite_registry.delete_entity("driver", "test_project")
 
     assert sqlite_registry.list_entities("test_project", allow_cache=True) == []
+
+
+def test_delete_data_source_refreshes_cache(sqlite_registry):
+    source = FileSource(
+        name="driver_stats",
+        path="driver_stats.parquet",
+        timestamp_field="event_timestamp",
+    )
+    sqlite_registry.apply_data_source(source, "test_project")
+    assert [
+        ds.name
+        for ds in sqlite_registry.list_data_sources("test_project", allow_cache=True)
+    ] == ["driver_stats"]
+
+    sqlite_registry.delete_data_source("driver_stats", "test_project")
+
+    assert sqlite_registry.list_data_sources("test_project", allow_cache=True) == []
+    with pytest.raises(DataSourceObjectNotFoundException):
+        sqlite_registry.delete_data_source("driver_stats", "test_project")
 
 
 def _build_feature_view(name: str, entity: Entity, source: FileSource) -> FeatureView:

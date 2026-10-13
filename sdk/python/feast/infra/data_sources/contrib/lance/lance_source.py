@@ -33,7 +33,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetStorage as SavedDatasetStorageProto,
+)
 from feast.repo_config import RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.table_format import LanceFormat
 from feast.type_map import pa_to_feast_value_type
 from feast.value_type import ValueType
@@ -289,6 +293,70 @@ class LanceSource(DataSource):
             _validate_vector_field_lengths(table, feature_view)
         return table
 
+    # --------------------------------------------------------------- writing
+
+    def get_write_target(self) -> Dict[str, Any]:
+        """Keyword arguments addressing this source for ``lance.write_dataset``.
+
+        Deliberately omits ``version``. A Lance commit always produces a new
+        version, so there is no argument that writes *into* an existing one;
+        ``write_dataset`` has no ``version`` parameter at all. Callers must
+        reject a pinned source before reaching a write, which
+        ``assert_writable`` does.
+        """
+        kwargs: Dict[str, Any] = {}
+        if self.storage_options:
+            kwargs["storage_options"] = dict(self.storage_options)
+
+        if self.is_catalog_based:
+            kwargs["namespace_client"] = self.get_namespace_client()
+            kwargs["table_id"] = self.table_id
+        else:
+            kwargs["uri"] = self.uri
+        return kwargs
+
+    def assert_writable(self) -> None:
+        """Refuse to write through a pinned source.
+
+        A write commits a new version, which a source pinned to an older version
+        or to a tag does not read. The write would therefore succeed and then be
+        invisible through the very source that performed it, so the only honest
+        outcome is to refuse up front.
+        """
+        if self.pin is None:
+            return
+        raise ValueError(
+            f"LanceSource '{self.name}' is pinned to {self.pin_description} and "
+            f"cannot be written through. A Lance write commits a new version, so "
+            f"it would not be visible through this pin. Write through an unpinned "
+            f"LanceSource addressing the same dataset, then move the tag or re-pin "
+            f"to the version the write produced."
+        )
+
+    def get_existing_schema(self) -> Optional["pyarrow.Schema"]:
+        """Schema of the dataset this source addresses, or ``None`` if absent.
+
+        Used to choose between creating and appending, and to compare shapes
+        before handing data to Lance. A failure to open is reported as absent
+        rather than raised, because the only distinction the caller draws is
+        whether there is an existing shape to honour.
+        """
+        import lance
+
+        kwargs = self.get_write_target()
+        try:
+            if self.is_catalog_based:
+                return lance.dataset(
+                    namespace_client=kwargs["namespace_client"],
+                    table_id=kwargs["table_id"],
+                    storage_options=kwargs.get("storage_options"),
+                ).schema
+            return lance.dataset(
+                uri=kwargs["uri"], storage_options=kwargs.get("storage_options")
+            ).schema
+        except Exception:
+            return None
+
     # ----------------------------------------------------------- DataSource
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
@@ -469,3 +537,181 @@ def validate_lance_source_schema(feature_view: "FeatureView") -> None:
     from feast.utils import _validate_vector_field_lengths
 
     _validate_vector_field_lengths(schema.empty_table(), feature_view)
+
+
+def _vector_widths(schema: "pyarrow.Schema") -> Dict[str, int]:
+    """Width of every fixed-width vector column in an Arrow schema."""
+    import pyarrow
+
+    widths: Dict[str, int] = {}
+    for field in schema:
+        if pyarrow.types.is_fixed_size_list(field.type):
+            widths[field.name] = field.type.list_size
+    return widths
+
+
+def validate_lance_write_shape(
+    table: "pyarrow.Table",
+    source: LanceSource,
+    existing_schema: Optional["pyarrow.Schema"],
+) -> None:
+    """Refuse a write that would change an existing vector column's width.
+
+    Lance rejects an ``append`` whose schema disagrees with the dataset, but it
+    accepts an ``overwrite`` that replaces a vector column with one of a
+    different width, silently rewriting the declared shape and leaving a version
+    history whose vectors are not mutually comparable. Every ANN index and every
+    downstream consumer built against the old width is invalidated by such a
+    write, and no legitimate schema evolution changes an embedding's dimension,
+    so this is reported as an error rather than carried out.
+
+    Only vector widths are policed here. Other kinds of type change remain
+    Lance's business, because for those an ``overwrite`` is a defensible
+    evolution.
+    """
+    if existing_schema is None:
+        return
+
+    existing = _vector_widths(existing_schema)
+    incoming = _vector_widths(table.schema)
+
+    changed = {
+        name: (existing[name], incoming[name])
+        for name in existing.keys() & incoming.keys()
+        if existing[name] != incoming[name]
+    }
+    if not changed:
+        return
+
+    detail = ", ".join(
+        f"'{name}' is {was} in the dataset but {now} in the data being written"
+        for name, (was, now) in sorted(changed.items())
+    )
+    raise ValueError(
+        f"Write to Lance dataset '{source.name}' would change the width of "
+        f"vector column(s): {detail}. A width change invalidates every index and "
+        f"consumer built against the current width, and leaves a version history "
+        f"whose vectors cannot be compared with each other. Write the re-embedded "
+        f"data to a new dataset instead of overwriting this one."
+    )
+
+
+class SavedDatasetLanceStorage(SavedDatasetStorage):
+    """Records an existing Lance dataset as a saved dataset.
+
+    This is the registry entry for "a dataset I produced, at this version, with
+    these properties". The data is not moved or rewritten: the storage holds the
+    address, and :meth:`BaseRegistry.apply_saved_dataset` records it as metadata.
+    That is the path for a dataset built outside Feast, by a Ray or Spark job,
+    which ``FeatureStore.create_saved_dataset`` cannot serve because it executes
+    a ``RetrievalJob`` and persists its result.
+
+    The format must pin a version or a tag. A saved dataset addressing the latest
+    version is a contradiction: the rows it refers to change under it, so any
+    measurement recorded against it stops being attributable. Prefer ``version``
+    over ``tag``, because a tag can be moved to another version afterwards while
+    a version number cannot.
+    """
+
+    _proto_attr_name = "custom_storage"
+
+    def __init__(
+        self,
+        table_format: LanceFormat,
+        *,
+        uri: Optional[str] = None,
+        table: Optional[str] = None,
+        namespace_impl: Optional[str] = None,
+        namespace_properties: Optional[Dict[str, str]] = None,
+        storage_options: Optional[Dict[str, str]] = None,
+    ):
+        if not isinstance(table_format, LanceFormat):
+            raise ValueError(
+                f"SavedDatasetLanceStorage requires a LanceFormat, got "
+                f"{type(table_format).__name__}."
+            )
+        if not table_format.is_pinned:
+            raise ValueError(
+                "SavedDatasetLanceStorage requires LanceFormat to pin a version "
+                "or a tag. Without a pin the saved dataset addresses whatever "
+                "version is latest at read time, so it does not identify the "
+                "rows it was created from."
+            )
+        if bool(uri) == bool(table):
+            raise ValueError(
+                "SavedDatasetLanceStorage takes either uri or table, not both "
+                "and not neither. A uri addresses the dataset directly; a table "
+                "addresses it through a namespace."
+            )
+        if table and not namespace_impl:
+            raise ValueError(
+                "SavedDatasetLanceStorage with a table requires namespace_impl, "
+                "the same as LanceSource."
+            )
+
+        self.table_format = table_format
+        self.uri = uri
+        self.lance_table = table
+        self.namespace_impl = namespace_impl
+        self.namespace_properties = namespace_properties or {}
+        self.storage_options = storage_options or {}
+
+    @staticmethod
+    def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
+        config = json.loads(
+            str(storage_proto.custom_storage.configuration, encoding="utf8")
+        )
+        return SavedDatasetLanceStorage(
+            LanceFormat.from_dict(config.get("table_format") or {}),
+            uri=config.get("uri"),
+            table=config.get("table"),
+            namespace_impl=config.get("namespace_impl"),
+            namespace_properties=config.get("namespace_properties"),
+            storage_options=config.get("storage_options"),
+        )
+
+    def to_proto(self) -> SavedDatasetStorageProto:
+        config_json = json.dumps(
+            {
+                "uri": self.uri,
+                "table": self.lance_table,
+                "namespace_impl": self.namespace_impl,
+                "namespace_properties": self.namespace_properties,
+                "storage_options": self.storage_options,
+                "table_format": self.table_format.to_dict(),
+            }
+        )
+        # Routed through the base class so the writing class is recorded in the
+        # payload. Several storage classes share the custom_storage field, and
+        # without that record from_proto resolves by import order.
+        return self._custom_storage_proto(
+            DataSourceProto.CustomSourceOptions(
+                configuration=bytes(config_json, encoding="utf8")
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return LanceSource(
+            uri=self.uri,
+            table=self.lance_table,
+            table_format=self.table_format,
+            namespace_impl=self.namespace_impl,
+            namespace_properties=self.namespace_properties,
+            storage_options=self.storage_options,
+        )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> SavedDatasetStorage:
+        if not isinstance(data_source, LanceSource):
+            raise ValueError(
+                f"SavedDatasetLanceStorage.from_data_source requires a "
+                f"LanceSource, got {type(data_source).__name__}."
+            )
+        return SavedDatasetLanceStorage(
+            data_source.table_format,
+            uri=data_source.uri,
+            table=data_source.lance_table,
+            namespace_impl=data_source.namespace_impl,
+            namespace_properties=data_source.namespace_properties,
+            storage_options=data_source.storage_options,
+        )
