@@ -45,6 +45,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
     "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
+    "polaris": "feast.infra.data_sources.contrib.iceberg_catalog.polaris_provider.PolarisProvider",
 }
 
 
