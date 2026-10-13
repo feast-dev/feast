@@ -806,9 +806,7 @@ class TestRemoteOnlineStoreWriteBatch:
 
 
 class TestRemoteOnlineStoreOnlineRead:
-    """Tests for RemoteOnlineStore._construct_online_read_api_json_request,
-    _get_event_ts, and online_read -- regression coverage for #6488, where
-    every join key past the first was silently dropped from the request."""
+    """Tests for _construct_online_read_api_json_request, _get_event_ts, and online_read."""
 
     @pytest.fixture
     def remote_store(self):
@@ -886,9 +884,7 @@ class TestRemoteOnlineStoreOnlineRead:
     def test_unset_entity_value_becomes_none(
         self, remote_store, composite_key_feature_view
     ):
-        """An EntityKeyProto whose value has no oneof set (WhichOneof
-        returns None) must map to None, not raise TypeError -- the review
-        comment that blocked feast-dev/feast#6603."""
+        """An unset proto value (WhichOneof returns None) maps to None."""
         entity_keys = [
             EntityKeyProto(
                 join_keys=["driver_id", "customer_id"],
@@ -956,10 +952,7 @@ class TestRemoteOnlineStoreOnlineRead:
     def test_equal_lengths_above_small_int_cache_do_not_raise(
         self, remote_store, composite_key_feature_view
     ):
-        """The length check must use value equality, not identity: two
-        separately-computed equal lengths above CPython's small-int cache
-        (256) are never the same object, so a `!=`-to-`is not` mutant would
-        wrongly raise here even though the lengths match."""
+        """The length check must use value equality, not identity."""
         n = 300
         matching = [
             EntityKeyProto(
@@ -1007,18 +1000,8 @@ class TestRemoteOnlineStoreOnlineRead:
     def test_online_read_round_trip_with_composite_key(
         self, mock_get, remote_store, config, composite_key_feature_view
     ):
-        """End-to-end regression test for #6488: a composite-key online_read
-        call must preserve every join key in the request, and must still
-        return the correct feature value and event timestamp -- not an
-        entity column's own timestamp -- now that the response carries more
-        than one entity column ahead of the real feature column.
-
-        The response shape here is not guessed: utils._populate_result_rows_from_columnar
-        (called for join keys first) stamps every entity column with a blank,
-        epoch-zero Timestamp() regardless of row; utils._populate_response_from_feature_data
-        (called for real features second) stamps each feature column with the real,
-        per-row timestamp from online_read. Both verified directly against those two
-        functions before writing this fixture."""
+        """A composite key must preserve every join key and still return the
+        real feature's event timestamp, not an entity column's blank one."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.text = json.dumps(
@@ -1089,14 +1072,7 @@ class TestRemoteOnlineStoreOnlineRead:
 
         assert len(result) == 2
         event_ts_0, features_0 = result[0]
-        event_ts_1, features_1 = result[1]
-        # Must come from conv_rate's own (real) timestamp, not either entity
-        # column's blank epoch-zero one.
+        _, features_1 = result[1]
         assert event_ts_0 == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
         assert features_0["conv_rate"].float_val == pytest.approx(0.5)
         assert features_1["conv_rate"].float_val == pytest.approx(0.6)
-        # Pre-existing, out of scope for #6488: online_read computes event_ts
-        # once and reuses it for every row, so row 1 also gets row 0's
-        # timestamp (conv_rate's 10:00, not its own real 11:00) -- documented
-        # here, not silently asserted as if it were correct.
-        assert event_ts_1 == event_ts_0

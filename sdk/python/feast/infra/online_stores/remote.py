@@ -697,10 +697,7 @@ class RemoteOnlineStore(OnlineStore):
     ) -> Optional[datetime]:
         results = response_json.get("results") or []
         if requested_features is not None:
-            # Entity (join key) columns precede feature columns in the
-            # response, and there can be more than one of them -- look up
-            # the first *requested* feature by name instead of assuming a
-            # fixed index, which only held with a single join key.
+            # Entity columns may precede more than one feature column; match by name.
             feature_names = response_json.get("metadata", {}).get("feature_names") or []
             for index, feature_name in enumerate(feature_names):
                 if feature_name in requested_features:
