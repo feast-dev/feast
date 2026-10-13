@@ -322,6 +322,11 @@ class DaskOfflineStore(OfflineStore):
                     feature_view,
                     entity_df_event_timestamp_col,
                     timestamp_field,
+                    preserved_columns=(
+                        set(entity_df_columns) | set(join_keys)
+                        if not non_entity_mode
+                        else None
+                    ),
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
@@ -1189,35 +1194,32 @@ def _filter_ttl(
     feature_view: FeatureView,
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
+    preserved_columns: Optional[Set[str]] = None,
 ) -> dd.DataFrame:
-    # Filter rows by defined timestamp tolerance
+    # A missing source row is already a valid left-join result.
+    within_time_range = (
+        df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col]
+    )
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (
-                (
-                    df_to_join[timestamp_field]
-                    >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
-                )
-                & (
-                    df_to_join[timestamp_field]
-                    <= df_to_join[entity_df_event_timestamp_col]
-                )
-            )
-        ]
+        within_time_range = within_time_range & (
+            df_to_join[timestamp_field]
+            >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+        )
+    valid = df_to_join[timestamp_field].isna() | within_time_range
 
-        df_to_join = df_to_join.persist()
-    else:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
-        ]
+    if preserved_columns is None:
+        # Non-entity snapshots only contain entities with an eligible source row.
+        return df_to_join[valid].persist()
 
-        df_to_join = df_to_join.persist()
-
-    return df_to_join
+    # Keep the request row when every candidate is outside the time range.
+    # Null candidates sort first, so deduplication still prefers a valid match.
+    return df_to_join.assign(
+        **{
+            column: df_to_join[column].mask(~valid)
+            for column in df_to_join.columns
+            if column not in preserved_columns
+        }
+    ).persist()
 
 
 def _apply_created_timestamp_cutoff(
