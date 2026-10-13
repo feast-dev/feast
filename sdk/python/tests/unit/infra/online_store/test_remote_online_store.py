@@ -953,6 +953,25 @@ class TestRemoteOnlineStoreOnlineRead:
                 too_few_keys, composite_key_feature_view, ["conv_rate"]
             )
 
+    def test_equal_lengths_above_small_int_cache_do_not_raise(
+        self, remote_store, composite_key_feature_view
+    ):
+        """The length check must use value equality, not identity: two
+        separately-computed equal lengths above CPython's small-int cache
+        (256) are never the same object, so a `!=`-to-`is not` mutant would
+        wrongly raise here even though the lengths match."""
+        n = 300
+        matching = [
+            EntityKeyProto(
+                join_keys=[f"k{i}" for i in range(n)],
+                entity_values=[ValueProto(int64_val=i) for i in range(n)],
+            ),
+        ]
+
+        remote_store._construct_online_read_api_json_request(
+            matching, composite_key_feature_view, ["conv_rate"]
+        )  # must not raise
+
     # ── _get_event_ts ────────────────────────────────────────────────────
 
     def test_get_event_ts_none_when_requested_feature_has_no_timestamps(
@@ -992,11 +1011,16 @@ class TestRemoteOnlineStoreOnlineRead:
         call must preserve every join key in the request, and must still
         return the correct feature value and event timestamp -- not an
         entity column's own timestamp -- now that the response carries more
-        than one entity column ahead of the real feature column."""
+        than one entity column ahead of the real feature column.
+
+        The response shape here is not guessed: utils._populate_result_rows_from_columnar
+        (called for join keys first) stamps every entity column with a blank,
+        epoch-zero Timestamp() regardless of row; utils._populate_response_from_feature_data
+        (called for real features second) stamps each feature column with the real,
+        per-row timestamp from online_read. Both verified directly against those two
+        functions before writing this fixture."""
         mock_response = Mock()
         mock_response.status_code = 200
-        # The real feature server echoes every entity (join key) column
-        # back ahead of the requested feature columns.
         mock_response.text = json.dumps(
             {
                 "metadata": {
@@ -1006,17 +1030,26 @@ class TestRemoteOnlineStoreOnlineRead:
                     {
                         "values": [1001, 1002],
                         "statuses": ["PRESENT", "PRESENT"],
-                        "event_timestamps": ["1999-01-01T00:00:00Z"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
                     },
                     {
                         "values": [5001, 5002],
                         "statuses": ["PRESENT", "PRESENT"],
-                        "event_timestamps": ["1999-01-01T00:00:00Z"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
                     },
                     {
                         "values": [0.5, 0.6],
                         "statuses": ["PRESENT", "PRESENT"],
-                        "event_timestamps": ["2024-01-01T12:00:00Z"],
+                        "event_timestamps": [
+                            "2024-01-01T10:00:00Z",
+                            "2024-01-01T11:00:00Z",
+                        ],
                     },
                 ],
             }
@@ -1056,7 +1089,14 @@ class TestRemoteOnlineStoreOnlineRead:
 
         assert len(result) == 2
         event_ts_0, features_0 = result[0]
-        # Must come from the conv_rate column's own timestamp, not the
-        # second entity column's (customer_id) timestamp.
-        assert event_ts_0 == datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        event_ts_1, features_1 = result[1]
+        # Must come from conv_rate's own (real) timestamp, not either entity
+        # column's blank epoch-zero one.
+        assert event_ts_0 == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
         assert features_0["conv_rate"].float_val == pytest.approx(0.5)
+        assert features_1["conv_rate"].float_val == pytest.approx(0.6)
+        # Pre-existing, out of scope for #6488: online_read computes event_ts
+        # once and reuses it for every row, so row 1 also gets row 0's
+        # timestamp (conv_rate's 10:00, not its own real 11:00) -- documented
+        # here, not silently asserted as if it were correct.
+        assert event_ts_1 == event_ts_0
