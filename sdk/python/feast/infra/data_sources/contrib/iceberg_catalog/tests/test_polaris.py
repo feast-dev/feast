@@ -62,7 +62,8 @@ class TestPolarisSource:
         assert source.catalog_type == "rest"
         assert source.token_env_var == "POLARIS_TOKEN"
         assert source.client_id_env_var == "POLARIS_CLIENT_ID"
-        assert source.client_secret_env_var == "POLARIS_CLIENT_SECRET"
+        secret_var = source.client_secret_env_var
+        assert secret_var == "POLARIS_CLIENT_SECRET"  # pragma: allowlist secret
         assert source.sync_metadata is True
         assert source.credential_vending is True
         assert source.fqn == "my_catalog.ml.driver_stats"
@@ -85,7 +86,7 @@ class TestPolarisSource:
             tags={"team": "ml"},
             owner="o@example.com",
             client_id_env_var="MY_ID",
-            client_secret_env_var="MY_SECRET",
+            client_secret_env_var="MY_SECRET",  # pragma: allowlist secret
             oauth_scope="PRINCIPAL_ROLE:feast",
             oauth_server_uri="http://idp/token",
             credential_vending=False,

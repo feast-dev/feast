@@ -121,11 +121,10 @@ class PolarisSource(IcebergSource):
         token = os.environ.get(self.token_env_var) if self.token_env_var else None
         if not (client_id and client_secret) and not token:
             logger.warning(
-                "No Polaris credentials found: set %s and %s (OAuth client "
-                "credentials) or %s (bearer token)",
-                self.client_id_env_var,
-                self.client_secret_env_var,
-                self.token_env_var,
+                "No Polaris credentials found in the environment for source "
+                "%s (expected OAuth client credentials or a bearer token); "
+                "requests will be unauthenticated.",
+                self.name,
             )
         return PolarisClient(
             endpoint=self.endpoint,
