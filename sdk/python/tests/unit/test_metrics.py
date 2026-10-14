@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import http.client
+import os
 import socket
 import threading
 from datetime import datetime, timedelta, timezone
@@ -640,6 +641,48 @@ class TestStartMetricsServerProcess:
             m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
 
             mock_event.set.assert_called_once()
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+@pytest.mark.filterwarnings(
+    "ignore:This process .* is multi-threaded:DeprecationWarning"
+)
+class TestMetricsProcessSurvivesForkedChildExit:
+    """A forked child (e.g. a Gunicorn worker) must not terminate the metrics server on exit."""
+
+    def test_forked_child_exit_does_not_terminate_metrics_process(self):
+        import multiprocessing.util
+
+        import feast.metrics as m
+
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+        m.start_metrics_server(
+            MagicMock(),
+            port=port,
+            start_resource_monitoring=False,
+            start_freshness_monitoring=False,
+        )
+        proc = m._metrics_process
+        try:
+            pid = os.fork()
+            if pid == 0:
+                # What a worker runs at interpreter exit
+                multiprocessing.util._exit_function()
+                os._exit(0)
+            os.waitpid(pid, 0)
+
+            proc.join(timeout=1)
+            assert proc.is_alive()
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", "/metrics")
+            assert conn.getresponse().status == 200
+        finally:
+            proc.terminate()
+            proc.join(timeout=5)
+            m._metrics_process = None
 
 
 class TestMetricsYamlConfig:
