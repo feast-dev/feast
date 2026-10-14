@@ -655,3 +655,135 @@ def test_feature_service_serves_aliased_odfv_features(mode):
         assert response["scaled_alias__conv_rate_x10"] == [
             pytest.approx(response["fv1__conv_rate"][0] * 10)
         ]
+
+
+def _store_with_colliding_odfv(data_dir, mode):
+    """A feature view declaring ``conv_rate_plus_one`` (-999 in the data) and an
+    ODFV whose output has that same name. Schema inference over a wider table
+    produces this layout without the user noticing."""
+    store = FeatureStore(
+        config=RepoConfig(
+            project="test_on_demand_python_transformation",
+            registry=os.path.join(data_dir, "registry.db"),
+            provider="local",
+            entity_key_serialization_version=3,
+            online_store=SqliteOnlineStoreConfig(
+                path=os.path.join(data_dir, "online.db")
+            ),
+        )
+    )
+
+    end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+    start_date = end_date - timedelta(days=15)
+    driver_df = create_driver_hourly_stats_df([1001, 1002], start_date, end_date)
+    driver_df["conv_rate_plus_one"] = -999.0
+    driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+    driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
+
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    driver_stats_source = FileSource(
+        name="driver_hourly_stats_source",
+        path=driver_stats_path,
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+    driver_stats_fv = FeatureView(
+        name="driver_hourly_stats",
+        entities=[driver],
+        ttl=timedelta(days=0),
+        schema=[
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="conv_rate_plus_one", dtype=Float64),
+        ],
+        online=True,
+        source=driver_stats_source,
+    )
+
+    if mode == "pandas":
+
+        @on_demand_feature_view(
+            sources=[driver_stats_fv],
+            schema=[Field(name="conv_rate_plus_one", dtype=Float64)],
+            mode="pandas",
+        )
+        def plus_one_view(inputs: pd.DataFrame) -> pd.DataFrame:
+            df = pd.DataFrame()
+            df["conv_rate_plus_one"] = inputs["conv_rate"] + 1.0
+            return df
+
+    else:
+
+        @on_demand_feature_view(
+            sources=[driver_stats_fv],
+            schema=[Field(name="conv_rate_plus_one", dtype=Float64)],
+            mode="python",
+        )
+        def plus_one_view(inputs: dict) -> dict:
+            return {"conv_rate_plus_one": [v + 1.0 for v in inputs["conv_rate"]]}
+
+    store.apply([driver, driver_stats_source, driver_stats_fv, plus_one_view])
+    return store, driver_df, end_date
+
+
+@pytest.mark.parametrize("mode", ["pandas", "python"])
+@pytest.mark.parametrize("full_feature_names", [False, True])
+def test_odfv_output_wins_over_same_named_source_feature(mode, full_feature_names):
+    """Historical retrieval returns the transformed value once when an ODFV
+    output shares its name with a feature of its source view."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, _, end_date = _store_with_colliding_odfv(data_dir, mode)
+
+        entity_df = pd.DataFrame(
+            {"driver_id": [1001, 1002], "event_timestamp": [end_date, end_date]}
+        )
+        offline_df = store.get_historical_features(
+            entity_df=entity_df,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "plus_one_view:conv_rate_plus_one",
+            ],
+            full_feature_names=full_feature_names,
+        ).to_df()
+
+        conv_rate_col = (
+            "driver_hourly_stats__conv_rate" if full_feature_names else "conv_rate"
+        )
+        odfv_col = (
+            "plus_one_view__conv_rate_plus_one"
+            if full_feature_names
+            else "conv_rate_plus_one"
+        )
+        assert list(offline_df.columns).count(odfv_col) == 1
+        assert offline_df[odfv_col].tolist() == pytest.approx(
+            (offline_df[conv_rate_col] + 1.0).tolist()
+        )
+
+
+@pytest.mark.parametrize("full_feature_names", [False, True])
+def test_odfv_output_wins_over_same_named_source_feature_online(full_feature_names):
+    """Online retrieval keeps the transformed value under the same collision."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, driver_df, _ = _store_with_colliding_odfv(data_dir, "pandas")
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
+
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "plus_one_view:conv_rate_plus_one",
+            ],
+            full_feature_names=full_feature_names,
+        ).to_dict()
+
+        conv_rate_col = (
+            "driver_hourly_stats__conv_rate" if full_feature_names else "conv_rate"
+        )
+        odfv_col = (
+            "plus_one_view__conv_rate_plus_one"
+            if full_feature_names
+            else "conv_rate_plus_one"
+        )
+        assert odfv_col in response
+        assert response[odfv_col] == pytest.approx([response[conv_rate_col][0] + 1.0])
