@@ -22,6 +22,8 @@ from feast.feature_store import FeatureStore
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Float32, Int64
 from feast.utils import _utc_now
 from feast.value_type import ValueType
@@ -152,6 +154,84 @@ def test_remote_online_store_read_composite_key(auth_config, tls_mode):
         assert client_result["conv_rate"] == pytest.approx([0.5, 0.6])
 
 
+@pytest.mark.integration
+@pytest.mark.rbac_remote_integration_test
+@pytest.mark.parametrize(
+    "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
+)
+def test_remote_online_store_online_read_composite_key_per_row_event_ts(
+    auth_config, tls_mode
+):
+    """online_read() -- used by the feature-service precompute path, not by
+    get_online_features() -- must preserve every join key and return each
+    row's own event timestamp against a real remote feature server."""
+    with (
+        tempfile.TemporaryDirectory() as remote_server_tmp_dir,
+        tempfile.TemporaryDirectory() as remote_client_tmp_dir,
+    ):
+        permissions_list = [
+            Permission(
+                name="online_list_fv_perm",
+                types=FeatureView,
+                policy=RoleBasedPolicy(roles=["reader"]),
+                actions=[AuthzedAction.READ_ONLINE],
+            ),
+        ]
+        server_store, server_url, registry_path = (
+            _create_composite_key_server_store_spin_feature_server(
+                temp_dir=remote_server_tmp_dir,
+                auth_config=auth_config,
+                permissions_list=permissions_list,
+                tls_mode=tls_mode,
+            )
+        )
+
+        client_store = _create_remote_client_feature_store(
+            temp_dir=remote_client_tmp_dir,
+            server_registry_path=str(registry_path),
+            feature_server_url=server_url,
+            auth_config=auth_config,
+            tls_mode=tls_mode,
+        )
+
+        table = client_store.get_feature_view("driver_customer_stats")
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1002),
+                    ValueProto(int64_val=5002),
+                ],
+            ),
+        ]
+
+        rows = client_store._get_provider().online_read(
+            config=client_store.config,
+            table=table,
+            entity_keys=entity_keys,
+            requested_features=["conv_rate"],
+        )
+
+        assert len(rows) == 2
+        event_ts_0, features_0 = rows[0]
+        event_ts_1, features_1 = rows[1]
+        # If the composite key were dropped to driver_id only (the #6488 bug),
+        # the server would match on a partial key and could return either row's
+        # value for both entries instead of each row's own conv_rate.
+        assert features_0["conv_rate"].float_val == pytest.approx(0.5)
+        assert features_1["conv_rate"].float_val == pytest.approx(0.6)
+        assert event_ts_0 is not None and event_ts_1 is not None
+        assert event_ts_0 != event_ts_1
+        assert event_ts_1 - event_ts_0 == timedelta(minutes=5)
+
+
 def _create_composite_key_server_store_spin_feature_server(
     temp_dir, auth_config: str, permissions_list, tls_mode
 ):
@@ -189,7 +269,9 @@ def _create_composite_key_server_store_spin_feature_server(
                 "driver_id": [1001, 1002],
                 "customer_id": [5001, 5002],
                 "conv_rate": [0.5, 0.6],
-                "event_timestamp": [now, now],
+                # Distinct per-row timestamps so a test can tell apart a
+                # correct per-row event_ts from one row's reused everywhere.
+                "event_timestamp": [now - timedelta(minutes=5), now],
             }
         ),
     )
