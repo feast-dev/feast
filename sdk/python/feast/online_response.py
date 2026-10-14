@@ -59,7 +59,11 @@ class OnlineResponse:
 
                 break
 
-    def to_dict(self, include_event_timestamps: bool = False) -> Dict[str, Any]:
+    def to_dict(
+        self,
+        include_event_timestamps: bool = False,
+        include_created_timestamps: bool = False,
+    ) -> Dict[str, Any]:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary form.
 
@@ -82,10 +86,18 @@ class OnlineResponse:
                 response[timestamp_ref] = [
                     ts.seconds for ts in feature_vector.event_timestamps
                 ]
-
+            if include_created_timestamps:
+                created_timestamp_ref = feature_ref + "__created_timestamp"
+                response[created_timestamp_ref] = [
+                    ts.seconds for ts in feature_vector.created_timestamps
+                ]
         return response
 
-    def to_df(self, include_event_timestamps: bool = False) -> pd.DataFrame:
+    def to_df(
+        self,
+        include_event_timestamps: bool = False,
+        include_created_timestamps: bool = False,
+    ) -> pd.DataFrame:
         """
         Converts GetOnlineFeaturesResponse features into Panda dataframe form.
 
@@ -93,7 +105,12 @@ class OnlineResponse:
         include_event_timestamps: bool Optionally include feature timestamps in the dataframe
         """
 
-        return pd.DataFrame(self.to_dict(include_event_timestamps))
+        return pd.DataFrame(
+            self.to_dict(
+                include_event_timestamps,
+                include_created_timestamps=include_created_timestamps,
+            )
+        )
 
     def to_arrow(self, include_event_timestamps: bool = False) -> pa.Table:
         """

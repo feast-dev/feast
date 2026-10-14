@@ -376,11 +376,17 @@ class SqliteOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[
+        Tuple[Optional[datetime], Optional[Dict[str, ValueProto]], Optional[datetime]]
+    ]:
         conn = self._get_conn(config)
         cur = conn.cursor()
 
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        result: List[
+            Tuple[
+                Optional[datetime], Optional[Dict[str, ValueProto]], Optional[datetime]
+            ]
+        ] = []
 
         serialized_entity_keys = [
             serialize_entity_key(
@@ -391,7 +397,7 @@ class SqliteOnlineStore(OnlineStore):
         ]
         # Fetch all entities in one go
         cur.execute(
-            f"SELECT entity_key, feature_name, value, event_ts "
+            f"SELECT entity_key, feature_name, value, event_ts, created_ts "
             f"FROM {_quote_id(_table_id(config.project, table, config.registry.enable_online_feature_view_versioning))} "
             f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
             f"ORDER BY entity_key",
@@ -404,20 +410,29 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key_bin in serialized_entity_keys:
             res = {}
             res_ts = None
-            for _, feature_name, val_bin, ts in rows.get(entity_key_bin, []):
+            res_created_ts = None
+            for _, feature_name, val_bin, ts, created_ts in rows.get(
+                entity_key_bin, []
+            ):
                 val = ValueProto()
                 val.ParseFromString(val_bin)
                 res[feature_name] = val
-                ts = cast(datetime, ts)
-                if ts.tzinfo is not None:
-                    res_ts = ts.astimezone(timezone.utc)
-                else:
-                    res_ts = ts.replace(tzinfo=timezone.utc)
-
+                if ts is not None:
+                    ts = cast(datetime, ts)
+                    if ts.tzinfo is not None:
+                        res_ts = ts.astimezone(timezone.utc)
+                    else:
+                        res_ts = ts.replace(tzinfo=timezone.utc)
+                if created_ts is not None:
+                    created_ts = cast(datetime, created_ts)
+                    if created_ts.tzinfo is not None:
+                        res_created_ts = created_ts.astimezone(timezone.utc)
+                    else:
+                        res_created_ts = created_ts.replace(tzinfo=timezone.utc)
             if not res:
-                result.append((None, None))
+                result.append((None, None, None))
             else:
-                result.append((res_ts, res))
+                result.append((res_ts, res, res_created_ts))
         return result
 
     def update(

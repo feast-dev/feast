@@ -107,6 +107,7 @@ message GetOnlineFeaturesResponse {
         repeated feast.types.Value values = 1;
         repeated FieldStatus statuses = 2;
         repeated google.protobuf.Timestamp event_timestamps = 3;
+        repeated google.protobuf.Timestamp created_timestamps = 4;
     }
 
     bool status = 3;

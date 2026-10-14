@@ -160,7 +160,9 @@ class SnowflakeOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[
+        Tuple[Optional[datetime], Optional[Dict[str, ValueProto]], Optional[datetime]]
+    ]:
         assert isinstance(config.online_store, SnowflakeOnlineStoreConfig)
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
@@ -194,7 +196,7 @@ class SnowflakeOnlineStore(OnlineStore):
         with GetSnowflakeConnection(config.online_store) as conn:
             query = f"""
                 SELECT
-                    "entity_key", "feature_name", "value", "event_ts"
+                    "entity_key", "feature_name", "value", "event_ts", "created_ts"
                 FROM
                     {online_path}."[online-transient] {config.project}_{table.name}"
                 WHERE
@@ -210,11 +212,16 @@ class SnowflakeOnlineStore(OnlineStore):
                 val.ParseFromString(row["value"])
                 res[row["feature_name"]] = val
                 res_ts = row["event_ts"].to_pydatetime()
+                res_created_ts = (
+                    row["created_ts"].to_pydatetime()
+                    if "created_ts" in row and pd.notnull(row["created_ts"])
+                    else None
+                )
 
             if not res:
-                result.append((None, None))
+                result.append((None, None, None))
             else:
-                result.append((res_ts, res))
+                result.append((res_ts, res, res_created_ts))
         return result
 
     def update(
