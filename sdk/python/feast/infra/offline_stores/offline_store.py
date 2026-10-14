@@ -267,9 +267,17 @@ class RetrievalJob(ABC):
                         requested_features_for_odfv is None
                         or col in requested_features_for_odfv
                     ):
-                        features_table = features_table.append_column(
-                            col, transformed_arrow[col]
-                        )
+                        # A source feature with the same name is replaced, not duplicated
+                        if col in features_table.column_names:
+                            features_table = features_table.set_column(
+                                features_table.column_names.index(col),
+                                col,
+                                transformed_arrow[col],
+                            )
+                        else:
+                            features_table = features_table.append_column(
+                                col, transformed_arrow[col]
+                            )
 
         if validation_reference:
             if not flags_helper.is_test():
