@@ -312,6 +312,7 @@ class OnlineStore(ABC):
             ("feast.infra.online_stores.faiss_online_store", "FaissOnlineStore"),
             ("feast.infra.online_stores.redis", "RedisOnlineStore"),
             ("feast.infra.online_stores.dynamodb", "DynamoDBOnlineStore"),
+            ("feast.infra.online_stores.bigtable", "BigtableOnlineStore"),
             (
                 "feast.infra.online_stores.milvus_online_store.milvus",
                 "MilvusOnlineStore",
