@@ -10,7 +10,11 @@ from typing import Any, List, Optional, Set, Union
 
 from jinja2 import BaseLoader, Environment
 
-from feast.dbt.mapper import map_dbt_type_to_feast_type
+from feast.dbt.mapper import (
+    _resolve_file_path,
+    _validate_file_path_template,
+    map_dbt_type_to_feast_type,
+)
 from feast.dbt.parser import DbtModel
 from feast.types import (
     Array,
@@ -90,7 +94,7 @@ from feast.infra.offline_stores.file_source import FileSource
 {% elif data_source_type == 'file' %}
 {{ source.var_name }} = FileSource(
     name="{{ source.name }}",
-    path="{{ source.path }}",
+    path={{ source.path_literal }},
     timestamp_field="{{ source.timestamp_field }}",
     description="{{ source.description }}",
     tags={{ source.tags }},
@@ -182,6 +186,9 @@ class DbtCodeGenerator:
     This class creates complete, importable Python files containing
     Entity, DataSource, and FeatureView definitions.
 
+    For file sources, ``file_path_template`` optionally replaces the default
+    ``/data/{model}.parquet`` path, using the dbt model name for ``{model}``.
+
     Example::
 
         generator = DbtCodeGenerator(
@@ -204,10 +211,13 @@ class DbtCodeGenerator:
         data_source_type: str = "bigquery",
         timestamp_field: str = "event_timestamp",
         ttl_days: int = 1,
+        file_path_template: Optional[str] = None,
     ):
         self.data_source_type = data_source_type.lower()
         self.timestamp_field = timestamp_field
         self.ttl_days = ttl_days
+        _validate_file_path_template(file_path_template, self.data_source_type)
+        self.file_path_template = file_path_template
 
         # Set up Jinja2 environment
         self.env = Environment(
@@ -309,7 +319,9 @@ class DbtCodeGenerator:
                 source_data["schema"] = model.schema
                 source_data["table"] = model.alias
             elif self.data_source_type == "file":
-                source_data["path"] = f"/data/{model.name}.parquet"
+                source_data["path_literal"] = repr(
+                    _resolve_file_path(self.file_path_template, model.name)
+                )
 
             data_sources.append(source_data)
 
@@ -389,6 +401,7 @@ def generate_feast_code(
     project_name: str = "",
     exclude_columns: Optional[List[str]] = None,
     online: bool = True,
+    file_path_template: Optional[str] = None,
 ) -> str:
     """
     Convenience function to generate Feast code from dbt models.
@@ -403,6 +416,7 @@ def generate_feast_code(
         project_name: Project name for documentation
         exclude_columns: Columns to exclude from features
         online: Whether to enable online serving
+        file_path_template: Optional file source path, with {model} replaced by the model name
 
     Returns:
         Generated Python code as a string
@@ -411,6 +425,7 @@ def generate_feast_code(
         data_source_type=data_source_type,
         timestamp_field=timestamp_field,
         ttl_days=ttl_days,
+        file_path_template=file_path_template,
     )
 
     return generator.generate(
