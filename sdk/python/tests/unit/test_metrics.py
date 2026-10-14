@@ -16,6 +16,7 @@ import http.client
 import os
 import socket
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -666,7 +667,27 @@ class TestMetricsProcessSurvivesForkedChildExit:
             start_freshness_monitoring=False,
         )
         proc = m._metrics_process
+
+        def metrics_status():
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            try:
+                conn.request("GET", "/metrics")
+                return conn.getresponse().status
+            finally:
+                conn.close()
+
         try:
+            # The child process can take a while to start (spawn on macOS)
+            deadline = time.monotonic() + 30
+            while True:
+                try:
+                    assert metrics_status() == 200
+                    break
+                except ConnectionError:
+                    if time.monotonic() > deadline:
+                        raise
+                    time.sleep(0.2)
+
             pid = os.fork()
             if pid == 0:
                 # What a worker runs at interpreter exit
@@ -676,9 +697,7 @@ class TestMetricsProcessSurvivesForkedChildExit:
 
             proc.join(timeout=1)
             assert proc.is_alive()
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-            conn.request("GET", "/metrics")
-            assert conn.getresponse().status == 200
+            assert metrics_status() == 200
         finally:
             proc.terminate()
             proc.join(timeout=5)
