@@ -1994,11 +1994,15 @@ class SqlRegistry(CachingRegistry):
                     data_sources,
                     entities,
                     permissions,
+                    feature_view_version_history,
                     feast_metadata,
                     projects,
                 }:
                     stmt = delete(t).where(t.c.project_id == name)
                     conn.execute(stmt)
+
+            if self.cache_mode == "sync":
+                self.refresh()
             return
 
         raise ProjectNotFoundException(name)
