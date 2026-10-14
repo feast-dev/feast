@@ -218,6 +218,51 @@ class TestRemoteOnlineStoreRetrieveDocuments:
         assert isinstance(feature_values_dict["feature1"], ValueProto)
 
     @patch("feast.infra.online_stores.remote.get_remote_online_documents")
+    def test_retrieve_online_documents_v2_no_requested_features_gets_real_event_ts(
+        self, mock_get_remote_online_documents, remote_store, config, feature_view
+    ):
+        """With no requested features, each row's event_ts must match the real "distance" column's own row, not a blank entity column or another row's timestamp."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps(
+            {
+                "metadata": {"feature_names": ["distance", "user_id"]},
+                "results": [
+                    {
+                        "values": [0.1, 0.2],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "2024-02-02T00:00:00Z",
+                            "2024-02-02T01:00:00Z",
+                        ],
+                    },  # distance -- real timestamp
+                    {
+                        "values": [123, 456],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
+                    },  # user_id -- blank entity timestamp
+                ],
+            }
+        )
+        mock_get_remote_online_documents.return_value = mock_response
+
+        result = remote_store.retrieve_online_documents_v2(
+            config=config,
+            table=feature_view,
+            requested_features=None,
+            embedding=[0.1, 0.2, 0.3],
+            top_k=2,
+        )
+
+        event_ts_0, _, _ = result[0]
+        event_ts_1, _, _ = result[1]
+        assert event_ts_0 == datetime(2024, 2, 2, 0, 0, 0, tzinfo=timezone.utc)
+        assert event_ts_1 == datetime(2024, 2, 2, 1, 0, 0, tzinfo=timezone.utc)
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_documents")
     def test_retrieve_online_documents_with_cert(
         self,
         mock_get_remote_online_documents,
@@ -1126,7 +1171,8 @@ class TestRemoteOnlineStoreOnlineRead:
 
         assert len(result) == 2
         event_ts_0, features_0 = result[0]
-        _, features_1 = result[1]
+        event_ts_1, features_1 = result[1]
         assert event_ts_0 == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        assert event_ts_1 == datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
         assert features_0["conv_rate"].float_val == pytest.approx(0.5)
         assert features_1["conv_rate"].float_val == pytest.approx(0.6)

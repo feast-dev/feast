@@ -324,7 +324,9 @@ class RemoteOnlineStore(OnlineStore):
         if response.status_code == 200:
             logger.debug("Able to retrieve the online features from feature server.")
             response_json = json.loads(response.text)
-            event_ts = self._get_event_ts(response_json, requested_features)
+            event_ts_result = self._find_event_ts_result(
+                response_json, requested_features
+            )
             # Build feature name -> ValueType mapping so we can reconstruct
             # complex types (nested collections, sets, etc.) that cannot be
             # inferred from raw JSON values alone.
@@ -336,6 +338,7 @@ class RemoteOnlineStore(OnlineStore):
                 Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
             ] = []
             for feature_value_index in range(len(entity_keys)):
+                event_ts = self._parse_event_ts(event_ts_result, feature_value_index)
                 feature_values_dict: Dict[str, ValueProto] = dict()
                 for index, feature_name in enumerate(
                     response_json["metadata"]["feature_names"]
@@ -478,7 +481,14 @@ class RemoteOnlineStore(OnlineStore):
         if response.status_code == 200:
             logger.debug("Able to retrieve the online documents from feature server.")
             response_json = json.loads(response.text)
-            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+            # The server always appends a real-timestamped "distance" column, so matching
+            # against it covers the case where no feature is explicitly requested.
+            requested_features = list(requested_features) if requested_features else []
+            if "distance" not in requested_features:
+                requested_features.append("distance")
+            event_ts_result = self._find_event_ts_result(
+                response_json, requested_features
+            )
 
             metadata = response_json.get("metadata") or {}
             feature_names = metadata.get("feature_names") or []
@@ -499,13 +509,8 @@ class RemoteOnlineStore(OnlineStore):
             first_result_values = results[0].get("values") or []
             num_results = len(first_result_values)
             result_tuples = []
-            if requested_features is None:
-                requested_features = []
-            else:
-                requested_features = list(requested_features)
-            if "distance" not in requested_features:
-                requested_features.append("distance")
             for row_idx in range(num_results):
+                event_ts = self._parse_event_ts(event_ts_result, row_idx)
                 # Build feature values dictionary for requested features
                 feature_values_dict = {}
 
@@ -691,17 +696,20 @@ class RemoteOnlineStore(OnlineStore):
         return body
 
     @staticmethod
-    def _parse_event_ts(result: dict) -> Optional[datetime]:
-        event_timestamps = result.get("event_timestamps") or []
-        if not event_timestamps:
+    def _parse_event_ts(result: Optional[dict], row_idx: int = 0) -> Optional[datetime]:
+        if result is None:
             return None
-        return datetime.fromisoformat(event_timestamps[0].replace("Z", "+00:00"))
+        event_timestamps = result.get("event_timestamps") or []
+        if row_idx >= len(event_timestamps):
+            return None
+        return datetime.fromisoformat(event_timestamps[row_idx].replace("Z", "+00:00"))
 
-    def _get_event_ts(
+    def _find_event_ts_result(
         self,
         response_json: dict,
         requested_features: Optional[List[str]] = None,
-    ) -> Optional[datetime]:
+    ) -> Optional[dict]:
+        """Return the results[] row holding the event timestamps to report, or None."""
         results = response_json.get("results") or []
         if requested_features:
             # Entity columns may precede more than one feature column; match by name.
@@ -710,11 +718,20 @@ class RemoteOnlineStore(OnlineStore):
             ) or []
             for feature_name, result in zip(feature_names, results):
                 if feature_name in requested_features:
-                    return self._parse_event_ts(result)
+                    return result
             return None
         if len(results) > 1:
-            return self._parse_event_ts(results[1])
+            return results[1]
         return None
+
+    def _get_event_ts(
+        self,
+        response_json: dict,
+        requested_features: Optional[List[str]] = None,
+    ) -> Optional[datetime]:
+        return self._parse_event_ts(
+            self._find_event_ts_result(response_json, requested_features)
+        )
 
     def _construct_entity_key_from_response(
         self,
