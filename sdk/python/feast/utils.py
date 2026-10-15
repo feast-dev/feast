@@ -1902,6 +1902,7 @@ def _populate_response_from_feature_data(
 
     feat_idx_map = {name: i for i, name in enumerate(requested_features)}
     _present_count = 0
+    _outside_max_age_count = 0
     for row_idx, destinations in enumerate(indexes_tuple):
         row_ts, feature_data = read_rows[row_idx]
         if feature_data is None:
@@ -1913,19 +1914,26 @@ def _populate_response_from_feature_data(
             and now_secs - row_ts_protos[row_idx].seconds > ttl_secs
         )
         status = OUTSIDE_MAX_AGE if expired else PRESENT
+        _row_count = 0
         for feat_name, feat_val in feature_data.items():
             f_idx = feat_idx_map.get(feat_name)
             if f_idx is not None:
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
                     feat_statuses[f_idx][out_idx] = status
-                    _present_count += 1
+                    _row_count += 1
+        if expired:
+            _outside_max_age_count += _row_count
+        else:
+            _present_count += _row_count
 
     try:
         from feast.metrics import track_feature_statuses
 
-        _not_found = (n_features * output_len) - _present_count
-        track_feature_statuses(table.name, _present_count, _not_found)
+        _not_found = (n_features * output_len) - _present_count - _outside_max_age_count
+        track_feature_statuses(
+            table.name, _present_count, _not_found, _outside_max_age_count
+        )
     except Exception:
         pass
 
