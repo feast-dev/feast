@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -6,8 +7,14 @@ import pandas as pd
 import pytest
 
 from feast import utils
+from feast.data_source import RequestSource
 from feast.feature_store import FeatureStore
+from feast.field import Field
+from feast.infra.registry.registry import Registry
+from feast.infra.registry.sql import SqlRegistry
 from feast.protos.feast.types.Value_pb2 import Value
+from feast.repo_config import RepoConfig
+from feast.types import Int64
 
 
 @dataclass
@@ -20,6 +27,63 @@ class MockFeatureView:
     name: str
     entities: List[str]
     projection: MockFeatureViewProjection
+
+
+@pytest.mark.parametrize("registry_type", ["file", "sql"])
+@pytest.mark.parametrize(
+    "initial_fields,updated_fields",
+    [
+        (["amount"], ["amount", "multiplier"]),
+        (["amount", "multiplier"], ["amount"]),
+        ([], ["amount"]),
+        (["amount"], []),
+    ],
+    ids=["add-field", "remove-field", "add-to-empty", "remove-all"],
+)
+def test_apply_request_source_schema_changes(
+    tmp_path: Path,
+    registry_type: str,
+    initial_fields: List[str],
+    updated_fields: List[str],
+) -> None:
+    """Request schema changes must survive applying and reopening the registry."""
+    registry_path = tmp_path / "registry.db"
+    config = RepoConfig(
+        project="test_project",
+        provider="local",
+        registry={
+            "registry_type": registry_type,
+            "path": (
+                str(registry_path)
+                if registry_type == "file"
+                else f"sqlite:///{registry_path}"
+            ),
+        },
+        online_store={"type": "sqlite", "path": str(tmp_path / "online.db")},
+        offline_store={"type": "file"},
+    )
+    store = FeatureStore(config=config)
+    reloaded_store = None
+    try:
+        store.apply(
+            RequestSource(
+                name="request",
+                schema=[Field(name=name, dtype=Int64) for name in initial_fields],
+            )
+        )
+        updated_schema = [Field(name=name, dtype=Int64) for name in updated_fields]
+        store.apply(RequestSource(name="request", schema=updated_schema))
+
+        reloaded_store = FeatureStore(config=config)
+        persisted_source = reloaded_store.get_data_source("request")
+        assert isinstance(persisted_source, RequestSource)
+        assert persisted_source.schema == updated_schema
+    finally:
+        for current_store in (reloaded_store, store):
+            if current_store is not None:
+                registry = current_store.registry
+                assert isinstance(registry, (Registry, SqlRegistry))
+                registry.teardown()
 
 
 def test_get_unique_entities_success():
