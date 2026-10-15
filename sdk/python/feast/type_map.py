@@ -394,7 +394,7 @@ def python_type_to_feast_value_type(
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
+        "uint32": ValueType.INT64,
         "int16": ValueType.INT32,
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
@@ -1636,8 +1636,14 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
         value_type = ValueType.STRUCT
     else:
         type_map = {
+            "int8": ValueType.INT32,
+            "int16": ValueType.INT32,
             "int32": ValueType.INT32,
             "int64": ValueType.INT64,
+            "uint8": ValueType.INT32,
+            "uint16": ValueType.INT32,
+            "uint32": ValueType.INT64,
+            "uint64": ValueType.INT64,
             "double": ValueType.DOUBLE,
             "float": ValueType.FLOAT,
             "string": ValueType.STRING,

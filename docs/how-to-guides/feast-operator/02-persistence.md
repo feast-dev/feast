@@ -192,15 +192,15 @@ services:
 
 | `type` | Secret key | SDK docs |
 |--------|------------|---------|
-| `sqlite` | `sqlite` | [SQLite](../reference/online-stores/sqlite.md) |
-| `redis` | `redis` | [Redis](../reference/online-stores/redis.md) |
-| `postgres` | `postgres` | [Postgres](../reference/online-stores/postgres.md) |
-| `cassandra` | `cassandra` | [Cassandra](../reference/online-stores/cassandra.md) |
-| `hazelcast` | `hazelcast` | [Hazelcast](../reference/online-stores/hazelcast.md) |
-| `hbase` | `hbase` | [HBase](../reference/online-stores/hbase.md) |
-| `datastore` | `datastore` | [Datastore](../reference/online-stores/datastore.md) |
-| `dynamodb` | `dynamodb` | [DynamoDB](../reference/online-stores/dynamodb.md) |
-| `bigtable` | `bigtable` | [Bigtable](../reference/online-stores/bigtable.md) |
+| `sqlite` | `sqlite` | [SQLite](../../reference/online-stores/sqlite.md) |
+| `redis` | `redis` | [Redis](../../reference/online-stores/redis.md) |
+| `postgres` | `postgres` | [Postgres](../../reference/online-stores/postgres.md) |
+| `cassandra` | `cassandra` | [Cassandra](../../reference/online-stores/cassandra.md) |
+| `hazelcast` | `hazelcast` | [Hazelcast](../../reference/online-stores/hazelcast.md) |
+| `hbase` | `hbase` | [HBase](../../reference/online-stores/hbase.md) |
+| `datastore` | `datastore` | [Datastore](../../reference/online-stores/datastore.md) |
+| `dynamodb` | `dynamodb` | [DynamoDB](../../reference/online-stores/dynamodb.md) |
+| `bigtable` | `bigtable` | [Bigtable](../../reference/online-stores/bigtable.md) |
 
 > For all store-specific YAML keys (connection options, pool sizes, etc.) see the
 > linked SDK docs — the Secret value accepts the same keys.
@@ -215,7 +215,7 @@ services:
 
 For external DB-backed offline stores (BigQuery, Snowflake, Spark, Trino, etc.), use
 `persistence.store.type` and a Secret with the matching key. See
-[Offline Stores](../reference/offline-stores/) in the SDK docs.
+[Offline Stores](../../reference/offline-stores/) in the SDK docs.
 
 > **Important — contrib store drivers require a custom image.**
 > The published `quay.io/feastdev/feature-server` image ships with `feast[minimal]`
@@ -384,7 +384,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Redis](../reference/online-stores/redis.md)
+SDK reference: [Redis](../../reference/online-stores/redis.md)
 
 ---
 
@@ -436,7 +436,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Postgres](../reference/online-stores/postgres.md)
+SDK reference: [Postgres](../../reference/online-stores/postgres.md)
 
 ---
 
@@ -477,7 +477,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Cassandra](../reference/online-stores/cassandra.md)
+SDK reference: [Cassandra](../../reference/online-stores/cassandra.md)
 
 ---
 
@@ -510,7 +510,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Snowflake](../reference/online-stores/snowflake.md)
+SDK reference: [Snowflake](../../reference/online-stores/snowflake.md)
 
 ---
 
@@ -539,7 +539,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [DynamoDB](../reference/online-stores/dynamodb.md)
+SDK reference: [DynamoDB](../../reference/online-stores/dynamodb.md)
 
 ---
 
@@ -568,7 +568,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Bigtable](../reference/online-stores/bigtable.md)
+SDK reference: [Bigtable](../../reference/online-stores/bigtable.md)
 
 ---
 
@@ -597,7 +597,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Datastore](../reference/online-stores/datastore.md)
+SDK reference: [Datastore](../../reference/online-stores/datastore.md)
 
 ---
 
@@ -629,7 +629,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [MySQL](../reference/online-stores/mysql.md)
+SDK reference: [MySQL](../../reference/online-stores/mysql.md)
 
 ---
 
@@ -660,7 +660,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Hazelcast](../reference/online-stores/hazelcast.md)
+SDK reference: [Hazelcast](../../reference/online-stores/hazelcast.md)
 
 ---
 
@@ -690,7 +690,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [HBase](../reference/online-stores/hbase.md)
+SDK reference: [HBase](../../reference/online-stores/hbase.md)
 
 ---
 
@@ -701,14 +701,14 @@ Place the driver-specific YAML keys from the SDK docs under the matching Secret 
 
 | `type` | Secret key | SDK docs |
 |--------|------------|----------|
-| `sqlite` | `sqlite` | [SQLite](../reference/online-stores/sqlite.md) |
-| `singlestore` | `singlestore` | [SingleStore](../reference/online-stores/singlestore.md) |
-| `elasticsearch` | `elasticsearch` | [Elasticsearch](../reference/online-stores/elasticsearch.md) |
-| `qdrant` | `qdrant` | [Qdrant](../reference/online-stores/qdrant.md) |
-| `couchbase.online` | `couchbase.online` | [Couchbase](../reference/online-stores/couchbase.md) |
-| `milvus` | `milvus` | [Milvus](../reference/online-stores/milvus.md) |
-| `mongodb` | `mongodb` | [MongoDB](../reference/online-stores/mongodb.md) |
-| `hybrid` | `hybrid` | [Hybrid](../reference/online-stores/hybrid.md) |
+| `sqlite` | `sqlite` | [SQLite](../../reference/online-stores/sqlite.md) |
+| `singlestore` | `singlestore` | [SingleStore](../../reference/online-stores/singlestore.md) |
+| `elasticsearch` | `elasticsearch` | [Elasticsearch](../../reference/online-stores/elasticsearch.md) |
+| `qdrant` | `qdrant` | [Qdrant](../../reference/online-stores/qdrant.md) |
+| `couchbase.online` | `couchbase.online` | [Couchbase](../../reference/online-stores/couchbase.md) |
+| `milvus` | `milvus` | [Milvus](../../reference/online-stores/milvus.md) |
+| `mongodb` | `mongodb` | [MongoDB](../../reference/online-stores/mongodb.md) |
+| `hybrid` | `hybrid` | [Hybrid](../../reference/online-stores/hybrid.md) |
 
 ---
 
@@ -747,7 +747,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [Snowflake](../reference/offline-stores/snowflake.md)
+SDK reference: [Snowflake](../../reference/offline-stores/snowflake.md)
 
 ---
 
@@ -776,7 +776,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [BigQuery](../reference/offline-stores/bigquery.md)
+SDK reference: [BigQuery](../../reference/offline-stores/bigquery.md)
 
 ---
 
@@ -809,7 +809,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [Postgres](../reference/offline-stores/postgres.md)
+SDK reference: [Postgres](../../reference/offline-stores/postgres.md)
 
 ---
 
@@ -817,15 +817,15 @@ SDK reference: [Postgres](../reference/offline-stores/postgres.md)
 
 | `type` | Secret key | SDK docs |
 |--------|------------|----------|
-| `redshift` | `redshift` | [Redshift](../reference/offline-stores/redshift.md) |
-| `spark` | `spark` | [Spark](../reference/offline-stores/spark.md) |
-| `trino` | `trino` | [Trino](../reference/offline-stores/trino.md) |
-| `athena` | `athena` | [Athena](../reference/offline-stores/athena.md) |
-| `mssql` | `mssql` | [MSSQL](../reference/offline-stores/mssql.md) |
-| `couchbase.offline` | `couchbase.offline` | [Couchbase](../reference/offline-stores/couchbase.md) |
-| `clickhouse` | `clickhouse` | [ClickHouse](../reference/offline-stores/clickhouse.md) |
-| `ray` | `ray` | [Ray](../reference/offline-stores/ray.md) |
-| `oracle` | `oracle` | [Oracle](../reference/offline-stores/oracle.md) |
+| `redshift` | `redshift` | [Redshift](../../reference/offline-stores/redshift.md) |
+| `spark` | `spark` | [Spark](../../reference/offline-stores/spark.md) |
+| `trino` | `trino` | [Trino](../../reference/offline-stores/trino.md) |
+| `athena` | `athena` | [Athena](../../reference/offline-stores/athena.md) |
+| `mssql` | `mssql` | [MSSQL](../../reference/offline-stores/mssql.md) |
+| `couchbase.offline` | `couchbase.offline` | [Couchbase](../../reference/offline-stores/couchbase.md) |
+| `clickhouse` | `clickhouse` | [ClickHouse](../../reference/offline-stores/clickhouse.md) |
+| `ray` | `ray` | [Ray](../../reference/offline-stores/ray.md) |
+| `oracle` | `oracle` | [Oracle](../../reference/offline-stores/oracle.md) |
 
 ---
 
@@ -863,7 +863,7 @@ services:
             name: feast-registry-store
 ```
 
-SDK reference: [SQL Registry](../reference/registries/sql.md)
+SDK reference: [SQL Registry](../../reference/registries/sql.md)
 
 ---
 
@@ -899,7 +899,7 @@ services:
             name: feast-registry-store
 ```
 
-SDK reference: [Snowflake Registry](../reference/registries/snowflake.md)
+SDK reference: [Snowflake Registry](../../reference/registries/snowflake.md)
 
 ---
 
@@ -1175,13 +1175,13 @@ Extras **not** included in `minimal` (require a custom image):
 
 | Extra | Offline store |
 |-------|---------------|
-| `trino` | [Trino](../reference/offline-stores/trino.md) |
-| `spark` | [Spark](../reference/offline-stores/spark.md) |
-| `athena` | [Athena](../reference/offline-stores/athena.md) |
-| `mssql` | [MSSQL](../reference/offline-stores/mssql.md) |
-| `clickhouse` | [ClickHouse](../reference/offline-stores/clickhouse.md) |
-| `oracle` | [Oracle](../reference/offline-stores/oracle.md) |
-| `couchbase` | [Couchbase](../reference/offline-stores/couchbase.md) |
+| `trino` | [Trino](../../reference/offline-stores/trino.md) |
+| `spark` | [Spark](../../reference/offline-stores/spark.md) |
+| `athena` | [Athena](../../reference/offline-stores/athena.md) |
+| `mssql` | [MSSQL](../../reference/offline-stores/mssql.md) |
+| `clickhouse` | [ClickHouse](../../reference/offline-stores/clickhouse.md) |
+| `oracle` | [Oracle](../../reference/offline-stores/oracle.md) |
+| `couchbase` | [Couchbase](../../reference/offline-stores/couchbase.md) |
 | `iceberg` | Apache Iceberg |
 | `mlflow` | MLflow model registry |
 
@@ -1207,6 +1207,6 @@ Extras **not** included in `minimal` (require a custom image):
 - [Sample: DB persistence (Postgres)](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_db_persistence.yaml)
 - [Sample: PVC persistence](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_pvc_persistence.yaml)
 - [Sample: object store (GCS)](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_gcs.yaml)
-- [Feast SDK — Online Stores](../reference/online-stores/)
-- [Feast SDK — Offline Stores](../reference/offline-stores/)
-- [Feast SDK — Registries](../reference/registries/)
+- [Feast SDK — Online Stores](../../reference/online-stores/)
+- [Feast SDK — Offline Stores](../../reference/offline-stores/)
+- [Feast SDK — Registries](../../reference/registries/)

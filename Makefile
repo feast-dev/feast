@@ -21,6 +21,16 @@ TOOL_DIR := $(ROOT_DIR)/tools
 export GOBIN=$(TOOL_DIR)/bin
 export PATH := $(TOOL_DIR)/bin:$(PATH)
 
+# CI installs the exact, mutually compatible dependency set via
+# `uv pip sync` from the pinned sdk/python/requirements/pyXX-ci-requirements.txt
+# (install-python-dependencies-ci). uv.lock is not committed, so a plain
+# `uv run` would auto-sync and re-resolve the uncapped pyproject dependencies,
+# which can install an inconsistent set -- e.g. protobuf older than the gencode
+# baked into grpcio's health_pb2, which then fails the protobuf gencode/runtime
+# check at import time. Run every `uv run` target against the already-installed
+# environment instead of re-resolving. (pixi-based targets are unaffected.)
+export UV_NO_SYNC := 1
+
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
 OS := linux
 ifeq ($(shell uname -s), Darwin)
@@ -145,17 +155,6 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-requirements.txt" && \
-		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
-			--no-emit-package milvus-lite \
-			--no-emit-package pymilvus \
-			--no-emit-package faiss-cpu \
-			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
-		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 typing_extensions && \
-			pybuild-deps compile --generate-hashes \
-			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
-			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 	) true
 
 compile-protos-python: ## Compile Python protobuf files

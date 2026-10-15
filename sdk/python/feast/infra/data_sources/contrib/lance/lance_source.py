@@ -33,7 +33,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.protos.feast.core.SavedDataset_pb2 import (
+    SavedDatasetStorage as SavedDatasetStorageProto,
+)
 from feast.repo_config import RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
 from feast.table_format import LanceFormat
 from feast.type_map import pa_to_feast_value_type
 from feast.value_type import ValueType
@@ -590,3 +594,124 @@ def validate_lance_write_shape(
         f"whose vectors cannot be compared with each other. Write the re-embedded "
         f"data to a new dataset instead of overwriting this one."
     )
+
+
+class SavedDatasetLanceStorage(SavedDatasetStorage):
+    """Records an existing Lance dataset as a saved dataset.
+
+    This is the registry entry for "a dataset I produced, at this version, with
+    these properties". The data is not moved or rewritten: the storage holds the
+    address, and :meth:`BaseRegistry.apply_saved_dataset` records it as metadata.
+    That is the path for a dataset built outside Feast, by a Ray or Spark job,
+    which ``FeatureStore.create_saved_dataset`` cannot serve because it executes
+    a ``RetrievalJob`` and persists its result.
+
+    The format must pin a version or a tag. A saved dataset addressing the latest
+    version is a contradiction: the rows it refers to change under it, so any
+    measurement recorded against it stops being attributable. Prefer ``version``
+    over ``tag``, because a tag can be moved to another version afterwards while
+    a version number cannot.
+    """
+
+    _proto_attr_name = "custom_storage"
+
+    def __init__(
+        self,
+        table_format: LanceFormat,
+        *,
+        uri: Optional[str] = None,
+        table: Optional[str] = None,
+        namespace_impl: Optional[str] = None,
+        namespace_properties: Optional[Dict[str, str]] = None,
+        storage_options: Optional[Dict[str, str]] = None,
+    ):
+        if not isinstance(table_format, LanceFormat):
+            raise ValueError(
+                f"SavedDatasetLanceStorage requires a LanceFormat, got "
+                f"{type(table_format).__name__}."
+            )
+        if not table_format.is_pinned:
+            raise ValueError(
+                "SavedDatasetLanceStorage requires LanceFormat to pin a version "
+                "or a tag. Without a pin the saved dataset addresses whatever "
+                "version is latest at read time, so it does not identify the "
+                "rows it was created from."
+            )
+        if bool(uri) == bool(table):
+            raise ValueError(
+                "SavedDatasetLanceStorage takes either uri or table, not both "
+                "and not neither. A uri addresses the dataset directly; a table "
+                "addresses it through a namespace."
+            )
+        if table and not namespace_impl:
+            raise ValueError(
+                "SavedDatasetLanceStorage with a table requires namespace_impl, "
+                "the same as LanceSource."
+            )
+
+        self.table_format = table_format
+        self.uri = uri
+        self.lance_table = table
+        self.namespace_impl = namespace_impl
+        self.namespace_properties = namespace_properties or {}
+        self.storage_options = storage_options or {}
+
+    @staticmethod
+    def from_proto(storage_proto: SavedDatasetStorageProto) -> SavedDatasetStorage:
+        config = json.loads(
+            str(storage_proto.custom_storage.configuration, encoding="utf8")
+        )
+        return SavedDatasetLanceStorage(
+            LanceFormat.from_dict(config.get("table_format") or {}),
+            uri=config.get("uri"),
+            table=config.get("table"),
+            namespace_impl=config.get("namespace_impl"),
+            namespace_properties=config.get("namespace_properties"),
+            storage_options=config.get("storage_options"),
+        )
+
+    def to_proto(self) -> SavedDatasetStorageProto:
+        config_json = json.dumps(
+            {
+                "uri": self.uri,
+                "table": self.lance_table,
+                "namespace_impl": self.namespace_impl,
+                "namespace_properties": self.namespace_properties,
+                "storage_options": self.storage_options,
+                "table_format": self.table_format.to_dict(),
+            }
+        )
+        # Routed through the base class so the writing class is recorded in the
+        # payload. Several storage classes share the custom_storage field, and
+        # without that record from_proto resolves by import order.
+        return self._custom_storage_proto(
+            DataSourceProto.CustomSourceOptions(
+                configuration=bytes(config_json, encoding="utf8")
+            )
+        )
+
+    def to_data_source(self) -> DataSource:
+        return LanceSource(
+            uri=self.uri,
+            table=self.lance_table,
+            table_format=self.table_format,
+            namespace_impl=self.namespace_impl,
+            namespace_properties=self.namespace_properties,
+            storage_options=self.storage_options,
+        )
+
+    @staticmethod
+    def from_data_source(data_source: DataSource) -> SavedDatasetStorage:
+        if not isinstance(data_source, LanceSource):
+            raise ValueError(
+                f"SavedDatasetLanceStorage.from_data_source requires a "
+                f"LanceSource, got {type(data_source).__name__}."
+            )
+        return SavedDatasetLanceStorage(
+            data_source.table_format,
+            uri=data_source.uri,
+            table=data_source.lance_table,
+            namespace_impl=data_source.namespace_impl,
+            namespace_properties=data_source.namespace_properties,
+            storage_options=data_source.storage_options,
+        )
