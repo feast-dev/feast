@@ -1051,7 +1051,7 @@ class SparkRetrievalJob(RetrievalJob):
             return SparkOnDemandFeatureViewProcessor(
                 on_demand_feature_views=self.on_demand_feature_views,
                 full_feature_names=self.full_feature_names,
-                metadata=self.metadata,
+                odfv_feature_refs=self._get_odfv_feature_refs(),
             ).transform(spark_df)
         return spark_df
 
@@ -1279,11 +1279,11 @@ class SparkOnDemandFeatureViewProcessor:
         self,
         on_demand_feature_views: List[OnDemandFeatureView],
         full_feature_names: bool,
-        metadata: Optional[RetrievalMetadata],
+        odfv_feature_refs: Dict[str, set[str]],
     ):
         self.on_demand_feature_views = on_demand_feature_views
         self.full_feature_names = full_feature_names
-        self.metadata = metadata
+        self.odfv_feature_refs = odfv_feature_refs
 
     def transform(self, spark_df: pyspark.sql.DataFrame) -> pyspark.sql.DataFrame:
         from pyspark.sql.types import StructField, StructType
@@ -1335,31 +1335,12 @@ class SparkOnDemandFeatureViewProcessor:
         )
 
     def _get_requested_features(self) -> Dict[str, Field]:
-        odfv_feature_refs: Dict[str, set[str]] = {}
-        if self.metadata and self.metadata.features:
-            for feature_ref in self.metadata.features:
-                if ":" in feature_ref:
-                    view_name, feature_name = feature_ref.split(":", 1)
-                    for odfv in self.on_demand_feature_views:
-                        if (
-                            odfv.name == view_name
-                            or odfv.projection.name_to_use() == view_name
-                        ):
-                            if view_name not in odfv_feature_refs:
-                                odfv_feature_refs[view_name] = set()
-                            expected_col_name = (
-                                f"{odfv.projection.name_to_use()}__{feature_name}"
-                                if self.full_feature_names
-                                else feature_name
-                            )
-                            odfv_feature_refs[view_name].add(expected_col_name)
-
         output_features: Dict[str, Field] = {}
         for odfv in self.on_demand_feature_views:
             requested_features_for_odfv = (
-                odfv_feature_refs.get(odfv.name)
-                if odfv.name in odfv_feature_refs
-                else odfv_feature_refs.get(odfv.projection.name_to_use())
+                self.odfv_feature_refs.get(odfv.name)
+                if odfv.name in self.odfv_feature_refs
+                else self.odfv_feature_refs.get(odfv.projection.name_to_use())
             )
             for feature in odfv.features:
                 col = (
