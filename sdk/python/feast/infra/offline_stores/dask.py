@@ -1215,7 +1215,9 @@ def _filter_ttl(
     # Null candidates sort first, so deduplication still prefers a valid match.
     return df_to_join.assign(
         **{
-            column: df_to_join[column].mask(~valid)
+            # Use pandas' nullable missing value so integer feature columns do not
+            # get silently widened to float64 when an ineligible candidate is nulled.
+            column: df_to_join[column].mask(~valid, other=pd.NA)
             for column in df_to_join.columns
             if column not in preserved_columns
         }

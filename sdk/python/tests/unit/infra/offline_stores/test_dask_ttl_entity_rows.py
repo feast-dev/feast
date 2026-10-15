@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from feast import Entity, FeatureStore, FeatureView, Field, FileSource, RepoConfig
-from feast.types import Float64, ValueType
+from feast.types import Float64, Int64, ValueType
 
 
 def _store(tmp_path: Path) -> FeatureStore:
@@ -150,6 +150,38 @@ def test_later_feature_view_preserves_previous_features_and_entity_columns(
         pd.Series([10.0, None, 30.0, 40.0, None], name="first__value"),
     )
     assert result["second__value"].isna().all()
+
+
+def test_ttl_filter_does_not_widen_integer_feature_columns(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    data = _source()
+    data["value"] = pd.Series(data["value"], dtype="Int64")
+    path = tmp_path / "integer_stats.parquet"
+    data.to_parquet(path)
+    view = FeatureView(
+        name="integer_stats",
+        entities=[
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        ],
+        schema=[Field(name="value", dtype=Int64)],
+        source=FileSource(
+            path=str(path),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_ts",
+        ),
+        ttl=timedelta(days=1),
+    )
+    store.apply([
+        Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64),
+        view,
+    ])
+
+    result = store.get_historical_features(
+        entity_df=_entities(), features=["integer_stats:value"]
+    ).to_df().sort_values("driver_id").reset_index(drop=True)
+
+    assert str(result["value"].dtype) == "Int64"
+    assert result["value"].tolist() == [pd.NA, pd.NA, 30, 40, pd.NA]
 
 
 def test_non_entity_snapshot_still_excludes_ineligible_entities(tmp_path: Path) -> None:
