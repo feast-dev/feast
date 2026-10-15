@@ -1,6 +1,7 @@
 # This is an example feature definition file
 
 from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
@@ -89,7 +90,8 @@ input_request = RequestSource(
 
 
 # Define an on demand feature view which can generate new features based on
-# existing feature views and RequestSource features
+# existing feature views and RequestSource features. By default the transformation
+# runs in Pandas mode (mode="pandas"): the UDF receives and returns a DataFrame.
 @on_demand_feature_view(
     sources=[driver_stats_fv, input_request],
     schema=[
@@ -102,6 +104,37 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df["conv_rate_plus_val1"] = inputs["conv_rate"] + inputs["val_to_add"]
     df["conv_rate_plus_val2"] = inputs["conv_rate"] + inputs["val_to_add_2"]
     return df
+
+
+# The same transformation written in native Python mode (mode="python"). The UDF
+# receives a dict mapping each input feature name to a list of values (one per
+# row) and returns a dict with the same shape. This avoids the Pandas overhead
+# for small online requests and is often easier to reason about.
+#
+# Only the features the UDF needs are selected from the source feature view.
+# This is required here: driver_stats_fv also has Map / Struct / Json fields, and
+# Python mode feature inference cannot generate sample values for those types.
+@on_demand_feature_view(
+    sources=[driver_stats_fv[["conv_rate"]], input_request],
+    schema=[
+        Field(name="conv_rate_plus_val1_python", dtype=Float64),
+        Field(name="conv_rate_plus_val2_python", dtype=Float64),
+    ],
+    mode="python",
+)
+def transformed_conv_rate_python(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "conv_rate_plus_val1_python": [
+            conv_rate + val_to_add
+            for conv_rate, val_to_add in zip(inputs["conv_rate"], inputs["val_to_add"])
+        ],
+        "conv_rate_plus_val2_python": [
+            conv_rate + val_to_add_2
+            for conv_rate, val_to_add_2 in zip(
+                inputs["conv_rate"], inputs["val_to_add_2"]
+            )
+        ],
+    }
 
 
 # This groups features into a model version
@@ -167,6 +200,39 @@ driver_activity_v3 = FeatureService(
     name="driver_activity_v3",
     features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
 )
+
+
+# The on demand feature views above run their transformation at read time, i.e.
+# every time get_online_features() / get_historical_features() is called. Setting
+# write_to_online_store=True instead runs the transformation at write time: the
+# derived features are computed once when data is materialized or written to the
+# online store, and are then served like any other pre-computed feature. This
+# trades some ingestion cost for lower online retrieval latency.
+#
+# Because the results are persisted, the view must declare its entities and can
+# only depend on other feature views (not on request-time data).
+@on_demand_feature_view(
+    entities=[driver],
+    sources=[driver_stats_fv[["conv_rate", "acc_rate", "avg_daily_trips"]]],
+    schema=[
+        Field(name="conv_rate_x_acc_rate", dtype=Float64),
+        Field(name="expected_daily_conversions", dtype=Float64),
+    ],
+    mode="pandas",
+    write_to_online_store=True,
+)
+def transformed_conv_rate_on_write(inputs: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    # Cast explicitly so the output dtypes match the Float64 fields declared above
+    # (conv_rate and acc_rate are Float32 in the source feature view).
+    df["conv_rate_x_acc_rate"] = (inputs["conv_rate"] * inputs["acc_rate"]).astype(
+        "float64"
+    )
+    df["expected_daily_conversions"] = (
+        inputs["avg_daily_trips"] * inputs["conv_rate"]
+    ).astype("float64")
+    return df
+
 
 # --- Label Views ---
 # Label views manage mutable human labels for training data, RLHF, and evaluation.

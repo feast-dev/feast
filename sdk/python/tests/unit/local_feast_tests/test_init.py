@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 from textwrap import dedent
 
+from feast import FeatureStore
 from feast.utils import _utc_now
 from tests.utils.cli_repo_creator import CliRunner
 
@@ -10,7 +11,8 @@ from tests.utils.cli_repo_creator import CliRunner
 def test_repo_init() -> None:
     """
     This test simply makes sure that you can run `feast apply && feast materialize` on
-    the repo created by "feast init" without errors.
+    the repo created by "feast init" without errors, and that the transform-on-write
+    on demand feature view in the template is materialized along the way.
     """
     runner = CliRunner()
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -27,6 +29,19 @@ def test_repo_init() -> None:
             ["materialize", start_date.isoformat(), end_date.isoformat()], cwd=repo_path
         )
         assert result.returncode == 0
+
+        # `feast apply` goes through the plan path on the local provider, so this also
+        # verifies that the sqlite table for the write_to_online_store ODFV was created.
+        store = FeatureStore(repo_path=str(repo_path))
+        response = store.get_online_features(
+            features=[
+                "transformed_conv_rate_on_write:conv_rate_x_acc_rate",
+                "transformed_conv_rate_on_write:expected_daily_conversions",
+            ],
+            entity_rows=[{"driver_id": 1001}],
+        ).to_dict()
+        assert response["conv_rate_x_acc_rate"][0] is not None
+        assert response["expected_daily_conversions"][0] is not None
 
 
 def test_repo_init_with_underscore_in_project_name() -> None:

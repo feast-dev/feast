@@ -54,6 +54,7 @@ from feast.infra.online_stores.helpers import compute_table_id, extract_text_and
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.labeling.label_view import LabelView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
@@ -492,6 +493,19 @@ class SqliteOnlineStore(OnlineStore):
                     SqliteTable(
                         path=self._get_db_path(config),
                         name=_table_id(project, lv, versioning),
+                    )
+                )
+
+        # On demand feature views with write_to_online_store=True persist their
+        # transformed features, so they need a table just like regular feature views.
+        for odfv_proto in desired_registry_proto.on_demand_feature_views:
+            if odfv_proto.spec.write_to_online_store:
+                odfv = OnDemandFeatureView.from_proto(odfv_proto)
+                infra_objects.append(
+                    SqliteTable(
+                        path=self._get_db_path(config),
+                        name=_table_id(project, odfv, versioning),
+                        include_value_num=include_value_num,
                     )
                 )
 
