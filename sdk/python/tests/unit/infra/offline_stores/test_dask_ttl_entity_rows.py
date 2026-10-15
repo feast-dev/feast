@@ -155,7 +155,7 @@ def test_later_feature_view_preserves_previous_features_and_entity_columns(
 def test_ttl_filter_does_not_widen_integer_feature_columns(tmp_path: Path) -> None:
     store = _store(tmp_path)
     data = _source()
-    data["value"] = pd.Series(data["value"], dtype="Int64")
+    data["value"] = pd.Series(data["value"], dtype="int64")
     path = tmp_path / "integer_stats.parquet"
     data.to_parquet(path)
     view = FeatureView(
@@ -171,14 +171,21 @@ def test_ttl_filter_does_not_widen_integer_feature_columns(tmp_path: Path) -> No
         ),
         ttl=timedelta(days=1),
     )
-    store.apply([
-        Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64),
-        view,
-    ])
+    store.apply(
+        [
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64),
+            view,
+        ]
+    )
 
-    result = store.get_historical_features(
-        entity_df=_entities(), features=["integer_stats:value"]
-    ).to_df().sort_values("driver_id").reset_index(drop=True)
+    result = (
+        store.get_historical_features(
+            entity_df=_entities(), features=["integer_stats:value"]
+        )
+        .to_df()
+        .sort_values("driver_id")
+        .reset_index(drop=True)
+    )
 
     assert str(result["value"].dtype) == "Int64"
     assert result["value"].tolist() == [pd.NA, pd.NA, 30, 40, pd.NA]

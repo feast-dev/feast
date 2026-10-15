@@ -14,6 +14,7 @@ import pyarrow.compute as pc
 import pyarrow.dataset
 import pyarrow.parquet as pq
 import pytz
+from pandas.api.types import is_integer_dtype, is_unsigned_integer_dtype
 
 from feast.data_source import DataSource
 from feast.errors import (
@@ -1217,7 +1218,17 @@ def _filter_ttl(
         **{
             # Use pandas' nullable missing value so integer feature columns do not
             # get silently widened to float64 when an ineligible candidate is nulled.
-            column: df_to_join[column].mask(~valid, other=pd.NA)
+            column: (
+                df_to_join[column]
+                .astype(
+                    "UInt64"
+                    if is_unsigned_integer_dtype(df_to_join[column].dtype)
+                    else "Int64"
+                )
+                .mask(~valid, other=pd.NA)
+                if is_integer_dtype(df_to_join[column].dtype)
+                else df_to_join[column].mask(~valid, other=pd.NA)
+            )
             for column in df_to_join.columns
             if column not in preserved_columns
         }
