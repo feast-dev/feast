@@ -140,25 +140,7 @@ def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -
     Loads the table through the configured catalog (REST, SQL, Hive, etc.)
     and scans it to Arrow.
     """
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
-
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        table = catalog_client.load_table(fqn)
-    else:
-        from pyiceberg.catalog import load_catalog
-
-        catalog_config: dict = {
-            "type": "rest",
-            "uri": data_source.endpoint,
-            "warehouse": data_source.warehouse,
-        }
-        if data_source.token_env_var:
-            token = os.environ.get(data_source.token_env_var)
-            if token:
-                catalog_config["token"] = token
-        catalog = load_catalog(data_source.catalog_name, **catalog_config)
-        table = catalog.load_table(fqn)
+    table = data_source.load_pyiceberg_table()
 
     return ibis.memtable(table.scan().to_arrow())
 
@@ -170,25 +152,7 @@ def _load_pyiceberg_table_for_write(data_source: "IcebergSource"):
     but returns the raw PyIceberg table instead of an ibis memtable, so the
     caller can use ``table.append()`` or ``table.overwrite()`` for writes.
     """
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
-
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        return catalog_client.load_table(fqn)
-
-    from pyiceberg.catalog import load_catalog
-
-    catalog_config: dict = {
-        "type": "rest",
-        "uri": data_source.endpoint,
-        "warehouse": data_source.warehouse,
-    }
-    if data_source.token_env_var:
-        token = os.environ.get(data_source.token_env_var)
-        if token:
-            catalog_config["token"] = token
-    catalog = load_catalog(data_source.catalog_name, **catalog_config)
-    return catalog.load_table(fqn)
+    return data_source.load_pyiceberg_table()
 
 
 def _write_iceberg_data_source(
