@@ -48,7 +48,7 @@ how to set its scheme in the Database URL.
 stores, is not impacted by the need to speak a particular dialect, and so the
 following only applies to the registry.
 
-If you are not running Feast in a container, to accomodate `SQLAlchemy`'s need
+If you are not running Feast in a container, to accommodate `SQLAlchemy`'s need
 to speak an external dialect, install additional Python modules like we do as
 follows using `cockroachdb` for example:
 

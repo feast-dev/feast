@@ -1,4 +1,5 @@
 import warnings
+from datetime import timedelta
 
 import pytest
 
@@ -450,3 +451,85 @@ def test_data_source_eq_cross_type_returns_false():
     assert file_source == FileSource(
         name="src", path="/tmp/x.parquet", timestamp_field="ts"
     )
+
+
+def test_kafka_source_keeps_a_zero_watermark_delay_threshold():
+    """A watermark delay of zero is a value, not an unset option.
+
+    ``KafkaOptions`` stored ``watermark_delay_threshold or None``, so a
+    ``timedelta(0)`` was read as "not given" and never reached the proto. The
+    ``from_proto`` branch that turned an explicit zero ``Duration`` back into
+    ``timedelta(0)`` could therefore never return it.
+    """
+    file_source = FileSource(
+        name="batch", path="/tmp/x.parquet", timestamp_field="event_timestamp"
+    )
+
+    def kafka_source(watermark):
+        return KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            watermark_delay_threshold=watermark,
+            batch_source=file_source,
+        )
+
+    zero = kafka_source(timedelta(0))
+    assert zero.kafka_options.watermark_delay_threshold == timedelta(0)
+
+    zero_proto = zero.to_proto()
+    assert zero_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert KafkaSource.from_proto(
+        zero_proto
+    ).kafka_options.watermark_delay_threshold == timedelta(0)
+
+    # An absent delay stays absent, and is not read as a zero
+    unset = kafka_source(None)
+    assert unset.kafka_options.watermark_delay_threshold is None
+
+    unset_proto = unset.to_proto()
+    assert not unset_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert (
+        KafkaSource.from_proto(unset_proto).kafka_options.watermark_delay_threshold
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "stream_source",
+    [
+        KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+        ),
+        KinesisSource(
+            name="test_source",
+            region="test_region",
+            record_format=ProtoFormat("class_path"),
+            stream_name="test_stream",
+            timestamp_field="event_timestamp",
+        ),
+    ],
+    ids=["kafka", "kinesis"],
+)
+def test_stream_source_without_batch_source_round_trips(stream_source):
+    """``batch_source`` is optional on Kafka and Kinesis sources.
+
+    ``from_proto`` checked ``if data_source.batch_source``, but an unset proto
+    sub-message is still truthy, so the empty message was parsed as a data
+    source and failed with "Could not identify the source type being added."
+    That made these sources impossible to read back from the registry.
+    """
+    proto = stream_source.to_proto()
+    assert not proto.HasField("batch_source")
+
+    restored = DataSource.from_proto(proto)
+
+    assert isinstance(restored, type(stream_source))
+    assert restored.batch_source is None
+    assert restored.name == stream_source.name

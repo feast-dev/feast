@@ -8,6 +8,8 @@ Base utilities for tiling.
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
+import numpy as np
+
 from feast.aggregation import Aggregation
 
 
@@ -95,3 +97,34 @@ def get_ir_metadata_for_aggregation(
     else:
         # Unknown aggregation: treat as algebraic
         return ([], IRMetadata(type="algebraic"))
+
+
+def compute_holistic_value_from_irs(
+    agg: Aggregation, ir_sum: Any, ir_count: Any, ir_sum_sq: Any = None
+) -> Any:
+    """
+    Compute the final value of a holistic aggregation from its IR components.
+
+    Works on scalars as well as array-likes (e.g. pandas Series).
+
+    - avg/mean: sum / count (0 when count is 0)
+    - var/variance: sample variance (sum_sq - sum^2 / count) / (count - 1)
+    - std/stddev: square root of the sample variance
+    Sample variance and standard deviation are NaN when count < 2, matching
+    the non-tiled aggregation.
+    """
+    agg_type = agg.function.lower()
+    count = np.asarray(ir_count, dtype="float64")
+    total = np.asarray(ir_sum, dtype="float64")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if agg_type in ["std", "stddev", "var", "variance"]:
+            sum_sq = np.asarray(ir_sum_sq, dtype="float64")
+            variance = (sum_sq - total**2 / count) / (count - 1)
+            # Clamp tiny negative values caused by floating point cancellation
+            variance = np.where(count > 1, np.maximum(variance, 0.0), np.nan)
+            if agg_type in ["std", "stddev"]:
+                return np.sqrt(variance)
+            return variance
+
+        return np.where(count > 0, total / count, 0)

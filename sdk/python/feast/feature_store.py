@@ -2874,7 +2874,7 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
+            disable_event_timestamp (bool): If True, materializes all available data (from 1970-01-01 up to the current UTC time). Rows keep their source event timestamps.
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
@@ -3638,6 +3638,9 @@ class FeatureStore:
         """
         Validates vector features in the DataFrame against the feature view specifications.
 
+        Resolves the vector field from the feature view schema rather than assuming it is
+        the first feature, and checks lengths in a single pass over the column.
+
         Args:
             feature_view: The feature view containing vector feature specifications
             df: The DataFrame to validate
@@ -3645,20 +3648,70 @@ class FeatureStore:
         Raises:
             ValueError: If vector dimension constraints are violated
         """
-        if feature_view.features and feature_view.features[0].vector_index:
-            fv_vector_feature_name = feature_view.features[0].name
-            if feature_view.features[0].vector_length != 0:
-                for i, row in df.iterrows():
-                    vector = row[fv_vector_feature_name]
-                    if not hasattr(vector, "__len__"):
-                        raise ValueError(
-                            f"Row {i}: Vector feature '{fv_vector_feature_name}' is not a sequence. Got: {type(vector)}"
-                        )
-                    if len(vector) != feature_view.features[0].vector_length:
-                        raise ValueError(
-                            f"Row {i}: Vector length {len(vector)} does not match expected {feature_view.features[0].vector_length} "
-                            f"for feature '{fv_vector_feature_name}' in feature view '{feature_view.name}'."
-                        )
+        vector_field = _get_feature_view_vector_field_metadata(feature_view)
+        if vector_field is None or not vector_field.vector_index:
+            return
+
+        name = vector_field.name
+        if name not in df.columns:
+            return
+
+        column = df[name]
+        declared = vector_field.vector_length or None
+
+        # Null vectors carry no length to compare. Skipping them keeps this
+        # consistent with the Arrow path, which also tolerates null rows, and
+        # stops a genuine null being reported as "not a sequence".
+        is_null = column.isna()
+
+        # Single pass over the column. na_action leaves nulls as NaN, so a NaN
+        # length that is not null means the value was not a sequence at all.
+        lengths = column.map(
+            lambda v: len(v) if hasattr(v, "__len__") else None, na_action="ignore"
+        )
+
+        not_a_sequence = lengths.isna() & ~is_null
+
+        expected = declared
+        if expected is None:
+            # No declared width, so take the contract from the first usable row.
+            # An ANN index needs a fixed width, so a ragged column is a defect
+            # regardless of whether anyone declared vector_length.
+            usable = lengths.notna()
+            if not usable.any():
+                # Nothing to infer from, so only the type check below applies.
+                if not not_a_sequence.any():
+                    return
+                expected = -1
+            else:
+                expected = int(lengths[usable].iloc[0])
+
+        mismatched = lengths.notna() & (lengths != expected)
+        offending = not_a_sequence | mismatched
+        if not offending.any():
+            return
+
+        # Report the first offending row across both failure modes, by position,
+        # so the message is right regardless of which failure comes first and
+        # correct even when the index has duplicates.
+        position = int(offending.to_numpy().argmax())
+        label = column.index[position]
+
+        if bool(not_a_sequence.to_numpy()[position]):
+            raise ValueError(
+                f"Row {label}: Vector feature '{name}' is not a sequence. "
+                f"Got: {type(column.iloc[position])}"
+            )
+
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
+        raise ValueError(
+            f"Row {label}: Vector length {int(lengths.iloc[position])} does not match "
+            f"{source} for feature '{name}' in feature view '{feature_view.name}'."
+        )
 
     def _get_feature_view_and_df_for_online_write(
         self,
@@ -4760,6 +4813,7 @@ class FeatureStore:
         root_path: str = "",
         tls_key_path: str = "",
         tls_cert_path: str = "",
+        cors_origins: Optional[List[str]] = None,
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -4776,6 +4830,7 @@ class FeatureStore:
             root_path=root_path,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
+            cors_origins=cors_origins,
         )
 
     def serve_registry(
@@ -4784,15 +4839,20 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         rest_api: bool = False,
+        host: str = "::",
     ) -> None:
-        """Start registry server locally on a given port."""
+        """Start registry server locally on a given port. `host` only applies
+        to the REST server (rest_api=True); defaults to dual-stack "::"."""
         if rest_api:
             from feast.api.registry.rest import rest_registry_server
 
             server = rest_registry_server.RestRegistryServer(self)
 
             server.start_server(
-                port=port, tls_key_path=tls_key_path, tls_cert_path=tls_cert_path
+                port=port,
+                host=host,
+                tls_key_path=tls_key_path,
+                tls_cert_path=tls_cert_path,
             )
         else:
             from feast import registry_server

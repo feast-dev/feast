@@ -68,6 +68,14 @@ registry:
 | `path` | string | — | Connection string or file path |
 | `schema_mode` | string | `auto` | SQL registry only. `auto`: create tables on startup; `verify`: check tables exist, error if missing; `skip`: no DDL or verification. See [SQL Registry docs](registries/sql.md#schema-management-schema_mode). |
 | `mcp.enabled` | bool | `false` | Enable MCP (Model Context Protocol) on the REST registry server |
+| `serve_features_while_materializing` | bool | `false` | Keep serving a feature view's last-materialized values while it is in the `MATERIALIZING` state, instead of rejecting online requests during materialization |
+
+When `serve_features_while_materializing` is `true`, online serving continues for a
+feature view while `feast materialize` runs against a shared registry (which
+transitions the feature view to `MATERIALIZING`). This avoids serving interruptions
+from routine incremental materialization; feature views serve their
+last-materialized values until materialization completes. States that never had
+online data (e.g. `CREATED`, `GENERATED`) remain gated.
 
 When `registry.mcp.enabled` is `true`, the REST registry server exposes registry
 metadata (entities, feature views, feature services) as MCP tool endpoints for

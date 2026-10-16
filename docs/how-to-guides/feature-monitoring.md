@@ -359,6 +359,7 @@ Monitoring works natively with all offline stores that serve as compute engines 
 | BigQuery | SQL push-down | `MERGE` into BQ tables |
 | Redshift | SQL push-down | `MERGE` via Data API |
 | Spark | SparkSQL push-down | Parquet tables |
+| Trino | SQL push-down | Trino tables |
 | Oracle | SQL via Ibis | `MERGE` from `DUAL` |
 | DuckDB | In-memory SQL | Parquet files |
 | Dask | PyArrow compute | Parquet files |

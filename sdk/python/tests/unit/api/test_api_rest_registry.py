@@ -1,12 +1,14 @@
 import ast
 import os
 import tempfile
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
 from feast import Entity, FeatureService, FeatureStore, FeatureView, Field, FileSource
+from feast.api.registry.rest import rest_utils, search
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
 from feast.data_source import RequestSource
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
@@ -2272,6 +2274,62 @@ def test_apply_and_delete_feature_service_via_rest(fastapi_test_app):
     assert response.status_code == 200
 
 
+def _apply_permission_body(**overrides):
+    body = {
+        "name": "fv_reader",
+        "project": "demo_project",
+        "types": ["FEATURE_VIEW"],
+        "actions": ["DESCRIBE"],
+        "policy": {"role_based_policy": {"roles": ["reader"]}},
+    }
+    body.update(overrides)
+    return body
+
+
+def test_apply_and_delete_permission_via_rest(fastapi_test_app):
+    """Test POST /permissions and DELETE /permissions/{name} endpoints."""
+    response = fastapi_test_app.post("/permissions", json=_apply_permission_body())
+    assert response.status_code == 201
+    assert response.json()["status"] == "applied"
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+    spec = response.json()["spec"]
+    assert spec["types"] == ["FEATURE_VIEW"]
+    assert spec["actions"] == ["DESCRIBE"]
+
+    response = fastapi_test_app.delete("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "overrides, invalid_name",
+    [
+        ({"types": ["feature_view"]}, "feature_view"),
+        ({"types": ["FEATURE_VIEW", "FEATURE_VIWE"]}, "FEATURE_VIWE"),
+        ({"actions": ["describe"]}, "describe"),
+        ({"actions": ["DESCRIBE", "READ"]}, "READ"),
+    ],
+)
+def test_apply_permission_rejects_unknown_names_via_rest(
+    fastapi_test_app, overrides, invalid_name
+):
+    """Unknown types or actions must be rejected instead of silently dropped."""
+    response = fastapi_test_app.post(
+        "/permissions", json=_apply_permission_body(**overrides)
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert invalid_name in detail
+    assert "Valid options are" in detail
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
 def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
     """Test /metrics/resource_counts with a non-existent project returns empty data."""
     response = fastapi_test_app.get(
@@ -2328,3 +2386,44 @@ def test_registry_refresh_via_rest_error():
         assert response.status_code == 500
 
     tmp_dir.cleanup()
+
+
+@pytest.mark.parametrize(
+    "list_fn",
+    [
+        rest_utils.list_entities,
+        rest_utils.list_feature_views,
+        rest_utils.list_feature_services,
+        rest_utils.list_data_sources,
+        rest_utils.list_saved_datasets,
+        rest_utils.list_features,
+        rest_utils.list_label_views,
+        rest_utils.list_labels,
+    ],
+)
+def test_list_helpers_do_not_swallow_base_exceptions(list_fn):
+    # Regular errors are reported through err_msg, but KeyboardInterrupt /
+    # SystemExit must propagate instead of turning into an empty result.
+    with patch.object(rest_utils, "grpc_call", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            list_fn(grpc_handler=MagicMock(), project="p", allow_cache=True)
+
+
+def test_list_all_projects_does_not_swallow_base_exceptions():
+    with patch.object(rest_utils, "grpc_call", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            rest_utils.list_all_projects(grpc_handler=MagicMock(), allow_cache=True)
+
+
+def test_get_all_project_resources_does_not_swallow_base_exceptions():
+    with patch.object(rest_utils, "list_entities", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            rest_utils.get_all_project_resources(
+                grpc_handler=MagicMock(), project="p", allow_cache=True
+            )
+
+
+def test_validate_projects_does_not_swallow_base_exceptions():
+    with patch.object(search, "list_all_projects", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            search._validate_projects(["p"], MagicMock(), allow_cache=True)

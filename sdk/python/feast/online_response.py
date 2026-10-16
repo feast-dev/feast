@@ -134,8 +134,11 @@ class OnlineResponse:
         tensor_dict: Dict[str, Union[TorchTensor, List[Any]]] = {}
         for key in feature_keys:
             raw_values = feature_dict[key]
+            # Infer the feature type from the retrieved values, not from the
+            # substituted ones: default_value is a stand-in for a missing entity
+            # and says nothing about the feature's actual type.
+            first_valid = next((v for v in raw_values if v is not None), default_value)
             values = [v if v is not None else default_value for v in raw_values]
-            first_valid = next((v for v in values if v is not None), None)
             if isinstance(first_valid, (int, float, bool)):
                 try:
                     device = "cuda" if torch.cuda.is_available() else "cpu"

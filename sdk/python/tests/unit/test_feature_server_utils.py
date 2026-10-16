@@ -46,7 +46,9 @@ from feast.protos.feast.types.Value_pb2 import (
     BoolList,
     BytesList,
     DoubleList,
+    DoubleSet,
     FloatList,
+    FloatSet,
     Int32List,
     Int64List,
     Int64Set,
@@ -117,6 +119,36 @@ class TestValueToNative:
         v = Value(float_list_val=FloatList(val=[1.5, 2.5]))
         result = _value_to_native(v)
         assert result == [1.5, 2.5]
+
+    @pytest.mark.parametrize("field", ["double_val", "float_val"])
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (float("inf"), "Infinity"),
+            (float("-inf"), "-Infinity"),
+            (float("nan"), "NaN"),
+        ],
+    )
+    def test_non_finite_scalar_val(self, field, value, expected):
+        v = Value(**{field: value})
+        result = _value_to_native(v)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "field, container",
+        [
+            ("double_list_val", DoubleList),
+            ("float_list_val", FloatList),
+            ("double_set_val", DoubleSet),
+            ("float_set_val", FloatSet),
+        ],
+    )
+    def test_non_finite_float_collection_val(self, field, container):
+        v = Value(
+            **{field: container(val=[1.5, float("nan"), float("inf"), float("-inf")])}
+        )
+        result = _value_to_native(v)
+        assert result == [1.5, "NaN", "Infinity", "-Infinity"]
 
     def test_int64_list_val(self):
         v = Value(int64_list_val=Int64List(val=[100, 200, 300]))
@@ -572,6 +604,26 @@ class TestJsonSerializability:
         serialized = json.dumps(result)
         assert serialized  # non-empty
 
+    def test_non_finite_floats_are_json_serializable(self):
+        """NaN/inf must not break strict JSON encoding (JSONResponse uses allow_nan=False)."""
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(double_val=float("inf")))
+        fv.values.append(Value(float_val=float("-inf")))
+        fv.values.append(Value(double_list_val=DoubleList(val=[1.0, float("nan")])))
+        fv.statuses.extend(
+            [FieldStatus.PRESENT, FieldStatus.PRESENT, FieldStatus.PRESENT]
+        )
+
+        result = convert_response_to_dict(response)
+        # must not raise
+        serialized = json.dumps(result, allow_nan=False)
+        assert json.loads(serialized)["results"][0]["values"] == [
+            "Infinity",
+            "-Infinity",
+            [1.0, "NaN"],
+        ]
+
 
 class TestProtobufCompatibility:
     """Regression tests for protobuf >= 7.34.0 compatibility (issue #6435).
@@ -692,3 +744,46 @@ class TestStatusNames:
 
     def test_unknown_status_returns_invalid(self):
         assert _STATUS_NAMES.get(999, "INVALID") == "INVALID"
+
+
+class TestFeatureViewVersionMetadata:
+    """``feature_view_metadata`` is part of the response metadata and must
+    survive ``convert_response_to_dict`` exactly as MessageToDict emits it."""
+
+    @pytest.fixture(autouse=True)
+    def setup_proto_json_patch(self):
+        proto_json.patch()
+
+    def test_feature_view_metadata_matches_message_to_dict(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+        fv_meta = response.metadata.feature_view_metadata.add()
+        fv_meta.name = "driver_stats"
+        fv_meta.version = 2
+        fv = response.results.add()
+        fv.values.append(Value(int64_val=7))
+        fv.statuses.append(FieldStatus.PRESENT)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert "feature_view_metadata" in standard_result["metadata"]
+        assert fast_result["metadata"] == standard_result["metadata"]
+
+    def test_feature_view_metadata_version_zero_matches_message_to_dict(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+        response.metadata.feature_view_metadata.add(name="driver_stats", version=0)
+
+        fast_result = convert_response_to_dict(response)
+        standard_result = MessageToDict(response, preserving_proto_field_name=True)
+
+        assert fast_result["metadata"] == standard_result["metadata"]
+
+    def test_feature_view_metadata_omitted_when_not_requested(self):
+        response = GetOnlineFeaturesResponse()
+        response.metadata.feature_names.val.extend(["trips_today"])
+
+        fast_result = convert_response_to_dict(response)
+
+        assert "feature_view_metadata" not in fast_result["metadata"]

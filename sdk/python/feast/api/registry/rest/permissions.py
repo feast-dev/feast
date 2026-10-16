@@ -1,6 +1,6 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional, TypeVar
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -116,6 +116,21 @@ _ACTION_NAME_TO_ENUM = {
 }
 
 
+_EnumT = TypeVar("_EnumT")
+
+
+def _parse_enum_names(
+    field: str, names: List[str], name_to_enum: Mapping[str, _EnumT]
+) -> List[_EnumT]:
+    invalid = [name for name in names if name not in name_to_enum]
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field}: {invalid}. Valid options are: {list(name_to_enum)}",
+        )
+    return [name_to_enum[name] for name in names]
+
+
 def get_permission_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
@@ -179,10 +194,8 @@ def get_permission_router(grpc_handler) -> APIRouter:
 
     @router.post("/permissions", status_code=201)
     def apply_permission(body: ApplyPermissionRequestBody):
-        types = [_TYPE_NAME_TO_ENUM[t] for t in body.types if t in _TYPE_NAME_TO_ENUM]
-        actions = [
-            _ACTION_NAME_TO_ENUM[a] for a in body.actions if a in _ACTION_NAME_TO_ENUM
-        ]
+        types = _parse_enum_names("types", body.types, _TYPE_NAME_TO_ENUM)
+        actions = _parse_enum_names("actions", body.actions, _ACTION_NAME_TO_ENUM)
         policy_proto = _build_policy_proto(body.policy)
 
         permission_spec = PermissionSpecProto(

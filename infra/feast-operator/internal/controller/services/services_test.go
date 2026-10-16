@@ -588,6 +588,25 @@ var _ = Describe("Registry Service", func() {
 			}))
 		})
 
+		It("should bind the online service dual-stack when configured", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true), DualStack: ptr.To(true)},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+			Expect(onlineContainer.Command).To(Equal([]string{feastCommand, "serve", "--metrics", "-h", "[::]", "-p", "6566"}))
+		})
+
 		It("should handle empty NodeSelector gracefully", func() {
 			// Set empty NodeSelector
 			emptyNodeSelector := map[string]string{}
@@ -857,8 +876,8 @@ var _ = Describe("Service AppProtocol Configuration", func() {
 		Expect(feast.getServiceAppProtocol(OnlineFeastType, false)).To(BeNil())
 	})
 
-	It("should return nil appProtocol for the offline store service", func() {
-		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(BeNil())
+	It("should return grpc appProtocol for the offline store service", func() {
+		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(Equal(ptr.To("grpc")))
 	})
 
 	It("should return nil appProtocol when registry gRPC is disabled", func() {
@@ -895,6 +914,28 @@ var _ = Describe("Service AppProtocol Configuration", func() {
 
 		Expect(restSvc.Spec.Ports).To(HaveLen(1))
 		Expect(restSvc.Spec.Ports[0].AppProtocol).To(BeNil())
+	})
+
+	It("should set grpc appProtocol on the offline Service port", func() {
+		featureStore.Spec.Services.OfflineStore = &feastdevv1.OfflineStore{
+			Server: &feastdevv1.ServerConfigs{
+				ContainerConfigs: feastdevv1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+						Image: ptr.To("test-image"),
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		svc := feast.initFeastSvc(OfflineFeastType)
+		Expect(svc).NotTo(BeNil())
+		Expect(feast.setService(svc, OfflineFeastType, false)).To(Succeed())
+
+		Expect(svc.Spec.Ports).To(HaveLen(1))
+		Expect(svc.Spec.Ports[0].AppProtocol).To(Equal(ptr.To("grpc")))
 	})
 })
 

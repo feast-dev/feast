@@ -237,6 +237,16 @@ func (feast *FeastServices) reconcileServices() error {
 		}
 	}
 
+	if feast.isMcpServer() {
+		if err := feast.deployFeastServiceByType(McpServerFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(McpServerFeastType); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -514,6 +524,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountMcpServerConfig(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec)
 	feast.applyTolerations(podSpec)
@@ -546,6 +557,9 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	}
 	if feast.isUiServer() {
 		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
+	}
+	if feast.isMcpServer() {
+		feast.setContainer(&podSpec.Containers, McpServerFeastType, fsYamlB64)
 	}
 
 	// When the CR is annotated as a protected project, set FEAST_PROTECTED_PROJECT=true
@@ -608,15 +622,18 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
 			FailureThreshold: 40,
+			TimeoutSeconds:   5,
 		}
 		container.LivenessProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    20,
 			FailureThreshold: 6,
+			TimeoutSeconds:   5,
 		}
 		container.ReadinessProbe = &corev1.Probe{
-			ProbeHandler:  probeHandler,
-			PeriodSeconds: 10,
+			ProbeHandler:   probeHandler,
+			PeriodSeconds:  10,
+			TimeoutSeconds: 5,
 		}
 		volumeMounts := feast.getVolumeMounts(feastType)
 		if len(volumeMounts) > 0 {
@@ -723,6 +740,12 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
+	// The standalone MCP server (`feast mcp`) has its own flag surface (no -p/--grpc/TLS
+	// args), so it does not go through the shared serve-command builder below.
+	if feastType == McpServerFeastType {
+		return feast.getMcpServerCommand()
+	}
+
 	baseCommand := feastCommand
 	options := []string{}
 	logLevel := feast.getLogLevelForType(feastType)
@@ -750,8 +773,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 		if feast.isRegistryRestEnabled() {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
+			deploySettings.Args = append(deploySettings.Args, "-h", hostAllIPv4)
 		}
 	}
+	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
 
 	// Add worker configuration options for online store (feast serve)
 	if feastType == OnlineFeastType {
@@ -791,6 +816,100 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	feastCommand = append(feastCommand, deploySettings.Args...)
 
 	return feastCommand
+}
+
+// withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
+// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage, mcp) rejects it.
+func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	out := append([]string{}, args...)
+	if serverConfigs == nil || serverConfigs.DualStack == nil || !*serverConfigs.DualStack {
+		return out
+	}
+	host := hostAllIPv6
+	if feastType == OnlineFeastType || feastType == OfflineFeastType {
+		host = hostAllIPv6Bracketed
+	}
+	for i := 0; i+1 < len(out); i++ {
+		if out[i] == "-h" || out[i] == "--host" {
+			out[i+1] = host
+		}
+	}
+	return out
+}
+
+// getMcpServerCommand builds the `feast mcp` command for the standalone MCP server container.
+// The operator owns the bind host/port (so they match the generated Service); everything else
+// (transport, upstream feature/registry URLs, auth, observability) is read from the mounted
+// feast_mcp.yaml config file when provided. Without one, the transport defaults to http,
+// because the process default (stdio) cannot serve the Service.
+func (feast *FeastServices) getMcpServerCommand() []string {
+	cmd := []string{feastCommand}
+	if logLevel := feast.getLogLevelForType(McpServerFeastType); logLevel != nil {
+		cmd = append(cmd, "--log-level", strings.ToUpper(*logLevel))
+	}
+	targetPort := FeastServiceConstants[McpServerFeastType].TargetHttpPort
+	cmd = append(cmd, "mcp", "--host", hostAllIPv4, "--port", strconv.Itoa(int(targetPort)))
+	if configPath := feast.getMcpServerConfigPath(); configPath != "" {
+		cmd = append(cmd, "--config", configPath)
+	} else if !feast.hasMcpServerTransportEnv() {
+		cmd = append(cmd, "--transport", "http")
+	}
+	return withBindHost(McpServerFeastType, cmd, feast.getServerConfigs(McpServerFeastType))
+}
+
+// hasMcpServerTransportEnv reports whether the user set the MCP transport through mcpServer.env.
+func (feast *FeastServices) hasMcpServerTransportEnv() bool {
+	if !feast.isMcpServer() {
+		return false
+	}
+	env := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Env
+	return env != nil && getEnvVar(mcpServerTransportEnvVar, *env) != -1
+}
+
+// getMcpServerConfigPath returns the in-container path to the mounted feast_mcp.yaml, or ""
+// when no config ConfigMap is referenced.
+func (feast *FeastServices) getMcpServerConfigPath() string {
+	if !feast.isMcpServer() {
+		return ""
+	}
+	config := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Config
+	if config == nil {
+		return ""
+	}
+	key := config.ConfigMapKey
+	if len(key) == 0 {
+		key = mcpServerConfigDefaultKey
+	}
+	return mcpServerConfigMountPath + "/" + key
+}
+
+// mountMcpServerConfig mounts the user-supplied feast_mcp.yaml ConfigMap into the MCP server
+// container only. No-op when the MCP server is not configured or has no config reference.
+func (feast *FeastServices) mountMcpServerConfig(podSpec *corev1.PodSpec) {
+	if !feast.isMcpServer() {
+		return
+	}
+	config := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Config
+	if config == nil {
+		return
+	}
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: mcpServerConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: config.ConfigMapRef,
+			},
+		},
+	})
+	for i := range podSpec.Containers {
+		if podSpec.Containers[i].Name == string(McpServerFeastType) {
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      mcpServerConfigVolumeName,
+				MountPath: mcpServerConfigMountPath,
+				ReadOnly:  true,
+			})
+		}
+	}
 }
 
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
@@ -922,11 +1041,13 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 }
 
 // getServiceAppProtocol returns the appProtocol for a Service port.
-// The registry gRPC service uses the gRPC protocol, which requires HTTP/2.
-// Setting appProtocol allows service meshes (e.g. Istio) and load balancers
-// to correctly classify the traffic and avoid downgrading to HTTP/1.1.
+// The registry gRPC service and the offline (Arrow Flight) service use the gRPC
+// protocol, which requires HTTP/2. Setting appProtocol allows service meshes
+// (e.g. Istio) and load balancers to correctly classify the traffic and avoid
+// downgrading to HTTP/1.1.
 func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, isRestService bool) *string {
-	if feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled() {
+	if (feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled()) ||
+		feastType == OfflineFeastType {
 		return ptr.To("grpc")
 	}
 	return nil
@@ -1077,6 +1198,10 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 		}
 	case UIFeastType:
 		return appliedServices.UI
+	case McpServerFeastType:
+		if feast.isMcpServer() {
+			return &appliedServices.McpServer.ServerConfigs
+		}
 	}
 	return nil
 }
@@ -1157,7 +1282,7 @@ func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
 	}
 
 	// Check all service types for node selector configuration
-	allServiceTypes := append(feastServerTypes, UIFeastType)
+	allServiceTypes := append(feastServerTypes, UIFeastType, McpServerFeastType)
 	for _, feastType := range allServiceTypes {
 		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
 			for k, v := range *selector {
@@ -1362,6 +1487,13 @@ func (feast *FeastServices) setServiceHostnames() error {
 		}
 		feast.Handler.FeatureStore.Status.ServiceHostnames.Lineage = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(tls)
+	}
+	if feast.isMcpServer() {
+		objMeta := feast.initFeastSvc(McpServerFeastType)
+		// The MCP server does not support operator-managed TLS yet, so its Service always
+		// listens on the plain HTTP port.
+		feast.Handler.FeatureStore.Status.ServiceHostnames.McpServer = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(nil)
 	}
 	return nil
 }
@@ -1588,7 +1720,7 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	container := corev1.Container{
 		Name:    string(LineageFeastType),
 		Image:   image,
-		Command: append([]string{feastCommand}, svcConsts.Args...),
+		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
 		Args:    []string{"-p", fmt.Sprintf("%d", port)},
 		Ports: []corev1.ContainerPort{
 			{
@@ -1629,6 +1761,11 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{container}
 
 	return controllerutil.SetControllerReference(cr, deploy, feast.Handler.Scheme)
+}
+
+func (feast *FeastServices) isMcpServer() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.McpServer != nil
 }
 
 func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {
@@ -1853,7 +1990,7 @@ func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *fea
 			return probeHandler
 		}
 	}
-	if feastType == OnlineFeastType {
+	if feastType == OnlineFeastType || feastType == McpServerFeastType {
 		probeHandler := corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health",

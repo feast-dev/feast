@@ -345,3 +345,163 @@ Start the Feast UI with:
 ```bash
 feast ui --host 127.0.0.1 --port 8888
 ```
+
+## MLflow as a DataSource 
+
+Feast supports MLflow as a first-class **offline DataSource** via `MlflowDatasetSource`. Users define `FeatureView(source=MlflowDatasetSource(...))` and call `get_historical_features()` / `create_saved_dataset()` to retrieve tabular data from MLflow-tracked artifacts or GenAI Datasets.
+
+### Dual-mode design
+
+`MlflowDatasetSource` supports two modes:
+
+| Mode | When to use | Config fields |
+|---|---|---|
+| **GenAI Dataset** | Flywheel path — curated trace/assessment records from MLflow GenAI Datasets | `dataset_name` or `dataset_id` |
+| **Artifact** | General purpose — download tabular artifacts (Parquet/CSV) from MLflow runs | `run_id` + `artifact_path` + `artifact_format` |
+
+### GenAI Dataset mode
+
+Reads from MLflow GenAI EvaluationDatasets via `get_dataset().to_df()`. This is the primary path for the tracing → assessment → training data flywheel.
+
+```python
+from feast import Entity, FeatureView, Field, FileSource
+from feast.infra.data_sources.mlflow import MlflowDatasetSource
+from feast.types import String
+
+batch_sink = FileSource(path="data/eval_records.parquet", timestamp_field="event_timestamp")
+
+source = MlflowDatasetSource(
+    name="eval_dataset",
+    dataset_name="production_validation_set",
+    batch_source=batch_sink,
+    timestamp_field="event_timestamp",
+    field_mapping={"expectations.expected_response": "expected_response"},
+)
+
+fv = FeatureView(
+    name="eval_records",
+    entities=[Entity(name="record_id", join_keys=["record_id"])],
+    schema=[Field(name="expected_response", dtype=String)],
+    source=source,
+)
+```
+
+### Artifact mode
+
+Downloads Parquet or CSV artifacts from MLflow runs via `mlflow.artifacts.download_artifacts()`.
+
+```python
+source = MlflowDatasetSource(
+    name="training_features",
+    run_id="abc123def456",
+    artifact_path="outputs/features.parquet",
+    artifact_format="parquet",   # or "csv"
+    batch_source=FileSource(path="data/features.parquet", timestamp_field="ts"),
+    timestamp_field="ts",
+)
+```
+
+### Retrieving historical features
+
+Once registered, use `get_historical_features()` as with any other DataSource:
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(".")
+features = store.get_historical_features(
+    entity_df=entity_df,
+    features=["eval_records:expected_response"],
+)
+training_df = features.to_df()
+```
+
+### `batch_source` for writeback
+
+`MlflowDatasetSource` is read-only — it does not support writing back to MLflow. A `batch_source` (e.g., `FileSource`) is always required for `create_saved_dataset()` and materialization writeback.
+
+### Authentication
+
+For RHOAI deployments, auth tokens are propagated automatically:
+
+1. **User-initiated requests**: The Bearer token from the Feast API request is forwarded to MLflow
+2. **Automated jobs** (materialization CronJobs): The pod's ServiceAccount token is used
+3. **Local dev**: Falls back to `MLFLOW_TRACKING_TOKEN` env var or no auth
+
+### Graceful degradation
+
+- When `mlflow` is not installed, attempting to use `MlflowDatasetSource` raises a clear `ImportError` with install instructions
+- Non-MLflow FeatureViews are completely unaffected by MLflow availability
+- The feature server starts normally without MLflow
+
+### Configuration
+
+The `mlflow:` section in `feature_store.yaml` supports DataSource-specific fields:
+
+```yaml
+mlflow:
+  enabled: true
+  tracking_uri: https://mlflow.example.com:8443
+  ca_bundle: /etc/pki/tls/odh-trusted-ca-bundle.crt
+  supported_artifact_formats:
+    - parquet
+    - csv
+  request_timeout: 30
+  max_retries: 3
+  retry_backoff_factor: 1.0
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `ca_bundle` | `str` | `None` | Path to CA bundle for TLS verification (falls back to `REQUESTS_CA_BUNDLE` env var) |
+| `supported_artifact_formats` | `list[str]` | `["parquet", "csv"]` | Artifact formats the adapter will accept |
+| `request_timeout` | `int` | `30` | Timeout in seconds for individual HTTP requests to the MLflow tracking server |
+| `max_retries` | `int` | `3` | Maximum retry attempts for transient MLflow API failures (timeouts, 5xx, connection errors) |
+| `retry_backoff_factor` | `float` | `1.0` | Base factor for exponential backoff between retries (wait = factor × 2^attempt) |
+
+### CLI commands
+
+#### `feast mlflow validate-source`
+
+Validates that an MlflowDatasetSource-backed FeatureView is reachable and schema-compatible:
+
+```bash
+feast mlflow validate-source eval_records
+```
+
+Checks performed:
+- Config validation (mode, batch_source, artifact_format)
+- Schema introspection (column names and types from MLflow)
+- Schema match (FeatureView features vs source columns)
+
+#### `feast mlflow list-sources`
+
+Lists all FeatureViews backed by MlflowDatasetSource:
+
+```bash
+feast mlflow list-sources
+```
+
+#### `feast mlflow sync-dataset`
+
+Syncs an MLflow GenAI Dataset into a Feast FeatureView (for Tier 3 offline stores like BigQuery, Snowflake, Redshift):
+
+```bash
+feast mlflow sync-dataset --feature-view eval_records
+feast mlflow sync-dataset --feature-view eval_records --full-refresh
+feast mlflow sync-dataset --feature-view eval_records --dry-run
+feast mlflow sync-dataset --feature-view eval_records --batch-size 5000
+feast mlflow sync-dataset --feature-view eval_records --field-mapping mapping.json
+```
+
+When `--feature-view` is omitted, syncs all FeatureViews whose source is `MlflowDatasetSource`. Supports incremental sync (default) via watermark tags and full refresh via `--full-refresh`.
+
+#### `feast mlflow preview-dataset`
+
+Preview flattened records from an MLflow GenAI Dataset:
+
+```bash
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+```
+
+Fetches the dataset, flattens nested fields, and displays a preview. Useful for inspecting data shape before defining a FeatureView.

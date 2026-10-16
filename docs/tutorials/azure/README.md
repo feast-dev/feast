@@ -20,7 +20,7 @@ We have created an ARM template that deploys and configures all the infrastructu
 
 The only 2 required parameters during the set-up are:
 
-- **Admin Password** for the the Dedicated SQL Pool being deployed.
+- **Admin Password** for the Dedicated SQL Pool being deployed.
 - **Principal ID** this is to set the storage permissions for the feast registry store. You can find the value for this by opening **Cloud Shell** and run the following command:
 
 ```bash
