@@ -20,6 +20,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
 from feast.infra.compute_engines.ray.utils import (
+    _is_empty_batch,
     safe_batch_processor,
     write_to_online_store,
 )
@@ -714,11 +715,14 @@ class RayTransformationNode(DAGNode):
             elif callable(self.transformation):
                 transformation_serialized = dill.dumps(self.transformation)
 
-            @safe_batch_processor
+            # Not wrapped in safe_batch_processor: a failed UDF must fail the job.
             def apply_transformation_with_serialized_udf(
                 batch: pd.DataFrame,
             ) -> pd.DataFrame:
                 """Apply the transformation using pre-serialized UDF."""
+                if _is_empty_batch(batch):
+                    return batch
+
                 if transformation_serialized:
                     transformation_func = dill.loads(transformation_serialized)
                     transformed_batch = transformation_func(batch)

@@ -41,9 +41,10 @@ def test_ray_compute_engine_get_historical_features(
     fs = ray_environment.feature_store
     registry = fs.registry
 
+    # The udf runs on raw source rows, before aggregation.
     def transform_feature(df: pd.DataFrame) -> pd.DataFrame:
-        df["sum_conv_rate"] = df["sum_conv_rate"] * 2
-        df["avg_acc_rate"] = df["avg_acc_rate"] * 2
+        df["conv_rate"] = df["conv_rate"] * 2
+        df["acc_rate"] = df["acc_rate"] * 2
         return df
 
     driver_stats_fv = BatchFeatureView(
