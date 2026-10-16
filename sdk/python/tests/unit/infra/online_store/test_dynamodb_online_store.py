@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_dynamodb
 
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
@@ -827,6 +828,206 @@ def test_dynamodb_update_online_store_int_list(repo_config, dynamodb_online_stor
     assert len(result) == 1
     scores = result[0][1]["scores"]
     assert _extract_int32_list(scores) == [10, 20, 30]
+
+
+def _throughput_exceeded_error() -> ClientError:
+    """The ClientError botocore raises for GetItem once its retries are used up."""
+    return ClientError(
+        {
+            "Error": {
+                "Code": "ProvisionedThroughputExceededException",
+                "Message": "The level of configured provisioned throughput for the table was exceeded.",
+            }
+        },
+        "GetItem",
+    )
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_keeps_features_not_in_update(
+    repo_config, dynamodb_online_store
+):
+    """Test DynamoDB update_online_store leaves features that are not in the update alone."""
+
+    table_name = f"{TABLE_NAME}_update_keeps_features"
+    create_test_table(PROJECT, table_name, REGION)
+
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {
+                "transactions": _create_string_list_value(["tx1", "tx2"]),
+                "user_score": ValueProto(int32_val=100),
+            },
+            datetime.utcnow(),
+            None,
+        )
+    ]
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"transactions": _create_string_list_value(["tx3"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+    dynamodb_online_store.update_online_store(
+        repo_config,
+        MockFeatureView(name=table_name),
+        update_data,
+        {"transactions": "list_append(transactions, :new_val)"},
+        None,
+    )
+
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+    features = result[0][1]
+    assert _extract_string_list(features["transactions"]) == ["tx1", "tx2", "tx3"]
+    assert features["user_score"].int32_val == 100
+
+
+@mock_dynamodb
+def test_dynamodb_update_online_store_read_error_raises(
+    repo_config, dynamodb_online_store
+):
+    """Test DynamoDB update_online_store raises when reading the existing item fails,
+    instead of replacing the stored item with only the new values."""
+
+    table_name = f"{TABLE_NAME}_update_read_error"
+    create_test_table(PROJECT, table_name, REGION)
+
+    initial_data = [
+        (
+            _create_entity_key("entity1"),
+            {
+                "transactions": _create_string_list_value(["tx1", "tx2"]),
+                "user_score": ValueProto(int32_val=100),
+            },
+            datetime.utcnow(),
+            None,
+        )
+    ]
+    dynamodb_online_store.online_write_batch(
+        repo_config, MockFeatureView(name=table_name), initial_data, None
+    )
+
+    def _fail_get_item(**kwargs):
+        raise _throughput_exceeded_error()
+
+    dynamodb_resource = dynamodb_online_store._get_dynamodb_resource(REGION)
+    dynamodb_resource.meta.client.meta.events.register(
+        "before-call.dynamodb.GetItem", _fail_get_item
+    )
+
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"transactions": _create_string_list_value(["tx3"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+    with pytest.raises(ClientError):
+        dynamodb_online_store.update_online_store(
+            repo_config,
+            MockFeatureView(name=table_name),
+            update_data,
+            {"transactions": "list_append(transactions, :new_val)"},
+            None,
+        )
+
+    # The stored item is untouched: list history and other features are still there
+    result = dynamodb_online_store.online_read(
+        repo_config, MockFeatureView(name=table_name), [_create_entity_key("entity1")]
+    )
+    features = result[0][1]
+    assert _extract_string_list(features["transactions"]) == ["tx1", "tx2"]
+    assert features["user_score"].int32_val == 100
+
+
+def _mock_async_update_client(get_item_result=None, get_item_error=None):
+    from unittest.mock import AsyncMock
+
+    client = AsyncMock()
+    if get_item_error is not None:
+        client.get_item = AsyncMock(side_effect=get_item_error)
+    else:
+        client.get_item = AsyncMock(return_value=get_item_result)
+    client.put_item = AsyncMock()
+    client.update_item = AsyncMock()
+    return client
+
+
+async def _run_async_update(repo_config, online_store, client):
+    from unittest.mock import AsyncMock
+
+    online_store._get_aiodynamodb_client = AsyncMock(return_value=client)
+    update_data = [
+        (
+            _create_entity_key("entity1"),
+            {"transactions": _create_string_list_value(["tx3"])},
+            datetime.utcnow(),
+            None,
+        )
+    ]
+    await online_store.update_online_store_async(
+        repo_config,
+        MockFeatureView(name=f"{TABLE_NAME}_update_async"),
+        update_data,
+        {"transactions": "list_append(transactions, :new_val)"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_dynamodb_update_online_store_async_new_entity(repo_config):
+    """Test async update_online_store creates the item when it does not exist yet."""
+    client = _mock_async_update_client(get_item_result={})
+
+    await _run_async_update(repo_config, DynamoDBOnlineStore(), client)
+
+    client.put_item.assert_awaited_once()
+    client.update_item.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_dynamodb_update_online_store_async_existing_entity(repo_config):
+    """Test async update_online_store updates an existing item in place."""
+    existing = _create_string_list_value(["tx1", "tx2"]).SerializeToString()
+    client = _mock_async_update_client(
+        get_item_result={
+            "Item": {
+                "entity_id": {"S": "entity1"},
+                "values": {"M": {"transactions": {"B": existing}}},
+            }
+        }
+    )
+
+    await _run_async_update(repo_config, DynamoDBOnlineStore(), client)
+
+    client.put_item.assert_not_awaited()
+    client.update_item.assert_awaited_once()
+    values = client.update_item.await_args.kwargs["ExpressionAttributeValues"]
+    merged = ValueProto()
+    merged.ParseFromString(values[":val_transactions"]["B"])
+    assert _extract_string_list(merged) == ["tx1", "tx2", "tx3"]
+
+
+@pytest.mark.asyncio
+async def test_dynamodb_update_online_store_async_read_error_raises(repo_config):
+    """Test async update_online_store raises when reading the existing item fails,
+    instead of writing a new item over it."""
+    client = _mock_async_update_client(get_item_error=_throughput_exceeded_error())
+
+    with pytest.raises(ClientError):
+        await _run_async_update(repo_config, DynamoDBOnlineStore(), client)
+
+    client.put_item.assert_not_awaited()
+    client.update_item.assert_not_awaited()
 
 
 @mock_dynamodb
