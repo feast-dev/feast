@@ -1212,27 +1212,49 @@ def _filter_ttl(
         # Non-entity snapshots only contain entities with an eligible source row.
         return df_to_join[valid].persist()
 
-    # Keep the request row when every candidate is outside the time range.
-    # Null candidates sort first, so deduplication still prefers a valid match.
-    return df_to_join.assign(
-        **{
-            # Use pandas' nullable missing value so integer feature columns do not
-            # get silently widened to float64 when an ineligible candidate is nulled.
-            column: (
-                df_to_join[column]
+    # Keep eligible candidates as-is.  Besides avoiding unnecessary work, this
+    # preserves plain integer dtypes when every request has a match.
+    eligible = df_to_join[valid]
+    request_columns = [
+        column for column in df_to_join.columns if column in preserved_columns
+    ]
+    requests = df_to_join[request_columns].drop_duplicates()
+    matched_requests = eligible[request_columns].drop_duplicates()
+    missing_requests = requests.merge(
+        matched_requests, on=request_columns, how="left", indicator=True
+    )
+    missing_requests = missing_requests[missing_requests["_merge"] == "left_only"]
+    missing_requests = missing_requests.drop(columns=["_merge"])
+
+    # Re-add one null-feature row only for requests that lost every candidate.
+    # Keep this in the original frame so Dask's timestamp dtypes and divisions
+    # remain intact while the later deduplication sorts candidates.
+    marked = df_to_join.merge(
+        missing_requests.assign(__ttl_missing=True),
+        on=request_columns,
+        how="left",
+    )
+    ttl_missing = marked["__ttl_missing"].fillna(False)
+    marked = marked[valid | ttl_missing]
+    return (
+        marked.assign(
+            **{
+                column: marked[column]
                 .astype(
                     "UInt64"
-                    if is_unsigned_integer_dtype(df_to_join[column].dtype)
+                    if is_unsigned_integer_dtype(marked[column].dtype)
                     else "Int64"
                 )
-                .mask(~valid, other=pd.NA)
-                if is_integer_dtype(df_to_join[column].dtype)
-                else df_to_join[column].mask(~valid, other=pd.NA)
-            )
-            for column in df_to_join.columns
-            if column not in preserved_columns
-        }
-    ).persist()
+                .mask(ttl_missing, other=pd.NA)
+                if is_integer_dtype(marked[column].dtype)
+                else marked[column].mask(ttl_missing, other=pd.NA)
+                for column in marked.columns
+                if column not in preserved_columns and column != "__ttl_missing"
+            }
+        )
+        .drop(columns=["__ttl_missing"])
+        .persist()
+    )
 
 
 def _apply_created_timestamp_cutoff(
