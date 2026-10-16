@@ -20,6 +20,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
 from feast.infra.compute_engines.ray.utils import (
+    _is_empty_batch,
     safe_batch_processor,
     write_to_online_store,
 )
@@ -861,9 +862,12 @@ class RayWriteNode(DAGNode):
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        @safe_batch_processor
+        # Not wrapped in safe_batch_processor: a failed write must fail the job.
         def write_batch_with_serialized_artifacts(batch: pd.DataFrame) -> pd.DataFrame:
             """Write each batch using pre-serialized artifacts."""
+            if _is_empty_batch(batch):
+                return batch
+
             (
                 feature_view,
                 online_store,
