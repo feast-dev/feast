@@ -651,9 +651,8 @@ class TestStartMetricsServerProcess:
 class TestMetricsProcessSurvivesForkedChildExit:
     """A forked child (e.g. a Gunicorn worker) must not terminate the metrics server on exit."""
 
-    def test_forked_child_exit_does_not_terminate_metrics_process(self):
+    def test_forked_child_does_not_track_metrics_process(self):
         import multiprocessing
-        import multiprocessing.util
 
         import feast.metrics as m
 
@@ -677,17 +676,33 @@ class TestMetricsProcessSurvivesForkedChildExit:
         try:
             pid = os.fork()
             if pid == 0:
-                # What a worker runs at interpreter exit
-                multiprocessing.util._exit_function()
-                os._exit(0)
-            os.waitpid(pid, 0)
+                # A worker's interpreter exit terminates every daemon process in
+                # active_children(); report whether the metrics process is in it.
+                tracked = proc in multiprocessing.active_children()
+                os._exit(1 if tracked else 0)
+            _, status = os.waitpid(pid, 0)
 
-            proc.join(timeout=1)
+            assert os.waitstatus_to_exitcode(status) == 0
             assert proc.is_alive()
         finally:
-            proc.terminate()
+            proc.kill()
             proc.join(timeout=5)
             m._metrics_process = None
+
+
+def test_forget_metrics_process_in_child_removes_it_from_registry():
+    import multiprocessing
+
+    import feast.metrics as m
+
+    proc = MagicMock()
+    children = {proc}
+    with (
+        patch.object(multiprocessing.process, "_children", children),
+        patch.object(m, "_metrics_process", proc),
+    ):
+        m._forget_metrics_process_in_child()
+    assert proc not in children
 
 
 class TestMetricsYamlConfig:
