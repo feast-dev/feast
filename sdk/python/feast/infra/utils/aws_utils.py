@@ -53,7 +53,10 @@ def get_s3_resource(aws_region: str):
     """
     Get the S3 resource for the given AWS region.
     """
-    return boto3.resource("s3", config=Config(region_name=aws_region))
+    return boto3.resource(
+        "s3",
+        config=Config(region_name=aws_region, user_agent_extra=get_user_agent()),
+    )
 
 
 def get_bucket_and_key(s3_path: str) -> Tuple[str, str]:
@@ -716,7 +719,10 @@ def get_account_id() -> str:
 
 
 def list_s3_files(aws_region: str, path: str) -> List[str]:
-    s3 = boto3.client("s3", config=Config(region_name=aws_region))
+    s3 = boto3.client(
+        "s3",
+        config=Config(region_name=aws_region, user_agent_extra=get_user_agent()),
+    )
     if path.startswith("s3://"):
         path = path[len("s3://") :]
     bucket, prefix = path.split("/", 1)
