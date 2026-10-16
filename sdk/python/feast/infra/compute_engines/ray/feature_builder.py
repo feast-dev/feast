@@ -88,6 +88,9 @@ class RayFeatureBuilder(FeatureBuilder):
             config=self.config,
             enable_tiling=enable_tiling,
             hop_size=tiling_hop_size,
+            created_timestamp_col=getattr(
+                view.batch_source, "created_timestamp_column", None
+            ),
         )
         node.add_input(input_node)
 
