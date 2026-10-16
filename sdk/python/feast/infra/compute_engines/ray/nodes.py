@@ -730,11 +730,14 @@ class RayTransformationNode(DAGNode):
             elif callable(self.transformation):
                 transformation_serialized = dill.dumps(self.transformation)
 
-            @safe_batch_processor
+            # Not wrapped in safe_batch_processor: a failed UDF must fail the job.
             def apply_transformation_with_serialized_udf(
                 batch: pd.DataFrame,
             ) -> pd.DataFrame:
                 """Apply the transformation using pre-serialized UDF."""
+                if _is_empty_batch(batch):
+                    return batch
+
                 if transformation_serialized:
                     transformation_func = dill.loads(transformation_serialized)
                     transformed_batch = transformation_func(batch)
