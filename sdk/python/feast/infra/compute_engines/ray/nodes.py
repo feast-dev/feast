@@ -861,9 +861,12 @@ class RayWriteNode(DAGNode):
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        @safe_batch_processor
+        # Not wrapped in safe_batch_processor: a failed write must fail the job.
         def write_batch_with_serialized_artifacts(batch: pd.DataFrame) -> pd.DataFrame:
             """Write each batch using pre-serialized artifacts."""
+            if batch.empty:
+                return batch
+
             (
                 feature_view,
                 online_store,

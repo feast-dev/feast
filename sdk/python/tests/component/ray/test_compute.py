@@ -151,7 +151,10 @@ def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
     ray_materialize_jobs = engine.materialize(registry, task)
 
     assert len(ray_materialize_jobs) == 1
-    assert ray_materialize_jobs[0].status() == MaterializationJobStatus.SUCCEEDED
+    # The Ray engine cannot yet write an aggregated BatchFeatureView to the
+    # online store (see the TODO in feast.utils._convert_arrow_to_proto), and
+    # that write error must fail the job instead of being swallowed.
+    assert ray_materialize_jobs[0].status() == MaterializationJobStatus.ERROR
 
 
 @pytest.mark.integration
