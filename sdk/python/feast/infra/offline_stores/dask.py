@@ -1226,6 +1226,11 @@ def _filter_ttl(
     missing_requests = missing_requests[missing_requests["_merge"] == "left_only"]
     missing_requests = missing_requests.drop(columns=["_merge"])
 
+    # If every request has an eligible candidate, return the filtered frame
+    # unchanged so plain integer feature columns keep their original dtype.
+    if missing_requests.head(1).empty:
+        return eligible.persist()
+
     # Re-add one null-feature row only for requests that lost every candidate.
     # Keep this in the original frame so Dask's timestamp dtypes and divisions
     # remain intact while the later deduplication sorts candidates.

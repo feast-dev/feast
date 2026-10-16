@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+import dask.dataframe as dd
 import pandas as pd
 import pytest
 
 from feast import Entity, FeatureStore, FeatureView, Field, FileSource, RepoConfig
+from feast.infra.offline_stores.dask import _filter_ttl
 from feast.types import Float64, Int64, ValueType
 
 
@@ -189,6 +191,40 @@ def test_ttl_filter_does_not_widen_integer_feature_columns(tmp_path: Path) -> No
 
     assert str(result["value"].dtype) == "Int64"
     assert result["value"].tolist() == [pd.NA, pd.NA, 30, 40, pd.NA]
+
+
+def test_ttl_filter_preserves_plain_integer_dtype_when_all_requests_match(
+    tmp_path: Path,
+) -> None:
+    data = _source().iloc[[2, 3]].copy()
+    data["value"] = pd.Series(
+        data["value"].to_numpy(), index=data.index, dtype="int64"
+    )
+    data["entity_event_timestamp"] = pd.Timestamp("2025-01-03T00:00:00Z")
+    view = FeatureView(
+        name="all_integer_stats",
+        entities=[
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        ],
+        schema=[Field(name="value", dtype=Int64)],
+        source=FileSource(
+            path=str(tmp_path / "unused.parquet"),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_ts",
+        ),
+        ttl=timedelta(days=1),
+    )
+    result = _filter_ttl(
+        dd.from_pandas(data, npartitions=1),
+        view,
+        "entity_event_timestamp",
+        "event_timestamp",
+        preserved_columns={"driver_id", "entity_event_timestamp"},
+    )
+    result = result.compute().sort_values("driver_id").reset_index(drop=True)
+
+    assert str(result["value"].dtype) == "int64"
+    assert result["value"].tolist() == [30, 40]
 
 
 def test_non_entity_snapshot_still_excludes_ineligible_entities(tmp_path: Path) -> None:
