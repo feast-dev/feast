@@ -1021,8 +1021,9 @@ class DynamoDBOnlineStore(OnlineStore):
                         val = ValueProto()
                         val.ParseFromString(val_bin.value)
                         existing_values[feat_name] = val
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.error(f"Failed to read item {entity_id}: {e}")
+            raise
 
         # Build final feature values by applying list operations
         final_features: Dict[str, ValueProto] = {}
@@ -1162,8 +1163,9 @@ class DynamoDBOnlineStore(OnlineStore):
                             val = ValueProto()
                             val.ParseFromString(val_data["B"])
                             existing_values[feat_name] = val
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.error(f"Failed to read item {entity_id}: {e}")
+            raise
 
         # Build final feature values
         final_features: Dict[str, ValueProto] = {}
