@@ -330,11 +330,13 @@ class RayAggregationNode(DAGNode):
         config: RayComputeEngineConfig,
         enable_tiling: bool = False,
         hop_size: Optional[timedelta] = None,
+        created_timestamp_col: Optional[str] = None,
     ):
         super().__init__(name)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
+        self.created_timestamp_col = created_timestamp_col
         self.config = config
         self.enable_tiling = enable_tiling
         self.hop_size = hop_size
@@ -444,6 +446,21 @@ class RayAggregationNode(DAGNode):
                     final_pdf, self.group_by_keys, self.timestamp_col
                 )
 
+            # Tiling drops the created timestamp; add back the latest per group.
+            if (
+                self.created_timestamp_col
+                and self.created_timestamp_col in input_pdf.columns
+                and not final_pdf.empty
+            ):
+                latest_created = (
+                    input_pdf.groupby(self.group_by_keys)[self.created_timestamp_col]
+                    .max()
+                    .reset_index()
+                )
+                final_pdf = final_pdf.merge(
+                    latest_created, on=self.group_by_keys, how="left"
+                )
+
             aggregated_dataset = ray_wrapper.from_pandas(final_pdf)
 
         return DAGValue(
@@ -544,6 +561,10 @@ class RayAggregationNode(DAGNode):
 
         # Combine aggregation results
         if agg_results:
+            # Keep the latest timestamps per group; the online write needs them.
+            for ts_col in (self.timestamp_col, self.created_timestamp_col):
+                if ts_col and ts_col in df.columns:
+                    agg_results.append(grouped[ts_col].max())
             result_df = pd.concat(agg_results, axis=1)
 
             # Reset index to make group keys regular columns

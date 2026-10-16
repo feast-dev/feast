@@ -199,6 +199,34 @@ def test_ray_aggregation_node(
     assert "avg_acc_rate" in result_df.columns
 
 
+def test_ray_tiled_aggregation_node_keeps_created_timestamp(
+    ray_session, ray_config, mock_context, sample_data
+):
+    """Tiled aggregation must keep the latest created timestamp per entity."""
+    input_value = DAGValue(data=ray.data.from_pandas(sample_data), format=DAGFormat.RAY)
+    node = RayAggregationNode(
+        name="aggregation",
+        aggregations=[
+            Aggregation(
+                column="conv_rate", function="sum", time_window=timedelta(days=1)
+            )
+        ],
+        group_by_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        config=ray_config,
+        enable_tiling=True,
+        hop_size=timedelta(hours=1),
+        created_timestamp_col="created",
+    )
+    node.add_input(DummyInputNode("input_node", input_value))
+    mock_context.node_outputs = {"input_node": input_value}
+
+    result_df = node.execute(mock_context).data.to_pandas().set_index("driver_id")
+
+    expected = sample_data.groupby("driver_id")["created"].max()
+    assert (result_df["created"] == expected.loc[result_df.index]).all()
+
+
 def test_ray_join_node(ray_session, ray_config, mock_context, sample_data, column_info):
     """Test RayJoinNode functionality."""
     entity_data = pd.DataFrame(

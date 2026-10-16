@@ -102,11 +102,6 @@ def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
     fs = ray_environment.feature_store
     registry = fs.registry
 
-    def transform_feature(df: pd.DataFrame) -> pd.DataFrame:
-        df["sum_conv_rate"] = df["sum_conv_rate"] * 2
-        df["avg_acc_rate"] = df["avg_acc_rate"] * 2
-        return df
-
     driver_stats_fv = BatchFeatureView(
         name="driver_hourly_stats",
         entities=[driver],
@@ -115,13 +110,10 @@ def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
             Aggregation(column="conv_rate", function="sum"),
             Aggregation(column="acc_rate", function="avg"),
         ],
-        udf=transform_feature,
-        udf_string="transform_feature",
         ttl=timedelta(days=3),
         schema=[
-            Field(name="conv_rate", dtype=Float32),
-            Field(name="acc_rate", dtype=Float32),
-            Field(name="avg_daily_trips", dtype=Int64),
+            Field(name="sum_conv_rate", dtype=Float32),
+            Field(name="avg_acc_rate", dtype=Float32),
             Field(name="driver_id", dtype=Int32),
         ],
         online=True,
@@ -151,10 +143,18 @@ def test_ray_compute_engine_materialize(ray_environment, feature_dataset):
     ray_materialize_jobs = engine.materialize(registry, task)
 
     assert len(ray_materialize_jobs) == 1
-    # The Ray engine cannot yet write an aggregated BatchFeatureView to the
-    # online store (see the TODO in feast.utils._convert_arrow_to_proto), and
-    # that write error must fail the job instead of being swallowed.
-    assert ray_materialize_jobs[0].status() == MaterializationJobStatus.ERROR
+    assert ray_materialize_jobs[0].status() == MaterializationJobStatus.SUCCEEDED
+
+    # driver 1001 has one row in the window: conv_rate 0.8, acc_rate 0.5
+    online = fs.get_online_features(
+        features=[
+            "driver_hourly_stats:sum_conv_rate",
+            "driver_hourly_stats:avg_acc_rate",
+        ],
+        entity_rows=[{"driver_id": 1001}],
+    ).to_dict()
+    assert online["sum_conv_rate"][0] == pytest.approx(0.8)
+    assert online["avg_acc_rate"][0] == pytest.approx(0.5)
 
 
 @pytest.mark.integration
