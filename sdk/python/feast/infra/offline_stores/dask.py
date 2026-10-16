@@ -1228,19 +1228,19 @@ def _filter_ttl(
 
     # If every request has an eligible candidate, return the filtered frame
     # unchanged so plain integer feature columns keep their original dtype.
-    if missing_requests.head(1).empty:
+    if missing_requests.head(1, npartitions=-1).empty:
         return eligible.persist()
 
     # Re-add one null-feature row only for requests that lost every candidate.
     # Keep this in the original frame so Dask's timestamp dtypes and divisions
     # remain intact while the later deduplication sorts candidates.
-    marked = df_to_join.merge(
+    marked = df_to_join.assign(__ttl_valid=valid).merge(
         missing_requests.assign(__ttl_missing=True),
         on=request_columns,
         how="left",
     )
     ttl_missing = marked["__ttl_missing"].fillna(False)
-    marked = marked[valid | ttl_missing]
+    marked = marked[marked["__ttl_valid"] | ttl_missing]
     return (
         marked.assign(
             **{
@@ -1254,10 +1254,11 @@ def _filter_ttl(
                 if is_integer_dtype(marked[column].dtype)
                 else marked[column].mask(ttl_missing, other=pd.NA)
                 for column in marked.columns
-                if column not in preserved_columns and column != "__ttl_missing"
+                if column not in preserved_columns
+                and column not in {"__ttl_valid", "__ttl_missing"}
             }
         )
-        .drop(columns=["__ttl_missing"])
+        .drop(columns=["__ttl_valid", "__ttl_missing"])
         .persist()
     )
 

@@ -197,9 +197,7 @@ def test_ttl_filter_preserves_plain_integer_dtype_when_all_requests_match(
     tmp_path: Path,
 ) -> None:
     data = _source().iloc[[2, 3]].copy()
-    data["value"] = pd.Series(
-        data["value"].to_numpy(), index=data.index, dtype="int64"
-    )
+    data["value"] = pd.Series(data["value"].to_numpy(), index=data.index, dtype="int64")
     data["entity_event_timestamp"] = pd.Timestamp("2025-01-03T00:00:00Z")
     view = FeatureView(
         name="all_integer_stats",
@@ -225,6 +223,53 @@ def test_ttl_filter_preserves_plain_integer_dtype_when_all_requests_match(
 
     assert str(result["value"].dtype) == "int64"
     assert result["value"].tolist() == [30, 40]
+
+
+def test_ttl_filter_handles_missing_requests_in_later_partitions(
+    tmp_path: Path,
+) -> None:
+    data = pd.DataFrame(
+        {
+            "driver_id": [1, 2, 3, 4],
+            "entity_event_timestamp": pd.to_datetime(["2025-01-03T00:00:00Z"] * 4),
+            "event_timestamp": pd.to_datetime(
+                [
+                    "2025-01-01T00:00:00Z",
+                    "2025-01-04T00:00:00Z",
+                    "2025-01-02T12:00:00Z",
+                    "2025-01-04T00:00:00Z",
+                ]
+            ),
+            "created_ts": pd.to_datetime(["2025-01-01T00:00:00Z"] * 4),
+            "value": [10.0, 20.0, 30.0, 40.0],
+        }
+    )
+    view = FeatureView(
+        name="partitioned_stats",
+        entities=[
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        ],
+        schema=[Field(name="value", dtype=Float64)],
+        source=FileSource(
+            path=str(tmp_path / "unused.parquet"),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_ts",
+        ),
+        ttl=timedelta(days=1),
+    )
+
+    result = _filter_ttl(
+        dd.from_pandas(data, npartitions=2),
+        view,
+        "entity_event_timestamp",
+        "event_timestamp",
+        preserved_columns={"driver_id", "entity_event_timestamp"},
+    ).compute()
+
+    result = result.sort_values("driver_id").reset_index(drop=True)
+    assert result["driver_id"].tolist() == [1, 2, 3, 4]
+    assert pd.isna(result["value"].iloc[[0, 1, 3]]).all()
+    assert result["value"].iloc[2] == 30.0
 
 
 def test_non_entity_snapshot_still_excludes_ineligible_entities(tmp_path: Path) -> None:
