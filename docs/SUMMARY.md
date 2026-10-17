@@ -173,6 +173,7 @@
   * [Aerospike](reference/online-stores/aerospike.md)
   * [Elasticsearch](reference/online-stores/elasticsearch.md)
   * [Qdrant](reference/online-stores/qdrant.md)
+  * [Lance](reference/online-stores/lance.md)
   * [Faiss](reference/online-stores/faiss.md)
   * [Hybrid](reference/online-stores/hybrid.md)
 * [Registries](reference/registries/README.md)
