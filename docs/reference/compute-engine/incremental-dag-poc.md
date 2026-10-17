@@ -135,4 +135,3 @@ source rows; route retractions through arbitrary DAG nodes; maintain join-side
 indexes; or coordinate source offsets and sink commits. A production
 incremental aggregation operator could reuse tiling intermediate
 representations after Feast defines the broader state and checkpoint contract.
-

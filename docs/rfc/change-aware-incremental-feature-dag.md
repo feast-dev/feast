@@ -184,4 +184,3 @@ unbounded memory use.
 - Should UPDATE remain first-class or always normalize to DELETE plus INSERT?
 - How should Python UDFs declare determinism and retraction behavior?
 - When should the planner prefer targeted recomputation over maintained state?
-
