@@ -22,12 +22,12 @@ def test_access_SecuredFeatureView(
 
     sm.set_current_user(user)
     if can_read:
-        fv.read_protected()
+        assertpy.assert_that(fv.read_protected()).is_type_of(bool).is_true()
     else:
         with pytest.raises(FeastPermissionError):
             fv.read_protected()
     if can_write:
-        fv.write_protected()
+        assertpy.assert_that(fv.write_protected()).is_type_of(bool).is_true()
     else:
         with pytest.raises(FeastPermissionError):
             fv.write_protected()
