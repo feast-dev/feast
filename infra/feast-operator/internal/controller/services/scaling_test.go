@@ -428,6 +428,23 @@ var _ = Describe("Horizontal Scaling", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("mutually exclusive"))
 		})
+
+		It("should reject an empty commandPrefix entry", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "schema-empty-prefix", Namespace: DefaultNs},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: celTestProject,
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: &feastdevv1.OnlineStore{
+							Server: &feastdevv1.ServerConfigs{CommandPrefix: []string{""}},
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, fs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("commandPrefix"))
+		})
 	})
 
 	Describe("getDesiredReplicas", func() {
