@@ -515,6 +515,15 @@ type FeatureStoreServices struct {
 	// Istio sidecar injection, Vault agent injection, etc.
 	// +optional
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+	// PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+	// collectors or policy engines. Operator-managed labels take precedence on key conflicts.
+	// +optional
+	PodLabels map[string]string `json:"podLabels,omitempty"`
+	// ServiceAccountName runs the FeatureStore pods under an existing ServiceAccount (e.g. one
+	// annotated for IRSA or Vault) instead of the one the operator creates. Operator-managed RBAC
+	// is bound to this ServiceAccount.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 	// InitImage overrides the image for init containers (feast-init, feast-apply).
