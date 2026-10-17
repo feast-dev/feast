@@ -4739,9 +4739,12 @@ class FeatureStore:
             feature_types = {f.name: f.dtype.to_value_type() for f in table.features}
             return OnlineResponse(online_features_response, feature_types=feature_types)
 
-        table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
-            entity_key_dict,
-        )
+        # Each document is its own output row, in the order the store ranked it.
+        # Grouping by unique entity would sort the entities, while the entity
+        # columns below stay in ranked order, pairing features with the wrong
+        # entity.
+        output_len = len(list_of_feature_dicts)
+        idxs = tuple([i] for i in range(output_len))
 
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_response_from_feature_data(
