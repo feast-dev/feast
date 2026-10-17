@@ -14,6 +14,7 @@ import pyarrow.compute as pc
 import pyarrow.dataset
 import pyarrow.parquet as pq
 import pytz
+from pandas.api.types import is_integer_dtype, is_unsigned_integer_dtype
 
 from feast.data_source import DataSource
 from feast.errors import (
@@ -322,6 +323,11 @@ class DaskOfflineStore(OfflineStore):
                     feature_view,
                     entity_df_event_timestamp_col,
                     timestamp_field,
+                    preserved_columns=(
+                        set(entity_df_columns) | set(join_keys)
+                        if not non_entity_mode
+                        else None
+                    ),
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
@@ -1189,35 +1195,72 @@ def _filter_ttl(
     feature_view: FeatureView,
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
+    preserved_columns: Optional[Set[str]] = None,
 ) -> dd.DataFrame:
-    # Filter rows by defined timestamp tolerance
+    # A missing source row is already a valid left-join result.
+    within_time_range = (
+        df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col]
+    )
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (
-                (
-                    df_to_join[timestamp_field]
-                    >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+        within_time_range = within_time_range & (
+            df_to_join[timestamp_field]
+            >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+        )
+    valid = df_to_join[timestamp_field].isna() | within_time_range
+
+    if preserved_columns is None:
+        # Non-entity snapshots only contain entities with an eligible source row.
+        return df_to_join[valid].persist()
+
+    # Keep eligible candidates as-is.  Besides avoiding unnecessary work, this
+    # preserves plain integer dtypes when every request has a match.
+    eligible = df_to_join[valid]
+    request_columns = [
+        column for column in df_to_join.columns if column in preserved_columns
+    ]
+    requests = df_to_join[request_columns].drop_duplicates()
+    matched_requests = eligible[request_columns].drop_duplicates()
+    missing_requests = requests.merge(
+        matched_requests, on=request_columns, how="left", indicator=True
+    )
+    missing_requests = missing_requests[missing_requests["_merge"] == "left_only"]
+    missing_requests = missing_requests.drop(columns=["_merge"])
+
+    # If every request has an eligible candidate, return the filtered frame
+    # unchanged so plain integer feature columns keep their original dtype.
+    if missing_requests.head(1, npartitions=-1).empty:
+        return eligible.persist()
+
+    # Re-add one null-feature row only for requests that lost every candidate.
+    # Keep this in the original frame so Dask's timestamp dtypes and divisions
+    # remain intact while the later deduplication sorts candidates.
+    marked = df_to_join.assign(__ttl_valid=valid).merge(
+        missing_requests.assign(__ttl_missing=True),
+        on=request_columns,
+        how="left",
+    )
+    ttl_missing = marked["__ttl_missing"].fillna(False)
+    marked = marked[marked["__ttl_valid"] | ttl_missing]
+    return (
+        marked.assign(
+            **{
+                column: marked[column]
+                .astype(
+                    "UInt64"
+                    if is_unsigned_integer_dtype(marked[column].dtype)
+                    else "Int64"
                 )
-                & (
-                    df_to_join[timestamp_field]
-                    <= df_to_join[entity_df_event_timestamp_col]
-                )
-            )
-        ]
-
-        df_to_join = df_to_join.persist()
-    else:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
-        ]
-
-        df_to_join = df_to_join.persist()
-
-    return df_to_join
+                .mask(ttl_missing, other=pd.NA)
+                if is_integer_dtype(marked[column].dtype)
+                else marked[column].mask(ttl_missing, other=pd.NA)
+                for column in marked.columns
+                if column not in preserved_columns
+                and column not in {"__ttl_valid", "__ttl_missing"}
+            }
+        )
+        .drop(columns=["__ttl_valid", "__ttl_missing"])
+        .persist()
+    )
 
 
 def _apply_created_timestamp_cutoff(
