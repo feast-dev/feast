@@ -250,7 +250,7 @@ Version history tracking in the registry (listing versions, pinning, `--no-promo
 
 ## Full Details
 
-For the complete design, concurrency semantics, and feature service interactions, see the [Feature View Versioning RFC](../adr/feature-view-versioning.md).
+For the complete design, concurrency semantics, and feature service interactions, see the [Feature View Versioning RFC](../adr/rfc-feature-view-versioning.md).
 
 ## Naming Restrictions
 
