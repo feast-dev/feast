@@ -31,6 +31,9 @@ class PolarsBackend(DataFrameBackend):
     def filter(self, df: pl.DataFrame, expr: str) -> pl.DataFrame:
         return df.filter(pl.sql_expr(expr))
 
+    def filter_by_mask(self, df: pl.DataFrame, mask) -> pl.DataFrame:
+        return df.filter(mask)
+
     def to_timedelta_value(self, delta: timedelta):
         return pl.duration(milliseconds=delta.total_seconds() * 1000)
 

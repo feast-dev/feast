@@ -221,28 +221,6 @@ dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
 minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus, mcp-server]"]
-minimal-sdist-build = [
-    "feast[minimal]",
-    "feast[ibis]",
-    "meson<1.7.2",
-    "pybindgen==0.22.0",
-    "sphinx!=4.0.0",
-    "types_psutil<7.0.0.20250401",
-
-    # sqlalchemy[mypy] dep
-    "greenlet!=0.4.17",
-
-    # numpy deps
-    "meson-python<0.16.0,>=0.15.0",
-    "Cython<3.1,>=0.29.34",
-    "flit_core<4,>=3.8",
-    "patchelf>=0.11.0",
-    "scikit-build-core>=0.10",
-    "hatch-fancy-pypi-readme>=23.2.0",
-    "hatch-vcs==0.4.0",
-    "hatchling>=1.6.0,<2",
-    "calver<2025.4.1",
-]
 setuptools = [
     # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
     "setuptools>=60,<81",
