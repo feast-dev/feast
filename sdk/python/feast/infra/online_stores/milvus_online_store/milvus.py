@@ -246,6 +246,10 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
+    # Store numeric and bool features as native Milvus types instead of VARCHAR,
+    # so range filters compare numerically. Also enabled by
+    # enable_openai_compatible_store. Only applies to new collections.
+    native_numeric_types: Optional[bool] = False
     varchar_max_length: Optional[int] = 65535
 
     @field_validator("varchar_max_length")
@@ -333,7 +337,7 @@ class MilvusOnlineStore(OnlineStore):
                 "created_timestamp",
             ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
-            use_typed = config.online_store.enable_openai_compatible_store
+            use_typed = _use_native_numeric_types(config.online_store)
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
                 if dtype is None and isinstance(field.dtype, ComplexFeastType):
@@ -830,7 +834,7 @@ class MilvusOnlineStore(OnlineStore):
                     "but this collection stores numeric fields as VARCHAR. This "
                     "causes lexicographic comparison instead of numeric comparison "
                     "(e.g. '9' > '100' is True as a string). To fix this, set "
-                    "'enable_openai_compatible_store: true' in your online_store "
+                    "'native_numeric_types: true' in your online_store "
                     "config, then teardown and re-apply your feature store to "
                     "recreate collections with native numeric types."
                 )
@@ -1055,6 +1059,13 @@ class MilvusOnlineStore(OnlineStore):
 
 def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
     return compute_table_id(project, table, enable_versioning)
+
+
+def _use_native_numeric_types(online_config: MilvusOnlineStoreConfig) -> bool:
+    return bool(
+        online_config.native_numeric_types
+        or online_config.enable_openai_compatible_store
+    )
 
 
 def _is_autoindex(online_config: MilvusOnlineStoreConfig) -> bool:
