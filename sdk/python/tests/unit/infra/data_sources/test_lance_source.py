@@ -592,6 +592,94 @@ def test_pull_latest_from_a_lance_source(tmp_path):
     assert job.to_arrow().num_rows == 3
 
 
+def _driver_stats_with_embeddings(n_rows=3, width=8):
+    stats = _driver_stats(n_rows=n_rows)
+    embeddings = pa.FixedSizeListArray.from_arrays(
+        pa.array([0.5] * (n_rows * width), pa.float32()), width
+    )
+    return stats.append_column("embedding", embeddings)
+
+
+@pytest.fixture
+def scanned_columns(monkeypatch):
+    """Record the column projection of every scan Lance is asked to run."""
+    scans = []
+    original = lance.LanceDataset.scanner
+
+    def recording_scanner(self, *args, **kwargs):
+        scans.append(kwargs.get("columns"))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(lance.LanceDataset, "scanner", recording_scanner)
+    return scans
+
+
+def test_the_duckdb_reader_is_lazy(tmp_path, scanned_columns):
+    uri = str(tmp_path / "stats.lance")
+    _write(uri, _driver_stats())
+    table = _read_data_source(
+        LanceSource(uri=uri, timestamp_field="event_timestamp"), str(tmp_path)
+    )
+    assert scanned_columns == []
+    assert table.to_pyarrow().num_rows == 3
+    assert scanned_columns
+
+
+def test_pull_latest_does_not_scan_columns_it_does_not_select(
+    tmp_path, scanned_columns
+):
+    uri = str(tmp_path / "stats.lance")
+    _write(uri, _driver_stats_with_embeddings())
+    job = DuckDBOfflineStore.pull_latest_from_table_or_query(
+        config=_repo_config(tmp_path),
+        data_source=LanceSource(uri=uri, timestamp_field="event_timestamp"),
+        join_key_columns=["driver_id"],
+        feature_name_columns=["conv_rate"],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=datetime(2026, 1, 1),
+        end_date=datetime(2026, 1, 2),
+    )
+    result = job.to_arrow()
+    assert result.num_rows == 3
+    assert "embedding" not in result.column_names
+    assert scanned_columns
+    assert all(
+        columns is not None and "embedding" not in columns
+        for columns in scanned_columns
+    )
+
+
+def test_historical_retrieval_does_not_scan_columns_it_does_not_select(
+    tmp_path, scanned_columns
+):
+    uri = str(tmp_path / "stats.lance")
+    _write(uri, _driver_stats_with_embeddings())
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    df = _historical(tmp_path, source, entity_hour=13)
+    # driver 1000 is the first row of the fixture.
+    assert df["conv_rate"].iloc[0] == pytest.approx(0.1)
+    assert scanned_columns
+    assert all(
+        columns is not None and "embedding" not in columns
+        for columns in scanned_columns
+    )
+
+
+def test_a_job_reads_the_version_it_was_built_against(tmp_path):
+    """A lazy scan must not pick up a write that lands before it executes."""
+    uri = str(tmp_path / "stats.lance")
+    _write(uri, _driver_stats(n_rows=3))
+    source = LanceSource(uri=uri, timestamp_field="event_timestamp")
+    before = _read_data_source(source, str(tmp_path))
+
+    _write(uri, _driver_stats(n_rows=2, base_hour=12), mode="append")
+    after = _read_data_source(source, str(tmp_path))
+
+    assert before.to_pyarrow().num_rows == 3
+    assert after.to_pyarrow().num_rows == 5
+
+
 def _pit_fixture(tmp_path, namespace=None):
     """One driver with two feature rows, an hour apart.
 
