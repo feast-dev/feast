@@ -1,6 +1,6 @@
-import { EuiSelect, useGeneratedHtmlId } from "@elastic/eui";
 import React from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useGeneratedHtmlId } from "@elastic/eui";
 import { useLoadProjectsList } from "../contexts/ProjectListContext";
 
 const ProjectSelector = () => {
@@ -21,7 +21,7 @@ const ProjectSelector = () => {
     };
   });
 
-  const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
+  const basicSelectId = useGeneratedHtmlId({ prefix: "projectSelector" });
   const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProjectId = e.target.value;
 
@@ -40,16 +40,32 @@ const ProjectSelector = () => {
   };
 
   return (
-    <EuiSelect
-      isLoading={isLoading}
-      hasNoInitialSelection={currentProject === undefined}
-      fullWidth={true}
+    <select
       id={basicSelectId}
-      options={options}
       value={currentProject?.id || ""}
       onChange={(e) => onChange(e)}
       aria-label="Select a Feast Project"
-    />
+      disabled={isLoading || !options?.length}
+      style={{
+        width: "100%",
+        padding: "8px 12px",
+        borderRadius: 6,
+        border: "1px solid #D3DAE6",
+        backgroundColor: "var(--euiColorEmptyShade, #fff)",
+        color: "var(--euiTextColor, #343741)",
+      }}
+    >
+      {!currentProject && (
+        <option value="" disabled>
+          Select a Feast Project
+        </option>
+      )}
+      {options?.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.text}
+        </option>
+      ))}
+    </select>
   );
 };
 
