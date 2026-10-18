@@ -225,6 +225,49 @@ def test_ttl_filter_preserves_plain_integer_dtype_when_all_requests_match(
     assert result["value"].tolist() == [30, 40]
 
 
+def test_historical_retrieval_keeps_requests_from_multiple_parquet_files(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    data = _source()
+    source_dir = tmp_path / "multi_file_stats"
+    source_dir.mkdir()
+    data.iloc[:3].to_parquet(source_dir / "part-0.parquet", index=False)
+    data.iloc[3:].to_parquet(source_dir / "part-1.parquet", index=False)
+    view = FeatureView(
+        name="multi_file_stats",
+        entities=[
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        ],
+        schema=[Field(name="value", dtype=Float64)],
+        source=FileSource(
+            path=str(source_dir),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_ts",
+        ),
+        ttl=timedelta(days=1),
+    )
+    store.apply(
+        [
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64),
+            view,
+        ]
+    )
+
+    result = (
+        store.get_historical_features(
+            entity_df=_entities(), features=["multi_file_stats:value"]
+        )
+        .to_df()
+        .sort_values("driver_id")
+        .reset_index(drop=True)
+    )
+
+    assert result["driver_id"].tolist() == [1, 2, 3, 4, 5]
+    assert result["value"].isna().tolist() == [True, True, False, False, True]
+    assert result["value"].iloc[2:4].tolist() == [30.0, 40.0]
+
+
 def test_ttl_filter_handles_missing_requests_in_later_partitions(
     tmp_path: Path,
 ) -> None:
