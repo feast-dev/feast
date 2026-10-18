@@ -904,9 +904,9 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
   p90 FLOAT64,
   p95 FLOAT64,
   p99 FLOAT64,
-  histogram STRING
+  histogram STRING,
+  PRIMARY KEY (project_id, feature_view_name, feature_name, metric_date, granularity, data_source_type) NOT ENFORCED
 )
-PRIMARY KEY (project_id, feature_view_name, feature_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
     view_ddl = f"""
 CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
@@ -922,9 +922,9 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
   total_features INT64,
   features_with_nulls INT64,
   avg_null_rate FLOAT64,
-  max_null_rate FLOAT64
+  max_null_rate FLOAT64,
+  PRIMARY KEY (project_id, feature_view_name, metric_date, granularity, data_source_type) NOT ENFORCED
 )
-PRIMARY KEY (project_id, feature_view_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
     service_ddl = f"""
 CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
@@ -939,9 +939,9 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
   total_feature_views INT64,
   total_features INT64,
   avg_null_rate FLOAT64,
-  max_null_rate FLOAT64
+  max_null_rate FLOAT64,
+  PRIMARY KEY (project_id, feature_service_name, metric_date, granularity, data_source_type) NOT ENFORCED
 )
-PRIMARY KEY (project_id, feature_service_name, metric_date, granularity, data_source_type) NOT ENFORCED
 """
     job_ddl = f"""
 CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_JOB}` (
@@ -955,9 +955,9 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_JOB}` (
   started_at TIMESTAMP,
   completed_at TIMESTAMP,
   error_message STRING,
-  result_summary STRING
+  result_summary STRING,
+  PRIMARY KEY (job_id) NOT ENFORCED
 )
-PRIMARY KEY (job_id) NOT ENFORCED
 """
     for ddl in (feature_ddl, view_ddl, service_ddl, job_ddl):
         client.query(ddl).result()
