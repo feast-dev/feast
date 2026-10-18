@@ -681,6 +681,27 @@ def _run_metrics_server(port: int, mp_dir: str, ready_event=None):
     httpd.serve_forever()
 
 
+# The metrics-server process started by start_metrics_server() in this process
+# (the Gunicorn master), and whether the at-fork hook below is registered.
+_metrics_process: Optional[multiprocessing.Process] = None
+_metrics_at_fork_registered: bool = False
+
+
+def _forget_metrics_process_in_child() -> None:
+    """Drop the inherited metrics-server process from multiprocessing's registry.
+
+    Runs in every child forked from the process that started the metrics
+    server (for example each Gunicorn worker). A forked child inherits
+    multiprocessing's registry of child processes, and at interpreter exit
+    ``multiprocessing.util._exit_function`` terminates every daemon process in
+    it. Without this, the first worker exit would SIGTERM the master's metrics
+    server and ``/metrics`` would stop responding. The child does not own the
+    process; the parent still terminates it on its own exit.
+    """
+    if _metrics_process is not None:
+        multiprocessing.process._children.discard(_metrics_process)  # type: ignore[attr-defined]
+
+
 def start_metrics_server(
     store: "FeatureStore",
     port: int = 8000,
@@ -714,7 +735,7 @@ def start_metrics_server(
             workers — the ``post_worker_init`` hook starts per-worker
             freshness monitoring instead.
     """
-    global _config
+    global _config, _metrics_process, _metrics_at_fork_registered
 
     if metrics_config is not None:
         _config = metrics_config
@@ -739,6 +760,10 @@ def start_metrics_server(
         name="feast-metrics-server",
     )
     metrics_proc.start()
+    _metrics_process = metrics_proc
+    if not _metrics_at_fork_registered and hasattr(os, "register_at_fork"):
+        os.register_at_fork(after_in_child=_forget_metrics_process_in_child)
+        _metrics_at_fork_registered = True
 
     if ready_event.wait(timeout=5):
         logger.info(
