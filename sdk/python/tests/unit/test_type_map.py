@@ -2568,3 +2568,30 @@ def test_pandas_and_arrow_int_inference_agree(dtype):
     )
     from_arrow = pa_to_feast_value_type(str(pyarrow.array(values).type))
     assert from_pandas == from_arrow
+
+
+@pytest.mark.parametrize(
+    "pa_type, expected",
+    [
+        ("date32[day]", ValueType.UNIX_TIMESTAMP),
+        ("date64[ms]", ValueType.UNIX_TIMESTAMP),
+        ("decimal128(3, 2)", ValueType.DECIMAL),
+        ("decimal256(10, 4)", ValueType.DECIMAL),
+        (
+            "dictionary<values=string, indices=int8, ordered=0>",
+            ValueType.STRING,
+        ),
+        ("halffloat", ValueType.FLOAT),
+        ("large_binary", ValueType.BYTES),
+    ],
+)
+def test_pa_to_feast_value_type_pandas_written_parquet_types(pa_type, expected):
+    """Arrow types written by pandas to Parquet infer the same Feast type the
+    DataFrame inference path produces (issue #7040)."""
+    assert pa_to_feast_value_type(pa_type) == expected
+
+
+def test_pa_to_feast_value_type_unsupported_type_raises_descriptive_error():
+    """An unmapped Arrow type raises a descriptive error, not a bare KeyError."""
+    with pytest.raises(ValueError, match=r"time32\[s\]"):
+        pa_to_feast_value_type("time32[s]")
