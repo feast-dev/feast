@@ -1630,6 +1630,24 @@ class TestUuidTypes:
         assert all(isinstance(r, uuid.UUID) for r in result)
         assert result == test_uuids
 
+    def test_uuid_list_with_none_roundtrip(self):
+        """None elements in a UUID list are read back as None."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values(
+            [[None, test_uuid, None]], ValueType.UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, test_uuid, None]
+
+    def test_time_uuid_list_with_none_roundtrip(self):
+        """None elements in a TIME_UUID list are read back as None."""
+        test_uuid = uuid.uuid1()
+        protos = python_values_to_proto_values(
+            [[test_uuid, None]], ValueType.TIME_UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [test_uuid, None]
+
     def test_uuid_set_roundtrip(self):
         """UUID set -> proto -> set of uuid.UUID objects roundtrip."""
         test_uuids = {uuid.uuid4(), uuid.uuid4(), uuid.uuid4()}
@@ -1759,6 +1777,17 @@ class TestDecimalTypes:
         result = feast_value_type_to_python_type(protos[0])
         assert all(isinstance(r, decimal.Decimal) for r in result)
         assert result == vals
+
+    def test_decimal_list_with_none_roundtrip(self):
+        """None elements in a DECIMAL_LIST are read back as None."""
+        import decimal
+
+        val = decimal.Decimal("1.5")
+        protos = python_values_to_proto_values(
+            [[None, val, None]], ValueType.DECIMAL_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, val, None]
 
     def test_decimal_set_roundtrip(self):
         """DECIMAL_SET -> proto -> set of decimal.Decimal roundtrip."""
