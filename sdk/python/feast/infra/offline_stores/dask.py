@@ -328,6 +328,11 @@ class DaskOfflineStore(OfflineStore):
                         if not non_entity_mode
                         else None
                     ),
+                    request_columns=(
+                        list(dict.fromkeys([*join_keys, entity_df_event_timestamp_col]))
+                        if not non_entity_mode
+                        else None
+                    ),
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
@@ -1196,6 +1201,7 @@ def _filter_ttl(
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
     preserved_columns: Optional[Set[str]] = None,
+    request_columns: Optional[List[str]] = None,
 ) -> dd.DataFrame:
     # A missing source row is already a valid left-join result.
     within_time_range = (
@@ -1215,9 +1221,7 @@ def _filter_ttl(
     # Keep eligible candidates as-is.  Besides avoiding unnecessary work, this
     # preserves plain integer dtypes when every request has a match.
     eligible = df_to_join[valid]
-    request_columns = [
-        column for column in df_to_join.columns if column in preserved_columns
-    ]
+    request_columns = request_columns or [entity_df_event_timestamp_col]
     requests = df_to_join[request_columns].drop_duplicates()
     matched_requests = eligible[request_columns].drop_duplicates()
     missing_requests = requests.merge(

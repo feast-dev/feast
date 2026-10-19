@@ -218,11 +218,52 @@ def test_ttl_filter_preserves_plain_integer_dtype_when_all_requests_match(
         "entity_event_timestamp",
         "event_timestamp",
         preserved_columns={"driver_id", "entity_event_timestamp"},
+        request_columns=["driver_id", "entity_event_timestamp"],
     )
     result = result.compute().sort_values("driver_id").reset_index(drop=True)
 
     assert str(result["value"].dtype) == "int64"
     assert result["value"].tolist() == [30, 40]
+
+
+def test_ttl_filter_ignores_unhashable_preserved_columns(tmp_path: Path) -> None:
+    data = pd.DataFrame(
+        {
+            "driver_id": [1, 2],
+            "entity_event_timestamp": pd.to_datetime(["2025-01-03T00:00:00Z"] * 2),
+            "label": [["expired"], ["future"]],
+            "event_timestamp": pd.to_datetime(
+                ["2025-01-01T00:00:00Z", "2025-01-04T00:00:00Z"]
+            ),
+            "value": [10.0, 20.0],
+        }
+    )
+    view = FeatureView(
+        name="list_label_stats",
+        entities=[
+            Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+        ],
+        schema=[Field(name="value", dtype=Float64)],
+        source=FileSource(
+            path=str(tmp_path / "unused.parquet"),
+            timestamp_field="event_timestamp",
+        ),
+        ttl=timedelta(days=1),
+    )
+
+    result = _filter_ttl(
+        dd.from_pandas(data, npartitions=1),
+        view,
+        "entity_event_timestamp",
+        "event_timestamp",
+        preserved_columns={"driver_id", "entity_event_timestamp", "label"},
+        request_columns=["driver_id", "entity_event_timestamp"],
+    ).compute()
+
+    result = result.sort_values("driver_id").reset_index(drop=True)
+    assert result["label"].tolist() == [["expired"], ["future"]]
+    assert pd.isna(result["value"].iloc[0])
+    assert pd.isna(result["value"].iloc[1])
 
 
 def test_historical_retrieval_keeps_requests_from_multiple_parquet_files(
@@ -307,6 +348,7 @@ def test_ttl_filter_handles_missing_requests_in_later_partitions(
         "entity_event_timestamp",
         "event_timestamp",
         preserved_columns={"driver_id", "entity_event_timestamp"},
+        request_columns=["driver_id", "entity_event_timestamp"],
     ).compute()
 
     result = result.sort_values("driver_id").reset_index(drop=True)
