@@ -345,3 +345,93 @@ def test_stream_feature_view_org_field():
 
     sfv_other_org = StreamFeatureView(name="sfv-with-org", org="search", **common)
     assert sfv_with_org != sfv_other_org
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {
+            "aggregations": [
+                Aggregation(
+                    column="dummy_field",
+                    function="max",
+                    time_window=timedelta(days=7),
+                )
+            ]
+        },
+        {"mode": "pandas"},
+        {"timestamp_field": "other_timestamp"},
+        {"enable_tiling": True},
+        {"enable_tiling": True, "tiling_hop_size": timedelta(minutes=10)},
+    ],
+)
+def test_stream_feature_view_equality_without_udf(changes):
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+
+    def make_sfv(**kwargs):
+        args = dict(
+            name="test kafka stream feature view",
+            entities=[entity],
+            ttl=timedelta(days=30),
+            schema=[Field(name="dummy_field", dtype=Float32)],
+            source=stream_source,
+            timestamp_field="event_timestamp",
+            aggregations=[
+                Aggregation(
+                    column="dummy_field",
+                    function="sum",
+                    time_window=timedelta(hours=1),
+                )
+            ],
+        )
+        args.update(kwargs)
+        return StreamFeatureView(**args)
+
+    sfv = make_sfv()
+    assert sfv.udf is None
+    assert sfv == make_sfv()
+    assert sfv != make_sfv(**changes)
+    assert make_sfv(**changes) != sfv
+
+
+def test_stream_feature_view_equality_with_udf():
+    entity = Entity(name="driver_entity", join_keys=["test_key"])
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df.head(1)
+
+    def make_sfv(udf):
+        return StreamFeatureView(
+            name="test kafka stream feature view",
+            entities=[entity],
+            ttl=timedelta(days=30),
+            schema=[Field(name="dummy_field", dtype=Float32)],
+            source=stream_source,
+            timestamp_field="event_timestamp",
+            mode="pandas",
+            udf=udf,
+        )
+
+    assert make_sfv(udf_a) == make_sfv(udf_a)
+    assert make_sfv(udf_a) != make_sfv(None)
+    assert make_sfv(None) != make_sfv(udf_a)
+    assert make_sfv(udf_a) != make_sfv(udf_b)
