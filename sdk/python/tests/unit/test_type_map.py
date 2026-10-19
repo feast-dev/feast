@@ -1341,6 +1341,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(String) == StringType()
 
+    def test_feast_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import Uuid
+
+        assert from_feast_to_spark_type(Uuid) == StringType()
+
+    def test_feast_time_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import TimeUuid
+
+        assert from_feast_to_spark_type(TimeUuid) == StringType()
+
     def test_feast_int32_to_spark_integer(self):
         from pyspark.sql.types import IntegerType
 
@@ -1389,6 +1405,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(Bytes) == BinaryType()
 
+    def test_feast_pdf_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import PdfBytes
+
+        assert from_feast_to_spark_type(PdfBytes) == BinaryType()
+
+    def test_feast_image_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ImageBytes
+
+        assert from_feast_to_spark_type(ImageBytes) == BinaryType()
+
     def test_feast_timestamp_to_spark_timestamp(self):
         from pyspark.sql.types import TimestampType
 
@@ -1396,6 +1428,14 @@ class TestSparkNativeTypeValidation:
         from feast.types import UnixTimestamp
 
         assert from_feast_to_spark_type(UnixTimestamp) == TimestampType()
+
+    def test_feast_zoned_timestamp_to_spark_timestamp(self):
+        from pyspark.sql.types import TimestampType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ZonedTimestamp
+
+        assert from_feast_to_spark_type(ZonedTimestamp) == TimestampType()
 
     def test_feast_map_to_spark_map(self):
         from pyspark.sql.types import MapType, StringType
