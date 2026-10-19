@@ -111,6 +111,21 @@ class TestTrinoToPaValueType:
         assert trino_to_pa_value_type("timestamp") == pa.timestamp("us")
         assert trino_to_pa_value_type("timestamp(3)") == pa.timestamp("us")
 
+    def test_timestamp_with_time_zone(self) -> None:
+        assert trino_to_pa_value_type("timestamp(3) with time zone") == pa.timestamp(
+            "us", tz="UTC"
+        )
+        assert trino_to_pa_value_type("timestamp with time zone") == pa.timestamp(
+            "us", tz="UTC"
+        )
+
+    def test_timestamp_without_time_zone_stays_naive(self) -> None:
+        """A plain `timestamp(p)` (no "with time zone" suffix) must not be
+        caught by the tz-aware branch: kills an `and` -> `or` mutant on the
+        `startswith("timestamp") and endswith("with time zone")` guard."""
+        assert trino_to_pa_value_type("timestamp(3)") == pa.timestamp("us")
+        assert trino_to_pa_value_type("timestamp(3)") != pa.timestamp("us", tz="UTC")
+
     def test_decimal_bare(self) -> None:
         assert trino_to_pa_value_type("decimal") == pa.decimal128(38, 0)
 
