@@ -156,7 +156,8 @@ def diff_registry_objects(
                         current_spec.feature_transformation.user_defined_function
                     )
                     if (
-                        current_spec.HasField("user_defined_function")
+                        hasattr(current_spec, "user_defined_function")
+                        and current_spec.HasField("user_defined_function")
                         and not feature_transformation_udf
                     ):
                         deprecated_udf = current_spec.user_defined_function
