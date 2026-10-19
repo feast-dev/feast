@@ -1628,10 +1628,26 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
 
     if pa_type_as_str.startswith("timestamp"):
         value_type = ValueType.UNIX_TIMESTAMP
+    elif pa_type_as_str.startswith("date32") or pa_type_as_str.startswith("date64"):
+        # Mirror the DataFrame inference path, which maps "date" to UNIX_TIMESTAMP.
+        value_type = ValueType.UNIX_TIMESTAMP
     elif pa_type_as_str.startswith("map<"):
         value_type = ValueType.MAP
     elif pa_type_as_str == "large_string":
         value_type = ValueType.JSON
+    elif pa_type_as_str == "large_binary":
+        value_type = ValueType.BYTES
+    elif pa_type_as_str == "halffloat":
+        value_type = ValueType.FLOAT
+    elif pa_type_as_str.startswith("decimal128") or pa_type_as_str.startswith(
+        "decimal256"
+    ):
+        # Mirror the DataFrame inference path, which maps "decimal" to DECIMAL.
+        value_type = ValueType.DECIMAL
+    elif pa_type_as_str.startswith("dictionary<"):
+        # pandas writes "category" columns as Arrow dictionaries; the DataFrame
+        # inference path maps "category" to STRING.
+        value_type = ValueType.STRING
     elif pa_type_as_str.startswith("struct<") or pa_type_as_str.startswith("struct{"):
         value_type = ValueType.STRUCT
     else:
@@ -1658,7 +1674,12 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
             "list<element: bytes>": ValueType.BYTES_LIST,
             "list<element: float>": ValueType.FLOAT_LIST,
         }
-        value_type = type_map[pa_type_as_str]
+        value_type = type_map.get(pa_type_as_str)
+        if value_type is None:
+            raise ValueError(
+                f"Feast cannot infer a value type for the Arrow type '{pa_type_as_str}'. "
+                "Declare the feature view schema explicitly, or extend the Arrow type mapping."
+            )
 
     if is_list:
         value_type = ValueType[value_type.name + "_LIST"]
