@@ -665,7 +665,19 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
 | /materialize-incremental   | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
+| /update-infra              | FeatureView,Entity              | Create, Delete                                        | Provision online store infrastructure for a remote `feast apply` |
+| /teardown-infra            | Project,FeatureView,Entity      | Delete                                                | Drop online store infrastructure for a remote `feast teardown`   |
 
 ## How to configure Authentication and Authorization ?
+
+Remote `feast apply` requires a Python feature server that supports `/update-infra`.
+The client and server must use the same project; provisioning requests for another project are rejected.
+The provisioning endpoints manage the server's online store; compute-engine infrastructure remains with the client's provider.
+Applying or reapplying a view requires `Create` permission on its feature views and entities, in addition to any registry `Describe`/`Update` permissions.
+Full teardown also requires `Delete` permission on the server's project because some online stores remove shared infrastructure even when the request lists are empty.
+When a remote registry has already removed a deletion target, `/update-infra` requires project-level `Delete` permission to clean up its remaining infrastructure.
+Without that permission, the registry deletion can succeed while infrastructure cleanup fails; grant the cleanup actor project-level `Delete` before running the operation.
+Resource permissions are checked before decoding source implementations. Authorized provisioning requests can load custom data-source classes installed on the server, so grant provisioning permissions only to trusted infrastructure operators.
+Object permissions do not guarantee isolation between feature views that share a physical table in the configured online store.
 
 Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.

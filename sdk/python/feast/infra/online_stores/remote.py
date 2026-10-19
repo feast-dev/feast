@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import base64
 import json
 import logging
 import uuid as uuid_module
@@ -33,13 +34,25 @@ import requests
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.batch_feature_view import BatchFeatureView
 from feast.feature_service import FeatureService
 from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.labeling.label_view import LabelView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -50,6 +63,7 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.rest_error_handler import rest_error_handling_decorator
+from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
@@ -58,6 +72,69 @@ from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
+
+
+# Never execute UDFs from client payloads: provisioning only needs metadata.
+_INFRA_OBJECT_TYPES: Dict[str, Tuple[Any, Any, dict]] = {
+    "FeatureView": (FeatureView, FeatureViewProto, {"skip_udf": True}),
+    "BatchFeatureView": (FeatureView, FeatureViewProto, {"skip_udf": True}),
+    "StreamFeatureView": (
+        StreamFeatureView,
+        StreamFeatureViewProto,
+        {"skip_udf": True},
+    ),
+    "OnDemandFeatureView": (
+        OnDemandFeatureView,
+        OnDemandFeatureViewProto,
+        {"skip_udf": True},
+    ),
+    "LabelView": (LabelView, LabelViewProto, {}),
+    "Entity": (Entity, EntityProto, {}),
+}
+
+
+def encode_infra_object(obj: Any) -> Dict[str, str]:
+    """Send objects in the body because apply provisions before registry.commit()."""
+    type_name = type(obj).__name__
+    if type_name not in _INFRA_OBJECT_TYPES:
+        raise ValueError(
+            f"Cannot send {type_name} to the remote online store; "
+            f"expected one of {sorted(_INFRA_OBJECT_TYPES)}"
+        )
+    return {
+        "type": type_name,
+        "proto": base64.b64encode(obj.to_proto().SerializeToString()).decode("ascii"),
+    }
+
+
+def decode_infra_object(
+    payload: Mapping[str, str],
+    *,
+    authorize: Optional[Callable[[Any], Optional[Any]]] = None,
+) -> Any:
+    """Authorize source-free identity before reconstructing allowlisted metadata."""
+    type_name = payload["type"]
+    if type_name not in _INFRA_OBJECT_TYPES:
+        raise ValueError(
+            f"Unknown object type {type_name!r}; expected one of {sorted(_INFRA_OBJECT_TYPES)}"
+        )
+    feast_class, proto_class, kwargs = _INFRA_OBJECT_TYPES[type_name]
+    proto = proto_class.FromString(base64.b64decode(payload["proto"], validate=True))
+    if authorize is not None:
+        resource_class = feast_class
+        if isinstance(proto, FeatureViewProto) and proto.spec.HasField(
+            "feature_transformation"
+        ):
+            resource_class = BatchFeatureView
+        # Permission matching only needs type/name/tags; constructors can import sources.
+        identity = object.__new__(resource_class)
+        identity.name = proto.spec.name
+        identity.tags = dict(proto.spec.tags)
+        identity.required_tags = identity.tags
+        replacement = authorize(identity)
+        if replacement is not None:
+            return replacement
+    return feast_class.from_proto(proto, **kwargs)
 
 
 def _json_safe(val: Any) -> Any:
@@ -746,16 +823,37 @@ class RemoteOnlineStore(OnlineStore):
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
-    ):
-        pass
+    ) -> None:
+        """Provision the server's concrete online store."""
+        post_remote_infra(
+            config=config,
+            endpoint="update-infra",
+            req_body={
+                "tables_to_delete": [encode_infra_object(t) for t in tables_to_delete],
+                "tables_to_keep": [encode_infra_object(t) for t in tables_to_keep],
+                "entities_to_delete": [
+                    encode_infra_object(e) for e in entities_to_delete
+                ],
+                "entities_to_keep": [encode_infra_object(e) for e in entities_to_keep],
+                "partial": partial,
+            },
+        )
 
     def teardown(
         self,
         config: RepoConfig,
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
-    ):
-        pass
+    ) -> None:
+        """Tear down the server's online infrastructure."""
+        post_remote_infra(
+            config=config,
+            endpoint="teardown-infra",
+            req_body={
+                "tables": [encode_infra_object(t) for t in tables],
+                "entities": [encode_infra_object(e) for e in entities],
+            },
+        )
 
     async def close(self) -> None:
         """
@@ -817,3 +915,22 @@ def post_remote_online_write(
         return session.post(url, json=req_body, verify=config.online_store.cert)
     else:
         return session.post(url, json=req_body)
+
+
+@rest_error_handling_decorator
+def post_remote_infra(
+    session: requests.Session, config: RepoConfig, endpoint: str, req_body: dict
+) -> None:
+    """Send a provisioning request with the existing authenticated session."""
+    assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+    response = session.post(
+        f"{config.online_store.path.rstrip('/')}/{endpoint}",
+        params={"project": config.project},
+        json=req_body,
+        verify=config.online_store.cert or True,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Unable to {endpoint.split('-')[0]} online store infrastructure. "
+            f"Error_code={response.status_code}, error_message={response.text}"
+        )
