@@ -288,3 +288,30 @@ def test_tiled_aggregation_does_not_depend_on_timestamp_resolution(dtype):
     assert len(expected) == 8
     assert result["event_timestamp"].tolist() == expected["event_timestamp"].tolist()
     assert result[feature_name].tolist() == expected[feature_name].tolist()
+
+
+def test_deduplicate_keep_latest_keeps_null_values_of_latest_row():
+    """A null in the latest row is kept rather than filled from an older row."""
+    from feast.aggregation.tiling.tile_subtraction import deduplicate_keep_latest
+
+    start = pd.Timestamp("2024-01-01")
+    df = pd.DataFrame(
+        {
+            "driver_id": [1, 1, 2],
+            "event_timestamp": [
+                start,
+                start + timedelta(minutes=5),
+                start,
+            ],
+            # std over a window with a single event is NaN
+            "std_trips_1200s": [2.5, float("nan"), 1.0],
+        }
+    )
+
+    result = deduplicate_keep_latest(df, ["driver_id"], "event_timestamp")
+    result = result.set_index("driver_id")
+
+    assert len(result) == 2
+    assert result.loc[1, "event_timestamp"] == start + timedelta(minutes=5)
+    assert pd.isna(result.loc[1, "std_trips_1200s"])
+    assert result.loc[2, "std_trips_1200s"] == 1.0
