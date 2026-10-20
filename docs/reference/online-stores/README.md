@@ -98,6 +98,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [milvus.md](milvus.md)
 {% endcontent-ref %}
 
+{% content-ref url="lance.md" %}
+[lance.md](lance.md)
+{% endcontent-ref %}
+
 {% content-ref url="faiss.md" %}
 [faiss.md](faiss.md)
 {% endcontent-ref %}
