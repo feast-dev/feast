@@ -536,4 +536,56 @@ def get_monitoring_router(grpc_handler, store=None):
             )
             return filter_rows(rows, allowed_feature_views=allowed_fvs)
 
+    @router.get("/monitoring/date_buckets", tags=["Monitoring"])
+    async def get_date_buckets(
+        project: str = Query(...),
+        feature_view_name: Optional[str] = Query(None),
+        feature_service_name: Optional[str] = Query(None),
+        granularity: Optional[str] = Query(None),
+        data_source_type: Optional[str] = Query(None),
+        start_date: Optional[str] = Query(None),
+        end_date: Optional[str] = Query(None),
+    ):
+        store = _get_store()
+        with scoped_project(project):
+            _authz_read_feature_views(
+                store, project, feature_view_name, feature_service_name
+            )
+
+            svc = _get_monitoring_service()
+            return svc.get_date_buckets(
+                project=project,
+                feature_view_name=feature_view_name,
+                feature_service_name=feature_service_name,
+                granularity=granularity,
+                data_source_type=data_source_type,
+                start_date=date.fromisoformat(start_date) if start_date else None,
+                end_date=date.fromisoformat(end_date) if end_date else None,
+            )
+
+    @router.get("/monitoring/profiles", tags=["Monitoring"])
+    async def get_profiles(
+        project: str = Query(...),
+        feature_view_name: str = Query(...),
+        feature_name: Optional[str] = Query(None),
+        granularity: Optional[str] = Query(None),
+        start_date: Optional[str] = Query(None),
+        end_date: Optional[str] = Query(None),
+    ):
+        store = _get_store()
+        with scoped_project(project):
+            assert_feature_view(
+                store, project, feature_view_name, AuthzedAction.DESCRIBE
+            )
+
+            svc = _get_monitoring_service()
+            return svc.get_profiles(
+                project=project,
+                feature_view_name=feature_view_name,
+                feature_name=feature_name,
+                granularity=granularity,
+                start_date=date.fromisoformat(start_date) if start_date else None,
+                end_date=date.fromisoformat(end_date) if end_date else None,
+            )
+
     return router

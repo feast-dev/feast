@@ -3,9 +3,11 @@ import math
 import time
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from feast.feature_logging import LOG_TIMESTAMP_FIELD, FeatureServiceLoggingSource
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.monitoring.dqm_job_manager import DQMJobManager
 from feast.monitoring.metrics_calculator import MetricsCalculator
@@ -772,6 +774,146 @@ class MonitoringService:
             end_date=end_date,
         )
 
+    def get_date_buckets(
+        self,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_service_name: Optional[str] = None,
+        granularity: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return distinct date buckets for the given filters."""
+        if feature_service_name:
+            metrics = self.get_feature_service_metrics(
+                project=project,
+                feature_service_name=feature_service_name,
+                granularity=granularity,
+                data_source_type=data_source_type,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        elif feature_view_name:
+            metrics = self.get_feature_view_metrics(
+                project=project,
+                feature_view_name=feature_view_name,
+                granularity=granularity,
+                data_source_type=data_source_type,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        else:
+            metrics = self.get_feature_metrics(
+                project=project,
+                granularity=granularity,
+                data_source_type=data_source_type,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+        buckets_map = {}
+        for m in metrics:
+            key = (
+                m.get("metric_date"),
+                m.get("granularity"),
+                m.get("data_source_type"),
+            )
+            if key not in buckets_map:
+                buckets_map[key] = {
+                    "metric_date": m.get("metric_date"),
+                    "granularity": m.get("granularity"),
+                    "data_source_type": m.get("data_source_type"),
+                    "max_event_timestamp": m.get("max_event_timestamp"),
+                    "feature_computation_timestamp": m.get(
+                        "feature_computation_timestamp"
+                    ),
+                    "export_timestamp": m.get("export_timestamp"),
+                    "computed_at": m.get("computed_at"),
+                    "is_baseline": m.get("is_baseline", False),
+                }
+        return list(buckets_map.values())
+
+    def get_profiles(
+        self,
+        project: str,
+        feature_view_name: str,
+        feature_name: Optional[str] = None,
+        granularity: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> Dict[str, Any]:
+        """Expose comprehensive profiles for a feature view including current metrics,
+        baseline metrics, provenance metadata, and source freshness."""
+        feature_metrics = self.get_feature_metrics(
+            project=project,
+            feature_view_name=feature_view_name,
+            feature_name=feature_name,
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        baseline_metrics = self.get_baseline(
+            project=project,
+            feature_view_name=feature_view_name,
+            feature_name=feature_name,
+        )
+        fv_metrics = self.get_feature_view_metrics(
+            project=project,
+            feature_view_name=feature_view_name,
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        provenance = {
+            "feature_view_name": feature_view_name,
+            "chronon_object": None,
+            "chronon_object_type": None,
+            "output_version": None,
+            "pipeline_run_id": None,
+        }
+        for m in feature_metrics + baseline_metrics:
+            for k in (
+                "chronon_object",
+                "chronon_object_type",
+                "output_version",
+                "pipeline_run_id",
+            ):
+                if m.get(k):
+                    provenance[k] = m[k]
+            if provenance.get("chronon_object"):
+                break
+
+        max_event_ts = None
+        for m in feature_metrics:
+            ts_str = m.get("max_event_timestamp")
+            if ts_str:
+                dt = _as_utc_datetime(ts_str)
+                if dt and (max_event_ts is None or dt > max_event_ts):
+                    max_event_ts = dt
+
+        freshness_seconds = None
+        if max_event_ts:
+            freshness_seconds = max(
+                0.0, (datetime.now(timezone.utc) - max_event_ts).total_seconds()
+            )
+
+        return {
+            "project": project,
+            "feature_view_name": feature_view_name,
+            "provenance": provenance,
+            "source_freshness": {
+                "max_event_timestamp": max_event_ts.isoformat()
+                if max_event_ts
+                else None,
+                "freshness_seconds": freshness_seconds,
+            },
+            "feature_metrics": feature_metrics,
+            "baseline_metrics": baseline_metrics,
+            "feature_view_metrics": fv_metrics,
+        }
+
     # ------------------------------------------------------------------ #
     #  Auto-baseline trigger for feast apply
     # ------------------------------------------------------------------ #
@@ -918,6 +1060,50 @@ class MonitoringService:
                 feature_view_name=feature_view.name,
             )
 
+        batch_source = getattr(feature_view, "batch_source", None)
+        chronon_group_by = getattr(batch_source, "chronon_group_by", None) or None
+        chronon_join = getattr(batch_source, "chronon_join", None) or None
+        chronon_object = chronon_join or chronon_group_by or None
+        chronon_object_type = (
+            "join" if chronon_join else ("groupby" if chronon_group_by else None)
+        )
+        output_version = getattr(batch_source, "output_version", None) or None
+        pipeline_run_id = getattr(batch_source, "pipeline_run_id", None) or None
+
+        feature_comp_ts = None
+        created_col = getattr(batch_source, "created_timestamp_column", None)
+        if batch_source is not None and created_col:
+            try:
+                feature_comp_ts = self._get_max_timestamp_for_source(
+                    batch_source, created_col
+                )
+            except Exception:
+                feature_comp_ts = None
+
+        export_ts = None
+        export_col = getattr(batch_source, "export_timestamp_column", None)
+        mat_path = getattr(batch_source, "materialization_path", None)
+        if batch_source is not None and export_col:
+            try:
+                export_ts = self._get_max_timestamp_for_source(
+                    batch_source, export_col
+                )
+            except Exception:
+                export_ts = None
+        elif mat_path:
+            try:
+                resolved_path = FileSource.get_uri_for_file_path(
+                    repo_path=config.repo_path,
+                    uri=mat_path,
+                )
+                p = Path(resolved_path)
+                if p.exists():
+                    export_ts = datetime.fromtimestamp(
+                        p.stat().st_mtime, tz=timezone.utc
+                    )
+            except Exception:
+                export_ts = None
+
         for m in metrics_list:
             m["project_id"] = project
             m["feature_view_name"] = feature_view.name
@@ -926,6 +1112,12 @@ class MonitoringService:
             m["data_source_type"] = "batch"
             m["computed_at"] = now
             m["max_event_timestamp"] = max_event_timestamp
+            m["feature_computation_timestamp"] = feature_comp_ts
+            m["export_timestamp"] = export_ts
+            m["chronon_object"] = chronon_object
+            m["chronon_object_type"] = chronon_object_type
+            m["output_version"] = output_version
+            m["pipeline_run_id"] = pipeline_run_id
             m["is_baseline"] = set_baseline
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
@@ -938,6 +1130,12 @@ class MonitoringService:
             "data_source_type": "batch",
             "computed_at": now,
             "max_event_timestamp": max_event_timestamp,
+            "feature_computation_timestamp": feature_comp_ts,
+            "export_timestamp": export_ts,
+            "chronon_object": chronon_object,
+            "chronon_object_type": chronon_object_type,
+            "output_version": output_version,
+            "pipeline_run_id": pipeline_run_id,
             "is_baseline": set_baseline,
             **build_view_aggregate(metrics_list),
         }

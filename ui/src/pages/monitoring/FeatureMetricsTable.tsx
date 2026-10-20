@@ -372,6 +372,29 @@ const FeatureMetricsTable = ({
       width: "80px",
       render: (val: string) => <EuiBadge color="hollow">{val}</EuiBadge>,
     },
+    {
+      field: "chronon_object" as any,
+      name: "Provenance",
+      width: "120px",
+      render: (_val: string | null, item: FeatureMetric) => {
+        if (!item.chronon_object && !item.output_version) return "—";
+        const label = item.chronon_object
+          ? `${item.chronon_object_type ? item.chronon_object_type + ": " : ""}${item.chronon_object}`
+          : item.output_version || "—";
+        const details = [
+          item.chronon_object ? `Object: ${item.chronon_object}` : null,
+          item.output_version ? `Version: ${item.output_version}` : null,
+          item.pipeline_run_id ? `Run: ${item.pipeline_run_id}` : null,
+        ]
+          .filter(Boolean)
+          .join(" | ");
+        return (
+          <EuiToolTip content={details || label}>
+            <EuiBadge color="default">{item.chronon_object || item.output_version}</EuiBadge>
+          </EuiToolTip>
+        );
+      },
+    },
   ];
 
   return (
