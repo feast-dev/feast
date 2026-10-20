@@ -6,8 +6,9 @@ Values are serialized as native Python types (not wrapped dicts).
 
 import base64
 import logging
+import math
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.protos.feast.types.Value_pb2 import Value
@@ -23,18 +24,29 @@ _STATUS_NAMES: Dict[int, str] = {
     4: "OUTSIDE_MAX_AGE",
 }
 
+_FLOAT_SCALAR_FIELDS = ("double_val", "float_val")
+_FLOAT_COLLECTION_FIELDS = (
+    "double_list_val",
+    "float_list_val",
+    "double_set_val",
+    "float_set_val",
+)
+
 
 def convert_response_to_dict(response: GetOnlineFeaturesResponse) -> Dict[str, Any]:
     """Convert GetOnlineFeaturesResponse to a JSON-serializable dict.
 
     Matches the structure produced by MessageToDict(proto, preserving_proto_field_name=True)
-    with proto_json.patch() applied, with one intentional difference:
+    with proto_json.patch() applied, with two intentional differences:
 
     - double_val fields are returned as Python float objects (json.dumps uses Python 3.1+
       shortest round-trip form, ~15-17 sig digits) rather than 18 fixed significant digits
       (float_precision=18). Values are numerically identical; only the JSON string length
       may differ. This is safe for all ML feature types and avoids unnecessary precision
       overhead.
+    - Non-finite float values (NaN, +/-inf) are returned as the strings "NaN",
+      "Infinity" and "-Infinity" (the protobuf JSON mapping), because they are not
+      valid JSON numbers and would make JSONResponse fail the whole response.
     """
     result: Dict[str, Any] = {
         "results": [
@@ -77,6 +89,15 @@ def _value_to_native(v: Value) -> Optional[Any]:
     which = v.WhichOneof("val")
     if which is None or which == "null_val":
         return None
+    # NaN/Infinity are not valid JSON numbers; JSONResponse (allow_nan=False)
+    # would fail the whole response, so encode them as protobuf JSON does.
+    elif which in _FLOAT_SCALAR_FIELDS:
+        return _float_to_native(getattr(v, which))
+    elif which in _FLOAT_COLLECTION_FIELDS:
+        vals = list(getattr(v, which).val)
+        if all(map(math.isfinite, vals)):
+            return vals
+        return [_float_to_native(f) for f in vals]
     # bytes must be base64-encoded for JSON serialization
     elif which == "bytes_val":
         return base64.b64encode(v.bytes_val).decode("ascii")
@@ -112,6 +133,19 @@ def _value_to_native(v: Value) -> Optional[Any]:
         return list(getattr(v, which).val)
     else:
         return getattr(v, which)
+
+
+def _float_to_native(f: float) -> Union[float, str]:
+    """Return a finite float unchanged, or its protobuf JSON string form.
+
+    The protobuf JSON mapping encodes non-finite floats as the strings
+    "NaN", "Infinity" and "-Infinity", which keeps the response valid JSON.
+    """
+    if math.isfinite(f):
+        return f
+    if math.isnan(f):
+        return "NaN"
+    return "Infinity" if f > 0 else "-Infinity"
 
 
 def _zoned_timestamp_to_str(zoned) -> Optional[str]:
@@ -157,4 +191,14 @@ def _metadata_to_dict(metadata) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     if metadata.HasField("feature_names"):
         result["feature_names"] = list(metadata.feature_names.val)
+    if metadata.feature_view_metadata:
+        fv_metadata = []
+        for fvm in metadata.feature_view_metadata:
+            entry: Dict[str, Any] = {}
+            if fvm.name:
+                entry["name"] = fvm.name
+            if fvm.version:
+                entry["version"] = fvm.version
+            fv_metadata.append(entry)
+        result["feature_view_metadata"] = fv_metadata
     return result

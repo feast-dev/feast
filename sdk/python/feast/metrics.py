@@ -34,8 +34,10 @@ of the in-process metric state.  To aggregate across workers we use
 1. ``PROMETHEUS_MULTIPROCESS_DIR`` is set (to a temp dir if the user
    has not already set it) **before** any metric objects are created.
 2. Gauges specify ``multiprocess_mode`` so they aggregate correctly.
-3. The metrics HTTP server uses ``MultiProcessCollector`` to read all
-   workers' metric files.
+3. The metrics HTTP server runs in a **dedicated child process**
+   (not a thread) so that scrape aggregation never contends for the
+   GIL with request-serving workers.  It uses ``MultiProcessCollector``
+   to read all workers' metric files.
 4. Gunicorn hooks (``post_worker_init``, ``child_exit``) are wired up
    in ``feature_server.py`` to start per-worker monitoring and to
    clean up dead-worker files.
@@ -44,15 +46,18 @@ of the in-process metric state.  To aggregate across workers we use
 import atexit
 import json
 import logging
+import multiprocessing
 import os
 import shutil
+import socket
 import tempfile
 import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import psutil
 
@@ -583,6 +588,120 @@ def init_worker_freshness_monitoring(store: "FeatureStore"):
         t.start()
 
 
+class _QuietWSGIRequestHandler(WSGIRequestHandler):
+    """Request handler that does not log each scrape to stderr.
+
+    Avoids per-request access-log writes. The metrics server previously ran
+    as a thread in the Gunicorn master; a fork while that thread held the
+    stderr buffer lock left workers hung on their first log line. Same class
+    of problem as #6647. prometheus_client's own server uses a silent
+    handler for the same reason. Kept for the dedicated metrics process so
+    scrapes stay quiet.
+    """
+
+    def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+        pass
+
+
+def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIServer:
+    """Build the metrics HTTP server, dual-stack ("::") when the host
+    supports IPv6, or IPv4-only (falls back to `make_server`'s default
+    behavior) otherwise.
+    """
+    from feast import utils
+
+    if not utils._ipv6_available():
+        return make_server("", port, app, handler_class=_QuietWSGIRequestHandler)
+
+    class DualStackWSGIServer(WSGIServer):
+        address_family = socket.AF_INET6
+
+        def server_bind(self) -> None:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            super().server_bind()
+
+    return make_server(
+        "::",
+        port,
+        app,
+        server_class=DualStackWSGIServer,
+        handler_class=_QuietWSGIRequestHandler,
+    )
+
+
+def _run_metrics_server(port: int, mp_dir: str, ready_event=None):
+    """Entry point for the dedicated metrics-server child process.
+
+    Runs in its own process so that Prometheus scrape aggregation
+    (``MultiProcessCollector`` file reads + text serialization) never
+    contends for the GIL with request-serving workers or the Gunicorn
+    master.
+
+    The function re-imports ``prometheus_client`` so it works correctly
+    on platforms that use the ``spawn`` multiprocessing start method
+    (e.g. macOS with Python 3.8+).
+
+    Args:
+        port: TCP port for the Prometheus HTTP endpoint.
+        mp_dir: Path to the ``PROMETHEUS_MULTIPROCESS_DIR``.
+        ready_event: Optional ``multiprocessing.Event`` that is set once
+            the server has successfully bound to *port*.  The parent
+            process can wait on this to confirm startup succeeded.
+    """
+    import signal
+
+    os.environ.setdefault("PROMETHEUS_MULTIPROCESS_DIR", mp_dir)
+    os.environ.setdefault("PROMETHEUS_MULTIPROC_DIR", mp_dir)
+
+    from prometheus_client import CollectorRegistry, make_wsgi_app
+    from prometheus_client.multiprocess import MultiProcessCollector
+
+    try:
+        registry = CollectorRegistry()
+        MultiProcessCollector(registry)
+        httpd = _make_metrics_httpd(port, make_wsgi_app(registry))
+    except Exception:
+        logger.exception(
+            "Failed to initialize Prometheus metrics server on port %d "
+            "(multiprocess dir: %s)",
+            port,
+            mp_dir,
+        )
+        return
+
+    if ready_event is not None:
+        ready_event.set()
+
+    def _shutdown(signum, frame):
+        threading.Thread(target=httpd.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
+    httpd.serve_forever()
+
+
+# The metrics-server process started by start_metrics_server() in this process
+# (the Gunicorn master), and whether the at-fork hook below is registered.
+_metrics_process: Optional[multiprocessing.Process] = None
+_metrics_at_fork_registered: bool = False
+
+
+def _forget_metrics_process_in_child() -> None:
+    """Drop the inherited metrics-server process from multiprocessing's registry.
+
+    Runs in every child forked from the process that started the metrics
+    server (for example each Gunicorn worker). A forked child inherits
+    multiprocessing's registry of child processes, and at interpreter exit
+    ``multiprocessing.util._exit_function`` terminates every daemon process in
+    it. Without this, the first worker exit would SIGTERM the master's metrics
+    server and ``/metrics`` would stop responding. The child does not own the
+    process; the parent still terminates it on its own exit.
+    """
+    if _metrics_process is not None:
+        multiprocessing.process._children.discard(_metrics_process)  # type: ignore[attr-defined]
+
+
 def start_metrics_server(
     store: "FeatureStore",
     port: int = 8000,
@@ -593,8 +712,14 @@ def start_metrics_server(
     """
     Start the Prometheus metrics HTTP server and background monitoring threads.
 
-    Uses ``MultiProcessCollector`` so that metrics from all Gunicorn
-    workers are correctly aggregated when Prometheus scrapes port *port*.
+    The HTTP endpoint runs in a **dedicated child process** so that
+    scrape-time aggregation (reading mmap files from every Gunicorn
+    worker, merging, and serializing to Prometheus text format) is
+    fully isolated from the request-serving GIL.
+
+    Background monitoring threads (resource, freshness) remain in-process
+    because they only *write* to mmap-backed Gauges — an operation that
+    is fast and does not benefit from process isolation.
 
     Args:
         store: The FeatureStore instance (used for freshness checks).
@@ -610,7 +735,7 @@ def start_metrics_server(
             workers — the ``post_worker_init`` hook starts per-worker
             freshness monitoring instead.
     """
-    global _config
+    global _config, _metrics_process, _metrics_at_fork_registered
 
     if metrics_config is not None:
         _config = metrics_config
@@ -627,20 +752,39 @@ def start_metrics_server(
             audit_logging=False,
         )
 
-    from prometheus_client import CollectorRegistry, make_wsgi_app
-    from prometheus_client.multiprocess import MultiProcessCollector
-
-    registry = CollectorRegistry()
-    MultiProcessCollector(registry)
-
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server("", port, make_wsgi_app(registry))
-    metrics_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    metrics_thread.start()
-    logger.info(
-        "Prometheus metrics server started on port %d (multiprocess-safe)", port
+    ready_event = multiprocessing.Event()
+    metrics_proc = multiprocessing.Process(
+        target=_run_metrics_server,
+        args=(port, _prometheus_mp_dir, ready_event),
+        daemon=True,
+        name="feast-metrics-server",
     )
+    metrics_proc.start()
+    _metrics_process = metrics_proc
+    if not _metrics_at_fork_registered and hasattr(os, "register_at_fork"):
+        os.register_at_fork(after_in_child=_forget_metrics_process_in_child)
+        _metrics_at_fork_registered = True
+
+    if ready_event.wait(timeout=5):
+        logger.info(
+            "Prometheus metrics server started on port %d in dedicated process (pid=%d)",
+            port,
+            metrics_proc.pid,
+        )
+    else:
+        if not metrics_proc.is_alive():
+            logger.error(
+                "Prometheus metrics server process exited before becoming ready "
+                "(port=%d). Check logs for initialization errors.",
+                port,
+            )
+        else:
+            logger.warning(
+                "Prometheus metrics server process (pid=%d) did not signal readiness "
+                "within 5 s — it may still be starting (port=%d).",
+                metrics_proc.pid,
+                port,
+            )
 
     if _config.resource and start_resource_monitoring:
         resource_thread = threading.Thread(

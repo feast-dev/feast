@@ -6,15 +6,32 @@ which converts raw online_read rows into protobuf FeatureVectors and
 populates the GetOnlineFeaturesResponse.
 """
 
+import http.client
+import socket
+import threading
+import time
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.utils import _populate_response_from_feature_data
+from feast.utils import _make_dual_stack_socket, _populate_response_from_feature_data
+
+
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
 
 
 def _make_table(name="test_fv"):
@@ -440,3 +457,95 @@ class TestGetFeatureViewsToUseSharedSource:
                 feature.name for feature in src_entries[0].projection.features
             )
             assert projected == ["a", "b"]
+
+
+def test_make_dual_stack_socket_binds_dual_stack_when_ipv6_available():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            result = _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_any_call(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+    mock_sock.setsockopt.assert_any_call(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    mock_sock.bind.assert_called_once_with(("::", 6580))
+    mock_sock.listen.assert_called_once_with(socket.SOMAXCONN)
+    mock_sock.setblocking.assert_called_once_with(False)
+    assert result is mock_sock
+
+
+def test_make_dual_stack_socket_falls_back_to_ipv4():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=False):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
+    mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
+
+
+def test_make_dual_stack_socket_blocking_true_is_passed_through():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock):
+            _make_dual_stack_socket(6580, blocking=True)
+
+    mock_sock.setblocking.assert_called_once_with(True)
+
+
+@pytest.mark.parametrize("ipv6_available", [True, False])
+def test_make_dual_stack_socket_closes_on_bind_failure(ipv6_available):
+    mock_sock = MagicMock()
+    mock_sock.bind.side_effect = OSError("address in use")
+    with patch("feast.utils._ipv6_available", return_value=ipv6_available):
+        with patch("socket.socket", return_value=mock_sock):
+            with pytest.raises(OSError):
+                _make_dual_stack_socket(6580)
+
+    mock_sock.close.assert_called_once()
+
+
+def test_make_dual_stack_socket_is_reachable_on_both_families():
+    # Regression test: a framework's own host="::" (uvicorn.run,
+    # asyncio.loop.create_server) binds IPv6-only, because IPV6_V6ONLY=1
+    # gets set on any socket it creates itself from a host string.
+    # _make_dual_stack_socket must hand back a pre-bound, dual-stack socket
+    # instead -- this exercises the one real socket every dual-stack
+    # consumer (REST registry, ui, lineage) shares.
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+
+    import uvicorn
+    from fastapi import FastAPI
+
+    sock = _make_dual_stack_socket(0)
+    port = sock.getsockname()[1]
+
+    app = FastAPI()
+
+    @app.get("/health")
+    def health():
+        return {"ok": True}
+
+    server = uvicorn.Server(uvicorn.Config(app, log_level="critical"))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]})
+    thread.daemon = True
+    thread.start()
+    try:
+        for _ in range(200):
+            if server.started:
+                break
+            time.sleep(0.01)
+        assert server.started, "uvicorn server did not start in time"
+
+        for host in ("127.0.0.1", "::1"):
+            conn = http.client.HTTPConnection(host, port, timeout=5)
+            try:
+                conn.request("GET", "/health")
+                resp = conn.getresponse()
+                assert resp.status == 200
+            finally:
+                conn.close()
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

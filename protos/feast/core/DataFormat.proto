@@ -75,11 +75,33 @@ message TableFormat {
     map<string, string> properties = 4;
   }
 
+  // Defines options for the Lance table format
+  message LanceFormat {
+    // Optional catalog name for the Lance table
+    string catalog = 1;
+
+    // Optional namespace within the catalog
+    string namespace = 2;
+
+    // Pin reads to a specific Lance dataset version. Zero means unset.
+    // Mutually exclusive with tag.
+    uint64 version = 3;
+
+    // Pin reads to a named Lance tag, which resolves to a version.
+    // Mutually exclusive with version.
+    string tag = 4;
+
+    // Additional properties for Lance configuration
+    // Examples: storage options, index parameters, etc.
+    map<string, string> properties = 5;
+  }
+
   // Specifies the table format and format-specific options
   oneof format {
     IcebergFormat iceberg_format = 1;
     DeltaFormat delta_format = 2;
     HudiFormat hudi_format = 3;
+    LanceFormat lance_format = 4;
   }
 }
 

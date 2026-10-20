@@ -27,6 +27,7 @@ class TableFormatType(Enum):
     DELTA = "delta"
     ICEBERG = "iceberg"
     HUDI = "hudi"
+    LANCE = "lance"
 
 
 class TableFormat(ABC):
@@ -422,6 +423,145 @@ class HudiFormat(TableFormat):
         )
 
 
+class LanceFormat(TableFormat):
+    """
+    Lance table format configuration.
+
+    Lance is a columnar format for embedding and multimodal data that keeps vectors
+    alongside scalar columns in a single dataset, and carries its own dataset
+    versions, tags, and indexes. This class provides configuration for addressing a
+    Lance dataset and, optionally, pinning reads to a specific version.
+
+    Args:
+        catalog (Optional[str]): Name of the catalog managing the Lance table.
+        namespace (Optional[str]): Namespace within the catalog where the table lives.
+        version (Optional[int]): Pin reads to a specific Lance dataset version.
+            Mutually exclusive with ``tag``.
+        tag (Optional[str]): Pin reads to a named Lance tag, which resolves to a
+            version. Mutually exclusive with ``version``.
+        properties (Optional[Dict[str, str]]): Properties for configuring Lance
+            storage and read behaviour (e.g. storage options, index parameters).
+
+    Attributes:
+        catalog (str): The catalog name.
+        namespace (str): The namespace within the catalog.
+        version (int): The pinned dataset version, if any.
+        tag (str): The pinned tag, if any.
+        properties (Dict[str, str]): Lance configuration properties.
+
+    Raises:
+        ValueError: If both ``version`` and ``tag`` are provided.
+
+    Examples:
+        Unpinned, reading the latest version:
+
+        >>> lance_format = LanceFormat(catalog="my_catalog", namespace="my_namespace")
+
+        Pinned to an explicit dataset version:
+
+        >>> lance_format = LanceFormat(
+        ...     catalog="my_catalog",
+        ...     namespace="my_namespace",
+        ...     version=3,
+        ... )
+
+        Pinned to a tag, which resolves to a version at read time:
+
+        >>> lance_format = LanceFormat(
+        ...     catalog="my_catalog",
+        ...     namespace="my_namespace",
+        ...     tag="candidate",
+        ... )
+    """
+
+    def __init__(
+        self,
+        catalog: Optional[str] = None,
+        namespace: Optional[str] = None,
+        version: Optional[int] = None,
+        tag: Optional[str] = None,
+        properties: Optional[Dict[str, str]] = None,
+    ):
+        if version is not None and tag:
+            raise ValueError(
+                "LanceFormat accepts either version or tag, not both. "
+                "A tag already resolves to a version."
+            )
+        if version is not None and version < 1:
+            raise ValueError(
+                f"LanceFormat version must be >= 1, got {version}. "
+                "Lance dataset versions start at 1; omit version to read latest."
+            )
+        super().__init__(TableFormatType.LANCE, properties)
+        self.catalog = catalog
+        self.namespace = namespace
+        self.version = version
+        self.tag = tag
+
+        # Mirror addressing and pin information into properties, matching the
+        # convention used by the other table formats.
+        if catalog:
+            self.properties["lance.catalog"] = catalog
+        if namespace:
+            self.properties["lance.namespace"] = namespace
+        if version is not None:
+            self.properties["lance.version"] = str(version)
+        if tag:
+            self.properties["lance.tag"] = tag
+
+    @property
+    def is_pinned(self) -> bool:
+        """Whether this format pins reads to a specific version or tag."""
+        return self.version is not None or bool(self.tag)
+
+    def to_dict(self) -> Dict:
+        return {
+            "format_type": self.format_type.value,
+            "catalog": self.catalog,
+            "namespace": self.namespace,
+            "version": self.version,
+            "tag": self.tag,
+            "properties": self.properties,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "LanceFormat":
+        return cls(
+            catalog=data.get("catalog"),
+            namespace=data.get("namespace"),
+            version=data.get("version"),
+            tag=data.get("tag"),
+            properties=data.get("properties", {}),
+        )
+
+    def to_proto(self) -> "TableFormatProto":
+        """Convert to protobuf TableFormat message"""
+        from feast.protos.feast.core.DataFormat_pb2 import (
+            TableFormat as TableFormatProto,
+        )
+
+        lance_proto = TableFormatProto.LanceFormat(
+            catalog=self.catalog or "",
+            namespace=self.namespace or "",
+            version=self.version or 0,
+            tag=self.tag or "",
+            properties=self.properties,
+        )
+        return TableFormatProto(lance_format=lance_proto)
+
+    @classmethod
+    def from_proto(cls, proto: "TableFormatProto") -> "LanceFormat":
+        """Create from protobuf TableFormat message"""
+        lance_proto = proto.lance_format
+        return cls(
+            catalog=lance_proto.catalog if lance_proto.catalog else None,
+            namespace=lance_proto.namespace if lance_proto.namespace else None,
+            version=lance_proto.version if lance_proto.version else None,
+            tag=lance_proto.tag if lance_proto.tag else None,
+            properties=dict(lance_proto.properties),
+        )
+
+
 def create_table_format(format_type: TableFormatType, **kwargs) -> TableFormat:
     """
     Factory function to create appropriate TableFormat instance based on type.
@@ -462,6 +602,8 @@ def create_table_format(format_type: TableFormatType, **kwargs) -> TableFormat:
         return DeltaFormat(**kwargs)
     elif format_type == TableFormatType.HUDI:
         return HudiFormat(**kwargs)
+    elif format_type == TableFormatType.LANCE:
+        return LanceFormat(**kwargs)
     else:
         raise ValueError(f"Unknown table format type: {format_type}")
 
@@ -505,6 +647,8 @@ def table_format_from_dict(data: Dict) -> TableFormat:
         return DeltaFormat.from_dict(data)
     elif format_type == TableFormatType.HUDI.value:
         return HudiFormat.from_dict(data)
+    elif format_type == TableFormatType.LANCE.value:
+        return LanceFormat.from_dict(data)
     else:
         raise ValueError(f"Unknown table format type: {format_type}")
 
@@ -560,5 +704,7 @@ def table_format_from_proto(proto: "TableFormatProto") -> TableFormat:
         return DeltaFormat.from_proto(proto)
     elif which_format == "hudi_format":
         return HudiFormat.from_proto(proto)
+    elif which_format == "lance_format":
+        return LanceFormat.from_proto(proto)
     else:
         raise ValueError(f"Unknown table format in proto: {which_format}")

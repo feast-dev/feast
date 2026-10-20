@@ -34,6 +34,9 @@ def convert_cumulative_to_windowed(
     1. Subtracts intermediate representation (IR) components
     2. Recomputes the final value from windowed IRs
 
+    max and min cannot be undone by subtraction, so their tiles hold per-hop
+    values and the windowed value is the max/min over the hops in the window.
+
     Args:
         tiles_df: DataFrame with cumulative tiles from orchestrator.
                   Must contain: entity_keys, _tile_end, IR columns, feature columns
@@ -88,11 +91,17 @@ def convert_cumulative_to_windowed(
                         current_val = float(row[feature_name])
 
                         if agg.function.lower() in ("max", "min"):
-                            if has_prev_tile and feature_name in prev_tile.index:
-                                prev_val = float(prev_tile[feature_name])
-                                windowed_row[feature_name] = current_val
+                            # max/min cannot be subtracted: the tiles hold
+                            # per-hop values, so reduce the hops in the window
+                            in_window = group_df.loc[
+                                (group_df["_tile_end"] > window_start)
+                                & (group_df["_tile_end"] <= tile_end),
+                                feature_name,
+                            ]
+                            if agg.function.lower() == "max":
+                                windowed_row[feature_name] = float(in_window.max())
                             else:
-                                windowed_row[feature_name] = current_val
+                                windowed_row[feature_name] = float(in_window.min())
                         else:
                             # For sum and count: subtract previous from current
                             if has_prev_tile and feature_name in prev_tile.index:

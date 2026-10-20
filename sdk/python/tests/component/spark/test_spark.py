@@ -4,9 +4,14 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pyarrow as pa
+import pytest
+from pyspark.sql.pandas.types import from_arrow_schema
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView, Field
+from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+    IcebergSource,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store import spark as spark_module
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
@@ -19,6 +24,38 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.repo_config import RepoConfig
 from feast.types import Float32, ValueType
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_register_iceberg_source_preserves_arrow_values_and_schema(
+    spark_session, empty
+):
+    schema = pa.schema(
+        [pa.field("id", pa.int64(), nullable=False), pa.field("count", pa.int32())]
+    )
+    rows = [{"id": 1, "count": 2}, {"id": 2, "count": None}]
+    table = pa.concat_tables(
+        [pa.Table.from_pylist(rows[:1], schema), pa.Table.from_pylist(rows[1:], schema)]
+    )
+    if empty:
+        table = table.slice(0, 0)
+        rows = []
+    source = IcebergSource(warehouse="test", namespace="test", table="arrow_input")
+    iceberg_table = MagicMock()
+    iceberg_table.scan.return_value.to_arrow.return_value = table
+    view_name = "iceberg_tmp_arrow_input"
+    try:
+        with patch.object(
+            spark_module, "_load_pyiceberg_table", return_value=iceberg_table
+        ):
+            spark_module._register_iceberg_source_as_temp_view(
+                spark_session, source, MagicMock()
+            )
+        result = spark_session.table(view_name)
+        assert result.schema == from_arrow_schema(schema)
+        assert [row.asDict() for row in result.orderBy("id").collect()] == rows
+    finally:
+        spark_session.catalog.dropTempView(view_name)
 
 
 @patch(

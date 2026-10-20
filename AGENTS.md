@@ -92,6 +92,9 @@ Architecture & design intent: `docs/getting-started/architecture/` (overview, wr
 
 - Use type hints on all Python function signatures
 - Follow existing patterns in the module you are modifying
+- Do not put `pip install` commands in docstrings or code comments. Security scanners flag them as runtime
+  package installs, which fail in air-gapped or mirror-only environments. Name the extra instead
+  (e.g. "Requires the ``glide`` extra (``feast[glide]``).") and keep install commands in `docs/`.
 - PR titles must follow conventional commit conventions with a lowercase type and a capitalized subject after the colon: `feat: Add ...`, `fix: Correct ...`, `ci: Update ...`, `chore: Refresh ...`, `docs: Add ...`
 - Sign off commits with `git commit -s` (DCO requirement)
 - Uses `ruff` for Python linting and formatting; Go uses standard `gofmt`

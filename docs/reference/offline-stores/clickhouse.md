@@ -21,7 +21,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-  type: feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore
+  type: clickhouse
   host: DB_HOST
   port: DB_PORT
   database: DB_NAME

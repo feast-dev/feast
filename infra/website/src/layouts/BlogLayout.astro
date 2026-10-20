@@ -16,6 +16,7 @@ const { frontmatter } = Astro.props;
           {frontmatter.date && (
             <time class="blog-date" datetime={frontmatter.date}>
               {new Date(frontmatter.date).toLocaleDateString('en-US', {
+                timeZone: 'UTC',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'

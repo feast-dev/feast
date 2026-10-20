@@ -170,3 +170,59 @@ def test_point_in_time_join():
     ).to_pyarrow()
 
     assert tables_equal_ignore_order(actual, expected)
+
+
+def test_point_in_time_join_keeps_entity_rows_apart():
+    """Entity rows whose key values concatenate to the same string, or that have
+    a null key for another feature view, still get their own feature values."""
+    entity_table = pa.table(
+        {
+            "driver_id": ["1", "11", "7"],
+            "customer_id": ["11", "1", None],
+            "event_timestamp": [pa_datetime(2024, 1, 2)] * 3,
+        }
+    )
+    drivers = pa.table(
+        {
+            "driver_id": ["1", "11", "7"],
+            "event_timestamp": [pa_datetime(2024, 1, 1)] * 3,
+            "created": [pa_datetime(2024, 1, 1)] * 3,
+            "driver_rating": [1.0, 11.0, 7.0],
+        }
+    )
+    customers = pa.table(
+        {
+            "customer_id": ["11", "1"],
+            "event_timestamp": [pa_datetime(2024, 1, 1)] * 2,
+            "created": [pa_datetime(2024, 1, 1)] * 2,
+            "customer_score": [110.0, 10.0],
+        }
+    )
+
+    actual = point_in_time_join(
+        ibis.memtable(entity_table),
+        feature_tables=[
+            (
+                ibis.memtable(drivers),
+                "event_timestamp",
+                "created",
+                {"driver_id": "driver_id"},
+                ["driver_rating"],
+                timedelta(days=10),
+            ),
+            (
+                ibis.memtable(customers),
+                "event_timestamp",
+                "created",
+                {"customer_id": "customer_id"},
+                ["customer_score"],
+                timedelta(days=10),
+            ),
+        ],
+    ).to_pyarrow()
+
+    rows = {
+        row["driver_id"]: (row["driver_rating"], row["customer_score"])
+        for row in actual.to_pylist()
+    }
+    assert rows == {"1": (1.0, 110.0), "11": (11.0, 10.0), "7": (7.0, None)}

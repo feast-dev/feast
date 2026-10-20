@@ -232,6 +232,22 @@ def test_materialize_request_model():
     assert req2.end_ts == "2021-01-02T00:00:00"
 
 
+def test_parse_materialize_timestamps_disable_event_timestamp_uses_utc():
+    """The full-window bounds must be tz-aware UTC, not naive local time."""
+    from datetime import datetime, timedelta, timezone
+
+    from feast.feature_server import MaterializeRequest, _parse_materialize_timestamps
+
+    req = MaterializeRequest(feature_views=["test"], disable_event_timestamp=True)
+    before = datetime.now(timezone.utc)
+    start_date, end_date = _parse_materialize_timestamps(req)
+    after = datetime.now(timezone.utc)
+
+    assert start_date == datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert end_date.utcoffset() == timedelta(0)
+    assert before <= end_date <= after
+
+
 def _enable_offline_batching_config(
     fs, enabled: bool = True, batch_size: int = 1, batch_interval_seconds: int = 60
 ):
@@ -764,3 +780,74 @@ def test_gunicorn_post_worker_init_starts_resource_and_freshness_monitoring():
 
     mock_fm.init_worker_monitoring.assert_called_once()
     mock_fm.init_worker_freshness_monitoring.assert_called_once_with(mock_store)
+
+
+def test_get_online_features_returns_feature_view_version_metadata(test_client):
+    """``include_feature_view_version_metadata=True`` must surface the
+    ``feature_view_metadata`` block over REST, like it does on the proto."""
+    push_response = test_client.post("/push", json=push_body())
+    assert push_response.status_code == 200
+
+    request_payload = get_online_features_body()
+    request_payload["include_feature_view_version_metadata"] = True
+    response = test_client.post("/get-online-features", json=request_payload)
+    assert response.status_code == 200
+
+    metadata = response.json()["metadata"]
+    assert "feature_view_metadata" in metadata, metadata
+    assert [m["name"] for m in metadata["feature_view_metadata"]] == [
+        "pushed_driver_locations"
+    ]
+
+
+@pytest.fixture
+def store_and_client():
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        # raise_server_exceptions=False so the app's own exception handler
+        # answers the request, exactly as a real client would observe it.
+        yield store, TestClient(get_app(store), raise_server_exceptions=False)
+
+
+@pytest.mark.parametrize("non_finite", [float("inf"), float("-inf")])
+def test_get_online_features_serves_non_finite_float(store_and_client, non_finite):
+    """A stored +/-inf float value must not turn the whole REST response into a 500.
+
+    ``write_to_online_store`` accepts the value and the SDK path returns it,
+    so the REST feature server must answer the same request with HTTP 200.
+    """
+    import pandas as pd
+
+    store, client = store_and_client
+    now = _utc_now()
+    store.write_to_online_store(
+        "pushed_driver_locations",
+        pd.DataFrame(
+            {
+                "driver_id": [123],
+                "driver_lat": [non_finite],
+                "driver_long": ["42.0"],
+                "event_timestamp": [now],
+                "created_timestamp": [now],
+            }
+        ),
+    )
+
+    # Precondition: the Python SDK serves the value without complaint.
+    sdk_resp = store.get_online_features(
+        features=["pushed_driver_locations:driver_lat"],
+        entity_rows=[{"driver_id": 123}],
+    ).to_dict()
+    assert sdk_resp["driver_lat"] == [non_finite]
+
+    response = client.post("/get-online-features", json=get_online_features_body())
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    ix = body["metadata"]["feature_names"].index("driver_lat")
+    assert body["results"][ix]["statuses"] == ["PRESENT"]
+    assert body["results"][ix]["values"] == [
+        "Infinity" if non_finite > 0 else "-Infinity"
+    ]

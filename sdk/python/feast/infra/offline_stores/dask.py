@@ -667,7 +667,8 @@ class DaskOfflineStore(OfflineStore):
         )
         try:
             t = pq.read_table(path, filesystem=filesystem, columns=[timestamp_field])
-        except Exception:
+        except FileNotFoundError:
+            # Nothing written to the source yet: no data to monitor.
             return None
         if t.num_rows == 0:
             return None

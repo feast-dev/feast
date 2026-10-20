@@ -77,7 +77,13 @@ class Field:
         self.tags = tags or {}
         self.vector_index = vector_index
         self.vector_length = vector_length
-        self.vector_search_metric = vector_search_metric
+        # The proto default for an unset metric is "", while the constructor default
+        # is None. Normalizing here rather than in from_proto covers every
+        # construction path, including callers that build a Field straight from a
+        # proto message without going through from_proto. Without this, a Field and
+        # its own deserialized copy compare unequal, which is why the vector
+        # comparisons in __eq__ were previously disabled.
+        self.vector_search_metric = vector_search_metric or None
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -89,8 +95,8 @@ class Field:
             or self.description != other.description
             or self.tags != other.tags
             or self.vector_length != other.vector_length
-            # or self.vector_index != other.vector_index
-            # or self.vector_search_metric != other.vector_search_metric
+            or self.vector_index != other.vector_index
+            or self.vector_search_metric != other.vector_search_metric
         ):
             return False
         return True
