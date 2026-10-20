@@ -166,11 +166,19 @@ class BigQueryOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(
-            BigQueryOfflineStore._escape_query_columns(join_key_columns)
-            + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
-            + timestamps
-        )
+        # An empty feature_name_columns signals "read all source columns"
+        # (BatchFeatureView with a pandas/python UDF); see
+        # FeatureBuilder.get_column_info.
+        if not feature_name_columns:
+            inner_field_string = "*"
+            # The outer query must not expose the ROW_NUMBER helper column.
+            field_string = "* EXCEPT(_feast_row)"
+        else:
+            inner_field_string = field_string = ", ".join(
+                BigQueryOfflineStore._escape_query_columns(join_key_columns)
+                + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
+                + timestamps
+            )
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
@@ -196,7 +204,7 @@ class BigQueryOfflineStore(OfflineStore):
                 {field_string}
                 {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
             FROM (
-                SELECT {field_string},
+                SELECT {inner_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
                 FROM {from_expression}
                 WHERE {timestamp_filter}
@@ -237,11 +245,17 @@ class BigQueryOfflineStore(OfflineStore):
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
-        field_string = ", ".join(
-            BigQueryOfflineStore._escape_query_columns(join_key_columns)
-            + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
-            + timestamp_fields
-        )
+        # An empty feature_name_columns signals "read all source columns"
+        # (BatchFeatureView with a pandas/python UDF); see
+        # FeatureBuilder.get_column_info.
+        if not feature_name_columns:
+            field_string = "*"
+        else:
+            field_string = ", ".join(
+                BigQueryOfflineStore._escape_query_columns(join_key_columns)
+                + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
+                + timestamp_fields
+            )
         cast_style: Literal["date_func", "timestamp_func"] = (
             "date_func"
             if data_source.timestamp_field_type == "DATE"
