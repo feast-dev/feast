@@ -27,6 +27,12 @@ import {
 } from "./components/HistogramChart";
 import StatsPanel from "./components/StatsPanel";
 import TimeSeriesAnalysis from "./components/TimeSeriesAnalysis";
+import {
+  latestWindowMetric,
+  seriesForGranularity,
+  windowGranularities,
+  windowMetrics,
+} from "./metricSelection";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 const BASELINE_KEY = "__baseline__";
@@ -66,15 +72,11 @@ const FeatureMetricsDetail = () => {
   const baselineMetric =
     baselineMetrics && baselineMetrics.length > 0 ? baselineMetrics[0] : null;
 
-  const availableGranularities = useMemo(() => {
-    const granularities = new Set<string>();
-    if (metrics) {
-      for (const m of metrics) {
-        if (m.row_count > 0) granularities.add(m.granularity);
-      }
-    }
-    return Array.from(granularities).sort();
-  }, [metrics]);
+  // The baseline has its own "Baseline (all data)" option below.
+  const availableGranularities = useMemo(
+    () => windowGranularities(metrics),
+    [metrics],
+  );
 
   const granularityOptions = useMemo(() => {
     const options = availableGranularities.map((g) => ({
@@ -93,23 +95,18 @@ const FeatureMetricsDetail = () => {
   }, [availableGranularities, baselineMetric]);
 
   const effectiveGranularity =
-    selectedGranularity || availableGranularities[0] || "";
+    selectedGranularity ||
+    availableGranularities[0] ||
+    (baselineMetric ? BASELINE_KEY : "");
 
   const activeMetric = useMemo(() => {
     if (effectiveGranularity === BASELINE_KEY && baselineMetric) {
       return baselineMetric;
     }
-    if (!metrics || metrics.length === 0) return null;
-    const matching = metrics.filter(
+    const matching = windowMetrics(metrics).filter(
       (m) => m.granularity === effectiveGranularity && m.row_count > 0,
     );
-    if (matching.length === 0) {
-      const withData = metrics.filter((m) => m.row_count > 0);
-      const candidates = withData.length > 0 ? withData : metrics;
-      return candidates.reduce((a, b) =>
-        a.metric_date > b.metric_date ? a : b,
-      );
-    }
+    if (matching.length === 0) return latestWindowMetric(metrics);
     return matching.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
   }, [metrics, effectiveGranularity, baselineMetric]);
 
@@ -167,6 +164,14 @@ const FeatureMetricsDetail = () => {
   }
 
   const isNumeric = activeMetric.feature_type === "numeric";
+  // A time series only compares windows of one length; with the baseline
+  // selected, show the shortest window's history.
+  const series = seriesForGranularity(
+    metrics,
+    activeMetric.is_baseline
+      ? availableGranularities[0]
+      : activeMetric.granularity,
+  );
 
   return (
     <EuiPageTemplate panelled>
@@ -242,11 +247,11 @@ const FeatureMetricsDetail = () => {
           </EuiFlexItem>
         </EuiFlexGroup>
 
-        {metrics && metrics.length > 1 && (
+        {series.length > 0 && (
           <>
             <EuiSpacer size="xl" />
             <TimeSeriesAnalysis
-              metrics={metrics}
+              metrics={series}
               featureType={activeMetric.feature_type}
             />
           </>
