@@ -279,6 +279,11 @@ _Appears in:_
 | `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
 This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
 Istio sidecar injection, Vault agent injection, etc. |
+| `podLabels` _object (keys:string, values:string)_ | PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+collectors or policy engines. Operator-managed labels take precedence on key conflicts. |
+| `serviceAccountName` _string_ | ServiceAccountName runs the FeatureStore pods under an existing ServiceAccount (e.g. one
+annotated for IRSA or Vault) instead of the one the operator creates. Operator-managed RBAC
+is bound to this ServiceAccount. |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `initImage` _string_ | InitImage overrides the image for init containers (feast-init, feast-apply).
 Resolution order: InitImage → FeastProjectDir.Packaged.Image → RELATED_IMAGE_FEATURE_SERVER → DefaultImage. |

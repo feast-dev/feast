@@ -43,6 +43,39 @@ to subjects using standard Kubernetes `ClusterRoleBinding` or `RoleBinding` reso
 
 ---
 
+## Running under a custom ServiceAccount
+
+By default the operator creates and manages a ServiceAccount for the FeatureStore pods.
+Set `services.serviceAccountName` to run the pods under an existing ServiceAccount instead
+— for example one annotated for IRSA (AWS IAM Roles for Service Accounts) or a Vault agent
+injector:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-irsa
+spec:
+  feastProject: feast_irsa
+  services:
+    serviceAccountName: my-irsa-serviceaccount
+    onlineStore:
+      server: {}
+```
+
+{% hint style="warning" %}
+The operator binds its RBAC (roles, RoleBindings, ClusterRoleBindings, batch-engine
+RoleBindings) to the ServiceAccount named here, but it does **not** create or annotate
+that ServiceAccount — provision it (and any IRSA/Vault annotations) yourself before
+applying the FeatureStore.
+{% endhint %}
+
+You can also attach extra labels to the pod template with `services.podLabels`, e.g. for a
+log collector or policy engine. Operator-managed labels always take precedence on a key
+conflict.
+
+---
+
 ## OIDC authorization
 
 OIDC authorization validates Bearer tokens against an OIDC provider (Keycloak, Dex, etc.).
