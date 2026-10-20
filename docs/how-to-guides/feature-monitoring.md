@@ -144,7 +144,8 @@ If your feature services have logging configured, you can compute metrics from t
 In your feature definitions:
 
 ```python
-from feast import FeatureService, LoggingConfig
+from feast import FeatureService
+from feast.feature_logging import LoggingConfig
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
     PostgreSQLLoggingDestination,
 )
