@@ -1,7 +1,9 @@
+import json
+import os
 import posixpath
-from datetime import datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -28,6 +30,13 @@ from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MONITORING_DIR,
+    MONITORING_PARQUET_FILES,
+    MONITORING_TIMESTAMP_FIELDS,
+    monitoring_parquet_meta,
+    normalize_monitoring_row,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -502,3 +511,250 @@ class ChrononOfflineStore(OfflineStore):
         raise NotImplementedError(
             "ChrononOfflineStore does not support Feast-managed offline writes."
         )
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, ChrononOfflineStoreConfig)
+        base = os.path.join(_chronon_monitoring_base(config), MONITORING_DIR)
+        os.makedirs(base, exist_ok=True)
+
+        tables = [
+            monitoring_parquet_meta(t)
+            for t in ("feature", "feature_view", "feature_service", "job")
+        ]
+        for fname, columns, _ in tables:
+            fpath = _chronon_monitoring_path(config, fname)
+            if not os.path.isfile(fpath):
+                os.makedirs(os.path.dirname(fpath), exist_ok=True)
+                pd.DataFrame(columns=columns).to_parquet(fpath, index=False)
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, ChrononOfflineStoreConfig)
+
+        fname, columns, pk = _chronon_mon_table_meta(metric_type)
+        path = _chronon_monitoring_path(config, fname)
+        _chronon_parquet_upsert(path, columns, pk, metrics)
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, ChrononOfflineStoreConfig)
+
+        fname, columns, _ = _chronon_mon_table_meta(metric_type)
+        path = _chronon_monitoring_path(config, fname)
+        return _chronon_parquet_query(
+            path, columns, project, filters, start_date, end_date
+        )
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, ChrononOfflineStoreConfig)
+
+        path = _chronon_monitoring_path(config, MONITORING_PARQUET_FILES["feature"])
+        tab = _chronon_read_parquet_if_exists(path)
+        if tab is None or tab.num_rows == 0:
+            return
+
+        df = tab.to_pandas()
+        mask = df["project_id"] == project
+        if feature_view_name is not None and "feature_view_name" in df.columns:
+            mask = mask & (df["feature_view_name"] == feature_view_name)
+        if feature_name is not None and "feature_name" in df.columns:
+            mask = mask & (df["feature_name"] == feature_name)
+        if data_source_type is not None and "data_source_type" in df.columns:
+            mask = mask & (df["data_source_type"] == data_source_type)
+        if "is_baseline" in df.columns:
+            mask = mask & (df["is_baseline"].isin([True, 1]))
+            df.loc[mask, "is_baseline"] = False
+            pq.write_table(pa.Table.from_pandas(df, preserve_index=False), path)
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        if data_source.__class__.__name__ != "ChrononSource":
+            raise NotImplementedError(
+                "ChrononOfflineStore only supports ChrononSource inputs."
+            )
+
+        source: Any = data_source
+        resolved_path = FileSource.get_uri_for_file_path(
+            repo_path=config.repo_path, uri=source.materialization_path
+        )
+        if not Path(resolved_path).exists():
+            return None
+
+        reverse_mapping = {value: key for key, value in source.field_mapping.items()}
+        physical_col = reverse_mapping.get(timestamp_field, timestamp_field)
+
+        try:
+            import pyarrow.compute as pc
+            import pyarrow.dataset as ds
+
+            dataset = ds.dataset(resolved_path, format="parquet", partitioning="hive")
+            if physical_col not in dataset.schema.names:
+                return None
+            table = dataset.to_table(columns=[physical_col])
+            if table.num_rows == 0:
+                return None
+            max_val = pc.max(table.column(physical_col)).as_py()
+            if max_val is None:
+                return None
+            if isinstance(max_val, datetime):
+                return (
+                    max_val if max_val.tzinfo else max_val.replace(tzinfo=timezone.utc)
+                )
+            if isinstance(max_val, date):
+                return datetime.combine(
+                    max_val, datetime.min.time(), tzinfo=timezone.utc
+                )
+            return None
+        except Exception:
+            return None
+
+
+def _chronon_monitoring_base(config: RepoConfig) -> str:
+    store_path = getattr(config.offline_store, "path", None)
+    if store_path:
+        return str(store_path)
+    base = config.repo_path
+    return str(base) if base else "."
+
+
+def _chronon_monitoring_path(config: RepoConfig, filename: str) -> str:
+    return os.path.join(_chronon_monitoring_base(config), MONITORING_DIR, filename)
+
+
+def _chronon_mon_table_meta(metric_type: str):
+    return monitoring_parquet_meta(metric_type)
+
+
+def _chronon_read_parquet_if_exists(path: str) -> Optional[pa.Table]:
+    if not os.path.isfile(path):
+        return None
+    try:
+        return pq.read_table(path)
+    except Exception:
+        return None
+
+
+def _chronon_parquet_upsert(
+    path: str,
+    columns: List[str],
+    pk_cols: List[str],
+    new_rows: List[Dict[str, Any]],
+) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    prepared: List[Dict[str, Any]] = []
+    for row in new_rows:
+        r = dict(row)
+        if (
+            "histogram" in r
+            and r["histogram"] is not None
+            and not isinstance(r["histogram"], str)
+        ):
+            r["histogram"] = json.dumps(r["histogram"])
+        for json_col in ("parameters", "result_summary"):
+            if (
+                json_col in r
+                and r[json_col] is not None
+                and not isinstance(r[json_col], str)
+            ):
+                r[json_col] = json.dumps(r[json_col])
+        prepared.append(r)
+
+    new_df = pd.DataFrame(prepared)
+    for col in columns:
+        if col not in new_df.columns:
+            new_df[col] = None
+    new_df = new_df[columns]
+
+    existing = _chronon_read_parquet_if_exists(path)
+    if existing is not None and existing.num_rows > 0:
+        old_df = existing.to_pandas()
+        for col in columns:
+            if col not in old_df.columns:
+                old_df[col] = None
+        old_df = old_df[columns]
+        if len(old_df) == 0:
+            combined = new_df
+        elif len(new_df) == 0:
+            combined = old_df
+        else:
+            combined = pd.concat([old_df, new_df], ignore_index=True)
+    else:
+        combined = new_df
+
+    combined = combined.drop_duplicates(subset=pk_cols, keep="last")
+    table = pa.Table.from_pandas(combined, preserve_index=False)
+    pq.write_table(table, path)
+
+
+def _chronon_parquet_query(
+    path: str,
+    columns: List[str],
+    project: str,
+    filters: Optional[Dict[str, Any]],
+    start_date: Optional[date],
+    end_date: Optional[date],
+) -> List[Dict[str, Any]]:
+    tab = _chronon_read_parquet_if_exists(path)
+    if tab is None or tab.num_rows == 0:
+        return []
+
+    df = tab.to_pandas()
+    if project and "project_id" in df.columns:
+        df = df[df["project_id"] == project]
+    if filters:
+        for key, value in filters.items():
+            if value is not None and key in df.columns:
+                if key == "is_baseline":
+                    df = df[df["is_baseline"].isin([bool(value), int(value)])]
+                else:
+                    df = df[df[key] == value]
+    if "metric_date" in df.columns:
+        if start_date is not None:
+            df = df[pd.to_datetime(df["metric_date"]).dt.date >= start_date]
+        if end_date is not None:
+            df = df[pd.to_datetime(df["metric_date"]).dt.date <= end_date]
+        df = df.sort_values("metric_date", ascending=True)
+    elif "job_id" in df.columns:
+        df = df.sort_values("job_id", ascending=True)
+
+    results = []
+    available_cols = [c for c in columns if c in df.columns]
+    for _, row in df.iterrows():
+        record = {c: row.get(c) for c in available_cols}
+        normalize_monitoring_row(record)
+        for key in MONITORING_TIMESTAMP_FIELDS:
+            val = record.get(key)
+            if (
+                val is not None
+                and not isinstance(val, str)
+                and hasattr(val, "isoformat")
+            ):
+                record[key] = val.isoformat()
+        results.append(record)
+    return results
