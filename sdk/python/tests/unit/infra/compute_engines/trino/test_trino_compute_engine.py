@@ -342,6 +342,40 @@ class TestTrinoDAGCompilation:
         assert "TIMESTAMP '2025-01-02 00:00:00.000000'" in sql
         assert "FROM iceberg.feast.driver_stats" in sql
 
+    def test_trino_read_node_with_query_source_generates_parenthesized_sql(self):
+        from feast.infra.offline_stores.contrib.trino_offline_store.trino_source import (
+            TrinoSource,
+        )
+
+        source = TrinoSource(
+            name="user_source",
+            query="SELECT user_id, event_timestamp, val FROM catalog.schema.table",
+            timestamp_field="event_timestamp",
+        )
+
+        col_info = ColumnInfo(
+            join_keys=["user_id"],
+            feature_cols=["val"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        )
+
+        node = TrinoReadNode(
+            name="test_query_read",
+            source=source,
+            column_info=col_info,
+            client=MagicMock(),
+        )
+
+        val = node.execute(MagicMock())
+        plan: TrinoQueryPlan = val.data
+        sql = plan.to_sql()
+
+        assert (
+            "FROM (SELECT user_id, event_timestamp, val FROM catalog.schema.table)"
+            in sql
+        )
+
     def test_trino_filter_node_generates_sql(self):
         plan = TrinoQueryPlan(
             ctes=[("_source", 'SELECT * FROM "iceberg"."feast"."driver_stats"')],
