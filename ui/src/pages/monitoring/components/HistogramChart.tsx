@@ -17,6 +17,11 @@ import type {
   NumericHistogram,
   CategoricalHistogram,
 } from "../../../queries/useMonitoringApi";
+import {
+  histogramDensities,
+  isNumericHistogram,
+  rebinNumericHistogram,
+} from "./histogramUtils";
 
 const BAR_COLOR = "#006BB4";
 const BAR_COLOR_BASELINE = "#BD271E55";
@@ -70,10 +75,20 @@ const renderNumericSvg = (
   baseline: NumericHistogram | null | undefined,
   dim: ChartDimensions,
 ) => {
+  // Only overlay a well-formed numeric baseline: a feature whose type changed
+  // (e.g. categorical baseline, numeric window) must not crash the tab, and
+  // its baseline bins are re-binned onto the window's edges since each stored
+  // histogram covers its own row's value range. Both series are drawn as
+  // densities so windows of different sizes compare at the same scale (#7054).
+  const validBaseline = isNumericHistogram(baseline) ? baseline : null;
+  const windowDensities = histogramDensities(histogram.counts);
+  const baselineDensities = validBaseline
+    ? histogramDensities(rebinNumericHistogram(validBaseline, histogram))
+    : null;
   const maxCount = Math.max(
-    ...histogram.counts,
-    ...(baseline ? baseline.counts : []),
-    1,
+    ...windowDensities,
+    ...(baselineDensities ? baselineDensities : []),
+    1e-9,
   );
   const numBars = histogram.counts.length;
   const barWidth = Math.max(
@@ -86,7 +101,7 @@ const renderNumericSvg = (
 
   const yTickFractions = [0, 0.25, 0.5, 0.75, 1];
   const yTicks = yTickFractions.map((f) => ({
-    label: formatNumber(Math.round(maxCount * f), isCompact),
+    label: formatNumber(maxCount * f, isCompact),
     y: dim.chartHeight - f * dim.chartHeight,
   }));
 
@@ -135,7 +150,7 @@ const renderNumericSvg = (
         </g>
       ))}
       {histogram.counts.map((count, i) => {
-        const height = (count / maxCount) * dim.chartHeight;
+        const height = (windowDensities[i] / maxCount) * dim.chartHeight;
         const x = dim.leftPad + i * (barWidth + dim.barGap);
         const binStart = histogram.bins[i];
         const binEnd =
@@ -143,8 +158,8 @@ const renderNumericSvg = (
             ? histogram.bins[i + 1]
             : binStart + histogram.bin_width;
         const baselineHeight =
-          baseline && baseline.counts[i]
-            ? (baseline.counts[i] / maxCount) * dim.chartHeight
+          baselineDensities && baselineDensities[i]
+            ? (baselineDensities[i] / maxCount) * dim.chartHeight
             : 0;
 
         return (

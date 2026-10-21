@@ -26,6 +26,7 @@ import {
   CategoricalHistogramChart,
 } from "./components/HistogramChart";
 import StatsPanel from "./components/StatsPanel";
+import { isBaselineMetricRow } from "./components/histogramUtils";
 import TimeSeriesAnalysis from "./components/TimeSeriesAnalysis";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
@@ -70,7 +71,10 @@ const FeatureMetricsDetail = () => {
     const granularities = new Set<string>();
     if (metrics) {
       for (const m of metrics) {
-        if (m.row_count > 0) granularities.add(m.granularity);
+        // The baseline is not a window length; it has its own View option.
+        if (m.row_count > 0 && !isBaselineMetricRow(m)) {
+          granularities.add(m.granularity);
+        }
       }
     }
     return Array.from(granularities).sort();
@@ -100,12 +104,14 @@ const FeatureMetricsDetail = () => {
       return baselineMetric;
     }
     if (!metrics || metrics.length === 0) return null;
-    const matching = metrics.filter(
+    const windows = metrics.filter((m) => !isBaselineMetricRow(m));
+    const matching = windows.filter(
       (m) => m.granularity === effectiveGranularity && m.row_count > 0,
     );
     if (matching.length === 0) {
-      const withData = metrics.filter((m) => m.row_count > 0);
-      const candidates = withData.length > 0 ? withData : metrics;
+      const withData = windows.filter((m) => m.row_count > 0);
+      const candidates = withData.length > 0 ? withData : windows;
+      if (candidates.length === 0) return null;
       return candidates.reduce((a, b) =>
         a.metric_date > b.metric_date ? a : b,
       );
@@ -242,17 +248,40 @@ const FeatureMetricsDetail = () => {
           </EuiFlexItem>
         </EuiFlexGroup>
 
-        {metrics && metrics.length > 1 && (
-          <>
-            <EuiSpacer size="xl" />
-            <TimeSeriesAnalysis
-              metrics={metrics}
-              featureType={activeMetric.feature_type}
-            />
-          </>
+        {metrics && effectiveGranularity !== BASELINE_KEY && (
+          <TimeSeriesSection
+            metrics={metrics}
+            granularity={effectiveGranularity}
+            featureType={activeMetric.feature_type}
+          />
         )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
+  );
+};
+
+/**
+ * One window length at a time: plotting every granularity (and the baseline)
+ * by metric_date mixes spans, so the "drift" line has no meaning (#7054).
+ */
+const TimeSeriesSection = ({
+  metrics,
+  granularity,
+  featureType,
+}: {
+  metrics: NonNullable<ReturnType<typeof useFeatureMetrics>["data"]>;
+  granularity: string;
+  featureType: string;
+}) => {
+  const windowRows = metrics.filter(
+    (m) => !isBaselineMetricRow(m) && m.granularity === granularity,
+  );
+  if (windowRows.length === 0) return null;
+  return (
+    <>
+      <EuiSpacer size="xl" />
+      <TimeSeriesAnalysis metrics={windowRows} featureType={featureType} />
+    </>
   );
 };
 
