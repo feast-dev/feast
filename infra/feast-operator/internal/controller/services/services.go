@@ -622,15 +622,18 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
 			FailureThreshold: 40,
+			TimeoutSeconds:   5,
 		}
 		container.LivenessProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    20,
 			FailureThreshold: 6,
+			TimeoutSeconds:   5,
 		}
 		container.ReadinessProbe = &corev1.Probe{
-			ProbeHandler:  probeHandler,
-			PeriodSeconds: 10,
+			ProbeHandler:   probeHandler,
+			PeriodSeconds:  10,
+			TimeoutSeconds: 5,
 		}
 		volumeMounts := feast.getVolumeMounts(feastType)
 		if len(volumeMounts) > 0 {

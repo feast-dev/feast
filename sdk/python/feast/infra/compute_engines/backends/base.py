@@ -38,6 +38,9 @@ class DataFrameBackend(ABC):
     filter(df: Any, expr: str) -> Any
         Apply a filter expression (string-based) to the DataFrame.
 
+    filter_by_mask(df: Any, mask: Any) -> Any
+        Keep the rows of the DataFrame for which the boolean mask is true.
+
     to_timedelta_value(delta: timedelta) -> Any
         Convert a Python timedelta object to a backend-compatible value
         that can be subtracted from a timestamp column.
@@ -64,6 +67,9 @@ class DataFrameBackend(ABC):
 
     @abstractmethod
     def filter(self, df, expr): ...
+
+    @abstractmethod
+    def filter_by_mask(self, df, mask): ...
 
     @abstractmethod
     def to_arrow(self, df): ...
