@@ -1,3 +1,4 @@
+import difflib
 from functools import wraps
 from typing import List, Optional
 
@@ -163,7 +164,18 @@ def get_any_feature_view(
         ):
             return LabelView.from_proto(label_view_proto)
 
-    raise FeatureViewNotFoundException(name, project)
+    available_names = [
+        fv.spec.name
+        for fv in (
+            list(registry_proto.feature_views)
+            + list(registry_proto.stream_feature_views)
+            + list(registry_proto.on_demand_feature_views)
+            + list(registry_proto.label_views)
+        )
+        if fv.spec.project == project
+    ]
+    suggestions = difflib.get_close_matches(name, available_names, n=3, cutoff=0.6)
+    raise FeatureViewNotFoundException(name, project, suggestions=suggestions)
 
 
 def get_feature_view_by_version(
