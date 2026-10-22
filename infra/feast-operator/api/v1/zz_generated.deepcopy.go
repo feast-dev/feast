@@ -426,6 +426,13 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 			(*out)[key] = val
 		}
 	}
+	if in.PodLabels != nil {
+		in, out := &in.PodLabels, &out.PodLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.InitImage != nil {
 		in, out := &in.InitImage, &out.InitImage
 		*out = new(string)
@@ -1675,6 +1682,11 @@ func (in *ServerConfigs) DeepCopyInto(out *ServerConfigs) {
 		in, out := &in.DualStack, &out.DualStack
 		*out = new(bool)
 		**out = **in
+	}
+	if in.CommandPrefix != nil {
+		in, out := &in.CommandPrefix, &out.CommandPrefix
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
