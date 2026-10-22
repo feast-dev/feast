@@ -24422,6 +24422,7 @@ rules:
   - get
   - list
   - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -24430,6 +24431,7 @@ rules:
   - create
   - get
   - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resourceNames:
