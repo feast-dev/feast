@@ -1,0 +1,179 @@
+name: unit-tests
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - 'community/**'
+      - 'examples/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-test-python:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+        os: [ ubuntu-latest, macos-14 ]
+        exclude:
+          - os: macos-14
+            python-version: "3.10"
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install system dependencies
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y make
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            # make is already installed on macOS runners
+            which make || brew install make
+          fi
+      - name: Install dependencies
+        run: make install-python-dependencies-ci
+      - name: Test Python
+        env:
+          # The exact dependency set is installed by `uv pip sync` from the
+          # pinned pyXX-ci-requirements.txt above (compatible protobuf +
+          # grpcio-health-checking). uv.lock is not committed, so letting
+          # `uv run` auto-sync here would re-resolve the uncapped pyproject
+          # deps and downgrade protobuf below grpcio's generated-code version,
+          # breaking the protobuf gencode/runtime check at import time. Use the
+          # already-installed environment instead of re-resolving.
+          UV_NO_SYNC: "1"
+        run: |
+          # Set up environment for Ray workers to access packages
+          export PATH="${{ github.workspace }}/.venv/bin:$PATH"
+
+          # Dynamically detect site-packages for uv env
+          SITE_PACKAGES=$(uv run python -c "import site; print(site.getsitepackages()[0])")
+
+          # Preserve any existing PYTHONPATH and add repo + site-packages
+          export PYTHONPATH="${{ github.workspace }}/sdk/python:${PYTHONPATH}:$SITE_PACKAGES"
+
+          echo "Using PYTHONPATH: $PYTHONPATH"
+          echo "Using PATH: $PATH"
+
+          # Ray macOS workarounds
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "=== Applying macOS Ray compatibility workarounds ==="
+            export RAY_DISABLE_RUNTIME_ENV_HOOK=1
+            export PYTHONDONTWRITEBYTECODE=1
+            echo "Applied macOS workarounds for Python ${{ matrix.python-version }}"
+          fi
+
+          make test-python-unit
+      - name: Upload Python coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        with:
+          file: ./coverage.xml
+          flags: python-unit
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Minimize uv cache
+        run: uv cache prune --ci
+
+  unit-test-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make protobuf-compiler libsqlite3-dev
+      - name: Install Go proto plugins
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+      - name: Compile Go protobufs
+        run: make compile-protos-go
+      - name: Create virtual environment
+        run: |
+          uv venv
+          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
+      - name: Install feast locally
+        run: make install-feast-locally
+      - name: Run Go tests with coverage
+        run: |
+          CGO_ENABLED=1 go test \
+            -coverprofile=go/coverage.out \
+            -covermode=atomic \
+            -skip "TestGetOnlineFeatures|TestSqliteOnlineRead" \
+            ./go/...
+      - name: Upload Go coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        with:
+          file: ./go/coverage.out
+          flags: go-feature-server
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  unit-test-ui:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: './ui/.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Check code formatting
+        working-directory: ./ui
+        run: yarn format:check
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Build production UI
+        working-directory: ./ui
+        run: CI=true npm run build --omit=dev
+      - name: Run yarn tests
+        working-directory: ./ui
+        run: yarn test --watchAll=false

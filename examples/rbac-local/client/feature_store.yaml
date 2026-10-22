@@ -1,0 +1,12 @@
+offline_store:
+  host: localhost
+  port: 8815
+  type: remote
+online_store:
+  path: http://localhost:6566
+  type: remote
+project: rbac
+registry:
+  path: localhost:6570
+  registry_type: remote
+entity_key_serialization_version: 3

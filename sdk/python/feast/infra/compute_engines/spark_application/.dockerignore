@@ -1,0 +1,8 @@
+feast/.git
+feast/__pycache__
+feast/**/__pycache__
+feast/.mypy_cache
+feast/tests
+feast/.pixi
+**/*.pyc
+**/.pytest_cache

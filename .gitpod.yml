@@ -1,0 +1,21 @@
+#  https://www.gitpod.io/docs/config-gitpod-file
+image:
+    file: .gitpod.Dockerfile
+
+tasks:
+  - init: |
+      uv venv
+      uv pip install pre-commit
+      pre-commit install --hook-type pre-commit --hook-type pre-push
+      source .venv/bin/activate
+      export PYTHON=3.10 && make install-python-dependencies-dev
+    #   git config --global alias.ci 'commit -s'
+    #   git config --global alias.sw switch
+    #   git config --global alias.st status
+    #   git config --global alias.co checkout
+    #   git config --global alias.br branch
+    #   git config --global alias.df diff
+
+vscode:
+  extensions:
+    - ms-python.python

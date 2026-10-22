@@ -1,0 +1,320 @@
+import React, { useState } from "react";
+import {
+  EuiBasicTable,
+  EuiTableFieldDataColumnType,
+  EuiTableComputedColumnType,
+  EuiFieldSearch,
+  EuiPageTemplate,
+  CriteriaWithPagination,
+  Pagination,
+  EuiToolTip,
+  EuiIcon,
+  EuiText,
+  EuiSpacer,
+  EuiSelect,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFormRow,
+  EuiBadge,
+  EuiCallOut,
+} from "@elastic/eui";
+import EuiCustomLink from "../../components/EuiCustomLink";
+import ExportButton from "../../components/ExportButton";
+import { useParams } from "react-router-dom";
+import useLoadFeatureModels, {
+  FeatureModelInfo,
+} from "../../queries/useLoadFeatureModels";
+import { FeatureIcon } from "../../graphics/FeatureIcon";
+import useResourceQuery, {
+  featuresListPath,
+} from "../../queries/useResourceQuery";
+import { FEAST_FCO_TYPES } from "../../parsers/types";
+import {
+  getEntityPermissions,
+  formatPermissions,
+  filterPermissionsByAction,
+} from "../../utils/permissionUtils";
+
+interface Feature {
+  name: string;
+  featureView: string;
+  type: string;
+  project?: string;
+  permissions?: any[];
+  models?: FeatureModelInfo[];
+}
+
+type FeatureColumn =
+  EuiTableFieldDataColumnType<Feature> | EuiTableComputedColumnType<Feature>;
+
+const FeatureListPage = () => {
+  const { projectName } = useParams();
+  const {
+    data: features,
+    isLoading,
+    isError,
+    isPermissionDenied,
+  } = useResourceQuery<any[]>({
+    resourceType: "features-list",
+    project: projectName,
+    restPath: featuresListPath(projectName),
+    restSelect: (d) => d.features,
+  });
+  const { data: permissions } = useResourceQuery<any[]>({
+    resourceType: "permissions",
+    project: projectName,
+    restPath: `/permissions?project=${encodeURIComponent(projectName || "")}`,
+    restSelect: (d) => d.permissions,
+  });
+  const { data: featureModelsData } = useLoadFeatureModels();
+  const [searchText, setSearchText] = useState("");
+  const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
+
+  const [sortField, setSortField] = useState<keyof Feature>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+
+  const featuresWithPermissions: Feature[] = (features || []).map((feature) => {
+    const featureRef = `${feature.featureView}:${feature.name}`;
+    return {
+      ...feature,
+      models: featureModelsData?.feature_models?.[featureRef] || [],
+      permissions: getEntityPermissions(
+        selectedPermissionAction
+          ? filterPermissionsByAction(permissions, selectedPermissionAction)
+          : permissions,
+        FEAST_FCO_TYPES.featureView,
+        feature.featureView,
+      ),
+    };
+  });
+
+  const enrichedFeatures: Feature[] = featuresWithPermissions;
+
+  const filteredFeatures = enrichedFeatures.filter((feature) =>
+    feature.name.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  const sortedFeatures = [...filteredFeatures].sort((a, b) => {
+    const valueA = String(a[sortField] || "").toLowerCase();
+    const valueB = String(b[sortField] || "").toLowerCase();
+    return sortDirection === "asc"
+      ? valueA.localeCompare(valueB)
+      : valueB.localeCompare(valueA);
+  });
+
+  const paginatedFeatures = sortedFeatures.slice(
+    pageIndex * pageSize,
+    (pageIndex + 1) * pageSize,
+  );
+
+  const columns: FeatureColumn[] = [
+    {
+      name: "Feature Name",
+      field: "name",
+      sortable: true,
+      render: (name: string, feature: Feature) => {
+        const itemProject = feature.project || projectName;
+        return (
+          <EuiCustomLink
+            to={`/p/${itemProject}/feature-view/${feature.featureView}/feature/${name}`}
+          >
+            {name}
+          </EuiCustomLink>
+        );
+      },
+    },
+    {
+      name: "Feature View",
+      field: "featureView",
+      sortable: true,
+      render: (featureView: string, feature: Feature) => {
+        const itemProject = feature.project || projectName;
+        return (
+          <EuiCustomLink to={`/p/${itemProject}/feature-view/${featureView}`}>
+            {featureView}
+          </EuiCustomLink>
+        );
+      },
+    },
+    { name: "Type", field: "type", sortable: true },
+    {
+      name: "Models",
+      field: "models",
+      sortable: false,
+      render: (models: FeatureModelInfo[]) => {
+        if (!models || models.length === 0) {
+          return (
+            <EuiText size="xs" color="subdued">
+              --
+            </EuiText>
+          );
+        }
+        if (models.length === 1) {
+          return (
+            <EuiBadge
+              color="hollow"
+              href={models[0].mlflow_url}
+              target="_blank"
+            >
+              {models[0].model_name} v{models[0].version}
+            </EuiBadge>
+          );
+        }
+        return (
+          <EuiToolTip
+            position="top"
+            content={
+              <div>
+                {models.map((m) => (
+                  <div key={`${m.model_name}_v${m.version}`}>
+                    {m.model_name} v{m.version}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <EuiBadge color="hollow">{models.length} models</EuiBadge>
+          </EuiToolTip>
+        );
+      },
+    },
+    {
+      name: "Permissions",
+      field: "permissions",
+      sortable: false,
+      render: (permissions: any[], feature: Feature) => {
+        const hasPermissions = permissions && permissions.length > 0;
+        return hasPermissions ? (
+          <EuiToolTip
+            position="top"
+            content={
+              <pre style={{ margin: 0 }}>{formatPermissions(permissions)}</pre>
+            }
+          >
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <EuiIcon type="lock" color="#5a7be0" />
+              <EuiText size="xs" style={{ marginLeft: "4px" }}>
+                {permissions.length} permission
+                {permissions.length !== 1 ? "s" : ""}
+              </EuiText>
+            </div>
+          </EuiToolTip>
+        ) : (
+          <EuiText size="xs" color="subdued">
+            None
+          </EuiText>
+        );
+      },
+    },
+  ];
+
+  // Add Project column when viewing all projects
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      field: "project",
+      sortable: true,
+      render: (project: string) => {
+        return <span>{project || "Unknown"}</span>;
+      },
+    });
+  }
+
+  const onTableChange = ({ page, sort }: CriteriaWithPagination<Feature>) => {
+    if (sort) {
+      setSortField(sort.field as keyof Feature);
+      setSortDirection(sort.direction);
+    }
+    if (page) {
+      setPageIndex(page.index);
+      setPageSize(page.size);
+    }
+  };
+
+  const getRowProps = (feature: Feature) => ({
+    "data-test-subj": `row-${feature.name}`,
+  });
+
+  const pagination: Pagination = {
+    pageIndex,
+    pageSize,
+    totalItemCount: sortedFeatures.length,
+    pageSizeOptions: [20, 50, 100],
+  };
+
+  return (
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
+        restrictWidth
+        iconType={FeatureIcon}
+        pageTitle="Feature List"
+        rightSideItems={[
+          <ExportButton data={filteredFeatures} fileName="features" />,
+        ]}
+      />
+      <EuiPageTemplate.Section>
+        {isLoading ? (
+          <p>Loading...</p>
+        ) : isPermissionDenied ? (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view features.</p>
+          </EuiCallOut>
+        ) : isError ? (
+          <p>We encountered an error while loading.</p>
+        ) : (
+          <>
+            <EuiFlexGroup>
+              <EuiFlexItem>
+                <EuiFieldSearch
+                  placeholder="Search features"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  fullWidth
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false} style={{ width: 300 }}>
+                <EuiFormRow label="Filter by permission action">
+                  <EuiSelect
+                    options={[
+                      { value: "", text: "All" },
+                      { value: "CREATE", text: "CREATE" },
+                      { value: "DESCRIBE", text: "DESCRIBE" },
+                      { value: "UPDATE", text: "UPDATE" },
+                      { value: "DELETE", text: "DELETE" },
+                      { value: "READ_ONLINE", text: "READ_ONLINE" },
+                      { value: "READ_OFFLINE", text: "READ_OFFLINE" },
+                      { value: "WRITE_ONLINE", text: "WRITE_ONLINE" },
+                      { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
+                    ]}
+                    value={selectedPermissionAction}
+                    onChange={(e) =>
+                      setSelectedPermissionAction(e.target.value)
+                    }
+                    aria-label="Filter by permission action"
+                  />
+                </EuiFormRow>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiSpacer size="m" />
+            <EuiBasicTable
+              tableLayout="auto"
+              columns={columns}
+              items={paginatedFeatures}
+              rowProps={getRowProps}
+              sorting={{
+                sort: { field: sortField, direction: sortDirection },
+              }}
+              onChange={onTableChange}
+              pagination={pagination}
+            />
+          </>
+        )}
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
+  );
+};
+
+export default FeatureListPage;

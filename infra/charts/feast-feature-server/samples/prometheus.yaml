@@ -1,0 +1,15 @@
+kind: Prometheus
+metadata:
+  name: prometheus
+spec:
+  evaluationInterval: 30s
+  podMonitorSelector:
+    matchLabels:
+      app: feast
+  portName: web
+  replicas: 1
+  scrapeInterval: 30s
+  serviceAccountName: prometheus-k8s
+  serviceMonitorSelector:
+    matchLabels:
+      app: feast

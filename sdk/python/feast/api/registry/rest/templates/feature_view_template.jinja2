@@ -1,0 +1,39 @@
+{# --- Imports Section --- #}
+{% set unique_types = feast_types | unique | list %}
+{% set class_imports = [class_name] %}
+{% if class_name == "OnDemandFeatureView" %}
+from feast import Field
+from feast.on_demand_feature_view import on_demand_feature_view
+import pandas as pd
+{% else %}
+from feast import Field, {{ class_name }}
+{% endif %}
+from feast.types import {{ feast_types | join(', ') }}
+
+{% if class_name == "OnDemandFeatureView" %}
+# Assumes {{ entities_str }} and {{ source_name }} are defined elsewhere in your repo
+@on_demand_feature_view(
+    sources={{ source_name }},
+    schema=[
+{% for field in schema_lines %}{{ field }}
+{% endfor %}    ],
+)
+def {{ name }}(inputs: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    # Your transformation logic here
+    # Example: df["feature_name"] = inputs["source_column"]
+    return df
+{% else %}
+# Assumes {{ entities_str }} and {{ source_name }} are defined elsewhere in your repo
+{{ name }}_feature_view = {{ class_name }}(
+    name="{{ name }}",
+    entities=[{{ entities_str }}],
+    ttl={{ ttl_str }},
+    schema=[
+{% for field in schema_lines %}{{ field }}
+{% endfor %}    ],
+    online={{ online }},
+    source={{ source_name }},
+    {{ tags_str }}
+)
+{% endif %} 

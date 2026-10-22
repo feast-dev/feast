@@ -1,0 +1,525 @@
+import difflib
+from functools import wraps
+from typing import List, Optional
+
+from feast import utils
+from feast.base_feature_view import BaseFeatureView
+from feast.data_source import DataSource
+from feast.entity import Entity
+from feast.errors import (
+    DataSourceObjectNotFoundException,
+    EntityNotFoundException,
+    FeatureServiceNotFoundException,
+    FeatureViewNotFoundException,
+    FeatureViewVersionNotFound,
+    PermissionObjectNotFoundException,
+    ProjectObjectNotFoundException,
+    SavedDatasetNotFound,
+    ValidationReferenceNotFound,
+)
+from feast.feature_service import FeatureService
+from feast.feature_view import FeatureView
+from feast.labeling.label_view import LabelView
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
+from feast.project import Project
+from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.stream_feature_view import StreamFeatureView
+
+
+def registry_proto_cache(func):
+    cache_key = None
+    cache_value = None
+
+    @wraps(func)
+    def wrapper(registry_proto: RegistryProto, project: str):
+        nonlocal cache_key, cache_value
+
+        key = tuple([id(registry_proto), registry_proto.version_id, project])
+
+        if key == cache_key:
+            return cache_value
+        else:
+            cache_value = func(registry_proto, project)
+            cache_key = key
+            return cache_value
+
+    return wrapper
+
+
+def registry_proto_cache_with_tags(func):
+    cache_key = None
+    cache_value = None
+
+    @wraps(func)
+    def wrapper(
+        registry_proto: RegistryProto,
+        project: str,
+        tags: Optional[dict[str, str]],
+        **kwargs,
+    ):
+        nonlocal cache_key, cache_value
+
+        kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
+        # Snapshot the filter so caller mutations cannot change a cached key.
+        tags_key = frozenset(tags.items()) if tags is not None else None
+        key = (
+            id(registry_proto),
+            registry_proto.version_id,
+            project,
+            tags_key,
+            kwargs_key,
+        )
+
+        if key == cache_key:
+            return cache_value
+        else:
+            cache_value = func(registry_proto, project, tags, **kwargs)
+            cache_key = key
+            return cache_value
+
+    return wrapper
+
+
+def registry_proto_cache_name(func):
+    cache_proto_key = None
+    cache = {}
+
+    @wraps(func)
+    def wrapper(registry_proto: RegistryProto, name: str, project: str):
+        nonlocal cache_proto_key, cache
+
+        proto_key = (id(registry_proto), registry_proto.version_id)
+
+        if proto_key != cache_proto_key:
+            cache = {}
+            cache_proto_key = proto_key
+
+        key = (project, name)
+        if key in cache:
+            return cache[key]
+        else:
+            value = func(registry_proto, name, project)
+            cache[key] = value
+            return value
+
+    return wrapper
+
+
+def get_project_metadata(
+    registry_proto: Optional[RegistryProto], project: str
+) -> Optional[ProjectMetadataProto]:
+    if not registry_proto:
+        return None
+    for pm in registry_proto.project_metadata:
+        if pm.project == project:
+            return pm
+    return None
+
+
+def get_feature_service(
+    registry_proto: RegistryProto, name: str, project: str
+) -> FeatureService:
+    for feature_service_proto in registry_proto.feature_services:
+        if (
+            feature_service_proto.spec.project == project
+            and feature_service_proto.spec.name == name
+        ):
+            return FeatureService.from_proto(feature_service_proto)
+    raise FeatureServiceNotFoundException(name, project=project)
+
+
+@registry_proto_cache_name
+def get_any_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> BaseFeatureView:
+    for feature_view_proto in registry_proto.feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return FeatureView.from_proto(feature_view_proto)
+
+    for feature_view_proto in registry_proto.stream_feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return StreamFeatureView.from_proto(feature_view_proto)
+
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if (
+            on_demand_feature_view.spec.project == project
+            and on_demand_feature_view.spec.name == name
+        ):
+            return OnDemandFeatureView.from_proto(on_demand_feature_view)
+
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+
+    available_names = [
+        fv.spec.name
+        for fv in (
+            list(registry_proto.feature_views)
+            + list(registry_proto.stream_feature_views)
+            + list(registry_proto.on_demand_feature_views)
+            + list(registry_proto.label_views)
+        )
+        if fv.spec.project == project
+    ]
+    suggestions = difflib.get_close_matches(name, available_names, n=3, cutoff=0.6)
+    raise FeatureViewNotFoundException(name, project, suggestions=suggestions)
+
+
+def get_feature_view_by_version(
+    registry_proto: RegistryProto, name: str, project: str, version_number: int
+) -> BaseFeatureView:
+    """Retrieve a feature view snapshot for a specific version from version history."""
+    from feast.protos.feast.core.FeatureView_pb2 import (
+        FeatureView as FeatureViewProto,
+    )
+    from feast.protos.feast.core.LabelView_pb2 import (
+        LabelView as LabelViewProto,
+    )
+    from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+        OnDemandFeatureView as OnDemandFeatureViewProto,
+    )
+    from feast.protos.feast.core.StreamFeatureView_pb2 import (
+        StreamFeatureView as StreamFeatureViewProto,
+    )
+    from feast.version_utils import version_tag
+
+    for record in registry_proto.feature_view_version_history.records:
+        if (
+            record.feature_view_name == name
+            and record.project_id == project
+            and record.version_number == version_number
+        ):
+            fv: BaseFeatureView
+            if record.feature_view_type == "feature_view":
+                fv_proto = FeatureViewProto.FromString(record.feature_view_proto)
+                fv = FeatureView.from_proto(fv_proto)
+            elif record.feature_view_type == "stream_feature_view":
+                sfv_proto = StreamFeatureViewProto.FromString(record.feature_view_proto)
+                fv = StreamFeatureView.from_proto(sfv_proto)
+            elif record.feature_view_type == "on_demand_feature_view":
+                odfv_proto = OnDemandFeatureViewProto.FromString(
+                    record.feature_view_proto
+                )
+                fv = OnDemandFeatureView.from_proto(odfv_proto)
+            elif record.feature_view_type == "label_view":
+                lv_proto = LabelViewProto.FromString(record.feature_view_proto)
+                fv = LabelView.from_proto(lv_proto)
+            else:
+                raise ValueError(
+                    f"Unknown feature view type: {record.feature_view_type}"
+                )
+
+            fv.current_version_number = version_number
+            return fv
+
+    raise FeatureViewVersionNotFound(name, version_tag(version_number), project)
+
+
+def get_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> FeatureView:
+    for feature_view_proto in registry_proto.feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return FeatureView.from_proto(feature_view_proto)
+    raise FeatureViewNotFoundException(name, project)
+
+
+def get_stream_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> StreamFeatureView:
+    for feature_view_proto in registry_proto.stream_feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return StreamFeatureView.from_proto(feature_view_proto)
+    raise FeatureViewNotFoundException(name, project)
+
+
+def get_on_demand_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> OnDemandFeatureView:
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if (
+            on_demand_feature_view.spec.project == project
+            and on_demand_feature_view.spec.name == name
+        ):
+            return OnDemandFeatureView.from_proto(on_demand_feature_view)
+    raise FeatureViewNotFoundException(name, project=project)
+
+
+def get_data_source(
+    registry_proto: RegistryProto, name: str, project: str
+) -> DataSource:
+    for data_source in registry_proto.data_sources:
+        if data_source.project == project and data_source.name == name:
+            return DataSource.from_proto(data_source)
+    raise DataSourceObjectNotFoundException(name, project=project)
+
+
+def get_entity(registry_proto: RegistryProto, name: str, project: str) -> Entity:
+    for entity_proto in registry_proto.entities:
+        if entity_proto.spec.name == name and entity_proto.spec.project == project:
+            return Entity.from_proto(entity_proto)
+    raise EntityNotFoundException(name, project=project)
+
+
+def get_saved_dataset(
+    registry_proto: RegistryProto, name: str, project: str
+) -> SavedDataset:
+    for saved_dataset in registry_proto.saved_datasets:
+        if saved_dataset.spec.name == name and saved_dataset.spec.project == project:
+            return SavedDataset.from_proto(saved_dataset)
+    raise SavedDatasetNotFound(name, project=project)
+
+
+def get_validation_reference(
+    registry_proto: RegistryProto, name: str, project: str
+) -> ValidationReference:
+    for validation_reference in registry_proto.validation_references:
+        if (
+            validation_reference.name == name
+            and validation_reference.project == project
+        ):
+            return ValidationReference.from_proto(validation_reference)
+    raise ValidationReferenceNotFound(name, project=project)
+
+
+@registry_proto_cache_with_tags
+def list_feature_services(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[FeatureService]:
+    feature_services = []
+    for feature_service_proto in registry_proto.feature_services:
+        if feature_service_proto.spec.project == project and utils.has_all_tags(
+            feature_service_proto.spec.tags, tags
+        ):
+            feature_services.append(FeatureService.from_proto(feature_service_proto))
+    return feature_services
+
+
+@registry_proto_cache_with_tags
+def list_all_feature_views(
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
+) -> List[BaseFeatureView]:
+    return (
+        list_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_stream_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_on_demand_feature_views(registry_proto, project, tags, skip_udf=skip_udf)
+        + list_label_views(registry_proto, project, tags)
+    )
+
+
+@registry_proto_cache_with_tags
+def list_feature_views(
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
+) -> List[FeatureView]:
+    feature_views: List[FeatureView] = []
+    for feature_view_proto in registry_proto.feature_views:
+        if feature_view_proto.spec.project == project and utils.has_all_tags(
+            feature_view_proto.spec.tags, tags
+        ):
+            feature_views.append(
+                FeatureView.from_proto(feature_view_proto, skip_udf=skip_udf)
+            )
+    return feature_views
+
+
+@registry_proto_cache_with_tags
+def list_stream_feature_views(
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
+) -> List[StreamFeatureView]:
+    stream_feature_views = []
+    for stream_feature_view in registry_proto.stream_feature_views:
+        if stream_feature_view.spec.project == project and utils.has_all_tags(
+            stream_feature_view.spec.tags, tags
+        ):
+            stream_feature_views.append(
+                StreamFeatureView.from_proto(stream_feature_view, skip_udf=skip_udf)
+            )
+    return stream_feature_views
+
+
+@registry_proto_cache_with_tags
+def list_on_demand_feature_views(
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    skip_udf: bool = False,
+) -> List[OnDemandFeatureView]:
+    on_demand_feature_views = []
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if on_demand_feature_view.spec.project == project and utils.has_all_tags(
+            on_demand_feature_view.spec.tags, tags
+        ):
+            on_demand_feature_views.append(
+                OnDemandFeatureView.from_proto(
+                    on_demand_feature_view, skip_udf=skip_udf
+                )
+            )
+    return on_demand_feature_views
+
+
+def get_label_view(registry_proto: RegistryProto, name: str, project: str) -> LabelView:
+    for label_view_proto in registry_proto.label_views:
+        if (
+            label_view_proto.spec.name == name
+            and label_view_proto.spec.project == project
+        ):
+            return LabelView.from_proto(label_view_proto)
+    raise FeatureViewNotFoundException(name, project)
+
+
+@registry_proto_cache_with_tags
+def list_label_views(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[LabelView]:
+    label_views = []
+    for label_view_proto in registry_proto.label_views:
+        if label_view_proto.spec.project == project and utils.has_all_tags(
+            label_view_proto.spec.tags, tags
+        ):
+            label_views.append(LabelView.from_proto(label_view_proto))
+    return label_views
+
+
+@registry_proto_cache_with_tags
+def list_entities(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[Entity]:
+    entities = []
+    for entity_proto in registry_proto.entities:
+        if entity_proto.spec.project == project and utils.has_all_tags(
+            entity_proto.spec.tags, tags
+        ):
+            entities.append(Entity.from_proto(entity_proto))
+    return entities
+
+
+@registry_proto_cache_with_tags
+def list_data_sources(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[DataSource]:
+    data_sources = []
+    for data_source_proto in registry_proto.data_sources:
+        if data_source_proto.project == project and utils.has_all_tags(
+            data_source_proto.tags, tags
+        ):
+            data_sources.append(DataSource.from_proto(data_source_proto))
+    return data_sources
+
+
+@registry_proto_cache_with_tags
+def list_saved_datasets(
+    registry_proto: RegistryProto,
+    project: str,
+    tags: Optional[dict[str, str]],
+    namespace: Optional[str] = None,
+    collection: Optional[str] = None,
+) -> List[SavedDataset]:
+    saved_datasets = []
+    for saved_dataset in registry_proto.saved_datasets:
+        if saved_dataset.spec.project != project:
+            continue
+        if not utils.has_all_tags(saved_dataset.spec.tags, tags):
+            continue
+        if namespace is not None and saved_dataset.spec.namespace != namespace:
+            continue
+        if collection is not None and saved_dataset.spec.collection != collection:
+            continue
+        saved_datasets.append(SavedDataset.from_proto(saved_dataset))
+    return saved_datasets
+
+
+@registry_proto_cache_with_tags
+def list_validation_references(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[ValidationReference]:
+    validation_references = []
+    for validation_reference in registry_proto.validation_references:
+        if validation_reference.project == project and utils.has_all_tags(
+            validation_reference.tags, tags
+        ):
+            validation_references.append(
+                ValidationReference.from_proto(validation_reference)
+            )
+    return validation_references
+
+
+@registry_proto_cache
+def list_project_metadata(
+    registry_proto: RegistryProto, project: str
+) -> List[ProjectMetadata]:
+    return [
+        ProjectMetadata.from_proto(project_metadata)
+        for project_metadata in registry_proto.project_metadata
+        if project_metadata.project == project
+    ]
+
+
+@registry_proto_cache_with_tags
+def list_permissions(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[Permission]:
+    permissions = []
+    for permission_proto in registry_proto.permissions:
+        if permission_proto.spec.project == project and utils.has_all_tags(
+            permission_proto.spec.tags, tags
+        ):
+            permissions.append(Permission.from_proto(permission_proto))
+    return permissions
+
+
+def get_permission(
+    registry_proto: RegistryProto, name: str, project: str
+) -> Permission:
+    for permission_proto in registry_proto.permissions:
+        if (
+            permission_proto.spec.project == project
+            and permission_proto.spec.name == name
+        ):
+            return Permission.from_proto(permission_proto)
+    raise PermissionObjectNotFoundException(name=name, project=project)
+
+
+def list_projects(
+    registry_proto: RegistryProto,
+    tags: Optional[dict[str, str]],
+) -> List[Project]:
+    projects = []
+    for project_proto in registry_proto.projects:
+        if utils.has_all_tags(project_proto.spec.tags, tags):
+            projects.append(Project.from_proto(project_proto))
+    return projects
+
+
+def get_project(registry_proto: RegistryProto, name: str) -> Project:
+    for projects_proto in registry_proto.projects:
+        if projects_proto.spec.name == name:
+            return Project.from_proto(projects_proto)
+    raise ProjectObjectNotFoundException(name=name)

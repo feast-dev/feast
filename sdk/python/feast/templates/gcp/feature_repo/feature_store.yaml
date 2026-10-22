@@ -1,0 +1,25 @@
+project: my_project
+# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
+# On GCP, minimally you should create a GCS bucket for a remote file registry
+# See https://docs.feast.dev/getting-started/concepts/registry for details
+registry: data/registry.db
+provider: gcp
+# Note: if you comment the online store out, then this by default will use Datastore as the online store
+online_store:
+  type: sqlite
+  path: data/online_store.db
+# See https://docs.feast.dev/reference/online-stores/datastore
+#online_store:
+#   type: datastore
+#   project_id: my_gcp_project
+#   namespace: my_datastore_namespace
+# See https://docs.feast.dev/reference/online-stores/bigtable
+#online_store:
+#   type: bigtable
+#   project_id: my_gcp_project
+#   instance: my_bigtable_instance
+# See https://docs.feast.dev/reference/online-stores/redis
+#online_store:
+#   type: redis
+#   connection_string: "localhost:6379"
+entity_key_serialization_version: 3

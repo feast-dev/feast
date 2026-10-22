@@ -1,0 +1,1 @@
+../../../skills/feast-architecture/SKILL.md

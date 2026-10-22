@@ -1,0 +1,675 @@
+syntax = "proto3";
+
+package feast.registry;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "feast/core/Registry.proto";
+import "feast/core/Entity.proto";
+import "feast/core/DataSource.proto";
+import "feast/core/FeatureView.proto";
+import "feast/core/StreamFeatureView.proto";
+import "feast/core/OnDemandFeatureView.proto";
+import "feast/core/FeatureService.proto";
+import "feast/core/SavedDataset.proto";
+import "feast/core/ValidationProfile.proto";
+import "feast/core/InfraObject.proto";
+import "feast/core/LabelView.proto";
+import "feast/core/Permission.proto";
+import "feast/core/Project.proto";
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/registry";
+
+service RegistryServer{
+  // Entity RPCs
+  rpc ApplyEntity (ApplyEntityRequest) returns (google.protobuf.Empty) {}
+  rpc GetEntity (GetEntityRequest) returns (feast.core.Entity) {}
+  rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse) {}
+  rpc DeleteEntity (DeleteEntityRequest) returns (google.protobuf.Empty) {}
+  
+  // DataSource RPCs
+  rpc ApplyDataSource (ApplyDataSourceRequest) returns (google.protobuf.Empty) {}
+  rpc GetDataSource (GetDataSourceRequest) returns (feast.core.DataSource) {}
+  rpc ListDataSources (ListDataSourcesRequest) returns (ListDataSourcesResponse) {}
+  rpc DeleteDataSource (DeleteDataSourceRequest) returns (google.protobuf.Empty) {}
+
+  // FeatureView RPCs
+  rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc GetAnyFeatureView (GetAnyFeatureViewRequest) returns (GetAnyFeatureViewResponse) {}
+  rpc ListAllFeatureViews (ListAllFeatureViewsRequest) returns (ListAllFeatureViewsResponse) {}
+
+  // plain FeatureView RPCs
+  rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
+  rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
+
+  // StreamFeatureView RPCs
+  rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
+  rpc ListStreamFeatureViews (ListStreamFeatureViewsRequest) returns (ListStreamFeatureViewsResponse) {}
+
+  // OnDemandFeatureView RPCs
+  rpc GetOnDemandFeatureView (GetOnDemandFeatureViewRequest) returns (feast.core.OnDemandFeatureView) {}
+  rpc ListOnDemandFeatureViews (ListOnDemandFeatureViewsRequest) returns (ListOnDemandFeatureViewsResponse) {}
+
+  // LabelView RPCs
+  rpc GetLabelView (GetLabelViewRequest) returns (feast.core.LabelView) {}
+  rpc ListLabelViews (ListLabelViewsRequest) returns (ListLabelViewsResponse) {}
+
+  // FeatureService RPCs
+  rpc ApplyFeatureService (ApplyFeatureServiceRequest) returns (google.protobuf.Empty) {}
+  rpc GetFeatureService (GetFeatureServiceRequest) returns (feast.core.FeatureService) {}
+  rpc ListFeatureServices (ListFeatureServicesRequest) returns (ListFeatureServicesResponse) {}
+  rpc DeleteFeatureService (DeleteFeatureServiceRequest) returns (google.protobuf.Empty) {}
+
+  // SavedDataset RPCs
+  rpc ApplySavedDataset (ApplySavedDatasetRequest) returns (google.protobuf.Empty) {}
+  rpc GetSavedDataset (GetSavedDatasetRequest) returns (feast.core.SavedDataset) {}
+  rpc ListSavedDatasets (ListSavedDatasetsRequest) returns (ListSavedDatasetsResponse) {}
+  rpc DeleteSavedDataset (DeleteSavedDatasetRequest) returns (google.protobuf.Empty) {}
+
+  // SavedDataset Operation RPCs
+  rpc CreateDatasetFromRetrieval (CreateDatasetFromRetrievalRequest) returns (CreateDatasetFromRetrievalResponse) {}
+  rpc GetDatasetData (GetDatasetDataRequest) returns (GetDatasetDataResponse) {}
+  rpc GetDatasetJobStatus (GetDatasetJobStatusRequest) returns (GetDatasetJobStatusResponse) {}
+  rpc ListDatasetJobs (ListDatasetJobsRequest) returns (ListDatasetJobsResponse) {}
+
+  // ValidationReference RPCs
+  rpc ApplyValidationReference (ApplyValidationReferenceRequest) returns (google.protobuf.Empty) {}
+  rpc GetValidationReference (GetValidationReferenceRequest) returns (feast.core.ValidationReference) {}
+  rpc ListValidationReferences (ListValidationReferencesRequest) returns (ListValidationReferencesResponse) {}
+  rpc DeleteValidationReference (DeleteValidationReferenceRequest) returns (google.protobuf.Empty) {}
+
+  // Permission RPCs
+  rpc ApplyPermission (ApplyPermissionRequest) returns (google.protobuf.Empty) {}
+  rpc GetPermission (GetPermissionRequest) returns (feast.core.Permission) {}
+  rpc ListPermissions (ListPermissionsRequest) returns (ListPermissionsResponse) {}
+  rpc DeletePermission (DeletePermissionRequest) returns (google.protobuf.Empty) {}
+
+  // Project RPCs
+  rpc ApplyProject (ApplyProjectRequest) returns (google.protobuf.Empty) {}
+  rpc GetProject (GetProjectRequest) returns (feast.core.Project) {}
+  rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse) {}
+  rpc DeleteProject (DeleteProjectRequest) returns (google.protobuf.Empty) {}
+
+  rpc ApplyMaterialization (ApplyMaterializationRequest) returns (google.protobuf.Empty) {}
+  rpc ListProjectMetadata (ListProjectMetadataRequest) returns (ListProjectMetadataResponse) {}
+  rpc UpdateInfra (UpdateInfraRequest) returns (google.protobuf.Empty) {}
+  rpc GetInfra (GetInfraRequest) returns (feast.core.Infra) {}
+  rpc Commit (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Refresh (RefreshRequest) returns (google.protobuf.Empty) {}
+  rpc Proto (google.protobuf.Empty) returns (feast.core.Registry) {}
+
+  // Lineage RPCs
+  rpc GetRegistryLineage (GetRegistryLineageRequest) returns (GetRegistryLineageResponse) {}
+  rpc GetObjectRelationships (GetObjectRelationshipsRequest) returns (GetObjectRelationshipsResponse) {}
+
+  // Feature RPCs
+  rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse) {}
+  rpc GetFeature (GetFeatureRequest) returns (Feature) {}
+}
+
+// Common pagination and sorting messages
+message PaginationParams {
+  int32 page = 1;       // 1-based page number
+  int32 limit = 2;      // Number of items per page
+}
+
+message SortingParams {
+  string sort_by = 1;     // Field to sort by (supports dot notation)
+  string sort_order = 2;  // "asc" or "desc"
+}
+
+message PaginationMetadata {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 total_count = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+message RefreshRequest {
+  string project = 1;
+}
+
+message UpdateInfraRequest {
+  feast.core.Infra infra = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetInfraRequest {
+    string project = 1;
+    bool allow_cache = 2;
+}
+
+message ListProjectMetadataRequest {
+  string project = 1;
+  bool allow_cache = 2;    
+}
+
+message ListProjectMetadataResponse {
+  repeated feast.core.ProjectMetadata project_metadata = 1;     
+}
+
+message ApplyMaterializationRequest {
+  feast.core.FeatureView feature_view = 1;
+  string project = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  bool commit = 5;
+}
+
+message ApplyEntityRequest {
+  feast.core.Entity entity = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetEntityRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListEntitiesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListEntitiesResponse {
+    repeated feast.core.Entity entities = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteEntityRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+// DataSources
+
+message ApplyDataSourceRequest {
+  feast.core.DataSource data_source = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetDataSourceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListDataSourcesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListDataSourcesResponse {
+    repeated feast.core.DataSource data_sources = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteDataSourceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+// FeatureViews
+
+message ApplyFeatureViewRequest {
+  oneof base_feature_view {
+    feast.core.FeatureView feature_view = 1;
+    feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+    feast.core.StreamFeatureView stream_feature_view = 3;
+    feast.core.LabelView label_view = 6;
+  }
+  string project = 4;
+  bool commit = 5;
+}
+
+message GetFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListFeatureViewsResponse {
+    repeated feast.core.FeatureView feature_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+message AnyFeatureView {
+    oneof any_feature_view {
+        feast.core.FeatureView feature_view = 1;
+        feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+        feast.core.StreamFeatureView stream_feature_view = 3;
+        feast.core.LabelView label_view = 4;
+    }    
+}
+
+message GetAnyFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message GetAnyFeatureViewResponse {
+    AnyFeatureView any_feature_view = 1;
+}
+
+message ListAllFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    string entity = 4;
+    string feature = 5;
+    string feature_service = 6;
+    string data_source = 7;
+    PaginationParams pagination = 8;
+    SortingParams sorting = 9;
+    google.protobuf.Timestamp updated_since = 10;
+}
+
+message ListAllFeatureViewsResponse {
+    repeated AnyFeatureView feature_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+
+// StreamFeatureView
+
+message GetStreamFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListStreamFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListStreamFeatureViewsResponse {
+    repeated feast.core.StreamFeatureView stream_feature_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+// OnDemandFeatureView
+
+message GetOnDemandFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListOnDemandFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListOnDemandFeatureViewsResponse {
+    repeated feast.core.OnDemandFeatureView on_demand_feature_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+// LabelViews
+
+message GetLabelViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListLabelViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListLabelViewsResponse {
+    repeated feast.core.LabelView label_views = 1;
+    PaginationMetadata pagination = 2;
+}
+
+// FeatureServices
+
+message ApplyFeatureServiceRequest {
+  feast.core.FeatureService feature_service = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetFeatureServiceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListFeatureServicesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    string feature_view = 4;
+    PaginationParams pagination = 5;
+    SortingParams sorting = 6;
+}
+
+message ListFeatureServicesResponse {
+    repeated feast.core.FeatureService feature_services = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteFeatureServiceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+// SavedDataset
+
+message ApplySavedDatasetRequest {
+  feast.core.SavedDataset saved_dataset = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetSavedDatasetRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListSavedDatasetsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+    // Optional logical namespace filter. Empty string means no filter.
+    string namespace = 6;
+    // Optional collection filter. Empty string means no filter.
+    string collection = 7;
+}
+
+message ListSavedDatasetsResponse {
+    repeated feast.core.SavedDataset saved_datasets = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteSavedDatasetRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+// SavedDataset Operations
+
+message CreateDatasetFromRetrievalRequest {
+    string name = 1;
+    string project = 2;
+    string feature_service_name = 3;
+    repeated string features = 4;
+    string entity_source_type = 5;
+    string entity_source_path = 6;
+    repeated string entity_keys = 8;
+    string entity_values = 9;
+    string start_date = 10;
+    string end_date = 11;
+    string extra_columns = 12;
+    string storage_type = 13;
+    string storage_path = 14;
+    map<string, string> tags = 15;
+    bool allow_overwrite = 16;
+}
+
+message CreateDatasetFromRetrievalResponse {
+    string job_id = 1;
+    string status = 2;
+}
+
+message GetDatasetDataRequest {
+    string name = 1;
+    string project = 2;
+    int32 limit = 3;
+}
+
+message TabularRow {
+    repeated string values = 1;
+}
+
+message GetDatasetDataResponse {
+    repeated string columns = 1;
+    repeated TabularRow rows = 2;
+    int32 total_rows = 3;
+    int32 sample_size = 4;
+}
+
+message GetDatasetJobStatusRequest {
+    string job_id = 1;
+}
+
+message GetDatasetJobStatusResponse {
+    string job_id = 1;
+    string dataset_name = 2;
+    string project = 3;
+    string status = 4;
+    string created_at = 5;
+    string completed_at = 6;
+    string error = 7;
+}
+
+message ListDatasetJobsRequest {
+    string project = 1;
+    string status_filter = 2;
+}
+
+message ListDatasetJobsResponse {
+    repeated GetDatasetJobStatusResponse jobs = 1;
+}
+
+// ValidationReference
+
+message ApplyValidationReferenceRequest {
+  feast.core.ValidationReference validation_reference = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetValidationReferenceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ListValidationReferencesRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
+}
+
+message ListValidationReferencesResponse {
+    repeated feast.core.ValidationReference validation_references = 1;
+    PaginationMetadata pagination = 2;
+}
+
+message DeleteValidationReferenceRequest {
+    string name = 1;
+    string project = 2;
+    bool commit = 3;
+}
+
+// Permissions
+
+message ApplyPermissionRequest {
+  feast.core.Permission permission = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+message GetPermissionRequest {
+  string name = 1;
+  string project = 2;
+  bool allow_cache = 3;
+}
+
+message ListPermissionsRequest {
+  string project = 1;
+  bool allow_cache = 2;
+  map<string,string> tags = 3;
+  PaginationParams pagination = 4;
+  SortingParams sorting = 5;
+}
+
+message ListPermissionsResponse {
+  repeated feast.core.Permission permissions = 1;
+  PaginationMetadata pagination = 2;
+}
+
+message DeletePermissionRequest {
+  string name = 1;
+  string project = 2;
+  bool commit = 3;
+}
+
+// Projects
+
+message ApplyProjectRequest {
+  feast.core.Project project = 1;
+  bool commit = 2;
+}
+
+message GetProjectRequest {
+  string name = 1;
+  bool allow_cache = 2;
+}
+
+message ListProjectsRequest {
+  bool allow_cache = 1;
+  map<string,string> tags = 2;
+  PaginationParams pagination = 3;
+  SortingParams sorting = 4;
+}
+
+message ListProjectsResponse {
+  repeated feast.core.Project projects = 1;
+  PaginationMetadata pagination = 2;
+}
+
+message DeleteProjectRequest {
+  string name = 1;
+  bool commit = 2;
+}
+
+// Lineage
+
+message EntityReference {
+  string type = 1;  // "dataSource", "entity", "featureView", "featureService"
+  string name = 2;
+}
+
+message EntityRelation {
+  EntityReference source = 1;
+  EntityReference target = 2;
+}
+
+message GetRegistryLineageRequest {
+  string project = 1;
+  bool allow_cache = 2;
+  string filter_object_type = 3;
+  string filter_object_name = 4;
+  PaginationParams pagination = 5;
+  SortingParams sorting = 6;
+}
+
+message GetRegistryLineageResponse {
+  repeated EntityRelation relationships = 1;
+  repeated EntityRelation indirect_relationships = 2;
+  PaginationMetadata relationships_pagination = 3;
+  PaginationMetadata indirect_relationships_pagination = 4;
+}
+
+message GetObjectRelationshipsRequest {
+  string project = 1;
+  string object_type = 2;
+  string object_name = 3;
+  bool include_indirect = 4;
+  bool allow_cache = 5;
+  PaginationParams pagination = 6;
+  SortingParams sorting = 7;
+}
+
+message GetObjectRelationshipsResponse {
+  repeated EntityRelation relationships = 1;
+  PaginationMetadata pagination = 2;
+}
+
+// Feature messages
+message Feature {
+  string name = 1;
+  string feature_view = 2;
+  string type = 3;
+  string description = 4;
+  string owner = 5;
+  google.protobuf.Timestamp created_timestamp = 6;
+  google.protobuf.Timestamp last_updated_timestamp = 7;
+  map<string, string> tags = 8;
+  // Semantic kind: "feature" (input/predictor) or "label" (target/annotation).
+  string kind = 9;
+}
+
+message ListFeaturesRequest {
+  string project = 1;
+  string feature_view = 2;
+  string name = 3;
+  bool allow_cache = 6;
+  PaginationParams pagination = 4;
+  SortingParams sorting = 5;
+  // Filter by kind: "feature" or "label". Empty means no filter.
+  string kind = 7;
+}
+
+message ListFeaturesResponse {
+  repeated Feature features = 1;
+  PaginationMetadata pagination = 2;
+}
+
+message GetFeatureRequest {
+  string project = 1;
+  string feature_view = 2;
+  string name = 3;
+  bool allow_cache = 4;
+}

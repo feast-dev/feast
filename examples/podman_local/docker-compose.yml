@@ -1,0 +1,33 @@
+version: '3.9'
+
+x-defaults: &default-settings
+  image: quay.io/feastdev/feature-server:latest
+  restart: unless-stopped
+
+services:
+  online-feature-server:
+    <<: *default-settings
+    container_name: online-feature-server
+    command: feast -c /feature_repo serve -h 0.0.0.0
+    ports:
+      - "6566:6566"
+    volumes:
+      - ./feature_repo:/feature_repo
+
+  offline-feature-server:
+    <<: *default-settings
+    container_name: offline-feature-server
+    command: feast -c /feature_repo serve_offline -h 0.0.0.0
+    ports:
+      - "8815:8815"
+    volumes:
+      - ./feature_repo:/feature_repo
+
+  registry-feature-server:
+    <<: *default-settings
+    container_name: registry-feature-server
+    command: feast -c /feature_repo serve_registry
+    ports:
+      - "6570:6570"
+    volumes:
+      - ./feature_repo:/feature_repo

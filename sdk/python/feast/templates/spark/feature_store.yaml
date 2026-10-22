@@ -1,0 +1,15 @@
+project: my_project
+registry: data/registry.db
+provider: local
+offline_store:
+    type: spark
+    spark_conf:
+        spark.master: "local[*]"
+        spark.ui.enabled: "false"
+        spark.eventLog.enabled: "false"
+        spark.sql.catalogImplementation: "hive"
+        spark.sql.parser.quotedRegexColumnNames: "true"
+        spark.sql.session.timeZone: "UTC"
+online_store:
+    path: data/online_store.db
+entity_key_serialization_version: 3

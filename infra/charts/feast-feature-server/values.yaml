@@ -1,0 +1,105 @@
+# Default values for feast.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  # image.repository -- Docker image for Feature Server repository
+  repository: quay.io/feastdev/feature-server
+  pullPolicy: IfNotPresent
+  # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
+  tag: 0.67.0
+
+logLevel: "WARNING"  # Set log level DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive)
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+metrics:
+  enabled: false
+  otelCollector:
+    endpoint: ""  # sample endpoint: "otel-collector.default.svc.cluster.local:4317"
+    port: 4317
+
+# feature_store_yaml_base64 -- [required] a base64 encoded version of feature_store.yaml
+feature_store_yaml_base64: ""
+
+# feast_mode -- Feast supported deployment modes - online (default), offline, ui and registry
+feast_mode: "online"
+
+# commandArgs -- Override the default command arguments for complete control over CLI options
+# If not specified, falls back to legacy behavior based on feast_mode
+# Example for UI mode with custom options:
+# commandArgs:
+#   - "feast"
+#   - "--log-level"
+#   - "INFO"
+#   - "ui"
+#   - "--root_path"
+#   - "/feast"
+#   - "--registry_ttl_sec"
+#   - "300"
+#   - "-h"
+#   - "0.0.0.0"
+#   - "-p"
+#   - "8888"
+commandArgs: []
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+serviceAccount:
+  name: ""
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+readinessProbe:
+  initialDelaySeconds: 20
+  periodSeconds: 10
+
+volumeMounts: []
+
+# extraEnvs -- Additional environment variables to be set in the container
+extraEnvs: []
+
+volumes: []
+
+# to create OpenShift Route object for UI
+route:
+  enabled: false

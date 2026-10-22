@@ -1,0 +1,17 @@
+# This file is being used by RedHat for running e2e CI
+
+approvers:
+- tmihalac
+- accorvin
+- amsharma3
+- franciscojavierarceo
+- ntkathole
+- jyejare
+options: {}
+reviewers:
+- tmihalac
+- accorvin
+- amsharma3
+- franciscojavierarceo
+- ntkathole
+- jyejare

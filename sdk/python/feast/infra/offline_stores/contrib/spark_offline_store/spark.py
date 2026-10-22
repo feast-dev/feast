@@ -1,0 +1,1919 @@
+import json
+import os
+import tempfile
+import uuid
+import warnings
+from dataclasses import asdict, dataclass
+from datetime import date, datetime, timezone
+from datetime import time as dt_time
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    KeysView,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import ValidationReference
+
+import numpy as np
+import pandas
+import pandas as pd
+import pyarrow
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
+import pyspark
+from pydantic import StrictStr
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
+
+from feast import FeatureView, OnDemandFeatureView
+from feast.batch_feature_view import BatchFeatureView
+from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
+from feast.errors import EntitySQLEmptyResults, InvalidEntityType
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
+from feast.infra.offline_stores import offline_utils
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SavedDatasetSparkStorage,
+    SparkSource,
+)
+from feast.infra.offline_stores.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    RetrievalMetadata,
+)
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.saved_dataset import SavedDatasetStorage
+from feast.type_map import spark_schema_to_np_dtypes
+from feast.utils import _get_fields_with_aliases, compute_non_entity_date_range
+
+# Make sure spark warning doesn't raise more than once.
+warnings.simplefilter("once", RuntimeWarning)
+
+
+class SparkOfflineStoreConfig(FeastConfigBaseModel):
+    type: StrictStr = "spark"
+    """ Offline store type selector"""
+
+    spark_conf: Optional[Dict[str, str]] = None
+    """ Configuration overlay for the spark session """
+
+    staging_location: Optional[StrictStr] = None
+    """ Remote path for batch materialization jobs"""
+
+    region: Optional[StrictStr] = None
+    """ AWS Region if applicable for s3-based staging locations"""
+
+
+@dataclass(frozen=True)
+class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
+    min_date_partition: Optional[str]
+    max_date_partition: Optional[str]
+
+
+class SparkOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
+    @staticmethod
+    def pull_latest_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> RetrievalJob:
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            config.offline_store
+        )
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
+
+        print("Pulling latest features from spark offline store")
+
+        from_expression = data_source.get_table_query_string()
+
+        partition_by_join_key_string = ", ".join(join_key_columns)
+        if partition_by_join_key_string != "":
+            partition_by_join_key_string = (
+                "PARTITION BY " + partition_by_join_key_string
+            )
+        timestamps = [timestamp_field]
+        if created_timestamp_column:
+            timestamps.append(created_timestamp_column)
+        timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
+        (fields_with_aliases, aliases) = _get_fields_with_aliases(
+            fields=join_key_columns + feature_name_columns + timestamps,
+            field_mappings=data_source.field_mapping,
+        )
+
+        fields_as_string = ", ".join(fields_with_aliases)
+        aliases_as_string = ", ".join(aliases)
+
+        date_partition_column = data_source.date_partition_column
+        date_partition_column_format = data_source.date_partition_column_format
+
+        start_date_str = _format_datetime(start_date)
+        end_date_str = _format_datetime(end_date)
+        query = f"""
+                SELECT
+                    {aliases_as_string}
+                    {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
+                FROM (
+                    SELECT {fields_as_string},
+                    ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS feast_row_
+                    FROM {from_expression} t1
+                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){" AND " + date_partition_column + " >= '" + start_date.strftime(date_partition_column_format) + "' AND " + date_partition_column + " <= '" + end_date.strftime(date_partition_column_format) + "' " if date_partition_column != "" and date_partition_column is not None else ""}
+                ) t2
+                WHERE feast_row_ = 1
+                """
+
+        return SparkRetrievalJob(
+            spark_session=spark_session,
+            query=query,
+            config=config,
+            full_feature_names=False,
+            on_demand_feature_views=None,
+        )
+
+    @staticmethod
+    def get_historical_features(
+        config: RepoConfig,
+        feature_views: List[FeatureView],
+        feature_refs: List[str],
+        entity_df: Optional[Union[pandas.DataFrame, str, pyspark.sql.DataFrame]],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
+        **kwargs,
+    ) -> RetrievalJob:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        date_partition_column_formats = []
+        for fv in feature_views:
+            if isinstance(fv.batch_source, SparkSource):
+                date_partition_column_formats.append(
+                    fv.batch_source.date_partition_column_format
+                )
+            else:
+                from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+                    IcebergSource,
+                )
+
+                if isinstance(fv.batch_source, IcebergSource):
+                    date_partition_column_formats.append(None)
+                else:
+                    raise ValueError(
+                        f"SparkOfflineStore requires SparkSource or IcebergSource, "
+                        f"got {type(fv.batch_source)}"
+                    )
+
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+
+        # Pre-register IcebergSource feature views as temp views
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        for fv in feature_views:
+            if isinstance(fv.batch_source, IcebergSource):
+                _register_iceberg_source_as_temp_view(
+                    spark_session, fv.batch_source, config
+                )
+
+        tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
+
+        # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
+        # This makes date-range retrievals possible without enumerating entities upfront; sources remain bounded by time.
+        non_entity_mode = entity_df is None
+        if non_entity_mode:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
+            entity_df_event_timestamp_range = (start_date, end_date)
+
+            # Build query contexts so we can reuse entity names and per-view table info consistently.
+            fv_query_contexts = offline_utils.get_feature_view_query_context(
+                feature_refs,
+                feature_views,
+                registry,
+                project,
+                entity_df_event_timestamp_range,
+            )
+
+            # Collect the union of entity columns required across all feature views.
+            all_entities = _gather_all_entities(fv_query_contexts)
+
+            # Build a UNION DISTINCT of per-feature-view entity projections, time-bounded and partition-pruned.
+            _create_temp_entity_union_view(
+                spark_session=spark_session,
+                tmp_view_name=tmp_entity_df_table_name,
+                feature_views=feature_views,
+                fv_query_contexts=fv_query_contexts,
+                start_date=start_date,
+                end_date=end_date,
+                date_partition_column_formats=date_partition_column_formats,
+            )
+
+            # Add a stable as-of timestamp column for PIT joins.
+            left_table_query_string, event_timestamp_col = _make_left_table_query(
+                end_date=end_date, tmp_view_name=tmp_entity_df_table_name
+            )
+            entity_schema_keys = _entity_schema_keys_from(
+                all_entities=all_entities, event_timestamp_col=event_timestamp_col
+            )
+        else:
+            entity_schema = _get_entity_schema(
+                spark_session=spark_session,
+                entity_df=entity_df,
+            )
+            event_timestamp_col = offline_utils.infer_event_timestamp_from_entity_df(
+                entity_schema=entity_schema,
+            )
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                event_timestamp_col,
+                spark_session,
+            )
+            _upload_entity_df(
+                spark_session=spark_session,
+                table_name=tmp_entity_df_table_name,
+                entity_df=entity_df,
+                event_timestamp_col=event_timestamp_col,
+            )
+            left_table_query_string = tmp_entity_df_table_name
+            entity_schema_keys = cast(KeysView[str], entity_schema.keys())
+
+        if not non_entity_mode:
+            expected_join_keys = offline_utils.get_expected_join_keys(
+                project=project, feature_views=feature_views, registry=registry
+            )
+            offline_utils.assert_expected_columns_in_entity_df(
+                entity_schema=entity_schema,
+                join_keys=expected_join_keys,
+                entity_df_event_timestamp_col=event_timestamp_col,
+            )
+
+        query_context = offline_utils.get_feature_view_query_context(
+            feature_refs,
+            feature_views,
+            registry,
+            project,
+            entity_df_event_timestamp_range,
+        )
+
+        query_context = _apply_bfv_transformations(
+            spark_session=spark_session,
+            feature_views=feature_views,
+            query_contexts=query_context,
+        )
+
+        spark_query_context = [
+            SparkFeatureViewQueryContext(
+                **asdict(context),
+                min_date_partition=datetime.fromisoformat(
+                    context.min_event_timestamp
+                ).strftime(date_format)
+                if context.min_event_timestamp is not None and date_format is not None
+                else None,
+                max_date_partition=datetime.fromisoformat(
+                    context.max_event_timestamp
+                ).strftime(date_format)
+                if date_format is not None
+                else None,
+            )
+            for date_format, context in zip(
+                date_partition_column_formats, query_context
+            )
+        ]
+
+        query = offline_utils.build_point_in_time_query(
+            feature_view_query_contexts=cast(
+                List[offline_utils.FeatureViewQueryContext], spark_query_context
+            ),
+            left_table_query_string=left_table_query_string,
+            entity_df_event_timestamp_col=event_timestamp_col,
+            entity_df_columns=entity_schema_keys,
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=full_feature_names,
+            filter_by_created_timestamp=filter_by_created_timestamp,
+        )
+
+        return SparkRetrievalJob(
+            spark_session=spark_session,
+            query=query,
+            full_feature_names=full_feature_names,
+            on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+                feature_refs, project, registry
+            ),
+            metadata=RetrievalMetadata(
+                features=feature_refs,
+                keys=list(set(entity_schema_keys) - {event_timestamp_col}),
+                min_event_timestamp=entity_df_event_timestamp_range[0],
+                max_event_timestamp=entity_df_event_timestamp_range[1],
+            ),
+            config=config,
+        )
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
+    ):
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+
+        if isinstance(feature_view.batch_source, IcebergSource):
+            _iceberg_offline_write_batch(config, feature_view, table)
+            return
+
+        assert isinstance(feature_view.batch_source, SparkSource)
+
+        pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
+            config, feature_view.batch_source
+        )
+        if column_names != table.column_names:
+            raise ValueError(
+                f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+            )
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+
+        if feature_view.batch_source.path:
+            # write data to disk so that it can be loaded into spark (for preserving column types)
+            with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
+                print(tmp_file.name)
+                pq.write_table(table, tmp_file.name)
+
+                # load data
+                df_batch = spark_session.read.parquet(tmp_file.name)
+
+                # load existing data to get spark table schema
+                df_existing = spark_session.read.format(
+                    feature_view.batch_source.file_format
+                ).load(feature_view.batch_source.path)
+
+                # cast columns if applicable
+                df_batch = _cast_data_frame(df_batch, df_existing)
+
+                df_batch.write.format(feature_view.batch_source.file_format).mode(
+                    "append"
+                ).save(feature_view.batch_source.path)
+        elif feature_view.batch_source.query:
+            raise NotImplementedError(
+                "offline_write_batch not implemented for batch sources specified by query"
+            )
+        else:
+            raise NotImplementedError(
+                "offline_write_batch not implemented for batch sources specified by a table"
+            )
+
+    @staticmethod
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        """
+        Note that join_key_columns, feature_name_columns, timestamp_field, and
+        created_timestamp_column have all already been mapped to column names of the
+        source table and those column names are the values passed into this function.
+        """
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        warnings.warn(
+            "The spark offline store is an experimental feature in alpha development. "
+            "This API is unstable and it could and most probably will be changed in the future.",
+            RuntimeWarning,
+        )
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        if isinstance(data_source, IcebergSource):
+            return _pull_from_iceberg_source(
+                spark_session=spark_session,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+                config=config,
+            )
+
+        assert isinstance(data_source, SparkSource)
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
+
+        if feature_name_columns:
+            (fields_with_aliases, _) = _get_fields_with_aliases(
+                fields=join_key_columns + feature_name_columns + timestamp_fields,
+                field_mappings=data_source.field_mapping,
+            )
+            fields_with_alias_string = ", ".join(fields_with_aliases)
+        else:
+            # Empty feature_name_columns signals "read all source columns".
+            # Used by BatchFeatureView with TransformationMode.PYTHON/ray/pandas where
+            # the UDF computes output features from raw input — don't project upfront.
+            fields_with_alias_string = "*"
+
+        from_expression = data_source.get_table_query_string()
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+        )
+
+        query = f"""
+            SELECT {fields_with_alias_string}
+            FROM {from_expression}
+            WHERE {timestamp_filter}
+        """
+
+        return SparkRetrievalJob(
+            spark_session=spark_session,
+            query=query,
+            full_feature_names=False,
+            config=config,
+        )
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        ts_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            quote_fields=False,
+        )
+        ts_clause = ts_filter if ts_filter else "1=1"
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        if numeric_features:
+            results.extend(
+                _spark_sql_numeric_stats(
+                    spark_session,
+                    from_expression,
+                    numeric_features,
+                    ts_clause,
+                    histogram_bins,
+                )
+            )
+
+        for col_name in categorical_features:
+            results.append(
+                _spark_sql_categorical_stats(
+                    spark_session,
+                    from_expression,
+                    col_name,
+                    ts_clause,
+                    top_n,
+                )
+            )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        assert isinstance(data_source, SparkSource)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        from_expression = data_source.get_table_query_string()
+        q_ts = f"`{timestamp_field}`"
+        sql = f"SELECT MAX({q_ts}) AS max_ts FROM {from_expression} AS _src"
+        row = spark_session.sql(sql).collect()
+        if not row or row[0][0] is None:
+            return None
+        val = row[0][0]
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        if isinstance(val, date):
+            return datetime.combine(val, dt_time.min, tzinfo=timezone.utc)
+        return pandas.to_datetime(val, utc=True).to_pydatetime()
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
+            spark_session.sql(stmt)
+        from pyspark.sql.utils import AnalysisException
+
+        for stmt in (
+            f"ALTER TABLE {MON_TABLE_FEATURE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+        ):
+            try:
+                spark_session.sql(stmt)
+            except AnalysisException:
+                # Column already exists on newly created tables.
+                pass
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
+        pdf_new = pd.DataFrame([{c: m.get(c) for c in columns} for m in metrics])
+        pdf_new = _spark_normalize_histogram_column(pdf_new)
+
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if spark_session.catalog.tableExists(table):
+            pdf_old = spark_session.table(table).toPandas()
+            pdf_merged = _spark_pandas_upsert(pdf_old, pdf_new, pk_columns)
+        else:
+            pdf_merged = pdf_new
+
+        spark_session.createDataFrame(pdf_merged).write.mode("overwrite").saveAsTable(
+            table
+        )
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        table, columns, _ = monitoring_table_meta(metric_type)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(table):
+            return []
+
+        from pyspark.sql import functions as F
+
+        df = spark_session.table(table)
+        if project:
+            df = df.filter(F.col("project_id") == project)
+        if filters:
+            for key, value in filters.items():
+                if value is not None:
+                    df = df.filter(F.col(key) == value)
+        if start_date is not None and "metric_date" in df.columns:
+            df = df.filter(F.col("metric_date") >= F.lit(start_date))
+        if end_date is not None and "metric_date" in df.columns:
+            df = df.filter(F.col("metric_date") <= F.lit(end_date))
+
+        order_col = "metric_date" if "metric_date" in df.columns else "job_id"
+        rows = df.orderBy(order_col).collect()
+        return _spark_rows_to_metric_dicts(rows, columns)
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        spark_session = get_spark_session_or_start_new_with_repoconfig(
+            store_config=config.offline_store
+        )
+        if not spark_session.catalog.tableExists(MON_TABLE_FEATURE):
+            return
+
+        pdf = spark_session.table(MON_TABLE_FEATURE).toPandas()
+        if pdf is None:
+            return
+        mask = (pdf["project_id"] == project) & (pdf["is_baseline"] == True)  # noqa: E712
+        if feature_view_name is not None:
+            mask &= pdf["feature_view_name"] == feature_view_name
+        if feature_name is not None:
+            mask &= pdf["feature_name"] == feature_name
+        if data_source_type is not None:
+            mask &= pdf["data_source_type"] == data_source_type
+
+        pdf.loc[mask, "is_baseline"] = False
+        spark_session.createDataFrame(pdf).write.mode("overwrite").saveAsTable(
+            MON_TABLE_FEATURE
+        )
+
+
+_SPARK_MONITORING_DDL_STATEMENTS = [
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    feature_name      STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
+    is_baseline       BOOLEAN NOT NULL,
+    feature_type      STRING NOT NULL,
+    row_count         BIGINT,
+    null_count        BIGINT,
+    null_rate         DOUBLE,
+    mean              DOUBLE,
+    stddev            DOUBLE,
+    min_val           DOUBLE,
+    max_val           DOUBLE,
+    p50               DOUBLE,
+    p75               DOUBLE,
+    p90               DOUBLE,
+    p95               DOUBLE,
+    p99               DOUBLE,
+    histogram         STRING
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
+    project_id        STRING NOT NULL,
+    feature_view_name STRING NOT NULL,
+    metric_date       DATE NOT NULL,
+    granularity       STRING NOT NULL,
+    data_source_type  STRING NOT NULL,
+    computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
+    is_baseline       BOOLEAN NOT NULL,
+    total_row_count   BIGINT,
+    total_features    INT,
+    features_with_nulls INT,
+    avg_null_rate     DOUBLE,
+    max_null_rate     DOUBLE
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
+    project_id           STRING NOT NULL,
+    feature_service_name STRING NOT NULL,
+    metric_date          DATE NOT NULL,
+    granularity          STRING NOT NULL,
+    data_source_type     STRING NOT NULL,
+    computed_at          TIMESTAMP NOT NULL,
+    max_event_timestamp  TIMESTAMP,
+    is_baseline          BOOLEAN NOT NULL,
+    total_feature_views  INT,
+    total_features       INT,
+    avg_null_rate        DOUBLE,
+    max_null_rate        DOUBLE
+) USING PARQUET
+""",
+    f"""
+CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+    job_id            STRING NOT NULL,
+    project_id        STRING NOT NULL,
+    feature_view_name STRING,
+    job_type          STRING NOT NULL,
+    status            STRING NOT NULL,
+    parameters        STRING,
+    metric_date       DATE NOT NULL,
+    started_at        TIMESTAMP,
+    completed_at      TIMESTAMP,
+    error_message     STRING,
+    result_summary    STRING
+) USING PARQUET
+""",
+]
+
+
+def _spark_normalize_histogram_column(pdf: pd.DataFrame) -> pd.DataFrame:
+    if "histogram" not in pdf.columns:
+        return pdf
+    out = pdf.copy()
+
+    def _ser(x: Any) -> Any:
+        if x is None:
+            return None
+        if isinstance(x, str):
+            return x
+        return json.dumps(x)
+
+    out["histogram"] = out["histogram"].map(_ser)
+    return out
+
+
+def _spark_pandas_upsert(
+    pdf_old: pd.DataFrame,
+    pdf_new: pd.DataFrame,
+    pk_columns: List[str],
+) -> pd.DataFrame:
+    if pdf_old.empty:
+        return pdf_new
+    old_idx = pdf_old.set_index(pk_columns)
+    new_idx = pdf_new.set_index(pk_columns)
+    kept = old_idx.loc[~old_idx.index.isin(new_idx.index)]
+    kept_df = kept.reset_index()
+    return pd.concat([kept_df, pdf_new], ignore_index=True)
+
+
+def _spark_sql_numeric_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    feature_names: List[str],
+    ts_clause: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f"`{col}`"
+        c = f"CAST({q} AS DOUBLE)"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_APPROX({c}, 0.50)",
+                f"PERCENTILE_APPROX({c}, 0.75)",
+                f"PERCENTILE_APPROX({c}, 0.90)",
+                f"PERCENTILE_APPROX({c}, 0.95)",
+                f"PERCENTILE_APPROX({c}, 0.99)",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_clause}"
+    )
+    rows = spark_session.sql(query).collect()
+    if not rows or rows[0] is None:
+        return [empty_numeric_metric(n) for n in feature_names]
+
+    row = rows[0]
+    row_count = int(row[0] or 0)
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = int(row[base] or 0)
+        null_count = row_count - non_null
+
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _spark_sql_numeric_histogram(
+                spark_session,
+                from_expression,
+                col,
+                ts_clause,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _spark_sql_numeric_histogram(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    if min_val == max_val:
+        sql = (
+            f"SELECT COUNT(*) FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        )
+        cnt = int(spark_session.sql(sql).collect()[0][0] or 0)
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    bin_width = (max_val - min_val) / bins
+    cast_col = f"CAST({q_col} AS DOUBLE)"
+    inner = (
+        f"CASE WHEN {min_val} = {max_val} THEN 1 "
+        f"ELSE LEAST(GREATEST(FLOOR(({cast_col} - {min_val}) / {bin_width}) + 1, 1), {bins}) "
+        f"END AS bucket"
+    )
+
+    query = (
+        f"SELECT bucket, COUNT(*) AS cnt FROM ("
+        f"  SELECT {inner} "
+        f"  FROM {from_expression} AS _src "
+        f"  WHERE {q_col} IS NOT NULL AND {ts_clause}"
+        f") AS _b WHERE bucket IS NOT NULL "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+    hrows = spark_session.sql(query).collect()
+    counts = [0] * bins
+    for hr in hrows:
+        bucket = int(hr[0] or 0)
+        cnt = int(hr[1] or 0)
+        if 1 <= bucket <= bins:
+            counts[bucket - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _spark_sql_categorical_stats(
+    spark_session: SparkSession,
+    from_expression: str,
+    col_name: str,
+    ts_clause: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f"`{col_name}`"
+
+    counts_query = (
+        f"SELECT "
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {ts_clause}"
+    )
+    rows = spark_session.sql(counts_query).collect()
+    if not rows or rows[0][0] is None or int(rows[0][0]) == 0:
+        return empty_categorical_metric(col_name)
+
+    row_count = int(rows[0][0] or 0)
+    null_count = int(rows[0][1] or 0)
+    unique_count = int(rows[0][2] or 0)
+
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+            f"FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        top_rows = spark_session.sql(top_n_query).collect()
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+def _spark_rows_to_metric_dicts(
+    rows: List[Any],
+    columns: List[str],
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        d = r.asDict()
+        rec = {c: d.get(c) for c in columns}
+        out.append(normalize_monitoring_row(rec))
+    return out
+
+
+class SparkRetrievalJob(RetrievalJob):
+    def __init__(
+        self,
+        spark_session: SparkSession,
+        query: str,
+        full_feature_names: bool,
+        config: RepoConfig,
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        metadata: Optional[RetrievalMetadata] = None,
+    ):
+        super().__init__()
+        self.spark_session = spark_session
+        self.query = query
+        self._full_feature_names = full_feature_names
+        self._on_demand_feature_views = on_demand_feature_views or []
+        self._metadata = metadata
+        self._config = config
+
+    @property
+    def full_feature_names(self) -> bool:
+        return self._full_feature_names
+
+    @property
+    def on_demand_feature_views(self) -> List[OnDemandFeatureView]:
+        return self._on_demand_feature_views
+
+    def to_spark_df(self) -> pyspark.sql.DataFrame:
+        statements = self.query.split("---EOS---")
+        *_, last = map(self.spark_session.sql, statements)
+        return last
+
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
+        """Return dataset as Pandas DataFrame synchronously"""
+        return self.to_spark_df().toPandas()
+
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
+        """Return dataset as pyarrow Table synchronously"""
+        if self._should_use_staging_for_arrow():
+            return self._to_arrow_via_staging()
+
+        return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
+
+    def _should_use_staging_for_arrow(self) -> bool:
+        offline_store = getattr(self._config, "offline_store", None)
+        return bool(
+            isinstance(offline_store, SparkOfflineStoreConfig)
+            and getattr(offline_store, "staging_location", None)
+        )
+
+    def _to_arrow_via_staging(self) -> pyarrow.Table:
+        paths = self.to_remote_storage()
+        if not paths:
+            return pyarrow.table({})
+
+        parquet_paths = _filter_parquet_files(paths)
+        if not parquet_paths:
+            return pyarrow.table({})
+
+        pa_fs, stripped_paths = self._resolve_staging_filesystem(parquet_paths)
+        dataset = ds.dataset(stripped_paths, format="parquet", filesystem=pa_fs)
+        return dataset.to_table()
+
+    def _resolve_staging_filesystem(
+        self, paths: List[str]
+    ) -> Tuple[Optional[pyarrow.fs.FileSystem], List[str]]:
+        """Return (pyarrow filesystem, prefix-stripped paths) for staging URIs."""
+        sample = paths[0]
+
+        import pyarrow.fs as pafs
+
+        if sample.startswith("s3://") or sample.startswith("s3a://"):
+            endpoint = os.environ.get("AWS_ENDPOINT_URL_S3") or os.environ.get(
+                "AWS_S3_ENDPOINT", ""
+            )
+            region = getattr(
+                self._config.offline_store, "region", None
+            ) or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            kwargs: Dict[str, Any] = {"region": region}
+            if endpoint:
+                kwargs["endpoint_override"] = (
+                    endpoint.rstrip("/")
+                    .removeprefix("https://")
+                    .removeprefix("http://")
+                )
+                kwargs["scheme"] = "https" if endpoint.startswith("https") else "http"
+            fs = pafs.S3FileSystem(**kwargs)
+            stripped = [p.removeprefix("s3a://").removeprefix("s3://") for p in paths]
+            return fs, stripped
+
+        if sample.startswith("gs://"):
+            fs = pafs.GcsFileSystem()
+            stripped = [p[len("gs://") :] for p in paths]
+            return fs, stripped
+
+        # Local paths
+        normalized = []
+        for p in paths:
+            if p.startswith("file://"):
+                normalized.append(p[len("file://") :])
+            else:
+                normalized.append(p)
+        return None, normalized
+
+    def to_feast_df(
+        self,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Return the result as a FeastDataFrame with Spark engine.
+
+        This preserves Spark's lazy execution by wrapping the Spark DataFrame directly.
+        """
+        # Get the Spark DataFrame directly (maintains lazy execution)
+        spark_df = self.to_spark_df()
+        return FeastDataFrame(
+            data=spark_df,
+            engine=DataFrameEngine.SPARK,
+        )
+
+    def persist(
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: Optional[bool] = False,
+        timeout: Optional[int] = None,
+    ):
+        """
+        Run the retrieval and persist the results in the same offline store used for read.
+        Supports both table-based and path-based SparkSource configurations.
+        For table-based: persists via saveAsTable (remote warehouse) or createOrReplaceTempView (local).
+        For path-based: writes directly to the specified path in the given file format.
+        """
+        assert isinstance(storage, SavedDatasetSparkStorage)
+
+        table_name = storage.spark_options.table
+        path = storage.spark_options.path
+        file_format = storage.spark_options.file_format
+
+        if path:
+            if not file_format:
+                file_format = "parquet"
+            write_mode = "overwrite" if allow_overwrite else "error"
+            self.to_spark_df().write.format(file_format).mode(write_mode).save(path)
+        elif table_name:
+            if self._has_remote_warehouse_in_config():
+                if not file_format:
+                    self.to_spark_df().write.saveAsTable(table_name)
+                else:
+                    self.to_spark_df().write.format(file_format).saveAsTable(table_name)
+            else:
+                self.to_spark_df().createOrReplaceTempView(table_name)
+        else:
+            raise ValueError(
+                "Cannot persist: either 'table' or 'path' must be specified in SavedDatasetSparkStorage"
+            )
+
+    def _has_remote_warehouse_in_config(self) -> bool:
+        """
+        Check if Spark Session config has info about hive metastore uri
+        or warehouse directory is not a local path
+        """
+        self.spark_session.sparkContext.getConf().getAll()
+        try:
+            self.spark_session.conf.get("hive.metastore.uris")
+            return True
+        except Exception:
+            warehouse_dir = self.spark_session.conf.get("spark.sql.warehouse.dir")
+            if warehouse_dir and warehouse_dir.startswith("file:"):
+                return False
+            else:
+                return True
+
+    def supports_remote_storage_export(self) -> bool:
+        return self._config.offline_store.staging_location is not None
+
+    def to_remote_storage(self) -> List[str]:
+        """Currently only works for local and s3-based staging locations"""
+        if not self.supports_remote_storage_export():
+            raise NotImplementedError()
+
+        sdf: pyspark.sql.DataFrame = self.to_spark_df()
+        staging_location = self._config.offline_store.staging_location
+
+        if staging_location.startswith("/"):
+            local_file_staging_location = os.path.abspath(staging_location)
+            output_uri = os.path.join(local_file_staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_files_in_folder(output_uri)
+        elif staging_location.startswith("s3://"):
+            from feast.infra.utils import aws_utils
+
+            spark_compatible_s3_staging_location = staging_location.replace(
+                "s3://", "s3a://"
+            )
+            output_uri = os.path.join(
+                spark_compatible_s3_staging_location, str(uuid.uuid4())
+            )
+            sdf.write.parquet(output_uri)
+            s3_uri_for_listing = output_uri.replace("s3a://", "s3://", 1)
+            return aws_utils.list_s3_files(
+                self._config.offline_store.region, s3_uri_for_listing
+            )
+        elif staging_location.startswith("gs://"):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_gcs_files(output_uri)
+        elif staging_location.startswith(("wasbs://", "abfs://", "abfss://")) or (
+            staging_location.startswith("https://")
+            and ".blob.core.windows.net" in staging_location
+        ):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            return _list_azure_files(output_uri)
+        elif staging_location.startswith("hdfs://"):
+            output_uri = os.path.join(staging_location, str(uuid.uuid4()))
+            sdf.write.parquet(output_uri)
+            spark_session = get_spark_session_or_start_new_with_repoconfig(
+                store_config=self._config.offline_store
+            )
+            return _list_hdfs_files(spark_session, output_uri)
+        else:
+            raise NotImplementedError(
+                "to_remote_storage is only implemented for file://, s3://, gs://, azure, and hdfs uri schemes"
+            )
+
+    @property
+    def metadata(self) -> Optional[RetrievalMetadata]:
+        """
+        Return metadata information about retrieval.
+        Should be available even before materializing the dataset itself.
+        """
+        return self._metadata
+
+
+def _register_iceberg_source_as_temp_view(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    config: "RepoConfig",
+) -> None:
+    """Register an IcebergSource as a Spark temp view for SQL queries.
+
+    Loads the table through PyIceberg (which handles all catalog types and
+    storage backends), scans it to Arrow, and creates a temp view.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    view_name = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    arrow_table = iceberg_table.scan().to_arrow()
+    df = spark_session.createDataFrame(arrow_table)
+    df.createOrReplaceTempView(view_name)
+
+
+def _load_pyiceberg_table(data_source: "DataSource"):
+    """Load an Iceberg table via PyIceberg, respecting the source's catalog_type."""
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    return data_source.load_pyiceberg_table()
+
+
+def _iceberg_offline_write_batch(
+    config: "RepoConfig",
+    feature_view: "FeatureView",
+    table: "pyarrow.Table",
+) -> None:
+    """Write a PyArrow table to an IcebergSource via PyIceberg.
+
+    Uses PyIceberg's append() API which produces proper Iceberg snapshots,
+    handles schema evolution, and updates catalog metadata — making the
+    written data discoverable via any Iceberg-compatible engine.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(feature_view.batch_source, IcebergSource)
+    data_source: IcebergSource = feature_view.batch_source
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    iceberg_table.append(table)
+
+
+def _pull_from_iceberg_source(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    join_key_columns: List[str],
+    feature_name_columns: List[str],
+    timestamp_field: str,
+    created_timestamp_column: Optional[str],
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+    config: "RepoConfig",
+) -> "SparkRetrievalJob":
+    """Read from an IcebergSource using Spark.
+
+    Loads the table via PyIceberg into a temp view, then queries with time filter.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+
+    tmp_view = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    # Register the source as a temp view (reuses the same resolution logic)
+    _register_iceberg_source_as_temp_view(spark_session, data_source, config)
+
+    all_columns = join_key_columns + feature_name_columns + [timestamp_field]
+    if created_timestamp_column:
+        all_columns.append(created_timestamp_column)
+    select_cols = ", ".join(all_columns) if feature_name_columns else "*"
+
+    timestamp_filter = get_timestamp_filter_sql(
+        start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+    )
+    query = f"SELECT {select_cols} FROM {tmp_view} WHERE {timestamp_filter}"
+
+    return SparkRetrievalJob(
+        spark_session=spark_session,
+        query=query,
+        full_feature_names=False,
+        config=config,
+    )
+
+
+def get_spark_session_or_start_new_with_repoconfig(
+    store_config: SparkOfflineStoreConfig,
+) -> SparkSession:
+    spark_session = SparkSession.getActiveSession()
+    if not spark_session:
+        spark_builder = SparkSession.builder
+        spark_conf = store_config.spark_conf
+        if spark_conf:
+            spark_builder = spark_builder.config(
+                conf=SparkConf().setAll([(k, v) for k, v in spark_conf.items()])
+            )
+
+        spark_session = spark_builder.getOrCreate()
+    spark_session.conf.set("spark.sql.parser.quotedRegexColumnNames", "true")
+    return spark_session
+
+
+def _gather_all_entities(
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[str]:
+    # Why: ensure a unified entity set across feature views to align UNION schemas.
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities
+
+
+def _create_temp_entity_union_view(
+    spark_session: SparkSession,
+    tmp_view_name: str,
+    feature_views: List[FeatureView],
+    fv_query_contexts: List[offline_utils.FeatureViewQueryContext],
+    start_date: datetime,
+    end_date: datetime,
+    date_partition_column_formats: List[Optional[str]],
+) -> None:
+    # Why: derive distinct entity keys observed in the time window without requiring an entity_df upfront.
+    start_date_str = _format_datetime(start_date)
+    end_date_str = _format_datetime(end_date)
+
+    # Compute the unified entity set to align schemas in the UNION.
+    all_entities = _gather_all_entities(fv_query_contexts)
+
+    per_view_selects: List[str] = []
+    for fv, ctx, date_format in zip(
+        feature_views, fv_query_contexts, date_partition_column_formats
+    ):
+        assert fv.batch_source is not None
+        from_expression = fv.batch_source.get_table_query_string()
+        timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
+        date_partition_column = getattr(fv.batch_source, "date_partition_column", None)
+        partition_clause = ""
+        if date_partition_column and date_format:
+            partition_clause = (
+                f" AND {date_partition_column} >= '{start_date.strftime(date_format)}'"
+                f" AND {date_partition_column} <= '{end_date.strftime(date_format)}'"
+            )
+
+        # Fill missing entity columns with NULL and cast to STRING to keep UNION schemas aligned.
+        select_entities: List[str] = []
+        ctx_entities_set = set(ctx.entities)
+        for col in all_entities:
+            if col in ctx_entities_set:
+                select_entities.append(f"CAST({col} AS STRING) AS {col}")
+            else:
+                select_entities.append(f"CAST(NULL AS STRING) AS {col}")
+
+        per_view_selects.append(
+            f"""
+            SELECT DISTINCT {", ".join(select_entities)}
+            FROM {from_expression}
+            WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){partition_clause}
+            """
+        )
+
+    union_query = "\nUNION DISTINCT\n".join([s.strip() for s in per_view_selects])
+    spark_session.sql(
+        f"CREATE OR REPLACE TEMPORARY VIEW {tmp_view_name} AS {union_query}"
+    )
+
+
+def _make_left_table_query(end_date: datetime, tmp_view_name: str) -> Tuple[str, str]:
+    # Why: use a stable as-of timestamp for PIT joins when no entity timestamps are provided.
+    event_timestamp_col = "entity_ts"
+    left_table_query_string = (
+        f"(SELECT *, TIMESTAMP('{_format_datetime(end_date)}') AS {event_timestamp_col} "
+        f"FROM {tmp_view_name})"
+    )
+    return left_table_query_string, event_timestamp_col
+
+
+def _entity_schema_keys_from(
+    all_entities: List[str], event_timestamp_col: str
+) -> KeysView[str]:
+    # Why: pass a KeysView[str] to PIT query builder to match entity_df branch typing.
+    return cast(
+        KeysView[str], {k: None for k in (all_entities + [event_timestamp_col])}.keys()
+    )
+
+
+def _apply_bfv_transformations(
+    spark_session: SparkSession,
+    feature_views: List[FeatureView],
+    query_contexts: List[offline_utils.FeatureViewQueryContext],
+) -> List[offline_utils.FeatureViewQueryContext]:
+    """
+    For BatchFeatureViews, update each query context in one of two ways:
+
+    1. Pre-computed path shortcut: if ``offline=True`` and
+       ``batch_source.path`` is set, read the pre-materialized parquet
+       directly — avoids re-running the UDF on every training call.
+    2. UDF execution: if the BFV has a transformation, run it against
+       the raw source and register the result as a temp view.
+
+    Plain FeatureViews and BFVs with neither a path nor a UDF pass
+    through unchanged.
+    """
+    from dataclasses import replace
+
+    from feast.feature_view_utils import (
+        get_transformation_function,
+        has_transformation,
+        resolve_feature_view_source_with_fallback,
+    )
+
+    fv_by_name = {fv.projection.name_to_use(): fv for fv in feature_views}
+
+    updated_contexts = []
+    for ctx in query_contexts:
+        fv = fv_by_name.get(ctx.name)
+        if fv is None or not isinstance(fv, BatchFeatureView):
+            updated_contexts.append(ctx)
+            continue
+
+        # 1. Pre-computed path shortcut
+        if (
+            getattr(fv, "offline", False)
+            and isinstance(fv.batch_source, SparkSource)
+            and fv.batch_source.path
+        ):
+            tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
+            file_format = fv.batch_source.file_format or "parquet"
+            try:
+                df = spark_session.read.format(file_format).load(fv.batch_source.path)
+                df.createOrReplaceTempView(tmp_view)
+                updated_contexts.append(replace(ctx, table_subquery=tmp_view))
+                continue
+            except (FileNotFoundError, PermissionError) as e:
+                warnings.warn(
+                    f"Offline path '{fv.batch_source.path}' not accessible for "
+                    f"'{ctx.name}': {e}; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error loading offline path "
+                    f"'{fv.batch_source.path}' for '{ctx.name}': {e}; "
+                    f"falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        # 2. UDF execution fallback
+        if has_transformation(fv):
+            udf = get_transformation_function(fv)
+            if udf is not None:
+                source_info = resolve_feature_view_source_with_fallback(fv)
+                source_query = source_info.data_source.get_table_query_string()
+
+                timestamp_filter = get_timestamp_filter_sql(
+                    start_date=ctx.min_event_timestamp,
+                    end_date=ctx.max_event_timestamp,
+                    timestamp_field=ctx.timestamp_field,
+                    tz=timezone.utc,
+                    quote_fields=False,
+                )
+                source_df = spark_session.sql(
+                    f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
+                )
+                transformed_df = udf(source_df)
+                tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
+                transformed_df.createOrReplaceTempView(tmp_view_name)
+                ctx = replace(ctx, table_subquery=tmp_view_name)
+
+        updated_contexts.append(ctx)
+
+    return updated_contexts
+
+
+def _get_entity_df_event_timestamp_range(
+    entity_df: Union[pd.DataFrame, str],
+    entity_df_event_timestamp_col: str,
+    spark_session: SparkSession,
+) -> Tuple[datetime, datetime]:
+    if isinstance(entity_df, pd.DataFrame):
+        entity_df_event_timestamp = entity_df.loc[
+            :, entity_df_event_timestamp_col
+        ].infer_objects()
+        if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+            entity_df_event_timestamp = pd.to_datetime(
+                entity_df_event_timestamp, utc=True
+            )
+        entity_df_event_timestamp_range = (
+            entity_df_event_timestamp.min().to_pydatetime(),
+            entity_df_event_timestamp.max().to_pydatetime(),
+        )
+    elif isinstance(entity_df, str) or isinstance(entity_df, pyspark.sql.DataFrame):
+        # If the entity_df is a string (SQL query), determine range
+        # from table
+        if isinstance(entity_df, str):
+            df = spark_session.sql(entity_df).select(entity_df_event_timestamp_col)
+            # Checks if executing entity sql resulted in any data
+            if df.rdd.isEmpty():
+                raise EntitySQLEmptyResults(entity_df)
+        else:
+            df = entity_df
+        # TODO(kzhang132): need utc conversion here.
+
+        entity_df_event_timestamp_range = (
+            df.agg({entity_df_event_timestamp_col: "min"}).collect()[0][0],
+            df.agg({entity_df_event_timestamp_col: "max"}).collect()[0][0],
+        )
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+    return entity_df_event_timestamp_range
+
+
+def _get_entity_schema(
+    spark_session: SparkSession, entity_df: Union[pandas.DataFrame, str]
+) -> Dict[str, np.dtype]:
+    if isinstance(entity_df, pd.DataFrame):
+        return dict(zip(entity_df.columns, entity_df.dtypes))
+    elif isinstance(entity_df, str) or isinstance(entity_df, pyspark.sql.DataFrame):
+        if isinstance(entity_df, str):
+            entity_spark_df = spark_session.sql(entity_df)
+        else:
+            entity_spark_df = entity_df
+        return dict(
+            zip(
+                entity_spark_df.columns,
+                spark_schema_to_np_dtypes(entity_spark_df.dtypes),
+            )
+        )
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+
+def _upload_entity_df(
+    spark_session: SparkSession,
+    table_name: str,
+    entity_df: Union[pandas.DataFrame, str],
+    event_timestamp_col: str,
+) -> None:
+    if isinstance(entity_df, pd.DataFrame):
+        entity_df[event_timestamp_col] = pd.to_datetime(
+            entity_df[event_timestamp_col], utc=True
+        )
+        spark_session.createDataFrame(entity_df).createOrReplaceTempView(table_name)
+    elif isinstance(entity_df, str):
+        spark_session.sql(entity_df).createOrReplaceTempView(table_name)
+    elif isinstance(entity_df, pyspark.sql.DataFrame):
+        entity_df.createOrReplaceTempView(table_name)
+    else:
+        raise InvalidEntityType(type(entity_df))
+
+
+def _format_datetime(t: datetime) -> str:
+    # Since Hive does not support timezone, need to transform to utc.
+    if t.tzinfo:
+        t = t.astimezone(tz=timezone.utc)
+    dt = t.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return dt
+
+
+def _list_files_in_folder(folder):
+    """List full filenames in a folder"""
+    files = []
+    for file in os.listdir(folder):
+        filename = os.path.join(folder, file)
+        if os.path.isfile(filename):
+            files.append(filename)
+
+    return files
+
+
+def _filter_parquet_files(paths: List[str]) -> List[str]:
+    return [path for path in paths if path.endswith(".parquet")]
+
+
+def _list_hdfs_files(spark_session: SparkSession, uri: str) -> List[str]:
+    jvm = spark_session._jvm
+    jsc = spark_session._jsc
+    if jvm is None or jsc is None:
+        raise RuntimeError("Spark JVM or JavaSparkContext is not available")
+    conf = jsc.hadoopConfiguration()
+    path = jvm.org.apache.hadoop.fs.Path(uri)
+    fs = jvm.org.apache.hadoop.fs.FileSystem.get(path.toUri(), conf)
+    statuses = fs.listStatus(path)
+    files = []
+    for f in statuses:
+        if f.isFile():
+            files.append(f.getPath().toString())
+    return files
+
+
+def _list_gcs_files(path: str) -> List[str]:
+    try:
+        from google.cloud import storage
+    except ImportError as e:
+        from feast.errors import FeastExtrasDependencyImportError
+
+        raise FeastExtrasDependencyImportError("gcp", str(e))
+
+    assert path.startswith("gs://"), "GCS path must start with gs://"
+    bucket_path = path[len("gs://") :]
+    if "/" in bucket_path:
+        bucket, prefix = bucket_path.split("/", 1)
+    else:
+        bucket, prefix = bucket_path, ""
+
+    client = storage.Client()
+    bucket_obj = client.bucket(bucket)
+    blobs = bucket_obj.list_blobs(prefix=prefix)
+
+    files = []
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            files.append(f"gs://{bucket}/{blob.name}")
+    return files
+
+
+def _list_azure_files(path: str) -> List[str]:
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.storage.blob import BlobServiceClient
+    except ImportError as e:
+        from feast.errors import FeastExtrasDependencyImportError
+
+        raise FeastExtrasDependencyImportError("azure", str(e))
+
+    parsed = urlparse(path)
+    scheme = parsed.scheme
+
+    if scheme in ("wasbs", "abfs", "abfss"):
+        if "@" not in parsed.netloc:
+            raise ValueError("Azure staging URI must include container@account host")
+        container, account_host = parsed.netloc.split("@", 1)
+        account_url = f"https://{account_host}"
+        base = f"{scheme}://{container}@{account_host}"
+        prefix = parsed.path.lstrip("/")
+    else:
+        account_url = f"{parsed.scheme}://{parsed.netloc}"
+        container_and_prefix = parsed.path.lstrip("/").split("/", 1)
+        container = container_and_prefix[0]
+        base = f"{account_url}/{container}"
+        prefix = container_and_prefix[1] if len(container_and_prefix) > 1 else ""
+
+    credential = os.environ.get("AZURE_STORAGE_KEY") or os.environ.get(
+        "AZURE_STORAGE_ACCOUNT_KEY"
+    )
+    if credential:
+        client = BlobServiceClient(account_url=account_url, credential=credential)
+    else:
+        default_credential = DefaultAzureCredential(
+            exclude_shared_token_cache_credential=True
+        )
+        client = BlobServiceClient(
+            account_url=account_url, credential=default_credential
+        )
+
+    container_client = client.get_container_client(container)
+    blobs = container_client.list_blobs(name_starts_with=prefix if prefix else None)
+
+    files = []
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            files.append(f"{base}/{blob.name}")
+    return files
+
+
+def _cast_data_frame(
+    df_new: pyspark.sql.DataFrame, df_existing: pyspark.sql.DataFrame
+) -> pyspark.sql.DataFrame:
+    """Convert new dataframe's columns to the same types as existing dataframe while preserving the order of columns"""
+    existing_dtypes = {k: v for k, v in df_existing.dtypes}
+    new_dtypes = {k: v for k, v in df_new.dtypes}
+
+    select_expression = []
+    for col, new_type in new_dtypes.items():
+        existing_type = existing_dtypes[col]
+        if new_type != existing_type:
+            select_expression.append(f"cast({col} as {existing_type}) as {col}")
+        else:
+            select_expression.append(col)
+
+    return df_new.selectExpr(*select_expression)
+
+
+MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+/*
+ Compute a deterministic hash for the `left_table_query_string` that will be used throughout
+ all the logic as the field to GROUP BY the data
+*/
+CREATE OR REPLACE TEMPORARY VIEW entity_dataframe AS (
+    SELECT *,
+        {{entity_df_event_timestamp_col}} AS entity_timestamp
+        {% for featureview in featureviews %}
+            ,CONCAT(
+                {% for entity in featureview.entities %}
+                    CAST({{entity}} AS STRING),
+                {% endfor %}
+                CAST({{entity_df_event_timestamp_col}} AS STRING)
+            ) AS {{featureview.name}}__entity_row_unique_id
+        {% endfor %}
+    FROM {{ left_table_query_string }}
+);
+
+---EOS---
+
+{% for featureview in featureviews %}
+
+CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
+
+    WITH {{ featureview.name }}__entity_dataframe AS (
+        SELECT
+            {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+            entity_timestamp,
+            {{featureview.name}}__entity_row_unique_id
+        FROM entity_dataframe
+        GROUP BY
+            {{ featureview.entities | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+            entity_timestamp,
+            {{featureview.name}}__entity_row_unique_id
+    ),
+
+    /*
+     This query template performs the point-in-time correctness join for a single feature set table
+     to the provided entity table.
+
+     1. We first join the current feature_view to the entity dataframe that has been passed.
+     This JOIN has the following logic:
+        - For each row of the entity dataframe, only keep the rows where the `timestamp_field`
+        is less than the one provided in the entity dataframe
+        - If there a TTL for the current feature_view, also keep the rows where the `timestamp_field`
+        is higher the the one provided minus the TTL
+        - For each row, Join on the entity key and retrieve the `entity_row_unique_id` that has been
+        computed previously
+
+     The output of this CTE will contain all the necessary information and already filtered out most
+     of the data that is not relevant.
+    */
+
+    {{ featureview.name }}__subquery AS (
+        SELECT
+            {{ featureview.timestamp_field }} as event_timestamp,
+            {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
+            {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
+            {% for feature in featureview.features %}
+                {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+            {% endfor %}
+        FROM {{ featureview.table_subquery }}
+        WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+        AND {{ featureview.date_partition_column }} <= '{{ featureview.max_date_partition }}'
+        {% endif %}
+
+        {% if featureview.ttl == 0 %}{% else %}
+        AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_date_partition }}'
+        {% endif %}
+        {% endif %}
+    ),
+
+    {{ featureview.name }}__base AS (
+        SELECT
+            subquery.*,
+            entity_dataframe.entity_timestamp,
+            entity_dataframe.{{featureview.name}}__entity_row_unique_id
+        FROM {{ featureview.name }}__subquery AS subquery
+        INNER JOIN {{ featureview.name }}__entity_dataframe AS entity_dataframe
+        ON TRUE
+            AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
+
+            {% if featureview.ttl == 0 %}{% else %}
+            AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
+            {% endif %}
+
+            {% for entity in featureview.entities %}
+            AND subquery.{{ entity }} = entity_dataframe.{{ entity }}
+            {% endfor %}
+    ),
+
+    /*
+     2. If the `created_timestamp_column` has been set, we need to
+     deduplicate the data first. This is done by calculating the
+     `MAX(created_at_timestamp)` for each event_timestamp.
+     We then join the data on the next CTE
+    */
+    {% if featureview.created_timestamp_column %}
+    {{ featureview.name }}__dedup AS (
+        SELECT
+            {{featureview.name}}__entity_row_unique_id,
+            event_timestamp,
+            MAX(created_timestamp) as created_timestamp
+        FROM {{ featureview.name }}__base
+        GROUP BY {{featureview.name}}__entity_row_unique_id, event_timestamp
+    ),
+    {% endif %}
+
+    /*
+     3. The data has been filtered during the first CTE "*__base"
+     Thus we only need to compute the latest timestamp of each feature.
+    */
+    {{ featureview.name }}__latest AS (
+        SELECT
+            event_timestamp,
+            {% if featureview.created_timestamp_column %}created_timestamp,{% endif %}
+            {{featureview.name}}__entity_row_unique_id
+        FROM
+        (
+            SELECT *,
+                ROW_NUMBER() OVER(
+                    PARTITION BY {{featureview.name}}__entity_row_unique_id
+                    ORDER BY event_timestamp DESC{% if featureview.created_timestamp_column %},created_timestamp DESC{% endif %}
+                ) AS row_number
+            FROM {{ featureview.name }}__base
+            {% if featureview.created_timestamp_column %}
+                INNER JOIN {{ featureview.name }}__dedup
+                USING ({{featureview.name}}__entity_row_unique_id, event_timestamp, created_timestamp)
+            {% endif %}
+        )
+        WHERE row_number = 1
+    )
+
+    /*
+     4. Once we know the latest value of each feature for a given timestamp,
+     we can join again the data back to the original "base" dataset
+    */
+    SELECT base.*
+    FROM {{ featureview.name }}__base as base
+    INNER JOIN {{ featureview.name }}__latest
+    USING(
+        {{featureview.name}}__entity_row_unique_id,
+        event_timestamp
+        {% if featureview.created_timestamp_column %}
+            ,created_timestamp
+        {% endif %}
+    )
+)
+
+---EOS---
+
+{% endfor %}
+
+/*
+ Joins the outputs of multiple time travel joins to a single table.
+ The entity_dataframe dataset being our source of truth here.
+ */
+
+SELECT {{ final_output_feature_names | join(', ')}}
+FROM entity_dataframe
+{% for featureview in featureviews %}
+LEFT JOIN (
+    SELECT
+        {{featureview.name}}__entity_row_unique_id
+        {% for feature in featureview.features %}
+            ,{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}
+        {% endfor %}
+    FROM {{ featureview.name }}__cleaned
+) USING ({{featureview.name}}__entity_row_unique_id)
+{% endfor %}
+"""

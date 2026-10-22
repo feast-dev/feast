@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-readonly-user
+  namespace: feast
+  labels:
+    app: client-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client-user
+  template:
+    metadata:
+      labels:
+        app: client-user
+    spec:
+      serviceAccountName: feast-user-sa
+      containers:
+        - name: client-user-container
+          image: quay.io/feastdev/feature-server:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          volumeMounts:
+            - name: client-feature-repo-config
+              mountPath: /opt/app-root/src
+            - name: feast-service-ca
+              mountPath: /etc/pki/tls/custom-certs/service-ca.crt
+              subPath: service-ca.crt
+      volumes:
+        - name: client-feature-repo-config
+          configMap:
+            name: client-feature-repo-config
+        - name: feast-service-ca
+          configMap:
+            name: feast-sample-kubernetes-auth-client-ca

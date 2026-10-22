@@ -1,0 +1,73 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: # Allows manual trigger of the workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+  workflow_call: # Allows trigger the workflow from other workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-python-sdk:
+    uses: ./.github/workflows/publish_python_sdk.yml
+    secrets: inherit
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token }}
+
+  build-publish-docker-images:
+    uses: ./.github/workflows/publish_images.yml
+    needs: [ publish-python-sdk ]
+    secrets: inherit
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token }}
+
+  publish-helm-charts:
+    uses: ./.github/workflows/publish_helm_charts.yml
+    needs: [ publish-python-sdk ]
+    secrets: inherit
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token }}
+
+  publish-web-ui:
+    uses: ./.github/workflows/publish_web_ui.yml
+    needs: [ publish-python-sdk ]
+    secrets: inherit
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token || github.token }}
+      publish_ui: ${{ github.event.inputs.publish_ui != 'false' }}

@@ -1,0 +1,535 @@
+import warnings
+from datetime import timedelta
+
+import pytest
+
+from feast.data_format import ProtoFormat
+from feast.data_source import (
+    DataSource,
+    KafkaSource,
+    KinesisSource,
+    PushSource,
+    RequestSource,
+)
+from feast.field import Field
+from feast.infra.offline_stores.bigquery_source import BigQuerySource
+from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.redshift_source import RedshiftSource
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.types import Bool, Float32, Int64
+
+
+def test_push_with_batch():
+    push_source = PushSource(
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_proto = push_source.to_proto()
+    assert push_source_proto.HasField("batch_source")
+
+    push_source_unproto = PushSource.from_proto(push_source_proto)
+
+    assert push_source.name == push_source_unproto.name
+    assert push_source.batch_source.name == push_source_unproto.batch_source.name
+
+
+def test_push_source_without_batch_source():
+    # Create PushSource with no batch_source
+    push_source = PushSource(name="test_push_source")
+
+    # Convert to proto
+    push_source_proto = push_source.to_proto()
+
+    # Assert batch_source is not present in proto
+    assert not push_source_proto.HasField("batch_source")
+
+    # Deserialize and check again
+    push_source_unproto = PushSource.from_proto(push_source_proto)
+    assert push_source_unproto.batch_source is None
+    assert push_source_unproto.name == "test_push_source"
+
+
+def test_push_source_with_upstream_feature_view_names():
+    class DummyFeatureView:
+        def __init__(self, name: str):
+            self.name = name
+
+    fv1 = DummyFeatureView("user_transaction_stats")
+    fv2 = DummyFeatureView("user_credit_profile")
+
+    # Initialize with objects and strings
+    push_source = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[fv1, fv2],
+        description="test push source with lineage",
+    )
+
+    assert push_source.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Convert to proto and verify
+    proto = push_source.to_proto()
+    assert proto.HasField("push_options")
+    assert list(proto.push_options.upstream_feature_view_names) == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Deserialize from proto and verify
+    unproto = PushSource.from_proto(proto)
+    assert unproto.name == "risk_calc_pipeline"
+    assert unproto.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+    assert unproto.description == "test push source with lineage"
+    assert unproto == push_source
+
+    # Verify equality and inequality
+    push_source_same = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[
+            "user_transaction_stats",
+            "user_credit_profile",
+        ],
+        description="test push source with lineage",
+    )
+    assert push_source == push_source_same
+
+    push_source_diff = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=["user_transaction_stats"],
+        description="test push source with lineage",
+    )
+    assert push_source != push_source_diff
+
+
+def test_push_source_upstream_validation():
+    # Invalid type
+    with pytest.raises(TypeError, match="Unsupported type for upstream feature view"):
+        PushSource(
+            name="invalid_type",
+            upstream_feature_view_names=[123],  # type: ignore[list-item]
+        )
+
+    # Empty string
+    with pytest.raises(ValueError, match="Upstream feature view name cannot be empty"):
+        PushSource(
+            name="empty_string",
+            upstream_feature_view_names=[""],
+        )
+
+    # Object with empty name
+    class BadFeatureView:
+        def __init__(self):
+            self.name = "   "
+
+    with pytest.raises(ValueError, match="invalid or empty name"):
+        PushSource(
+            name="bad_fv_obj",
+            upstream_feature_view_names=[BadFeatureView()],
+        )
+
+
+def test_validate_data_sources_upstream_warning():
+    from feast.feature_store import _validate_data_sources
+
+    class DummyFV:
+        def __init__(self, name: str):
+            self.name = name
+
+    ps = PushSource(
+        name="risk_push",
+        upstream_feature_view_names=["existing_fv", "missing_fv"],
+    )
+
+    # Warning expected for "missing_fv"
+    with pytest.warns(
+        UserWarning,
+        match="PushSource 'risk_push' references upstream feature view 'missing_fv'",
+    ):
+        _validate_data_sources([ps], all_feature_views=[DummyFV("existing_fv")])
+
+    # No warning when all are found
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _validate_data_sources(
+            [ps],
+            all_feature_views=[DummyFV("existing_fv"), DummyFV("missing_fv")],
+        )
+
+
+def test_request_source_primitive_type_to_proto():
+    schema = [
+        Field(name="f1", dtype=Float32),
+        Field(name="f2", dtype=Bool),
+    ]
+    request_source = RequestSource(
+        name="source",
+        schema=schema,
+        description="desc",
+        tags={},
+        owner="feast",
+    )
+    request_proto = request_source.to_proto()
+    deserialized_request_source = RequestSource.from_proto(request_proto)
+    assert deserialized_request_source == request_source
+
+
+def test_hash():
+    push_source_1 = PushSource(
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_2 = PushSource(
+        name="test",
+        batch_source=BigQuerySource(table="test.test"),
+    )
+    push_source_3 = PushSource(
+        name="test",
+        batch_source=BigQuerySource(table="test.test2"),
+    )
+    push_source_4 = PushSource(
+        name="test",
+        batch_source=BigQuerySource(table="test.test2"),
+        description="test",
+    )
+
+    s1 = {push_source_1, push_source_2}
+    assert len(s1) == 1
+
+    s2 = {push_source_1, push_source_3}
+    assert len(s2) == 2
+
+    s3 = {push_source_3, push_source_4}
+    assert len(s3) == 2
+
+    s4 = {push_source_1, push_source_2, push_source_3, push_source_4}
+    assert len(s4) == 3
+
+
+def test_proto_conversion():
+    bigquery_source = BigQuerySource(
+        name="test_source",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    file_source = FileSource(
+        name="test_source",
+        path="test_path",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    redshift_source = RedshiftSource(
+        name="test_source",
+        database="test_database",
+        schema="test_schema",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    snowflake_source = SnowflakeSource(
+        name="test_source",
+        database="test_database",
+        schema="test_schema",
+        table="test_table",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    kafka_source = KafkaSource(
+        name="test_source",
+        kafka_bootstrap_servers="test_servers",
+        message_format=ProtoFormat("class_path"),
+        topic="test_topic",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
+    kinesis_source = KinesisSource(
+        name="test_source",
+        region="test_region",
+        record_format=ProtoFormat("class_path"),
+        stream_name="test_stream",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        batch_source=file_source,
+    )
+
+    push_source = PushSource(
+        name="test_source",
+        batch_source=file_source,
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    request_source = RequestSource(
+        name="test_source",
+        schema=[Field(name="test1", dtype=Float32), Field(name="test1", dtype=Int64)],
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+    )
+
+    assert DataSource.from_proto(bigquery_source.to_proto()) == bigquery_source
+    assert DataSource.from_proto(file_source.to_proto()) == file_source
+    assert DataSource.from_proto(redshift_source.to_proto()) == redshift_source
+    assert DataSource.from_proto(snowflake_source.to_proto()) == snowflake_source
+    assert DataSource.from_proto(kafka_source.to_proto()) == kafka_source
+    assert DataSource.from_proto(kinesis_source.to_proto()) == kinesis_source
+    assert DataSource.from_proto(push_source.to_proto()) == push_source
+    assert DataSource.from_proto(request_source.to_proto()) == request_source
+
+    # Test that timestamps are properly included in protobuf conversion
+    # Test FileSource timestamps
+    file_proto = file_source.to_proto()
+    assert file_proto.HasField("meta")
+    assert file_proto.meta.HasField("created_timestamp")
+    assert file_proto.meta.HasField("last_updated_timestamp")
+    assert file_source.created_timestamp is not None
+    assert file_source.last_updated_timestamp is not None
+
+    # Test BigQuerySource timestamps
+    bigquery_proto = bigquery_source.to_proto()
+    assert bigquery_proto.HasField("meta")
+    assert bigquery_proto.meta.HasField("created_timestamp")
+    assert bigquery_proto.meta.HasField("last_updated_timestamp")
+    assert bigquery_source.created_timestamp is not None
+    assert bigquery_source.last_updated_timestamp is not None
+
+    # Test RedshiftSource timestamps
+    redshift_proto = redshift_source.to_proto()
+    assert redshift_proto.HasField("meta")
+    assert redshift_proto.meta.HasField("created_timestamp")
+    assert redshift_proto.meta.HasField("last_updated_timestamp")
+    assert redshift_source.created_timestamp is not None
+    assert redshift_source.last_updated_timestamp is not None
+
+    # Test KafkaSource timestamps
+    kafka_proto = kafka_source.to_proto()
+    assert kafka_proto.HasField("meta")
+    assert kafka_proto.meta.HasField("created_timestamp")
+    assert kafka_proto.meta.HasField("last_updated_timestamp")
+    assert kafka_source.created_timestamp is not None
+    assert kafka_source.last_updated_timestamp is not None
+
+    # Test KinesisSource timestamps
+    kinesis_proto = kinesis_source.to_proto()
+    assert kinesis_proto.HasField("meta")
+    assert kinesis_proto.meta.HasField("created_timestamp")
+    assert kinesis_proto.meta.HasField("last_updated_timestamp")
+    assert kinesis_source.created_timestamp is not None
+    assert kinesis_source.last_updated_timestamp is not None
+
+    # Test PushSource timestamps
+    push_proto = push_source.to_proto()
+    assert push_proto.HasField("meta")
+    assert push_proto.meta.HasField("created_timestamp")
+    assert push_proto.meta.HasField("last_updated_timestamp")
+    assert push_source.created_timestamp is not None
+    assert push_source.last_updated_timestamp is not None
+
+    # Test RequestSource timestamps
+    request_proto = request_source.to_proto()
+    assert request_proto.HasField("meta")
+    assert request_proto.meta.HasField("created_timestamp")
+    assert request_proto.meta.HasField("last_updated_timestamp")
+    assert request_source.created_timestamp is not None
+    assert request_source.last_updated_timestamp is not None
+
+
+def test_column_conflict():
+    with pytest.raises(ValueError):
+        _ = FileSource(
+            name="test_source",
+            path="test_path",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="event_timestamp",
+        )
+
+
+@pytest.mark.parametrize(
+    "source_kwargs,expected_name",
+    [
+        (
+            {
+                "database": "test_database",
+                "schema": "test_schema",
+                "table": "test_table",
+            },
+            "test_database.test_schema.test_table",
+        ),
+        (
+            {"database": "test_database", "table": "test_table"},
+            "test_database.public.test_table",
+        ),
+        ({"table": "test_table"}, "public.test_table"),
+        ({"database": "test_database", "table": "b.c"}, "test_database.b.c"),
+        ({"database": "test_database", "table": "a.b.c"}, "a.b.c"),
+        (
+            {
+                "database": "test_database",
+                "schema": "test_schema",
+                "query": "select * from abc",
+            },
+            "",
+        ),
+    ],
+)
+def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
+    redshift_source = RedshiftSource(
+        name="test_source",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created_timestamp",
+        field_mapping={"foo": "bar"},
+        description="test description",
+        tags={"test": "test"},
+        owner="test@gmail.com",
+        **source_kwargs,
+    )
+
+    assert redshift_source.redshift_options.fully_qualified_table_name == expected_name
+
+
+def test_data_source_eq_cross_type_returns_false():
+    """A DataSource compared to a different type returns ``False``, never ``TypeError``.
+
+    Regression: ``__eq__`` used to ``raise TypeError("Comparisons should only involve
+    <X> class objects.")`` on a cross-type comparison, so changing a feature view's
+    source type and re-``apply()``-ing over an existing registry crashed. Comparing
+    objects of different types must return ``False``, matching ``PushSource.__eq__``.
+    """
+    file_source = FileSource(name="src", path="/tmp/x.parquet", timestamp_field="ts")
+    snowflake_source = SnowflakeSource(
+        name="src", database="D", schema="S", table="T", timestamp_field="ts"
+    )
+
+    # Cross-type comparison is False in both directions, not a raise.
+    assert (file_source == snowflake_source) is False
+    assert (snowflake_source == file_source) is False
+
+    # Comparison against a non-DataSource operand is also False, not a raise.
+    assert (file_source == "not a data source") is False
+    assert (file_source == 42) is False
+
+    # Same-type equality still holds for two independently-built equal instances.
+    assert file_source == FileSource(
+        name="src", path="/tmp/x.parquet", timestamp_field="ts"
+    )
+
+
+def test_kafka_source_keeps_a_zero_watermark_delay_threshold():
+    """A watermark delay of zero is a value, not an unset option.
+
+    ``KafkaOptions`` stored ``watermark_delay_threshold or None``, so a
+    ``timedelta(0)`` was read as "not given" and never reached the proto. The
+    ``from_proto`` branch that turned an explicit zero ``Duration`` back into
+    ``timedelta(0)`` could therefore never return it.
+    """
+    file_source = FileSource(
+        name="batch", path="/tmp/x.parquet", timestamp_field="event_timestamp"
+    )
+
+    def kafka_source(watermark):
+        return KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            watermark_delay_threshold=watermark,
+            batch_source=file_source,
+        )
+
+    zero = kafka_source(timedelta(0))
+    assert zero.kafka_options.watermark_delay_threshold == timedelta(0)
+
+    zero_proto = zero.to_proto()
+    assert zero_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert KafkaSource.from_proto(
+        zero_proto
+    ).kafka_options.watermark_delay_threshold == timedelta(0)
+
+    # An absent delay stays absent, and is not read as a zero
+    unset = kafka_source(None)
+    assert unset.kafka_options.watermark_delay_threshold is None
+
+    unset_proto = unset.to_proto()
+    assert not unset_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert (
+        KafkaSource.from_proto(unset_proto).kafka_options.watermark_delay_threshold
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "stream_source",
+    [
+        KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+        ),
+        KinesisSource(
+            name="test_source",
+            region="test_region",
+            record_format=ProtoFormat("class_path"),
+            stream_name="test_stream",
+            timestamp_field="event_timestamp",
+        ),
+    ],
+    ids=["kafka", "kinesis"],
+)
+def test_stream_source_without_batch_source_round_trips(stream_source):
+    """``batch_source`` is optional on Kafka and Kinesis sources.
+
+    ``from_proto`` checked ``if data_source.batch_source``, but an unset proto
+    sub-message is still truthy, so the empty message was parsed as a data
+    source and failed with "Could not identify the source type being added."
+    That made these sources impossible to read back from the registry.
+    """
+    proto = stream_source.to_proto()
+    assert not proto.HasField("batch_source")
+
+    restored = DataSource.from_proto(proto)
+
+    assert isinstance(restored, type(stream_source))
+    assert restored.batch_source is None
+    assert restored.name == stream_source.name

@@ -1,0 +1,131 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "OnDemandFeatureViewProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/timestamp.proto";
+import "feast/core/FeatureView.proto";
+import "feast/core/FeatureViewProjection.proto";
+import "feast/core/Feature.proto";
+import "feast/core/DataSource.proto";
+import "feast/core/Transformation.proto";
+import "feast/core/Aggregation.proto";
+
+message OnDemandFeatureView {
+    // User-specified specifications of this feature view.
+    OnDemandFeatureViewSpec spec = 1;
+    OnDemandFeatureViewMeta meta = 2;
+}
+
+// Next available id: 19
+message OnDemandFeatureViewSpec {
+    // Name of the feature view. Must be unique. Not updated.
+    string name = 1;
+
+    // Name of Feast project that this feature view belongs to.
+    string project = 2;
+
+    // List of features specifications for each feature defined with this feature view.
+    repeated FeatureSpecV2 features = 3;
+
+    // Map of sources for this feature view.
+    map<string, OnDemandSource> sources = 4;
+
+    UserDefinedFunction user_defined_function = 5 [deprecated = true];
+
+    // Oneof with {user_defined_function, on_demand_substrait_transformation}
+    FeatureTransformationV2 feature_transformation = 10;
+
+    // Description of the on demand feature view.
+    string description = 6;
+
+    // User defined metadata.
+    map<string,string> tags = 7;
+
+    // Owner of the on demand feature view.
+    string owner = 8;
+    string mode = 11;
+    bool write_to_online_store = 12;
+
+    // List of names of entities associated with this feature view.
+    repeated string entities = 13;
+    // List of specifications for each entity defined as part of this feature view.
+    repeated FeatureSpecV2 entity_columns = 14;
+    bool singleton = 15;
+
+    // Aggregation definitions
+    repeated Aggregation aggregations = 16;
+
+    // User-specified version pin (e.g. "latest", "v2", "version2")
+    string version = 17;
+
+    // Organizational unit that owns this feature view (e.g. "ads", "search").
+    string org = 18;
+
+    // Whether this feature view is disabled for serving.
+    // When true, the feature view will not serve features.
+    // Defaults to false (enabled) for backward compatibility.
+    bool disabled = 19;
+}
+
+message OnDemandFeatureViewMeta {
+    // Time where this Feature View is created
+    google.protobuf.Timestamp created_timestamp = 1;
+
+    // Time where this Feature View is last updated
+    google.protobuf.Timestamp last_updated_timestamp = 2;
+
+    // The current version number of this feature view in the version history.
+    int32 current_version_number = 3;
+
+    // Auto-generated UUID identifying this specific version.
+    string version_id = 4;
+
+    // Lifecycle state of this feature view.
+    FeatureViewState state = 5;
+}
+
+message OnDemandSource {
+    oneof source {
+        FeatureView feature_view = 1;
+        FeatureViewProjection feature_view_projection = 3;
+        DataSource request_data_source = 2;
+    }
+}
+
+// Serialized representation of python function.
+message UserDefinedFunction {
+    option deprecated = true;
+
+    // The function name
+    string name = 1;
+
+    // The python-syntax function body (serialized by dill)
+    bytes body = 2;
+
+    // The string representation of the udf
+    string body_text = 3;
+}
+
+message OnDemandFeatureViewList {
+    repeated OnDemandFeatureView ondemandfeatureviews = 1;
+}

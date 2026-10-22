@@ -1,0 +1,12 @@
+project: my_project
+registry:
+  registry_type: remote
+  path: localhost:6570
+offline_store:
+  type: remote
+  host: localhost
+  port: 8815
+online_store:
+  type: remote
+  path: http://localhost:6566
+

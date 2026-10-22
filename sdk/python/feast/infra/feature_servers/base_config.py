@@ -1,0 +1,160 @@
+# Copyright 2025 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+from typing import Literal, Optional
+
+from pydantic import Field, StrictBool, StrictInt, field_validator
+
+from feast.repo_config import FeastConfigBaseModel
+
+
+class FeatureLoggingConfig(FeastConfigBaseModel):
+    enabled: StrictBool = False
+    """Whether the feature server should log served features."""
+
+    flush_interval_secs: StrictInt = 600
+    """Interval of flushing logs to the destination in offline store."""
+
+    write_to_disk_interval_secs: StrictInt = 30
+    """Interval of dumping logs collected in memory to local disk."""
+
+    queue_capacity: StrictInt = 100000
+    """Log queue capacity. If number of produced logs is bigger than
+    processing speed logs will be accumulated in the queue.
+    After queue length will reach this number all new items will be rejected."""
+
+    emit_timeout_micro_secs: StrictInt = 10000
+    """Timeout for adding new log item to the queue."""
+
+
+class MetricsConfig(FeastConfigBaseModel):
+    """Prometheus metrics configuration.
+
+    Follows the same pattern as ``FeatureLoggingConfig``: a single
+    ``enabled`` flag controls global on/off, and per-category booleans
+    allow fine-grained suppression.  Can also be enabled at runtime via
+    the ``feast serve --metrics`` CLI flag — either option is sufficient.
+    """
+
+    enabled: StrictBool = False
+    """Whether Prometheus metrics collection and the metrics HTTP server
+    (default port 8000) should be enabled."""
+
+    resource: StrictBool = True
+    """Emit CPU and memory usage gauges (feast_feature_server_cpu_usage,
+    feast_feature_server_memory_usage)."""
+
+    request: StrictBool = True
+    """Emit per-endpoint request counters and latency histograms
+    (feast_feature_server_request_total,
+    feast_feature_server_request_latency_seconds)."""
+
+    feature_count_bins: list[int] = Field(default_factory=lambda: [10, 50, 200])
+    """Upper bounds used to bucket the ``feature_count`` label in request latency metrics.
+
+    For example, ``[10, 50, 200]`` produces labels
+    ``1-10``, ``11-50``, ``51-200``, and ``201+``.
+    """
+
+    @field_validator("feature_count_bins")
+    @classmethod
+    def validate_feature_count_bins(cls, bins: list[int]) -> list[int]:
+        if any(bound <= 0 for bound in bins):
+            raise ValueError("feature_count_bins must contain only positive integers")
+
+        if any(lower >= upper for lower, upper in zip(bins, bins[1:])):
+            raise ValueError("feature_count_bins must be strictly increasing")
+
+        return bins
+
+    online_features: StrictBool = True
+    """Emit online feature retrieval metrics
+    (feast_online_features_request_total,
+    feast_online_features_entity_count,
+    feast_feature_server_online_store_read_duration_seconds,
+    feast_feature_server_transformation_duration_seconds,
+    feast_feature_server_write_transformation_duration_seconds).
+    ODFV transformation metrics additionally require track_metrics=True
+    on the OnDemandFeatureView definition."""
+
+    push: StrictBool = True
+    """Emit push/write request counters
+    (feast_push_request_total)."""
+
+    materialization: StrictBool = True
+    """Emit materialization success/failure counters and duration histograms
+    (feast_materialization_result_total,
+    feast_materialization_duration_seconds)."""
+
+    freshness: StrictBool = True
+    """Emit per-feature-view freshness gauges
+    (feast_feature_freshness_seconds)."""
+
+    offline_features: StrictBool = True
+    """Emit offline store retrieval metrics
+    (feast_offline_store_request_total,
+    feast_offline_store_request_latency_seconds,
+    feast_offline_store_row_count)."""
+
+    audit_logging: StrictBool = False
+    """Emit structured JSON audit log entries for online and offline
+    feature requests via the ``feast.audit`` logger.  Captures requestor
+    identity, entity keys, feature views, row counts, and latency."""
+
+
+class AuditLoggingConfig(FeastConfigBaseModel):
+    """Structured audit logging configuration for the feature server.
+
+    Emits JSONL audit events for MCP tool calls, REST requests,
+    and authentication/authorization decisions.
+    """
+
+    enabled: StrictBool = False
+    """Whether structured audit logging is enabled."""
+
+    sink: Literal["stdout", "file", "logger"] = "stdout"
+    """Audit event sink: ``stdout``, ``file``, or ``logger``."""
+
+    file_path: str = "feast_audit.log"
+    """File path when ``sink`` is ``file``."""
+
+    log_successful_reads: StrictBool = True
+    """Emit audit events for successful read operations. Set to ``False``
+    to reduce log volume in high-throughput read-heavy deployments."""
+
+
+class BaseFeatureServerConfig(FeastConfigBaseModel):
+    """Base Feature Server config that should be extended"""
+
+    enabled: StrictBool = False
+    """Whether the feature server should be launched."""
+
+    metrics: Optional[MetricsConfig] = None
+    """Prometheus metrics configuration.  Set ``metrics.enabled: true`` or
+    pass the ``feast serve --metrics`` CLI flag to activate."""
+
+    feature_logging: Optional[FeatureLoggingConfig] = None
+    """ Feature logging configuration """
+
+    audit_logging: Optional[AuditLoggingConfig] = None
+    """Structured audit logging configuration. Emits JSONL audit events
+    for MCP tool calls, REST requests, and auth decisions."""
+
+    offline_push_batching_enabled: Optional[StrictBool] = None
+    """Whether to batch writes to the offline store via the `/push` endpoint."""
+
+    offline_push_batching_batch_size: Optional[StrictInt] = None
+    """The maximum batch size for offline writes via `/push`."""
+
+    offline_push_batching_batch_interval_seconds: Optional[StrictInt] = None
+    """The batch interval between offline writes via `/push`."""

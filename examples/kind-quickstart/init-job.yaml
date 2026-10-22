@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: feast-apply-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: feast-apply
+          image: quay.io/feastdev/feature-server:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Starting feast initialization job...";
+              mkdir /tmp/sample;
+              cd /tmp/sample;
+              cp /sample/* .;
+              sed -i 's/localhost/postgres/' feature_store.yaml;
+              feast apply;
+              CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S");
+              feast materialize-incremental $CURRENT_TIME;
+              echo "Feast initialization completed successfully.";
+          volumeMounts:
+            - name: sample-repo-files
+              mountPath: /sample
+      restartPolicy: Never
+      volumes:
+        - name: sample-repo-files
+          configMap:
+            name: sample-repo
+  backoffLimit: 1

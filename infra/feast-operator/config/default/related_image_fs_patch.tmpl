@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        env:
+        - name: RELATED_IMAGE_FEATURE_SERVER
+          value: ${FS_IMG}
+        - name: RELATED_IMAGE_CRON_JOB
+          value: ${CJ_IMG}

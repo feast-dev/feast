@@ -1,0 +1,198 @@
+# \[Beta] Web UI
+
+**Warning**: This is an _experimental_ feature. To our knowledge, this is stable, but there are still rough edges in the experience. Contributions are welcome!
+
+## Overview
+
+The Feast Web UI allows users to explore their feature repository through a Web UI. It includes functionality such as:
+
+* Browsing Feast objects (feature views, entities, data sources, feature services, and saved datasets) and their relationships
+* Searching and filtering for Feast objects by tags
+
+![Sample UI](../../ui/sample.png)
+
+## Usage
+
+There are several ways to use the Feast Web UI.
+
+### Feast CLI
+
+The easiest way to get started is to run the `feast ui` command within a feature repository:
+
+Output of `feast ui --help`:
+
+```bash
+Usage: feast ui [OPTIONS]
+
+Shows the Feast UI over the current directory
+
+Options:
+-h, --host TEXT                 Specify a host for the server [default: 0.0.0.0]
+-p, --port INTEGER              Specify a port for the server [default: 8888]
+-r, --registry_ttl_sec INTEGER  Number of seconds after which the registry is refreshed. Default is 5 seconds.
+--cors-allowed-origins TEXT     Comma-separated list of trusted origins allowed to make cross-origin (CORS) requests.
+--help                          Show this message and exit.
+```
+
+This will spin up a Web UI on localhost which automatically refreshes its view of the registry every `registry_ttl_sec`
+
+#### Cross-Origin Resource Sharing (CORS)
+
+By default the UI server does **not** allow cross-origin requests: the bundled
+Web UI is served from the same origin as the API, so it keeps working without
+any CORS policy. This avoids [CVE-2024-11602](https://nvd.nist.gov/vuln/detail/CVE-2024-11602),
+where the server previously reflected every origin (`Access-Control-Allow-Origin: *`)
+together with credentials, letting any site a user visited issue authenticated
+requests to the server.
+
+If you host the UI (or another browser client) on a different origin, opt in by
+passing an explicit allowlist of trusted origins, either with the
+`--cors-allowed-origins` flag or the `FEAST_UI_CORS_ALLOWED_ORIGINS`
+environment variable:
+
+```bash
+feast ui --cors-allowed-origins "https://feast.example.com,https://app.example.com"
+
+# or, equivalently:
+export FEAST_UI_CORS_ALLOWED_ORIGINS="https://feast.example.com,https://app.example.com"
+feast ui
+```
+
+Each value must be a bare origin — scheme and host with an optional port, and
+**no path, query, or trailing slash** (e.g. `https://app.example.com` or
+`http://localhost:3000`, not `https://app.example.com/ui`). Browsers send the
+`Origin` header without a path, so a value that includes one never matches and
+the request is silently rejected.
+
+For production, list the exact origins you trust. Passing `*` is accepted but
+**allows credentialed cross-origin requests from any site** (the CVE-2024-11602
+pattern) and is intended for local development only; the server logs a warning
+when it is used.
+
+#### Curl Generator Feature Server URL
+
+The Curl Generator uses a default Feature Server URL when building the example curl command. You can configure
+this default at build time using:
+
+```bash
+REACT_APP_FEAST_FEATURE_SERVER_URL="http://your-server:6566"
+```
+
+If this environment variable is not set, the UI falls back to `http://localhost:6566`. A user-edited value in
+the UI is still stored in localStorage and will take precedence for that browser.
+
+### Importing as a module to integrate with an existing React App
+
+This is the recommended way to use Feast UI for teams maintaining their own internal UI for their deployment of Feast.
+
+Start with bootstrapping a React app with `create-react-app`
+
+```
+npx create-react-app your-feast-ui
+```
+
+Then, in your app folder, install Feast UI and optionally its peer dependencies. Assuming you use yarn
+
+```
+yarn add @feast-dev/feast-ui
+# For custom UI using the Elastic UI Framework (optional):
+yarn add @elastic/eui
+# For general custom styling (optional):
+yarn add @emotion/react
+```
+
+Edit `index.js` in the React app to use Feast UI.
+
+```js
+import React from "react";
+import ReactDOM from "react-dom";
+import "./index.css";
+
+import FeastUI from "@feast-dev/feast-ui";
+import "@feast-dev/feast-ui/dist/feast-ui.css";
+
+ReactDOM.render(
+  <React.StrictMode>
+    <FeastUI />
+  </React.StrictMode>,
+  document.getElementById("root")
+);
+```
+
+When you start the React app, it will look for `projects-list.json` to find a list of your projects. The JSON should look something like this.
+
+```json
+{
+  "projects": [
+    {
+      "name": "Credit Score Project",
+      "description": "Project for credit scoring team and associated models.",
+      "id": "credit_score_project",
+      "registryPath": "/registry.json"
+    }
+  ]
+}
+```
+
+* **Note** - `registryPath` only supports a file location or a url.
+
+Then start the React App
+
+```bash
+yarn start
+```
+
+#### Customization
+
+The advantage of importing Feast UI as a module is in the ease of customization. The `<FeastUI>` component exposes a `feastUIConfigs` prop thorough which you can customize the UI. Currently it supports a few parameters.
+
+##### Fetching the Project List
+
+By default, the Feast UI fetches the project list from the app root path. You can use `projectListPromise` to provide a promise that overrides where it's fetched from.
+
+```jsx
+<FeastUI
+  feastUIConfigs={{
+    projectListPromise: fetch(SOME_PATH, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => {
+      return res.json();
+    })
+  }}
+/>
+```
+
+##### Custom Tabs
+
+You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
+
+```jsx
+const tabsRegistry = {
+  RegularFeatureViewCustomTabs: [
+    {
+      label: "Custom Tab Demo", // Navigation Label for the tab
+      path: "demo-tab", // Subpath for the tab
+      Component: RFVDemoCustomTab, // a React Component
+    },
+  ]
+}
+
+<FeastUI
+  feastUIConfigs={{
+    tabsRegistry: tabsRegistry,
+  }}
+/>
+```
+
+Examples of custom tabs can be found in the `ui/custom-tabs` folder.
+
+## Refreshing the registry
+
+The Feast UI caches registry data (projects, feature views, entities, etc.) using the registry cache. After running `feast apply` to make changes, it may take up to `cache_ttl_seconds` before the updates appear in the UI.
+
+To see changes faster:
+
+- **Lower the TTL**: Set `cache_ttl_seconds: 10` (or similar) in your `feature_store.yaml` registry config. This makes all registry consumers — including the UI — pick up changes within 10 seconds.
+- **Refresh on demand**: The UI has a **Refresh** button that explicitly invalidates the server-side registry cache (`POST /api/v1/registry/refresh`) and reloads the UI without a full page refresh.

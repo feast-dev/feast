@@ -1,0 +1,31 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "PrecomputedFeatureVectorProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/timestamp.proto";
+import "feast/types/Value.proto";
+
+// A pre-computed feature vector stores all features for a FeatureService
+// as a single serialized blob per entity, enabling O(1) online retrieval.
+message PrecomputedFeatureVector {
+  // Fully-qualified feature names in deterministic order, e.g. "fv1__feat1".
+  repeated string feature_names = 1;
+
+  // Feature values in the same order as feature_names.
+  repeated feast.types.Value values = 2;
+
+  // Per-feature-view event timestamps for TTL enforcement at read time.
+  repeated FeatureViewTimestamp fv_timestamps = 3;
+
+  // Wall-clock time when this vector was assembled.
+  google.protobuf.Timestamp precomputed_at = 4;
+}
+
+// Event timestamp associated with a specific feature view within the vector.
+message FeatureViewTimestamp {
+  string feature_view_name = 1;
+  google.protobuf.Timestamp event_timestamp = 2;
+}

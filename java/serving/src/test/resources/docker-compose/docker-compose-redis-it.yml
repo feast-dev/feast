@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: redis:6.2
+    command: redis-server --requirepass testpw
+    ports:
+      - "6379"
+  feast:
+    build:
+      context: ../../../../../../
+      dockerfile: java/serving/src/test/resources/docker-compose/feast10/Dockerfile
+    ports:
+      - "8080"
+    depends_on:
+      - redis

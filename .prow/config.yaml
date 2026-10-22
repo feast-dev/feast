@@ -1,0 +1,71 @@
+prowjob_namespace: prow
+pod_namespace: test-pods
+
+in_repo_config:
+  enabled:
+    "*": true
+
+plank:
+  job_url_prefix_config:
+    "*": https://prow.feast.dev/view/gcs
+  pod_pending_timeout: 60m
+  report_templates:
+    '*': >-
+        [Full PR test history](https://prow.feast.dev/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}}).
+        [Your PR dashboard](https://prow.feast.dev/pr?query=is:pr+state:open+author:{{with
+        index .Spec.Refs.Pulls 0}}{{.Author}}{{end}}).
+  default_decoration_configs:
+    "*":
+      timeout: 1h
+      grace_period: 15s
+      gcs_configuration:
+        bucket: gs://feast-prow-artifacts
+        path_strategy: explicit
+      gcs_credentials_secret: gcs-credentials
+      utility_images:
+        clonerefs: gcr.io/k8s-prow/clonerefs:v20201112-00537d1bb4
+        entrypoint: gcr.io/k8s-prow/entrypoint:v20201112-00537d1bb4
+        initupload: gcr.io/k8s-prow/initupload:v20201112-00537d1bb4
+        sidecar: gcr.io/k8s-prow/sidecar:v20201112-00537d1bb4
+
+deck:
+  tide_update_period: 1s
+  spyglass:
+    size_limit: 10e+6 # 10MB
+    lenses:
+    - lens:
+        name: metadata
+      required_files:
+      - started.json|finished.json
+    - lens:
+        name: buildlog
+      required_files:
+      - build-log.txt
+    - lens:
+        name: junit
+      required_files:
+      - artifacts/.*\.xml
+
+tide:
+  queries:
+  - repos:
+    - feast-dev/feast
+    - feast-dev/feast-spark
+    labels:
+    - lgtm
+    - approved
+    missingLabels:
+    - do-not-merge
+    - do-not-merge/hold
+    - do-not-merge/invalid-owners-file
+    - do-not-merge/work-in-progress
+    - needs-rebase
+  merge_method:
+    feast-dev/feast: squash
+    feast-dev/feast-spark: squash
+  merge_commit_template:
+    feast-dev/feast:
+      title: '{{.Title}} (#{{.Number}})'
+  blocker_label: merge-blocker
+  squash_label: tide/squash
+

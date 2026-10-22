@@ -1,0 +1,8 @@
+from feast import FileSource
+
+{{ name }} = FileSource(
+    name="{{ name }}",
+    path="{{ path }}",
+    timestamp_field="{{ timestamp_field }}",
+    {% if created_timestamp_column %}created_timestamp_column="{{ created_timestamp_column }}",{% endif %}
+) 

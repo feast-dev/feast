@@ -1,0 +1,110 @@
+import struct
+from datetime import datetime, timezone
+from typing import Any, List, Optional, Tuple
+
+import mmh3
+
+from feast.importer import import_class
+from feast.infra.key_encoding_utils import (
+    serialize_entity_key,
+    serialize_entity_key_prefix,
+)
+from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+
+
+def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
+    """Creates an online store corresponding to the given online store config."""
+    module_name = online_store_config.__module__
+    qualified_name = type(online_store_config).__name__
+    class_name = qualified_name.replace("Config", "")
+    online_store_class = import_class(module_name, class_name, "OnlineStore")
+    return online_store_class()
+
+
+def _redis_key(
+    project: str, entity_key: EntityKeyProto, entity_key_serialization_version=3
+) -> bytes:
+    key: List[bytes] = [
+        serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=entity_key_serialization_version,
+        ),
+        project.encode("utf-8"),
+    ]
+    return b"".join(key)
+
+
+def _redis_key_prefix(entity_keys: List[str]) -> bytes:
+    return serialize_entity_key_prefix(entity_keys)
+
+
+def _mmh3(key: str):
+    """
+    Calculate murmur3_32 hash which is equal to scala version which is using little endian:
+        https://stackoverflow.com/questions/29932956/murmur3-hash-different-result-between-python-and-java-implementation
+        https://stackoverflow.com/questions/13141787/convert-decimal-int-to-little-endian-string-x-x
+    """
+    key_hash = mmh3.hash(key, signed=False)
+    return bytes.fromhex(struct.pack("<Q", key_hash).hex()[:8])
+
+
+def compute_entity_id(
+    entity_key: EntityKeyProto, entity_key_serialization_version=3
+) -> str:
+    """
+    Compute Entity id given Feast Entity Key for online stores.
+    Remember that Entity here refers to `EntityKeyProto` which is used in some online stores to encode the keys.
+    It has nothing to do with the Entity concept we have in Feast.
+    """
+    return mmh3.hash_bytes(
+        serialize_entity_key(
+            entity_key,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
+    ).hex()
+
+
+def _to_naive_utc(ts: datetime) -> datetime:
+    if ts.tzinfo is None:
+        return ts
+    else:
+        return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
+
+
+def extract_text_and_num(
+    val: Any, compute_num: bool
+) -> Tuple[Optional[str], Optional[float]]:
+    """Extract (value_text, value_num) from a ValueProto.
+
+    Used by SQL-based online stores to populate the value_text and optional
+    value_num columns without duplicating type-dispatch logic.
+    """
+    val_type = val.WhichOneof("val")
+    if val_type == "string_val":
+        return val.string_val, None
+    if val_type in ("int64_val", "int32_val", "double_val", "float_val"):
+        raw = getattr(val, val_type)
+        return str(raw), float(raw) if compute_num else None
+    if val_type == "bool_val":
+        return str(val.bool_val), (
+            1.0 if val.bool_val else 0.0
+        ) if compute_num else None
+    return None, None
+
+
+def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
+    """Return the table name with a ``_v{N}`` suffix when versioning is enabled."""
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return name
+
+
+def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
+    """Build the online-store table name, appending a version suffix when versioning is enabled."""
+    return f"{project}_{compute_versioned_name(table, enable_versioning)}"

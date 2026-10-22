@@ -1,0 +1,819 @@
+# Copyright 2021 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import json
+import logging
+import uuid as uuid_module
+from collections import defaultdict
+from datetime import datetime
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
+
+import requests
+from pydantic import StrictStr
+
+from feast import Entity, FeatureView, RepoConfig
+from feast.feature_service import FeatureService
+from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
+from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
+from feast.protos.feast.serving.ServingService_pb2 import (
+    FieldStatus,
+    GetOnlineFeaturesResponse,
+    GetOnlineFeaturesResponseMetadata,
+)
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.repo_config import FeastConfigBaseModel
+from feast.rest_error_handler import rest_error_handling_decorator
+from feast.type_map import (
+    feast_value_type_to_python_type,
+    python_values_to_proto_values,
+)
+from feast.utils import _get_feature_view_vector_field_metadata
+from feast.value_type import ValueType
+
+logger = logging.getLogger(__name__)
+
+
+def _json_safe(val: Any) -> Any:
+    """Convert uuid.UUID objects and sets to JSON-serializable form."""
+    if isinstance(val, uuid_module.UUID):
+        return str(val)
+    if isinstance(val, set):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    if isinstance(val, list):
+        return [str(v) if isinstance(v, uuid_module.UUID) else v for v in val]
+    return val
+
+
+class RemoteOnlineStoreConfig(FeastConfigBaseModel):
+    """Remote Online store config for remote online store"""
+
+    type: Literal["remote"] = "remote"
+    """Online store type selector"""
+
+    path: StrictStr = "http://localhost:6566"
+    """ str: Path to metadata store.
+    If type is 'remote', then this is a URL for registry server """
+
+    cert: StrictStr = ""
+    """ str: Path to the public certificate when the online server starts in TLS(SSL) mode. This may be needed if the online server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If type is 'remote', then this configuration is needed to connect to remote online server in TLS mode. """
+
+    # Connection pooling configuration
+    connection_pool_size: int = 50
+    """ int: Maximum number of connections to keep in the pool (default 50).
+    Increase for high-concurrency workloads. """
+
+    connection_idle_timeout: int = 300
+    """ int: Maximum time in seconds a session can be idle before being closed (default 300 = 5 minutes).
+    Set to 0 to disable idle timeout. """
+
+    connection_retries: int = 3
+    """ int: Number of retries for failed requests with exponential backoff (default 3). """
+
+
+class RemoteOnlineStore(OnlineStore):
+    """
+    remote online store implementation wrapper to communicate with feast online server.
+    """
+
+    @staticmethod
+    def _proto_value_to_transport_value(proto_value: ValueProto) -> Any:
+        """
+        Convert a proto Value to a JSON-serializable Python value suitable for
+        HTTP transport.  Unlike ``feast_value_type_to_python_type``, this keeps
+        ``json_val`` as a raw string so the receiving server can reconstruct a
+        DataFrame whose column types match the original (string for JSON, dict
+        for Map/Struct).  Parsing JSON strings into dicts would cause PyArrow to
+        infer a struct column on the server, which can crash with complex nested
+        types (lists inside dicts).
+        """
+        val_attr = proto_value.WhichOneof("val")
+        if val_attr is None:
+            return None
+
+        # Keep JSON values as raw strings for correct DataFrame reconstruction.
+        # Parsing them into dicts causes PyArrow to infer struct columns on the
+        # server whose nested lists round-trip as numpy arrays, breaking
+        # json.dumps during proto conversion.
+        if val_attr == "json_val":
+            return getattr(proto_value, val_attr)
+        if val_attr == "json_list_val":
+            return list(getattr(proto_value, val_attr).val)
+
+        # Nested collection types use feast_value_type_to_python_type
+        # which handles recursive conversion of RepeatedValue protos.
+        if val_attr in ("list_val", "set_val"):
+            return feast_value_type_to_python_type(proto_value)
+
+        # Map/Struct types are converted to Python dicts by
+        # feast_value_type_to_python_type.  Serialise them to JSON strings
+        # so the server-side DataFrame gets VARCHAR columns instead of
+        # PyArrow struct columns that can crash with complex nested types.
+        if val_attr in ("map_val", "struct_val"):
+            return json.dumps(feast_value_type_to_python_type(proto_value))
+        if val_attr in ("map_list_val", "struct_list_val"):
+            return [json.dumps(v) for v in feast_value_type_to_python_type(proto_value)]
+
+        # UUID types are stored as strings in proto — return them directly
+        # to avoid feast_value_type_to_python_type converting to uuid.UUID
+        # objects which are not JSON-serializable.
+        if val_attr in ("uuid_val", "time_uuid_val"):
+            return getattr(proto_value, val_attr)
+        if val_attr in ("uuid_list_val", "time_uuid_list_val"):
+            return list(getattr(proto_value, val_attr).val)
+        if val_attr in ("uuid_set_val", "time_uuid_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
+        # UnixTimestamp values are stored as int64 (epoch seconds) in proto.
+        # Return them directly to avoid feast_value_type_to_python_type
+        # converting to datetime objects which are not JSON-serializable.
+        if val_attr == "unix_timestamp_val":
+            return getattr(proto_value, val_attr)
+        if val_attr in ("unix_timestamp_list_val", "unix_timestamp_set_val"):
+            return list(getattr(proto_value, val_attr).val)
+
+        return feast_value_type_to_python_type(proto_value)
+
+    _STATUS_MAP = {
+        "PRESENT": FieldStatus.PRESENT,
+        "NOT_FOUND": FieldStatus.NOT_FOUND,
+        "NULL_VALUE": FieldStatus.NULL_VALUE,
+        "OUTSIDE_MAX_AGE": FieldStatus.OUTSIDE_MAX_AGE,
+    }
+
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
+    ) -> OnlineResponse:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+
+        if isinstance(entity_rows, list):
+            columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
+            for entity_row in entity_rows:
+                for key, value in entity_row.items():
+                    columnar[key].append(value)
+            entity_rows = columnar
+
+        entities: Dict[str, List[Any]] = {}
+        for k, vals in entity_rows.items():
+            iterable = vals.val if isinstance(vals, RepeatedValue) else vals
+            entities[k] = [_json_safe(v) for v in iterable]
+
+        req_body: Dict[str, Any] = {
+            "entities": entities,
+            "full_feature_names": full_feature_names,
+            "include_feature_view_version_metadata": include_feature_view_version_metadata,
+        }
+
+        if isinstance(features, FeatureService):
+            req_body["feature_service"] = features.name
+        else:
+            req_body["features"] = features
+
+        response = get_remote_online_features(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to get online features: {response.status_code} {response.text}"
+            )
+
+        resp_json = response.json()
+        return self._build_online_response_from_json(resp_json)
+
+    def _build_online_response_from_json(
+        self, resp_json: Dict[str, Any]
+    ) -> OnlineResponse:
+        proto = GetOnlineFeaturesResponse()
+
+        metadata = GetOnlineFeaturesResponseMetadata()
+        resp_metadata = resp_json.get("metadata", {})
+        feature_names = resp_metadata.get("feature_names", [])
+        metadata.feature_names.val.extend(feature_names)
+        for fvm in resp_metadata.get("feature_view_metadata", []):
+            fv_metadata = metadata.feature_view_metadata.add()
+            fv_metadata.name = fvm.get("name", "")
+            fv_metadata.version = fvm.get("version", 0)
+        proto.metadata.CopyFrom(metadata)
+
+        for result in resp_json.get("results", []):
+            fv = GetOnlineFeaturesResponse.FeatureVector()
+            for val in result.get("values", []):
+                if val is None:
+                    fv.values.append(ValueProto())
+                else:
+                    protos = python_values_to_proto_values([val])
+                    fv.values.append(protos[0])
+            for status_str in result.get("statuses", []):
+                fv.statuses.append(
+                    self._STATUS_MAP.get(status_str, FieldStatus.INVALID)
+                )
+            proto.results.append(fv)
+
+        proto.status = True
+        return OnlineResponse(proto)
+
+    def online_write_batch(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """
+        Writes a batch of feature rows to the remote online store via the remote API.
+        """
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        columnar_data: Dict[str, List[Any]] = defaultdict(list)
+
+        # Iterate through each row to populate columnar data directly
+        for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
+            # Populate entity key values
+            for join_key, entity_value_proto in zip(
+                entity_key_proto.join_keys, entity_key_proto.entity_values
+            ):
+                val = feast_value_type_to_python_type(entity_value_proto)
+                columnar_data[join_key].append(_json_safe(val))
+
+            # Populate feature values – use transport-safe conversion that
+            # preserves JSON strings instead of parsing them into dicts.
+            for feature_name, feature_value_proto in feature_values_proto.items():
+                columnar_data[feature_name].append(
+                    self._proto_value_to_transport_value(feature_value_proto)
+                )
+
+            # Populate timestamps
+            columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
+            columnar_data["created"].append(
+                _to_naive_utc(created_ts).isoformat() if created_ts else None
+            )
+
+        req_body = {
+            "feature_view_name": table.name,
+            "df": columnar_data,
+            "allow_registry_cache": False,
+        }
+
+        response = post_remote_online_write(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            error_msg = f"Unable to write online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        if progress:
+            data_length = len(data)
+            logger.info(
+                f"Writing {data_length} rows to the remote store for feature view {table.name}."
+            )
+            progress(data_length)
+
+    def online_read(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_read_api_json_request(
+            entity_keys, table, requested_features
+        )
+        response = get_remote_online_features(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online features from feature server.")
+            response_json = json.loads(response.text)
+            event_ts = self._get_event_ts(response_json)
+            # Build feature name -> ValueType mapping so we can reconstruct
+            # complex types (nested collections, sets, etc.) that cannot be
+            # inferred from raw JSON values alone.
+            feature_type_map: Dict[str, ValueType] = {
+                f.name: f.dtype.to_value_type() for f in table.features
+            }
+            # Iterating over results and converting the API results in column format to row format.
+            result_tuples: List[
+                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+            ] = []
+            for feature_value_index in range(len(entity_keys)):
+                feature_values_dict: Dict[str, ValueProto] = dict()
+                for index, feature_name in enumerate(
+                    response_json["metadata"]["feature_names"]
+                ):
+                    if (
+                        requested_features is not None
+                        and feature_name in requested_features
+                    ):
+                        if (
+                            response_json["results"][index]["statuses"][
+                                feature_value_index
+                            ]
+                            == "PRESENT"
+                        ):
+                            feature_value_type = feature_type_map.get(
+                                feature_name, ValueType.UNKNOWN
+                            )
+                            message = python_values_to_proto_values(
+                                [
+                                    response_json["results"][index]["values"][
+                                        feature_value_index
+                                    ]
+                                ],
+                                feature_value_type,
+                            )
+                            feature_values_dict[feature_name] = message[0]
+                        else:
+                            feature_values_dict[feature_name] = ValueProto()
+                result_tuples.append((event_ts, feature_values_dict))
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = "L2",
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_api_json_request(
+            table, requested_features, embedding, top_k, distance_metric
+        )
+        response = get_remote_online_documents(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+
+            # Create feature name to index mapping for efficient lookup
+            feature_name_to_index = {
+                name: idx
+                for idx, name in enumerate(response_json["metadata"]["feature_names"])
+            }
+
+            vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+
+            # Process each result row
+            num_results = len(response_json["results"][0]["values"])
+            result_tuples = []
+
+            for row_idx in range(num_results):
+                # Extract values using helper methods
+                feature_val = self._extract_requested_feature_value(
+                    response_json, feature_name_to_index, requested_features, row_idx
+                )
+                vector_value = self._extract_vector_field_value(
+                    response_json, feature_name_to_index, vector_field_metadata, row_idx
+                )
+                distance_val = self._extract_distance_value(
+                    response_json, feature_name_to_index, "distance", row_idx
+                )
+                entity_key_proto = self._construct_entity_key_from_response(
+                    response_json, row_idx, feature_name_to_index, table
+                )
+
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_val,
+                        vector_value,
+                        distance_val,
+                    )
+                )
+
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_v2_api_json_request(
+            table,
+            requested_features,
+            embedding,
+            top_k,
+            distance_metric,
+            query_string,
+            filters=filters,
+            api_version=2,
+        )
+        response = get_remote_online_documents(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+
+            metadata = response_json.get("metadata") or {}
+            feature_names = metadata.get("feature_names") or []
+            results = response_json.get("results") or []
+
+            if not feature_names or not results:
+                logger.debug(
+                    "Empty metadata or results in retrieve_online_documents_v2 response."
+                )
+                return []
+
+            # Create feature name to index mapping for efficient lookup
+            feature_name_to_index = {
+                name: idx for idx, name in enumerate(feature_names)
+            }
+
+            # Process each result row
+            first_result_values = results[0].get("values") or []
+            num_results = len(first_result_values)
+            result_tuples = []
+            if requested_features is None:
+                requested_features = []
+            else:
+                requested_features = list(requested_features)
+            if "distance" not in requested_features:
+                requested_features.append("distance")
+            for row_idx in range(num_results):
+                # Build feature values dictionary for requested features
+                feature_values_dict = {}
+
+                if requested_features:
+                    for feature_name in requested_features:
+                        if feature_name in feature_name_to_index:
+                            feature_idx = feature_name_to_index[feature_name]
+                            if self._is_feature_present(
+                                response_json, feature_idx, row_idx
+                            ):
+                                feature_values_dict[feature_name] = (
+                                    self._extract_feature_value(
+                                        response_json, feature_idx, row_idx
+                                    )
+                                )
+                            else:
+                                feature_values_dict[feature_name] = ValueProto()
+
+                # Construct entity key proto using existing helper method
+                entity_key_proto = self._construct_entity_key_from_response(
+                    response_json, row_idx, feature_name_to_index, table
+                )
+
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_values_dict if feature_values_dict else None,
+                    )
+                )
+
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def _extract_requested_feature_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        requested_features: Optional[List[str]],
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract the first available requested feature value."""
+        if not requested_features:
+            return ValueProto()
+
+        for feature_name in requested_features:
+            if feature_name in feature_name_to_index:
+                feature_idx = feature_name_to_index[feature_name]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    return self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
+
+        return ValueProto()
+
+    def _extract_vector_field_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        vector_field_metadata,
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract vector field value from response."""
+        if (
+            not vector_field_metadata
+            or vector_field_metadata.name not in feature_name_to_index
+        ):
+            return ValueProto()
+
+        vector_feature_idx = feature_name_to_index[vector_field_metadata.name]
+        if self._is_feature_present(response_json, vector_feature_idx, row_idx):
+            return self._extract_feature_value(
+                response_json, vector_feature_idx, row_idx
+            )
+
+        return ValueProto()
+
+    def _extract_distance_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        distance_feature_name: str,
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract distance/score value from response."""
+        if not distance_feature_name:
+            return ValueProto()
+
+        distance_feature_idx = feature_name_to_index[distance_feature_name]
+        if self._is_feature_present(response_json, distance_feature_idx, row_idx):
+            distance_value = response_json["results"][distance_feature_idx]["values"][
+                row_idx
+            ]
+            distance_val = ValueProto()
+            distance_val.float_val = float(distance_value)
+            return distance_val
+
+        return ValueProto()
+
+    def _is_feature_present(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> bool:
+        """Check if a feature is present in the response."""
+        return response_json["results"][feature_idx]["statuses"][row_idx] == "PRESENT"
+
+    def _construct_online_read_api_json_request(
+        self,
+        entity_keys: List[EntityKeyProto],
+        table: FeatureView,
+        requested_features: Optional[List[str]] = None,
+    ) -> dict:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        entity_values = []
+        entity_key = ""
+        for row in entity_keys:
+            entity_key = row.join_keys[0]
+            entity_values.append(
+                getattr(row.entity_values[0], row.entity_values[0].WhichOneof("val"))  # type: ignore[arg-type]
+            )
+
+        return {
+            "features": api_requested_features,
+            "entities": {entity_key: entity_values},
+        }
+
+    def _construct_online_documents_api_json_request(
+        self,
+        table: FeatureView,
+        requested_features: Optional[List[str]] = None,
+        embedding: Optional[List[float]] = None,
+        top_k: Optional[int] = None,
+        distance_metric: Optional[str] = "L2",
+    ) -> dict:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        return {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+        }
+
+    def _construct_online_documents_v2_api_json_request(
+        self,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        api_version: Optional[int] = 2,
+    ) -> dict:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        body: Dict[str, Any] = {
+            "features": api_requested_features,
+            "query": embedding,
+            "top_k": top_k,
+            "distance_metric": distance_metric,
+            "query_string": query_string,
+            "api_version": api_version,
+        }
+        if filters is not None:
+            body["filters"] = filters.model_dump()
+        return body
+
+    def _get_event_ts(self, response_json) -> Optional[datetime]:
+        results = response_json.get("results") or []
+        if len(results) > 1:
+            event_timestamps = results[1].get("event_timestamps") or []
+            if event_timestamps:
+                return datetime.fromisoformat(
+                    event_timestamps[0].replace("Z", "+00:00")
+                )
+        return None
+
+    def _construct_entity_key_from_response(
+        self,
+        response_json: dict,
+        row_idx: int,
+        feature_name_to_index: dict,
+        table: FeatureView,
+    ) -> Optional[EntityKeyProto]:
+        """Construct EntityKeyProto from response data."""
+        # Use the feature view's join_keys to identify entity fields
+        entity_fields = [
+            join_key
+            for join_key in table.join_keys
+            if join_key in feature_name_to_index
+        ]
+
+        if not entity_fields:
+            return None
+
+        entity_key_proto = EntityKeyProto()
+        entity_key_proto.join_keys.extend(entity_fields)
+
+        for entity_field in entity_fields:
+            if entity_field in feature_name_to_index:
+                feature_idx = feature_name_to_index[entity_field]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    entity_value = self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
+                    entity_key_proto.entity_values.append(entity_value)
+
+        return entity_key_proto if entity_key_proto.entity_values else None
+
+    def _extract_feature_value(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> ValueProto:
+        """Extract and convert a feature value to ValueProto."""
+        raw_value = response_json["results"][feature_idx]["values"][row_idx]
+        if raw_value is None:
+            return ValueProto()
+        proto_values = python_values_to_proto_values([raw_value])
+        return proto_values[0]
+
+    def update(
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
+    ):
+        pass
+
+    def teardown(
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
+    ):
+        pass
+
+    async def close(self) -> None:
+        """
+        Close the HTTP session and release connection pool resources.
+
+        This method is called automatically when FeatureStore.close() is invoked.
+        It cleans up the cached HTTP session used for connection pooling.
+
+        Note: Since the session is shared globally, calling close() will affect
+        all RemoteOnlineStore instances in the same process. This is typically
+        fine for SDK usage where there's usually one FeatureStore per process.
+        """
+        HttpSessionManager.close_session()
+        logger.debug("RemoteOnlineStore HTTP session closed")
+
+
+@rest_error_handling_decorator
+def get_remote_online_features(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    if config.online_store.cert:
+        return session.post(
+            f"{config.online_store.path}/get-online-features",
+            json=req_body,
+            verify=config.online_store.cert,
+        )
+    else:
+        return session.post(
+            f"{config.online_store.path}/get-online-features", json=req_body
+        )
+
+
+@rest_error_handling_decorator
+def get_remote_online_documents(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    search_paths = ("/search", "/retrieve-online-documents")
+    last_response: Optional[requests.Response] = None
+    for path in search_paths:
+        url = f"{config.online_store.path}{path}"
+        if config.online_store.cert:
+            last_response = session.post(
+                url, json=req_body, verify=config.online_store.cert
+            )
+        else:
+            last_response = session.post(url, json=req_body)
+        if last_response.status_code != 404:
+            return last_response
+    assert last_response is not None
+    return last_response
+
+
+@rest_error_handling_decorator
+def post_remote_online_write(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    url = f"{config.online_store.path}/write-to-online-store"
+    if config.online_store.cert:
+        return session.post(url, json=req_body, verify=config.online_store.cert)
+    else:
+        return session.post(url, json=req_body)

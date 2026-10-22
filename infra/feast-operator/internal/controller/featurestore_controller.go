@@ -1,0 +1,421 @@
+/*
+Copyright 2024 Feast Community.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controller
+
+import (
+	"context"
+	"reflect"
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	handler "sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
+	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	feastmetrics "github.com/feast-dev/feast/infra/feast-operator/internal/controller/metrics"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
+	routev1 "github.com/openshift/api/route/v1"
+)
+
+// Constants for requeue
+const (
+	RequeueDelayError = 5 * time.Second
+)
+
+// FeatureStoreReconciler reconciles a FeatureStore object
+type FeatureStoreReconciler struct {
+	client.Client
+	Scheme  *runtime.Scheme
+	Metrics *feastmetrics.FeatureStoreMetrics
+}
+
+// +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims,verbs=get;list;create;update;watch;delete;deletecollection
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;get;list
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=feast-discover-namespaces;feast-oidc-token-review;feast-token-review-cluster-role,verbs=update;delete
+// +kubebuilder:rbac:groups=core,resources=secrets;namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;delete;deletecollection
+// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
+// +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=create;get;delete
+// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=mlflow.opendatahub.io,resources=mlflows,verbs=get;list;watch
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.3/pkg/reconcile
+func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
+	logger := log.FromContext(ctx)
+
+	// Get the FeatureStore using v1 (storage version)
+	cr := &feastdevv1.FeatureStore{}
+	err := r.Get(ctx, req.NamespacedName, cr)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// CR deleted since request queued, child objects getting GC'd, no requeue
+			logger.V(1).Info("FeatureStore CR not found, has been deleted")
+			if r.Metrics != nil {
+				r.Metrics.DeleteFeatureStore(req.NamespacedName.Namespace, req.NamespacedName.Name)
+			}
+			// Clean up namespace registry and OpenLineage discovery entries
+			deletedCR := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.NamespacedName.Name,
+					Namespace: req.NamespacedName.Namespace,
+				},
+			}
+			if err := r.cleanupNamespaceRegistry(ctx, deletedCR); err != nil {
+				logger.Error(err, "Failed to clean up namespace registry entry for deleted FeatureStore")
+			}
+			if err := r.cleanupOpenLineageDiscovery(ctx, deletedCR); err != nil {
+				logger.Error(err, "Failed to clean up OpenLineage discovery entry for deleted FeatureStore")
+			}
+			return ctrl.Result{}, nil
+		}
+		logger.Error(err, "Unable to get FeatureStore CR")
+		return ctrl.Result{}, err
+	}
+	currentStatus := cr.Status.DeepCopy()
+
+	// Handle deletion - clean up namespace registry and OpenLineage discovery entries
+	if cr.DeletionTimestamp != nil {
+		logger.Info("FeatureStore is being deleted, cleaning up registry entries")
+		if r.Metrics != nil {
+			r.Metrics.DeleteFeatureStore(cr.Namespace, cr.Name)
+		}
+		if err := r.cleanupNamespaceRegistry(ctx, cr); err != nil {
+			logger.Error(err, "Failed to clean up namespace registry entry")
+			return ctrl.Result{}, err
+		}
+		if err := r.cleanupOpenLineageDiscovery(ctx, cr); err != nil {
+			logger.Error(err, "Failed to clean up OpenLineage discovery entry")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	result, recErr = r.deployFeast(ctx, cr)
+	if recErr == nil && r.Metrics != nil {
+		r.Metrics.RecordFeatureStore(cr)
+	}
+	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
+		if err = r.Client.Status().Update(ctx, cr); err != nil {
+			if apierrors.IsConflict(err) {
+				logger.Info("FeatureStore object modified, retry syncing status")
+				// Re-queue and preserve existing recErr
+				result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+			}
+			logger.Error(err, "Error updating the FeatureStore status")
+			if recErr == nil {
+				// There is no existing recErr. Set it to the status update error
+				recErr = err
+			}
+		}
+	}
+
+	// Add to namespace registry and OpenLineage discovery if deployment was successful
+	if recErr == nil && cr.DeletionTimestamp == nil {
+		feast := services.FeastServices{
+			Handler: feasthandler.FeastHandler{
+				Client:       r.Client,
+				Context:      ctx,
+				FeatureStore: cr,
+				Scheme:       r.Scheme,
+			},
+		}
+		if err := feast.AddToNamespaceRegistry(); err != nil {
+			logger.Error(err, "Failed to add FeatureStore to namespace registry")
+		}
+		if err := feast.AddToOpenLineageDiscovery(); err != nil {
+			logger.Error(err, "Failed to add FeatureStore to OpenLineage discovery")
+		}
+	}
+
+	return result, recErr
+}
+
+func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1.FeatureStore) (result ctrl.Result, err error) {
+	logger := log.FromContext(ctx)
+	condition := metav1.Condition{
+		Type:    feastdevv1.ReadyType,
+		Status:  metav1.ConditionTrue,
+		Reason:  feastdevv1.ReadyReason,
+		Message: feastdevv1.ReadyMessage,
+	}
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+	authz := authz.FeastAuthorization{
+		Handler: feast.Handler,
+	}
+
+	// status defaults must be applied before deployments
+	errResult := ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+	if err = feast.ApplyDefaults(); err != nil {
+		result = errResult
+	} else if err = authz.Deploy(); err != nil {
+		result = errResult
+	} else if err = feast.Deploy(); err != nil {
+		result = errResult
+	}
+	if err != nil {
+		condition = metav1.Condition{
+			Type:    feastdevv1.ReadyType,
+			Status:  metav1.ConditionFalse,
+			Reason:  feastdevv1.FailedReason,
+			Message: "Error: " + err.Error(),
+		}
+	} else {
+		deployment, deploymentErr := feast.GetDeployment()
+		if deploymentErr != nil {
+			condition = metav1.Condition{
+				Type:    feastdevv1.ReadyType,
+				Status:  metav1.ConditionUnknown,
+				Reason:  feastdevv1.DeploymentNotAvailableReason,
+				Message: feastdevv1.DeploymentNotAvailableMessage,
+			}
+
+			result = errResult
+		} else {
+			isDeployAvailable := services.IsDeploymentAvailable(deployment.Status.Conditions)
+			if !isDeployAvailable {
+				msg := feastdevv1.DeploymentNotAvailableMessage
+				if podMsg := feast.GetPodContainerFailureMessage(deployment); podMsg != "" {
+					msg = msg + ": " + podMsg
+				}
+				condition = metav1.Condition{
+					Type:    feastdevv1.ReadyType,
+					Status:  metav1.ConditionUnknown,
+					Reason:  feastdevv1.DeploymentNotAvailableReason,
+					Message: msg,
+				}
+
+				result = errResult
+			}
+		}
+	}
+
+	logger.Info(condition.Message)
+	apimeta.SetStatusCondition(&cr.Status.Conditions, condition)
+	if apimeta.IsStatusConditionTrue(cr.Status.Conditions, feastdevv1.ReadyType) {
+		cr.Status.Phase = feastdevv1.ReadyPhase
+	} else if apimeta.IsStatusConditionFalse(cr.Status.Conditions, feastdevv1.ReadyType) {
+		cr.Status.Phase = feastdevv1.FailedPhase
+	} else {
+		cr.Status.Phase = feastdevv1.PendingPhase
+	}
+
+	return result, err
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	bldr := ctrl.NewControllerManagedBy(mgr).
+		For(&feastdevv1.FeatureStore{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.RoleBinding{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&batchv1.CronJob{}).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
+		Watches(&feastdevv1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
+
+	if services.IsOpenShift() {
+		bldr = bldr.Owns(&routev1.Route{})
+	}
+	if services.HasServiceMonitorCRD() {
+		sm := &unstructured.Unstructured{}
+		sm.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "monitoring.coreos.com",
+			Version: "v1",
+			Kind:    "ServiceMonitor",
+		})
+		bldr = bldr.Owns(sm)
+	}
+	if services.HasMlflowCRD() {
+		mlflow := &unstructured.Unstructured{}
+		mlflow.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "mlflow.opendatahub.io",
+			Version: "v1",
+			Kind:    "MLflow",
+		})
+		bldr = bldr.Watches(mlflow,
+			handler.EnqueueRequestsFromMapFunc(r.mapMlflowToFeastRequests),
+			builder.WithPredicates(mlflowStatusChangedPredicate()),
+		)
+	}
+
+	return bldr.Complete(r)
+
+}
+
+// cleanupNamespaceRegistry removes the feature store instance from the namespace registry
+func (r *FeatureStoreReconciler) cleanupNamespaceRegistry(ctx context.Context, cr *feastdevv1.FeatureStore) error {
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+
+	return feast.RemoveFromNamespaceRegistry()
+}
+
+// mlflowStatusChangedPredicate triggers the mapper only when the MLflow CR's
+// status changes (readiness transitions) or on create/delete — not on
+// annotation, label, or metadata-only updates.
+func mlflowStatusChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return true },
+		DeleteFunc: func(_ event.DeleteEvent) bool { return true },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldU, ok1 := e.ObjectOld.(*unstructured.Unstructured)
+			newU, ok2 := e.ObjectNew.(*unstructured.Unstructured)
+			if !ok1 || !ok2 {
+				return true
+			}
+			oldStatus, _, _ := unstructured.NestedMap(oldU.Object, "status")
+			newStatus, _, _ := unstructured.NestedMap(newU.Object, "status")
+			return !reflect.DeepEqual(oldStatus, newStatus)
+		},
+		GenericFunc: func(_ event.GenericEvent) bool { return true },
+	}
+}
+
+// mapMlflowToFeastRequests re-queues FeatureStores that use MLflow (those that
+// have not explicitly opted out) when the cluster MLflow CR's status changes.
+func (r *FeatureStoreReconciler) mapMlflowToFeastRequests(ctx context.Context, _ client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+	var feastList feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &feastList, client.InNamespace("")); err != nil {
+		logger.Error(err, "could not list FeatureStores for MLflow watch")
+		return nil
+	}
+	requests := make([]reconcile.Request, 0, len(feastList.Items))
+	for i := range feastList.Items {
+		fs := &feastList.Items[i]
+		if fs.Spec.Mlflow != nil && !fs.Spec.Mlflow.Enabled {
+			continue
+		}
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(fs),
+		})
+	}
+	return requests
+}
+
+// cleanupOpenLineageDiscovery removes the feature store instance from the OpenLineage discovery ConfigMap
+func (r *FeatureStoreReconciler) cleanupOpenLineageDiscovery(ctx context.Context, cr *feastdevv1.FeatureStore) error {
+	feast := services.FeastServices{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
+	}
+
+	return feast.RemoveFromOpenLineageDiscovery()
+}
+
+// if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.
+func (r *FeatureStoreReconciler) mapFeastRefsToFeastRequests(ctx context.Context, object client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+
+	feastRef, ok := object.(*feastdevv1.FeatureStore)
+	if !ok {
+		logger.Error(nil, "Unexpected object type in mapFeastRefsToFeastRequests")
+		return nil
+	}
+
+	// list all FeatureStores in the cluster
+	var feastList feastdevv1.FeatureStoreList
+	if err := r.List(ctx, &feastList, client.InNamespace("")); err != nil {
+		logger.Error(err, "could not list FeatureStores. "+
+			"FeatureStores affected by changes to the referenced FeatureStore object will not be reconciled.")
+		return nil
+	}
+
+	feastRefNsName := client.ObjectKeyFromObject(feastRef)
+	var requests []reconcile.Request
+	for _, obj := range feastList.Items {
+		objNsName := client.ObjectKeyFromObject(&obj)
+		// this if statement is extra protection against any potential infinite reconcile loops
+		if feastRefNsName != objNsName {
+			feast := services.FeastServices{
+				Handler: feasthandler.FeastHandler{
+					Client:       r.Client,
+					Context:      ctx,
+					FeatureStore: &obj,
+					Scheme:       r.Scheme,
+				}}
+			if feast.IsRemoteRefRegistry() {
+				remoteRef := obj.Status.Applied.Services.Registry.Remote.FeastRef
+				remoteRefNsName := types.NamespacedName{Name: remoteRef.Name, Namespace: remoteRef.Namespace}
+				if feastRefNsName == remoteRefNsName {
+					requests = append(requests, reconcile.Request{NamespacedName: objNsName})
+				}
+			}
+		}
+	}
+
+	return requests
+}

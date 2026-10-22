@@ -1,0 +1,14 @@
+project: my_project
+registry: data/registry.db
+provider: local
+online_store:
+  type: hazelcast
+  cluster_name: c_cluster_name
+  cluster_members: c_members
+  discovery_token: c_discovery_token
+  ssl_cafile_path: c_ca_path
+  ssl_certfile_path: c_cert_path
+  ssl_keyfile_path: c_key_path
+  ssl_password: ${SSL_PASSWORD} # This value will be read form the `SSL_PASSWORD` environment variable.
+  key_ttl_seconds: c_ttl_seconds
+entity_key_serialization_version: 3

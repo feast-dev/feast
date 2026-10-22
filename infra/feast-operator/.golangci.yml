@@ -1,0 +1,67 @@
+version: "2"
+run:
+  allow-parallel-runners: true
+linters:
+  default: none
+  enable:
+    - dupl
+    - errcheck
+    - ginkgolinter
+    - goconst
+    - gocyclo
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+  settings:
+    revive:
+      rules:
+        - name: comment-spacings
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"
+        - "-ST*"
+  exclusions:
+    generated: lax
+    presets: []
+    rules:
+      - linters:
+          - lll
+        path: api/*
+      - linters:
+          - dupl
+          - goconst
+          - lll
+        path: internal/*
+      - linters:
+          - goconst
+          - lll
+        path: test/*
+      - linters:
+          - lll
+        path: upgrade/*
+      - linters:
+          - lll
+        path: previous-version/*
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

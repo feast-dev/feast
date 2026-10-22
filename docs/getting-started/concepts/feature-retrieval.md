@@ -1,0 +1,436 @@
+# Feature retrieval
+
+## Overview
+
+Generally, Feast supports several patterns of feature retrieval:
+
+1. Training data generation (via `feature_store.get_historical_features(...)`)
+2. Offline feature retrieval for batch scoring (via `feature_store.get_historical_features(...)`)
+3. Online feature retrieval for real-time model predictions 
+   - via the SDK: `feature_store.get_online_features(...)`
+   - via deployed feature server endpoints: `requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))` 
+
+Each of these retrieval mechanisms accept:
+
+* some way of specifying entities (to fetch features for)
+* some way to specify the features to fetch (either via [feature services](feature-retrieval.md#feature-services), which group features needed for a model version, or [feature references](feature-retrieval.md#feature-references))
+
+Before beginning, you need to instantiate a local `FeatureStore` object that knows how to parse the registry (see [more details](https://docs.feast.dev/getting-started/concepts/registry))
+
+For code examples of how the below work, inspect the generated repository from `feast init -t [YOUR TEMPLATE]` (`gcp`, `snowflake`, and `aws` are the most fully fleshed).
+
+## Concepts
+Before diving into how to retrieve features, we need to understand some high level concepts in Feast.
+
+### Feature Services
+
+A feature service is an object that represents a logical group of features from one or more [feature views](feature-view.md#feature-view). Feature Services allows features from within a feature view to be used as needed by an ML model. Users can expect to create one feature service per model version, allowing for tracking of the features used by models.
+
+{% tabs %}
+{% tab title="driver_trips_feature_service.py" %}
+```python
+from driver_ratings_feature_view import driver_ratings_fv
+from driver_trips_feature_view import driver_stats_fv
+
+driver_stats_fs = FeatureService(
+    name="driver_activity",
+    features=[driver_stats_fv, driver_ratings_fv[["lifetime_rating"]]]
+)
+```
+{% endtab %}
+{% endtabs %}
+
+Feature services are used during
+
+* The generation of training datasets when querying feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
+* Retrieval of features for batch scoring from the offline store (e.g. with an entity dataframe where all timestamps are `now()`)
+* Retrieval of features from the online store for online inference (with smaller batch sizes). The features retrieved from the online store may also belong to multiple feature views.
+
+{% hint style="info" %}
+Applying a feature service does not result in an actual service being deployed.
+{% endhint %}
+
+Feature services enable referencing all or some features from a feature view.
+
+#### Pre-computed feature vectors (`precompute_online`)
+
+For latency-critical online serving, you can enable **pre-computed feature vectors** on a feature service. When `precompute_online=True`, Feast stores all of the service's features for each entity as a single serialized blob in the online store. At read time, this reduces the number of store reads from O(N feature views) to O(1), regardless of how many feature views the service spans.
+
+```python
+# A feature service with pre-computed vectors enabled
+low_latency_service = FeatureService(
+    name="low_latency_inference",
+    features=[driver_stats_fv, vehicle_stats_fv, route_features_fv],
+    precompute_online=True,
+)
+```
+
+After running `feast apply`, the pre-computed vectors are automatically built and refreshed whenever you run `feast materialize` or `feast materialize-incremental`. Feast detects which feature services have `precompute_online=True` and rebuilds their vectors for every affected entity after the per-feature-view writes complete. Vectors are also refreshed automatically on `feast push`.
+
+{% hint style="info" %}
+`precompute_online` is **opt-in** — it defaults to `False`. When enabled, the pre-computed path is used exclusively for that service; there is no silent fallback to per-feature-view reads. If vectors are missing or stale, the server raises an error, making problems visible immediately.
+{% endhint %}
+
+{% hint style="warning" %}
+`precompute_online` is not compatible with on-demand feature views (ODFVs) that have `write_to_online_store=False`. ODFVs with `write_to_online_store=True` are supported since their values are materialized.
+{% endhint %}
+
+See the [performance tuning guide](../../how-to-guides/online-server-performance-tuning.md#pre-computed-feature-vectors) for benchmarks and detailed configuration.
+
+Retrieving from the online store with a feature service
+
+```python
+from feast import FeatureStore
+feature_store = FeatureStore('.')  # Initialize the feature store
+
+feature_service = feature_store.get_feature_service("driver_activity")
+features = feature_store.get_online_features(
+    features=feature_service, entity_rows=[entity_dict]
+)
+```
+
+Retrieving from the offline store with a feature service
+
+```python
+from feast import FeatureStore
+feature_store = FeatureStore('.')  # Initialize the feature store
+
+feature_service = feature_store.get_feature_service("driver_activity")
+feature_store.get_historical_features(features=feature_service, entity_df=entity_df)
+```
+
+### Feature References
+
+This mechanism of retrieving features is only recommended as you're experimenting. Once you want to launch experiments or serve models, feature services are recommended.
+
+Feature references uniquely identify feature values in Feast. The structure of a feature reference in string form is as follows: `<feature_view>[@version]:<feature>`
+
+The `@version` part is optional. When omitted, the latest (active) version is used. You can specify a version like `@v2` to read from a specific historical version snapshot.
+
+Feature references are used for the retrieval of features from Feast:
+
+```python
+online_features = fs.get_online_features(
+    features=[
+        'driver_locations:lon',                # latest version (default)
+        'drivers_activity:trips_today',        # latest version (default)
+        'drivers_activity@v2:trips_today',     # specific version
+        'drivers_activity@latest:trips_today', # explicit latest
+    ],
+    entity_rows=[
+        # {join_key: entity_value}
+        {'driver': 'driver_1001'}
+    ]
+)
+```
+
+{% hint style="info" %}
+Version-qualified reads (`@v<N>`) require `enable_online_feature_view_versioning: true` in your registry config and are currently supported only on the SQLite online store. See the [feature view versioning docs](feature-view.md#version-qualified-feature-references) for details.
+{% endhint %}
+
+It is possible to retrieve features from multiple feature views with a single request, and Feast is able to join features from multiple tables in order to build a training dataset. However, it is not possible to reference (or retrieve) features from multiple projects at the same time.
+
+{% hint style="info" %}
+Note, if you're using [Feature views without entities](feature-view.md#feature-views-without-entities), then those features can be added here without additional entity values in the `entity_rows` parameter.
+{% endhint %}
+
+### Event timestamp
+
+The timestamp on which an event occurred, as found in a feature view's data source. The event timestamp describes the event time at which a feature was observed or generated.
+
+Event timestamps are used during point-in-time joins to ensure that the latest feature values are joined from feature views onto entity rows. Event timestamps are also used to ensure that old feature values aren't served to models during online serving.
+
+#### Why `event_timestamp` is required in the entity dataframe
+
+When calling `get_historical_features()`, the `entity_df` must include an `event_timestamp` column. This timestamp acts as the **upper bound (inclusive)** for which feature values are allowed to be retrieved for each entity row. Feast performs a point-in-time join (also called a "last known good value" temporal join): for each entity row, it retrieves the latest feature values with a timestamp **at or before** the entity row's `event_timestamp`.
+
+This ensures **point-in-time correctness**, which is critical to prevent **data leakage** during model training. Without this constraint, features generated *after* the prediction time could leak into training data—effectively letting the model "see the future"—leading to inflated offline metrics that do not translate to real-world performance.
+
+For example, if you want to predict whether a driver will be rated well on April 12 at 10:00 AM, the entity dataframe row should have `event_timestamp = datetime(2021, 4, 12, 10, 0, 0)`. Feast will then only join feature values observed on or before that time, excluding any data generated after 10:00 AM.
+
+#### Retrieving features without an entity dataframe
+
+While the entity dataframe is the standard way to retrieve historical features, Feast also supports **entity-less historical feature retrieval** by datetime range. This is useful when:
+
+- You are training **time-series or population-level models** and don't have a pre-defined list of entity IDs.
+- You want **all features in a time window** for exploratory analysis or batch training on full history.
+- Constructing an entity dataframe upfront is unnecessarily complex or expensive.
+
+Instead of passing `entity_df`, you specify a time window with `start_date` and/or `end_date`:
+
+```python
+from datetime import datetime
+
+training_df = store.get_historical_features(
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_hourly_stats:avg_daily_trips",
+    ],
+    start_date=datetime(2025, 7, 1),
+    end_date=datetime(2025, 7, 2),
+).to_df()
+```
+
+If `start_date` is omitted, it defaults to `end_date` minus the feature view TTL. If `end_date` is omitted, it defaults to the current time. Point-in-time correctness is still preserved.
+
+{% hint style="warning" %}
+Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
+{% endhint %}
+
+For more details, see the [FAQ](../faq.md#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe) and [this blog post on entity-less historical feature retrieval](https://feast.dev/blog/entity-less-historical-features-retrieval/).
+
+### Dataset
+
+A dataset is a collection of rows that is produced by a historical retrieval from Feast in order to train a model. A dataset is produced by a join from one or more feature views onto an entity dataframe. Therefore, a dataset may consist of features from multiple feature views.
+
+**Dataset vs Feature View:** Feature views contain the schema of data and a reference to where data can be found (through its data source). Datasets are the actual data manifestation of querying those data sources.
+
+**Dataset vs Data Source:** Datasets are the output of historical retrieval, whereas data sources are the inputs. One or more data sources can be used in the creation of a dataset.
+
+## Retrieving historical features (for training data or batch scoring)
+Feast abstracts away point-in-time join complexities with the `get_historical_features` API.
+
+We go through the major steps, and also show example code. Note that the quickstart templates generally have end-to-end working examples for all these cases.
+
+<details>
+
+<summary>Full example: generate training data</summary>
+
+```python
+entity_df = pd.DataFrame.from_dict(
+    {
+        "driver_id": [1001, 1002, 1003, 1004, 1001],
+        "event_timestamp": [
+            datetime(2021, 4, 12, 10, 59, 42),
+            datetime(2021, 4, 12, 8, 12, 10),
+            datetime(2021, 4, 12, 16, 40, 26),
+            datetime(2021, 4, 12, 15, 1, 12),
+            datetime.now()
+        ]
+    }
+)
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=store.get_feature_service("model_v1"),
+).to_df()
+print(training_df.head())
+```
+
+</details>
+
+<details>
+
+<summary>Full example: retrieve offline features for batch scoring</summary>
+
+The main difference here compared to training data generation is how to handle timestamps in the entity dataframe. You want to pass in the **current time** to get the latest feature values for all your entities.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(repo_path=".")
+
+# Get the latest feature values for unique entities
+entity_sql = f"""
+    SELECT
+        driver_id,
+        CURRENT_TIMESTAMP() as event_timestamp
+    FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+    WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+    GROUP BY driver_id
+"""
+batch_scoring_features = store.get_historical_features(
+    entity_df=entity_sql,
+    features=store.get_feature_service("model_v2"),
+).to_df()
+# predictions = model.predict(batch_scoring_features)
+```
+
+</details>
+
+### Step 1: Specifying Features
+Feast accepts either:
+- [feature services](feature-retrieval.md#feature-services), which group features needed for a model version
+- [feature references](feature-retrieval.md#feature-references)
+
+#### Example: querying a feature service (recommended)
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=store.get_feature_service("model_v1"),
+).to_df()
+```
+
+#### Example: querying a list of feature references
+```python
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+### Step 2: Specifying Entities
+Feast accepts either a **Pandas dataframe** as the entity dataframe (including entity keys and timestamps) or a **SQL query** to generate the entities.
+
+Both approaches must specify the full **entity key** needed as well as the **timestamps**. Feast then joins features onto this dataframe.
+
+#### Example: entity dataframe for generating training data
+```python
+entity_df = pd.DataFrame.from_dict(
+    {
+        "driver_id": [1001, 1002, 1003, 1004, 1001],
+        "event_timestamp": [
+            datetime(2021, 4, 12, 10, 59, 42),
+            datetime(2021, 4, 12, 8, 12, 10),
+            datetime(2021, 4, 12, 16, 40, 26),
+            datetime(2021, 4, 12, 15, 1, 12),
+            datetime.now()
+        ]
+    }
+)
+training_df = store.get_historical_features(
+    entity_df=entity_df,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+
+#### Example: entity SQL query for generating training data
+You can also pass a SQL string to generate the above dataframe. This is useful for getting all entities in a timeframe from some data source.
+
+```python
+entity_sql = f"""
+    SELECT
+        driver_id,
+        event_timestamp
+    FROM {store.get_data_source("driver_hourly_stats_source").get_table_query_string()}
+    WHERE event_timestamp BETWEEN '2021-01-01' and '2021-12-31'
+"""
+training_df = store.get_historical_features(
+    entity_df=entity_sql,
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven"
+    ],
+).to_df()
+```
+
+### Step 3: Choosing an output format
+
+`get_historical_features()` returns a `RetrievalJob` object. You can convert it
+to the format that suits your downstream pipeline:
+
+**Data conversion methods**
+
+| Method | Returns | When to use |
+|---|---|---|
+| `.to_df()` | `pandas.DataFrame` | General-purpose; scikit-learn, XGBoost, statsmodels |
+| `.to_feast_df()` | `FeastDataFrame` | Feast-native wrapper with engine metadata; preferred for Feast-internal tooling |
+| `.to_arrow()` | `pyarrow.Table` | Arrow-native pipelines, Polars, DuckDB, zero-copy interchange |
+| `.to_tensor(kind="torch")` | `Dict[str, torch.Tensor]` | Direct PyTorch training loops; numeric columns become tensors |
+| `.to_ray_dataset()` | `ray.data.Dataset` | Ray Train, Ray Serve, distributed ML workloads |
+
+**Persistence methods**
+
+| Method | Effect | When to use |
+|---|---|---|
+| `.persist(storage)` | Writes result to offline storage | Save a training dataset for later reuse or auditing |
+| `.to_remote_storage()` | Exports result to S3/GCS as Parquet files | Hand off to external systems or data pipelines |
+
+#### Retrieving as a Ray Dataset
+
+`to_ray_dataset()` is a **first-class method** on every `RetrievalJob`. When
+the underlying offline store is a `RayOfflineStore`, the dataset is returned
+directly without a copy through Arrow. For all other offline stores, a
+zero-copy Arrow → Ray Dataset conversion is used as a fallback.
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore(".")
+
+# to_ray_dataset() is a first-class method on the RetrievalJob — chain it
+# directly after get_historical_features().
+ray_ds = store.get_historical_features(
+    entity_df=entity_df,
+    features=["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"],
+).to_ray_dataset()
+
+# Use with Ray Train
+import ray.train
+trainer = ray.train.torch.TorchTrainer(
+    train_loop_per_worker=...,
+    datasets={"train": ray_ds},
+)
+```
+
+> **Note:** `to_ray_dataset()` requires `feast[ray]` to be installed.
+
+---
+
+## Retrieving online features (for model inference)
+Feast will ensure the latest feature values for registered features are available. At retrieval time, you need to supply a list of **entities** and the corresponding **features** to be retrieved. Similar to `get_historical_features`, we recommend using feature services as a mechanism for grouping features in a model version.
+
+_Note: unlike `get_historical_features`, the `entity_rows`  **do not need timestamps** since you only want one feature value per entity key._
+
+There are several options for retrieving online features: through the SDK, or through a feature server
+
+<details>
+
+<summary>Full example: retrieve online features for real-time model inference (Python SDK)</summary>
+
+```python
+from feast import RepoConfig, FeatureStore
+from feast.repo_config import RegistryConfig
+
+repo_config = RepoConfig(
+    registry=RegistryConfig(path="gs://feast-test-gcs-bucket/registry.pb"),
+    project="feast_demo_gcp",
+    provider="gcp",
+)
+store = FeatureStore(config=repo_config)
+
+features = store.get_online_features(
+    features=[
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_daily_features:daily_miles_driven",
+    ],
+    entity_rows=[
+        {
+            "driver_id": 1001,
+        }
+    ],
+).to_dict()
+```
+
+</details>
+
+<details>
+
+<summary>Full example: retrieve online features for real-time model inference (Feature Server)</summary>
+
+This approach requires you to deploy a feature server (see [Python feature server](../../reference/feature-servers/python-feature-server)).
+
+```python
+import requests
+import json
+
+online_request = {
+    "features": [
+        "driver_hourly_stats:conv_rate",
+    ],
+    "entities": {"driver_id": [1001, 1002]},
+}
+r = requests.post('http://localhost:6566/get-online-features', data=json.dumps(online_request))
+print(json.dumps(r.json(), indent=4, sort_keys=True))
+```
+
+</details>

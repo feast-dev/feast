@@ -1,0 +1,671 @@
+# Python feature server
+
+## Overview
+
+The Python feature server is an HTTP endpoint that serves features with JSON I/O. This enables users to write and read features from the online store using any programming language that can make HTTP requests.
+
+## CLI
+
+There is a CLI command that starts the server: `feast serve`. By default, Feast uses port 6566; the port be overridden with a `--port` flag.
+
+### Performance Configuration
+
+For production deployments, the feature server supports several performance optimization options:
+
+```bash
+# Basic usage
+feast serve
+
+# Production configuration with multiple workers
+feast serve --workers -1 --worker-connections 1000 --registry_ttl_sec 60
+
+# Manual worker configuration
+feast serve --workers 8 --worker-connections 2000 --max-requests 1000
+```
+
+Key performance options:
+- `--workers, -w`: Number of worker processes. Use `-1` to auto-calculate based on CPU cores (recommended for production)
+- `--worker-connections`: Maximum simultaneous clients per worker process (default: 1000)
+- `--max-requests`: Maximum requests before worker restart, prevents memory leaks (default: 1000)
+- `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
+- `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
+- `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+
+### Performance Best Practices
+
+**Worker Configuration:**
+- For production: Use `--workers -1` to auto-calculate optimal worker count (2 × CPU cores + 1)
+- For development: Use default single worker (`--workers 1`)
+- Monitor CPU and memory usage to tune worker count manually if needed
+
+**Registry TTL:**
+- Production: Use `--registry_ttl_sec 60` or higher to reduce refresh overhead
+- Development: Use lower values (5-10s) for faster iteration when schemas change frequently
+- Balance between performance (higher TTL) and freshness (lower TTL)
+
+**Connection Tuning:**
+- Increase `--worker-connections` for high-concurrency workloads
+- Use `--max-requests` to prevent memory leaks in long-running deployments
+- Adjust `--keep-alive-timeout` based on client connection patterns
+
+**Container Deployments:**
+- Set appropriate CPU/memory limits in Kubernetes to match worker configuration
+- Use HTTP health checks instead of TCP for better application-level monitoring
+- Consider horizontal pod autoscaling based on request latency metrics
+
+## Deploying as a service
+
+See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
+
+## Example
+
+### Initializing a feature server
+
+Here's an example of how to start the Python feature server with a local feature repo:
+
+```bash
+$ feast init feature_repo
+Creating a new Feast repository in /home/tsotne/feast/feature_repo.
+
+$ cd feature_repo
+
+$ feast apply
+Created entity driver
+Created feature view driver_hourly_stats
+Created feature service driver_activity
+
+Created sqlite table feature_repo_driver_hourly_stats
+
+$ feast materialize-incremental $(date +%Y-%m-%d)
+Materializing 1 feature views to 2021-09-09 17:00:00-07:00 into the sqlite online store.
+
+driver_hourly_stats from 2021-09-09 16:51:08-07:00 to 2021-09-09 17:00:00-07:00:
+100%|████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 295.24it/s]
+
+$ feast serve
+09/10/2021 10:42:11 AM INFO:Started server process [8889]
+INFO:     Waiting for application startup.
+09/10/2021 10:42:11 AM INFO:Waiting for application startup.
+INFO:     Application startup complete.
+09/10/2021 10:42:11 AM INFO:Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
+09/10/2021 10:42:11 AM INFO:Uvicorn running on http://127.0.0.1:6566 (Press CTRL+C to quit)
+```
+
+### Retrieving features
+
+After the server starts, we can execute cURL commands from another terminal tab:
+
+```bash
+$  curl -X POST \
+  "http://localhost:6566/get-online-features" \
+  -d '{
+    "features": [
+      "driver_hourly_stats:conv_rate",
+      "driver_hourly_stats:acc_rate",
+      "driver_hourly_stats:avg_daily_trips"
+    ],
+    "entities": {
+      "driver_id": [1001, 1002, 1003]
+    }
+  }' | jq
+{
+  "metadata": {
+    "feature_names": [
+      "driver_id",
+      "conv_rate",
+      "avg_daily_trips",
+      "acc_rate"
+    ]
+  },
+  "results": [
+    {
+      "values": [
+        1001,
+        0.7037263512611389,
+        308,
+        0.8724706768989563
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
+    },
+    {
+      "values": [
+        1002,
+        0.038169607520103455,
+        332,
+        0.48534533381462097
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
+    },
+    {
+      "values": [
+        1003,
+        0.9665873050689697,
+        779,
+        0.7793770432472229
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z",
+        "2021-12-31T23:00:00Z"
+      ]
+    }
+  ]
+}
+```
+
+It's also possible to specify a feature service name instead of the list of features:
+
+```
+curl -X POST \
+  "http://localhost:6566/get-online-features" \
+  -d '{
+    "feature_service": <feature-service-name>,
+    "entities": {
+      "driver_id": [1001, 1002, 1003]
+    }
+  }' | jq
+```
+
+### Pushing features to the online and offline stores
+
+The Python feature server also exposes an endpoint for [push sources](../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
+
+The request definition for `PushMode` is a string parameter `to` where the options are: \[`"online"`, `"offline"`, `"online_and_offline"`].
+
+**Note:** timestamps need to be strings, and might need to be timezone aware (matching the schema of the offline store)
+
+```
+curl -X POST "http://localhost:6566/push" -d '{
+    "push_source_name": "driver_stats_push_source",
+    "df": {
+            "driver_id": [1001],
+            "event_timestamp": ["2022-05-13 10:59:42+00:00"],
+            "created": ["2022-05-13 10:59:42"],
+            "conv_rate": [1.0],
+            "acc_rate": [1.0],
+            "avg_daily_trips": [1000]
+    },
+    "to": "online_and_offline"
+  }' | jq
+```
+
+or equivalently from Python:
+
+```python
+import json
+import requests
+from datetime import datetime
+
+event_dict = {
+    "driver_id": [1001],
+    "event_timestamp": [str(datetime(2021, 5, 13, 10, 59, 42))],
+    "created": [str(datetime(2021, 5, 13, 10, 59, 42))],
+    "conv_rate": [1.0],
+    "acc_rate": [1.0],
+    "avg_daily_trips": [1000],
+    "string_feature": "test2",
+}
+push_data = {
+    "push_source_name":"driver_stats_push_source",
+    "df":event_dict,
+    "to":"online",
+}
+requests.post(
+    "http://localhost:6566/push",
+    data=json.dumps(push_data))
+```
+#### Offline write batching for `/push`
+
+The Python feature server  supports configurable batching for the **offline**
+portion of writes executed via the `/push` endpoint.
+
+Only the offline part of a push is affected:
+
+- `to: "offline"` → **fully batched**
+- `to: "online_and_offline"` → **online written immediately**, **offline batched**
+- `to: "online"` → unaffected, always immediate
+
+Enable batching in your `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  offline_push_batching_enabled: true
+  offline_push_batching_batch_size: 1000
+  offline_push_batching_batch_interval_seconds: 10
+```
+
+### Materializing features
+
+The Python feature server also exposes an endpoint for materializing features from the offline store to the online store.
+
+**Standard materialization with timestamps:**
+```bash
+curl -X POST "http://localhost:6566/materialize" -d '{
+    "start_ts": "2021-01-01T00:00:00",
+    "end_ts": "2021-01-02T00:00:00",
+    "feature_views": ["driver_hourly_stats"]
+}' | jq
+```
+
+**Materialize all data without event timestamps:**
+```bash
+curl -X POST "http://localhost:6566/materialize" -d '{
+    "feature_views": ["driver_hourly_stats"],
+    "disable_event_timestamp": true
+}' | jq
+```
+
+When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data (from 1970-01-01 up to the current UTC time) is materialized. Rows keep the event timestamps from the source.
+
+Or from Python:
+```python
+import json
+import requests
+
+# Standard materialization
+materialize_data = {
+    "start_ts": "2021-01-01T00:00:00",
+    "end_ts": "2021-01-02T00:00:00",
+    "feature_views": ["driver_hourly_stats"]
+}
+
+# Materialize without event timestamps
+materialize_data_no_timestamps = {
+    "feature_views": ["driver_hourly_stats"],
+    "disable_event_timestamp": True
+}
+
+requests.post(
+    "http://localhost:6566/materialize",
+    data=json.dumps(materialize_data))
+```
+
+## Prometheus Metrics
+
+The Python feature server can expose Prometheus-compatible metrics on a dedicated
+HTTP endpoint (default port `8000`). Metrics are **opt-in** and carry zero overhead
+when disabled.
+
+### Enabling metrics
+
+**Option 1 — CLI flag** (useful for one-off runs):
+
+```bash
+feast serve --metrics
+```
+
+**Option 2 — `feature_store.yaml`** (recommended for production):
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+```
+
+Either option is sufficient. When both are set, metrics are enabled.
+
+### Per-category control
+
+By default, enabling metrics turns on **all** categories. You can selectively
+disable individual categories within the same `metrics` block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    resource: true          # CPU / memory gauges
+    request: false          # disable endpoint latency & request counters
+    online_features: true   # online feature retrieval counters
+    push: true              # push request counters
+    materialization: true   # materialization counters & duration
+    freshness: true         # feature freshness gauges
+    offline_features: true  # offline store retrieval counters & latency
+    audit_logging: false    # structured JSON audit logs (see below)
+```
+
+Any category set to `false` will emit no metrics and start no background
+threads (e.g., setting `freshness: false` prevents the registry polling
+thread from starting). All categories default to `true` except
+`audit_logging`, which defaults to `false`.
+
+### Available metrics
+
+| Metric | Type | Labels | Category | Description |
+|--------|------|--------|----------|-------------|
+| `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
+| `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
+| `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
+| `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
+| `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
+| `feast_feature_server_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV read-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_feature_server_write_transformation_duration_seconds` | Histogram | `odfv_name`, `mode` | `online_features` | ODFV write-path transformation duration (requires `track_metrics=True` on the ODFV) |
+| `feast_push_request_total` | Counter | `push_source`, `mode` | `push` | Push requests by source and mode |
+| `feast_materialization_result_total` | Counter | `feature_view`, `status` | `materialization` | Materialization runs (success/failure) |
+| `feast_materialization_duration_seconds` | Histogram | `feature_view` | `materialization` | Materialization duration per feature view |
+| `feast_feature_freshness_seconds` | Gauge | `feature_view`, `project` | `freshness` | Seconds since last materialization |
+| `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
+| `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
+| `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
+
+### Feature count bucketing
+
+The `feature_count` label on `feast_feature_server_request_latency_seconds`
+is bucketed rather than exact, to keep cardinality bounded for feature
+services that vary widely in how many features they request. By default,
+counts are grouped into `0`, `1-10`, `11-50`, `51-200`, and `201+`.
+
+Customize the bucket boundaries with `feature_count_bins` in the `metrics`
+block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    feature_count_bins: [5, 20]
+```
+
+This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
+affects the Prometheus label; the `feature_count` field in audit logs (see
+below) always reports the exact count.
+
+### Per-ODFV transformation metrics
+
+The `transformation_duration_seconds` and `write_transformation_duration_seconds`
+metrics are gated behind **two** conditions — both must be true for any
+instrumentation to run:
+
+1. **Server-level**: the `online_features` category must be enabled in the
+   metrics configuration.
+2. **ODFV-level**: the `OnDemandFeatureView` must have `track_metrics=True`.
+
+This defaults to `False`, so no ODFV incurs timing overhead unless explicitly
+opted in:
+
+```python
+from feast.on_demand_feature_view import on_demand_feature_view
+
+@on_demand_feature_view(
+    sources=[my_feature_view, my_request_source],
+    schema=[Field(name="output", dtype=Float64)],
+    track_metrics=True,   # opt in to transformation timing
+)
+def my_transform(inputs: pd.DataFrame) -> pd.DataFrame:
+    ...
+```
+
+The `odfv_name` label lets you filter or group by individual ODFV,
+and the `mode` label (`python`, `pandas`, `substrait`) lets you compare
+transformation engines.
+
+### Audit logging
+
+Feast can emit structured JSON audit log entries for every online and offline
+feature retrieval. These are written via the standard `feast.audit` Python
+logger, so you can route them to a dedicated file, SIEM, or log aggregator
+independently of application logs.
+
+Audit logging is **disabled by default**. Enable it in `feature_store.yaml`:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    audit_logging: true
+```
+
+**Online audit log** (emitted per `/get-online-features` call):
+
+```json
+{
+  "event": "online_feature_request",
+  "timestamp": "2026-05-11T08:30:00.123456+00:00",
+  "requestor_id": "user@example.com",
+  "entity_keys": ["driver_id"],
+  "entity_count": 3,
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "status": "success",
+  "latency_ms": 12.34
+}
+```
+
+**Offline audit log** (emitted per `RetrievalJob.to_arrow()` call):
+
+```json
+{
+  "event": "offline_feature_retrieval",
+  "timestamp": "2026-05-11T08:31:00.456789+00:00",
+  "method": "to_arrow",
+  "start_time": "2026-05-11T08:30:59.226789+00:00",
+  "end_time": "2026-05-11T08:31:00.456789+00:00",
+  "feature_views": ["driver_hourly_stats"],
+  "feature_count": 3,
+  "row_count": 500,
+  "status": "success",
+  "duration_ms": 1230.0
+}
+```
+
+The `requestor_id` field in online audit logs is populated from the
+security manager's current user when authentication is configured, and
+falls back to `"anonymous"` otherwise.
+
+To route audit logs to a separate file:
+
+```python
+import logging
+
+handler = logging.FileHandler("/var/log/feast/audit.log")
+handler.setFormatter(logging.Formatter("%(message)s"))
+logging.getLogger("feast.audit").addHandler(handler)
+```
+
+### Scraping with Prometheus
+
+```yaml
+scrape_configs:
+  - job_name: feast
+    static_configs:
+      - targets: ["localhost:8000"]
+```
+
+### Kubernetes / Feast Operator
+
+Set `metrics: true` in your FeatureStore CR:
+
+```yaml
+spec:
+  services:
+    onlineStore:
+      server:
+        metrics: true
+```
+
+The operator automatically exposes port 8000 and creates the corresponding
+Service port so Prometheus can discover it.
+
+### Multi-worker and multi-replica (HPA) support
+
+Feast uses Prometheus **multiprocess mode** so that metrics are correct
+regardless of the number of Gunicorn workers or Kubernetes replicas.
+
+**How it works:**
+
+* Each Gunicorn worker writes metric values to shared files in a
+  temporary directory (`PROMETHEUS_MULTIPROCESS_DIR`).  Feast creates
+  this directory automatically; you can override it by setting the
+  environment variable yourself.
+* The metrics HTTP server on port 8000 aggregates all workers'
+  metric files using `MultiProcessCollector`, so a single scrape
+  returns accurate totals.
+* Gunicorn hooks clean up dead-worker files automatically
+  (`child_exit` → `mark_process_dead`).
+* CPU and memory gauges use `multiprocess_mode=liveall` — Prometheus
+  shows per-worker values distinguished by a `pid` label.
+* Feature freshness gauges use `multiprocess_mode=max` — Prometheus
+  shows the worst-case staleness (all workers compute the same value).
+* Counters and histograms (request counts, latency, materialization)
+  are automatically summed across workers.
+
+**Multiple replicas (HPA):** Each pod runs its own metrics endpoint.
+Prometheus adds an `instance` label per pod, so there is no
+duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
+instances as usual.
+
+## Vector Search (`POST /search`)
+
+The feature server exposes `POST /search` for vector similarity search against online document embeddings. Pass a pre-computed embedding in `query`, or use `api_version: 2` with `query_string` for text-based search when the online store supports it.
+
+`POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
+
+## [Alpha] OpenAI-Compatible Vector Store API
+
+{% hint style="warning" %}
+**Alpha feature.** This API surface is functional and tested, but may change in future releases.
+{% endhint %}
+
+The feature server exposes OpenAI-compatible vector store endpoints. This allows clients (including LLM agents and tool-calling frameworks) to discover and search vector data with plain text queries, without computing embeddings client-side.
+
+Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from `SHA-256(project + ":" + feature_view_name)`. These IDs are stable across server restarts.
+
+### Endpoints
+
+| Method | Path | RBAC | Description |
+|---|---|---|---|
+| `GET` | `/v1/vector_stores` | `DESCRIBE` | List all vector stores (filtered by caller permissions) |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | `DESCRIBE` | Get metadata for a single vector store |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | `READ_ONLINE` | Search a vector store with server-side embedding |
+
+### Configuration
+
+Add an `embedding_model` section to your `feature_store.yaml`:
+
+```yaml
+embedding_model:
+  provider: sentence_transformers   # default; can be omitted
+  model: all-MiniLM-L6-v2
+```
+
+Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol. See [\[Alpha\] Vector Database](../alpha-vector-database.md#alpha-openai-compatible-vector-store-api) for full configuration, custom providers, filter details, and SDK usage.
+
+## Starting the feature server in TLS(SSL) mode
+
+Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.
+
+### Obtaining a self-signed TLS certificate and key
+In development mode we can generate a self-signed certificate for testing. In an actual production environment it is always recommended to get it from a trusted TLS certificate provider.
+
+```shell
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+
+The above command will generate two files
+* `key.pem` : certificate private key
+* `cert.pem`: certificate public key
+
+### Starting the Online Server in TLS(SSL) Mode
+To start the feature server in TLS mode, you need to provide the private and public keys using the `--key` and `--cert` arguments with the `feast serve` command.
+
+```shell
+feast serve --key /path/to/key.pem --cert /path/to/cert.pem
+```
+
+# [Alpha] Static Artifacts Loading
+
+**Warning**: This is an experimental feature. To our knowledge, this is stable, but there are still rough edges in the experience.
+
+Static artifacts loading allows you to load models, lookup tables, and other static resources once during feature server startup instead of loading them on each request. This improves performance for on-demand feature views that require external resources.
+
+## Quick Example
+
+Create a `static_artifacts.py` file in your feature repository:
+
+```python
+# static_artifacts.py
+from fastapi import FastAPI
+from transformers import pipeline
+
+def load_artifacts(app: FastAPI):
+    """Load static artifacts into app.state."""
+    app.state.sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+    # Update global references for access from feature views
+    import example_repo
+    example_repo._sentiment_model = app.state.sentiment_model
+```
+
+Access pre-loaded artifacts in your on-demand feature views:
+
+```python
+# example_repo.py
+_sentiment_model = None
+
+@on_demand_feature_view(...)
+def sentiment_prediction(inputs: pd.DataFrame) -> pd.DataFrame:
+    global _sentiment_model
+    return _sentiment_model(inputs["text"])
+```
+
+## Documentation
+
+For comprehensive documentation, examples, and best practices, see the [Alpha Static Artifacts Loading](../alpha-static-artifacts.md) reference guide.
+
+The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/python/feast/templates/pytorch_nlp) provides a complete working example.
+
+# Online Feature Server Permissions and Access Control
+
+## API Endpoints and Permissions
+
+| Endpoint                   | Resource Type                   | Permission                                            | Description                                                    |
+|----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
+| /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
+| /search | FeatureView                     | Read Online                                           | Vector similarity search for RAG (embedding vector or text query) |
+| /retrieve-online-documents | FeatureView              | Read Online                                           | **Deprecated.** Use `/search` instead.                           |
+| /v1/vector_stores | FeatureView                  | Describe                                              | [Alpha] List all vector stores                                 |
+| /v1/vector_stores/{id} | FeatureView                  | Describe                                              | [Alpha] Get a single vector store                              |
+| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | [Alpha] OpenAI-compatible vector search with server-side embedding |
+| /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
+| /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
+| /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
+| /materialize-incremental   | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
+
+## How to configure Authentication and Authorization ?
+
+Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.

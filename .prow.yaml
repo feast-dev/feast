@@ -1,0 +1,32 @@
+postsubmits:
+- name: publish-java-sdk
+  decorate: true
+  spec:
+    containers:
+    - image: maven:3.6-jdk-11
+      command:
+      - bash
+      - -c
+      - infra/scripts/publish-java-sdk.sh --revision ${PULL_BASE_REF:1}
+      volumeMounts:
+      - name: gpg-keys
+        mountPath: /etc/gpg
+        readOnly: true
+      - name: maven-settings
+        mountPath: /root/.m2/settings.xml
+        subPath: settings.xml
+        readOnly: true
+    volumes:
+    - name: gpg-keys
+      secret:
+        secretName: gpg-keys
+    - name: maven-settings
+      secret:
+        secretName: maven-settings
+  skip_branches:
+  # Skip version 0.3 and 0.4
+  - ^v0\.(3|4)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
+  branches:
+  # Filter on tags with semantic versioning, prefixed with "v".
+  - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$

@@ -1,0 +1,274 @@
+/*
+Copyright 2024 Feast Community.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"flag"
+	"os"
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	configv1 "github.com/openshift/api/config/v1"
+	tlspkg "github.com/openshift/controller-runtime-common/pkg/tls"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
+	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
+
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller"
+	feastmetrics "github.com/feast-dev/feast/infra/feast-operator/internal/controller/metrics"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
+	// +kubebuilder:scaffold:imports
+)
+
+var (
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(configv1.Install(scheme))
+	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(feastdevv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(feastdevv1.AddToScheme(scheme))
+	// +kubebuilder:scaffold:scheme
+}
+
+func newCacheOptions() cache.Options {
+	managedBySelector := labels.SelectorFromSet(labels.Set{
+		services.ManagedByLabelKey: services.ManagedByLabelValue,
+	})
+	managedByFilter := cache.ByObject{Label: managedBySelector}
+
+	return cache.Options{
+		DefaultTransform: cache.TransformStripManagedFields(),
+		ByObject: map[client.Object]cache.ByObject{
+			&corev1.ConfigMap{}:                      managedByFilter,
+			&appsv1.Deployment{}:                     managedByFilter,
+			&corev1.Service{}:                        managedByFilter,
+			&corev1.ServiceAccount{}:                 managedByFilter,
+			&corev1.PersistentVolumeClaim{}:          managedByFilter,
+			&rbacv1.RoleBinding{}:                    managedByFilter,
+			&rbacv1.Role{}:                           managedByFilter,
+			&batchv1.CronJob{}:                       managedByFilter,
+			&autoscalingv2.HorizontalPodAutoscaler{}: managedByFilter,
+			&policyv1.PodDisruptionBudget{}:          managedByFilter,
+		},
+	}
+}
+
+func main() {
+	var metricsAddr string
+	var enableLeaderElection bool
+	var probeAddr string
+	var secureMetrics bool
+	var featureStoreMetrics bool
+	tlsOpts := make([]func(*tls.Config), 0, 2)
+	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
+		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&secureMetrics, "metrics-secure", true,
+		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
+	flag.BoolVar(&featureStoreMetrics, "feature-store-metrics", true,
+		"Enable Prometheus gauges exposing online/offline store and registry configuration per FeatureStore. "+
+			"Disable with --feature-store-metrics=false.")
+	opts := zap.Options{
+		Development: true,
+	}
+	opts.BindFlags(flag.CommandLine)
+	flag.Parse()
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Fetch cluster TLS profile from apiservers.config.openshift.io/cluster
+	cfg := ctrl.GetConfigOrDie()
+	bootstrapClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		setupLog.Error(err, "unable to create bootstrap client for TLS profile fetch")
+		os.Exit(1)
+	}
+
+	tlsResult, err := bootstrapTLS(context.Background(), bootstrapClient)
+	if err != nil {
+		setupLog.Error(err, "TLS bootstrap failed")
+		os.Exit(1)
+	}
+	tlsOpts = append(tlsOpts, tlsResult.TLSOpts...)
+
+	webhookServer := webhook.NewServer(webhook.Options{
+		TLSOpts: tlsOpts,
+	})
+
+	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
+	// More info:
+	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/server
+	// - https://book.kubebuilder.io/reference/metrics.html
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: secureMetrics,
+		// TODO(user): TLSOpts is used to allow configuring the TLS config used for the server. If certificates are
+		// not provided, self-signed certificates will be generated by default. This option is not recommended for
+		// production environments as self-signed certificates do not offer the same level of trust and security
+		// as certificates issued by a trusted Certificate Authority (CA). The primary risk is potentially allowing
+		// unauthorized access to sensitive metrics data. Consider replacing with CertDir, CertName, and KeyName
+		// to provide certificates, ensuring the server communicates using trusted and secure certificates.
+		TLSOpts: tlsOpts,
+	}
+
+	if secureMetrics {
+		// FilterProvider is used to protect the metrics endpoint with authn/authz.
+		// These configurations ensure that only authorized users and service accounts
+		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
+		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:                 scheme,
+		Metrics:                metricsServerOptions,
+		WebhookServer:          webhookServer,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "66483dbd.feast.dev",
+		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
+		// when the Manager ends. This requires the binary to immediately end when the
+		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
+		// speeds up voluntary leader transitions as the new leader don't have to wait
+		// LeaseDuration time first.
+		//
+		// In the default scaffold provided, the program ends immediately after
+		// the manager stops, so would be fine to enable this option. However,
+		// if you are doing or is intended to do any operation such as perform cleanups
+		// after the manager stops then its usage might be unsafe.
+		// LeaderElectionReleaseOnCancel: true,
+		Cache: newCacheOptions(),
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				// Bypass the label-filtered informer cache for all reads so that
+				// pre-existing resources without the managed-by label are still
+				// visible to the reconciler. The ByObject cache filter above still
+				// restricts the watch to managed-by-labeled objects, limiting
+				// memory usage while avoiding upgrade deadlocks.
+				DisableFor: []client.Object{
+					&corev1.ConfigMap{},
+					&corev1.Secret{},
+					&appsv1.Deployment{},
+					&corev1.Service{},
+					&corev1.ServiceAccount{},
+					&corev1.PersistentVolumeClaim{},
+					&rbacv1.RoleBinding{},
+					&rbacv1.Role{},
+					&batchv1.CronJob{},
+					&autoscalingv2.HorizontalPodAutoscaler{},
+					&policyv1.PodDisruptionBudget{},
+				},
+			},
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	services.SetIsOpenShift(mgr.GetConfig())
+
+	var fsMetrics *feastmetrics.FeatureStoreMetrics
+	if featureStoreMetrics {
+		fsMetrics = feastmetrics.NewFeatureStoreMetrics()
+		fsMetrics.Register()
+		setupLog.Info("FeatureStore installation metrics enabled")
+	} else {
+		setupLog.Info("FeatureStore installation metrics disabled (--feature-store-metrics=false)")
+	}
+
+	if err = (&controller.FeatureStoreReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Metrics: fsMetrics,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FeatureStore")
+		os.Exit(1)
+	}
+	// +kubebuilder:scaffold:builder
+
+	// Register SecurityProfileWatcher to restart on TLS profile changes
+	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
+
+	if tlsResult.ProfileFetched {
+		watcher := &tlspkg.SecurityProfileWatcher{
+			Client:                mgr.GetClient(),
+			InitialTLSProfileSpec: tlsResult.ProfileSpec,
+			OnProfileChange: func(_ context.Context, _, _ configv1.TLSProfileSpec) {
+				setupLog.Info("TLS profile changed, initiating shutdown to reload")
+				cancel()
+			},
+		}
+		if tlsResult.AdherenceFetched {
+			watcher.InitialTLSAdherencePolicy = tlsResult.AdherencePolicy
+			watcher.OnAdherencePolicyChange = func(_ context.Context, _, _ configv1.TLSAdherencePolicy) {
+				setupLog.Info("TLS adherence policy changed, initiating shutdown to reload")
+				cancel()
+			}
+		}
+		if err := watcher.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up TLS profile watcher")
+			os.Exit(1)
+		}
+	}
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctx); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}

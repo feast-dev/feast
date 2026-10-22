@@ -1,0 +1,30 @@
+name: lint-pr
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-title:
+    if:
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .commitlintrc.yaml
+          sparse-checkout-cone-mode: false
+      - name: Lint PR title with commitlint
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          npm install --no-save @commitlint/cli @commitlint/config-conventional
+          echo "$PR_TITLE" | npx commitlint

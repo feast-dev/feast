@@ -1,0 +1,44 @@
+plugins:
+  feast-dev/feast:
+  - approve      
+  - assign
+  - help
+  - hold
+  - label
+  - lgtm
+  - lifecycle     
+  - size
+  - verify-owners 
+  - wip         
+  - trigger
+  - config-updater
+  feast-dev/feast-spark:
+  - approve      
+  - assign
+  - help
+  - hold
+  - label
+  - lgtm
+  - lifecycle     
+  - size
+  - verify-owners 
+  - wip         
+  - trigger
+  - config-updater
+ 
+config_updater:
+  maps:
+    .prow/config.yaml:
+      name: config
+    .prow.yaml:
+      name: job-config
+
+external_plugins:
+  feast-dev/feast:
+  - name: needs-rebase
+    events:
+    - pull_request
+  feast-dev/feast-spark:
+  - name: needs-rebase
+    events:
+    - pull_request

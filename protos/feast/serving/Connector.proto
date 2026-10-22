@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package grpc.connector;
+
+import "google/protobuf/timestamp.proto";
+import "feast/types/Value.proto";
+import "feast/types/EntityKey.proto";
+import "feast/serving/ServingService.proto";
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
+
+message ConnectorFeature {
+	feast.serving.FeatureReferenceV2 reference = 1;
+	google.protobuf.Timestamp timestamp = 2;
+	feast.types.Value value = 3;
+}
+
+message ConnectorFeatureList {
+	repeated ConnectorFeature  featureList = 1; 
+}
+
+service OnlineStore {
+    rpc OnlineRead(OnlineReadRequest) returns (OnlineReadResponse);
+}
+
+message OnlineReadRequest {
+    repeated feast.types.EntityKey entityKeys = 1;
+    string view = 2;
+    repeated string features = 3;
+}
+
+message OnlineReadResponse {
+    repeated ConnectorFeatureList results = 1;
+}

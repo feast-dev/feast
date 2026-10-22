@@ -1,0 +1,379 @@
+[project]
+name = "feast"
+description = "Python SDK for Feast"
+readme = "README.md"
+requires-python = ">=3.10.0"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10"
+]
+dynamic = [
+    "version",
+]
+dependencies = [
+    "attrs",
+    "click>=7.0.0,<9.0.0",
+    "colorama>=0.3.9,<1",
+    "dill>=0.3.0,<0.5",
+    "protobuf>=4.24.0",
+    "Jinja2>=2,<4",
+    "mmh3",
+    "numpy>=2.0.0,<3",
+    "pandas>=1.4.3,<3",
+    "pyarrow>=16.1.0",
+    "pydantic>=2.10.6",
+    "pygments>=2.12.0,<3",
+    "PyYAML>=5.4.0,<7",
+    "requests",
+    "SQLAlchemy[mypy]>1",
+    "tabulate>=0.8.0,<1",
+    "tenacity>=7,<9",
+    "toml>=0.10.0,<1",
+    "tqdm>=4,<5",
+    "typeguard>=4.0.0",
+    "fastapi>=0.68.0",
+    "starlette>=1.0.1",
+    "uvicorn[standard]>=0.30.6",
+    "uvicorn-worker",
+    "gunicorn; platform_system != 'Windows'",
+    "dask[dataframe]>=2024.2.1",
+    "prometheus_client>=0.20.0,<0.25.0",
+    "psutil",
+    "bigtree>=0.19.2",
+    # >=2.13 for PyJWKClient's JWK-set cache surviving transient fetch
+    # failures; the OIDC token parser reuses one client and relies on it.
+    "pyjwt>=2.13.0",
+]
+
+[project.optional-dependencies]
+aerospike = [
+    "aerospike>=19.0.0,<20.0.0",
+]
+aws = ["boto3>=1.38.27", "fsspec>=2024.1.0", "aiobotocore>=2"]
+azure = [
+    "azure-storage-blob>=0.37.0",
+    "azure-identity>=1.6.1",
+    "SQLAlchemy>=1.4.19",
+    "pyodbc>=4.0.30",
+    "pymssql>=2.3.6"
+]
+cassandra = ["cassandra-driver>=3.26.0,<4"]
+clickhouse = ["clickhouse-connect>=0.7.19"]
+couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
+delta = ["deltalake<1.0.0"]
+docling = ["docling>=2.135.0"]
+duckdb = ["ibis-framework[duckdb]>=10.0.0"]
+elasticsearch = ["elasticsearch>=8.13.0"]
+faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
+flink = ["apache-flink>=2.2.1,<3", "pyarrow<21.0.0"]
+gcp = [
+    "google-api-core>=1.23.0,<3",
+    "googleapis-common-protos>=1.52.0,<2",
+    "google-cloud-bigquery[pandas]>=2,<4",
+    "google-cloud-bigquery-storage >= 2.0.0,<3",
+    "google-cloud-datastore>=2.16.0,<3",
+    "google-cloud-storage>=1.34.0,<3",
+    "google-cloud-bigtable>=2.11.0,<3",
+    "fsspec>=2024.1.0",
+]
+ge = ["great_expectations>=0.15.41,<1"]
+glide = ["valkey-glide-sync>=2.5,<3"]
+go = ["cffi>=1.15.0"]
+grpcio = [
+    "grpcio>=1.56.2",
+    "grpcio-reflection>=1.56.2",
+    "grpcio-health-checking>=1.56.2",
+]
+remote = ["grpcio>=1.56.2"]
+hazelcast = ["hazelcast-python-client>=5.1"]
+hbase = ["happybase>=1.2.0,<3"]
+ibis = [
+    "ibis-framework>=10.0.0",
+]
+k8s = ["kubernetes"]
+image = [
+    "feast[pytorch]",
+    "timm>=0.6.0",
+    "Pillow>=8.0.0",
+    "scikit-learn>=1.0.0",
+]
+milvus = [
+    "pymilvus>=2.5",
+    "milvus-lite>=2.4.12",
+    "feast[setuptools]"
+]
+mongodb = [
+    "pymongo>=4.13.0,<5.0.0",
+    "dnspython>=2.0.0",
+]
+mssql = ["ibis-framework[mssql]>=10.0.0"]
+oracle = ["ibis-framework[oracle]>=10.0.0"]
+mysql = ["pymysql", "types-PyMySQL"]
+openlineage = ["openlineage-python>=1.40.0"]
+opentelemetry = ["prometheus_client", "psutil"]
+spark = ["pyspark>=4.0.0"]
+iceberg = ["pyiceberg>=0.7.0"]
+lance = [
+    "pylance>=12.0.0",
+    "lance-namespace>=0.11.1",
+]
+trino = ["trino>=0.305.0,<0.400.0", "regex"]
+postgres = ["psycopg[binary,pool]>=3.2.5"]
+# psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
+# https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
+postgres-c = ["psycopg[c,pool]>=3.2.5"]
+pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
+qdrant = ["qdrant-client>=1.12.0"]
+rag = [
+    "transformers>=4.36.0",
+    "datasets>=3.6.0",
+    "sentence-transformers>=3.0.0",
+]
+ray = [
+'ray>=2.47.0; python_version == "3.10"',
+'codeflare-sdk>=0.31.1; python_version > "3.10"',
+"datasets>=3.6.0",
+]
+redis = [
+    "redis>=4.2.2,<8",
+    "hiredis>=2.0.0,<4",
+]
+scylladb = ["scylla-driver>=3.28.0,<4"]
+singlestore = ["singlestoredb<1.8.0"]
+snowflake = [
+    "snowflake-connector-python[pandas]>=3.7,<5",
+]
+sqlite_vec = ["sqlite-vec==v0.1.6"]
+mcp = ["fastapi_mcp", "mcp>=1.0,<1.30"]
+# Runtime dependencies of the standalone `feast mcp` server (feast.mcp), which
+# proxies to a running feature server / registry server. Deliberately separate
+# from the `mcp` extra above: that one powers the in-process fastapi_mcp
+# endpoint on `feast serve`, a different server built on different libraries.
+# `minimal` pulls this one in as well, because the feast-mcp image is built
+# FROM the feature-server image and runs `feast mcp` as its entrypoint.
+mcp-server = [
+    "fastmcp>=3.0",
+    "httpx>=0.24",
+    "python-dotenv>=1.0",
+]
+mlflow = ["mlflow>=2.10.0"]
+
+dbt = ["dbt-artifacts-parser"]
+
+test = [
+    "pytest>=6.0.0,<8",
+    "pytest-xdist>=3.8.0",
+    "pytest-cov>=5.0.0",
+    "pytest-timeout==1.4.2",
+    "pytest-lazy-fixture==0.6.3",
+    "pytest-ordering~=0.6.0",
+    "pytest-mock==1.10.4",
+    "pytest-env",
+    "pytest-benchmark>=3.4.1,<4",
+    "pytest-asyncio<=0.24.0",
+    "py>=1.11.0",
+    "testcontainers>=4.15.0rc2",
+    "minio==7.2.11",
+    "python-keycloak>=4.7.3,<5",
+    "cryptography>=43.0",
+]
+
+ci = [
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, lance, mcp, mcp-server, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "build",
+    "virtualenv==21.14.1",
+    "dbt-artifacts-parser",
+    "ruff>=0.8.0",
+    "mypy-protobuf>=3.1",
+    "grpcio-tools>=1.56.2",
+    "grpcio-testing>=1.56.2",
+    # fastmcp requires >=0.28.1. Was pinned to 0.27.2 because python-keycloak
+    # <4.7.3 passed the `proxies` argument httpx removed in 0.28
+    # (python-keycloak#623); the floor on python-keycloak above fixes that.
+    "httpx>=0.28.1",
+    "mock==2.0.0",
+    "moto<5",
+    "mypy>=1.4.1,<1.11.3",
+    "urllib3>=2.6.3,<3",
+    "psutil==5.9.0",
+    "pytest-cov",
+    "Sphinx>4.0.0,<7",
+    "sqlglot[rs]>=23.4",
+    "pre-commit<3.3.2",
+    "assertpy==1.1",
+    "pip-tools",
+    "pybindgen==0.22.0",
+    "types-protobuf~=3.19.22",
+    "python-dateutil==2.9.0",
+    "types-python-dateutil",
+    "types-pytz",
+    "types-PyYAML",
+    "types-redis",
+    "types-requests<2.31.0",
+    "types-setuptools",
+    "types-tabulate",
+]
+nlp = ["feast[docling, image, milvus, pytorch, rag]"]
+dev = ["feast[ci]"]
+docs = ["feast[ci]"]
+# used for the 'feature-server' container image build
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus, mcp-server]"]
+setuptools = [
+    # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
+    "setuptools>=60,<81",
+]
+
+[project.urls]
+Homepage = "https://github.com/feast-dev/feast"
+
+[[project.authors]]
+name = "Feast"
+
+[project.scripts]
+feast = "feast.cli.cli:cli"
+# Standalone entry point for the MCP server; equivalent to `feast mcp`,
+# but skips loading the rest of the Feast CLI.
+feast-mcp = "feast.mcp.server:main"
+
+# MLflow plugin: inject Authorization headers from mlflow_token_scope (ContextVar).
+# Avoids mutating MLFLOW_TRACKING_TOKEN in os.environ under concurrent Feast requests.
+[project.entry-points."mlflow.request_header_provider"]
+feast = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
+
+[build-system]
+requires = [
+  "pybindgen==0.22.0",
+  # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
+  "setuptools>=60,<81",
+  "setuptools_scm>=6.2",
+  "sphinx!=4.0.0",
+  "wheel>=0.46.2",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = {find = {where = ["sdk/python"], exclude = ["java", "infra", "sdk/python/tests", "ui"]}}
+
+[tool.setuptools_scm]
+# Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
+# Regex modified from default tag regex in:
+# https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
+tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+.*)?$"
+
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+include = ["*.py", "*.pyi"]
+
+[tool.ruff.lint]
+# Keep on using old default rules: https://astral.sh/blog/ruff-v0.16.0
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.format]
+# exclude a few common directories in the root of the project
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".tox",
+  ".venv",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "pb2.py",
+  ".pyi",
+  "protos",
+  "sdk/python/feast/embedded_go/lib"]
+
+[dependency-groups]
+dev = [
+    "pytest-xdist>=3.8.0",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "flink" },
+        { extra = "ge" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "ci" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "dev" },
+    ],
+    [
+        { extra = "flink" },
+        { extra = "docs" },
+    ],
+]
+
+# Pixi configuration
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[tool.pixi.feature.py310.dependencies]
+python = "~=3.10.0"
+
+[tool.pixi.feature.duckdb-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
+
+[tool.pixi.feature.duckdb-tests.tasks]
+install-delta-extension = "python -c \"import duckdb; duckdb.connect().install_extension('delta')\""
+test = { depends-on = ["install-delta-extension"], cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+
+[tool.pixi.feature.ray-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }
+
+[tool.pixi.feature.ray-tests.tasks]
+test-offline = { cmd = "python -m pytest -v --integration --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.ray_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+test-compute = { cmd = "python -m pytest -v --integration sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-unit-compute-ray = { cmd = "python -m pytest -v sdk/python/tests/component/ray", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test = { depends-on = ["test-offline", "test-unit-compute-ray", "test-compute"] }
+
+[tool.pixi.feature.registration-tests.pypi-dependencies]
+feast = { path = ".", editable = true, extras = ["aws", "gcp", "grpcio", "postgres", "mysql", "redis", "snowflake", "spark", "test"] }
+grpcio-testing = ">=1.56.2"
+
+[tool.pixi.feature.registration-tests.tasks]
+test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = ".", FEAST_IS_LOCAL_TEST = "True" } }
+test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = "." } }
+
+[tool.pixi.environments]
+duckdb-tests = ["py310", "duckdb-tests"]
+ray-tests = ["py310", "ray-tests"]
+registration-tests = ["py310", "registration-tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["feast"]
+omit = [
+    "*/tests/*",
+    "*/protos/*",
+    "*_pb2.py",
+    "*_pb2_grpc.py",
+    "feast/embedded_go/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass$",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"

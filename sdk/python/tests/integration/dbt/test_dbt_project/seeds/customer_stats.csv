@@ -1,0 +1,4 @@
+customer_id,event_timestamp,total_orders,total_spent,avg_order_value
+cust_001,2024-01-01 00:00:00,5,250.50,50.10
+cust_002,2024-01-01 00:00:00,3,180.75,60.25
+cust_003,2024-01-01 00:00:00,7,420.00,60.00

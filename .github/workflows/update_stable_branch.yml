@@ -1,0 +1,40 @@
+name: Update Stable Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: 'GitHub token to authenticate'
+        required: true
+        type: string
+
+jobs:
+  update_stable_branch:
+    name: Update Stable Branch after release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+      GIT_AUTHOR_NAME: feast-ci-bot
+      GIT_AUTHOR_EMAIL: feast-ci-bot@willem.co
+      GIT_COMMITTER_NAME: feast-ci-bot
+      GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Git credentials
+        run: |
+          git config --global user.name "$GIT_AUTHOR_NAME"
+          git config --global user.email "$GIT_AUTHOR_EMAIL"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Reset stable branch to match release branch
+        run: |
+          git checkout -B stable origin/${GITHUB_REF#refs/heads/}
+          git push origin stable --force

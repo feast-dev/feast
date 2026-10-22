@@ -1,0 +1,10 @@
+prune sdk/python/tests
+prune ui
+prune java/
+prune docs
+prune infra
+prune examples
+
+graft sdk/python/feast/ui/build
+graft sdk/python/feast/embedded_go/lib
+recursive-include sdk/python/feast/static *

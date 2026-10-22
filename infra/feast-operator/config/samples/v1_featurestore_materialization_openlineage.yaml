@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openlineage-secret
+  namespace: feast
+stringData:
+  # api_key is read from this Secret and written into feature_store.yaml
+  api_key: "your-marquez-api-key"  #pragma: allowlist secret
+---
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-materialization-openlineage
+  namespace: feast
+spec:
+  feastProject: my_project
+  # materialization controls how features are written to the online store.
+  # Written into feature_store.yaml for all service pods.
+  materialization:
+    # onlineWriteBatchSize limits rows per batch to prevent OOM during materialization.
+    # Supported by local, Spark, and Ray engines.
+    onlineWriteBatchSize: 10000
+    # extraConfig passes additional materialization settings inline into feature_store.yaml.
+    # Use for fields not typed above (e.g. pull_latest_features) or fields added
+    # in newer Feast SDK versions without waiting for an operator update.
+    # Boolean ("true"/"false") and integer strings are coerced to native YAML types.
+    # extraConfig:
+    #   pull_latest_features: "false"
+  # openlineage emits data lineage events during feast apply and materialization.
+  openlineage:
+    enabled: true
+    transportType: http
+    # transportUrl is the base URL of your Marquez or OpenLineage-compatible server.
+    transportUrl: "http://marquez.feast.svc.cluster.local:5000"
+    transportEndpoint: "api/v1/lineage"
+    # apiKeySecretRef references a Secret with key "api_key" for bearer auth.
+    apiKeySecretRef:
+      name: openlineage-secret
+    # extraConfig passes any additional OpenLineage settings inline into feature_store.yaml.
+    # Use it for non-core options (namespace, producer, emit_on_apply,
+    # emit_on_materialize) and transport-specific settings (e.g. kafka
+    # bootstrap_servers, topic, sasl_mechanism; file path).
+    # Boolean values ("true"/"false") and integers are automatically coerced to
+    # their native YAML types so Feast Pydantic validators accept them.
+    extraConfig:
+      namespace: "my-feast-project"
+      producer: "feast-operator"
+      emit_on_apply: "true"
+      emit_on_materialize: "true"
+      # kafka transport example:
+      # bootstrap_servers: "kafka.svc:9092"
+      # topic: "openlineage"
+      # sasl_mechanism: "PLAIN"

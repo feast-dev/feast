@@ -1,0 +1,130 @@
+//
+// * Copyright 2019 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
+
+syntax = "proto3";
+package feast.core;
+
+option java_package = "feast.proto.core";
+option java_outer_classname = "StoreProto";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+
+// Store provides a location where Feast reads and writes feature values.
+// Feature values will be written to the Store in the form of FeatureRow elements.
+// The way FeatureRow is encoded and decoded when it is written to and read from
+// the Store depends on the type of the Store.
+//
+message Store {
+
+  enum StoreType {
+    // These positions should not be reused.
+    reserved 2, 3, 12, 13;
+
+    INVALID = 0;
+
+    // Redis stores a FeatureRow element as a key, value pair.
+    //
+    // The Redis data types used (https://redis.io/topics/data-types):
+    // - key: STRING
+    // - value: STRING
+    // 
+    // Encodings:
+    // - key: byte array of RedisKey (refer to feast.storage.RedisKeyV2)
+    // - value: Redis hashmap
+    // 
+    REDIS = 1;
+
+    REDIS_CLUSTER = 4;
+  }
+
+  message RedisConfig {
+    string host = 1;
+    int32 port = 2;
+    // Optional. The number of milliseconds to wait before retrying failed Redis connection.
+    // By default, Feast uses exponential backoff policy and "initial_backoff_ms" sets the initial wait duration.
+    int32 initial_backoff_ms = 3;
+    // Optional. Maximum total number of retries for connecting to Redis. Default to zero retries.
+    int32 max_retries = 4;
+    // Optional. How often flush data to redis
+    int32 flush_frequency_seconds = 5;
+    // Optional. Connect over SSL.
+    bool ssl = 6;
+  }
+
+  message RedisClusterConfig {
+    // List of Redis Uri for all the nodes in Redis Cluster, comma separated. Eg. host1:6379, host2:6379
+    string connection_string = 1;
+    int32 initial_backoff_ms = 2;
+    int32 max_retries = 3;
+    // Optional. How often flush data to redis
+    int32 flush_frequency_seconds = 4;
+    // Optional. Append a prefix to the Redis Key
+    string key_prefix = 5;
+    // Optional. Enable fallback to another key prefix if the original key is not present.
+    // Useful for migrating key prefix without re-ingestion. Disabled by default.
+    bool enable_fallback = 6;
+    // Optional. This would be the fallback prefix to use if enable_fallback is true.
+    string fallback_prefix = 7;
+
+    // Optional. Priority of nodes when reading from cluster
+    enum ReadFrom {
+      MASTER = 0;
+      MASTER_PREFERRED = 1;
+      REPLICA = 2;
+      REPLICA_PREFERRED = 3;
+    }
+    ReadFrom read_from = 8;
+  }
+
+  message Subscription {
+    // Name of project that the feature sets belongs to. This can be one of
+    // - [project_name]
+    // - *
+    // If an asterisk is provided, filtering on projects will be disabled. All projects will
+    // be matched. It is NOT possible to provide an asterisk with a string in order to do
+    // pattern matching.
+    string project = 3;
+
+    // Name of the desired feature set. Asterisks can be used as wildcards in the name.
+    // Matching on names is only permitted if a specific project is defined. It is disallowed
+    // If the project name is set to "*"
+    // e.g.
+    // - * can be used to match all feature sets
+    // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
+    // - my-feature-set-6 can be used to select a single feature set
+    string name = 1;
+
+    // All matches with exclude enabled will be filtered out instead of added
+    bool exclude = 4;
+
+    // Feature set version was removed in v0.5.0.
+    reserved 2;
+  }
+
+  // Name of the store.
+  string name = 1;
+
+  // Type of store.
+  StoreType type = 2;
+
+  // Feature sets to subscribe to.
+  repeated Subscription subscriptions = 4;
+
+  // Configuration to connect to the store. Required.
+  oneof config {
+    RedisConfig redis_config = 11;
+    RedisClusterConfig redis_cluster_config = 14;
+  }
+}

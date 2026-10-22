@@ -1,0 +1,13 @@
+# Feast / Ray local artifacts
+data/
+.feast/
+ray_storage/
+/tmp/ray/
+ray_results/
+.ray/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env

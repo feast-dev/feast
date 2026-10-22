@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-unauthorized-user
+  namespace: feast-dev
+  labels:
+    app: client-unauthorized-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client-unauthorized-user
+  template:
+    metadata:
+      labels:
+        app: client-unauthorized-user
+    spec:
+      containers:
+        - name: client-admin-container
+          image: quay.io/feastdev/feature-server:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          env:
+            - name: FEAST_USERNAME
+              value: unauthorized-user
+            - name: FEAST_PASSWORD
+              value: feast
+          volumeMounts:
+            - name: client-feature-repo-config
+              mountPath: /feature_repo
+      volumes:
+        - name: client-feature-repo-config
+          configMap:
+            name: client-feature-repo-config
+

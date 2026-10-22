@@ -1,0 +1,21 @@
+project: my_project
+# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
+registry: data/registry.db
+# The provider primarily specifies default offline / online stores & storing the registry in a given cloud
+provider: local
+online_store:
+    type: cassandra
+    secure_bundle_path: /path/to/secure/bundle.zip
+    hosts:
+        - 127.0.0.1
+    port: 9042
+    username: c_username
+    password: c_password
+    keyspace: feast_keyspace
+    protocol_version: c_protocol_version
+    load_balancing:
+        local_dc: c_local_dc
+        load_balancing_policy: c_load_balancing_policy
+    read_concurrency: c_r_concurrency
+    write_concurrency: c_w_concurrency
+entity_key_serialization_version: 3

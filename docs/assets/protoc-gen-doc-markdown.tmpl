@@ -1,0 +1,98 @@
+# Protocol Documentation
+<a name="top"></a>
+
+## Table of Contents
+{{range .Files}}
+{{$file_name := .Name}}- [{{.Name  | replace "/" "." }}](#{{ mdfriendly .Name}})
+  {{range .Services}}  - [{{.Name}}](#{{ mdfriendly .Name}})
+  {{end}}
+  {{range .Messages}}  - [{{.LongName}}](#{{ mdfriendly  .Name}})
+  {{end}}
+  {{range .Enums}}  - [{{.LongName}}](#{{ mdfriendly .Name}})
+  {{end}}
+  {{range .Extensions}}  - [File-level Extensions](#{{ mdfriendly $file_name}}-extensions)
+  {{end}}
+{{end}}
+- [Scalar Value Types](#scalar-value-types)
+
+{{range .Files}}
+{{$file_name := .Name}}
+<a name="{{ mdfriendly .Name}}"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## {{.Name | replace "/" "."}}
+{{.Description}}
+
+{{range .Services}}
+<a name="{{.FullName}}"></a>
+
+### {{.Name}}
+{{.Description}}
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+{{range .Methods -}}
+  | {{.Name}} | [{{.RequestLongType}}](#{{.RequestLongType}}){{if .RequestStreaming}} stream{{end}} | [{{.ResponseLongType}}](#{{.ResponseLongType}}){{if .ResponseStreaming}} stream{{end}} | {{nobr .Description}} |
+{{end}}
+{{end}} <!-- end services -->
+
+{{range .Messages}}
+<a name="{{ mdfriendly .FullName}}"></a>
+
+### {{.LongName}}
+{{.Description}}
+
+{{if .HasFields}}
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+{{range .Fields -}}
+  | {{.Name}} | [{{.LongType}}](#{{.FullType}}) | {{.Label}} | {{nobr .Description}}{{if .DefaultValue}} Default: {{.DefaultValue}}{{end}} |
+{{end}}
+{{end}}
+
+{{if .HasExtensions}}
+| Extension | Type | Base | Number | Description |
+| --------- | ---- | ---- | ------ | ----------- |
+{{range .Extensions -}}
+  | {{.Name}} | {{.LongType}} | {{.ContainingLongType}} | {{.Number}} | {{nobr .Description}}{{if .DefaultValue}} Default: {{.DefaultValue}}{{end}} |
+{{end}}
+{{end}}
+
+{{end}} <!-- end messages -->
+
+{{range .Enums}}
+<a name="{{ mdfriendly .FullName}}"></a>
+
+### {{.LongName}}
+{{.Description}}
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+{{range .Values -}}
+  | {{.Name}} | {{.Number}} | {{nobr .Description}} |
+{{end}}
+
+{{end}} <!-- end enums -->
+
+{{if .HasExtensions}}
+<a name="{{ mdfriendly $file_name}}-extensions"></a>
+
+### File-level Extensions
+| Extension | Type | Base | Number | Description |
+| --------- | ---- | ---- | ------ | ----------- |
+{{range .Extensions -}}
+  | {{.Name}} | {{.LongType}} | {{.ContainingLongType}} | {{.Number}} | {{nobr .Description}}{{if .DefaultValue}} Default: `{{.DefaultValue}}`{{end}} |
+{{end}}
+{{end}} <!-- end HasExtensions -->
+
+
+
+{{end}}
+
+## Scalar Value Types
+
+| .proto Type | Notes | C++ Type | Java Type | Python Type |
+| ----------- | ----- | -------- | --------- | ----------- |
+{{range .Scalars -}}
+  | <a name="{{.ProtoType}}" /> {{.ProtoType}} | {{.Notes}} | {{.CppType}} | {{.JavaType}} | {{.PythonType}} |
+{{end}}

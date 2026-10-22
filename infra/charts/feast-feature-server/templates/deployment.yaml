@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "feast-feature-server.fullname" . }}
+  labels:
+    {{- include "feast-feature-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "feast-feature-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- if or .Values.podAnnotations .Values.metrics.enabled }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.metrics.enabled }}
+        instrumentation.opentelemetry.io/inject-python: "true"
+        {{- end }}
+    {{- end }}
+      labels:
+        {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name | default "default" }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: FEATURE_STORE_YAML_BASE64
+              value: {{ .Values.feature_store_yaml_base64 }}
+            - name: INTRA_COMMUNICATION_BASE64
+              value: {{ "intra-server-communication" | b64enc }}
+            {{- with .Values.extraEnvs}}
+              {{- toYaml . | nindent 12 }}
+            {{- end}}
+          command:
+            {{- if .Values.commandArgs }}
+            {{- toYaml .Values.commandArgs | nindent 12 }}
+            {{- else }}
+            {{- /* Fallback to legacy behavior for backward compatibility */}}
+            {{- if eq .Values.feast_mode "offline" }}
+            - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
+            - "serve_offline"
+            - "-h"
+            - "0.0.0.0"
+            {{- else if eq .Values.feast_mode "ui" }}
+            - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
+            - "ui"
+            - "-h"
+            - "0.0.0.0"
+            {{- else if eq .Values.feast_mode "registry" }}
+            - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
+            - "serve_registry"
+            {{- else }}
+            {{- if .Values.metrics.enabled }}
+            - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
+            - "serve"
+            - "--metrics"
+            - "-h"
+            - "0.0.0.0"
+            {{- else }}
+            - "feast"
+            - "serve"
+            - "-h"
+            - "0.0.0.0"
+            {{- end }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: {{ .Values.feast_mode }}
+              {{- if eq .Values.feast_mode "offline" }}
+              containerPort: 8815
+              {{- else if eq .Values.feast_mode "ui" }}
+              containerPort: 8888
+              {{- else if eq .Values.feast_mode "registry" }}
+              containerPort: 6570
+              {{- else }}
+              containerPort: 6566
+              {{- end }}
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.feast_mode }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.feast_mode }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts}}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

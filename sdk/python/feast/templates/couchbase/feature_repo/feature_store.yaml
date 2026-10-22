@@ -1,0 +1,17 @@
+project: my_project
+registry: data/registry.db
+provider: local
+online_store:
+    type: couchbase.online
+    connection_string: COUCHBASE_CONNECTION_STRING # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
+    user: COUCHBASE_USER # Couchbase username from database access credentials
+    password: COUCHBASE_PASSWORD # Couchbase password from database access credentials
+    bucket_name: COUCHBASE_BUCKET_NAME # Couchbase bucket name, defaults to feast
+    kv_port: COUCHBASE_KV_PORT  # Couchbase key-value port, defaults to 11210. Required if custom ports are used.
+offline_store:
+    type: couchbase.offline
+    connection_string: COUCHBASE_COLUMNAR_CONNECTION_STRING # Copied from Settings > Connection String page in Capella Columnar console, starts with couchbases://
+    user: COUCHBASE_COLUMNAR_USER # Couchbase cluster access name from Settings > Access Control page in Capella Columnar console
+    password: COUCHBASE_COLUMNAR_PASSWORD # Couchbase password from Settings > Access Control page in Capella Columnar console
+    timeout: COUCHBASE_COLUMNAR_TIMEOUT # Timeout in seconds for Columnar operations, optional
+entity_key_serialization_version: 3

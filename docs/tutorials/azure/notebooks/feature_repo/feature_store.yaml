@@ -1,0 +1,11 @@
+registry:
+  registry_store_type: AzureRegistryStore
+  path: ${REGISTRY_PATH} # Environment Variable
+project: production
+provider: azure
+online_store:
+    type: redis
+    connection_string: ${REDIS_CONN} # Environment Variable
+offline_store:
+    type: mssql
+    connection_string: ${SQL_CONN}  # Environment Variable

@@ -1,0 +1,238 @@
+
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package feast.types;
+
+option java_package = "feast.proto.types";
+option java_outer_classname = "ValueProto";
+option go_package = "github.com/feast-dev/feast/go/protos/feast/types";
+
+message ValueType {
+  enum Enum {
+    INVALID = 0;
+    BYTES = 1;
+    STRING = 2;
+    INT32 = 3;
+    INT64 = 4;
+    DOUBLE = 5;
+    FLOAT = 6;
+    BOOL = 7;
+    UNIX_TIMESTAMP = 8;
+    BYTES_LIST = 11;
+    STRING_LIST = 12;
+    INT32_LIST = 13;
+    INT64_LIST = 14;
+    DOUBLE_LIST = 15;
+    FLOAT_LIST = 16;
+    BOOL_LIST = 17;
+    UNIX_TIMESTAMP_LIST = 18;
+    NULL = 19;
+    MAP = 20;
+    MAP_LIST = 21;
+    BYTES_SET = 22;
+    STRING_SET = 23;
+    INT32_SET = 24;
+    INT64_SET = 25;
+    DOUBLE_SET = 26;
+    FLOAT_SET = 27;
+    BOOL_SET = 28;
+    UNIX_TIMESTAMP_SET = 29;
+    JSON = 32;
+    JSON_LIST = 33;
+    STRUCT = 34;
+    STRUCT_LIST = 35;
+    UUID = 36;
+    TIME_UUID = 37;
+    UUID_LIST = 38;
+    TIME_UUID_LIST = 39;
+    UUID_SET = 40;
+    TIME_UUID_SET = 41;
+    VALUE_LIST = 42;
+    VALUE_SET = 43;
+    DECIMAL = 44;
+    DECIMAL_LIST = 45;
+    DECIMAL_SET = 46;
+    SCALAR_MAP = 47;
+    ZONED_TIMESTAMP = 48;
+  }
+}
+
+message Value {
+  // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
+  // The enum values do not have to match the oneof val field ids, but they should.
+  // In JSON "*_val" field can be omitted
+  oneof val {
+    bytes bytes_val = 1;
+    string string_val = 2;
+    int32 int32_val = 3;
+    int64 int64_val = 4;
+    double double_val = 5;
+    float float_val = 6;
+    bool bool_val = 7;
+    int64 unix_timestamp_val = 8;
+    BytesList bytes_list_val = 11;
+    StringList string_list_val = 12;
+    Int32List int32_list_val = 13;
+    Int64List int64_list_val = 14;
+    DoubleList double_list_val = 15;
+    FloatList float_list_val = 16;
+    BoolList bool_list_val = 17;
+    Int64List unix_timestamp_list_val = 18;
+    Null null_val = 19;
+    Map map_val = 20;
+    MapList map_list_val = 21;
+    BytesSet bytes_set_val = 22;
+    StringSet string_set_val = 23;
+    Int32Set int32_set_val = 24;
+    Int64Set int64_set_val = 25;
+    DoubleSet double_set_val = 26;
+    FloatSet float_set_val = 27;
+    BoolSet bool_set_val = 28;
+    Int64Set unix_timestamp_set_val = 29;
+    string json_val = 32;
+    StringList json_list_val = 33;
+    Map struct_val = 34;
+    MapList struct_list_val = 35;
+    string uuid_val = 36;
+    string time_uuid_val = 37;
+    StringList uuid_list_val = 38;
+    StringList time_uuid_list_val = 39;
+    StringSet uuid_set_val = 40;
+    StringSet time_uuid_set_val = 41;
+    RepeatedValue list_val = 42;
+    RepeatedValue set_val = 43;
+    string decimal_val = 44;
+    StringList decimal_list_val = 45;
+    StringSet decimal_set_val = 46;
+    ScalarMap scalar_map_val = 47;
+    ZonedTimestamp zoned_timestamp_val = 48;
+  }
+}
+
+enum Null {
+  NULL = 0;
+}
+
+// A timezone-aware datetime: the UTC instant plus its originating zone, so a
+// zoned datetime round-trips losslessly (unlike UNIX_TIMESTAMP, which is decoded
+// as UTC and discards the original zone).
+message ZonedTimestamp {
+  // Epoch seconds (UTC instant), same convention as unix_timestamp_val.
+  int64 unix_timestamp = 1;
+  // IANA zone name (e.g. "America/Los_Angeles") or a fixed-offset string
+  // (e.g. "-07:00", "UTC"). Empty string is treated as UTC on read.
+  string zone = 2;
+}
+
+message BytesList {
+  repeated bytes val = 1;
+}
+
+message StringList {
+  repeated string val = 1;
+}
+
+message Int32List {
+  repeated int32 val = 1;
+}
+
+message Int64List {
+  repeated int64 val = 1;
+}
+
+message DoubleList {
+  repeated double val = 1;
+}
+
+message FloatList {
+  repeated float val = 1;
+}
+
+message BoolList {
+  repeated bool val = 1;
+}
+
+message BytesSet {
+  repeated bytes val = 1;
+}
+
+message StringSet {
+  repeated string val = 1;
+}
+
+message Int32Set {
+  repeated int32 val = 1;
+}
+
+message Int64Set {
+  repeated int64 val = 1;
+}
+
+message DoubleSet {
+  repeated double val = 1;
+}
+
+message FloatSet {
+  repeated float val = 1;
+}
+
+message BoolSet {
+  repeated bool val = 1;
+}
+
+message Map {
+  map<string, Value> val = 1;
+}
+
+message MapList {
+  repeated Map val = 1;
+}
+
+// This is to avoid an issue of being unable to specify `repeated value` in oneofs or maps
+// In JSON "val" field can be omitted
+message RepeatedValue {
+  repeated Value val = 1;
+}
+
+// Map key for maps with non-string keys.
+// Excludes string (handled by Map) and all collection types (not valid as keys).
+message MapKey {
+  oneof key {
+    int32 int32_key = 1;
+    int64 int64_key = 2;
+    float float_key = 3;
+    double double_key = 4;
+    bool bool_key = 5;
+    int64 unix_timestamp_key = 6;
+    bytes bytes_key = 7;
+    string uuid_key = 8;
+    string time_uuid_key = 9;
+    string decimal_key = 10;
+  }
+}
+
+message ScalarMapEntry {
+  MapKey key = 1;
+  Value value = 2;
+}
+
+// Map with non-string keys. For string-keyed maps use Map.
+message ScalarMap {
+  repeated ScalarMapEntry val = 1;
+}

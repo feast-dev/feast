@@ -1,0 +1,25 @@
+project: ray_llm_posttrain
+registry: data/registry.db
+provider: local
+
+# Laptop-friendly Ray offline store (no KubeRay)
+offline_store:
+  type: ray
+  storage_path: data/ray_storage
+  enable_ray_logging: false
+  ray_conf:
+    num_cpus: 2
+    object_store_memory: 104857600
+    _memory: 524288000
+
+batch_engine:
+  type: ray.engine
+  max_workers: 2
+
+online_store:
+  type: sqlite
+  path: data/online_store.db
+
+entity_key_serialization_version: 3
+auth:
+  type: no_auth

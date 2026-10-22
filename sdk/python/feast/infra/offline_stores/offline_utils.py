@@ -1,0 +1,448 @@
+import logging
+import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, KeysView, List, Literal, Optional, Set, Tuple, Union
+
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+from jinja2 import BaseLoader, Environment
+from pandas import Timestamp
+
+from feast.data_source import DataSource
+from feast.errors import (
+    EntityTimestampInferenceException,
+    FeastEntityDFMissingColumnsError,
+)
+from feast.feature_view import FeatureView
+from feast.importer import import_class
+from feast.infra.offline_stores.offline_store import OfflineStore
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.repo_config import RepoConfig
+from feast.type_map import feast_value_type_to_pa
+from feast.utils import (
+    _get_requested_feature_views_to_features_dict,
+    _get_requested_on_demand_feature_views,
+    to_naive_utc,
+)
+from feast.value_type import ValueType
+
+DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
+
+
+def infer_event_timestamp_from_entity_df(entity_schema: Dict[str, np.dtype]) -> str:
+    if DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL in entity_schema.keys():
+        return DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+
+    datetime_columns = [
+        column
+        for column, dtype in entity_schema.items()
+        if pd.core.dtypes.common.is_datetime64_any_dtype(dtype)
+    ]
+
+    if len(datetime_columns) == 1:
+        print(
+            f"Using {datetime_columns[0]} as the event timestamp. To specify a column explicitly, please name it {DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}."
+        )
+        return datetime_columns[0]
+    else:
+        raise EntityTimestampInferenceException(DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL)
+
+
+def assert_expected_columns_in_entity_df(
+    entity_schema: Dict[str, np.dtype],
+    join_keys: Set[str],
+    entity_df_event_timestamp_col: str,
+):
+    entity_columns = set(entity_schema.keys())
+    expected_columns = {entity_df_event_timestamp_col}
+    missing_keys = expected_columns - entity_columns
+
+    if len(missing_keys) != 0:
+        raise FeastEntityDFMissingColumnsError(expected_columns, missing_keys)
+
+
+# TODO: Remove project and registry from the interface and call sites.
+def get_expected_join_keys(
+    project: str, feature_views: List[FeatureView], registry: BaseRegistry
+) -> Set[str]:
+    join_keys = set()
+    for feature_view in feature_views:
+        for entity_column in feature_view.entity_columns:
+            join_key = feature_view.projection.join_key_map.get(
+                entity_column.name, entity_column.name
+            )
+            join_keys.add(join_key)
+    return join_keys
+
+
+def get_entity_df_timestamp_bounds(
+    entity_df: pd.DataFrame, event_timestamp_col: str
+) -> Tuple[Timestamp, Timestamp]:
+    event_timestamp_series = entity_df[event_timestamp_col]
+    return event_timestamp_series.min(), event_timestamp_series.max()
+
+
+@dataclass(frozen=True)
+class FeatureViewQueryContext:
+    """Context object used to template a BigQuery and Redshift point-in-time SQL query"""
+
+    name: str
+    ttl: int
+    entities: List[str]
+    features: List[str]  # feature reference format
+    field_mapping: Dict[str, str]
+    timestamp_field: str
+    created_timestamp_column: Optional[str]
+    table_subquery: str
+    entity_selections: List[str]
+    min_event_timestamp: Optional[str]
+    max_event_timestamp: str
+    date_partition_column: Optional[
+        str
+    ]  # this attribute is added because partition pruning affects Athena's query performance.
+    timestamp_field_type: Optional[str]
+
+
+def get_feature_view_query_context(
+    feature_refs: List[str],
+    feature_views: List[FeatureView],
+    registry: BaseRegistry,
+    project: str,
+    entity_df_timestamp_range: Tuple[datetime, datetime],
+) -> List[FeatureViewQueryContext]:
+    """
+    Build a query context containing all information required to template a BigQuery and
+    Redshift point-in-time SQL query
+    """
+    (
+        feature_views_to_feature_map,
+        on_demand_feature_views_to_features,
+    ) = _get_requested_feature_views_to_features_dict(
+        feature_refs,
+        feature_views,
+        _get_requested_on_demand_feature_views(feature_refs, project, registry),
+    )
+
+    query_context = []
+    for feature_view, features in feature_views_to_feature_map.items():
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
+        }
+
+        join_keys: List[str] = []
+        entity_selections: List[str] = []
+        for entity_column in feature_view.entity_columns:
+            join_key = feature_view.projection.join_key_map.get(
+                entity_column.name, entity_column.name
+            )
+            join_keys.append(join_key)
+            entity_selections.append(
+                f"{reverse_field_mapping.get(entity_column.name, entity_column.name)} "
+                f"AS {join_key}"
+            )
+
+        if isinstance(feature_view.ttl, timedelta):
+            ttl_seconds = int(feature_view.ttl.total_seconds())
+        else:
+            ttl_seconds = 0
+
+        features = [reverse_field_mapping.get(feature, feature) for feature in features]
+        timestamp_field = reverse_field_mapping.get(
+            feature_view.batch_source.timestamp_field,
+            feature_view.batch_source.timestamp_field,
+        )
+        created_timestamp_column = reverse_field_mapping.get(
+            feature_view.batch_source.created_timestamp_column,
+            feature_view.batch_source.created_timestamp_column,
+        )
+
+        date_partition_column = reverse_field_mapping.get(
+            feature_view.batch_source.date_partition_column,
+            feature_view.batch_source.date_partition_column,
+        )
+
+        timestamp_field_type = getattr(
+            feature_view.batch_source, "timestamp_field_type", ""
+        )
+
+        max_event_timestamp = to_naive_utc(entity_df_timestamp_range[1]).isoformat()
+        min_event_timestamp = None
+        if feature_view.ttl:
+            min_event_timestamp = to_naive_utc(
+                entity_df_timestamp_range[0] - feature_view.ttl
+            ).isoformat()
+
+        context = FeatureViewQueryContext(
+            name=feature_view.projection.name_to_use(),
+            ttl=ttl_seconds,
+            entities=join_keys,
+            features=features,
+            field_mapping=feature_view.batch_source.field_mapping,
+            timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
+            # TODO: Make created column optional and not hardcoded
+            table_subquery=feature_view.batch_source.get_table_query_string(),
+            entity_selections=entity_selections,
+            min_event_timestamp=min_event_timestamp,
+            max_event_timestamp=max_event_timestamp,
+            date_partition_column=date_partition_column,
+            timestamp_field_type=timestamp_field_type or None,
+        )
+        query_context.append(context)
+
+    return query_context
+
+
+def build_point_in_time_query(
+    feature_view_query_contexts: List[FeatureViewQueryContext],
+    left_table_query_string: str,
+    entity_df_event_timestamp_col: str,
+    entity_df_columns: KeysView[str],
+    query_template: str,
+    full_feature_names: bool = False,
+    filter_by_created_timestamp: bool = False,
+) -> str:
+    """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
+    env = Environment(loader=BaseLoader())
+    env.filters["backticks"] = enclose_in_backticks
+    template = env.from_string(source=query_template)
+
+    final_output_feature_names = list(entity_df_columns)
+    final_output_feature_names.extend(
+        [
+            (
+                f"{fv.name}__{fv.field_mapping.get(feature, feature)}"
+                if full_feature_names
+                else fv.field_mapping.get(feature, feature)
+            )
+            for fv in feature_view_query_contexts
+            for feature in fv.features
+        ]
+    )
+
+    # Add additional fields to dict
+    template_context = {
+        "left_table_query_string": left_table_query_string,
+        "entity_df_event_timestamp_col": entity_df_event_timestamp_col,
+        "unique_entity_keys": set(
+            [entity for fv in feature_view_query_contexts for entity in fv.entities]
+        ),
+        "featureviews": [asdict(context) for context in feature_view_query_contexts],
+        "full_feature_names": full_feature_names,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
+        "final_output_feature_names": final_output_feature_names,
+    }
+
+    query = template.render(template_context)
+    return query
+
+
+def get_temp_entity_table_name() -> str:
+    """Returns a random table name for uploading the entity dataframe"""
+    return "feast_entity_df_" + uuid.uuid4().hex
+
+
+def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
+    """Creates an offline store corresponding to the given offline store config."""
+    module_name = offline_store_config.__module__
+    qualified_name = type(offline_store_config).__name__
+    class_name = qualified_name.replace("Config", "")
+    offline_store_class = import_class(module_name, class_name, "OfflineStore")
+    return offline_store_class()
+
+
+_PA_BASIC_TYPES = {
+    "int32": pa.int32(),
+    "int64": pa.int64(),
+    "double": pa.float64(),
+    "float": pa.float32(),
+    "string": pa.string(),
+    "binary": pa.binary(),
+    "bool": pa.bool_(),
+    "large_string": pa.large_string(),
+    "null": pa.null(),
+}
+
+
+def _parse_pa_type_str(pa_type_str: str) -> pa.DataType:
+    """Parse a PyArrow type string to preserve inner element types for nested lists."""
+    pa_type_str = pa_type_str.strip()
+    if pa_type_str.startswith("list<item: ") and pa_type_str.endswith(">"):
+        inner = pa_type_str[len("list<item: ") : -1]
+        return pa.list_(_parse_pa_type_str(inner))
+    if pa_type_str in _PA_BASIC_TYPES:
+        return _PA_BASIC_TYPES[pa_type_str]
+    if pa_type_str.startswith("timestamp"):
+        return pa.timestamp("us")
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "Unrecognized PyArrow type string '%s', falling back to pa.string()",
+        pa_type_str,
+    )
+    return pa.string()
+
+
+def get_pyarrow_schema_from_batch_source(
+    config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
+) -> Tuple[pa.Schema, List[str]]:
+    """Returns the pyarrow schema and column names for the given batch source."""
+    column_names_and_types = batch_source.get_table_column_names_and_types(config)
+
+    pa_schema = []
+    column_names = []
+    for column_name, column_type in column_names_and_types:
+        value_type = batch_source.source_datatype_to_feast_value_type()(column_type)
+        if value_type in (ValueType.VALUE_LIST, ValueType.VALUE_SET):
+            pa_type = _parse_pa_type_str(column_type)
+        else:
+            pa_type = feast_value_type_to_pa(value_type, timestamp_unit=timestamp_unit)
+        pa_schema.append((column_name, pa_type))
+        column_names.append(column_name)
+
+    return pa.schema(pa_schema), column_names
+
+
+def cast_arrow_table_to_schema(table: pa.Table, pa_schema: pa.Schema) -> pa.Table:
+    """Cast a PyArrow table to match the target schema, handling struct/map → string.
+
+    PyArrow cannot natively cast struct or map columns to string.  When a
+    SQL-based offline store (BigQuery, Snowflake, Redshift) stores complex
+    Feast types (Map, Struct) as VARCHAR/STRING, the target schema will have
+    string fields while the input table may have struct/map fields (e.g. when
+    the caller provides Python dicts).  This function serialises those columns
+    to JSON strings so the subsequent cast succeeds.
+    """
+    import json as _json
+
+    for i, field in enumerate(table.schema):
+        target_type = pa_schema.field(field.name).type
+        is_complex_source = pa.types.is_struct(field.type) or pa.types.is_map(
+            field.type
+        )
+        is_string_target = pa.types.is_string(target_type) or pa.types.is_large_string(
+            target_type
+        )
+        if is_complex_source and is_string_target:
+            col = table.column(i)
+            json_arr = pa.array(
+                [_json.dumps(v.as_py()) if v.is_valid else None for v in col],
+                type=target_type,
+            )
+            table = table.set_column(i, field.name, json_arr)
+
+    return table.cast(pa_schema)
+
+
+def enclose_in_backticks(value):
+    # Check if the input is a list
+    if isinstance(value, list):
+        return [f"`{v}`" for v in value]
+    else:
+        return f"`{value}`"
+
+
+def get_timestamp_filter_sql(
+    start_date: Optional[Union[datetime, str]] = None,
+    end_date: Optional[Union[datetime, str]] = None,
+    timestamp_field: Optional[str] = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+    date_partition_column: Optional[str] = None,
+    tz: Optional[timezone] = None,
+    cast_style: Literal[
+        "timestamp", "timestamp_func", "timestamptz", "raw", "date_func"
+    ] = "timestamp",
+    date_time_separator: str = "T",
+    quote_fields: bool = True,
+) -> str:
+    """
+    Returns SQL filter condition (no WHERE) with flexible timestamp casting.
+
+    Args:
+        start_date: datetime or ISO8601 strings
+        end_date: datetime or ISO8601 strings
+        timestamp_field: main timestamp column
+        date_partition_column: optional partition column (for pruning)
+        tz: optional timezone for datetime inputs
+        cast_style: one of:
+            - "timestamp": TIMESTAMP '...'              → Common Sql engine Snowflake, Redshift etc.
+            - "timestamp_func": TIMESTAMP('...')         → BigQuery, Couchbase etc.
+            - "timestamptz": '...'::timestamptz          → PostgreSQL
+            - "raw": '...'                               → no cast, string only
+            - "date_func": DATE('...')                   → BigQuery DATE columns
+        date_time_separator: separator for datetime strings (default is "T")
+            (e.g. "2023-10-01T00:00:00" or "2023-10-01 00:00:00")
+        quote_fields: whether to quote the timestamp and partition column names
+
+    Returns:
+        SQL filter string without WHERE
+    """
+
+    def quote_column_if_needed(column: Optional[str]) -> Optional[str]:
+        if not column or not quote_fields:
+            return column
+        return f'"{column}"'
+
+    def format_casted_ts(val: Union[str, datetime]) -> str:
+        if isinstance(val, datetime):
+            if tz:
+                val = val.astimezone(tz)
+            val_str = val.isoformat(sep=date_time_separator)
+        else:
+            val_str = val
+
+        if cast_style == "timestamp":
+            return f"TIMESTAMP '{val_str}'"
+        elif cast_style == "timestamp_func":
+            return f"TIMESTAMP('{val_str}')"
+        elif cast_style == "date_func":
+            date_str = val_str[:10] if len(val_str) >= 10 else val_str
+            return f"DATE('{date_str}')"
+        elif cast_style == "timestamptz":
+            return f"'{val_str}'::{cast_style}"
+        else:
+            return f"'{val_str}'"
+
+    def format_date(val: Union[str, datetime]) -> str:
+        if isinstance(val, datetime):
+            if tz:
+                val = val.astimezone(tz)
+            return val.strftime("%Y-%m-%d")
+        return val
+
+    ts_field = quote_column_if_needed(timestamp_field)
+    dp_field = quote_column_if_needed(date_partition_column)
+
+    filters = []
+
+    # Timestamp filters
+    if start_date and end_date:
+        filters.append(
+            f"{ts_field} BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}"
+        )
+    elif start_date:
+        filters.append(f"{ts_field} >= {format_casted_ts(start_date)}")
+    elif end_date:
+        filters.append(f"{ts_field} <= {format_casted_ts(end_date)}")
+
+    # Partition pruning
+    if date_partition_column:
+        if start_date:
+            filters.append(f"{dp_field} >= '{format_date(start_date)}'")
+        if end_date:
+            filters.append(f"{dp_field} <= '{format_date(end_date)}'")
+
+    return " AND ".join(filters) if filters else ""
+
+
+def gather_all_entities(fv_query_contexts: List[FeatureViewQueryContext]):
+    all_entities: List[str] = []
+    for ctx in fv_query_contexts:
+        for e in ctx.entities:
+            if e not in all_entities:
+                all_entities.append(e)
+    return all_entities

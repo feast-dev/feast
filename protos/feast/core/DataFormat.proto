@@ -1,0 +1,134 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "DataFormatProto";
+option java_package = "feast.proto.core";
+
+// Defines the file format encoding the features/entity data in files
+message FileFormat {
+  // Defines options for the Parquet data format
+  message ParquetFormat {}
+
+  oneof format {
+    ParquetFormat parquet_format = 1;
+    // Deprecated: Delta Lake is a table format, not a file format.
+    // Use TableFormat.DeltaFormat instead for Delta Lake support.
+    TableFormat.DeltaFormat delta_format = 2 [deprecated = true];
+  }
+}
+
+message TableFormat {
+  // Defines options for Apache Iceberg table format
+  message IcebergFormat {
+    // Optional catalog name for the Iceberg table
+    string catalog = 1;
+
+    // Optional namespace (schema/database) within the catalog
+    string namespace = 2;
+
+    // Additional properties for Iceberg configuration
+    // Examples: warehouse location, snapshot-id, as-of-timestamp, etc.
+    map<string, string> properties = 3;
+  }
+
+  // Defines options for Delta Lake table format
+  message DeltaFormat {
+    // Optional checkpoint location for Delta transaction logs
+    string checkpoint_location = 1;
+
+    // Additional properties for Delta configuration
+    // Examples: auto-optimize settings, vacuum settings, etc.
+    map<string, string> properties = 2;
+  }
+
+  // Defines options for Apache Hudi table format
+  message HudiFormat {
+    // Type of Hudi table (COPY_ON_WRITE or MERGE_ON_READ)
+    string table_type = 1;
+
+    // Field(s) that uniquely identify a record
+    string record_key = 2;
+
+    // Field used to determine the latest version of a record
+    string precombine_field = 3;
+
+    // Additional properties for Hudi configuration
+    // Examples: compaction strategy, indexing options, etc.
+    map<string, string> properties = 4;
+  }
+
+  // Defines options for the Lance table format
+  message LanceFormat {
+    // Optional catalog name for the Lance table
+    string catalog = 1;
+
+    // Optional namespace within the catalog
+    string namespace = 2;
+
+    // Pin reads to a specific Lance dataset version. Zero means unset.
+    // Mutually exclusive with tag.
+    uint64 version = 3;
+
+    // Pin reads to a named Lance tag, which resolves to a version.
+    // Mutually exclusive with version.
+    string tag = 4;
+
+    // Additional properties for Lance configuration
+    // Examples: storage options, index parameters, etc.
+    map<string, string> properties = 5;
+  }
+
+  // Specifies the table format and format-specific options
+  oneof format {
+    IcebergFormat iceberg_format = 1;
+    DeltaFormat delta_format = 2;
+    HudiFormat hudi_format = 3;
+    LanceFormat lance_format = 4;
+  }
+}
+
+// Defines the data format encoding features/entity data in data streams
+message StreamFormat {
+  // Defines options for the protobuf data format
+  message ProtoFormat {
+    // Classpath to the generated Java Protobuf class that can be used to decode
+    // Feature data from the obtained stream message
+    string class_path = 1;
+  }
+
+  // Defines options for the avro data format
+  message AvroFormat {
+    // Optional if used in a File DataSource as schema is embedded in avro file.
+    // Specifies the schema of the Avro message as JSON string.
+    string schema_json = 1;
+  }
+
+  message JsonFormat {
+    string schema_json = 1;
+  }
+
+  // Specifies the data format and format specific options
+  oneof format {
+    AvroFormat avro_format = 1;
+    ProtoFormat proto_format = 2;
+    JsonFormat json_format = 3;
+  }
+}

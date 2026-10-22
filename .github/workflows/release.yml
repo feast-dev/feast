@@ -1,0 +1,262 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry Run'
+        required: true
+        default: true
+        type: boolean
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+      publish_docs_version:
+        description: 'Publish docs for an existing release (for example, 0.66.0)'
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      dry_run:
+        description: 'Dry Run'
+        required: true
+        default: true
+        type: boolean
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+      publish_docs_version:
+        description: 'Publish docs for an existing release (for example, 0.66.0)'
+        required: false
+        default: ""
+        type: string
+    secrets:
+      GITBOOK_TOKEN:
+        description: 'Token used to publish versioned documentation'
+        required: true
+
+jobs:
+  get_dry_release_versions:
+    if: github.repository == 'feast-dev/feast' && inputs.publish_docs_version == ''
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+    outputs:
+      current_version: ${{ steps.get_versions.outputs.current_version }}
+      next_version: ${{ steps.get_versions.outputs.next_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Release (Dry Run)
+        id: get_versions
+        run: |
+          CURRENT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep "associated with version " | sed -E 's/.* version//' | sed -E 's/ on.*//')
+          NEXT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/')
+          echo ::set-output name=current_version::$CURRENT_VERSION
+          echo ::set-output name=next_version::$NEXT_VERSION
+          echo "Current version is ${CURRENT_VERSION}"
+          echo "Next version is ${NEXT_VERSION}"
+
+  validate_version_bumps:
+    if: github.repository == 'feast-dev/feast'
+    needs: get_dry_release_versions
+    runs-on: ubuntu-latest
+    env:
+      # This publish is working using an NPM automation token to bypass 2FA
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HELM_VERSION: v3.8.0
+      CURRENT_VERSION: ${{ needs.get_dry_release_versions.outputs.current_version }}
+      NEXT_VERSION: ${{ needs.get_dry_release_versions.outputs.next_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Bump file versions
+        run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Bundle UI in SDK
+        run: make build-ui
+      - name: Remove previous Helm
+        run: sudo rm -rf $(which helm)
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
+        run: |
+          brew install norwoodj/tap/helm-docs
+      - name: Generate helm chart READMEs
+        run: make build-helm-docs
+      - name: Install Helm
+        run: ./infra/scripts/helm/install-helm.sh
+      - name: Validate Helm chart prior to publishing
+        run: ./infra/scripts/helm/validate-helm-chart-publish.sh
+      - name: Validate all version consistency
+        run: ./infra/scripts/helm/validate-helm-chart-versions.sh $NEXT_VERSION
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+      - name: Build & version operator-specific release files
+        run: make -C infra/feast-operator build-installer bundle
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: validate_version_bumps
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+      GIT_AUTHOR_NAME: feast-ci-bot
+      GIT_AUTHOR_EMAIL: feast-ci-bot@willem.co
+      GIT_COMMITTER_NAME: feast-ci-bot
+      GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: './ui/.nvmrc'
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Setup Helm-docs
+        env:
+          HOMEBREW_NO_SANDBOX_LINUX: 1
+        run: |
+          brew install norwoodj/tap/helm-docs
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+      - name: Compile Go Test Binaries
+        run: |
+          cd infra/feast-operator
+          mkdir -p dist
+          go test -c -o dist/operator-e2e-tests ./test/e2e/
+      - name: Release (Dry Run)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
+      - name: Release
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --github-assets "infra/feast-operator/dist/operator-e2e-tests"
+          
+
+  update_stable_branch:
+    name: Update Stable Branch after release
+    if: github.event.inputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    needs: release
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+      GIT_AUTHOR_NAME: feast-ci-bot
+      GIT_AUTHOR_EMAIL: feast-ci-bot@willem.co
+      GIT_COMMITTER_NAME: feast-ci-bot
+      GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Git credentials
+        run: |
+          git config --global user.name "$GIT_AUTHOR_NAME"
+          git config --global user.email "$GIT_AUTHOR_EMAIL"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Reset stable branch to match release branch
+        run: |
+          git checkout -B stable origin/${GITHUB_REF#refs/heads/}
+          git push origin stable --force
+
+  publish_versioned_docs:
+    name: Publish versioned documentation
+    if: github.event.inputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    needs: [get_dry_release_versions, release]
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
+      GITBOOK_TOKEN: ${{ secrets.GITBOOK_TOKEN }}
+      GITBOOK_ORG_ID: ${{ vars.GITBOOK_ORG_ID }}
+      GITBOOK_SITE_ID: ${{ vars.GITBOOK_SITE_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Publish released documentation
+        run: |
+          python infra/scripts/release/publish_versioned_docs.py \
+            --version "${{ needs.get_dry_release_versions.outputs.next_version }}"
+
+  publish_existing_version_docs:
+    name: Publish documentation for an existing release
+    if: github.repository == 'feast-dev/feast' && inputs.publish_docs_version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ inputs.token }}
+      GITBOOK_TOKEN: ${{ secrets.GITBOOK_TOKEN }}
+      GITBOOK_ORG_ID: ${{ vars.GITBOOK_ORG_ID }}
+      GITBOOK_SITE_ID: ${{ vars.GITBOOK_SITE_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Publish released documentation
+        run: |
+          args=(--version "${{ inputs.publish_docs_version }}")
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          python infra/scripts/release/publish_versioned_docs.py "${args[@]}"
