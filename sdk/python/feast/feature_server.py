@@ -1286,6 +1286,9 @@ if sys.platform != "win32":
                     self.cfg.set(key.lower(), value)
 
             self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
+            self.cfg.set(
+                "post_fork", functools.partial(_gunicorn_post_fork, self._store)
+            )
             if self._metrics_enabled:
                 self.cfg.set(
                     "post_worker_init",
@@ -1295,6 +1298,11 @@ if sys.platform != "win32":
 
         def load(self):
             return self._app
+
+    def _gunicorn_post_fork(store: "feast.FeatureStore", server, worker):
+        """Give each Gunicorn worker its own registry connections after fork."""
+        if store._registry is not None:
+            store._registry.reset_after_fork()
 
     def _gunicorn_post_worker_init(store: "feast.FeatureStore", worker):
         """Start per-worker resource and freshness monitoring after Gunicorn forks."""
