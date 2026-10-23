@@ -1,0 +1,338 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {
+      "id": "nav",
+      "type": "rectangle",
+      "x": 40,
+      "y": 120,
+      "width": 200,
+      "height": 90,
+      "backgroundColor": "#a5d8ff",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "label": {
+        "text": "Navidrome"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "bridge",
+      "type": "rectangle",
+      "x": 340,
+      "y": 120,
+      "width": 160,
+      "height": 90,
+      "backgroundColor": "#ffd8a8",
+      "strokeColor": "#e8590c",
+      "strokeWidth": 2,
+      "label": {
+        "text": "bridge"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "feast",
+      "type": "rectangle",
+      "x": 620,
+      "y": 100,
+      "width": 300,
+      "height": 110,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "label": {
+        "text": "Feast feature server\n(Milvus Lite)"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "taste",
+      "type": "rectangle",
+      "x": 300,
+      "y": 360,
+      "width": 220,
+      "height": 90,
+      "backgroundColor": "#eebefa",
+      "strokeColor": "#9c36b5",
+      "strokeWidth": 2,
+      "label": {
+        "text": "taste job\n(k-means)"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "mcp",
+      "type": "rectangle",
+      "x": 620,
+      "y": 360,
+      "width": 300,
+      "height": 100,
+      "backgroundColor": "#99e9f2",
+      "strokeColor": "#0c8599",
+      "strokeWidth": 2,
+      "label": {
+        "text": "feast mcp\n(standalone MCP server)"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "dj",
+      "type": "rectangle",
+      "x": 620,
+      "y": 560,
+      "width": 300,
+      "height": 110,
+      "backgroundColor": "#ffc9c9",
+      "strokeColor": "#e03131",
+      "strokeWidth": 2,
+      "label": {
+        "text": "AI DJ agent\n(granite4.2:3b on Ollama)"
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-10-22T09:31:20.295Z",
+      "updatedAt": "2026-10-22T09:31:20.295Z",
+      "version": 1
+    },
+    {
+      "id": "mvjccyuio53gpirg5ub",
+      "type": "arrow",
+      "x": 248,
+      "y": 165,
+      "width": 100,
+      "height": 0,
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "label": {
+        "text": "scrobbles"
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          84,
+          0
+        ]
+      ],
+      "start": {
+        "id": "nav"
+      },
+      "end": {
+        "id": "bridge"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:20.298Z",
+      "version": 1
+    },
+    {
+      "id": "mvjccyuim8sot8v6dzr",
+      "type": "arrow",
+      "x": 507.99673669168556,
+      "y": 162.4858075230947,
+      "width": 120,
+      "height": 0,
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "label": {
+        "text": "/push"
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          104.00652661662889,
+          -2.9716150461893847
+        ]
+      ],
+      "start": {
+        "id": "bridge"
+      },
+      "end": {
+        "id": "feast"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:20.298Z",
+      "version": 1
+    },
+    {
+      "id": "mvjccyuitden7y2vsrn",
+      "type": "arrow",
+      "x": 410,
+      "y": 360,
+      "width": 360,
+      "height": -150,
+      "strokeColor": "#9c36b5",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 2
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          -80
+        ],
+        [
+          360,
+          -80
+        ],
+        [
+          360,
+          -150
+        ]
+      ],
+      "start": {
+        "id": "taste"
+      },
+      "end": {
+        "id": "feast"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:53.322Z",
+      "version": 2,
+      "elbowed": true
+    },
+    {
+      "id": "mvjccyuirl9ddv9hqq",
+      "type": "arrow",
+      "x": 770,
+      "y": 218,
+      "width": 0,
+      "height": 150,
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          134
+        ]
+      ],
+      "start": {
+        "id": "feast"
+      },
+      "end": {
+        "id": "mcp"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:20.298Z",
+      "version": 1
+    },
+    {
+      "id": "mvjccyuisujku7latvi",
+      "type": "arrow",
+      "x": 770,
+      "y": 468,
+      "width": 0,
+      "height": 100,
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          84
+        ]
+      ],
+      "start": {
+        "id": "mcp"
+      },
+      "end": {
+        "id": "dj"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:20.298Z",
+      "version": 1
+    },
+    {
+      "id": "mvjccyuieez9w7m5h3r",
+      "type": "arrow",
+      "x": 620,
+      "y": 615,
+      "width": -480,
+      "height": -450,
+      "strokeColor": "#e03131",
+      "strokeWidth": 2,
+      "label": {
+        "text": "playlist"
+      },
+      "roundness": {
+        "type": 2
+      },
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -480,
+          0
+        ],
+        [
+          -480,
+          -450
+        ],
+        [
+          -380,
+          -450
+        ]
+      ],
+      "start": {
+        "id": "dj"
+      },
+      "end": {
+        "id": "nav"
+      },
+      "createdAt": "2026-10-22T09:31:20.298Z",
+      "updatedAt": "2026-10-22T09:31:53.319Z",
+      "version": 2,
+      "elbowed": true
+    },
+    {
+      "id": "mvjccyumbkq3qfj29ac",
+      "type": "text",
+      "x": 40,
+      "y": 30,
+      "strokeColor": "#1e1e1e",
+      "text": "AI DJ architecture (Feast + Navidrome + Ollama)",
+      "fontSize": 24,
+      "createdAt": "2026-10-22T09:31:20.302Z",
+      "updatedAt": "2026-10-22T09:31:20.302Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {}
+}
