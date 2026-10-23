@@ -831,12 +831,12 @@ class MilvusOnlineStore(OnlineStore):
             if not has_native:
                 logger.warning(
                     "Numeric comparison filters (gt, gte, lt, lte) are being used "
-                    "but this collection stores numeric fields as VARCHAR. This "
-                    "causes lexicographic comparison instead of numeric comparison "
-                    "(e.g. '9' > '100' is True as a string). To fix this, set "
-                    "'native_numeric_types: true' in your online_store "
-                    "config, then teardown and re-apply your feature store to "
-                    "recreate collections with native numeric types."
+                    "but this collection stores numeric fields as VARCHAR. Milvus "
+                    "rejects numeric filter values on VARCHAR fields, and string "
+                    "values compare lexicographically (e.g. '9' > '50' is True). "
+                    "To fix this, set 'native_numeric_types: true' in your "
+                    "online_store config and recreate the collection; see the "
+                    "Milvus online store docs for migration options."
                 )
 
         metadata_filter_expr = MilvusFilterTranslator().translate(filters)
