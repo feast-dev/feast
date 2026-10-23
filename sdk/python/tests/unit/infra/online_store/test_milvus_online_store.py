@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
-from pymilvus import DataType, MilvusClient
+from pymilvus import DataType, MilvusClient, MilvusException
 from pymilvus.client.types import LoadState
 
 from feast import Entity, FeatureView
@@ -746,3 +746,105 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "online_store, expected_type",
+    [
+        ({}, DataType.VARCHAR),
+        ({"native_numeric_types": True}, DataType.FLOAT),
+        ({"enable_openai_compatible_store": True}, DataType.FLOAT),
+    ],
+)
+def test_native_numeric_types(
+    tmp_path: Path, online_store: Dict[str, Any], expected_type: DataType
+) -> None:
+    config = _lite_config(tmp_path, **online_store)
+    fv = _catalog_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert store.client is not None
+    fields = store.client.describe_collection("test_milvus_products")["fields"]
+    assert {f["name"]: f["type"] for f in fields}["price"] == expected_type
+
+
+def _write_priced_products(
+    store: MilvusOnlineStore, config: RepoConfig, fv: FeatureView
+) -> None:
+    embedding = ValueProto()
+    embedding.float_list_val.val.extend([1.0, 0.0])
+    now = datetime.now(timezone.utc)
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _product_key(product_id),
+                {
+                    "brand_id": ValueProto(string_val="acme"),
+                    "embedding": embedding,
+                    "title": ValueProto(string_val=title),
+                    "price": ValueProto(float_val=price),
+                },
+                now,
+                now,
+            )
+            for product_id, title, price in [(1, "cheap", 9.0), (2, "pricey", 100.0)]
+        ],
+        progress=None,
+    )
+
+
+def _titles_priced_above(
+    store: MilvusOnlineStore, config: RepoConfig, fv: FeatureView, value: Any
+) -> List[str]:
+    results = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["embedding", "title", "price"],
+        embedding=[1.0, 0.0],
+        top_k=5,
+        distance_metric="COSINE",
+        filters=ComparisonFilter(type="gt", key="price", value=value),
+    )
+    return [values["title"].string_val for _, _, values in results if values]
+
+
+def test_native_numeric_range_filter_and_round_trip(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path, native_numeric_types=True)
+    fv = _catalog_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_priced_products(store, config, fv)
+
+    # As strings, "9.0" > "50" would be true; natively only 100.0 matches.
+    assert _titles_priced_above(store, config, fv, 50) == ["pricey"]
+
+    rows = store.online_read(config, fv, [_product_key(1)], ["price", "title"])
+    assert rows[0][1] is not None and rows[0][1]["price"].float_val == 9.0
+
+
+def test_native_numeric_types_keeps_existing_varchar_collection(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    fv = _catalog_feature_view()
+    MilvusOnlineStore().update(_lite_config(tmp_path), [], [fv], [], [], partial=False)
+
+    # Turn the setting on without a teardown: the collection stays VARCHAR.
+    config = _lite_config(tmp_path, native_numeric_types=True)
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    assert store.client is not None
+    fields = store.client.describe_collection("test_milvus_products")["fields"]
+    assert {f["name"]: f["type"] for f in fields}["price"] == DataType.VARCHAR
+
+    _write_priced_products(store, config, fv)
+    rows = store.online_read(config, fv, [_product_key(1)], ["price", "title"])
+    assert rows[0][1] is not None and rows[0][1]["price"].float_val == 9.0
+
+    # Milvus rejects numeric values on VARCHAR fields; strings compare as text.
+    with pytest.raises(MilvusException):
+        _titles_priced_above(store, config, fv, 50)
+    assert "stores numeric fields as VARCHAR" in caplog.text
+    assert _titles_priced_above(store, config, fv, "50") == ["cheap"]
