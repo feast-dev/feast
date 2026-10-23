@@ -3,6 +3,7 @@ import re
 import tempfile
 from datetime import datetime, timedelta
 
+import ibis
 import pandas as pd
 import pytest
 
@@ -16,9 +17,11 @@ from feast import (
     RequestSource,
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
+from feast.errors import FeatureNameCollisionError
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
-from feast.on_demand_feature_view import on_demand_feature_view
+from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
+from feast.transformation.substrait_transformation import SubstraitTransformation
 from feast.types import (
     Array,
     Bool,
@@ -787,3 +790,141 @@ def test_odfv_output_wins_over_same_named_source_feature_online(full_feature_nam
         )
         assert odfv_col in response
         assert response[odfv_col] == pytest.approx([response[conv_rate_col][0] + 1.0])
+
+
+def test_requesting_odfv_output_and_same_named_source_feature_raises():
+    """With default names, asking for both the source feature and the ODFV
+    output under one name is a collision, rejected before retrieval."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, driver_df, end_date = _store_with_colliding_odfv(data_dir, "pandas")
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
+        features = [
+            "driver_hourly_stats:conv_rate",
+            "driver_hourly_stats:conv_rate_plus_one",
+            "plus_one_view:conv_rate_plus_one",
+        ]
+
+        with pytest.raises(FeatureNameCollisionError):
+            store.get_historical_features(
+                entity_df=pd.DataFrame(
+                    {"driver_id": [1001], "event_timestamp": [end_date]}
+                ),
+                features=features,
+                full_feature_names=False,
+            )
+        with pytest.raises(FeatureNameCollisionError):
+            store.get_online_features(
+                entity_rows=[{"driver_id": 1001}],
+                features=features,
+                full_feature_names=False,
+            )
+
+
+@pytest.mark.parametrize("mode", ["pandas", "python"])
+def test_odfv_output_and_same_named_source_feature_both_requested(mode):
+    """With full feature names, both the source feature and the ODFV output
+    come back, each under its own name."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, _, end_date = _store_with_colliding_odfv(data_dir, mode)
+
+        entity_df = pd.DataFrame(
+            {"driver_id": [1001, 1002], "event_timestamp": [end_date, end_date]}
+        )
+        offline_df = store.get_historical_features(
+            entity_df=entity_df,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:conv_rate_plus_one",
+                "plus_one_view:conv_rate_plus_one",
+            ],
+            full_feature_names=True,
+        ).to_df()
+
+        assert offline_df["driver_hourly_stats__conv_rate_plus_one"].tolist() == [
+            -999.0,
+            -999.0,
+        ]
+        assert offline_df["plus_one_view__conv_rate_plus_one"].tolist() == (
+            pytest.approx((offline_df["driver_hourly_stats__conv_rate"] + 1.0).tolist())
+        )
+
+
+def test_odfv_output_and_same_named_source_feature_both_requested_online():
+    """Online retrieval with full feature names keeps both values too."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store, driver_df, _ = _store_with_colliding_odfv(data_dir, "pandas")
+        store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=driver_df
+        )
+
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:conv_rate_plus_one",
+                "plus_one_view:conv_rate_plus_one",
+            ],
+            full_feature_names=True,
+        ).to_dict()
+
+        assert response["driver_hourly_stats__conv_rate_plus_one"] == [-999.0]
+        assert response["plus_one_view__conv_rate_plus_one"] == pytest.approx(
+            [response["driver_hourly_stats__conv_rate"][0] + 1.0]
+        )
+
+
+@pytest.mark.parametrize("full_feature_names", [False, True])
+def test_substrait_odfv_output_wins_over_same_named_source_feature(
+    full_feature_names,
+):
+    """The ibis transformation path keeps the ODFV output under the same
+    collision; the substrait plan is not needed to run the ibis function."""
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    driver_stats_fv = FeatureView(
+        name="driver_hourly_stats",
+        entities=[driver],
+        ttl=timedelta(days=0),
+        schema=[
+            Field(name="conv_rate", dtype=Float32),
+            Field(name="conv_rate_plus_one", dtype=Float64),
+        ],
+        source=FileSource(
+            name="driver_hourly_stats_source",
+            path="driver_stats.parquet",
+            timestamp_field="event_timestamp",
+        ),
+    )
+
+    def plus_one(table):
+        return table.mutate(conv_rate_plus_one=table.conv_rate + 1.0)
+
+    plus_one_view = OnDemandFeatureView(
+        name="plus_one_view",
+        sources=[driver_stats_fv],
+        schema=[Field(name="conv_rate_plus_one", dtype=Float64)],
+        feature_transformation=SubstraitTransformation(
+            substrait_plan=b"", udf=plus_one
+        ),
+        mode="substrait",
+    )
+
+    prefix = "driver_hourly_stats__" if full_feature_names else ""
+    table = ibis.memtable(
+        {
+            "driver_id": [1001, 1002],
+            f"{prefix}conv_rate": [0.5, 0.25],
+            f"{prefix}conv_rate_plus_one": [-999.0, -999.0],
+        }
+    )
+
+    result = plus_one_view.transform_ibis(table, full_feature_names).to_pandas()
+
+    odfv_col = (
+        "plus_one_view__conv_rate_plus_one"
+        if full_feature_names
+        else "conv_rate_plus_one"
+    )
+    assert list(result.columns).count(odfv_col) == 1
+    assert result[odfv_col].tolist() == [1.5, 1.25]
