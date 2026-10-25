@@ -1604,6 +1604,19 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
 
 _FIXED_SIZE_LIST_PREFIX = "fixed_size_list<item: "
 
+# PyArrow names the list child field "item" by default, but Parquet-compliant
+# lists (e.g. files written by pandas/pyarrow) name it "element". Either may also
+# be a large_list or mark its elements "not null".
+_PA_LIST_TYPE_PATTERN = re.compile(
+    r"(?:large_)?list<(?:item|element): (.+?)(?: not null)?>"
+)
+
+
+def _pa_list_inner_type_str(pa_type_as_str: str) -> Optional[str]:
+    """Return the element type string of a PyArrow list type string, else None."""
+    match = _PA_LIST_TYPE_PATTERN.fullmatch(pa_type_as_str)
+    return match.group(1) if match else None
+
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
@@ -1618,11 +1631,11 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
         if closing != -1:
             pa_type_as_str = f"list<item: {inner[:closing]}>"
 
-    if pa_type_as_str.startswith("list<item: "):
+    inner_str = _pa_list_inner_type_str(pa_type_as_str)
+    if inner_str is not None:
         is_list = True
-        inner_str = pa_type_as_str[len("list<item: ") : -1]
         # Check for nested list (list of lists) before stripping
-        if inner_str.startswith("list<item: "):
+        if _pa_list_inner_type_str(inner_str) is not None:
             return ValueType.VALUE_LIST
         pa_type_as_str = inner_str
 
@@ -1650,13 +1663,6 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
             "binary": ValueType.BYTES,
             "bool": ValueType.BOOL,
             "null": ValueType.NULL,
-            "list<element: double>": ValueType.DOUBLE_LIST,
-            "list<element: int64>": ValueType.INT64_LIST,
-            "list<element: int32>": ValueType.INT32_LIST,
-            "list<element: str>": ValueType.STRING_LIST,
-            "list<element: bool>": ValueType.BOOL_LIST,
-            "list<element: bytes>": ValueType.BYTES_LIST,
-            "list<element: float>": ValueType.FLOAT_LIST,
         }
         value_type = type_map[pa_type_as_str]
 

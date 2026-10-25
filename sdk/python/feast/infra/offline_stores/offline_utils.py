@@ -20,7 +20,7 @@ from feast.importer import import_class
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
-from feast.type_map import feast_value_type_to_pa
+from feast.type_map import _pa_list_inner_type_str, feast_value_type_to_pa
 from feast.utils import (
     _get_requested_feature_views_to_features_dict,
     _get_requested_on_demand_feature_views,
@@ -273,8 +273,8 @@ _PA_BASIC_TYPES = {
 def _parse_pa_type_str(pa_type_str: str) -> pa.DataType:
     """Parse a PyArrow type string to preserve inner element types for nested lists."""
     pa_type_str = pa_type_str.strip()
-    if pa_type_str.startswith("list<item: ") and pa_type_str.endswith(">"):
-        inner = pa_type_str[len("list<item: ") : -1]
+    inner = _pa_list_inner_type_str(pa_type_str)
+    if inner is not None:
         return pa.list_(_parse_pa_type_str(inner))
     if pa_type_str in _PA_BASIC_TYPES:
         return _PA_BASIC_TYPES[pa_type_str]
