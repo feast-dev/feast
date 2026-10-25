@@ -25,13 +25,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from importlib import resources as importlib_resources
 from types import SimpleNamespace
-from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
+from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union, cast
 
 import pandas as pd
 from dateutil import parser
 from fastapi import (
     Depends,
     FastAPI,
+    HTTPException,
     Query,
     Request,
     Response,
@@ -43,18 +44,22 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from google.protobuf.message import DecodeError
 from pydantic import BaseModel, Field, field_validator
+from typeguard import TypeCheckError
 
 import feast
 from feast import metrics as feast_metrics
 from feast import proto_json, utils
-from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
+from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL, PROTECTED_PROJECT_TAG
 from feast.data_source import PushMode
 from feast.errors import (
     FeastError,
+    FeastObjectNotFoundException,
     FeatureViewNotFoundException,
+    ProjectNotFoundException,
 )
-from feast.feast_object import FeastObject
+from feast.feast_object import ALL_FEATURE_VIEW_TYPES, FeastObject
 from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
@@ -82,6 +87,23 @@ class WriteToFeatureStoreRequest(BaseModel):
     df: dict
     allow_registry_cache: bool = True
     transform_on_write: bool = True
+
+
+class UpdateInfraRequest(BaseModel):
+    """Base64 protos carried before the client's registry commit."""
+
+    tables_to_delete: List[Dict[str, str]] = []
+    tables_to_keep: List[Dict[str, str]] = []
+    entities_to_delete: List[Dict[str, str]] = []
+    entities_to_keep: List[Dict[str, str]] = []
+    partial: bool = False
+
+
+class TeardownInfraRequest(BaseModel):
+    """Objects to tear down, sent by RemoteOnlineStore.teardown()."""
+
+    tables: List[Dict[str, str]] = []
+    entities: List[Dict[str, str]] = []
 
 
 class PushFeaturesRequest(BaseModel):
@@ -996,6 +1018,107 @@ def get_app(
             allow_registry_cache=allow_registry_cache,
             transform_on_write=request.transform_on_write,
         )
+
+    @app.post("/update-infra", dependencies=[Depends(inject_user_details)])
+    async def update_infra(
+        request: UpdateInfraRequest, project: Optional[str] = Query(None)
+    ) -> None:
+        if project is not None and project != store.project:
+            raise HTTPException(400, "Infrastructure belongs to the server project")
+        tables_to_keep = _decode_authorized(
+            request.tables_to_keep, AuthzedAction.CREATE
+        )
+        tables_to_delete = _decode_authorized(
+            request.tables_to_delete, AuthzedAction.DELETE
+        )
+        entities_to_keep = _decode_authorized(
+            request.entities_to_keep, AuthzedAction.CREATE, entities=True
+        )
+        entities_to_delete = _decode_authorized(
+            request.entities_to_delete, AuthzedAction.DELETE, entities=True
+        )
+        if not any(
+            (tables_to_keep, tables_to_delete, entities_to_keep, entities_to_delete)
+        ):
+            return
+        await run_in_threadpool(
+            store._get_provider().online_store.update,
+            config=store.config,
+            tables_to_delete=tables_to_delete,
+            tables_to_keep=tables_to_keep,
+            entities_to_delete=entities_to_delete,
+            entities_to_keep=entities_to_keep,
+            partial=request.partial,
+        )
+
+    @app.post("/teardown-infra", dependencies=[Depends(inject_user_details)])
+    async def teardown_infra(
+        request: TeardownInfraRequest, project: Optional[str] = Query(None)
+    ) -> None:
+        if project is not None and project != store.project:
+            raise HTTPException(400, "Infrastructure belongs to the server project")
+        try:
+            server_project = store.registry.get_project(
+                store.project, allow_cache=False
+            )
+        except ProjectNotFoundException:
+            server_project = feast.Project(name=store.project)
+        # Some backends remove shared infrastructure even when the lists are empty.
+        assert_permissions(resource=server_project, actions=[AuthzedAction.DELETE])
+        if server_project.tags.get(PROTECTED_PROJECT_TAG) == "true":
+            raise HTTPException(403, "Cannot tear down a protected project")
+        tables = _decode_authorized(request.tables, AuthzedAction.DELETE)
+        entities = _decode_authorized(
+            request.entities, AuthzedAction.DELETE, entities=True
+        )
+        await run_in_threadpool(
+            store._get_provider().online_store.teardown,
+            config=store.config,
+            tables=tables,
+            entities=entities,
+        )
+
+    def _decode_authorized(
+        payloads: List[Dict[str, str]], action: AuthzedAction, *, entities: bool = False
+    ) -> List[Any]:
+        from feast.infra.online_stores.remote import decode_infra_object
+
+        def authorize(obj: Any) -> Optional[Any]:
+            if not isinstance(
+                obj, feast.Entity if entities else tuple(ALL_FEATURE_VIEW_TYPES)
+            ):
+                raise HTTPException(400, "Unexpected infrastructure resource type")
+            resource = obj
+            replacement = None
+            if is_auth_necessary(get_security_manager()):
+                getter = (
+                    store.registry.get_entity
+                    if entities
+                    else store.registry.get_any_feature_view
+                )
+                try:
+                    existing = cast(
+                        FeastObject, getter(obj.name, store.project, allow_cache=False)
+                    )
+                except FeastObjectNotFoundException:
+                    # A remote registry may already have committed the deletion.
+                    if action == AuthzedAction.DELETE:
+                        resource = feast.Project(name=store.project)
+                else:
+                    if action == AuthzedAction.DELETE:
+                        replacement = resource = existing
+                    else:
+                        assert_permissions(resource=existing, actions=[action])
+            assert_permissions(resource=resource, actions=[action])
+            return replacement
+
+        objects = []
+        for payload in payloads:
+            try:
+                objects.append(decode_infra_object(payload, authorize=authorize))
+            except (ValueError, KeyError, DecodeError, TypeCheckError) as exc:
+                raise HTTPException(400, str(exc)) from exc
+        return objects
 
     @app.get("/health")
     async def health():
