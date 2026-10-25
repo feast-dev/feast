@@ -46,7 +46,9 @@ from feast.protos.feast.types.Value_pb2 import (
     BoolList,
     BytesList,
     DoubleList,
+    DoubleSet,
     FloatList,
+    FloatSet,
     Int32List,
     Int64List,
     Int64Set,
@@ -117,6 +119,36 @@ class TestValueToNative:
         v = Value(float_list_val=FloatList(val=[1.5, 2.5]))
         result = _value_to_native(v)
         assert result == [1.5, 2.5]
+
+    @pytest.mark.parametrize("field", ["double_val", "float_val"])
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (float("inf"), "Infinity"),
+            (float("-inf"), "-Infinity"),
+            (float("nan"), "NaN"),
+        ],
+    )
+    def test_non_finite_scalar_val(self, field, value, expected):
+        v = Value(**{field: value})
+        result = _value_to_native(v)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "field, container",
+        [
+            ("double_list_val", DoubleList),
+            ("float_list_val", FloatList),
+            ("double_set_val", DoubleSet),
+            ("float_set_val", FloatSet),
+        ],
+    )
+    def test_non_finite_float_collection_val(self, field, container):
+        v = Value(
+            **{field: container(val=[1.5, float("nan"), float("inf"), float("-inf")])}
+        )
+        result = _value_to_native(v)
+        assert result == [1.5, "NaN", "Infinity", "-Infinity"]
 
     def test_int64_list_val(self):
         v = Value(int64_list_val=Int64List(val=[100, 200, 300]))
@@ -571,6 +603,26 @@ class TestJsonSerializability:
         # must not raise
         serialized = json.dumps(result)
         assert serialized  # non-empty
+
+    def test_non_finite_floats_are_json_serializable(self):
+        """NaN/inf must not break strict JSON encoding (JSONResponse uses allow_nan=False)."""
+        response = GetOnlineFeaturesResponse()
+        fv = response.results.add()
+        fv.values.append(Value(double_val=float("inf")))
+        fv.values.append(Value(float_val=float("-inf")))
+        fv.values.append(Value(double_list_val=DoubleList(val=[1.0, float("nan")])))
+        fv.statuses.extend(
+            [FieldStatus.PRESENT, FieldStatus.PRESENT, FieldStatus.PRESENT]
+        )
+
+        result = convert_response_to_dict(response)
+        # must not raise
+        serialized = json.dumps(result, allow_nan=False)
+        assert json.loads(serialized)["results"][0]["values"] == [
+            "Infinity",
+            "-Infinity",
+            [1.0, "NaN"],
+        ]
 
 
 class TestProtobufCompatibility:

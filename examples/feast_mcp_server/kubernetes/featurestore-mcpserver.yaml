@@ -1,0 +1,49 @@
+# Standalone Feast MCP server deployed by the Feast Operator.
+#
+#   kubectl apply -f kubernetes/featurestore-mcpserver.yaml
+#
+# The operator adds a `mcpserver` container running `feast mcp` to the
+# FeatureStore deployment, with its own Service on port 8100. It owns the
+# container's --host and --port so they match that Service; everything else
+# comes from the feast_mcp.yaml below, mounted read-only at /etc/feast/mcp.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-mcp-config
+data:
+  feast_mcp.yaml: |
+    server:
+      # host/port are set by the operator on the CLI and override this file;
+      # transport is honored from here.
+      transport: http
+    # The MCP container runs in the same pod as the online and registry
+    # servers, so it reaches them over localhost.
+    features:
+      url: http://localhost:6566
+    registry:
+      url: http://localhost:6572
+    timeout: 30
+    observability:
+      level: INFO
+      format: json
+---
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-mcpserver
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server: {}
+    registry:
+      local:
+        server:
+          # The MCP proxy talks to the registry over its REST API, so this
+          # must be on for the registry_* tools to work.
+          restAPI: true
+    mcpServer:
+      config:
+        configMapRef:
+          name: feast-mcp-config
+          # configMapKey defaults to feast_mcp.yaml

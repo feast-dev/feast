@@ -22,7 +22,7 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib import resources as importlib_resources
 from types import SimpleNamespace
 from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
@@ -478,8 +478,7 @@ def _parse_materialize_timestamps(
 ) -> tuple:
     """Parse and validate start/end timestamps from a MaterializeRequest."""
     if request.disable_event_timestamp:
-        now = datetime.now()
-        return datetime(1970, 1, 1), now
+        return datetime(1970, 1, 1, tzinfo=timezone.utc), utils._utc_now()
 
     if not request.start_ts or not request.end_ts:
         raise ValueError(

@@ -26,6 +26,7 @@ const sortedPosts = posts.sort((a, b) => {
             <div class="post-date">
               <time datetime={post.frontmatter.date}>
                 {new Date(post.frontmatter.date).toLocaleDateString('en-US', {
+                  timeZone: 'UTC',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'

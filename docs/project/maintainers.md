@@ -26,7 +26,7 @@
             2. Edit `fork_pr_integration_tests_[provider].yml` (more details below) to only run the integration tests that are relevant to your area of interest.
             3. Push the workflow to your branch and it should automatically be added to the actions on your fork.
     - `build_wheels`
-        - Release verification workflow to use for [release](docs/project/release-process.md).
+        - Release verification workflow to use for [release](release-process.md).
 
 ## Integration Test Workflow Changes
 Fork specific integration tests are run by the `fork_pr_integration_tests.yml_[provider]` yaml workflow files.

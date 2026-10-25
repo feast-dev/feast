@@ -12,6 +12,7 @@ from pymilvus.client.types import LoadState
 
 from feast import Entity, FeatureView
 from feast.field import Field
+from feast.filter_models import ComparisonFilter
 from feast.infra.online_stores.milvus_online_store.milvus import (
     PLACEHOLDER_VECTOR_DIM,
     PLACEHOLDER_VECTOR_FIELD,
@@ -579,3 +580,169 @@ def test_collection_and_read_consistency_levels_independent() -> None:
 def test_invalid_consistency_level_rejected(field: str) -> None:
     with pytest.raises(ValidationError):
         MilvusOnlineStoreConfig(**{field: "Immediate"})
+
+
+def _catalog_feature_view(tags: Optional[Dict[str, str]] = None) -> FeatureView:
+    return FeatureView(
+        name="products",
+        entities=[
+            Entity(
+                name="product_id", join_keys=["product_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="product_id", dtype=Int64),
+            Field(name="brand_id", dtype=String),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="title", dtype=String),
+            Field(name="price", dtype=Float32),
+        ],
+        tags=tags or {},
+    )
+
+
+def _product_key(product_id: int) -> EntityKeyProto:
+    return EntityKeyProto(
+        join_keys=["product_id"], entity_values=[ValueProto(int64_val=product_id)]
+    )
+
+
+def _write_products(
+    store: MilvusOnlineStore, config: RepoConfig, fv: FeatureView
+) -> None:
+    def embedding(x: float, y: float) -> ValueProto:
+        value = ValueProto()
+        value.float_list_val.val.extend([x, y])
+        return value
+
+    now = datetime.now(timezone.utc)
+    products = [
+        (1, "acme", (1.0, 0.0), "Acme kettle"),
+        (2, "acme", (0.9, 0.1), "Acme toaster"),
+        (3, "globex", (1.0, 0.0), "Globex kettle"),
+    ]
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _product_key(product_id),
+                {
+                    "brand_id": ValueProto(string_val=brand),
+                    "embedding": embedding(*vector),
+                    "title": ValueProto(string_val=title),
+                },
+                now,
+                now,
+            )
+            for product_id, brand, vector, title in products
+        ],
+        progress=None,
+    )
+
+
+def _partition_key_field(
+    store: MilvusOnlineStore, collection_name: str
+) -> Optional[str]:
+    assert store.client is not None
+    fields = store.client.describe_collection(collection_name)["fields"]
+    return next((f["name"] for f in fields if f.get("is_partition_key")), None)
+
+
+@pytest.mark.parametrize(
+    "online_store, tags",
+    [
+        ({}, {"milvus.partition_key": "brand_id"}),
+        ({"partition_key": "brand_id"}, {}),
+    ],
+    ids=["feature_view_tag", "store_config"],
+)
+def test_partition_key_filtering(
+    tmp_path: Path, online_store: Dict[str, Any], tags: Dict[str, str]
+) -> None:
+    config = _lite_config(tmp_path, **online_store)
+    fv = _catalog_feature_view(tags)
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_products(store, config, fv)
+
+    assert _partition_key_field(store, "test_milvus_products") == "brand_id"
+    results = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["embedding", "brand_id", "title"],
+        embedding=[1.0, 0.0],
+        top_k=5,
+        distance_metric="COSINE",
+        filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+    )
+
+    titles = sorted(values["title"].string_val for _, _, values in results if values)
+    assert titles == ["Acme kettle", "Acme toaster"]
+
+
+def test_store_partition_key_ignored_for_feature_views_without_the_field(
+    tmp_path: Path,
+) -> None:
+    config = _lite_config(tmp_path, partition_key="brand_id")
+    fv = _scalar_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert _partition_key_field(store, "test_milvus_driver_stats") is None
+
+
+def test_feature_view_tag_overrides_store_partition_key(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path, partition_key="brand_id")
+    fv = _catalog_feature_view({"milvus.partition_key": "title"})
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert _partition_key_field(store, "test_milvus_products") == "title"
+
+
+@pytest.mark.parametrize(
+    "online_store, partition_key, error",
+    [
+        ({}, "missing_field", "is not a field"),
+        # Native numeric storage makes price a FLOAT, which can't be a partition key.
+        ({"enable_openai_compatible_store": True}, "price", "must be INT64 or VARCHAR"),
+    ],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_invalid_partition_key(
+    mock_client_cls: MagicMock,
+    online_store: Dict[str, Any],
+    partition_key: str,
+    error: str,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = _catalog_feature_view({"milvus.partition_key": partition_key})
+
+    with pytest.raises(ValueError, match=error):
+        MilvusOnlineStore()._get_or_create_collection(_mock_config(**online_store), fv)
+    mock_client.create_collection.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_warns_when_existing_collection_lacks_partition_key(
+    mock_client_cls: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=True)
+    mock_client.get_load_state.return_value = {"state": LoadState.Loaded}
+    mock_client.describe_collection.return_value = {
+        "collection_name": "test_milvus_products",
+        "fields": [{"name": "brand_id", "type": DataType.VARCHAR, "params": {}}],
+    }
+    fv = _catalog_feature_view({"milvus.partition_key": "brand_id"})
+
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    assert "created without partition key 'brand_id'" in caplog.text
+    mock_client.create_collection.assert_not_called()

@@ -193,14 +193,23 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
 	}
 
-	if services.UI != nil {
-		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
-	}
+	setDefaultServiceImages(services, defaultFeatureServerImage)
 
 	if applied.CronJob == nil {
 		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}
 	setDefaultCronJobConfigs(applied.CronJob)
+}
+
+// setDefaultServiceImages defaults the container image for services that share the
+// feature-server image but have no dedicated defaulting logic elsewhere (UI, MCP server).
+func setDefaultServiceImages(services *feastdevv1.FeatureStoreServices, defaultFeatureServerImage string) {
+	if services.UI != nil {
+		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
+	}
+	if services.McpServer != nil {
+		setDefaultCtrConfigs(&services.McpServer.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
+	}
 }
 
 func applyDefaultAuthzConfig(applied *feastdevv1.FeatureStoreSpec) {
@@ -486,6 +495,11 @@ func GetUIContainer(deployment appsv1.Deployment) *corev1.Container {
 
 func GetOnlineContainer(deployment appsv1.Deployment) *corev1.Container {
 	_, container := getContainerByType(OnlineFeastType, deployment.Spec.Template.Spec)
+	return container
+}
+
+func GetMcpServerContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(McpServerFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 
