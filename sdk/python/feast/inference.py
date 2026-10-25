@@ -21,6 +21,19 @@ from feast.types import String
 from feast.value_type import ValueType
 
 
+def _infer_column_value_type(
+    source: DataSource, col_name: str, col_datatype: str
+) -> ValueType:
+    """Map a source column type to a Feast ValueType, naming the column on failure."""
+    try:
+        return source.source_datatype_to_feast_value_type()(col_datatype)
+    except ValueError as e:
+        raise RegistryInferenceFailure(
+            "feature view",
+            f"column '{col_name}' has an unsupported type: {e}",
+        ) from e
+
+
 def update_data_sources_with_inferred_event_timestamp_col(
     data_sources: List[DataSource], config: RepoConfig
 ) -> None:
@@ -247,7 +260,7 @@ def _infer_features_and_entities(
             field = Field(
                 name=col_name,
                 dtype=from_value_type(
-                    fv.batch_source.source_datatype_to_feast_value_type()(col_datatype)
+                    _infer_column_value_type(fv.batch_source, col_name, col_datatype)
                 ),
             )
             if field.name not in [
@@ -266,8 +279,8 @@ def _infer_features_and_entities(
                 field = Field(
                     name=feature_name,
                     dtype=from_value_type(
-                        fv.batch_source.source_datatype_to_feast_value_type()(
-                            col_datatype
+                        _infer_column_value_type(
+                            fv.batch_source, col_name, col_datatype
                         )
                     ),
                 )
@@ -322,7 +335,7 @@ def _infer_on_demand_features_and_entities(
                 field = Field(
                     name=col_name,
                     dtype=from_value_type(
-                        batch_source.source_datatype_to_feast_value_type()(col_datatype)
+                        _infer_column_value_type(batch_source, col_name, col_datatype)
                     ),
                 )
                 if field.name not in [
@@ -343,8 +356,8 @@ def _infer_on_demand_features_and_entities(
                     field = Field(
                         name=feature_name,
                         dtype=from_value_type(
-                            batch_source.source_datatype_to_feast_value_type()(
-                                col_datatype
+                            _infer_column_value_type(
+                                batch_source, col_name, col_datatype
                             )
                         ),
                     )
