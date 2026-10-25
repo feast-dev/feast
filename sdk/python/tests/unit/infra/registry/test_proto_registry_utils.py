@@ -81,3 +81,47 @@ class TestRegistryProto:
         )
         assert len(result) == 1
         assert result[0].name == "test_dataset"
+
+
+def test_get_any_feature_view_suggests_close_names_on_miss() -> None:
+    from feast.errors import FeatureViewNotFoundException
+    from feast.infra.registry.proto_registry_utils import get_any_feature_view
+    from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+
+    registry = RegistryProto(version_id="test_version")
+    fv = FeatureViewProto()
+    fv.spec.name = "customer_credit_risk_feature_view"
+    fv.spec.project = "customer_credit_risk"
+    registry.feature_views.append(fv)
+
+    try:
+        get_any_feature_view(
+            registry,
+            "customer_credit_risk_customer_credit_risk_feature_view",
+            "customer_credit_risk",
+        )
+        raise AssertionError("expected FeatureViewNotFoundException")
+    except FeatureViewNotFoundException as e:
+        assert "does not exist in project customer_credit_risk" in str(e)
+        assert "Did you mean: customer_credit_risk_feature_view" in str(e)
+
+
+def test_get_any_feature_view_no_suggestion_when_nothing_is_close() -> None:
+    from feast.errors import FeatureViewNotFoundException
+    from feast.infra.registry.proto_registry_utils import get_any_feature_view
+    from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+
+    registry = RegistryProto(version_id="test_version")
+    fv = FeatureViewProto()
+    fv.spec.name = "driver_stats"
+    fv.spec.project = "test_project"
+    registry.feature_views.append(fv)
+
+    try:
+        get_any_feature_view(registry, "zzz_unrelated", "test_project")
+        raise AssertionError("expected FeatureViewNotFoundException")
+    except FeatureViewNotFoundException as e:
+        assert (
+            str(e)
+            == "Feature view zzz_unrelated does not exist in project test_project"
+        )
