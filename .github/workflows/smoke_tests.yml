@@ -22,6 +22,8 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+      # Preserve the dependency set installed from the CI requirements lock.
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
