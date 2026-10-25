@@ -13,7 +13,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
-from feast.types import Float32
+from feast.types import Float32, Int64
 from feast.utils import _utc_now, make_tzaware
 
 
@@ -110,6 +110,41 @@ def test_stream_feature_view_serialization():
     assert (
         sfv_proto.spec.feature_transformation.user_defined_function.name == "simple_udf"
     )
+
+
+def test_stream_feature_view_serialization_excludes_entity_columns_from_features():
+    entity = Entity(name="driver_entity", join_keys=["driver_id"])
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+
+    sfv = StreamFeatureView(
+        name="test kafka stream feature view",
+        entities=[entity],
+        ttl=timedelta(days=30),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="dummy_field", dtype=Float32),
+        ],
+        timestamp_field="event_timestamp",
+        source=stream_source,
+    )
+    assert [f.name for f in sfv.features] == ["dummy_field"]
+    assert [f.name for f in sfv.entity_columns] == ["driver_id"]
+
+    sfv_proto = sfv.to_proto()
+    assert [f.name for f in sfv_proto.spec.features] == ["dummy_field"]
+    assert [f.name for f in sfv_proto.spec.entity_columns] == ["driver_id"]
+
+    new_sfv = StreamFeatureView.from_proto(sfv_proto=sfv_proto)
+    assert new_sfv.features == sfv.features
+    assert new_sfv.entity_columns == sfv.entity_columns
+    assert new_sfv == sfv
 
 
 def test_stream_feature_view_udfs():
