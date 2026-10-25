@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 from urllib.parse import quote
 
@@ -24,6 +24,53 @@ class ChrononOnlineStoreConfig(FeastConfigBaseModel):
     timeout: StrictInt = 30
     verify_ssl: bool = True
     connection_retries: StrictInt = Field(default=0, ge=0, le=5)
+
+
+def _parse_chronon_timestamp(row: Dict[str, Any]) -> Optional[datetime]:
+    """Extract and parse source freshness timestamp from a Chronon response row.
+
+    Handles milliseconds integer/float, seconds float/int, and ISO strings.
+    Missing or unparseable timestamps return None (treated as unknown).
+    """
+    candidate_keys = (
+        "ts",
+        "timestamp",
+        "event_timestamp",
+        "feature_timestamp",
+        "feature_computation_ts",
+    )
+    raw_val = None
+    for key in candidate_keys:
+        if key in row and row[key] is not None:
+            raw_val = row[key]
+            break
+
+    if raw_val is None:
+        return None
+
+    if isinstance(raw_val, (int, float)):
+        # Chronon timestamps in Java verticle are Unix epoch milliseconds
+        # Values > 1e11 (year 1973 in ms) are milliseconds; smaller are seconds.
+        if raw_val > 1e11:
+            return datetime.fromtimestamp(raw_val / 1000.0, tz=timezone.utc)
+        return datetime.fromtimestamp(float(raw_val), tz=timezone.utc)
+
+    if isinstance(raw_val, str):
+        try:
+            if raw_val.isdigit():
+                val_int = int(raw_val)
+                if val_int > 1e11:
+                    return datetime.fromtimestamp(val_int / 1000.0, tz=timezone.utc)
+                return datetime.fromtimestamp(float(val_int), tz=timezone.utc)
+            parsed = datetime.fromisoformat(raw_val.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            return None
+
+    if isinstance(raw_val, datetime):
+        return raw_val if raw_val.tzinfo else raw_val.replace(tzinfo=timezone.utc)
+
+    return None
 
 
 class ChrononOnlineStore(OnlineStore):
@@ -161,7 +208,8 @@ class ChrononOnlineStore(OnlineStore):
             feature_values = self._feature_values_to_proto(
                 features, requested_features, feature_types
             )
-            output.append((None, feature_values))
+            feature_ts = _parse_chronon_timestamp(row)
+            output.append((feature_ts, feature_values))
         return output
 
     def update(
