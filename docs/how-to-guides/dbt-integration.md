@@ -265,6 +265,7 @@ feast dbt import <manifest_path> [OPTIONS]
 |--------|-------------|---------|
 | `--entity-column`, `-e` | Entity column name (can be specified multiple times) | (required) |
 | `--data-source-type`, `-d` | Data source type: `bigquery`, `snowflake`, `file` | `bigquery` |
+| `--file-path-template` | File source path; `{model}` expands to the dbt model name | `/data/{model}.parquet` |
 | `--tag-filter`, `-t` | Filter models by dbt tag | None |
 | `--model`, `-m` | Import specific model(s) only | None |
 | `--timestamp-field` | Timestamp column name | `event_timestamp` |
@@ -337,7 +338,7 @@ SnowflakeSource(
 ### File
 
 ```bash
-feast dbt import manifest.json -e user_id -d file -o features.py
+feast dbt import -m manifest.json -e user_id -d file -o features.py
 ```
 
 Generates `FileSource` with a placeholder path:
@@ -349,8 +350,40 @@ FileSource(
 ```
 
 {% hint style="info" %}
-For file sources, update the generated path to point to your actual data files.
+When `--file-path-template` is omitted, the placeholder path is preserved. Update it
+manually or supply a template pointing to your actual files.
 {% endhint %}
+
+Use `--file-path-template` to configure the paths for both direct registry imports
+and generated Python definitions:
+
+```bash
+# Import directly into the Feast registry
+feast dbt import -m manifest.json -e user_id -d file \
+    --file-path-template "/warehouse/{model}.parquet"
+
+# Generate definitions with the same paths
+feast dbt import -m manifest.json -e user_id -d file \
+    --file-path-template "/warehouse/{model}.parquet" -o features.py
+```
+
+`{model}` is replaced with the dbt model's name, not its warehouse alias. For a
+model named `user_stats`, the example produces `/warehouse/user_stats.parquet`.
+A literal path without `{model}` is also accepted; it is used for every selected
+model. Repeat `{model}` if needed, and use `{{` and `}}` for literal braces.
+
+Paths are preserved as supplied after substitution, including relative paths and
+URIs such as `s3://bucket/{model}.parquet`. The importer does not check whether the
+files exist or change how the configured offline store resolves them. For the
+File/Dask offline store, relative paths are resolved against the feature repository,
+not the manifest's directory or the generated Python file's directory.
+
+The option is only valid with `--data-source-type file`. Empty templates, unknown
+placeholders, attribute/index access, conversions, format specifications, and
+unmatched braces produce an error before importing or writing definitions.
+
+The Python APIs accept the same optional `file_path_template` argument on
+`DbtToFeastMapper`, `DbtCodeGenerator`, and `generate_feast_code`.
 
 ## Best Practices
 
