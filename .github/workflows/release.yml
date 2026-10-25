@@ -135,6 +135,8 @@ jobs:
     name: release
     runs-on: ubuntu-latest
     needs: validate_version_bumps
+    outputs:
+      released: ${{ steps.release.outputs.released }}
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
       GIT_AUTHOR_NAME: feast-ci-bot
@@ -173,14 +175,22 @@ jobs:
         run: |
           npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
       - name: Release
+        id: release
         if: github.event.inputs.dry_run == 'false'
         run: |
+          tags_before=$(git tag --list | wc -l)
           npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --github-assets "infra/feast-operator/dist/operator-e2e-tests"
+          # semantic-release exits 0 when there are no releasable commits; only a new tag means a release happened
+          if [ "$(git tag --list | wc -l)" -gt "$tags_before" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
           
 
   update_stable_branch:
     name: Update Stable Branch after release
-    if: github.event.inputs.dry_run == 'false'
+    if: github.event.inputs.dry_run == 'false' && needs.release.outputs.released == 'true'
     runs-on: ubuntu-latest
     needs: release
     env:
