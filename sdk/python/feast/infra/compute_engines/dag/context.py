@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -103,3 +103,5 @@ class ExecutionContext:
     entity_defs: List[Entity]
     entity_df: Union[pd.DataFrame, None] = None
     node_outputs: Dict[str, DAGValue] = field(default_factory=dict)
+    node_states: Dict[str, Any] = field(default_factory=dict)
+    incremental_initialized: bool = False
