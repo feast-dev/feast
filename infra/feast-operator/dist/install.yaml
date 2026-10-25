@@ -7328,12 +7328,13 @@ spec:
               rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
                 || !has(self.services.scaling.autoscaling)
             - message: Scaling requires DB-backed persistence for the online store.
-                Configure services.onlineStore.persistence.store when using replicas
-                > 1 or autoscaling.
+                Configure services.onlineStore.persistence.store, or set services.onlineStore.disabled,
+                when using replicas > 1 or autoscaling.
               rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
                 || !has(self.services.scaling.autoscaling)) || (has(self.services)
-                && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
-                && has(self.services.onlineStore.persistence.store))
+                && has(self.services.onlineStore) && ((has(self.services.onlineStore.disabled)
+                && self.services.onlineStore.disabled) || (has(self.services.onlineStore.persistence)
+                && has(self.services.onlineStore.persistence.store))))
             - message: Scaling requires DB-backed persistence for the offline store.
                 Configure services.offlineStore.persistence.store when using replicas
                 > 1 or autoscaling.
@@ -14724,12 +14725,13 @@ spec:
                   rule: self.replicas <= 1 || !has(self.services) || !has(self.services.scaling)
                     || !has(self.services.scaling.autoscaling)
                 - message: Scaling requires DB-backed persistence for the online store.
-                    Configure services.onlineStore.persistence.store when using replicas
-                    > 1 or autoscaling.
+                    Configure services.onlineStore.persistence.store, or set services.onlineStore.disabled,
+                    when using replicas > 1 or autoscaling.
                   rule: self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling)
                     || !has(self.services.scaling.autoscaling)) || (has(self.services)
-                    && has(self.services.onlineStore) && has(self.services.onlineStore.persistence)
-                    && has(self.services.onlineStore.persistence.store))
+                    && has(self.services.onlineStore) && ((has(self.services.onlineStore.disabled)
+                    && self.services.onlineStore.disabled) || (has(self.services.onlineStore.persistence)
+                    && has(self.services.onlineStore.persistence.store))))
                 - message: Scaling requires DB-backed persistence for the offline
                     store. Configure services.offlineStore.persistence.store when
                     using replicas > 1 or autoscaling.

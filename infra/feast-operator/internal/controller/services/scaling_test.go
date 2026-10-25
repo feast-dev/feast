@@ -409,6 +409,56 @@ var _ = Describe("Horizontal Scaling", func() {
 			Expect(err.Error()).To(ContainSubstring("online store"))
 		})
 
+		It("should accept scaling when the online store is disabled", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-online-disabled", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: celTestProject,
+					Replicas:     ptr.To(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: &feastdevv1.OnlineStore{Disabled: true},
+						Registry:    dbRegistry,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, fs)).To(Succeed())
+		})
+
+		It("should accept autoscaling when the online store is disabled", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-hpa-online-disabled", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: celTestProject,
+					Services: &feastdevv1.FeatureStoreServices{
+						Scaling: &feastdevv1.ScalingConfig{
+							Autoscaling: &feastdevv1.AutoscalingConfig{MaxReplicas: 5},
+						},
+						OnlineStore: &feastdevv1.OnlineStore{Disabled: true},
+						Registry:    dbRegistry,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, fs)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, fs)).To(Succeed())
+		})
+
+		It("should still reject scaling without a registry when the online store is disabled", func() {
+			fs := &feastdevv1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{Name: "cel-online-disabled-file-reg", Namespace: "default"},
+				Spec: feastdevv1.FeatureStoreSpec{
+					FeastProject: celTestProject,
+					Replicas:     ptr.To(int32(3)),
+					Services: &feastdevv1.FeatureStoreServices{
+						OnlineStore: &feastdevv1.OnlineStore{Disabled: true},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, fs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("registry"))
+		})
+
 		It("should reject replicas and autoscaling set simultaneously", func() {
 			fs := &feastdevv1.FeatureStore{
 				ObjectMeta: metav1.ObjectMeta{Name: "cel-mutual-excl", Namespace: "default"},
