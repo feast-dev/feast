@@ -1851,6 +1851,9 @@ class FeatureStore:
             lvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, LabelView)
             ]
+            saved_datasets_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SavedDataset)
+            ]
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1883,6 +1886,10 @@ class FeatureStore:
             for validation_references in validation_references_to_delete:
                 self.registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
+                )
+            for saved_dataset in saved_datasets_to_delete:
+                self.registry.delete_saved_dataset(
+                    saved_dataset.name, project=self.project, commit=False
                 )
             for permission in permissions_to_delete:
                 self.registry.delete_permission(
