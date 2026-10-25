@@ -91,6 +91,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
     "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
+    "lance": "feast.infra.online_stores.lance_online_store.lance_online_store.LanceOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
