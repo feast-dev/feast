@@ -29,6 +29,7 @@ from feast.errors import (
     ConflictingFeatureViewNames,
     DataSourceObjectNotFoundException,
     PermissionNotFoundException,
+    ProjectObjectNotFoundException,
 )
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
@@ -45,6 +46,7 @@ from feast.infra.registry.sql import (
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.project import Project
 from feast.protos.feast.core.Transformation_pb2 import (
     FeatureTransformationV2,
     UserDefinedFunctionV2,
@@ -402,6 +404,50 @@ def test_delete_data_source_refreshes_cache(sqlite_registry):
     assert sqlite_registry.list_data_sources("test_project", allow_cache=True) == []
     with pytest.raises(DataSourceObjectNotFoundException):
         sqlite_registry.delete_data_source("driver_stats", "test_project")
+
+
+def test_delete_project_refreshes_cache(sqlite_registry):
+    sqlite_registry.apply_project(Project(name="other_project"))
+    sqlite_registry.apply_entity(Entity(name="driver"), "other_project")
+    assert "other_project" in [
+        p.name for p in sqlite_registry.list_projects(allow_cache=True)
+    ]
+
+    sqlite_registry.delete_project("other_project")
+
+    assert "other_project" not in [
+        p.name for p in sqlite_registry.list_projects(allow_cache=True)
+    ]
+    assert sqlite_registry.list_entities("other_project", allow_cache=True) == []
+    with pytest.raises(ProjectObjectNotFoundException):
+        sqlite_registry.get_project("other_project", allow_cache=True)
+
+
+def test_delete_project_removes_feature_view_version_history(sqlite_registry):
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.STRING)
+    source = FileSource(
+        name="driver_stats",
+        path="driver_stats.parquet",
+        timestamp_field="event_timestamp",
+    )
+    sqlite_registry.apply_project(Project(name="other_project"))
+    sqlite_registry.apply_entity(entity, "other_project")
+    sqlite_registry.apply_data_source(source, "other_project")
+    sqlite_registry.apply_feature_view(
+        _build_feature_view("driver_hourly_stats", entity, source), "other_project"
+    )
+    assert sqlite_registry.list_feature_view_versions(
+        "driver_hourly_stats", "other_project"
+    )
+
+    sqlite_registry.delete_project("other_project")
+
+    assert (
+        sqlite_registry.list_feature_view_versions(
+            "driver_hourly_stats", "other_project"
+        )
+        == []
+    )
 
 
 def _build_feature_view(name: str, entity: Entity, source: FileSource) -> FeatureView:
