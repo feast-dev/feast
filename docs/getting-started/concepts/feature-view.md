@@ -25,7 +25,7 @@ Feature views consist of:
 * (optional, but recommended) metadata (for example, description, or other free-form metadata via `tags`)
 * (optional) `owner`: the email of the primary maintainer
 * (optional) `org`: the organizational unit that owns the feature view (e.g. `"ads"`, `"search"`); useful for grouping feature views by team or product area
-* (optional) a TTL, which limits how far back Feast will look when generating historical datasets
+* (optional) a TTL, which limits how far back Feast will look when generating historical datasets. This does not by itself configure database-level expiration for feature values in online stores.
 * (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
 Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
