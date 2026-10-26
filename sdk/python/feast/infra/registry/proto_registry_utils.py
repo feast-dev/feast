@@ -29,27 +29,34 @@ from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
 
+# The caches hold the registry proto itself and compare by identity. An id() key
+# is unsafe: once a proto is freed, a new proto can reuse its id, and registries
+# that leave version_id empty (SqlRegistry) then read another registry's objects.
+
+
 def registry_proto_cache(func):
+    cache_proto = None
     cache_key = None
     cache_value = None
 
     @wraps(func)
     def wrapper(registry_proto: RegistryProto, project: str):
-        nonlocal cache_key, cache_value
+        nonlocal cache_proto, cache_key, cache_value
 
-        key = tuple([id(registry_proto), registry_proto.version_id, project])
+        key = (registry_proto.version_id, project)
 
-        if key == cache_key:
+        if registry_proto is cache_proto and key == cache_key:
             return cache_value
         else:
             cache_value = func(registry_proto, project)
-            cache_key = key
+            cache_proto, cache_key = registry_proto, key
             return cache_value
 
     return wrapper
 
 
 def registry_proto_cache_with_tags(func):
+    cache_proto = None
     cache_key = None
     cache_value = None
 
@@ -60,42 +67,43 @@ def registry_proto_cache_with_tags(func):
         tags: Optional[dict[str, str]],
         **kwargs,
     ):
-        nonlocal cache_key, cache_value
+        nonlocal cache_proto, cache_key, cache_value
 
         kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
         # Snapshot the filter so caller mutations cannot change a cached key.
         tags_key = frozenset(tags.items()) if tags is not None else None
         key = (
-            id(registry_proto),
             registry_proto.version_id,
             project,
             tags_key,
             kwargs_key,
         )
 
-        if key == cache_key:
+        if registry_proto is cache_proto and key == cache_key:
             return cache_value
         else:
             cache_value = func(registry_proto, project, tags, **kwargs)
-            cache_key = key
+            cache_proto, cache_key = registry_proto, key
             return cache_value
 
     return wrapper
 
 
 def registry_proto_cache_name(func):
-    cache_proto_key = None
+    cache_proto = None
+    cache_version = None
     cache = {}
 
     @wraps(func)
     def wrapper(registry_proto: RegistryProto, name: str, project: str):
-        nonlocal cache_proto_key, cache
+        nonlocal cache_proto, cache_version, cache
 
-        proto_key = (id(registry_proto), registry_proto.version_id)
-
-        if proto_key != cache_proto_key:
+        if (
+            registry_proto is not cache_proto
+            or registry_proto.version_id != cache_version
+        ):
             cache = {}
-            cache_proto_key = proto_key
+            cache_proto, cache_version = registry_proto, registry_proto.version_id
 
         key = (project, name)
         if key in cache:

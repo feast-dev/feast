@@ -35,6 +35,22 @@ def test_equivalent_tag_filters_reuse_cached_entities() -> None:
         from_proto.assert_called_once()
 
 
+def test_a_new_registry_that_reuses_a_freed_id_is_not_served_from_cache() -> None:
+    def registry(name: str) -> RegistryProto:
+        # SqlRegistry leaves version_id empty, so only the proto tells them apart.
+        proto = RegistryProto()
+        entity = Entity(name=name, value_type=ValueType.INT64).to_proto()
+        entity.spec.project = "test_project"
+        proto.entities.append(entity)
+        return proto
+
+    first = registry("old")
+    assert [obj.name for obj in list_entities(first, "test_project", None)] == ["old"]
+    del first
+    second = registry("new")
+    assert [obj.name for obj in list_entities(second, "test_project", None)] == ["new"]
+
+
 class TestRegistryProto:
     """Test class for proto_registry_utils functions"""
 
