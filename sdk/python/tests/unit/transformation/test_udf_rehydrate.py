@@ -92,3 +92,66 @@ def test_strip_leading_decorators_adversarial_at_spam_is_linear():
     # rehydrate should fail closed so dill fallback can run.
     assert rehydrate_udf_from_source(spam) is None
     assert isinstance(stripped, str)
+
+
+_SCALE = 10
+
+
+def _scale(value):
+    return value * _SCALE
+
+
+def _udf_using_module_globals(df: pd.DataFrame) -> pd.DataFrame:
+    out = pd.DataFrame()
+    out["scaled"] = _scale(df["x"])
+    return out
+
+
+_MODULE_GLOBALS_SRC = """def _udf_using_module_globals(df):
+    out = __import__("pandas").DataFrame()
+    out["scaled"] = _scale(df["x"])
+    return out
+"""
+
+
+def test_rehydrate_rejects_udf_with_unresolved_globals():
+    """Source alone cannot supply names the UDF reads from its defining module."""
+    assert (
+        rehydrate_udf_from_source(
+            _MODULE_GLOBALS_SRC, preferred_name="_udf_using_module_globals"
+        )
+        is None
+    )
+
+
+def test_resolve_udf_falls_back_to_dill_when_source_misses_globals():
+    """The serialized body carries the captured globals, so it must win here."""
+    udf = resolve_udf(
+        udf_string=_MODULE_GLOBALS_SRC,
+        body=dill.dumps(_udf_using_module_globals, recurse=True),
+        preferred_name="_udf_using_module_globals",
+    )
+    result = udf(pd.DataFrame({"x": [1, 2]}))
+    assert list(result["scaled"]) == [10, 20]
+
+
+def test_attribute_access_is_not_mistaken_for_a_missing_global():
+    """Attribute names live in co_names too; flagging them would strand good UDFs."""
+    src = """def _attr_udf(df):
+    out = __import__("pandas").DataFrame()
+    out["cols"] = len(df.columns)
+    out["upper"] = df["s"].str.upper()
+    return out
+"""
+    fn = rehydrate_udf_from_source(src, preferred_name="_attr_udf")
+    assert fn is not None
+    result = fn(pd.DataFrame({"s": ["a"]}))
+    assert result["upper"].iloc[0] == "A"
+
+
+def test_nested_scopes_are_inspected_for_missing_globals():
+    """A comprehension or inner function has its own code object."""
+    src = """def _nested_udf(df):
+    return [_scale(v) for v in df["x"]]
+"""
+    assert rehydrate_udf_from_source(src, preferred_name="_nested_udf") is None
