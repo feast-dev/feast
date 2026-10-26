@@ -270,7 +270,14 @@ class TestFeatureServiceValidation:
 
 
 class TestSchemaMismatchFallback:
-    def _fast_path(self, blobs, expected_names, grouped_refs=None, num_rows=None):
+    def _fast_path(
+        self,
+        blobs,
+        expected_names,
+        grouped_refs=None,
+        num_rows=None,
+        full_feature_names=True,
+    ):
         from feast.infra.online_stores.online_store import OnlineStore
 
         resolved_num_rows = num_rows or len(blobs)
@@ -279,7 +286,7 @@ class TestSchemaMismatchFallback:
             blobs=blobs,
             expected_feature_names=expected_names,
             online_features_response=response,
-            full_feature_names=True,
+            full_feature_names=full_feature_names,
             num_rows=resolved_num_rows,
             entity_row_indices=tuple([i] for i in range(len(blobs))),
             grouped_refs=grouped_refs or [],
@@ -309,6 +316,30 @@ class TestSchemaMismatchFallback:
         assert ok is True
         assert len(response.results) == 1
         assert response.results[0].values[0].float_val == pytest.approx(42.0)
+
+    def test_bare_names_match_when_full_feature_names_is_false(self):
+        vector = _make_vector(
+            feature_names=["fv1__f1", "fv1__f2"],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        ok, response = self._fast_path(
+            [vector.SerializeToString()], ["f1", "f2"], full_feature_names=False
+        )
+        assert ok is True
+        assert list(response.metadata.feature_names.val) == ["f1", "f2"]
+        assert response.results[1].values[0].float_val == pytest.approx(2.0)
+
+    def test_bare_names_reorder_when_full_feature_names_is_false(self):
+        vector = _make_vector(
+            feature_names=["fv1__f1", "fv1__f2"],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        ok, response = self._fast_path(
+            [vector.SerializeToString()], ["f2", "f1"], full_feature_names=False
+        )
+        assert ok is True
+        assert response.results[0].values[0].float_val == pytest.approx(2.0)
+        assert response.results[1].values[0].float_val == pytest.approx(1.0)
 
     def test_extra_feature_in_expected_returns_false(self):
         vector = _make_vector(
