@@ -1008,7 +1008,18 @@ class TestPrecomputeForPush:
         store._precompute_for_push = FeatureStore._precompute_for_push.__get__(store)
         return store
 
+    def _make_pushed_fv(self):
+        from feast.field import Field
+        from feast.types import Int64
+
+        fv = MagicMock()
+        fv.join_keys = ["driver_id"]
+        fv.entity_columns = [Field(name="driver_id", dtype=Int64)]
+        return fv
+
     def test_triggers_for_matching_fv(self):
+        import pandas as pd
+
         proj = MagicMock()
         proj.name = "pushed_fv"
         svc = MagicMock()
@@ -1017,8 +1028,33 @@ class TestPrecomputeForPush:
         svc.name = "svc"
 
         store = self._make_mock_store([svc])
-        store._precompute_for_push("pushed_fv", MagicMock())
-        store.precompute_feature_service.assert_called_once_with("svc")
+        store.registry.get_any_feature_view.return_value = self._make_pushed_fv()
+        df = pd.DataFrame(
+            {"driver_id": [1001, 1002, 1001], "conv_rate": [0.1, 0.2, 0.3]}
+        )
+        store._precompute_for_push("pushed_fv", df)
+
+        store.precompute_feature_service.assert_called_once()
+        args, kwargs = store.precompute_feature_service.call_args
+        assert args == ("svc",)
+        entity_keys = kwargs["entity_keys"]
+        assert [ek.entity_values[0].int64_val for ek in entity_keys] == [1001, 1002]
+        assert all(list(ek.join_keys) == ["driver_id"] for ek in entity_keys)
+
+    def test_skips_when_pushed_rows_have_no_entity_keys(self):
+        import pandas as pd
+
+        proj = MagicMock()
+        proj.name = "pushed_fv"
+        svc = MagicMock()
+        svc.precompute_online = True
+        svc.feature_view_projections = [proj]
+        svc.name = "svc"
+
+        store = self._make_mock_store([svc])
+        store.registry.get_any_feature_view.return_value = self._make_pushed_fv()
+        store._precompute_for_push("pushed_fv", pd.DataFrame({"conv_rate": [0.1]}))
+        store.precompute_feature_service.assert_not_called()
 
     def test_skips_non_matching_fv(self):
         proj = MagicMock()

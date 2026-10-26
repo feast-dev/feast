@@ -115,6 +115,7 @@ from feast.utils import (
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
+from feast.value_type import ValueType
 from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
@@ -3183,6 +3184,7 @@ class FeatureStore:
         self,
         feature_service_name: Optional[str] = None,
         batch_size: int = 1000,
+        entity_keys: Optional[List[EntityKey]] = None,
     ) -> int:
         """Pre-compute feature vectors for one or all FeatureServices.
 
@@ -3192,6 +3194,9 @@ class FeatureStore:
         blob per entity via :meth:`OnlineStore.write_precomputed_vector`.
 
         Works with **all** online store backends (Redis, DynamoDB, PostgreSQL, etc.).
+
+        When ``entity_keys`` is given, only those entities are rebuilt and the store
+        is not scanned, so a push can refresh exactly the rows it wrote.
 
         Returns the total number of entity vectors written.
         """
@@ -3240,53 +3245,56 @@ class FeatureStore:
             # For stores that support native scanning (like Redis), we try the
             # native scan; for others, we use the materialized entity list.
             entity_key_protos: List[EntityKey] = []
-            try:
-                from feast.infra.online_stores.redis import RedisOnlineStore
+            if entity_keys is not None:
+                entity_key_protos = list(entity_keys)
+            else:
+                try:
+                    from feast.infra.online_stores.redis import RedisOnlineStore
 
-                if isinstance(online_store, RedisOnlineStore):
-                    from feast.infra.key_encoding_utils import (
-                        deserialize_entity_key,
-                    )
-                    from feast.infra.online_stores.helpers import _redis_key_prefix
+                    if isinstance(online_store, RedisOnlineStore):
+                        from feast.infra.key_encoding_utils import (
+                            deserialize_entity_key,
+                        )
+                        from feast.infra.online_stores.helpers import _redis_key_prefix
 
-                    join_keys = (
-                        list(primary_fv.join_keys)
-                        if hasattr(primary_fv, "join_keys")
-                        else []
-                    )  # type: ignore[union-attr]
-                    client = online_store._get_client(  # type: ignore[attr-defined]
-                        self.config.online_store
+                        join_keys = (
+                            list(primary_fv.join_keys)
+                            if hasattr(primary_fv, "join_keys")
+                            else []
+                        )  # type: ignore[union-attr]
+                        client = online_store._get_client(  # type: ignore[attr-defined]
+                            self.config.online_store
+                        )
+                        scan_prefix = _redis_key_prefix(join_keys)
+                        project_bytes = self.config.project.encode("utf-8")
+                        seen_keys: set = set()
+                        raw_keys: List[bytes] = []
+                        for key in client.scan_iter(
+                            b"".join([scan_prefix, b"*", project_bytes])
+                        ):
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                raw_keys.append(key)
+                        proj_len = len(project_bytes)
+                        for rk in raw_keys:
+                            try:
+                                ek = deserialize_entity_key(
+                                    rk[:-proj_len],
+                                    self.config.entity_key_serialization_version,
+                                )
+                                if set(ek.join_keys) == set(join_keys):
+                                    entity_key_protos.append(ek)
+                            except (ValueError, Exception):
+                                continue
+                    else:
+                        raise NotImplementedError
+                except (ImportError, NotImplementedError):
+                    _logger.warning(
+                        "Entity scanning not supported for '%s' — "
+                        "precompute requires a store that supports entity scanning",
+                        type(online_store).__name__,
                     )
-                    scan_prefix = _redis_key_prefix(join_keys)
-                    project_bytes = self.config.project.encode("utf-8")
-                    seen_keys: set = set()
-                    raw_keys: List[bytes] = []
-                    for key in client.scan_iter(
-                        b"".join([scan_prefix, b"*", project_bytes])
-                    ):
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            raw_keys.append(key)
-                    proj_len = len(project_bytes)
-                    for rk in raw_keys:
-                        try:
-                            ek = deserialize_entity_key(
-                                rk[:-proj_len],
-                                self.config.entity_key_serialization_version,
-                            )
-                            if set(ek.join_keys) == set(join_keys):
-                                entity_key_protos.append(ek)
-                        except (ValueError, Exception):
-                            continue
-                else:
-                    raise NotImplementedError
-            except (ImportError, NotImplementedError):
-                _logger.warning(
-                    "Entity scanning not supported for '%s' — "
-                    "precompute requires a store that supports entity scanning",
-                    type(online_store).__name__,
-                )
-                continue
+                    continue
 
             if not entity_key_protos:
                 continue
@@ -3399,9 +3407,16 @@ class FeatureStore:
         if not affected:
             return
 
+        fv = self.registry.get_any_feature_view(
+            feature_view_name, self.project, allow_cache=True
+        )
+        entity_keys = _entity_keys_from_dataframe(fv, df)
+        if not entity_keys:
+            return
+
         for svc in affected:
             try:
-                self.precompute_feature_service(svc.name)
+                self.precompute_feature_service(svc.name, entity_keys=entity_keys)
             except Exception:
                 _logger.warning(
                     "Failed to precompute vectors for service '%s' after push",
@@ -5210,3 +5225,27 @@ def _validate_data_sources(
                             UserWarning,
                             stacklevel=2,
                         )
+
+
+def _entity_keys_from_dataframe(feature_view: Any, df: pd.DataFrame) -> List[EntityKey]:
+    """Distinct entity keys present in ``df`` for ``feature_view``'s join keys."""
+    from feast.type_map import python_values_to_proto_values
+
+    join_keys = list(getattr(feature_view, "join_keys", []) or [])
+    if not join_keys or any(k not in df.columns for k in join_keys):
+        return []
+    value_types = {
+        field.name: field.dtype.to_value_type()
+        for field in getattr(feature_view, "entity_columns", [])
+    }
+    unique = df[join_keys].drop_duplicates()
+    columns = {
+        k: python_values_to_proto_values(
+            unique[k].tolist(), value_types.get(k, ValueType.UNKNOWN)
+        )
+        for k in join_keys
+    }
+    return [
+        EntityKey(join_keys=join_keys, entity_values=[columns[k][i] for k in join_keys])
+        for i in range(len(unique))
+    ]
