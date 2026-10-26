@@ -3346,10 +3346,13 @@ class FeatureStore:
                     now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
 
                     vector = PrecomputedFeatureVector(
-                        feature_names=feature_names,
+                        feature_names=[]
+                        if svc.precompute_omit_names
+                        else feature_names,
                         values=values,
                         fv_timestamps=fv_timestamps,
                         precomputed_at=now_ts,
+                        schema_fingerprint=svc.precompute_schema_fingerprint(),
                     )
 
                     online_store.write_precomputed_vector(

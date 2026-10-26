@@ -66,6 +66,7 @@ class FeatureServiceSpec(google.protobuf.message.Message):
     OWNER_FIELD_NUMBER: builtins.int
     LOGGING_CONFIG_FIELD_NUMBER: builtins.int
     PRECOMPUTE_ONLINE_FIELD_NUMBER: builtins.int
+    PRECOMPUTE_OMIT_NAMES_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the Feature Service. Must be unique. Not updated."""
     project: builtins.str
@@ -89,6 +90,10 @@ class FeatureServiceSpec(google.protobuf.message.Message):
     """When true, a pre-computed feature vector is maintained per entity for this
     service, enabling single-read online retrieval instead of per-feature-view reads.
     """
+    precompute_omit_names: builtins.bool
+    """When true, pre-computed vectors store only values and a schema fingerprint,
+    not the repeated feature name list.
+    """
     def __init__(
         self,
         *,
@@ -100,9 +105,10 @@ class FeatureServiceSpec(google.protobuf.message.Message):
         owner: builtins.str = ...,
         logging_config: global___LoggingConfig | None = ...,
         precompute_online: builtins.bool = ...,
+        precompute_omit_names: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["logging_config", b"logging_config"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "features", b"features", "logging_config", b"logging_config", "name", b"name", "owner", b"owner", "precompute_online", b"precompute_online", "project", b"project", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "features", b"features", "logging_config", b"logging_config", "name", b"name", "owner", b"owner", "precompute_omit_names", b"precompute_omit_names", "precompute_online", b"precompute_online", "project", b"project", "tags", b"tags"]) -> None: ...
 
 global___FeatureServiceSpec = FeatureServiceSpec
 
