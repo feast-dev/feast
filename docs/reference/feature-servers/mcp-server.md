@@ -128,11 +128,12 @@ Tools are namespaced by the sub-server that provides them, for example `features
 
 **Tools provided by the `features` sub-server:**
 * `get_online_features`: Retrieve online feature values for a set of entities
-* `search`: Vector similarity search against online document embeddings
+* `search`: Vector similarity search against online document embeddings, with optional metadata `filters`
 * `list_vector_stores`, `get_vector_store`: List and inspect available vector stores
-* `vector_store_search`: OpenAI-compatible vector store search
+* `vector_store_search`: OpenAI-compatible vector store search, with optional metadata `filters` and `features_to_retrieve`
 * `push`: Push features into the online or offline store
-* `materialize`, `materialize_incremental`: Materialize features from the offline store to the online store
+* `write_to_online_store`: Write rows straight into a feature view in the online store
+* `materialize`, `materialize_incremental`: Materialize features from the offline store to the online store. Set `async_mode` to start the job in the background and return at once
 * `health`: Check the health of the Feast feature server
 
 **Tools provided by the `registry` sub-server:**
