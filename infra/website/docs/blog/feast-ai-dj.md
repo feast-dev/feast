@@ -282,19 +282,22 @@ features:
 feast mcp --config feast_mcp.yaml
 ```
 
-It exposes nine `features_*` tools:
+With the additions developed for this demo, it exposes ten `features_*` tools:
 
 | Tool | What it does |
 |---|---|
-| `features_get_online_features` | Read features for entities |
-| `features_vector_store_search` | OpenAI-compatible text search (CLaMP 3 embeds the query) |
-| `features_search` | Vector search with a raw query vector |
+| `features_get_online_features` | Read features for entities, optionally including feature view version metadata |
+| `features_vector_store_search` | OpenAI-compatible text search with metadata filters and a choice of returned features (CLaMP 3 embeds the query) |
+| `features_search` | Vector search with a raw query vector and metadata filters |
 | `features_list_vector_stores`, `features_get_vector_store` | Find the vector store ids |
 | `features_push` | Push rows |
-| `features_materialize`, `features_materialize_incremental` | Load offline data online |
+| `features_write_to_online_store` | Write rows directly to a feature view without a push source |
+| `features_materialize`, `features_materialize_incremental` | Load offline data online, optionally in the background with `async_mode` |
 | `features_health` | Health check |
 
 Add `registry.url` and you also get `registry_*` tools to browse projects, feature views and lineage.
+
+Building this DJ exposed gaps between the feature server's API and its MCP tools. The code changes accompanying this post pass metadata filters through both search tools, let text search choose which features to return, expose direct online writes, and forward feature view version and materialization options. These additions require a Feast build that includes those changes.
 
 The DJ gives the LLM only two of them, `features_get_online_features` and `features_vector_store_search`. The fewer the tools, the better a 3B model does. The other calls run in plain code over the same MCP session.
 
@@ -366,7 +369,7 @@ You could glue a vector database, a key-value store and a few scripts together. 
 
 ## Limits and next steps
 
-- **No filters in the MCP search tools yet.** The feature server's search endpoints accept metadata filters (`genre in [...]`, `year > 2012`), but `feast mcp`'s `features_search` and `features_vector_store_search` don't pass them on yet. So the DJ searches by mood only.
+- **Playlist constraints.** The MCP search tools now accept metadata filters. The demo shown here searches by mood; a next step is to pass genre or year constraints through `filters`.
 - **FMA small clips are 30 seconds.** CLaMP 3 can read up to 640 seconds, so full songs would help it more.
 - **Cold start.** A new listener has no history. Start with a mood question.
 - **Two searches.** One vector per feature view means one search per vector, merged in code.
