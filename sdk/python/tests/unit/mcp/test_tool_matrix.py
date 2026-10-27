@@ -7,7 +7,7 @@ The server is a proxy, so each tool has exactly two things to get right:
    sent as nulls; and
 2. it hands Feast's response back to the caller unmangled.
 
-This module covers all 9 feature tools and all 13 registry tools in one
+This module covers all 10 feature tools and all 13 registry tools in one
 table. Structural concerns (registration, namespacing, schemas) live in
 ``test_tools.py``; token handling lives in ``test_auth.py``.
 
@@ -257,6 +257,152 @@ FEATURE_CASES = [
         args={},
         method="GET",
         path="/health",
+    ),
+    ToolCase(
+        id="get_online_features:version_metadata",
+        tool="features_get_online_features",
+        args={
+            "features": ["driver_hourly_stats:conv_rate"],
+            "entities": {"driver_id": [1001]},
+            "include_feature_view_version_metadata": True,
+        },
+        method="POST",
+        path="/get-online-features",
+        body={
+            "features": ["driver_hourly_stats:conv_rate"],
+            "entities": {"driver_id": [1001]},
+            "full_feature_names": False,
+            "include_feature_view_version_metadata": True,
+        },
+    ),
+    ToolCase(
+        id="search:filters",
+        tool="features_search",
+        args={
+            "features": ["docs:embedding"],
+            "query": [0.1, 0.2],
+            "filters": {"type": "in", "key": "genre", "value": ["Folk", "Rock"]},
+            "include_feature_view_version_metadata": True,
+        },
+        method="POST",
+        path="/search",
+        body={
+            "features": ["docs:embedding"],
+            "top_k": 5,
+            "full_feature_names": False,
+            "api_version": 2,
+            "query": [0.1, 0.2],
+            "filters": {"type": "in", "key": "genre", "value": ["Folk", "Rock"]},
+            "include_feature_view_version_metadata": True,
+        },
+    ),
+    ToolCase(
+        id="vector_store_search:filters_and_features",
+        tool="features_vector_store_search",
+        args={
+            "vector_store_id": "vs-1",
+            "query": "calm piano",
+            "filters": {
+                "type": "and",
+                "filters": [
+                    {"type": "eq", "key": "genre", "value": "Folk"},
+                    {"type": "gt", "key": "year", "value": 2012},
+                ],
+            },
+            "features_to_retrieve": ["title", "genre"],
+        },
+        method="POST",
+        path="/v1/vector_stores/vs-1/search",
+        body={
+            "query": "calm piano",
+            "max_num_results": 10,
+            "filters": {
+                "type": "and",
+                "filters": [
+                    {"type": "eq", "key": "genre", "value": "Folk"},
+                    {"type": "gt", "key": "year", "value": 2012},
+                ],
+            },
+            "metadata": {"features_to_retrieve": ["title", "genre"]},
+        },
+    ),
+    ToolCase(
+        id="write_to_online_store",
+        tool="features_write_to_online_store",
+        args={
+            "feature_view_name": "agent_memory",
+            "df": {"user_id": ["u1"], "note": ["likes jazz"]},
+        },
+        method="POST",
+        path="/write-to-online-store",
+        body={
+            "feature_view_name": "agent_memory",
+            "df": {"user_id": ["u1"], "note": ["likes jazz"]},
+            "allow_registry_cache": True,
+            "transform_on_write": True,
+        },
+        returns="ok",
+    ),
+    ToolCase(
+        id="materialize:options",
+        tool="features_materialize",
+        args={
+            "feature_views": ["driver_hourly_stats"],
+            "disable_event_timestamp": True,
+            "full_feature_names": True,
+            "version": "v2",
+        },
+        method="POST",
+        path="/materialize",
+        body={
+            "feature_views": ["driver_hourly_stats"],
+            "disable_event_timestamp": True,
+            "full_feature_names": True,
+            "version": "v2",
+        },
+        returns="ok",
+    ),
+    ToolCase(
+        # async and force go in the URL query; the 202 payload comes back.
+        id="materialize:async",
+        tool="features_materialize",
+        args={
+            "feature_views": ["driver_hourly_stats"],
+            "async_mode": True,
+            "force": True,
+        },
+        method="POST",
+        path="/materialize",
+        params={"async": "true", "force": "true"},
+        body={"feature_views": ["driver_hourly_stats"]},
+    ),
+    ToolCase(
+        id="materialize_incremental:async",
+        tool="features_materialize_incremental",
+        args={"end_ts": TS_END, "async_mode": True},
+        method="POST",
+        path="/materialize-incremental",
+        params={"async": "true"},
+        body={"end_ts": TS_END},
+    ),
+    ToolCase(
+        id="materialize_incremental:options",
+        tool="features_materialize_incremental",
+        args={
+            "end_ts": TS_END,
+            "feature_views": ["driver_hourly_stats"],
+            "full_feature_names": True,
+            "version": "v2",
+        },
+        method="POST",
+        path="/materialize-incremental",
+        body={
+            "end_ts": TS_END,
+            "feature_views": ["driver_hourly_stats"],
+            "full_feature_names": True,
+            "version": "v2",
+        },
+        returns="ok",
     ),
 ]
 
