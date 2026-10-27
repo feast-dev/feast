@@ -1,4 +1,4 @@
-FROM golang:1.26
+FROM golang:1.26-trixie AS builder
 ENV GOTOOLCHAIN=auto
 
 # Update the package list and install the ca-certificates package
@@ -23,6 +23,21 @@ RUN find ./protos -name "*.proto" \
 
 # Build the Go application
 RUN go build -o feast ./go/main.go
+
+# Ship only the server binary on a slim base, so the Go toolchain, compilers and
+# kernel headers of the build image are not part of the published image. The
+# runtime uses the same Debian release as the builder, so the cgo-linked binary
+# finds a matching glibc.
+FROM debian:trixie-slim
+
+# Update the package list and install the ca-certificates package
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the current working directory inside the container
+WORKDIR /app
+
+COPY --from=builder /app/feast ./feast
 
 # Expose ports
 EXPOSE 8080
