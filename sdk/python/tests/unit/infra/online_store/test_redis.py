@@ -936,6 +936,63 @@ def test_glide_client_config_warns_about_ignored_params(caplog):
     assert "skip_full_coverage_check" in caplog.text
 
 
+def test_glide_client_config_defaults_to_reading_from_the_primary():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync, RedisOnlineStoreConfig(connection_string="localhost:6379")
+    )
+
+    assert config.read_from == glide_sync.ReadFrom.PRIMARY
+    assert config.client_az is None
+
+
+def test_glide_client_config_reads_from_every_listed_node():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            connection_string="primary:6379,replica:6379,read_from=all_nodes"
+        ),
+    )
+
+    assert [(address.host, address.port) for address in config.addresses] == [
+        ("primary", 6379),
+        ("replica", 6379),
+    ]
+    assert config.read_from == glide_sync.ReadFrom.ALL_NODES
+
+
+def test_glide_client_config_forwards_az_affinity():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            redis_type=RedisType.redis_cluster,
+            connection_string=(
+                "redis1:6379,read_from=AZ_AFFINITY,client_az=us-east-2a"
+            ),
+        ),
+    )
+
+    assert config.read_from == glide_sync.ReadFrom.AZ_AFFINITY
+    assert config.client_az == "us-east-2a"
+
+
+def test_glide_client_config_rejects_unknown_read_from():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    with pytest.raises(ValueError, match="read_from 'nearest'"):
+        _glide_client_config(
+            glide_sync,
+            RedisOnlineStoreConfig(
+                connection_string="localhost:6379,read_from=nearest"
+            ),
+        )
+
+
 def test_glide_module_is_imported_once_per_store(
     redis_online_store: RedisOnlineStore, feature_view
 ):
