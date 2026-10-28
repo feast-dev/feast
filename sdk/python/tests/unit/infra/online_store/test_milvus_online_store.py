@@ -746,3 +746,40 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_sent_only_for_partitioned_collections(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    config = _mock_config(
+        partition_key="brand_id", num_partitions=32, partition_key_isolation=True
+    )
+    store = MilvusOnlineStore()
+
+    store._get_or_create_collection(config, _catalog_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert kwargs["num_partitions"] == 32
+    assert kwargs["properties"] == {"partitionkey.isolation": "true"}
+
+    store._get_or_create_collection(config, _scalar_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_not_sent_when_unset(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+
+    MilvusOnlineStore()._get_or_create_collection(
+        _mock_config(partition_key="brand_id"), _catalog_feature_view()
+    )
+
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+def test_invalid_num_partitions_rejected() -> None:
+    with pytest.raises(ValidationError, match="num_partitions"):
+        MilvusOnlineStoreConfig(num_partitions=0)
