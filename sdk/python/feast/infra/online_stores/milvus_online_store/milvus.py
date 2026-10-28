@@ -546,10 +546,12 @@ class MilvusOnlineStore(OnlineStore):
                         single_entity_record[field] = _default_for_milvus_type(
                             field_type
                         )
-            # Store only the latest event timestamp per entity
-            if (
-                entity_key_str not in unique_entities
-                or unique_entities[entity_key_str]["event_ts"] < timestamp_int
+            # Keep one row per entity: the latest event timestamp wins, then the
+            # latest created timestamp, then the last row of the batch.
+            previous = unique_entities.get(entity_key_str)
+            if previous is None or (previous["event_ts"], previous["created_ts"]) <= (
+                timestamp_int,
+                created_ts_int,
             ):
                 unique_entities[entity_key_str] = single_entity_record
 
