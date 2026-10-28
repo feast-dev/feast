@@ -28,7 +28,6 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
-
 # The caches hold the registry proto itself and compare by identity. An id() key
 # is unsafe: once a proto is freed, a new proto can reuse its id, and registries
 # that leave version_id empty (SqlRegistry) then read another registry's objects.
