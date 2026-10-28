@@ -22,7 +22,7 @@ Feast supports multiple methods for providing user tokens to authenticate with K
 ### Method 1: Direct Configuration in FeatureStore
 
 ```python
-from feast import FeatureStore
+from feast import FeatureStore, RepoConfig
 from feast.permissions.auth_model import KubernetesAuthConfig
 
 # Create auth config with user token
@@ -31,10 +31,14 @@ auth_config = KubernetesAuthConfig(
     user_token="your-kubernetes-user-token-here"
 )
 
-# Initialize FeatureStore with auth config
+# Initialize FeatureStore with a RepoConfig that carries the auth config
 fs = FeatureStore(
-    repo_path="path/to/feature_repo",
-    auth_config=auth_config
+    config=RepoConfig(
+        project="my_project",
+        registry="path/to/registry.db",
+        provider="local",
+        auth=auth_config,
+    )
 )
 ```
 
@@ -219,7 +223,7 @@ stub = ServingServiceStub(channel)
 ### Token from Kubernetes Config
 
 ```python
-from feast import FeatureStore
+from feast import FeatureStore, RepoConfig
 from feast.permissions.auth_model import KubernetesAuthConfig
 from kubernetes import client, config
 
@@ -244,8 +248,12 @@ auth_config = KubernetesAuthConfig(
 )
 
 fs = FeatureStore(
-    repo_path="path/to/feature_repo",
-    auth_config=auth_config
+    config=RepoConfig(
+        project="my_project",
+        registry="path/to/registry.db",
+        provider="local",
+        auth=auth_config,
+    )
 )
 ```
 
