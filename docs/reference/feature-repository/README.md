@@ -98,7 +98,7 @@ from feast import BigQuerySource, Entity, Feature, FeatureView, Field
 from feast.types import Float32, Int64, String
 
 driver_locations_source = BigQuerySource(
-    table_ref="rh_prod.ride_hailing_co.drivers",
+    table="rh_prod.ride_hailing_co.drivers",
     timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
