@@ -26,6 +26,7 @@ Feature views consist of:
 * (optional) `owner`: the email of the primary maintainer
 * (optional) `org`: the organizational unit that owns the feature view (e.g. `"ads"`, `"search"`); useful for grouping feature views by team or product area
 * (optional) a TTL, which limits how far back Feast will look when generating historical datasets
+* (optional) `online_config`, which declares online retention and write semantics
 * (optional) `enable_validation=True`, which enables schema validation during materialization (see [Schema Validation](#schema-validation) below)
 
 Feature views allow Feast to model your existing feature data in a consistent way in both an offline (training) and online (serving) environment. Feature views generally contain features that are properties of a specific object, in which case that object is defined as an entity and included in the feature view.
@@ -58,6 +59,33 @@ Feature views are used during
 * The generation of training datasets by querying the data source of feature views in order to find historical feature values. A single training dataset may consist of features from multiple feature views.
 * Loading of feature values into an online store. Feature views determine the storage schema in the online store. Feature values can be loaded from batch sources or from [stream sources](../../reference/data-sources/push.md).
 * Retrieval of features from the online store. Feature views provide the schema definition to Feast in order to look up features from the online store.
+
+## Online retention configuration
+
+`OnlineConfig` declares whether a feature view uses the current latest-value model or a bounded sequence of historical values per entity. Sequence mode requires append writes and a positive maximum length. An optional maximum age adds a second retention limit.
+
+```python
+from datetime import timedelta
+
+from feast import FeatureView, OnlineConfig
+
+user_interactions = FeatureView(
+    name="user_interactions",
+    entities=[user],
+    schema=[...],
+    source=interactions_source,
+    online_config=OnlineConfig(
+        mode="sequence",
+        max_length=50,
+        max_age=timedelta(days=90),
+        write_mode="append",
+    ),
+)
+```
+
+{% hint style="warning" %}
+Sequence configuration is currently an experimental registry contract. Online stores continue to use their existing latest-value behavior until they explicitly implement sequence append, retrieval, and eviction support.
+{% endhint %}
 
 ## Feature views without entities
 
