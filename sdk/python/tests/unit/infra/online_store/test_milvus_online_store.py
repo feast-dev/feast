@@ -200,6 +200,29 @@ def test_write_batch_keeps_the_newest_row_per_entity(
     assert rows_read[0]["city"].string_val == expected_city
 
 
+def test_write_batch_keeps_one_row_per_entity(tmp_path: Path) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (_entity_key(1), {"city": ValueProto(string_val="Oslo")}, now, now),
+            (_entity_key(2), {"city": ValueProto(string_val="Rome")}, now, now),
+        ],
+        progress=None,
+    )
+
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row is not None] == [
+        "Oslo",
+        "Rome",
+    ]
+
+
 @patch(f"{MILVUS_MODULE}.MilvusClient")
 def test_placeholder_vector_is_indexed_and_valid(mock_client_cls: MagicMock) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
