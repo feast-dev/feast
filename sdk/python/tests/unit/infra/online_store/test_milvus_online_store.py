@@ -826,3 +826,14 @@ def test_online_delete_does_not_create_a_missing_collection(
 
     mock_client.create_collection.assert_not_called()
     mock_client.delete.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_online_delete_with_no_entity_keys_sends_nothing(
+    mock_client_cls: MagicMock,
+) -> None:
+    MilvusOnlineStore().online_delete(
+        _mock_config(), _scalar_feature_view(), entity_keys=[]
+    )
+
+    mock_client_cls.assert_not_called()
