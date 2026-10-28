@@ -407,3 +407,60 @@ def test_partition_key_filtering(
         filters=ComparisonFilter(type="eq", key="brand_id", value="globex"),
     )
     assert [hit["city"].string_val for hit in hits] == ["Rome"]
+
+
+def test_partition_options(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path,
+        project,
+        partition_key="brand_id",
+        num_partitions=4,
+        partition_key_isolation=True,
+        index_type="HNSW",
+        consistency_level="Strong",
+    )
+    fv = FeatureView(
+        name="products",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="brand_id", dtype=String),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="city", dtype=String),
+        ],
+    )
+    store.update(config, [], [fv], [], [], partial=False)
+
+    assert store.client is not None
+    description = store.client.describe_collection(f"{project}_{fv.name}")
+    assert description["num_partitions"] == 4
+    properties = description["properties"]
+    if isinstance(properties, list):
+        properties = {entry["key"]: entry["value"] for entry in properties}
+    assert properties["partitionkey.isolation"] == "true"
+
+    rows = _vector_rows()
+    rows[1]["brand_id"] = ValueProto(string_val="acme")
+    rows[2]["brand_id"] = ValueProto(string_val="globex")
+    _write_rows(store, config, fv, rows)
+    hits = _search(
+        store,
+        config,
+        fv,
+        [1.0, 0.0],
+        top_k=5,
+        filters=ComparisonFilter(type="eq", key="brand_id", value="globex"),
+    )
+    assert [hit["city"].string_val for hit in hits] == ["Rome"]

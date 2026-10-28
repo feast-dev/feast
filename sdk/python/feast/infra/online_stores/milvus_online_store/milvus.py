@@ -243,10 +243,23 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     # Field to use as the Milvus partition key in feature views that contain it.
     # A feature view's "milvus.partition_key" tag takes precedence.
     partition_key: Optional[StrictStr] = None
+    # Number of partitions of a new collection that has a partition key. When
+    # unset, Milvus uses its default.
+    num_partitions: Optional[int] = None
+    # Partition key isolation of a new collection that has a partition key.
+    # When unset, Milvus uses its default.
+    partition_key_isolation: Optional[bool] = None
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
     varchar_max_length: Optional[int] = 65535
+
+    @field_validator("num_partitions")
+    @classmethod
+    def validate_num_partitions(cls, v):
+        if v is not None and v < 1:
+            raise ValueError(f"num_partitions must be at least 1, got {v}")
+        return v
 
     @field_validator("varchar_max_length")
     @classmethod
@@ -438,6 +451,7 @@ class MilvusOnlineStore(OnlineStore):
                     schema=schema,
                     index_params=index_params,
                     **_collection_consistency_kwargs(config.online_store),
+                    **_partition_kwargs(config.online_store, partition_key),
                 )
             else:
                 self._ensure_loaded(collection_name)
@@ -1140,6 +1154,22 @@ def _consistency_kwargs(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any
     if online_config.consistency_level:
         return {"consistency_level": online_config.consistency_level}
     return {}
+
+
+def _partition_kwargs(
+    online_config: MilvusOnlineStoreConfig, partition_key: Optional[str]
+) -> Dict[str, Any]:
+    """Partition settings only apply to a collection that has a partition key."""
+    kwargs: Dict[str, Any] = {}
+    if not partition_key:
+        return kwargs
+    if online_config.num_partitions is not None:
+        kwargs["num_partitions"] = online_config.num_partitions
+    if online_config.partition_key_isolation is not None:
+        kwargs["properties"] = {
+            "partitionkey.isolation": str(online_config.partition_key_isolation).lower()
+        }
+    return kwargs
 
 
 def _collection_consistency_kwargs(

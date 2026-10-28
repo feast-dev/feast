@@ -97,6 +97,8 @@ online_store:
 | `consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Sent with every read and search. When unset, Milvus uses the collection's level. |
 | `collection_consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Set when Feast creates a collection. When unset, Milvus uses its default (`Bounded`). |
 | `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
+| `num_partitions` | unset | Number of partitions of a new collection that has a partition key. When unset, Milvus uses its default. |
+| `partition_key_isolation` | unset | Enables partition key isolation on a new collection that has a partition key. When unset, Milvus uses its default. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
 | `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
@@ -167,6 +169,12 @@ store.retrieve_online_documents_v2(
     filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
 )
 ```
+
+`num_partitions` sets how many partitions a new collection with a partition key gets, and
+`partition_key_isolation` enables
+[partition key isolation](https://milvus.io/docs/use-partition-key.md#Use-Partition-Key-Isolation)
+for it, which Milvus supports with the HNSW index. Both settings are ignored for feature views
+without a partition key, and Milvus Lite ignores `num_partitions`.
 
 The partition key field must be stored as `VARCHAR` or `INT64`. String fields are always `VARCHAR`,
 and integer fields are `VARCHAR` unless native numeric types are enabled, in which case `Int64` works
