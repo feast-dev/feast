@@ -388,6 +388,14 @@ class SqlRegistry(CachingRegistry):
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
 
+    def reset_after_fork(self) -> None:
+        # close=False because the parent still owns those connections; closing
+        # them would send a disconnect on a socket the parent shares. See
+        # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
+        self.write_engine.dispose(close=False)
+        if self.read_engine is not self.write_engine:
+            self.read_engine.dispose(close=False)
+
     @staticmethod
     def _verify_schema(engine: Engine, registry_metadata: MetaData = metadata) -> None:
         """Verify that all expected registry tables exist in the database.
