@@ -568,8 +568,14 @@ def test_stream_source_without_batch_source_round_trips(stream_source):
                 "timestamp_field": "ts",
             },
         ),
+        (
+            "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source",
+            "ClickhouseSource",
+            {"table": "orders", "timestamp_field": "ts"},
+            {"table": "orders_v2", "timestamp_field": "ts"},
+        ),
     ],
-    ids=["postgres", "mssql", "couchbase"],
+    ids=["postgres", "mssql", "couchbase", "clickhouse"],
 )
 def test_data_source_eq_compares_the_source_table(
     module_path, class_name, location, moved_location, tmp_path
@@ -577,10 +583,11 @@ def test_data_source_eq_compares_the_source_table(
     """Pointing a source at another table makes it unequal to the old one.
 
     ``__eq__`` compared only the query (or, for SQL Server, the connection
-    string) of these sources, so a source moved to another table compared
-    equal to the registered one. The registry skips ``apply_data_source`` for
-    an equal source, so ``feast apply`` kept the old table on the registered
-    data source while feature views built on it moved to the new one.
+    string, and for ClickHouse, none of its options) of these sources, so a
+    source moved to another table compared equal to the registered one. The
+    registry skips ``apply_data_source`` for an equal source, so ``feast
+    apply`` kept the old table on the registered data source while feature
+    views built on it moved to the new one.
     """
     source_class = getattr(pytest.importorskip(module_path), class_name)
     source = source_class(name="src", **location)
@@ -602,3 +609,29 @@ def test_data_source_eq_compares_the_source_table(
         assert stored.get_table_query_string() == moved_source.get_table_query_string()
     finally:
         registry.teardown()
+
+
+def test_mssqlserver_source_eq_compares_base_fields():
+    """SQL Server sources compare and round-trip tags, description and owner."""
+    mssqlserver_source = pytest.importorskip(
+        "feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source"
+    )
+    source = mssqlserver_source.MsSqlServerSource(
+        name="src",
+        table_ref="orders",
+        event_timestamp_column="ts",
+        description="orders table",
+        tags={"team": "a"},
+        owner="owner@example.com",
+    )
+    retagged_source = mssqlserver_source.MsSqlServerSource(
+        name="src",
+        table_ref="orders",
+        event_timestamp_column="ts",
+        description="orders table",
+        tags={"team": "b"},
+        owner="owner@example.com",
+    )
+
+    assert source != retagged_source
+    assert mssqlserver_source.MsSqlServerSource.from_proto(source.to_proto()) == source

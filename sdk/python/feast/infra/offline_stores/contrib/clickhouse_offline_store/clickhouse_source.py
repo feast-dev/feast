@@ -94,6 +94,19 @@ class ClickhouseSource(DataSource):
             connection_ref=connection_ref,
         )
 
+    def __hash__(self):
+        return super().__hash__()
+
+    def __eq__(self, other):
+        if not isinstance(other, ClickhouseSource):
+            return False
+
+        return (
+            super().__eq__(other)
+            and self._clickhouse_options._query == other._clickhouse_options._query
+            and self._clickhouse_options._table == other._clickhouse_options._table
+        )
+
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         assert data_source.HasField("custom_options")
