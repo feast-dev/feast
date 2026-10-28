@@ -31,6 +31,9 @@ class PandasBackend(DataFrameBackend):
     def filter(self, df, expr):
         return df.query(expr)
 
+    def filter_by_mask(self, df, mask):
+        return df[mask]
+
     def to_arrow(self, df):
         return pa.Table.from_pandas(df)
 

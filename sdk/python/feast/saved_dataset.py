@@ -86,6 +86,7 @@ def _read_custom_storage_class(
 _DATA_SOURCE_TO_SAVED_DATASET_STORAGE = {
     "FileSource": "feast.infra.offline_stores.file_source.SavedDatasetFileStorage",
     "SparkSource": "feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SavedDatasetSparkStorage",
+    "LanceSource": "feast.infra.data_sources.contrib.lance.lance_source.SavedDatasetLanceStorage",
 }
 
 
