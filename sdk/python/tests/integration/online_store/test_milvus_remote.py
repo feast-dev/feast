@@ -407,3 +407,26 @@ def test_partition_key_filtering(
         filters=ComparisonFilter(type="eq", key="brand_id", value="globex"),
     )
     assert [hit["city"].string_val for hit in hits] == ["Rome"]
+
+
+def test_online_delete(tmp_path: Path, project: str, store: MilvusOnlineStore) -> None:
+    config = _repo_config(tmp_path, project, consistency_level="Strong")
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _vector_rows())
+
+    store.online_delete(config, fv, [_entity_key(1)])
+    assert [row is None for row in _read(store, config, fv, [1, 2], ["city"])] == [
+        True,
+        False,
+    ]
+
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="city", value="Rome")
+    )
+    assert _read(store, config, fv, [1, 2], ["city"]) == [None, None]
+
+    # No tombstone is kept, so the row can be written again.
+    _write_rows(store, config, fv, {1: _vector_rows()[1]})
+    rows = _read(store, config, fv, [1], ["city"])
+    assert rows[0] is not None and rows[0]["city"].string_val == "Paris"

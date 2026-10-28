@@ -706,6 +706,52 @@ class MilvusOnlineStore(OnlineStore):
 
         return result_list
 
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: Optional[List[EntityKeyProto]] = None,
+        *,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+    ) -> None:
+        """Delete rows of a feature view by entity key or by filter.
+
+        Give exactly one of ``entity_keys`` and ``filters``. An empty key list
+        deletes nothing. A filter with no conditions is rejected, so a mistake
+        cannot empty the collection. No tombstone is kept: a later write creates
+        the row again.
+        """
+        if (entity_keys is None) == (filters is None):
+            raise ValueError("Give exactly one of entity_keys or filters")
+        selector: Dict[str, Any]
+        if entity_keys is not None:
+            if not entity_keys:
+                return
+            selector = {
+                "ids": [
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    ).hex()
+                    for entity_key in entity_keys
+                ]
+            }
+        else:
+            expression = MilvusFilterTranslator().translate(filters)
+            if not expression:
+                raise ValueError("The deletion filter must have at least one condition")
+            selector = {"filter": expression}
+        self.client = self._connect(config)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
+        if collection_name not in self._collections and not self.client.has_collection(
+            collection_name
+        ):
+            return
+        collection = self._get_or_create_collection(config, table)
+        self.client.delete(collection_name=collection["collection_name"], **selector)
+
     def update(
         self,
         config: RepoConfig,
