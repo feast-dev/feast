@@ -177,6 +177,8 @@ class MsSqlServerSource(DataSource):
 
         return (
             self.name == other.name
+            and self.mssqlserver_options.table_ref
+            == other.mssqlserver_options.table_ref
             and self.mssqlserver_options.connection_str
             == other.mssqlserver_options.connection_str
             and self.timestamp_field == other.timestamp_field

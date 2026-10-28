@@ -85,6 +85,7 @@ class PostgreSQLSource(DataSource):
         return (
             super().__eq__(other)
             and self._postgres_options._query == other._postgres_options._query
+            and self._postgres_options._table == other._postgres_options._table
             and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping
