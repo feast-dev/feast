@@ -1301,6 +1301,9 @@ if sys.platform != "win32":
 
     def _gunicorn_post_fork(store: "feast.FeatureStore", server, worker):
         """Give each Gunicorn worker its own registry connections after fork."""
+        # store._registry and not store.registry: a worker that inherited no
+        # registry builds its own on first use, with its own connections, so
+        # this hook must not build one here.
         if store._registry is not None:
             store._registry.reset_after_fork()
 
