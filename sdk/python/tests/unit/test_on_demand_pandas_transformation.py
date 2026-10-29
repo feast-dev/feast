@@ -600,11 +600,13 @@ def test_odfv_udf_receives_aliased_declared_source_columns():
         assert response["saw_undeclared"] == [False]
 
 
-@pytest.mark.parametrize("mode", ["pandas", "python"])
+@pytest.mark.parametrize("mode", ["pandas", "python", "python_singleton"])
 def test_feature_service_serves_aliased_odfv_features(mode):
     """An ODFV added to a FeatureService under ``with_name`` must still be
     computed. Its feature refs use the alias, so the transform lookup has to be
-    keyed by the alias too, not only by the ODFV's registered name."""
+    keyed by the alias too, not only by the ODFV's registered name. With
+    ``full_feature_names`` the outputs must come back as ``<alias>__<feature>``
+    in every mode, python mode included."""
     with tempfile.TemporaryDirectory() as data_dir:
         store, driver, src, fv1, fv2, driver_df = _two_fv_store(data_dir)
 
@@ -620,7 +622,7 @@ def test_feature_service_serves_aliased_odfv_features(mode):
                 out["conv_rate_x10"] = inputs["conv_rate"] * 10
                 return out
 
-        else:
+        elif mode == "python":
 
             @on_demand_feature_view(
                 sources=[fv1],
@@ -629,6 +631,17 @@ def test_feature_service_serves_aliased_odfv_features(mode):
             )
             def scaled(inputs: dict) -> dict:
                 return {"conv_rate_x10": [v * 10 for v in inputs["conv_rate"]]}
+
+        else:
+
+            @on_demand_feature_view(
+                sources=[fv1],
+                schema=[Field(name="conv_rate_x10", dtype=Float64)],
+                mode="python",
+                singleton=True,
+            )
+            def scaled(inputs: dict) -> dict:
+                return {"conv_rate_x10": inputs["conv_rate"] * 10}
 
         service = FeatureService(
             name="aliased_service",
@@ -645,13 +658,16 @@ def test_feature_service_serves_aliased_odfv_features(mode):
             pytest.approx(response["conv_rate"][0] * 10)
         ]
 
-        if mode != "pandas":
-            return
         response = store.get_online_features(
             entity_rows=[{"driver_id": 1001}],
             features=store.get_feature_service("aliased_service"),
             full_feature_names=True,
         ).to_dict()
+        assert sorted(response.keys()) == [
+            "driver_id",
+            "fv1__conv_rate",
+            "scaled_alias__conv_rate_x10",
+        ]
         assert response["scaled_alias__conv_rate_x10"] == [
             pytest.approx(response["fv1__conv_rate"][0] * 10)
         ]
