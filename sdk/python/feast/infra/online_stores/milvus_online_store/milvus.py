@@ -202,6 +202,13 @@ class MilvusFilterTranslator(FilterTranslator):
         return operator.join(clauses)
 
 
+def _has_empty_group(filters: FilterType) -> bool:
+    """True when a compound filter has no conditions, at any level."""
+    return isinstance(filters, CompoundFilter) and (
+        not filters.filters or any(_has_empty_group(f) for f in filters.filters)
+    )
+
+
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
     Configuration for the Milvus online store.
@@ -717,9 +724,9 @@ class MilvusOnlineStore(OnlineStore):
         """Delete rows of a feature view by entity key or by filter.
 
         Give exactly one of ``entity_keys`` and ``filters``. An empty key list
-        deletes nothing. A filter with no conditions is rejected, so a mistake
-        cannot empty the collection. No tombstone is kept: a later write creates
-        the row again.
+        deletes nothing. A filter with an empty group is rejected, so a mistake
+        cannot delete more rows than it names. No tombstone is kept: a later
+        write creates the row again.
         """
         if (entity_keys is None) == (filters is None):
             raise ValueError("Give exactly one of entity_keys or filters")
@@ -737,20 +744,20 @@ class MilvusOnlineStore(OnlineStore):
                 ]
             }
         else:
-            expression = MilvusFilterTranslator().translate(filters)
-            if not expression:
-                raise ValueError("The deletion filter must have at least one condition")
-            selector = {"filter": expression}
+            if _has_empty_group(filters):
+                raise ValueError(
+                    "Each group of the deletion filter must have a condition"
+                )
+            selector = {"filter": MilvusFilterTranslator().translate(filters)}
         self.client = self._connect(config)
         collection_name = _table_id(
             config.project, table, config.registry.enable_online_feature_view_versioning
         )
-        if collection_name not in self._collections and not self.client.has_collection(
-            collection_name
-        ):
-            return
-        collection = self._get_or_create_collection(config, table)
-        self.client.delete(collection_name=collection["collection_name"], **selector)
+        if collection_name not in self._collections:
+            if not self.client.has_collection(collection_name):
+                return
+            self._ensure_loaded(collection_name)
+        self.client.delete(collection_name=collection_name, **selector)
 
     def update(
         self,

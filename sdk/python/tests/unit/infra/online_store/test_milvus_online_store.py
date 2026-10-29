@@ -800,6 +800,15 @@ def test_online_delete_by_entity_key_and_by_filter(tmp_path: Path) -> None:
             "filters": ComparisonFilter(type="eq", key="city", value="Rome"),
         },
         {"filters": CompoundFilter(type="and", filters=[])},
+        {
+            "filters": CompoundFilter(
+                type="and",
+                filters=[
+                    ComparisonFilter(type="eq", key="brand_id", value="acme"),
+                    CompoundFilter(type="or", filters=[]),
+                ],
+            )
+        },
     ],
 )
 def test_online_delete_rejects_ambiguous_and_unbounded_calls(

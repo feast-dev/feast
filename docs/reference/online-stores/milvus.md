@@ -213,9 +213,9 @@ online_store.online_delete(
 ```
 
 Give exactly one of `entity_keys` and `filters`. An empty key list deletes nothing, and a filter
-with no conditions is rejected, so a mistake cannot empty the collection. A deleted row leaves no
-tombstone: a later write creates it again, and Feast does not order a delete against writes from
-other processes. Deletion works on every collection that Feast created.
+with an empty group is rejected, so a mistake cannot delete more rows than it names. A deleted row
+leaves no tombstone: a later write creates it again, and Feast does not order a delete against
+writes from other processes. Deletion works on every collection that Feast created.
 
 ## Feature views without vectors
 
