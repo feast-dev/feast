@@ -30,6 +30,7 @@ Key performance options:
 - `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
 - `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
 - `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+- `--gc-freeze`: Run `gc.freeze()` after startup to shorten full garbage collection pauses. See [Garbage collection pauses](../../how-to-guides/online-server-performance-tuning.md#garbage-collection-pauses) (default: off)
 
 ### Performance Best Practices
 

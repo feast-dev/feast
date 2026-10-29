@@ -4778,6 +4778,7 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         registry_ttl_sec: int = 60,
+        gc_freeze: bool = False,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -4800,6 +4801,7 @@ class FeatureStore:
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
+            gc_freeze=gc_freeze,
         )
 
     def get_feature_server_endpoint(self) -> Optional[str]:
