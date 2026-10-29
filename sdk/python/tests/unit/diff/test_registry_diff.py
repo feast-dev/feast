@@ -1,6 +1,8 @@
+from datetime import datetime
+
 import pandas as pd
 
-from feast import Field, PushSource
+from feast import Field, FileSource, PushSource
 from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
@@ -174,6 +176,50 @@ def test_diff_registry_objects_batch_to_push_source(simple_dataset_1):
             feast_object_diffs.feast_object_property_diffs[0].property_name
             == "stream_source"
         )
+
+
+def test_diff_registry_objects_ignores_data_source_meta():
+    # The registry copy and the freshly declared object each build their own
+    # source, so the sources' created/last updated timestamps always differ.
+    def source(path="data.parquet", timestamp_field="ts"):
+        return FileSource(name="src", path=path, timestamp_field=timestamp_field)
+
+    def feature_view(tags, source):
+        return FeatureView(
+            name="fv",
+            entities=[Entity(name="id", join_keys=["id"])],
+            source=PushSource(name="push", batch_source=source),
+            tags=tags,
+        )
+
+    registered = source()
+    registered.created_timestamp = datetime(2020, 1, 1)
+    registered.last_updated_timestamp = datetime(2020, 1, 2)
+
+    feast_object_diffs = diff_registry_objects(
+        feature_view({"when": "before"}, registered),
+        feature_view({"when": "after"}, source()),
+        "feature view",
+    )
+    assert [
+        d.property_name for d in feast_object_diffs.feast_object_property_diffs
+    ] == ["tags"]
+
+    feast_object_diffs = diff_registry_objects(
+        feature_view({}, registered),
+        feature_view({}, source(path="other.parquet")),
+        "feature view",
+    )
+    assert [
+        d.property_name for d in feast_object_diffs.feast_object_property_diffs
+    ] == ["batch_source", "stream_source"]
+
+    feast_object_diffs = diff_registry_objects(
+        registered, source(timestamp_field="other_ts"), "data source"
+    )
+    assert [
+        d.property_name for d in feast_object_diffs.feast_object_property_diffs
+    ] == ["timestamp_field"]
 
 
 def test_diff_registry_objects_permissions():
