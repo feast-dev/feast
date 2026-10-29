@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   EuiPanel,
   EuiTitle,
@@ -12,11 +12,21 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiToolTip,
+  EuiButtonEmpty,
 } from "@elastic/eui";
 import type {
   NumericHistogram,
   CategoricalHistogram,
 } from "../../../queries/useMonitoringApi";
+import {
+  ChartTooltip,
+  PlotOverlay,
+  ZoomScroller,
+  useClipId,
+  usePlotPointer,
+  useZoom,
+} from "./chartZoom";
+import type { PlotBox, XDomain } from "./chartZoom";
 
 const BAR_COLOR = "#006BB4";
 const BAR_COLOR_BASELINE = "#BD271E55";
@@ -65,135 +75,276 @@ const formatNumber = (val: number, compact: boolean): string => {
   return val.toExponential(1);
 };
 
-const renderNumericSvg = (
-  histogram: NumericHistogram,
-  baseline: NumericHistogram | null | undefined,
-  dim: ChartDimensions,
-) => {
-  const maxCount = Math.max(
-    ...histogram.counts,
-    ...(baseline ? baseline.counts : []),
-    1,
-  );
+const BAR_COLOR_HOVER = "#00508A";
+
+// One numeric histogram. Hover a bar to read its count; drag to zoom into a
+// range of bars, scroll sideways to move while zoomed, double-click to reset.
+const NumericHistogramSvg = ({
+  histogram,
+  baseline,
+  dim,
+}: {
+  histogram: NumericHistogram;
+  baseline: NumericHistogram | null | undefined;
+  dim: ChartDimensions;
+}) => {
   const numBars = histogram.counts.length;
+  const isCompact = dim === COMPACT;
   const barWidth = Math.max(
-    Math.floor(dim.targetBarsWidth / numBars) - dim.barGap,
+    Math.floor(dim.targetBarsWidth / Math.max(numBars, 1)) - dim.barGap,
     dim.minBarWidth,
   );
   const barsWidth = (barWidth + dim.barGap) * numBars;
-  const svgWidth = dim.leftPad + barsWidth + 24;
-  const isCompact = dim === COMPACT;
+  // Room above the plot so the top axis label is not cut off.
+  const top = dim.fontSize;
+  const box: PlotBox = {
+    width: Math.max(dim.leftPad + barsWidth + 24, 280),
+    height: top + dim.chartHeight + dim.axisHeight,
+    left: dim.leftPad,
+    top,
+    plotWidth: barsWidth,
+    plotHeight: dim.chartHeight,
+  };
+  const bottom = top + dim.chartHeight;
 
-  const yTickFractions = [0, 0.25, 0.5, 0.75, 1];
-  const yTicks = yTickFractions.map((f) => ({
+  // The x axis is the bar index: bar i covers [i, i + 1).
+  const fullDomain = useMemo<XDomain>(() => [0, numBars], [numBars]);
+  const zoom = useZoom(numBars > 0 ? fullDomain : null, Math.min(3, numBars));
+  const { reset } = zoom;
+  const domain = zoom.domain ?? fullDomain;
+  const [hoverBin, setHoverBin] = useState<number | null>(null);
+  const clipId = useClipId();
+
+  // Another histogram (for example a different View) starts zoomed out.
+  useEffect(() => {
+    reset();
+  }, [histogram, reset]);
+
+  const { svgRef, handlers, brush, isHovered } = usePlotPointer(box, domain, {
+    onHover: (x) =>
+      setHoverBin(x === null ? null : Math.min(Math.floor(x), numBars - 1)),
+    // Snap the selection to whole bars.
+    onZoom: ([a, b]) => zoom.zoomTo([Math.floor(a), Math.ceil(b)]),
+    onReset: reset,
+  });
+
+  if (numBars === 0) return null;
+
+  const [d0, d1] = domain;
+  const pxPerBin = box.plotWidth / (d1 - d0);
+  const binX = (i: number) => box.left + (i - d0) * pxPerBin;
+  const gap = Math.min(dim.barGap, pxPerBin / 4);
+  const first = Math.max(0, Math.floor(d0));
+  const last = Math.min(numBars - 1, Math.ceil(d1) - 1);
+  const visible = Array.from({ length: last - first + 1 }, (_, k) => first + k);
+
+  // Value at the left edge of bar i (i = numBars is the right end).
+  const edgeValue = (i: number) =>
+    i < histogram.bins.length
+      ? histogram.bins[i]
+      : histogram.bins[histogram.bins.length - 1] +
+        (i - histogram.bins.length + 1) * histogram.bin_width;
+
+  // Fit the height to the bars in view, so small bars grow when zoomed in.
+  const maxCount = Math.max(
+    ...visible.map((i) => histogram.counts[i]),
+    ...(baseline ? visible.map((i) => baseline.counts[i] ?? 0) : []),
+    1,
+  );
+  const barTop = (count: number) =>
+    bottom - (count / maxCount) * dim.chartHeight;
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
     label: formatNumber(Math.round(maxCount * f), isCompact),
-    y: dim.chartHeight - f * dim.chartHeight,
+    y: bottom - f * dim.chartHeight,
   }));
 
-  const xTickStep = Math.max(1, Math.floor(numBars / dim.xTickCount));
-  const xTicks: { label: string; x: number }[] = [];
-  for (let i = 0; i < numBars; i += xTickStep) {
-    xTicks.push({
-      label: formatNumber(histogram.bins[i], isCompact),
-      x: dim.leftPad + i * (barWidth + dim.barGap) + barWidth / 2,
-    });
+  // Axis labels sit on bar edges that are fully in view.
+  const edges = Array.from(
+    { length: Math.floor(d1) - Math.ceil(d0) + 1 },
+    (_, k) => Math.ceil(d0) + k,
+  );
+  const xStep = Math.max(1, Math.floor((edges.length - 1) / dim.xTickCount));
+  const xTicks = edges.filter((_, k) => k % xStep === 0);
+  const lastEdge = edges[edges.length - 1];
+  if (xTicks.length > 0 && xTicks[xTicks.length - 1] !== lastEdge) {
+    if (lastEdge - xTicks[xTicks.length - 1] < xStep / 2) xTicks.pop();
+    xTicks.push(lastEdge);
   }
-  if (numBars > 0) {
-    const lastBin = histogram.bins[histogram.bins.length - 1];
-    xTicks.push({
-      label: formatNumber(lastBin, isCompact),
-      x: dim.leftPad + (numBars - 1) * (barWidth + dim.barGap) + barWidth / 2,
-    });
-  }
+
+  const hovered =
+    isHovered && hoverBin !== null && hoverBin >= first && hoverBin <= last
+      ? hoverBin
+      : null;
 
   return (
-    <svg
-      width={Math.max(svgWidth, 280)}
-      height={dim.chartHeight + dim.axisHeight}
-      role="img"
-      aria-label="Histogram"
-    >
-      {yTicks.map((t, i) => (
-        <g key={i}>
+    <>
+      <EuiFlexGroup gutterSize="xs" alignItems="center" responsive={false}>
+        <EuiFlexItem grow={false}>
+          <EuiButtonIcon
+            iconType="magnifyWithPlus"
+            aria-label="Zoom in"
+            title="Zoom in"
+            size="xs"
+            isDisabled={!zoom.canZoomIn}
+            onClick={zoom.zoomIn}
+          />
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButtonIcon
+            iconType="magnifyWithMinus"
+            aria-label="Zoom out"
+            title="Zoom out"
+            size="xs"
+            isDisabled={!zoom.isZoomed}
+            onClick={zoom.zoomOut}
+          />
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButtonEmpty size="xs" isDisabled={!zoom.isZoomed} onClick={reset}>
+            Reset zoom
+          </EuiButtonEmpty>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiText size="xs" color="subdued">
+            Drag to zoom, scroll sideways to move.
+          </EuiText>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <ZoomScroller
+        box={box}
+        domain={domain}
+        fullDomain={fullDomain}
+        onPan={zoom.panTo}
+        testId="histogram-scroll"
+      >
+        <svg
+          ref={svgRef}
+          width={box.width}
+          height={box.height}
+          role="img"
+          aria-label="Histogram"
+          style={{ display: "block", cursor: "crosshair", userSelect: "none" }}
+          {...handlers}
+        >
+          <defs>
+            <clipPath id={clipId}>
+              <rect
+                x={box.left}
+                y={0}
+                width={box.plotWidth}
+                height={bottom + 1}
+              />
+            </clipPath>
+          </defs>
+          <rect
+            x={box.left}
+            y={top}
+            width={box.plotWidth}
+            height={dim.chartHeight}
+            fill="transparent"
+          />
+          {yTicks.map((t, i) => (
+            <g key={i}>
+              <line
+                x1={box.left}
+                y1={t.y}
+                x2={box.left + box.plotWidth}
+                y2={t.y}
+                stroke="#EDF0F5"
+                strokeWidth={1}
+              />
+              <text
+                x={box.left - 6}
+                y={t.y + 4}
+                fontSize={dim.fontSize}
+                fill="#98A2B3"
+                textAnchor="end"
+              >
+                {t.label}
+              </text>
+            </g>
+          ))}
+          <g clipPath={`url(#${clipId})`}>
+            {visible.map((i) => {
+              const x = binX(i) + gap / 2;
+              const w = Math.max(pxPerBin - gap, 1);
+              const count = histogram.counts[i];
+              const base = baseline?.counts[i] ?? 0;
+              return (
+                <g key={i}>
+                  {base > 0 && (
+                    <rect
+                      x={x}
+                      y={barTop(base)}
+                      width={w}
+                      height={bottom - barTop(base)}
+                      fill={BAR_COLOR_BASELINE}
+                      rx={1}
+                    />
+                  )}
+                  <rect
+                    x={x}
+                    y={barTop(count)}
+                    width={w}
+                    height={Math.max(bottom - barTop(count), 1)}
+                    fill={hovered === i ? BAR_COLOR_HOVER : BAR_COLOR}
+                    rx={1}
+                    opacity={0.85}
+                  />
+                </g>
+              );
+            })}
+          </g>
           <line
-            x1={dim.leftPad}
-            y1={t.y}
-            x2={dim.leftPad + barsWidth}
-            y2={t.y}
-            stroke="#EDF0F5"
+            x1={box.left}
+            y1={bottom}
+            x2={box.left + box.plotWidth}
+            y2={bottom}
+            stroke="#D3DAE6"
             strokeWidth={1}
           />
-          <text
-            x={dim.leftPad - 6}
-            y={t.y + 4}
-            fontSize={dim.fontSize}
-            fill="#98A2B3"
-            textAnchor="end"
-          >
-            {t.label}
-          </text>
-        </g>
-      ))}
-      {histogram.counts.map((count, i) => {
-        const height = (count / maxCount) * dim.chartHeight;
-        const x = dim.leftPad + i * (barWidth + dim.barGap);
-        const binStart = histogram.bins[i];
-        const binEnd =
-          i < histogram.bins.length - 1
-            ? histogram.bins[i + 1]
-            : binStart + histogram.bin_width;
-        const baselineHeight =
-          baseline && baseline.counts[i]
-            ? (baseline.counts[i] / maxCount) * dim.chartHeight
-            : 0;
-
-        return (
-          <g key={i}>
-            {baselineHeight > 0 && (
-              <rect
-                x={x}
-                y={dim.chartHeight - baselineHeight}
-                width={barWidth}
-                height={baselineHeight}
-                fill={BAR_COLOR_BASELINE}
-                rx={1}
-              />
-            )}
-            <rect
-              x={x}
-              y={dim.chartHeight - height}
-              width={barWidth}
-              height={Math.max(height, 1)}
-              fill={BAR_COLOR}
-              rx={1}
-              opacity={0.85}
+          {xTicks.map((edge) => (
+            <text
+              key={edge}
+              x={binX(edge)}
+              y={bottom + dim.fontSize + 6}
+              fontSize={dim.fontSize}
+              fill="#69707D"
+              textAnchor="middle"
             >
-              <title>{`${formatNumber(binStart, false)} – ${formatNumber(binEnd, false)}: ${count.toLocaleString()}`}</title>
-            </rect>
-          </g>
-        );
-      })}
-      <line
-        x1={dim.leftPad}
-        y1={dim.chartHeight}
-        x2={dim.leftPad + barsWidth}
-        y2={dim.chartHeight}
-        stroke="#D3DAE6"
-        strokeWidth={1}
-      />
-      {xTicks.map((t, i) => (
-        <text
-          key={i}
-          x={t.x}
-          y={dim.chartHeight + dim.fontSize + 6}
-          fontSize={dim.fontSize}
-          fill="#69707D"
-          textAnchor="middle"
-        >
-          {t.label}
-        </text>
-      ))}
-    </svg>
+              {formatNumber(edgeValue(edge), isCompact)}
+            </text>
+          ))}
+          <PlotOverlay box={box} hoverPx={null} brush={brush} />
+        </svg>
+        {hovered !== null && (
+          <ChartTooltip
+            left={binX(hovered + 0.5)}
+            box={box}
+            title={`${formatNumber(edgeValue(hovered), false)} – ${formatNumber(edgeValue(hovered + 1), false)}`}
+            rows={[
+              {
+                label: "Count",
+                color: BAR_COLOR,
+                values: [histogram.counts[hovered].toLocaleString()],
+              },
+              ...(baseline
+                ? [
+                    {
+                      label: "Baseline",
+                      color: BAR_COLOR_BASELINE,
+                      values: [
+                        (baseline.counts[hovered] ?? 0).toLocaleString(),
+                      ],
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        )}
+      </ZoomScroller>
+    </>
   );
 };
 
@@ -237,7 +388,11 @@ const NumericHistogramChart = ({
         </EuiFlexGroup>
         {title && <EuiSpacer size="s" />}
         <div style={{ overflowX: "auto" }}>
-          {renderNumericSvg(histogram, baseline, COMPACT)}
+          <NumericHistogramSvg
+            histogram={histogram}
+            baseline={baseline}
+            dim={COMPACT}
+          />
         </div>
         {baseline && (
           <EuiText size="xs" color="subdued">
@@ -262,7 +417,11 @@ const NumericHistogramChart = ({
           </EuiModalHeader>
           <EuiModalBody>
             <div style={{ overflowX: "auto" }}>
-              {renderNumericSvg(histogram, baseline, EXPANDED)}
+              <NumericHistogramSvg
+                histogram={histogram}
+                baseline={baseline}
+                dim={EXPANDED}
+              />
             </div>
             {baseline && (
               <>
