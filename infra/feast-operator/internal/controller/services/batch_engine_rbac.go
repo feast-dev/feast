@@ -92,7 +92,7 @@ func (feast *FeastServices) reconcileBatchEngineRBAC() error {
 		if err := feast.ensureBatchEngineRole(BatchEngineFeastType, tmpl.Server.Rules); err != nil {
 			return err
 		}
-		if err := feast.ensureBatchEngineRoleBinding(BatchEngineFeastType, feast.initFeastSA().Name); err != nil {
+		if err := feast.ensureBatchEngineRoleBinding(BatchEngineFeastType, GetFeastServiceAccountName(feast.Handler.FeatureStore)); err != nil {
 			return err
 		}
 	}

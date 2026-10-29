@@ -23,6 +23,7 @@ import (
 	feastdevv1 "github.com/feast-dev/feast/infra/feast-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -166,6 +167,44 @@ func TestGetInitContainerImage(t *testing.T) {
 		})
 		if got != packagedImage {
 			t.Fatalf("got %q, want %q", got, packagedImage)
+		}
+	})
+}
+
+func TestGetFeastServiceAccountName(t *testing.T) {
+	fs := &feastdevv1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: "myfs"}}
+
+	t.Run("nil Status.Applied.Services defaults to the operator-managed name", func(t *testing.T) {
+		// No ApplyDefaultsToStatus has run, so Status.Applied.Services is nil: the guard
+		// must not panic and must fall back to the default name.
+		if got, want := GetFeastServiceAccountName(fs), GetFeastName(fs); got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("empty ServiceAccountName defaults to the operator-managed name", func(t *testing.T) {
+		fsWithServices := fs.DeepCopy()
+		fsWithServices.Status.Applied.Services = &feastdevv1.FeatureStoreServices{}
+		if got, want := GetFeastServiceAccountName(fsWithServices), GetFeastName(fsWithServices); got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("non-empty ServiceAccountName overrides the operator-managed name", func(t *testing.T) {
+		fsWithOverride := fs.DeepCopy()
+		fsWithOverride.Status.Applied.Services = &feastdevv1.FeatureStoreServices{ServiceAccountName: "irsa-worker"}
+		if got := GetFeastServiceAccountName(fsWithOverride); got != "irsa-worker" {
+			t.Fatalf("got %q, want %q", got, "irsa-worker")
+		}
+	})
+
+	t.Run("single-character ServiceAccountName still overrides the operator-managed name", func(t *testing.T) {
+		// Regression case for the length check being `> 0`: a one-character name is the
+		// smallest possible non-empty override, and must not be treated as unset.
+		fsWithOverride := fs.DeepCopy()
+		fsWithOverride.Status.Applied.Services = &feastdevv1.FeatureStoreServices{ServiceAccountName: "x"}
+		if got := GetFeastServiceAccountName(fsWithOverride); got != "x" {
+			t.Fatalf("got %q, want %q", got, "x")
 		}
 	})
 }
