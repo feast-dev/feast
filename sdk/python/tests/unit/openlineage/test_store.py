@@ -269,10 +269,18 @@ class TestGetRuns:
         runs = store.get_runs(limit=10, offset=3)
         assert len(runs) == 2
 
-    def test_ordering(self, store):
+    def test_ordering(self, store, monkeypatch):
+        # updated_at has millisecond resolution and get_runs orders by it with no
+        # tiebreaker, so give each upsert a distinct, increasing timestamp instead
+        # of sleeping and hoping the wall clock advances a millisecond.
+        import itertools
+
+        from feast.openlineage import store as store_module
+
+        counter = itertools.count(1_000_000)
+        monkeypatch.setattr(store_module.time, "time", lambda: next(counter) / 1000)
         store.upsert_job("ns", "j1", {"facets": {}})
         store.upsert_run("r1", "ns", "j1", "START")
-        time.sleep(0.01)
         store.upsert_run("r2", "ns", "j1", "COMPLETE")
         runs = store.get_runs()
         assert runs[0]["run_id"] == "r2"
