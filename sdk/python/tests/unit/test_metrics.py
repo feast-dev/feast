@@ -15,6 +15,9 @@
 import http.client
 import os
 import socket
+import subprocess
+import sys
+import textwrap
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -2413,3 +2416,57 @@ class TestMetricsHttpdDoesNotLog:
             httpd.server_close()
 
         assert "GET /metrics" not in capsys.readouterr().err
+
+
+class TestFeatureFreshnessMultiprocessMode:
+    """A worker that exits must not hold the freshness gauge up.
+
+    mark_process_dead only deletes the files of the "live" gauge modes, so any
+    other mode keeps the value of every worker that ever ran in the group.
+    """
+
+    def test_mark_process_dead_drops_the_value_of_the_gauge(self, tmp_path):
+        # Run in a subprocess: prometheus_client binds the directory of a gauge
+        # file prefix on first use, and another test in this file binds it first.
+        probe = textwrap.dedent(
+            """
+            import os
+            import sys
+
+            from prometheus_client import CollectorRegistry, Gauge, multiprocess
+
+            path = os.environ["PROMETHEUS_MULTIPROC_DIR"]
+            gauge = Gauge(
+                "freshness_probe",
+                "Copies the multiprocess mode of the freshness gauge",
+                ["feature_view"],
+                registry=None,
+                multiprocess_mode=sys.argv[1],
+            )
+            gauge.labels(feature_view="fv").set(86400)
+
+            def collected():
+                registry = CollectorRegistry()
+                multiprocess.MultiProcessCollector(registry, path=path)
+                return registry.get_sample_value(
+                    "freshness_probe", {"feature_view": "fv"}
+                )
+
+            before = collected()
+            multiprocess.mark_process_dead(os.getpid(), path=path)
+            print(before, collected())
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe, feature_freshness_seconds._multiprocess_mode],
+            env={
+                **os.environ,
+                "PROMETHEUS_MULTIPROC_DIR": str(tmp_path),
+                "PROMETHEUS_MULTIPROCESS_DIR": str(tmp_path),
+            },
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.split() == ["86400.0", "None"]
