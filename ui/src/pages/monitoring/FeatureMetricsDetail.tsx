@@ -40,6 +40,16 @@ const GRANULARITY_LABELS: Record<string, string> = {
   [BASELINE_KEY]: "Baseline",
 };
 
+// Window lengths the time series can plot, shortest first. The baseline
+// covers all data at once, so it is never a point on the line.
+const SERIES_GRANULARITIES = [
+  "daily",
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+];
+
 const FeatureMetricsDetail = () => {
   const { projectName, featureViewName, featureName } = useParams();
   const navigate = useNavigate();
@@ -112,6 +122,19 @@ const FeatureMetricsDetail = () => {
     }
     return matching.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
   }, [metrics, effectiveGranularity, baselineMetric]);
+
+  // Plot one window length at a time: the one picked in View, or the
+  // shortest one with data when View is the baseline.
+  const seriesGranularity =
+    SERIES_GRANULARITIES.includes(effectiveGranularity) &&
+    availableGranularities.includes(effectiveGranularity)
+      ? effectiveGranularity
+      : SERIES_GRANULARITIES.find((g) => availableGranularities.includes(g));
+
+  const seriesMetrics = useMemo(
+    () => (metrics ?? []).filter((m) => m.granularity === seriesGranularity),
+    [metrics, seriesGranularity],
+  );
 
   const breadcrumbs = [
     {
@@ -242,12 +265,13 @@ const FeatureMetricsDetail = () => {
           </EuiFlexItem>
         </EuiFlexGroup>
 
-        {metrics && metrics.length > 1 && (
+        {seriesGranularity && seriesMetrics.length > 0 && (
           <>
             <EuiSpacer size="xl" />
             <TimeSeriesAnalysis
-              metrics={metrics}
+              metrics={seriesMetrics}
               featureType={activeMetric.feature_type}
+              granularityLabel={GRANULARITY_LABELS[seriesGranularity]}
             />
           </>
         )}
