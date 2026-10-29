@@ -12,7 +12,7 @@ from pymilvus.client.types import LoadState
 
 from feast import Entity, FeatureView
 from feast.field import Field
-from feast.filter_models import ComparisonFilter
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.milvus_online_store.milvus import (
     PLACEHOLDER_VECTOR_DIM,
     PLACEHOLDER_VECTOR_FIELD,
@@ -746,3 +746,103 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+def test_online_delete_by_entity_key_and_by_filter(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(
+        store,
+        config,
+        fv,
+        {
+            driver_id: {
+                "trips_today": ValueProto(float_val=float(driver_id)),
+                "city": ValueProto(string_val=city),
+            }
+            for driver_id, city in [(1, "Paris"), (2, "Rome"), (3, "Rome")]
+        },
+    )
+
+    store.online_delete(config, fv, [_entity_key(1)])
+    rows = _read(store, config, fv, [1, 2, 3], ["city"])
+    assert [row is None for row in rows] == [True, False, False]
+
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="city", value="Rome")
+    )
+    assert _read(store, config, fv, [1, 2, 3], ["city"]) == [None, None, None]
+
+    # No tombstone is kept, so the row can be written again.
+    _write_rows(
+        store,
+        config,
+        fv,
+        {
+            1: {
+                "trips_today": ValueProto(float_val=4.0),
+                "city": ValueProto(string_val="Oslo"),
+            }
+        },
+    )
+    rows = _read(store, config, fv, [1], ["city"])
+    assert rows[0] is not None and rows[0]["city"].string_val == "Oslo"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {
+            "entity_keys": [_entity_key(1)],
+            "filters": ComparisonFilter(type="eq", key="city", value="Rome"),
+        },
+        {"filters": CompoundFilter(type="and", filters=[])},
+        {
+            "filters": CompoundFilter(
+                type="and",
+                filters=[
+                    ComparisonFilter(type="eq", key="brand_id", value="acme"),
+                    CompoundFilter(type="or", filters=[]),
+                ],
+            )
+        },
+    ],
+)
+def test_online_delete_rejects_ambiguous_and_unbounded_calls(
+    kwargs: Dict[str, Any],
+) -> None:
+    store = MilvusOnlineStore()
+    store.client = MagicMock()
+
+    with pytest.raises(ValueError):
+        store.online_delete(_mock_config(), _scalar_feature_view(), **kwargs)
+
+    store.client.delete.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_online_delete_does_not_create_a_missing_collection(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    store = MilvusOnlineStore()
+
+    store.online_delete(_mock_config(), _scalar_feature_view(), [_entity_key(1)])
+    store.online_delete(_mock_config(), _scalar_feature_view(), [])
+
+    mock_client.create_collection.assert_not_called()
+    mock_client.delete.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_online_delete_with_no_entity_keys_sends_nothing(
+    mock_client_cls: MagicMock,
+) -> None:
+    MilvusOnlineStore().online_delete(
+        _mock_config(), _scalar_feature_view(), entity_keys=[]
+    )
+
+    mock_client_cls.assert_not_called()
