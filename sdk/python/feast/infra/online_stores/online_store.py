@@ -669,16 +669,29 @@ class OnlineStore(ABC):
 
             if first_stored_names is None:
                 first_stored_names = list(vec.feature_names)
-                if set(first_stored_names) != expected_set:
+                # Vectors always store "<fv>__<feature>"; the caller's expected
+                # names are bare unless full_feature_names was requested.
+                comparable_names = (
+                    first_stored_names
+                    if full_feature_names
+                    else [n.split("__", 1)[-1] for n in first_stored_names]
+                )
+                if set(comparable_names) != expected_set:
                     logger.warning(
                         "Pre-computed vector schema mismatch: stored=%s, expected=%s",
                         first_stored_names,
                         expected_feature_names,
                     )
                     return False
-                if first_stored_names != expected_feature_names:
-                    name_to_idx = {n: i for i, n in enumerate(first_stored_names)}
+                if comparable_names != expected_feature_names:
+                    name_to_idx = {n: i for i, n in enumerate(comparable_names)}
                     reorder_map = [name_to_idx[n] for n in expected_feature_names]
+                feat_fv_names = [
+                    first_stored_names[reorder_map[i] if reorder_map else i].split(
+                        "__", 1
+                    )[0]
+                    for i in range(n_features)
+                ]
             else:
                 if (
                     len(vec.feature_names) != n_features
