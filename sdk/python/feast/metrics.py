@@ -262,14 +262,16 @@ write_transformation_duration_seconds = Histogram(
 )
 
 # ---------------------------------------------------------------------------
-# Feature freshness metrics — "max" shows the worst-case staleness across
-# processes (freshness is identical regardless of which process computes it).
+# Feature freshness metrics — "livemax" shows the worst-case staleness across
+# the workers that are running. A plain "max" also reads the files of workers
+# that exited, and mark_process_dead does not delete those, so one leftover
+# file pins the gauge for the life of the process group.
 # ---------------------------------------------------------------------------
 feature_freshness_seconds = Gauge(
     "feast_feature_freshness_seconds",
     "Seconds since the most recent materialization end time per feature view",
     ["feature_view", "project"],
-    multiprocess_mode="max",
+    multiprocess_mode="livemax",
 )
 
 # ---------------------------------------------------------------------------
