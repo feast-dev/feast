@@ -1,0 +1,97 @@
+# Setup and SDK reference: https://local.cloud/docs/github-actions/
+# Laptop: python3 scripts/localcloud-test.py (add --full-suite for regression tests).
+# Enable pull-request runs with repository variable LOCALCLOUD_CI_ENABLED=true.
+name: LocalCloud tests
+'on':
+  workflow_dispatch: null
+  pull_request: null
+permissions:
+  contents: read
+jobs:
+  localcloud:
+    if: github.event_name == 'workflow_dispatch' || vars.LOCALCLOUD_CI_ENABLED ==
+      'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      localcloud:
+        image: agentcloud/localcloud@sha256:88e85b86b294e1e4f71b8c63ec43de79d170946ff39556f0e2709f66aa0d368c
+        env:
+          LOCALCLOUD_SERVICES: bigquery,bigtable,gcs
+          LOCALCLOUD_PROJECT: localcloud-ci
+          LOCALCLOUD_DOCKER_ACCESS: 'false'
+          LOCALCLOUD_TELEMETRY: 'false'
+        ports:
+        - 5380:5380
+        - 5382:5382
+        - 5385:5385
+        - 5388:5388
+        - 5389:5389
+        - 5392:5392
+        options: --memory 4g --health-cmd "curl -fsS http://127.0.0.1:5380/projects
+          >/dev/null" --health-interval 5s --health-timeout 5s --health-retries 60
+          --health-start-period 30s
+    env:
+      LOCALCLOUD_TEST: '1'
+      GOOGLE_CLOUD_PROJECT: localcloud-ci
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - uses: astral-sh/setup-uv@v5
+    - name: Set up LocalCloud (v0.1.0)
+      id: localcloud
+      uses: cloud-orbitor/setup-localcloud@de6d236db036be4c8b96879392d22a1feb5047c6
+      with:
+        services: bigquery,bigtable,gcs
+        project-id: localcloud-ci
+        runtime-url: http://127.0.0.1:5380
+    - name: Build project (1)
+      run: uv venv --python 3.12 .venv
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (2)
+      run: make PYTHON_VERSION=3.12 install-python-dependencies-ci
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (3)
+      run: uv pip install protobuf==6.33.6 grpcio-health-checking==1.75.1 grpcio-reflection==1.75.1
+        grpcio-testing==1.75.1 grpcio-tools==1.75.1
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (4)
+      run: .venv/bin/ruff check sdk/python/feast/infra/offline_stores/bigquery.py
+        sdk/python/feast/infra/offline_stores/bigquery_source.py sdk/python/tests/localcloud/test_localcloud_gcp.py
+        sdk/python/tests/unit/test_bigquery_local_endpoint.py scripts/localcloud-test.py
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (5)
+      run: .venv/bin/ruff format --check sdk/python/feast/infra/offline_stores/bigquery.py
+        sdk/python/feast/infra/offline_stores/bigquery_source.py sdk/python/tests/localcloud/test_localcloud_gcp.py
+        sdk/python/tests/unit/test_bigquery_local_endpoint.py scripts/localcloud-test.py
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (6)
+      run: uv pip check
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Build project (7)
+      run: git diff --check
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
+    - name: Run LocalCloud tests
+      run: .venv/bin/python -m pytest -q --tb=short sdk/python/tests/localcloud/test_localcloud_gcp.py
+      working-directory: .
+      env:
+        LOCALCLOUD_GATEWAY_URL: ${{ steps.localcloud.outputs.runtime-url }}
