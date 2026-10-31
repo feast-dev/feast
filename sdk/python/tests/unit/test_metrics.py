@@ -835,8 +835,13 @@ class TestTrackFeatureStatuses:
         before_not_found = online_features_status_total.labels(
             feature_view="fv_status", status="not_found"
         )._value.get()
+        before_outside_max_age = online_features_status_total.labels(
+            feature_view="fv_status", status="outside_max_age"
+        )._value.get()
 
-        track_feature_statuses("fv_status", present_count=3, not_found_count=2)
+        track_feature_statuses(
+            "fv_status", present_count=3, not_found_count=2, outside_max_age_count=1
+        )
 
         assert (
             online_features_status_total.labels(
@@ -850,16 +855,23 @@ class TestTrackFeatureStatuses:
             )._value.get()
             == before_not_found + 2
         )
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="outside_max_age"
+            )._value.get()
+            == before_outside_max_age + 1
+        )
 
     @patch("feast.metrics.track_feature_statuses")
     def test_populate_response_passes_correct_counts(self, mock_track):
         """Integration: _populate_response_from_feature_data computes and
-        forwards the right present/not_found counts.
+        forwards the right present/not_found/outside_max_age counts.
 
-        3 entities, 2 features each:
+        4 entities, 2 features each, ttl of 1 hour:
           Entity 0 — both present (2 PRESENT)
           Entity 1 — missing       (2 NOT_FOUND)
           Entity 2 — partial       (1 PRESENT, 1 NOT_FOUND)
+          Entity 3 — 2 hours old   (2 OUTSIDE_MAX_AGE)
         """
         from feast.protos.feast.serving.ServingService_pb2 import (
             GetOnlineFeaturesResponse,
@@ -874,6 +886,7 @@ class TestTrackFeatureStatuses:
         table.projection.name_to_use.return_value = "driver_fv"
         table.projection.name_alias = None
         table.projection.name = "driver_fv"
+        table.ttl = timedelta(hours=1)
 
         _populate_response_from_feature_data(
             requested_features=["feat_a", "feat_b"],
@@ -881,15 +894,16 @@ class TestTrackFeatureStatuses:
                 (now, {"feat_a": val, "feat_b": val}),
                 (None, None),
                 (now, {"feat_a": val}),
+                (now - timedelta(hours=2), {"feat_a": val, "feat_b": val}),
             ],
-            indexes=([0], [1], [2]),
+            indexes=([0], [1], [2], [3]),
             online_features_response=GetOnlineFeaturesResponse(),
             full_feature_names=False,
             table=table,
-            output_len=3,
+            output_len=4,
         )
 
-        mock_track.assert_called_once_with("driver_fv", 3, 3)
+        mock_track.assert_called_once_with("driver_fv", 3, 3, 2)
 
 
 class TestTrackPush:
