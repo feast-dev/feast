@@ -214,6 +214,10 @@ The client supports multiple token source modes. The SDK resolves tokens in the 
 5. **`FEAST_OIDC_TOKEN`** — default fallback environment variable
 6. **Kubernetes service account token** — read from `/var/run/secrets/kubernetes.io/serviceaccount/token` when running inside a pod
 
+{% hint style="warning" %}
+The intra-communication token is signed with the value of `INTRA_COMMUNICATION_BASE64`, and a server trusts it only when the signature matches its own value. Every Feast server that calls another must use the same value, and it must be a private random string (32 bytes or more) kept in a Kubernetes Secret. Leave the variable unset to turn off server-to-server calls.
+{% endhint %}
+
 **Token passthrough** (for use with external token providers like [kube-authkit](https://github.com/opendatahub-io/kube-authkit)):
 ```yaml
 project: my-project
