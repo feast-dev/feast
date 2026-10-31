@@ -16,6 +16,7 @@ Below are supported vector databases and implemented features:
 | SQLite          | [x]       | [ ]      | [x]         | [x]         |
 | Qdrant          | [x]       | [x]      | []          | []          |
 | ScyllaDB        | [x]       | [x]      | [x]         | [x]         |
+| Pinecone        | [x]       | [x]      | [x]         | [x]         |
 
 *Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
@@ -424,7 +425,7 @@ print('\n'.join([c.message.content for c in response.choices]))
 
 ### Configuration and Installation
 
-We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
+We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co), [Qdrant](https://qdrant.tech/) and [Pinecone](https://www.pinecone.io/) as Online Store options for Vector Databases.
 
 Milvus offers a convenient local implementation for vector similarity search. To use Milvus, you can install the Feast package with the Milvus extra.
 
@@ -444,6 +445,12 @@ pip install feast[elasticsearch]
 ```bash
 pip install feast[qdrant]
 ```
+#### Installation with Pinecone
+
+```bash
+pip install feast[pinecone]
+```
+
 #### Installation with SQLite
 
 If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
