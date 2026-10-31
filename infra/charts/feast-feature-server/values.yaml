@@ -98,6 +98,16 @@ volumeMounts: []
 # extraEnvs -- Additional environment variables to be set in the container
 extraEnvs: []
 
+# Shared secret that Feast servers use to sign calls to each other (for example
+# a feature server reading from a remote registry server). Every Feast server
+# that calls another must use the same value, and it must be private to the
+# installation.
+intraCommunicationSecret:
+  # intraCommunicationSecret.name -- Name of an existing Secret holding the shared value. Leave empty to turn off server-to-server calls.
+  name: ""
+  # intraCommunicationSecret.key -- Key in the Secret that holds the value
+  key: INTRA_COMMUNICATION_BASE64
+
 volumes: []
 
 # to create OpenShift Route object for UI

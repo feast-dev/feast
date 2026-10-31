@@ -1,5 +1,4 @@
 import logging
-import os
 
 import jwt
 from kubernetes import client, config
@@ -7,6 +6,10 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    get_intra_comm_secret,
+)
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.user import User
 
@@ -41,6 +44,12 @@ class KubernetesTokenParser(TokenParser):
         Raises:
             AuthenticationError if any error happens.
         """
+        # Intra-server calls are trusted only when signed with the shared secret
+        secret = get_intra_comm_secret()
+        claims = decode_intra_comm_token(access_token)
+        if secret and claims and claims.get("sub") == f":::{secret}":
+            return User(username=secret, roles=[], groups=[], namespaces=[])
+
         # First, try to extract user information using Token Access Review
         groups, namespaces = self._extract_groups_and_namespaces_from_token(
             access_token
@@ -55,29 +64,25 @@ class KubernetesTokenParser(TokenParser):
                 f"Request received from ServiceAccount: {sa_name} in namespace: {sa_namespace}"
             )
 
-            intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-            if sa_name is not None and sa_name == intra_communication_base64:
-                return User(username=sa_name, roles=[], groups=[], namespaces=[])
-            else:
-                current_namespace = self._read_namespace_from_file()
-                logger.info(
-                    f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
-                )
+            current_namespace = self._read_namespace_from_file()
+            logger.info(
+                f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
+            )
 
-                # Get roles using existing method
-                roles = self.get_roles(
-                    current_namespace=current_namespace,
-                    service_account_namespace=sa_namespace,
-                    service_account_name=sa_name,
-                )
-                logger.info(f"Roles: {roles}")
+            # Get roles using existing method
+            roles = self.get_roles(
+                current_namespace=current_namespace,
+                service_account_namespace=sa_namespace,
+                service_account_name=sa_name,
+            )
+            logger.info(f"Roles: {roles}")
 
-                return User(
-                    username=current_user,
-                    roles=roles,
-                    groups=groups,
-                    namespaces=namespaces,
-                )
+            return User(
+                username=current_user,
+                roles=roles,
+                groups=groups,
+                namespaces=namespaces,
+            )
 
         except AuthenticationError as e:
             # If JWT decoding fails, this is likely a user token
