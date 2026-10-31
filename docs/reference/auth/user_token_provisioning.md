@@ -253,7 +253,7 @@ fs = FeatureStore(
 
 The system checks for tokens in this order:
 
-1. **Intra-communication**: `INTRA_COMMUNICATION_BASE64` (for service-to-service)
+1. **Intra-communication**: `INTRA_COMMUNICATION_BASE64` (for service-to-service). The token is signed with this value, so it must be a private random string shared by every Feast server that calls another.
 2. **Direct configuration**: `user_token` in `KubernetesAuthConfig` or in `feature_store.yaml`
 3. **Service account token**: `/var/run/secrets/kubernetes.io/serviceaccount/token` (for pods)
 4. **Environment variable**: `LOCAL_K8S_TOKEN`
