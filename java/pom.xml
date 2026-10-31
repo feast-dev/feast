@@ -69,7 +69,7 @@
         <auto.value.version>1.6.6</auto.value.version>
         <guava.version>32.0.0-jre</guava.version>
         <reactor.version>3.4.34</reactor.version>
-        <netty.version>4.1.96.Final</netty.version>
+        <netty.version>4.1.118.Final</netty.version>
 
         <license.content><![CDATA[
 /*
