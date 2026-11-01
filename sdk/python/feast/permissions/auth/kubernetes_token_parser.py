@@ -50,16 +50,20 @@ class KubernetesTokenParser(TokenParser):
         if secret and claims and claims.get("sub") == f":::{secret}":
             return User(username=secret, roles=[], groups=[], namespaces=[])
 
-        # First, try to extract user information using Token Access Review
-        groups, namespaces = self._extract_groups_and_namespaces_from_token(
+        # The user details all come from one Token Access Review call.
+        username, groups, namespaces = self._extract_groups_and_namespaces_from_token(
             access_token
         )
+        if not username:
+            raise AuthenticationError("Could not extract username from token")
 
-        # Try to determine if this is a service account or regular user
-        try:
-            # Attempt to decode as JWT (for service accounts)
-            sa_namespace, sa_name = _decode_token(access_token)
-            current_user = f"{sa_namespace}:{sa_name}"
+        if username.startswith("system:serviceaccount:"):
+            parts = username.split(":")
+            if len(parts) != 4 or not parts[2] or not parts[3]:
+                raise AuthenticationError(
+                    f"Invalid service account username: {username}"
+                )
+            _, _, sa_namespace, sa_name = parts
             logger.info(
                 f"Request received from ServiceAccount: {sa_name} in namespace: {sa_namespace}"
             )
@@ -78,31 +82,21 @@ class KubernetesTokenParser(TokenParser):
             logger.info(f"Roles: {roles}")
 
             return User(
-                username=current_user,
+                username=f"{sa_namespace}:{sa_name}",
                 roles=roles,
                 groups=groups,
                 namespaces=namespaces,
             )
 
-        except AuthenticationError as e:
-            # If JWT decoding fails, this is likely a user token
-            # Use Token Access Review to get user information
-            logger.info(f"Token is not a JWT (likely a user token): {e}")
+        logger.info(f"Request received from User: {username}")
 
-            # Get username from Token Access Review
-            username = self._get_username_from_token_review(access_token)
-            if not username:
-                raise AuthenticationError("Could not extract username from token")
+        # Extract roles for the user from RoleBindings and ClusterRoleBindings
+        logger.info(f"Extracting roles for user {username} with groups: {groups}")
+        roles = self.get_user_roles(username, groups)
 
-            logger.info(f"Request received from User: {username}")
-
-            # Extract roles for the user from RoleBindings and ClusterRoleBindings
-            logger.info(f"Extracting roles for user {username} with groups: {groups}")
-            roles = self.get_user_roles(username, groups)
-
-            return User(
-                username=username, roles=roles, groups=groups, namespaces=namespaces
-            )
+        return User(
+            username=username, roles=roles, groups=groups, namespaces=namespaces
+        )
 
     def _read_namespace_from_file(self):
         try:
@@ -190,23 +184,25 @@ class KubernetesTokenParser(TokenParser):
 
     def _extract_groups_and_namespaces_from_token(
         self, access_token: str
-    ) -> tuple[list[str], list[str]]:
+    ) -> tuple[str, list[str], list[str]]:
         """
-        Extract groups and namespaces from the token using Kubernetes Token Access Review.
+        Extract the username, groups and namespaces from the token using Kubernetes Token Access Review.
 
         Args:
-            access_token: The JWT token to analyze
+            access_token: The token to analyze
 
         Returns:
-            tuple[list[str], list[str]]: A tuple containing (groups, namespaces)
+            tuple[str, list[str], list[str]]: A tuple containing (username, groups, namespaces).
+            The username is empty if the Token Access Review did not authenticate the token.
         """
+        username = ""
+        groups: list[str] = []
+        namespaces: list[str] = []
         try:
             # Create TokenReview object
             token_review = client.V1TokenReview(
                 spec=client.V1TokenReviewSpec(token=access_token)
             )
-            groups: list[str] = []
-            namespaces: list[str] = []
 
             # Call Token Access Review API
             response = self.auth_v1.create_token_review(token_review)
@@ -270,7 +266,7 @@ class KubernetesTokenParser(TokenParser):
         # Remove duplicates
         groups = sorted(list(set(groups)))
         namespaces = sorted(list(set(namespaces)))
-        return groups, namespaces
+        return username, groups, namespaces
 
     def _extract_namespace_access_groups(self, namespace: str) -> list[str]:
         """
@@ -384,35 +380,6 @@ class KubernetesTokenParser(TokenParser):
             )
 
         return user_namespaces
-
-    def _get_username_from_token_review(self, access_token: str) -> str:
-        """
-        Extract username from Token Access Review.
-
-        Args:
-            access_token: The access token to review
-
-        Returns:
-            str: The username from the token review, or empty string if not found
-        """
-        try:
-            token_review = client.V1TokenReview(
-                spec=client.V1TokenReviewSpec(token=access_token)
-            )
-
-            response = self.auth_v1.create_token_review(token_review)
-
-            if response.status.authenticated and response.status.user:
-                username = getattr(response.status.user, "username", "") or ""
-                logger.debug(f"Extracted username from Token Access Review: {username}")
-                return username
-            else:
-                logger.warning(f"Token Access Review failed: {response.status.error}")
-                return ""
-
-        except Exception as e:
-            logger.error(f"Failed to get username from Token Access Review: {e}")
-            return ""
 
     def _cluster_role_binding_grants_namespace_access(
         self, cluster_role_binding, namespace: str

@@ -849,13 +849,11 @@ def test_oidc_default_supports_v1_tokens_against_v2_discovery(
 
 # TODO RBAC: Move role bindings to a reusable fixture
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
-@patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")
 @patch(
     "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding"
 )
 def test_k8s_token_validation_success(
     mock_rb,
-    mock_jwt,
     mock_config,
     rolebindings,
     monkeypatch,
@@ -868,7 +866,11 @@ def test_k8s_token_validation_success(
         lambda self: my_namespace,
     )
     subject = f"system:serviceaccount:{sa_namespace}:{sa_name}"
-    mock_jwt.return_value = {"sub": subject}
+    # TokenReview authenticates the token as this service account.
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+        lambda self, token: (subject, [], []),
+    )
 
     mock_rb.return_value = rolebindings["items"]
 
@@ -887,6 +889,95 @@ def test_k8s_token_validation_success(
         for r in roles:
             assertpy.assert_that(user.has_matching_role([r])).is_true()
         assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
+
+
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.AuthenticationV1Api.create_token_review"
+)
+def test_k8s_sa_token_requires_token_review(mock_token_review, mock_config):
+    # TokenReview reports the token as not authenticated.
+    mock_token_review.return_value = MagicMock(
+        status=MagicMock(authenticated=False, user=None, error="invalid token")
+    )
+
+    token_parser = KubernetesTokenParser()
+    with pytest.raises(AuthenticationError):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "system:serviceaccount:",
+        "system:serviceaccount:my-ns",
+        "system:serviceaccount::my-name",
+        "system:serviceaccount:my-ns:",
+        "system:serviceaccount:my-ns:my-name:extra",
+    ],
+)
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+def test_k8s_malformed_sa_username_is_rejected(mock_config, username, monkeypatch):
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+        lambda self, token: (username, [], []),
+    )
+
+    token_parser = KubernetesTokenParser()
+    with pytest.raises(AuthenticationError):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+@patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.AuthenticationV1Api.create_token_review"
+)
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding"
+)
+def test_k8s_sa_identity_comes_from_token_review(
+    mock_rb,
+    mock_token_review,
+    mock_jwt,
+    mock_config,
+    rolebindings,
+    monkeypatch,
+    my_namespace,
+    sa_name,
+    sa_namespace,
+):
+    # The token's sub claim names the service account that has roles, but
+    # TokenReview authenticates it as another one. The user details must
+    # follow TokenReview.
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
+        lambda self: my_namespace,
+    )
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_namespace_access_groups",
+        lambda self, namespace: [],
+    )
+    mock_jwt.return_value = {"sub": f"system:serviceaccount:{sa_namespace}:{sa_name}"}
+    mock_rb.return_value = rolebindings["items"]
+    reviewed_user = MagicMock(groups=[])
+    reviewed_user.username = f"system:serviceaccount:{sa_namespace}:other-sa"
+    mock_token_review.return_value = MagicMock(
+        status=MagicMock(authenticated=True, user=reviewed_user)
+    )
+
+    token_parser = KubernetesTokenParser()
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+    )
+
+    assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:other-sa")
+    assertpy.assert_that(user.roles).is_empty()
+    assertpy.assert_that(user.has_matching_role(rolebindings["roles"])).is_false()
 
 
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
@@ -939,6 +1030,10 @@ def test_k8s_inter_server_comm(
         monkeypatch.setattr(
             "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
             lambda self: my_namespace,
+        )
+        monkeypatch.setattr(
+            "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+            lambda self, token: (subject, [], []),
         )
 
     monkeypatch.setattr(
@@ -994,7 +1089,7 @@ def test_intra_comm_token_must_be_signed_with_shared_secret(
     monkeypatch.setattr(
         KubernetesTokenParser,
         "_extract_groups_and_namespaces_from_token",
-        lambda self, token: ([], []),
+        lambda self, token: ("", [], []),
     )
     monkeypatch.setattr(
         KubernetesTokenParser, "_read_namespace_from_file", lambda self: "feast"
