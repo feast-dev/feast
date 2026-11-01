@@ -731,3 +731,39 @@ class TestSchemaMode:
                 path="sqlite:///dummy.db",
                 schema_mode="bogus",
             )
+
+
+def test_proto_version_id_is_a_content_hash(shared_sqlite_db_path):
+    from unittest.mock import patch
+
+    from feast.feature_service import FeatureService
+
+    config = SqlRegistryConfig(
+        registry_type="sql",
+        path=f"sqlite:///{shared_sqlite_db_path}",
+        purge_feast_metadata=False,
+    )
+    registry = SqlRegistry(config, "project_hash", None)
+    registry.apply_feature_service(
+        FeatureService(name="svc", features=[]), "project_hash"
+    )
+
+    first = registry.proto()
+    second = registry.proto()
+    assert first.version_id
+    assert first.version_id == second.version_id
+    assert first is not second
+
+    with patch.object(
+        FeatureService, "from_proto", wraps=FeatureService.from_proto
+    ) as from_proto:
+        registry.refresh("project_hash")
+        a = registry.get_feature_service("svc", "project_hash", allow_cache=True)
+        registry.refresh("project_hash")
+        b = registry.get_feature_service("svc", "project_hash", allow_cache=True)
+        assert a is b
+        from_proto.assert_called_once()
+
+    registry.apply_entity(Entity(name="customer", join_keys=["cid"]), "project_hash")
+    assert registry.proto().version_id != first.version_id
+    registry.teardown()

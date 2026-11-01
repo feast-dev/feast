@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import uuid
@@ -1367,6 +1368,7 @@ class SnowflakeRegistry(BaseRegistry):
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
 
+        r.version_id = hashlib.sha1(r.SerializeToString(deterministic=True)).hexdigest()
         return r
 
     def _get_last_updated_metadata(self, project: str):

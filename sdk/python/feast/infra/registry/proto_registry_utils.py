@@ -29,6 +29,11 @@ from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
 
+def _registry_proto_key(registry_proto: RegistryProto):
+    """Return the registry's version_id, or the object identity when it has none."""
+    return registry_proto.version_id or id(registry_proto)
+
+
 def registry_proto_cache(func):
     cache_key = None
     cache_value = None
@@ -37,7 +42,7 @@ def registry_proto_cache(func):
     def wrapper(registry_proto: RegistryProto, project: str):
         nonlocal cache_key, cache_value
 
-        key = tuple([id(registry_proto), registry_proto.version_id, project])
+        key = (_registry_proto_key(registry_proto), project)
 
         if key == cache_key:
             return cache_value
@@ -66,8 +71,7 @@ def registry_proto_cache_with_tags(func):
         # Snapshot the filter so caller mutations cannot change a cached key.
         tags_key = frozenset(tags.items()) if tags is not None else None
         key = (
-            id(registry_proto),
-            registry_proto.version_id,
+            _registry_proto_key(registry_proto),
             project,
             tags_key,
             kwargs_key,
@@ -91,7 +95,7 @@ def registry_proto_cache_name(func):
     def wrapper(registry_proto: RegistryProto, name: str, project: str):
         nonlocal cache_proto_key, cache
 
-        proto_key = (id(registry_proto), registry_proto.version_id)
+        proto_key = _registry_proto_key(registry_proto)
 
         if proto_key != cache_proto_key:
             cache = {}
@@ -119,6 +123,7 @@ def get_project_metadata(
     return None
 
 
+@registry_proto_cache_name
 def get_feature_service(
     registry_proto: RegistryProto, name: str, project: str
 ) -> FeatureService:
