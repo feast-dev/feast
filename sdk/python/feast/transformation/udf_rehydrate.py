@@ -9,12 +9,37 @@ Preferring source avoids:
 
 from __future__ import annotations
 
+import builtins
+import dis
 import logging
+import types
 from typing import Callable, Optional
 
 import dill
 
 logger = logging.getLogger(__name__)
+
+
+def _has_unresolved_globals(code: types.CodeType, namespace: dict) -> bool:
+    """Return whether ``code`` reads a global absent from its namespace/builtins."""
+    builtin_namespace = namespace.get("__builtins__", builtins)
+    if not isinstance(builtin_namespace, dict):
+        builtin_namespace = vars(builtin_namespace)
+
+    for instruction in dis.get_instructions(code):
+        # Function bodies use LOAD_GLOBAL for module names. LOAD_NAME also
+        # appears in class bodies, where names may be provided by that body's
+        # local namespace and cannot be validated against the exec namespace.
+        if instruction.opname == "LOAD_GLOBAL":
+            name = instruction.argval
+            if name not in namespace and name not in builtin_namespace:
+                return True
+
+    return any(
+        _has_unresolved_globals(value, namespace)
+        for value in code.co_consts
+        if isinstance(value, types.CodeType)
+    )
 
 
 def _strip_leading_decorators(udf_string: str) -> str:
@@ -141,7 +166,11 @@ def rehydrate_udf_from_source(
         return None
 
     if preferred_name and preferred_name in ns and callable(ns[preferred_name]):
-        return ns[preferred_name]
+        value = ns[preferred_name]
+        code = getattr(value, "__code__", None)
+        if isinstance(code, types.CodeType) and _has_unresolved_globals(code, ns):
+            return None
+        return value
 
     for value in ns.values():
         if not callable(value):
@@ -151,6 +180,9 @@ def rehydrate_udf_from_source(
             continue
         # Skip imported modules / classes we seeded
         if name in ("DataFrame",):
+            continue
+        code = getattr(value, "__code__", None)
+        if isinstance(code, types.CodeType) and _has_unresolved_globals(code, ns):
             continue
         return value
 
