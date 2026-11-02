@@ -1,6 +1,6 @@
 import inspect
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -216,6 +216,51 @@ class TestRemoteOnlineStoreRetrieveDocuments:
         assert isinstance(feature_values_dict, dict)
         assert "feature1" in feature_values_dict
         assert isinstance(feature_values_dict["feature1"], ValueProto)
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_documents")
+    def test_retrieve_online_documents_v2_no_requested_features_gets_real_event_ts(
+        self, mock_get_remote_online_documents, remote_store, config, feature_view
+    ):
+        """With no requested features, each row's event_ts must match the real "distance" column's own row, not a blank entity column or another row's timestamp."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps(
+            {
+                "metadata": {"feature_names": ["distance", "user_id"]},
+                "results": [
+                    {
+                        "values": [0.1, 0.2],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "2024-02-02T00:00:00Z",
+                            "2024-02-02T01:00:00Z",
+                        ],
+                    },  # distance -- real timestamp
+                    {
+                        "values": [123, 456],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
+                    },  # user_id -- blank entity timestamp
+                ],
+            }
+        )
+        mock_get_remote_online_documents.return_value = mock_response
+
+        result = remote_store.retrieve_online_documents_v2(
+            config=config,
+            table=feature_view,
+            requested_features=None,
+            embedding=[0.1, 0.2, 0.3],
+            top_k=2,
+        )
+
+        event_ts_0, _, _ = result[0]
+        event_ts_1, _, _ = result[1]
+        assert event_ts_0 == datetime(2024, 2, 2, 0, 0, 0, tzinfo=timezone.utc)
+        assert event_ts_1 == datetime(2024, 2, 2, 1, 0, 0, tzinfo=timezone.utc)
 
     @patch("feast.infra.online_stores.remote.get_remote_online_documents")
     def test_retrieve_online_documents_with_cert(
@@ -803,3 +848,331 @@ class TestRemoteOnlineStoreWriteBatch:
 
         # Event timestamps should be ISO strings as before
         assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+
+
+class TestRemoteOnlineStoreOnlineRead:
+    """Tests for _construct_online_read_api_json_request, _get_event_ts, and online_read."""
+
+    @pytest.fixture
+    def remote_store(self):
+        return RemoteOnlineStore()
+
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            online_store=RemoteOnlineStoreConfig(
+                type="remote", path="http://localhost:6566"
+            ),
+            registry="dummy_registry",
+        )
+
+    @pytest.fixture
+    def composite_key_feature_view(self):
+        driver = Entity(name="driver_id", value_type=ValueType.INT64)
+        customer = Entity(name="customer_id", value_type=ValueType.INT64)
+        source = FileSource(path="test.parquet", timestamp_field="event_timestamp")
+        return FeatureView(
+            name="driver_customer_stats",
+            entities=[driver, customer],
+            ttl=timedelta(days=1),
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="customer_id", dtype=Int64),
+                Field(name="conv_rate", dtype=Float32),
+            ],
+            source=source,
+        )
+
+    # ── _construct_online_read_api_json_request ───────────────────────
+
+    def test_preserves_every_join_key(self, remote_store, composite_key_feature_view):
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1002),
+                    ValueProto(int64_val=5002),
+                ],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {
+            "driver_id": [1001, 1002],
+            "customer_id": [5001, 5002],
+        }
+
+    def test_single_join_key_unchanged(self, remote_store, composite_key_feature_view):
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1001)]
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {"driver_id": [1001]}
+
+    def test_unset_entity_value_becomes_none(
+        self, remote_store, composite_key_feature_view
+    ):
+        """An unset proto value (WhichOneof returns None) maps to None."""
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[ValueProto(int64_val=1001), ValueProto()],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"] == {"driver_id": [1001], "customer_id": [None]}
+
+    def test_unix_timestamp_join_key_sent_as_int(
+        self, remote_store, composite_key_feature_view
+    ):
+        """A UnixTimestamp-typed join key must be sent as a raw int, not a
+        non-JSON-serializable datetime."""
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "as_of"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(unix_timestamp_val=1700000000),
+                ],
+            ),
+        ]
+
+        req_body = remote_store._construct_online_read_api_json_request(
+            entity_keys, composite_key_feature_view, ["conv_rate"]
+        )
+
+        assert req_body["entities"]["as_of"] == [1700000000]
+        assert isinstance(req_body["entities"]["as_of"][0], int)
+        json.dumps(req_body)  # must not raise
+
+    def test_mismatched_join_keys_and_values_raises(
+        self, remote_store, composite_key_feature_view
+    ):
+        too_few_values = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[ValueProto(int64_val=1001)],
+            ),
+        ]
+        with pytest.raises(ValueError):
+            remote_store._construct_online_read_api_json_request(
+                too_few_values, composite_key_feature_view, ["conv_rate"]
+            )
+
+        too_few_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+        ]
+        with pytest.raises(ValueError):
+            remote_store._construct_online_read_api_json_request(
+                too_few_keys, composite_key_feature_view, ["conv_rate"]
+            )
+
+    def test_equal_lengths_above_small_int_cache_do_not_raise(
+        self, remote_store, composite_key_feature_view
+    ):
+        """The length check must use value equality, not identity."""
+        n = 300
+        matching = [
+            EntityKeyProto(
+                join_keys=[f"k{i}" for i in range(n)],
+                entity_values=[ValueProto(int64_val=i) for i in range(n)],
+            ),
+        ]
+
+        remote_store._construct_online_read_api_json_request(
+            matching, composite_key_feature_view, ["conv_rate"]
+        )  # must not raise
+
+    # ── _get_event_ts ────────────────────────────────────────────────────
+
+    def test_get_event_ts_none_when_requested_feature_has_no_timestamps(
+        self, remote_store
+    ):
+        """A matched requested feature with no event_timestamps must return
+        None rather than raise or fall back to a different column."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+                {"values": [0.5], "event_timestamps": []},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_none_when_requested_feature_absent(self, remote_store):
+        """No requested feature appearing in feature_names must return None, not a stale timestamp from results[1]."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "customer_id"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+                {"values": [5001], "event_timestamps": ["1999-01-01T00:00:00Z"]},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_empty_requested_features_uses_legacy_fallback(
+        self, remote_store
+    ):
+        """An empty requested_features list must behave like None, not silently return None."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": []},
+                {"values": [0.5], "event_timestamps": ["2024-01-01T10:00:00Z"]},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, []) == datetime(
+            2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc
+        )
+
+    def test_get_event_ts_skips_out_of_bounds_result_index(self, remote_store):
+        """A matched feature name past the end of results must not raise IndexError."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id", "conv_rate"]},
+            "results": [
+                {"values": [1001], "event_timestamps": []},
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_none_metadata_must_not_raise(self, remote_store):
+        """An explicit null metadata key must not raise AttributeError."""
+        response_json = {
+            "metadata": None,
+            "results": [{"values": [1001], "event_timestamps": []}],
+        }
+
+        assert remote_store._get_event_ts(response_json, ["conv_rate"]) is None
+
+    def test_get_event_ts_no_requested_features_single_result_is_none(
+        self, remote_store
+    ):
+        """No requested_features and a single result must return None, not read results[1]."""
+        response_json = {
+            "metadata": {"feature_names": ["driver_id"]},
+            "results": [
+                {"values": [1001], "event_timestamps": ["2024-01-01T10:00:00Z"]}
+            ],
+        }
+
+        assert remote_store._get_event_ts(response_json) is None
+
+    def test_get_event_ts_no_requested_features_empty_results_is_none(
+        self, remote_store
+    ):
+        """No requested_features and no results must return None."""
+        assert remote_store._get_event_ts({"metadata": {}, "results": []}) is None
+
+    # ── online_read round trip ──────────────────────────────────────────
+
+    @patch("feast.infra.online_stores.remote.get_remote_online_features")
+    def test_online_read_round_trip_with_composite_key(
+        self, mock_get, remote_store, config, composite_key_feature_view
+    ):
+        """A composite key must preserve every join key and return the real feature's event timestamp, not an entity column's blank one."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = json.dumps(
+            {
+                "metadata": {
+                    "feature_names": ["driver_id", "customer_id", "conv_rate"]
+                },
+                "results": [
+                    {
+                        "values": [1001, 1002],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
+                    },
+                    {
+                        "values": [5001, 5002],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "1970-01-01T00:00:00Z",
+                            "1970-01-01T00:00:00Z",
+                        ],
+                    },
+                    {
+                        "values": [0.5, 0.6],
+                        "statuses": ["PRESENT", "PRESENT"],
+                        "event_timestamps": [
+                            "2024-01-01T10:00:00Z",
+                            "2024-01-01T11:00:00Z",
+                        ],
+                    },
+                ],
+            }
+        )
+        mock_get.return_value = mock_response
+
+        entity_keys = [
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1001),
+                    ValueProto(int64_val=5001),
+                ],
+            ),
+            EntityKeyProto(
+                join_keys=["driver_id", "customer_id"],
+                entity_values=[
+                    ValueProto(int64_val=1002),
+                    ValueProto(int64_val=5002),
+                ],
+            ),
+        ]
+
+        result = remote_store.online_read(
+            config=config,
+            table=composite_key_feature_view,
+            entity_keys=entity_keys,
+            requested_features=["conv_rate"],
+        )
+
+        mock_get.assert_called_once()
+        req_body = mock_get.call_args[1]["req_body"]
+        assert req_body["entities"] == {
+            "driver_id": [1001, 1002],
+            "customer_id": [5001, 5002],
+        }
+
+        assert len(result) == 2
+        event_ts_0, features_0 = result[0]
+        event_ts_1, features_1 = result[1]
+        assert event_ts_0 == datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        assert event_ts_1 == datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+        assert features_0["conv_rate"].float_val == pytest.approx(0.5)
+        assert features_1["conv_rate"].float_val == pytest.approx(0.6)
