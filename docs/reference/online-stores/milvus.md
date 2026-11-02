@@ -99,7 +99,8 @@ online_store:
 | `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
-| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
+| `native_numeric_types` | `false` | Store numeric and bool features as native Milvus types. See [Numeric types](#numeric-types). |
+| `enable_openai_compatible_store` | `false` | Feast's cross-store flag for native numeric storage (see [vector database docs](../alpha-vector-database.md)). Same effect as `native_numeric_types`. |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
 
@@ -176,6 +177,35 @@ and `Int32` does not.
 The partition key only applies when Feast creates a collection. Existing collections are not
 changed; Feast logs a warning for them. To add a partition key to an existing feature view, run
 `feast teardown` and `feast apply`, then materialize again.
+{% endhint %}
+
+## Numeric types
+
+By default, numeric and bool features are stored as `VARCHAR`, so range filters (`gt`, `gte`, `lt`,
+`lte`) don't work on them: Milvus rejects a numeric filter value (`comparisons between VarChar and
+Int64 are not supported`), and a string value compares as text (`"9" > "50"` is true). Set
+`native_numeric_types: true` to store them as native Milvus `INT32`, `INT64`, `FLOAT`, `DOUBLE`
+and `BOOL` fields, which compare numerically. `enable_openai_compatible_store: true` has the same
+effect.
+
+The setting only applies when Feast creates a collection. Feast detects the storage type of each
+existing collection, so reads and writes keep working whichever way the collection was created,
+and Feast logs a warning when numeric range filters are used on a `VARCHAR` collection.
+
+To migrate an existing feature view, set `native_numeric_types: true` and recreate its collection
+in one of these ways:
+
+* **Teardown and reload.** Run `feast teardown` and `feast apply`, then materialize again.
+* **Staged cutover.** Add a copy of the feature view under a new name and run `feast apply`, which
+  creates a new collection with native types. Materialize it, move readers to the new name, then
+  remove the old feature view and run `feast apply` again to drop its collection.
+
+{% hint style="warning" %}
+`feast teardown` drops the collections of every feature view in the project, not just the one you
+are migrating. Online reads fail until materialization finishes, and rows that only exist in the
+online store, such as those written by push sources or `write_to_online_store`, are lost. For
+production, use the staged cutover, or back up the collections first with
+[Milvus Backup](https://milvus.io/docs/milvus_backup_overview.md).
 {% endhint %}
 
 ## Consistency level
