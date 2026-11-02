@@ -316,7 +316,7 @@ func (authz *FeastAuthorization) setFeastRoleBinding(roleBinding *rbacv1.RoleBin
 	roleBinding.Labels = authz.getLabels()
 	roleBinding.Subjects = []rbacv1.Subject{{
 		Kind:      rbacv1.ServiceAccountKind,
-		Name:      services.GetFeastName(authz.Handler.FeatureStore),
+		Name:      authz.getFeastServiceAccountName(),
 		Namespace: authz.Handler.FeatureStore.Namespace,
 	}}
 	roleBinding.RoleRef = rbacv1.RoleRef{
@@ -512,5 +512,5 @@ func GetFeastClusterRoleBindingName(featureStore *feastdevv1.FeatureStore) strin
 }
 
 func (authz *FeastAuthorization) getFeastServiceAccountName() string {
-	return services.GetFeastName(authz.Handler.FeatureStore)
+	return services.GetFeastServiceAccountName(authz.Handler.FeatureStore)
 }

@@ -3890,6 +3890,13 @@ spec:
                         be set.
                       rule: '[has(self.minAvailable), has(self.maxUnavailable)].exists_one(c,
                         c)'
+                  podLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+                      collectors or policy engines.
+                    type: object
                   registry:
                     description: Registry configures the registry service. One selection
                       is required. Local is the default setting.
@@ -5310,6 +5317,10 @@ spec:
                             type: string
                         type: object
                     type: object
+                  serviceAccountName:
+                    description: ServiceAccountName runs the FeatureStore pods under
+                      an existing ServiceAccount (e.g.
+                    type: string
                   tolerations:
                     description: |-
                       Tolerations are applied to the FeatureStore deployment pods, allowing them to
@@ -11245,6 +11256,13 @@ spec:
                             be set.
                           rule: '[has(self.minAvailable), has(self.maxUnavailable)].exists_one(c,
                             c)'
+                      podLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+                          collectors or policy engines.
+                        type: object
                       registry:
                         description: Registry configures the registry service. One
                           selection is required. Local is the default setting.
@@ -12689,6 +12707,10 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      serviceAccountName:
+                        description: ServiceAccountName runs the FeatureStore pods
+                          under an existing ServiceAccount (e.g.
+                        type: string
                       tolerations:
                         description: |-
                           Tolerations are applied to the FeatureStore deployment pods, allowing them to

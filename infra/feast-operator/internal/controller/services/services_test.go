@@ -24,6 +24,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -257,6 +259,151 @@ var _ = Describe("Registry Service", func() {
 
 			Expect(feast.setDeployment(deployment)).To(Succeed())
 			Expect(deployment.Spec.Template.Annotations).To(BeNil())
+		})
+	})
+
+	Describe("PodLabels Configuration", func() {
+		It("should apply podLabels to the deployment pod template", func() {
+			featureStore.Spec.Services.PodLabels = map[string]string{"logging.example.com/collect": stringTrue}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Labels).To(HaveKeyWithValue("logging.example.com/collect", stringTrue))
+			Expect(deployment.Spec.Template.Labels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+			Expect(deployment.Labels).NotTo(HaveKey("logging.example.com/collect"))
+		})
+
+		It("should never let podLabels override operator-managed labels", func() {
+			featureStore.Spec.Services.PodLabels = map[string]string{
+				NameLabelKey:      "hijacked",
+				ManagedByLabelKey: "someone-else",
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Labels).To(HaveKeyWithValue(NameLabelKey, featureStore.Name))
+			Expect(deployment.Spec.Template.Labels).To(HaveKeyWithValue(ManagedByLabelKey, ManagedByLabelValue))
+			Expect(deployment.Spec.Selector.MatchLabels).To(Equal(map[string]string{NameLabelKey: featureStore.Name}))
+		})
+	})
+
+	Describe("ServiceAccountName Configuration", func() {
+		It("should default to the operator-managed ServiceAccount name", func() {
+			applySpecToStatus(featureStore)
+			Expect(GetFeastServiceAccountName(featureStore)).To(Equal(GetFeastName(featureStore)))
+		})
+
+		It("should run pods under the configured ServiceAccount and not create its own", func() {
+			featureStore.Spec.Services.ServiceAccountName = "irsa-worker"
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(GetFeastServiceAccountName(featureStore)).To(Equal("irsa-worker"))
+			Expect(feast.createServiceAccount()).To(Succeed())
+			sa := &corev1.ServiceAccount{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: GetFeastName(featureStore), Namespace: featureStore.Namespace}, sa)
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal("irsa-worker"))
+		})
+
+		It("should delete a previously auto-created ServiceAccount when switching to an override", func() {
+			applySpecToStatus(featureStore)
+			Expect(feast.createServiceAccount()).To(Succeed()) // creates the owned default SA
+			saKey := types.NamespacedName{Name: GetFeastName(featureStore), Namespace: featureStore.Namespace}
+			Expect(k8sClient.Get(ctx, saKey, &corev1.ServiceAccount{})).To(Succeed())
+
+			featureStore.Spec.Services.ServiceAccountName = "irsa-worker"
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+			Expect(feast.createServiceAccount()).To(Succeed())
+
+			Expect(apierrors.IsNotFound(k8sClient.Get(ctx, saKey, &corev1.ServiceAccount{}))).To(BeTrue())
+
+			// Cleanup: leave no owned SA behind for subsequent Its in this Describe block.
+			featureStore.Spec.Services.ServiceAccountName = ""
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		})
+
+		It("should keep managing its own ServiceAccount when the override matches the default name", func() {
+			applySpecToStatus(featureStore)
+			Expect(feast.createServiceAccount()).To(Succeed()) // creates the owned default SA
+			saKey := types.NamespacedName{Name: GetFeastName(featureStore), Namespace: featureStore.Namespace}
+			Expect(k8sClient.Get(ctx, saKey, &corev1.ServiceAccount{})).To(Succeed())
+
+			// Setting serviceAccountName to exactly the name the operator would have used on its own
+			// must not be treated as an "override" that deletes the SA out from under the pods.
+			featureStore.Spec.Services.ServiceAccountName = GetFeastName(featureStore)
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.createServiceAccount()).To(Succeed())
+			Expect(k8sClient.Get(ctx, saKey, &corev1.ServiceAccount{})).To(Succeed())
+
+			featureStore.Spec.Services.ServiceAccountName = ""
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		})
+	})
+
+	Describe("Batch Engine RBAC ServiceAccount", func() {
+		It("binds the batch-engine RoleBinding to the effective ServiceAccount", func() {
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "batch-engine-config", Namespace: featureStore.Namespace},
+				Data:       map[string]string{"config": "type: spark_application"},
+			}
+			Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, cm) }()
+
+			featureStore.Spec.BatchEngine = &feastdevv1.BatchEngineConfig{
+				ConfigMapRef: &corev1.LocalObjectReference{Name: cm.Name},
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			rbKey := types.NamespacedName{Name: feast.GetFeastServiceName(BatchEngineFeastType), Namespace: featureStore.Namespace}
+			rb := &rbacv1.RoleBinding{}
+
+			Expect(feast.reconcileBatchEngineRBAC()).To(Succeed())
+			Expect(k8sClient.Get(ctx, rbKey, rb)).To(Succeed())
+			Expect(rb.Subjects).To(ConsistOf(rbacv1.Subject{
+				Kind: rbacv1.ServiceAccountKind, Name: GetFeastName(featureStore), Namespace: featureStore.Namespace,
+			}))
+
+			// Switching to an overridden ServiceAccount must move the RoleBinding subject with it.
+			featureStore.Spec.Services.ServiceAccountName = "irsa-worker"
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.reconcileBatchEngineRBAC()).To(Succeed())
+			Expect(k8sClient.Get(ctx, rbKey, rb)).To(Succeed())
+			Expect(rb.Subjects).To(ConsistOf(rbacv1.Subject{
+				Kind: rbacv1.ServiceAccountKind, Name: "irsa-worker", Namespace: featureStore.Namespace,
+			}))
+
+			featureStore.Spec.Services.ServiceAccountName = ""
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
 		})
 	})
 
