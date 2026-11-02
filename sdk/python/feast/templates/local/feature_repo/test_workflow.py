@@ -33,6 +33,11 @@ def run_demo():
     )
     fetch_online_features(store, source="push")
 
+    print(
+        "\n--- Online features computed at write time (materialized above, no transformation at read time) ---"
+    )
+    fetch_online_features(store, source="on_write")
+
     print("\n--- Simulate a stream event ingestion of the hourly stats df ---")
     event_df = pd.DataFrame.from_dict(
         {
@@ -58,6 +63,19 @@ def run_demo():
 
     print("\n--- Online features again with updated values from a stream push---")
     fetch_online_features(store, source="push")
+
+    print(
+        "\n--- Write raw stats to the transform-on-write view; the transformation runs during the write ---"
+    )
+    store.write_to_online_store(
+        feature_view_name="transformed_conv_rate_on_write",
+        df=event_df[
+            ["driver_id", "event_timestamp", "conv_rate", "acc_rate", "avg_daily_trips"]
+        ],
+    )
+
+    print("\n--- Online features computed at write time, after the write ---")
+    fetch_online_features(store, source="on_write")
 
     print("\n--- Run feast teardown ---")
     subprocess.run(["feast", "teardown"])
@@ -93,8 +111,12 @@ def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: 
             "driver_hourly_stats:conv_rate",
             "driver_hourly_stats:acc_rate",
             "driver_hourly_stats:avg_daily_trips",
+            # Pandas mode on demand transformation
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
+            # Native Python mode on demand transformation
+            "transformed_conv_rate_python:conv_rate_plus_val1_python",
+            "transformed_conv_rate_python:conv_rate_plus_val2_python",
         ],
     ).to_df()
     print(training_df.head())
@@ -118,14 +140,23 @@ def fetch_online_features(store, source: str = ""):
         features_to_fetch = store.get_feature_service("driver_activity_v1")
     elif source == "push":
         features_to_fetch = store.get_feature_service("driver_activity_v3")
+    elif source == "on_write":
+        features_to_fetch = [
+            "transformed_conv_rate_on_write:conv_rate_x_acc_rate",
+            "transformed_conv_rate_on_write:expected_daily_conversions",
+        ]
     else:
         features_to_fetch = [
             "driver_hourly_stats:acc_rate",
             "driver_hourly_stats:driver_metadata",
             "driver_hourly_stats:driver_config",
             "driver_hourly_stats:driver_profile",
+            # Pandas mode on demand transformation
             "transformed_conv_rate:conv_rate_plus_val1",
             "transformed_conv_rate:conv_rate_plus_val2",
+            # Native Python mode on demand transformation
+            "transformed_conv_rate_python:conv_rate_plus_val1_python",
+            "transformed_conv_rate_python:conv_rate_plus_val2_python",
         ]
     returned_features = store.get_online_features(
         features=features_to_fetch,

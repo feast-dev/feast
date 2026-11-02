@@ -4,6 +4,11 @@ uses this repo. A quick view of what's in this repository's `feature_repo/` dire
 
 * `data/` contains raw demo parquet data
 * `feature_repo/feature_definitions.py` contains demo feature definitions
+  - `driver_hourly_stats` / `driver_hourly_stats_fresh`: regular feature views backed by a parquet file and a push source
+  - `transformed_conv_rate` / `transformed_conv_rate_python`: on demand feature views that transform features at
+    read time, written in Pandas mode and in native Python mode respectively
+  - `transformed_conv_rate_on_write`: an on demand feature view with `write_to_online_store=True`, whose
+    transformation runs when data is materialized or written to the online store instead of on every read
 * `feature_repo/feature_store.yaml` contains a demo setup configuring where data sources are
 * `feature_repo/test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
 
