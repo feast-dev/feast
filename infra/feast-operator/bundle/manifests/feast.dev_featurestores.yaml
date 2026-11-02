@@ -1012,6 +1012,14 @@ spec:
                             description: Server configuration (image, resources, env,
                               TLS, etc.).
                             properties:
+                              commandPrefix:
+                                description: |-
+                                  CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                  server with tools such as...
+                                items:
+                                  minLength: 1
+                                  type: string
+                                type: array
                               dualStack:
                                 description: DualStack binds the server to the IPv6
                                   wildcard address instead of 0.0.0.
@@ -2265,6 +2273,14 @@ spec:
                     description: McpServer deploys a standalone Feast MCP (Model Context
                       Protocol) server container (`feast mcp`).
                     properties:
+                      commandPrefix:
+                        description: |-
+                          CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                          server with tools such as...
+                        items:
+                          minLength: 1
+                          type: string
+                        type: array
                       config:
                         description: Config references a ConfigMap holding the feast_mcp.yaml
                           file passed to `feast mcp --config`.
@@ -2835,6 +2851,14 @@ spec:
                       server:
                         description: Creates a remote offline server container
                         properties:
+                          commandPrefix:
+                            description: |-
+                              CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                              server with tools such as...
+                            items:
+                              minLength: 1
+                              type: string
+                            type: array
                           dualStack:
                             description: DualStack binds the server to the IPv6 wildcard
                               address instead of 0.0.0.
@@ -3391,6 +3415,14 @@ spec:
                       server:
                         description: Creates a feature server container
                         properties:
+                          commandPrefix:
+                            description: |-
+                              CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                              server with tools such as...
+                            items:
+                              minLength: 1
+                              type: string
+                            type: array
                           dualStack:
                             description: DualStack binds the server to the IPv6 wildcard
                               address instead of 0.0.0.
@@ -3882,6 +3914,13 @@ spec:
                         be set.
                       rule: '[has(self.minAvailable), has(self.maxUnavailable)].exists_one(c,
                         c)'
+                  podLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+                      collectors or policy engines.
+                    type: object
                   registry:
                     description: Registry configures the registry service. One selection
                       is required. Local is the default setting.
@@ -4056,6 +4095,14 @@ spec:
                           server:
                             description: Creates a registry server container
                             properties:
+                              commandPrefix:
+                                description: |-
+                                  CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                  server with tools such as...
+                                items:
+                                  minLength: 1
+                                  type: string
+                                type: array
                               dualStack:
                                 description: DualStack binds the server to the IPv6
                                   wildcard address instead of 0.0.0.
@@ -5302,6 +5349,10 @@ spec:
                             type: string
                         type: object
                     type: object
+                  serviceAccountName:
+                    description: ServiceAccountName runs the FeatureStore pods under
+                      an existing ServiceAccount (e.g.
+                    type: string
                   tolerations:
                     description: |-
                       Tolerations are applied to the FeatureStore deployment pods, allowing them to
@@ -5429,6 +5480,14 @@ spec:
                   ui:
                     description: Creates a UI server container
                     properties:
+                      commandPrefix:
+                        description: |-
+                          CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                          server with tools such as...
+                        items:
+                          minLength: 1
+                          type: string
+                        type: array
                       dualStack:
                         description: DualStack binds the server to the IPv6 wildcard
                           address instead of 0.0.0.
@@ -8333,6 +8392,14 @@ spec:
                                 description: Server configuration (image, resources,
                                   env, TLS, etc.).
                                 properties:
+                                  commandPrefix:
+                                    description: |-
+                                      CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                      server with tools such as...
+                                    items:
+                                      minLength: 1
+                                      type: string
+                                    type: array
                                   dualStack:
                                     description: DualStack binds the server to the
                                       IPv6 wildcard address instead of 0.0.0.
@@ -9600,6 +9667,14 @@ spec:
                         description: McpServer deploys a standalone Feast MCP (Model
                           Context Protocol) server container (`feast mcp`).
                         properties:
+                          commandPrefix:
+                            description: |-
+                              CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                              server with tools such as...
+                            items:
+                              minLength: 1
+                              type: string
+                            type: array
                           config:
                             description: Config references a ConfigMap holding the
                               feast_mcp.yaml file passed to `feast mcp --config`.
@@ -10176,6 +10251,14 @@ spec:
                           server:
                             description: Creates a remote offline server container
                             properties:
+                              commandPrefix:
+                                description: |-
+                                  CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                  server with tools such as...
+                                items:
+                                  minLength: 1
+                                  type: string
+                                type: array
                               dualStack:
                                 description: DualStack binds the server to the IPv6
                                   wildcard address instead of 0.0.0.
@@ -10740,6 +10823,14 @@ spec:
                           server:
                             description: Creates a feature server container
                             properties:
+                              commandPrefix:
+                                description: |-
+                                  CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                  server with tools such as...
+                                items:
+                                  minLength: 1
+                                  type: string
+                                type: array
                               dualStack:
                                 description: DualStack binds the server to the IPv6
                                   wildcard address instead of 0.0.0.
@@ -11237,6 +11328,13 @@ spec:
                             be set.
                           rule: '[has(self.minAvailable), has(self.maxUnavailable)].exists_one(c,
                             c)'
+                      podLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          PodLabels are labels to be applied to the Deployment's PodTemplate metadata, e.g. for log
+                          collectors or policy engines.
+                        type: object
                       registry:
                         description: Registry configures the registry service. One
                           selection is required. Local is the default setting.
@@ -11419,6 +11517,14 @@ spec:
                               server:
                                 description: Creates a registry server container
                                 properties:
+                                  commandPrefix:
+                                    description: |-
+                                      CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                                      server with tools such as...
+                                    items:
+                                      minLength: 1
+                                      type: string
+                                    type: array
                                   dualStack:
                                     description: DualStack binds the server to the
                                       IPv6 wildcard address instead of 0.0.0.
@@ -12681,6 +12787,10 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      serviceAccountName:
+                        description: ServiceAccountName runs the FeatureStore pods
+                          under an existing ServiceAccount (e.g.
+                        type: string
                       tolerations:
                         description: |-
                           Tolerations are applied to the FeatureStore deployment pods, allowing them to
@@ -12810,6 +12920,14 @@ spec:
                       ui:
                         description: Creates a UI server container
                         properties:
+                          commandPrefix:
+                            description: |-
+                              CommandPrefix is prepended to the operator-generated server command, to wrap the Feast
+                              server with tools such as...
+                            items:
+                              minLength: 1
+                              type: string
+                            type: array
                           dualStack:
                             description: DualStack binds the server to the IPv6 wildcard
                               address instead of 0.0.0.

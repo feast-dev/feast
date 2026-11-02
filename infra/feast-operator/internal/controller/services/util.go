@@ -33,6 +33,15 @@ func IsLocalRegistry(featureStore *feastdevv1.FeatureStore) bool {
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
 
+// GetFeastServiceAccountName returns the ServiceAccount the FeatureStore pods run as:
+// services.serviceAccountName when set, otherwise the operator-managed one.
+func GetFeastServiceAccountName(featureStore *feastdevv1.FeatureStore) string {
+	if services := featureStore.Status.Applied.Services; services != nil && len(services.ServiceAccountName) > 0 {
+		return services.ServiceAccountName
+	}
+	return GetFeastName(featureStore)
+}
+
 func isRemoteRegistry(featureStore *feastdevv1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Remote != nil

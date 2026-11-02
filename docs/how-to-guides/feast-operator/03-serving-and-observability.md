@@ -126,6 +126,28 @@ services:
           value: "false"
 ```
 
+### Wrapping the server command
+
+`server.commandPrefix` prepends tokens to the operator-generated server command, to wrap
+the Feast server with tools such as `opentelemetry-instrument` or a profiler. The operator
+still computes and keeps every flag it would normally set (port, TLS, workers, metrics,
+`--registry_ttl_sec`, ...) — the prefix runs in front of them rather than replacing them:
+
+```yaml
+services:
+  onlineStore:
+    server:
+      commandPrefix: ["opentelemetry-instrument"]
+      # -> ["opentelemetry-instrument", "feast", "serve", "-h", "0.0.0.0", "-p", "6566", ...]
+```
+
+{% hint style="warning" %}
+* The server container's image must already contain the wrapper binary (e.g.
+  `opentelemetry-instrument`) — the operator does not install anything.
+* Init containers (`feast apply`, repo staging) build their own command directly and are
+  **not** wrapped; `commandPrefix` only affects the server container.
+{% endhint %}
+
 ### Volume mounts
 
 Mount additional volumes (ConfigMaps, Secrets, PVCs) into the server containers:

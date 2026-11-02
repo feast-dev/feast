@@ -895,6 +895,45 @@ var _ = Describe("Repo Config", func() {
 			Expect(deploy.Spec.Template.Spec.Containers[0].Args).To(Equal([]string{"-p", "6580"}))
 		})
 
+		It("should prefix the lineage command when configured, keeping Args unchanged", func() {
+			featureStore := minimalFeatureStore()
+			remoteHost := "feast-banking-registry.feast.svc.cluster.local:443"
+			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{
+				Registry: &feastdevv1.Registry{
+					Remote: &feastdevv1.RemoteRegistryConfig{
+						Hostname: &remoteHost,
+					},
+				},
+			}
+			featureStore.Spec.OpenLineage = &feastdevv1.OpenLineageConfig{
+				Enabled: true,
+				Consumer: &feastdevv1.OpenLineageConsumerConfig{
+					Enabled: true,
+					LineageServer: &feastdevv1.LineageServerConfig{
+						Server: &feastdevv1.ServerConfigs{CommandPrefix: []string{"opentelemetry-instrument"}},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			featureStore.Status.ServiceHostnames.Registry = remoteHost
+
+			feast := FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       fake.NewClientBuilder().WithScheme(k8sscheme.Scheme).Build(),
+					Context:      context.Background(),
+					FeatureStore: featureStore,
+					Scheme:       k8sscheme.Scheme,
+				},
+			}
+			deploy := &appsv1.Deployment{}
+			Expect(feast.setLineageDeployment(deploy)).To(Succeed())
+
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Command).To(
+				Equal([]string{"opentelemetry-instrument", feastCommand, "serve_lineage", "-h", hostAllIPv4}))
+			Expect(deploy.Spec.Template.Spec.Containers[0].Args).To(Equal([]string{"-p", "6580"}))
+		})
+
 		It("should generate lineage repo config with feastRef remote registry", func() {
 			featureStore := minimalFeatureStore()
 			featureStore.Spec.Services = &feastdevv1.FeatureStoreServices{

@@ -19,6 +19,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
 	"strconv"
 	"strings"
@@ -414,6 +415,13 @@ func (feast *FeastServices) createService(feastType FeastServiceType) error {
 }
 
 func (feast *FeastServices) createServiceAccount() error {
+	cr := feast.Handler.FeatureStore
+	if GetFeastServiceAccountName(cr) != GetFeastName(cr) {
+		// A user-supplied ServiceAccount replaces ours; remove the one we created earlier, if any.
+		// (Guarding on the effective name, not just "is an override set", avoids deleting the
+		// operator-owned SA out from under the pods if the override happens to match the default name.)
+		return feast.Handler.DeleteOwnedFeastObj(feast.initFeastSA())
+	}
 	logger := log.FromContext(feast.Handler.Context)
 	sa := feast.initFeastSA()
 	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, sa, controllerutil.MutateFn(func() error {
@@ -502,11 +510,11 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels:      deploy.GetLabels(),
+				Labels:      feast.getPodTemplateLabels(),
 				Annotations: cr.Status.Applied.Services.PodAnnotations,
 			},
 			Spec: corev1.PodSpec{
-				ServiceAccountName: feast.initFeastSA().Name,
+				ServiceAccountName: GetFeastServiceAccountName(cr),
 				SecurityContext:    cr.Status.Applied.Services.SecurityContext,
 			},
 		},
@@ -815,7 +823,15 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	feastCommand := append([]string{baseCommand}, options...)
 	feastCommand = append(feastCommand, deploySettings.Args...)
 
-	return feastCommand
+	return withCommandPrefix(feastCommand, feast.getServerConfigs(feastType))
+}
+
+// withCommandPrefix prepends the user-configured wrapper command, if any, to cmd.
+func withCommandPrefix(cmd []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	if serverConfigs == nil || len(serverConfigs.CommandPrefix) == 0 {
+		return cmd
+	}
+	return append(append([]string{}, serverConfigs.CommandPrefix...), cmd...)
 }
 
 // withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
@@ -1448,6 +1464,14 @@ func (feast *FeastServices) getLabels() map[string]string {
 	}
 }
 
+// getPodTemplateLabels merges user podLabels under the operator-managed labels, which always win.
+func (feast *FeastServices) getPodTemplateLabels() map[string]string {
+	labels := map[string]string{}
+	maps.Copy(labels, feast.Handler.FeatureStore.Status.Applied.Services.PodLabels)
+	maps.Copy(labels, feast.getLabels())
+	return labels
+}
+
 func (feast *FeastServices) setServiceHostnames() error {
 	feast.Handler.FeatureStore.Status.ServiceHostnames = feastdevv1.ServiceHostnames{}
 	domain := svcDomain + ":"
@@ -1720,7 +1744,7 @@ func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) erro
 	container := corev1.Container{
 		Name:    string(LineageFeastType),
 		Image:   image,
-		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
+		Command: withCommandPrefix(append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...), serverConfigs),
 		Args:    []string{"-p", fmt.Sprintf("%d", port)},
 		Ports: []corev1.ContainerPort{
 			{
