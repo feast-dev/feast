@@ -30,6 +30,7 @@ from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -157,7 +158,13 @@ class HazelcastOnlineStore(OnlineStore):
             )
 
         client = self._get_client(online_store_config)
-        fv_map = client.get_map(_map_name(config.project, table))
+        fv_map = client.get_map(
+            _map_name(
+                config.project,
+                table,
+                config.registry.enable_online_feature_view_versioning,
+            )
+        )
 
         for entity_key, values, event_ts, created_ts in data:
             entity_key_str = base64.b64encode(
@@ -206,7 +213,13 @@ class HazelcastOnlineStore(OnlineStore):
 
         client = self._get_client(online_store_config)
         entries: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        fv_map = client.get_map(_map_name(config.project, table))
+        fv_map = client.get_map(
+            _map_name(
+                config.project,
+                table,
+                config.registry.enable_online_feature_view_versioning,
+            )
+        )
 
         hz_keys = []
         entity_keys_str = {}
@@ -269,8 +282,11 @@ class HazelcastOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
+            map_name = _map_name(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
             client.sql.execute(
-                f"""CREATE OR REPLACE MAPPING {_map_name(project, table)} (
+                f"""CREATE OR REPLACE MAPPING {map_name} (
                         __key VARCHAR,
                         {D_ENTITY_KEY} VARCHAR,
                         {D_FEATURE_NAME} VARCHAR,
@@ -287,12 +303,13 @@ class HazelcastOnlineStore(OnlineStore):
             ).result()
 
         for table in tables_to_delete:
-            client.sql.execute(
-                f"DELETE FROM {_map_name(config.project, table)}"
-            ).result()
-            client.sql.execute(
-                f"DROP MAPPING IF EXISTS {_map_name(config.project, table)}"
-            ).result()
+            map_name = _map_name(
+                config.project,
+                table,
+                config.registry.enable_online_feature_view_versioning,
+            )
+            client.sql.execute(f"DELETE FROM {map_name}").result()
+            client.sql.execute(f"DROP MAPPING IF EXISTS {map_name}").result()
 
     def teardown(
         self,
@@ -310,9 +327,18 @@ class HazelcastOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            client.sql.execute(f"DELETE FROM {_map_name(config.project, table)}")
-            client.sql.execute(f"DROP MAPPING IF EXISTS {_map_name(project, table)}")
+            map_name = _map_name(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
+            client.sql.execute(f"DELETE FROM {map_name}")
+            client.sql.execute(f"DROP MAPPING IF EXISTS {map_name}")
 
 
-def _map_name(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _map_name(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    """Hazelcast map backing a feature view.
+
+    Delegates to ``compute_table_id`` so that, with versioning enabled, each feature
+    view version gets its own map (``{project}_{name}_v{N}``). Hazelcast already
+    namespaced as ``{project}_{name}``, so the unversioned name is unchanged.
+    """
+    return compute_table_id(project, table, enable_versioning)
