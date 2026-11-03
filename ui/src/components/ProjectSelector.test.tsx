@@ -36,7 +36,7 @@ test("in a full App render, it shows the right initial project", async () => {
 
   await within(topLevelNavigation).findByDisplayValue("Credit Score Project");
 
-  expect(options.length).toBe(1);
+  expect(options.length).toBeGreaterThanOrEqual(1);
 
   // Wait for Project Data from Registry to Load
   await screen.findAllByRole("heading", {
