@@ -117,9 +117,10 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Install the latest version of uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
+          version: "0.12.7"
           enable-cache: true
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
