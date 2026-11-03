@@ -9,7 +9,7 @@ from pydantic import StrictStr
 
 from feast import Entity
 from feast.feature_view import FeatureView
-from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.online_stores.helpers import compute_entity_id, compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.hbase_utils import HBaseConnector, HbaseConstants
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -94,7 +94,9 @@ class HbaseOnlineStore(OnlineStore):
 
         hbase = HBaseConnector(self._get_conn(config))
         project = config.project
-        table_name = self._table_id(project, table)
+        table_name = self._table_id(
+            project, table, config.registry.enable_online_feature_view_versioning
+        )
 
         b = hbase.batch(table_name)
         for entity_key, values, timestamp, created_ts in data:
@@ -145,7 +147,9 @@ class HbaseOnlineStore(OnlineStore):
         """
         hbase = HBaseConnector(self._get_conn(config))
         project = config.project
-        table_name = self._table_id(project, table)
+        table_name = self._table_id(
+            project, table, config.registry.enable_online_feature_view_versioning
+        )
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
@@ -199,12 +203,16 @@ class HbaseOnlineStore(OnlineStore):
 
         # We don't create any special state for the entites in this implementation.
         for table in tables_to_keep:
-            table_name = self._table_id(project, table)
+            table_name = self._table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
             if not hbase.check_if_table_exist(table_name):
                 hbase.create_table_with_default_cf(table_name)
 
         for table in tables_to_delete:
-            table_name = self._table_id(project, table)
+            table_name = self._table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
             hbase.delete_table(table_name)
 
     def teardown(
@@ -224,7 +232,9 @@ class HbaseOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables:
-            table_name = self._table_id(project, table)
+            table_name = self._table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
             hbase.delete_table(table_name)
 
     def _hbase_row_key(
@@ -255,12 +265,16 @@ class HbaseOnlineStore(OnlineStore):
         # colocated.
         return f"{entity_id}#{feature_view_name}".encode()
 
-    def _table_id(self, project: str, table: FeatureView) -> str:
+    def _table_id(
+        self, project: str, table: FeatureView, enable_versioning: bool = False
+    ) -> str:
         """
         Returns table name given the project_name and the feature_view.
 
         Args:
             project: Name of the feast project.
             table: Feast FeatureView.
+            enable_versioning: When set, the feature view's version is appended to
+                the table name so each version gets its own HBase table.
         """
-        return f"{project}:{table.name}"
+        return f"{project}:{compute_versioned_name(table, enable_versioning)}"
