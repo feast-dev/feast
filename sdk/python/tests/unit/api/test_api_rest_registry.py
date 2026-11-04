@@ -215,6 +215,26 @@ def test_feature_views_type_field_via_rest(fastapi_test_app):
     assert data["spec"]["name"] == "user_profile"
 
 
+def test_feature_views_spec_project_via_rest(fastapi_test_app):
+    """Test that spec.project is populated on every feature view endpoint."""
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    for fv in response.json()["featureViews"]:
+        assert fv["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
+    assert response.status_code == 200
+    assert response.json()["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/all")
+    assert response.status_code == 200
+    feature_views = response.json()["featureViews"]
+    assert feature_views
+    for fv in feature_views:
+        assert fv["project"] == "demo_project"
+        assert fv["spec"]["project"] == "demo_project"
+
+
 def test_feature_views_entity_filtering_via_rest(fastapi_test_app):
     """Test that feature views can be filtered by entity."""
     response = fastapi_test_app.get("/feature_views?project=demo_project")
