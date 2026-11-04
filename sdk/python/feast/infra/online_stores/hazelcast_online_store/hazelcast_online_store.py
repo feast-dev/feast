@@ -163,7 +163,7 @@ class HazelcastOnlineStore(OnlineStore):
             entity_key_str = base64.b64encode(
                 serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                 )
             ).decode("utf-8")
             event_ts_utc = event_ts.astimezone(tz=timezone.utc).timestamp()
@@ -214,7 +214,7 @@ class HazelcastOnlineStore(OnlineStore):
             entity_key_str = base64.b64encode(
                 serialize_entity_key(
                     entity_key,
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                 )
             ).decode("utf-8")
             if requested_features:

@@ -44,7 +44,7 @@ online_store:
   password: password  # Couchbase password from access credentials
   bucket_name: feast  # Couchbase bucket name, defaults to feast
   kv_port: 11210  # Couchbase key-value port, defaults to 11210. Required if custom ports are used. 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 ```
 {% endcode %}
 

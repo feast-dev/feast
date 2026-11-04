@@ -18,6 +18,10 @@ For example, you might not have a stream source and, thus, no need to write feat
 Additionally, please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md).
 {% endhint %}
 
+{% hint style="info" %}
+**Looking for production deployment patterns?** See the [Feast Production Deployment Topologies](./production-deployment-topologies.md) guide for three Kubernetes-ready topologies (Minimal, Standard, Enterprise), sample FeatureStore CRs, RBAC policies, infrastructure recommendations, and scaling best practices.
+{% endhint %}
+
 In this guide we will show you how to:
 
 1. Deploy your feature store and keep your infrastructure in sync with your feature repository
@@ -57,8 +61,8 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
-Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
+In this case, we recommend using one of the more [scalable compute engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Compute Engine](../reference/compute-engine/snowflake.md).
+Users may also need to [write a custom compute engine](../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) to work on their existing infrastructure.  
 
 
 ### 2.2 Scheduled materialization with Airflow
@@ -70,6 +74,15 @@ It is up to you to orchestrate and schedule runs of materialization.
 Feast keeps the history of materialization in its registry so that the choice could be as simple as a [unix cron util](https://en.wikipedia.org/wiki/Cron). Cron util should be sufficient when you have just a few materialization jobs (it's usually one materialization job per feature view) triggered infrequently. 
 
 However, the amount of work can quickly outgrow the resources of a single machine. That happens because the materialization job needs to repackage all rows before writing them to an online store. That leads to high utilization of CPU and memory. In this case, you might want to use a job orchestrator to run multiple jobs in parallel using several workers. Kubernetes Jobs or Airflow are good choices for more comprehensive job orchestration.
+
+For large datasets, you can also reduce peak memory on the materialization worker by setting `online_write_batch_size` in `feature_store.yaml`. This breaks the proto conversion and write into chunks instead of loading the entire dataset into memory at once:
+
+```yaml
+materialization:
+  online_write_batch_size: 10000   # rows per write batch; reduces peak memory proportionally
+```
+
+See the [Materialization write performance](./online-server-performance-tuning.md#materialization-write-performance) guide for sizing recommendations and the full option reference in [feature_store.yaml](../reference/feature-repository/feature-store-yaml.md#online_write_batch_size).
 
 If you are using Airflow as a scheduler, Feast can be invoked through a  [PythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html) after the [Python SDK](https://pypi.org/project/feast/) has been installed into a virtual environment and your feature repo has been synced:
 
@@ -88,7 +101,7 @@ def materialize(data_interval_start=None, data_interval_end=None):
     provider="aws",
     offline_store="file",
     online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
-    entity_key_serialization_version=2
+    entity_key_serialization_version=3
   )
   store = FeatureStore(config=repo_config)
   # Option 1: materialize just one feature view
@@ -203,27 +216,8 @@ feature_vector = fs.get_online_features(
 ).to_dict()
 ```
 
-### 4.2. Deploy Feast feature servers on Kubernetes (Deprecated replaced by [feast-operator](../../infra/feast-operator/README.md))
-
-To deploy a Feast feature server on Kubernetes, you can use the included [helm chart + tutorial](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) (which also has detailed instructions and an example tutorial).
-
-**Basic steps**
-1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
-2. Add the Feast Helm repository and download the latest charts:
-
-```
-helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
-helm repo update
-```
-
-3. Run Helm Install
-
-```
-helm install feast-release feast-charts/feast-feature-server \
-    --set feature_store_yaml_base64=$(base64 feature_store.yaml)    
-```
-
-This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+### 4.2. Deploy Feast feature servers on Kubernetes
+See [Feast on Kubernetes](./feast-on-kubernetes.md).
 
 ## 5. Using environment variables in your yaml configuration
 

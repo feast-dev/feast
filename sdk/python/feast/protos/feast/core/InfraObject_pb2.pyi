@@ -19,7 +19,6 @@ isort:skip_file
 import builtins
 import collections.abc
 import feast.core.DatastoreTable_pb2
-import feast.core.DynamoDBTable_pb2
 import feast.core.SqliteTable_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
@@ -71,14 +70,11 @@ class InfraObject(google.protobuf.message.Message):
         def ClearField(self, field_name: typing_extensions.Literal["field", b"field"]) -> None: ...
 
     INFRA_OBJECT_CLASS_TYPE_FIELD_NUMBER: builtins.int
-    DYNAMODB_TABLE_FIELD_NUMBER: builtins.int
     DATASTORE_TABLE_FIELD_NUMBER: builtins.int
     SQLITE_TABLE_FIELD_NUMBER: builtins.int
     CUSTOM_INFRA_FIELD_NUMBER: builtins.int
     infra_object_class_type: builtins.str
     """Represents the Python class for the infrastructure object"""
-    @property
-    def dynamodb_table(self) -> feast.core.DynamoDBTable_pb2.DynamoDBTable: ...
     @property
     def datastore_table(self) -> feast.core.DatastoreTable_pb2.DatastoreTable: ...
     @property
@@ -89,13 +85,12 @@ class InfraObject(google.protobuf.message.Message):
         self,
         *,
         infra_object_class_type: builtins.str = ...,
-        dynamodb_table: feast.core.DynamoDBTable_pb2.DynamoDBTable | None = ...,
         datastore_table: feast.core.DatastoreTable_pb2.DatastoreTable | None = ...,
         sqlite_table: feast.core.SqliteTable_pb2.SqliteTable | None = ...,
         custom_infra: global___InfraObject.CustomInfra | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "dynamodb_table", b"dynamodb_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "dynamodb_table", b"dynamodb_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["infra_object", b"infra_object"]) -> typing_extensions.Literal["dynamodb_table", "datastore_table", "sqlite_table", "custom_infra"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "sqlite_table", b"sqlite_table"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["custom_infra", b"custom_infra", "datastore_table", b"datastore_table", "infra_object", b"infra_object", "infra_object_class_type", b"infra_object_class_type", "sqlite_table", b"sqlite_table"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["infra_object", b"infra_object"]) -> typing_extensions.Literal["datastore_table", "sqlite_table", "custom_infra"] | None: ...
 
 global___InfraObject = InfraObject

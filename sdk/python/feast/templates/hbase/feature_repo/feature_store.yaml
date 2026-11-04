@@ -7,4 +7,4 @@ online_store:
     type: hbase
     host: 127.0.0.1
     port: 9090
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

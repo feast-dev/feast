@@ -36,7 +36,7 @@ const useDemoQuery = ({ featureView }: DemoQueryInterface) => {
     },
     {
       enabled: !!featureView, // Only start the query when the variable is not undefined
-    }
+    },
   );
 };
 

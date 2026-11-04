@@ -59,7 +59,7 @@ class StreamFeatureView(google.protobuf.message.Message):
 global___StreamFeatureView = StreamFeatureView
 
 class StreamFeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 17"""
+    """Next available id: 23"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -95,6 +95,12 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
     AGGREGATIONS_FIELD_NUMBER: builtins.int
     TIMESTAMP_FIELD_FIELD_NUMBER: builtins.int
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
+    ENABLE_TILING_FIELD_NUMBER: builtins.int
+    TILING_HOP_SIZE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    ORG_FIELD_NUMBER: builtins.int
+    DISABLED_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -143,6 +149,24 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
     @property
     def feature_transformation(self) -> feast.core.Transformation_pb2.FeatureTransformationV2:
         """Oneof with {user_defined_function, on_demand_substrait_transformation}"""
+    enable_tiling: builtins.bool
+    """Enable tiling for efficient window aggregation"""
+    @property
+    def tiling_hop_size(self) -> google.protobuf.duration_pb2.Duration:
+        """Hop size for tiling (e.g., 5 minutes). Determines the granularity of pre-aggregated tiles.
+        If not specified, defaults to 5 minutes. Only used when enable_tiling is true.
+        """
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
+    org: builtins.str
+    """Organizational unit that owns this stream feature view (e.g. "ads", "search")."""
+    disabled: builtins.bool
+    """Whether this feature view is disabled for serving and materialization.
+    When true, the feature view will not serve online features or be materialized.
+    Defaults to false (enabled) for backward compatibility.
+    """
     def __init__(
         self,
         *,
@@ -163,8 +187,14 @@ class StreamFeatureViewSpec(google.protobuf.message.Message):
         aggregations: collections.abc.Iterable[feast.core.Aggregation_pb2.Aggregation] | None = ...,
         timestamp_field: builtins.str = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
+        enable_tiling: builtins.bool = ...,
+        tiling_hop_size: google.protobuf.duration_pb2.Duration | None = ...,
+        enable_validation: builtins.bool = ...,
+        version: builtins.str = ...,
+        org: builtins.str = ...,
+        disabled: builtins.bool = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "tiling_hop_size", b"tiling_hop_size", "ttl", b"ttl", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "batch_source", b"batch_source", "description", b"description", "disabled", b"disabled", "enable_tiling", b"enable_tiling", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "tiling_hop_size", b"tiling_hop_size", "timestamp_field", b"timestamp_field", "ttl", b"ttl", "user_defined_function", b"user_defined_function", "version", b"version"]) -> None: ...
 
 global___StreamFeatureViewSpec = StreamFeatureViewSpec

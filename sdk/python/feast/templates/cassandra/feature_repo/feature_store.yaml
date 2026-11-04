@@ -18,4 +18,4 @@ online_store:
         load_balancing_policy: c_load_balancing_policy
     read_concurrency: c_r_concurrency
     write_concurrency: c_w_concurrency
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

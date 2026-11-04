@@ -15,9 +15,12 @@ import { useNavigate } from "react-router-dom";
 import useFCOExploreSuggestions from "../hooks/useFCOExploreSuggestions";
 
 const ExplorePanel = () => {
-  const { isLoading, isSuccess, data } = useFCOExploreSuggestions();
+  const { isLoading, isSuccess, isPermissionDenied, data } =
+    useFCOExploreSuggestions();
 
   const navigate = useNavigate();
+
+  if (isPermissionDenied) return null;
 
   return (
     <EuiPanel>

@@ -1,0 +1,18 @@
+project: ragproject
+provider: local
+registry: data/registry.db
+online_store:
+  type: milvus
+  host: # Insert Milvus route host
+  username: # Insert Milvus username if required
+  password: # Insert Milvus password if required
+  port: 19530
+  vector_enabled: true
+  embedding_dim: 384
+  index_type: FLAT
+  metric_type: COSINE
+offline_store:
+  type: file
+entity_key_serialization_version: 3
+auth:
+    type: no_auth

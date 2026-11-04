@@ -5,7 +5,36 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-materialization-openlineage",
+            "namespace": "feast"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "materialization": {
+              "onlineWriteBatchSize": 10000
+            },
+            "openlineage": {
+              "apiKeySecretRef": {
+                "name": "openlineage-secret"
+              },
+              "enabled": true,
+              "extraConfig": {
+                "emit_on_apply": "true",
+                "emit_on_materialize": "true",
+                "namespace": "my-feast-project",
+                "producer": "feast-operator"
+              },
+              "transportEndpoint": "api/v1/lineage",
+              "transportType": "http",
+              "transportUrl": "http://marquez.feast.svc.cluster.local:5000"
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
             "name": "sample"
@@ -15,10 +44,72 @@ metadata:
           }
         },
         {
-          "apiVersion": "feast.dev/v1alpha1",
+          "apiVersion": "feast.dev/v1",
           "kind": "FeatureStore",
           "metadata": {
-            "name": "sample-all-servers"
+            "name": "sample-mcp"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "onlineStore": {
+                "server": {},
+                "serving": {
+                  "mcp": {
+                    "enabled": true,
+                    "serverName": "feast-mcp-server",
+                    "serverVersion": "1.0.0",
+                    "transport": "sse"
+                  }
+                }
+              },
+              "registry": {
+                "local": {
+                  "server": {
+                    "mcp": {
+                      "enabled": true
+                    },
+                    "restAPI": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-mcpserver"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "mcpServer": {
+                "config": {
+                  "configMapRef": {
+                    "name": "sample-mcpserver-config"
+                  }
+                }
+              },
+              "onlineStore": {
+                "server": {}
+              },
+              "registry": {
+                "local": {
+                  "server": {
+                    "restAPI": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-remote-servers"
           },
           "spec": {
             "feastProject": "my_project",
@@ -34,18 +125,71 @@ metadata:
               "ui": {}
             }
           }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-serving"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "onlineStore": {
+                "server": {},
+                "serving": {
+                  "metrics": {
+                    "categories": {
+                      "audit_logging": false,
+                      "freshness": false,
+                      "materialization": true,
+                      "offline_features": true,
+                      "online_features": true,
+                      "push": true,
+                      "request": true,
+                      "resource": true
+                    },
+                    "enabled": true
+                  },
+                  "offlinePushBatching": {
+                    "batchIntervalSeconds": 10,
+                    "batchSize": 1000,
+                    "enabled": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "feast.dev/v1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-ui"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "ui": {}
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-03-10T19:57:05Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.38.0
+    createdAt: "2026-10-13T13:23:07Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.41.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.47.0
+  name: feast-operator.v0.67.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: FeatureStore is the Schema for the featurestores API
+      displayName: Feature Store
+      kind: FeatureStore
+      name: featurestores.feast.dev
+      version: v1
     - description: FeatureStore is the Schema for the featurestores API
       displayName: Feature Store
       kind: FeatureStore
@@ -61,6 +205,63 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - persistentvolumeclaims
+          - services
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods/exec
+          verbs:
+          - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods/log
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - apps
           resources:
           - deployments
@@ -72,26 +273,43 @@ spec:
           - update
           - watch
         - apiGroups:
-          - ""
+          - authentication.k8s.io
           resources:
-          - configmaps
-          - persistentvolumeclaims
-          - serviceaccounts
-          - services
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - autoscaling
+          resources:
+          - horizontalpodautoscalers
           verbs:
           - create
           - delete
           - get
           - list
+          - patch
           - update
           - watch
         - apiGroups:
-          - ""
+          - batch
           resources:
-          - secrets
+          - cronjobs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - apiservers
           verbs:
           - get
           - list
+          - watch
         - apiGroups:
           - feast.dev
           resources:
@@ -119,6 +337,66 @@ spec:
           - patch
           - update
         - apiGroups:
+          - mlflow.opendatahub.io
+          resources:
+          - mlflows
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - watch
+        - apiGroups:
+          - policy
+          resources:
+          - poddisruptionbudgets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterroles
+          verbs:
+          - create
+          - get
+          - list
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resourceNames:
+          - feast-discover-namespaces
+          - feast-oidc-token-review
+          - feast-token-review-cluster-role
+          resources:
+          - clusterroles
+          verbs:
+          - delete
+          - update
+        - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - rolebindings
@@ -142,6 +420,14 @@ spec:
           - update
           - watch
         - apiGroups:
+          - sparkoperator.k8s.io
+          resources:
+          - sparkapplications
+          verbs:
+          - create
+          - delete
+          - get
+        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
@@ -164,6 +450,7 @@ spec:
           replicas: 1
           selector:
             matchLabels:
+              app.kubernetes.io/name: feast-operator
               control-plane: controller-manager
           strategy: {}
           template:
@@ -171,6 +458,7 @@ spec:
               annotations:
                 kubectl.kubernetes.io/default-container: manager
               labels:
+                app.kubernetes.io/name: feast-operator
                 control-plane: controller-manager
             spec:
               containers:
@@ -182,8 +470,13 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.47.0
-                image: quay.io/feastdev/feast-operator:0.47.0
+                  value: quay.io/feastdev/feature-server:0.67.0
+                - name: RELATED_IMAGE_CRON_JOB
+                  value: registry.k8s.io/kubectl:v1.35.9
+                - name: GOMEMLIMIT
+                  value: 230MiB
+                - name: OIDC_ISSUER_URL
+                image: quay.io/feastdev/feast-operator:0.67.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -199,8 +492,8 @@ spec:
                   periodSeconds: 10
                 resources:
                   limits:
-                    cpu: 500m
-                    memory: 128Mi
+                    cpu: "1"
+                    memory: 256Mi
                   requests:
                     cpu: 10m
                     memory: 64Mi
@@ -273,6 +566,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.47.0
+  - image: quay.io/feastdev/feature-server:0.67.0
     name: feature-server
-  version: 0.47.0
+  - image: registry.k8s.io/kubectl:v1.35.9
+    name: cron-job
+  version: 0.67.0

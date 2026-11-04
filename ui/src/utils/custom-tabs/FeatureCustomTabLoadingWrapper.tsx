@@ -16,22 +16,20 @@ const FeatureCustomTabLoadingWrapper = ({
 
   if (!FeatureViewName) {
     throw new Error(
-      `This route has no 'FeatureViewName' part. This route is likely not supposed to render this component.`
+      `This route has no 'FeatureViewName' part. This route is likely not supposed to render this component.`,
     );
   }
 
   if (!FeatureName) {
     throw new Error(
-      `This route has no 'FeatureName' part. This route is likely not supposed to render this component.`
+      `This route has no 'FeatureName' part. This route is likely not supposed to render this component.`,
     );
   }
 
   const feastObjectQuery = useLoadFeature(FeatureViewName, FeatureName);
 
   // do I include FeatureViewName in this?
-  return (
-    <Component id={FeatureName} feastObjectQuery={feastObjectQuery} />
-  );
+  return <Component id={FeatureName} feastObjectQuery={feastObjectQuery} />;
 };
 
 export default FeatureCustomTabLoadingWrapper;

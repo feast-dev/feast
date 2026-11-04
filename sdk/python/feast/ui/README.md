@@ -26,6 +26,15 @@ The `feast ui` command will generate the necessary `projects-list.json` file and
 
 ## Dev
 To test with a locally built Feast UI package, do:
+
+```bash
+   make build-ui-local
+   feast ui
+   ```
+
+OR
+
+You can also do: 
 1. `yarn link` in ui/ 
 2. `yarn install` in ui/
 3. `yarn link` in ui/node_modules/react

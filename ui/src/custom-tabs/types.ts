@@ -23,8 +23,7 @@ interface RegularFeatureViewCustomTabProps {
   id: string | undefined;
   feastObjectQuery: RegularFeatureViewQueryReturnType;
 }
-interface RegularFeatureViewCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface RegularFeatureViewCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -40,8 +39,7 @@ interface OnDemandFeatureViewCustomTabProps {
   id: string | undefined;
   feastObjectQuery: OnDemandFeatureViewQueryReturnType;
 }
-interface OnDemandFeatureViewCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface OnDemandFeatureViewCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -57,8 +55,7 @@ interface StreamFeatureViewCustomTabProps {
   id: string | undefined;
   feastObjectQuery: StreamFeatureViewQueryReturnType;
 }
-interface StreamFeatureViewCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface StreamFeatureViewCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -71,8 +68,7 @@ interface EntityCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadEntity>;
 }
-interface EntityCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface EntityCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -85,8 +81,7 @@ interface FeatureCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadFeature>;
 }
-interface FeatureCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface FeatureCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -94,14 +89,12 @@ interface FeatureCustomTabRegistrationInterface
   }: FeatureCustomTabProps) => JSX.Element;
 }
 
-
 // Type for Feature Service Custom Tabs
 interface FeatureServiceCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadFeatureService>;
 }
-interface FeatureServiceCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface FeatureServiceCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -114,8 +107,7 @@ interface DataSourceCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadDataSource>;
 }
-interface DataSourceCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface DataSourceCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
@@ -128,13 +120,25 @@ interface DatasetCustomTabProps {
   id: string | undefined;
   feastObjectQuery: ReturnType<typeof useLoadDataset>;
 }
-interface DatasetCustomTabRegistrationInterface
-  extends CustomTabRegistrationInterface {
+interface DatasetCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
     ...args
   }: DatasetCustomTabProps) => JSX.Element;
+}
+
+// Type for Data Labeling Custom Tabs
+interface DataLabelingCustomTabProps {
+  id: string | undefined;
+  feastObjectQuery: RegularFeatureViewQueryReturnType;
+}
+interface DataLabelingCustomTabRegistrationInterface extends CustomTabRegistrationInterface {
+  Component: ({
+    id,
+    feastObjectQuery,
+    ...args
+  }: DataLabelingCustomTabProps) => JSX.Element;
 }
 
 export type {
@@ -158,4 +162,6 @@ export type {
   FeatureCustomTabProps,
   DatasetCustomTabRegistrationInterface,
   DatasetCustomTabProps,
+  DataLabelingCustomTabRegistrationInterface,
+  DataLabelingCustomTabProps,
 };

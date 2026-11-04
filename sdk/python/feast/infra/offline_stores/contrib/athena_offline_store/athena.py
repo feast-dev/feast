@@ -36,6 +36,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -65,6 +66,8 @@ class AthenaOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class AthenaOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -131,15 +134,19 @@ class AthenaOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         assert isinstance(data_source, AthenaSource)
         from_expression = data_source.get_table_query_string(config)
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
 
         athena_client = aws_utils.get_athena_data_client(config.offline_store.region)
@@ -147,11 +154,30 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
+        start_date_str = None
+        if start_date:
+            start_date_str = start_date.astimezone(tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S.%f"
+            )[:-3]
+        end_date_str = None
+        if end_date:
+            end_date_str = end_date.astimezone(tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S.%f"
+            )[:-3]
+
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_str,
+            end_date_str,
+            timestamp_field,
+            date_partition_column,
+            cast_style="timestamp",
+            quote_fields=False,
+        )
+
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}' AND TIMESTAMP '{end_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}'
-            {"AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
+            WHERE {timestamp_filter}
         """
 
         return AthenaRetrievalJob(
@@ -171,6 +197,7 @@ class AthenaOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         for fv in feature_views:
@@ -228,6 +255,7 @@ class AthenaOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
             )
 
             try:
@@ -625,6 +653,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}

@@ -22,12 +22,18 @@ const FCO_TO_URL_NAME_MAP: Record<FEAST_FCO_TYPES, string> = {
   entity: "/entity",
   featureView: "/feature-view",
   featureService: "/feature-service",
+  labelView: "/label-view",
+  savedDataset: "/data-set",
+  mlflowRun: "/mlflow-run",
+  mlflowModel: "/mlflow-model",
+  openlineageJob: "/lineage",
+  openlineageDataset: "/lineage",
 };
 
 const createSearchLink = (
   FCOType: FEAST_FCO_TYPES,
   key: string,
-  value: string
+  value: string,
 ) => {
   const URL = FCO_TO_URL_NAME_MAP[FCOType];
 
@@ -38,17 +44,17 @@ const NUMBER_OF_SUGGESTION_GROUPS = 2;
 const NUMBER_OF_VALUES_PER_GROUP = 4;
 
 const sortTagByUniqueValues = <T>(
-  tagAggregation: Record<string, Record<string, T[]>>
+  tagAggregation: Record<string, Record<string, T[]>>,
 ) => {
   return Object.entries(tagAggregation).sort(
     ([a, valuesOfA], [b, valuesOfB]) => {
       return Object.keys(valuesOfB).length - Object.keys(valuesOfA).length;
-    }
+    },
   );
 };
 
 const sortTagsByTotalUsage = <T>(
-  tagAggregation: Record<string, Record<string, T[]>>
+  tagAggregation: Record<string, Record<string, T[]>>,
 ) => {
   return Object.entries(tagAggregation).sort(
     ([a, valuesOfA], [b, valuesOfB]) => {
@@ -61,13 +67,13 @@ const sortTagsByTotalUsage = <T>(
       }, 0);
 
       return countOfB - countOfA;
-    }
+    },
   );
 };
 
 const generateExplorationSuggestions = (
   tagAggregation: Record<string, Record<string, feast.core.IFeatureView[]>>,
-  projectName: string
+  projectName: string,
 ) => {
   const suggestions: ExplorationSuggestion[] = [];
 
@@ -92,14 +98,14 @@ const generateExplorationSuggestions = (
                   createSearchLink(
                     FEAST_FCO_TYPES["featureView"],
                     selectedTag,
-                    tagValue
+                    tagValue,
                   ),
                 label: `Feature Services where ${selectedTag} is '${tagValue}'`,
                 count: fvEntries.length,
               };
             }),
         });
-      }
+      },
     );
   }
 

@@ -6,7 +6,9 @@ The PostgreSQL online store provides support for materializing feature values in
 
 * Only the latest feature values are persisted
 
-* sslmode, sslkey_path, sslcert_path, and sslrootcert_path are optional
+* `sslmode` defaults to `require`, which encrypts the connection without certificate verification. To disable SSL (e.g. for local development), set `sslmode: disable`. For certificate verification, set `sslmode` to `verify-ca` or `verify-full` and provide the corresponding `sslrootcert_path` (and optionally `sslcert_path` and `sslkey_path` for mutual TLS)
+
+* Reads that span several feature views are combined into one query. `max_batched_result_rows` (default 2048) caps the request size, in entity rows × feature views, that is batched this way; set it to `0` to always issue one query per feature view
 
 ## Getting started
 In order to use this online store, you'll need to run `pip install 'feast[postgres]'`. You can get started by then running `feast init -t postgres`.
@@ -31,7 +33,6 @@ online_store:
     sslcert_path: /path/to/client-cert.pem
     sslrootcert_path: /path/to/server-ca.pem
     vector_enabled: false
-    vector_len: 512
 ```
 {% endcode %}
 
@@ -67,7 +68,7 @@ To compare this set of functionality against other online stores, please see the
 The Postgres online store supports the use of [PGVector](https://github.com/pgvector/pgvector) for storing feature values.
 To enable PGVector, set `vector_enabled: true` in the online store configuration. 
 
-The `vector_len` parameter can be used to specify the length of the vector. The default value is 512.
+The `vector_length` parameter can be used to specify the length of the vector in the Field.
 
 Please make sure to follow the instructions in the repository, which, as the time of this writing, requires you to 
 run `CREATE EXTENSION vector;` in the database.

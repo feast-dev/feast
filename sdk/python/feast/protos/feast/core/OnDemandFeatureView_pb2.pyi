@@ -18,6 +18,7 @@ limitations under the License.
 """
 import builtins
 import collections.abc
+import feast.core.Aggregation_pb2
 import feast.core.DataSource_pb2
 import feast.core.FeatureViewProjection_pb2
 import feast.core.FeatureView_pb2
@@ -58,7 +59,7 @@ class OnDemandFeatureView(google.protobuf.message.Message):
 global___OnDemandFeatureView = OnDemandFeatureView
 
 class OnDemandFeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 9"""
+    """Next available id: 19"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -108,6 +109,10 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     ENTITIES_FIELD_NUMBER: builtins.int
     ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
     SINGLETON_FIELD_NUMBER: builtins.int
+    AGGREGATIONS_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    ORG_FIELD_NUMBER: builtins.int
+    DISABLED_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -139,6 +144,18 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
     singleton: builtins.bool
+    @property
+    def aggregations(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Aggregation_pb2.Aggregation]:
+        """Aggregation definitions"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
+    org: builtins.str
+    """Organizational unit that owns this feature view (e.g. "ads", "search")."""
+    disabled: builtins.bool
+    """Whether this feature view is disabled for serving.
+    When true, the feature view will not serve features.
+    Defaults to false (enabled) for backward compatibility.
+    """
     def __init__(
         self,
         *,
@@ -156,9 +173,13 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         entities: collections.abc.Iterable[builtins.str] | None = ...,
         entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         singleton: builtins.bool = ...,
+        aggregations: collections.abc.Iterable[feast.core.Aggregation_pb2.Aggregation] | None = ...,
+        version: builtins.str = ...,
+        org: builtins.str = ...,
+        disabled: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "write_to_online_store", b"write_to_online_store"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["aggregations", b"aggregations", "description", b"description", "disabled", b"disabled", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "org", b"org", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "version", b"version", "write_to_online_store", b"write_to_online_store"]) -> None: ...
 
 global___OnDemandFeatureViewSpec = OnDemandFeatureViewSpec
 
@@ -167,20 +188,32 @@ class OnDemandFeatureViewMeta(google.protobuf.message.Message):
 
     CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+    CURRENT_VERSION_NUMBER_FIELD_NUMBER: builtins.int
+    VERSION_ID_FIELD_NUMBER: builtins.int
+    STATE_FIELD_NUMBER: builtins.int
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
     @property
     def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is last updated"""
+    current_version_number: builtins.int
+    """The current version number of this feature view in the version history."""
+    version_id: builtins.str
+    """Auto-generated UUID identifying this specific version."""
+    state: feast.core.FeatureView_pb2.FeatureViewState.ValueType
+    """Lifecycle state of this feature view."""
     def __init__(
         self,
         *,
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        current_version_number: builtins.int = ...,
+        version_id: builtins.str = ...,
+        state: feast.core.FeatureView_pb2.FeatureViewState.ValueType = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "state", b"state", "version_id", b"version_id"]) -> None: ...
 
 global___OnDemandFeatureViewMeta = OnDemandFeatureViewMeta
 

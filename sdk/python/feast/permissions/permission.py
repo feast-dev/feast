@@ -84,7 +84,7 @@ class Permission(ABC):
 
     def __eq__(self, other):
         if not isinstance(other, Permission):
-            raise TypeError("Comparisons should only involve Permission class objects.")
+            return False
 
         if (
             self.name != other.name
@@ -277,4 +277,5 @@ _PERMISSION_TYPES = {
     "VALIDATION_REFERENCE": "feast.saved_dataset.ValidationReference",
     "SAVED_DATASET": "feast.saved_dataset.SavedDataset",
     "PERMISSION": "feast.permissions.permission.Permission",
+    "LABEL_VIEW": "feast.labeling.label_view.LabelView",
 }

@@ -1,4 +1,3 @@
-
 # Running Feast Python / Go Feature Server with Redis on Kubernetes 
 
 For this tutorial, we set up Feast with Redis. 
@@ -64,7 +63,7 @@ Manifests have been taken from [Deploy Minio in your project](https://ai-on-open
       connection_string: localhost:6379,password=****
     offline_store:
       type: file
-    entity_key_serialization_version: 2
+    entity_key_serialization_version: 3
     ```
 1. To run `feast apply` from the current machine we need to define the AWS credentials to connect the MinIO S3 store, which
 are defined in [minio.env](./minio.env):
@@ -142,7 +141,7 @@ are defined in [minio.env](./minio.env):
     ]'
     kubectl wait --for=condition=available deployment/online-server --timeout=2m
     ```
-1. (Optional): check logs of the server to make sure it’s working
+1. (Optional): check logs of the server to make sure it's working
    ```bash
    kubectl logs svc/online-server
    ```

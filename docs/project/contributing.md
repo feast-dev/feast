@@ -5,6 +5,8 @@ After familiarizing yourself with the documentation, the simplest way to get sta
 1. Setup your developer environment by following [development guide](development-guide.md). 
 2. Either create a [GitHub issue](https://github.com/feast-dev/feast/issues) or make a draft PR (following [development guide](development-guide.md)) to get the ball rolling!
 
+> **Reporting a security vulnerability?** Do not open an issue or PR. Report it privately through [GitHub's advisory form](https://github.com/feast-dev/feast/security/advisories/new); see the [security policy](https://github.com/feast-dev/feast/blob/master/SECURITY.md).
+
 ## Decision making process
 *See [governance](../../community/governance.md) for more details here*
 
@@ -22,9 +24,22 @@ PRs that are submitted by the general public need to be identified as `ok-to-tes
 
 See also [Making a pull request](development-guide.md#making-a-pull-request) for other guidelines on making pull requests in Feast.
 
+## RFCs and Architecture Decision Records
+
+For substantial changes (new features, architecture changes, removing features), we use an RFC process. See the [governance document](../../community/governance.md#rfcs-process) for details.
+
+Once an RFC is finalized and approved, it should be recorded as an Architecture Decision Record (ADR) in the [`docs/adr/`](../adr/README.md) directory. This ensures that architectural decisions are version-controlled alongside the codebase and easily accessible to all contributors.
+
+To add a finalized RFC as an ADR:
+
+1. Copy the [ADR template](../adr/ADR-TEMPLATE.md) to a new file with the next sequential number.
+2. Summarize the RFC's context, decision, and consequences.
+3. Submit a pull request with the new ADR.
+
 ## Resources
 
 - [Community](../community.md) for other ways to get involved with the community
 - [Development guide](development-guide.md) for tips on how to contribute
 - [Feast GitHub issues](https://github.com/feast-dev/feast/issues) to see what others are working on
 - [Feast RFCs](https://drive.google.com/drive/u/0/folders/1msUsgmDbVBaysmhBlg9lklYLLTMk4bC3) for a folder of previously written RFCs
+- [Architecture Decision Records](../adr/README.md) for documented architectural decisions

@@ -22,4 +22,4 @@ online_store:
 #online_store:
 #   type: redis
 #   connection_string: "localhost:6379"
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

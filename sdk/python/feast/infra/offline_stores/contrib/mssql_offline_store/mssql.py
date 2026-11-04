@@ -118,6 +118,8 @@ class MsSqlServerOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class MsSqlServerOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -151,6 +153,7 @@ class MsSqlServerOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         # TODO avoid this conversion
         if type(entity_df) == str:
@@ -168,6 +171,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             data_source_reader=_build_data_source_reader(config),
             data_source_writer=_build_data_source_writer(config),
             event_expire_timestamp_fn=mssql_event_expire_timestamp_fn,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
     @staticmethod
@@ -177,8 +181,9 @@ class MsSqlServerOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         return pull_all_from_table_or_query_ibis(
             config=config,
@@ -186,6 +191,7 @@ class MsSqlServerOfflineStore(OfflineStore):
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
             data_source_reader=_build_data_source_reader(config),

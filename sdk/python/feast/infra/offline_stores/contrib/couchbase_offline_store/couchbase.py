@@ -42,6 +42,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 from ... import offline_utils
+from ...offline_utils import get_timestamp_filter_sql
 from .couchbase_source import (
     CouchbaseColumnarSource,
     SavedDatasetCouchbaseColumnarStorage,
@@ -63,6 +64,8 @@ class CouchbaseColumnarOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class CouchbaseColumnarOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -135,6 +138,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
     ) -> RetrievalJob:
         """
         Retrieve historical features using point-in-time joins.
@@ -196,6 +200,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
                 yield query
             finally:
@@ -228,8 +233,9 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Fetch all rows from the specified table or query within the time range.
@@ -243,17 +249,28 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         assert isinstance(data_source, CouchbaseColumnarSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
-
-        start_date_normalized = normalize_timestamp(start_date)
-        end_date_normalized = normalize_timestamp(end_date)
+        start_date_normalized = (
+            f"`{normalize_timestamp(start_date)}`" if start_date else None
+        )
+        end_date_normalized = f"`{normalize_timestamp(end_date)}`" if end_date else None
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_normalized,
+            end_date_normalized,
+            timestamp_field,
+            cast_style="raw",
+            quote_fields=False,
+        )
 
         query = f"""
         SELECT {field_string}
         FROM {from_expression}
-        WHERE `{timestamp_field}` BETWEEN '{start_date_normalized}' AND '{end_date_normalized}'
+        WHERE {timestamp_filter}
         """
 
         return CouchbaseColumnarRetrievalJob(
@@ -468,6 +485,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Couchbase Columnar"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -494,6 +512,7 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
     }
 
     query = template.render(template_context)
@@ -606,6 +625,9 @@ WITH entity_dataframe AS (
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
         {% if featureview.ttl == 0 %}{% else %}
         AND date_diff_str(entity_dataframe.entity_timestamp, subquery.event_timestamp, "second") <= {{ featureview.ttl }}
+        {% endif %}
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
         {% for entity in featureview.entities %}
         AND subquery.`{{ entity }}` = entity_dataframe.`{{ entity }}`

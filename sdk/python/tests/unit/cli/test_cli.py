@@ -1,13 +1,22 @@
 import os
+import platform
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
+import pytest
 from assertpy import assertpy
 
 from tests.utils.cli_repo_creator import CliRunner
+
+# Skip all tests in this module on macOS CI due to Ray/uv subprocess compatibility issues
+# The CliRunner spawns subprocesses that hang when Ray tries to spawn workers
+pytestmark = pytest.mark.skipif(
+    platform.system() == "Darwin" and os.environ.get("CI") == "true",
+    reason="Skip CLI tests on macOS CI due to Ray/uv subprocess compatibility issues",
+)
 
 
 def test_3rd_party_providers() -> None:
@@ -121,7 +130,7 @@ def setup_third_party_provider_repo(provider_name: str):
             type: sqlite
         offline_store:
             type: file
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
             )
         )
@@ -158,7 +167,7 @@ def setup_third_party_registry_store_repo(
             type: sqlite
         offline_store:
             type: file
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
             )
         )
@@ -189,4 +198,41 @@ def test_cli_configuration():
         assertpy.assert_that(output).contains(b"type: sqlite")
         assertpy.assert_that(output).contains(b"path: data/online_store.db")
         assertpy.assert_that(output).contains(b"type: file")
-        assertpy.assert_that(output).contains(b"entity_key_serialization_version: 2")
+        assertpy.assert_that(output).contains(b"entity_key_serialization_version: 3")
+
+
+def test_cli_materialize_disable_event_timestamp():
+    """
+    Unit test for the 'feast materialize --disable-event-timestamp' command
+    """
+    runner = CliRunner()
+
+    with setup_third_party_provider_repo("local") as repo_path:
+        # Test that --disable-event-timestamp flag works without timestamps
+        return_code, output = runner.run_with_output(
+            ["materialize", "--disable-event-timestamp"], cwd=repo_path
+        )
+        # Should succeed (though may not have data to materialize)
+        assertpy.assert_that(return_code).is_equal_to(0)
+
+        # Test that providing timestamps with --disable-event-timestamp fails
+        return_code, output = runner.run_with_output(
+            [
+                "materialize",
+                "--disable-event-timestamp",
+                "2021-01-01T00:00:00",
+                "2021-01-02T00:00:00",
+            ],
+            cwd=repo_path,
+        )
+        assertpy.assert_that(return_code).is_equal_to(2)  # Click usage error
+        assertpy.assert_that(output).contains(
+            b"Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
+        )
+
+        # Test that missing timestamps without flag fails
+        return_code, output = runner.run_with_output(["materialize"], cwd=repo_path)
+        assertpy.assert_that(return_code).is_equal_to(2)  # Click usage error
+        assertpy.assert_that(output).contains(
+            b"START_TS and END_TS are required unless --disable-event-timestamp is used"
+        )

@@ -10,12 +10,12 @@ user_perm = Permission(
     name="feast_user_permission",
     types=ALL_RESOURCE_TYPES,
     policy=RoleBasedPolicy(roles=user_roles),
-    actions=[AuthzedAction.DESCRIBE] + READ
+    actions=[AuthzedAction.DESCRIBE] + READ,
 )
 
 admin_perm = Permission(
     name="feast_admin_permission",
     types=ALL_RESOURCE_TYPES,
     policy=RoleBasedPolicy(roles=admin_roles),
-    actions=ALL_ACTIONS
+    actions=ALL_ACTIONS,
 )

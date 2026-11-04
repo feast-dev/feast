@@ -1,2 +1,3 @@
 src/protos.d.ts
 src/protos.js
+feature_repo/data/*.parquet

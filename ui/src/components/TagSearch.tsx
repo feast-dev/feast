@@ -33,13 +33,13 @@ const suggestionFormatter = (item: TagSuggestionInstance) => {
 };
 
 const getCursorPosition = (
-  inputNode: React.MutableRefObject<HTMLInputElement | null>
+  inputNode: React.MutableRefObject<HTMLInputElement | null>,
 ) => {
   return inputNode.current?.selectionStart || undefined;
 };
 
 const computePlaceholderText = (
-  tagSuggestions: TagSuggestionInstance[] | undefined
+  tagSuggestions: TagSuggestionInstance[] | undefined,
 ) => {
   return !tagSuggestions
     ? ""
@@ -53,7 +53,7 @@ const computePlaceholderText = (
 const generateResultsCount = (
   currentTag: string,
   suggestionMode: SuggestionModes,
-  tagSuggestions: TagSuggestionInstance[]
+  tagSuggestions: TagSuggestionInstance[],
 ) => {
   let resultsCount = undefined;
 
@@ -76,7 +76,7 @@ const generateResultsCount = (
 // Hooks
 const useInputHack = (
   setTagsString: (s: string) => void,
-  setCursorPosition: (n: number | undefined) => void
+  setCursorPosition: (n: number | undefined) => void,
 ) => {
   // HACK --- route around the lack of onChange
   // See: https://github.com/elastic/eui/issues/5651
@@ -107,10 +107,10 @@ const useInputHack = (
 
 const useSelectableOptions = (
   tagSuggestions: TagSuggestionInstance[],
-  acceptSuggestion: (suggestion: TagSuggestionInstance) => void
+  acceptSuggestion: (suggestion: TagSuggestionInstance) => void,
 ) => {
   const [options, setOptions] = useState<SelectableOption[]>(
-    tagSuggestions ? tagSuggestions.map(suggestionFormatter) : []
+    tagSuggestions ? tagSuggestions.map(suggestionFormatter) : [],
   );
 
   const onSelectableChange = (options: SelectableOption[]) => {
@@ -150,7 +150,7 @@ const TagSearch = ({
   // Handling Suggestion Options
   const { options, onSelectableChange } = useSelectableOptions(
     tagSuggestions, // Gets turned into options
-    acceptSuggestion // Get triggered when an option is selected
+    acceptSuggestion, // Get triggered when an option is selected
   );
 
   // Using EuiInputPopover: https://elastic.github.io/eui/#/layout/popover
@@ -173,7 +173,7 @@ const TagSearch = ({
   const resultsCount = generateResultsCount(
     currentTag,
     suggestionMode,
-    tagSuggestions
+    tagSuggestions,
   );
 
   return (

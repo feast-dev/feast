@@ -1,6 +1,7 @@
 import contextlib
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from enum import Enum
 from typing import (
     Any,
     Callable,
@@ -33,6 +34,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
@@ -40,19 +42,41 @@ from feast.infra.utils.postgres.connection_utils import (
     get_query_schema,
 )
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
+    empty_categorical_metric,
+    empty_numeric_metric,
+    monitoring_table_meta,
+    normalize_monitoring_row,
+    opt_float,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
+from feast.utils import compute_non_entity_date_range
 
 from .postgres_source import PostgreSQLSource
 
 
+class EntitySelectMode(Enum):
+    temp_table = "temp_table"
+    """ Use a temporary table to store the entity DataFrame or SQL query when querying feature data """
+    embed_query = "embed_query"
+    """ Use the entity SQL query directly when querying feature data """
+
+
 class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
+    entity_select_mode: EntitySelectMode = EntitySelectMode.temp_table
 
 
 class PostgreSQLOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -77,14 +101,35 @@ class PostgreSQLOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(_append_alias(timestamps, "a")) + " DESC"
-        a_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
-        )
-        b_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
-        )
-
-        query = f"""
+        # Empty feature_name_columns means "all source columns". BatchFeatureView
+        # python/pandas/ray transforms signal this via get_column_info. Selecting
+        # only join keys + timestamps would starve the UDF of input features.
+        if not feature_name_columns:
+            distinct_on = ", ".join(f'a."{c}"' for c in join_key_columns) or (
+                f'a."{timestamp_field}"'
+            )
+            order_by_parts = [f'a."{c}"' for c in join_key_columns] + [
+                f'a."{timestamp_field}" DESC'
+            ]
+            if created_timestamp_column:
+                order_by_parts.append(f'a."{created_timestamp_column}" DESC')
+            order_by = ", ".join(order_by_parts)
+            query = f"""
+            SELECT DISTINCT ON ({distinct_on})
+                a.*
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
+            FROM {from_expression} a
+            WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            ORDER BY {order_by}
+            """
+        else:
+            a_field_string = ", ".join(
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
+            )
+            b_field_string = ", ".join(
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
+            )
+            query = f"""
             SELECT
                 {b_field_string}
                 {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
@@ -109,14 +154,27 @@ class PostgreSQLOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, PostgreSQLSource)
+        start_date: Optional[datetime] = kwargs.get("start_date")
+        end_date: Optional[datetime] = kwargs.get("end_date")
+
+        # Handle non-entity retrieval mode
+        if entity_df is None:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -124,17 +182,34 @@ class PostgreSQLOfflineStore(OfflineStore):
             offline_utils.infer_event_timestamp_from_entity_df(entity_schema)
         )
 
-        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            entity_df_event_timestamp_col,
-            config,
-        )
+        # In non-entity mode, use the actual requested range so that
+        # min_event_timestamp (= range[0] - TTL) doesn't clip the window.
+        # The synthetic entity_df only has end_date, which would wrongly
+        # set min_event_timestamp to end_date - TTL instead of start_date - TTL.
+        if start_date is not None and end_date is not None:
+            entity_df_event_timestamp_range = (start_date, end_date)
+        else:
+            entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+                entity_df,
+                entity_df_event_timestamp_col,
+                config,
+            )
 
         @contextlib.contextmanager
         def query_generator() -> Iterator[str]:
             table_name = offline_utils.get_temp_entity_table_name()
 
-            _upload_entity_df(config, entity_df, table_name)
+            # If using CTE and entity_df is a SQL query, we don't need a table
+            use_cte = (
+                isinstance(entity_df, str)
+                and config.offline_store.entity_select_mode
+                == EntitySelectMode.embed_query
+            )
+            if use_cte:
+                left_table_query_string = entity_df
+            else:
+                left_table_query_string = table_name
+                _upload_entity_df(config, entity_df, table_name)
 
             expected_join_keys = offline_utils.get_expected_join_keys(
                 project, feature_views, registry
@@ -163,14 +238,22 @@ class PostgreSQLOfflineStore(OfflineStore):
             try:
                 yield build_point_in_time_query(
                     query_context_dict,
-                    left_table_query_string=table_name,
+                    left_table_query_string=left_table_query_string,
                     entity_df_event_timestamp_col=entity_df_event_timestamp_col,
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
+                    use_cte=use_cte,
+                    start_date=start_date,
+                    end_date=end_date,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
             finally:
-                if table_name:
+                # Only cleanup if we created a table
+                if (
+                    config.offline_store.entity_select_mode
+                    == EntitySelectMode.temp_table
+                ):
                     with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
                         cur.execute(
                             sql.SQL(
@@ -202,24 +285,42 @@ class PostgreSQLOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
-        field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
-        )
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
+        # Empty feature_name_columns => SELECT * (BatchFeatureView python mode).
+        # Default materialization uses pull_all (pull_latest_features=False).
+        if not feature_name_columns:
+            field_string = "paftoq_alias.*"
+        else:
+            field_string = ", ".join(
+                _append_alias(
+                    join_key_columns + feature_name_columns + timestamp_fields,
+                    "paftoq_alias",
+                )
+            )
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            cast_style="timestamptz",
+            date_time_separator=" ",  # backwards compatibility but inconsistent with other offline stores
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression} AS paftoq_alias
-            WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            WHERE {timestamp_filter}
         """
 
         return PostgreSQLRetrievalJob(
@@ -228,6 +329,275 @@ class PostgreSQLOfflineStore(OfflineStore):
             full_feature_names=False,
             on_demand_feature_views=None,
         )
+
+    @staticmethod
+    def compute_monitoring_metrics(
+        config: RepoConfig,
+        data_source: DataSource,
+        feature_columns: List[Tuple[str, str]],
+        timestamp_field: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        histogram_bins: int = 20,
+        top_n: int = 10,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        assert isinstance(data_source, PostgreSQLSource)
+
+        from_expression = data_source.get_table_query_string()
+        ts_filter = (
+            get_timestamp_filter_sql(
+                start_date,
+                end_date,
+                timestamp_field,
+                tz=timezone.utc,
+                cast_style="timestamptz",
+                date_time_separator=" ",
+            )
+            or "1=1"
+        )
+
+        numeric_features = [n for n, t in feature_columns if t == "numeric"]
+        categorical_features = [n for n, t in feature_columns if t == "categorical"]
+        results: List[Dict[str, Any]] = []
+
+        with _get_conn(config.offline_store) as conn:
+            conn.read_only = True
+
+            if numeric_features:
+                results.extend(
+                    _sql_numeric_stats(
+                        conn,
+                        from_expression,
+                        numeric_features,
+                        ts_filter,
+                        histogram_bins,
+                    )
+                )
+
+            for col_name in categorical_features:
+                results.append(
+                    _sql_categorical_stats(
+                        conn,
+                        from_expression,
+                        col_name,
+                        ts_filter,
+                        top_n,
+                    )
+                )
+
+        return results
+
+    @staticmethod
+    def get_monitoring_max_timestamp(
+        config: RepoConfig,
+        data_source: DataSource,
+        timestamp_field: str,
+    ) -> Optional[datetime]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        assert isinstance(data_source, PostgreSQLSource)
+
+        from_expression = data_source.get_table_query_string_with_alias("max_ts_alias")
+
+        with _get_conn(config.offline_store) as conn:
+            conn.read_only = True
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT MAX("{timestamp_field}") FROM {from_expression}')
+                row = cur.fetchone()
+
+        if row is None or row[0] is None:
+            return None
+        val = row[0]
+        if isinstance(val, datetime):
+            return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+
+    # ------------------------------------------------------------------ #
+    #  Monitoring metrics storage (native PostgreSQL)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def ensure_monitoring_tables(config: RepoConfig) -> None:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+        with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255) NOT NULL,
+                    feature_name      VARCHAR(255) NOT NULL,
+                    metric_date       DATE         NOT NULL,
+                    granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
+                    is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
+                    feature_type      VARCHAR(50)  NOT NULL,
+                    row_count         BIGINT,
+                    null_count        BIGINT,
+                    null_rate         DOUBLE PRECISION,
+                    mean              DOUBLE PRECISION,
+                    stddev            DOUBLE PRECISION,
+                    min_val           DOUBLE PRECISION,
+                    max_val           DOUBLE PRECISION,
+                    p50               DOUBLE PRECISION,
+                    p75               DOUBLE PRECISION,
+                    p90               DOUBLE PRECISION,
+                    p95               DOUBLE PRECISION,
+                    p99               DOUBLE PRECISION,
+                    histogram         JSONB,
+                    PRIMARY KEY (project_id, feature_view_name, feature_name,
+                                 metric_date, granularity, data_source_type)
+                );
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_project
+                    ON {MON_TABLE_FEATURE} (project_id);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_view
+                    ON {MON_TABLE_FEATURE} (project_id, feature_view_name);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_date
+                    ON {MON_TABLE_FEATURE} (metric_date);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_granularity
+                    ON {MON_TABLE_FEATURE} (granularity);
+                CREATE INDEX IF NOT EXISTS idx_fm_feature_metrics_baseline
+                    ON {MON_TABLE_FEATURE} (project_id, feature_view_name, feature_name)
+                    WHERE is_baseline = TRUE;
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255) NOT NULL,
+                    metric_date       DATE         NOT NULL,
+                    granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
+                    is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
+                    total_row_count   BIGINT,
+                    total_features    INTEGER,
+                    features_with_nulls INTEGER,
+                    avg_null_rate     DOUBLE PRECISION,
+                    max_null_rate     DOUBLE PRECISION,
+                    PRIMARY KEY (project_id, feature_view_name, metric_date,
+                                 granularity, data_source_type)
+                );
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
+                    project_id           VARCHAR(255) NOT NULL,
+                    feature_service_name VARCHAR(255) NOT NULL,
+                    metric_date          DATE         NOT NULL,
+                    granularity          VARCHAR(20)  NOT NULL DEFAULT 'daily',
+                    data_source_type     VARCHAR(50)  NOT NULL DEFAULT 'batch',
+                    computed_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp  TIMESTAMPTZ,
+                    is_baseline          BOOLEAN      NOT NULL DEFAULT FALSE,
+                    total_feature_views  INTEGER,
+                    total_features       INTEGER,
+                    avg_null_rate        DOUBLE PRECISION,
+                    max_null_rate        DOUBLE PRECISION,
+                    PRIMARY KEY (project_id, feature_service_name, metric_date,
+                                 granularity, data_source_type)
+                );
+            """)
+
+            cur.execute(f"""
+                ALTER TABLE {MON_TABLE_FEATURE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_VIEW}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_SERVICE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+            """)
+
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {MON_TABLE_JOB} (
+                    job_id            VARCHAR(36) PRIMARY KEY,
+                    project_id        VARCHAR(255) NOT NULL,
+                    feature_view_name VARCHAR(255),
+                    job_type          VARCHAR(50)  NOT NULL,
+                    status            VARCHAR(20)  NOT NULL DEFAULT 'pending',
+                    parameters        TEXT,
+                    metric_date       DATE         NOT NULL,
+                    started_at        TIMESTAMPTZ,
+                    completed_at      TIMESTAMPTZ,
+                    error_message     TEXT,
+                    result_summary    TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_fm_jobs_status
+                    ON {MON_TABLE_JOB} (status);
+                CREATE INDEX IF NOT EXISTS idx_fm_jobs_project
+                    ON {MON_TABLE_JOB} (project_id);
+            """)
+            conn.commit()
+
+    @staticmethod
+    def save_monitoring_metrics(
+        config: RepoConfig,
+        metric_type: str,
+        metrics: List[Dict[str, Any]],
+    ) -> None:
+        if not metrics:
+            return
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        table, columns, pk_columns = monitoring_table_meta(metric_type)
+        _mon_upsert(config.offline_store, table, columns, pk_columns, metrics)
+
+    @staticmethod
+    def query_monitoring_metrics(
+        config: RepoConfig,
+        project: str,
+        metric_type: str,
+        filters: Optional[Dict[str, Any]] = None,
+        start_date: Optional["date"] = None,
+        end_date: Optional["date"] = None,
+    ) -> List[Dict[str, Any]]:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        _, columns, _ = monitoring_table_meta(metric_type)
+        return _mon_query(
+            config.offline_store,
+            metric_type,
+            columns,
+            project,
+            filters,
+            start_date,
+            end_date,
+        )
+
+    @staticmethod
+    def clear_monitoring_baseline(
+        config: RepoConfig,
+        project: str,
+        feature_view_name: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        data_source_type: Optional[str] = None,
+    ) -> None:
+        assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+
+        conditions = [sql.SQL("project_id = %s")]
+        params: list = [project]
+
+        if feature_view_name:
+            conditions.append(sql.SQL("feature_view_name = %s"))
+            params.append(feature_view_name)
+        if feature_name:
+            conditions.append(sql.SQL("feature_name = %s"))
+            params.append(feature_name)
+        if data_source_type:
+            conditions.append(sql.SQL("data_source_type = %s"))
+            params.append(data_source_type)
+
+        conditions.append(sql.SQL("is_baseline = TRUE"))
+
+        query = sql.SQL("UPDATE {} SET is_baseline = FALSE WHERE {}").format(
+            sql.Identifier(MON_TABLE_FEATURE),
+            sql.SQL(" AND ").join(conditions),
+        )
+
+        with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
+            cur.execute(query, params)
+            conn.commit()
 
 
 class PostgreSQLRetrievalJob(RetrievalJob):
@@ -362,6 +732,10 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
+    use_cte: bool = False,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -389,6 +763,10 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
+        "use_cte": use_cte,
+        "start_date": start_date,
+        "end_date": end_date,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
     }
 
     query = template.render(template_context)
@@ -429,11 +807,122 @@ def _get_entity_schema(
 # https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/redshift.py
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+{% if start_date and end_date %}
+/*
+ Non-entity timestamp range query - use JOINs to combine features into single rows
+*/
+{% if featureviews | length == 1 %}
+SELECT
+    "{{ featureviews[0].timestamp_field }}" AS event_timestamp,
+    {% if featureviews[0].created_timestamp_column %}
+    "{{ featureviews[0].created_timestamp_column }}" AS created_timestamp,
+    {% endif %}
+    {% for entity in featureviews[0].entities %}
+    "{{ entity }}",
+    {% endfor %}
+    {% for feature in featureviews[0].features %}
+    "{{ feature }}" AS {% if full_feature_names %}"{{ featureviews[0].name }}__{{ featureviews[0].field_mapping.get(feature, feature) }}"{% else %}"{{ featureviews[0].field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+    {% endfor %}
+    FROM {{ featureviews[0].table_subquery }} as fv_alias
+WHERE "{{ featureviews[0].timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+{% if featureviews[0].ttl != 0 and featureviews[0].min_event_timestamp %}
+AND "{{ featureviews[0].timestamp_field }}" >= '{{ featureviews[0].min_event_timestamp }}'
+{% endif %}
+{% else %}
+WITH
+{% for featureview in featureviews %}
+"{{ featureview.name }}__data" AS (
+    SELECT
+        "{{ featureview.timestamp_field }}" AS event_timestamp,
+        {% if featureview.created_timestamp_column %}
+        "{{ featureview.created_timestamp_column }}" AS created_timestamp,
+        {% endif %}
+        {% for entity in featureview.entities %}
+        "{{ entity }}",
+        {% endfor %}
+        {% for feature in featureview.features %}
+        "{{ feature }}" AS {% if full_feature_names %}"{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM {{ featureview.table_subquery }} AS sub
+    WHERE "{{ featureview.timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+    {% if featureview.ttl != 0 and featureview.min_event_timestamp %}
+    AND "{{ featureview.timestamp_field }}" >= '{{ featureview.min_event_timestamp }}'
+    {% endif %}
+),
+{% endfor %}
+
+-- Create a base query with all unique entity + timestamp combinations
+base_entities AS (
+    {% for featureview in featureviews %}
+    SELECT DISTINCT
+        event_timestamp,
+        {% for entity in featureview.entities %}
+        "{{ entity }}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data"
+    {% if not loop.last %}
+    UNION
+    {% endif %}
+    {% endfor %}
+)
+
+SELECT
+    base.event_timestamp,
+    {% set all_entities = [] %}
+    {% for featureview in featureviews %}
+        {% for entity in featureview.entities %}
+            {% if entity not in all_entities %}
+                {% set _ = all_entities.append(entity) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    {% for entity in all_entities %}
+    base."{{ entity }}",
+    {% endfor %}
+    {% set total_features = featureviews|map(attribute='features')|map('length')|sum %}
+    {% set feature_counter = namespace(count=0) %}
+    {% for featureview in featureviews %}
+        {% set outer_loop_index = loop.index0 %}
+        {% for feature in featureview.features %}
+        {% set feature_counter.count = feature_counter.count + 1 %}
+        fv_{{ outer_loop_index }}."{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if feature_counter.count < total_features %},{% endif %}
+        {% endfor %}
+    {% endfor %}
+FROM base_entities base
+{% for featureview in featureviews %}
+{% set outer_loop_index = loop.index0 %}
+LEFT JOIN LATERAL (
+    SELECT DISTINCT ON ({% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %})
+        event_timestamp,
+        {% for entity in featureview.entities %}
+        "{{ entity }}",
+        {% endfor %}
+        {% for feature in featureview.features %}
+        "{% if full_feature_names %}{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
+    WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
+    {% if featureview.ttl != 0 %}
+    AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
+    {% endif %}
+    {% for entity in featureview.entities %}
+    AND fv_sub_{{ outer_loop_index }}."{{ entity }}" = base."{{ entity }}"
+    {% endfor %}
+    ORDER BY {% for entity in featureview.entities %}"{{ entity }}"{% if not loop.last %}, {% endif %}{% endfor %}, event_timestamp DESC
+) AS fv_{{ outer_loop_index }} ON true
+{% endfor %}
+ORDER BY base.event_timestamp
+{% endif %}
+{% else %}
+WITH
+{% if use_cte %}
+    entity_query AS ({{ left_table_query_string }}),
+{% endif %}
 /*
  Compute a deterministic hash for the `left_table_query_string` that will be used throughout
  all the logic as the field to GROUP BY the data
 */
-WITH entity_dataframe AS (
+entity_dataframe AS (
     SELECT *,
         {{entity_df_event_timestamp_col}} AS entity_timestamp
         {% for featureview in featureviews %}
@@ -448,8 +937,17 @@ WITH entity_dataframe AS (
             ,CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR) AS "{{featureview.name}}__entity_row_unique_id"
             {% endif %}
         {% endfor %}
-    FROM {{ left_table_query_string }}
-),
+    FROM
+        {% if use_cte %}
+            entity_query
+        {% else %}
+            {{ left_table_query_string }}
+        {% endif %}
+)
+
+{% if featureviews | length > 0 %}
+,
+{% endif %}
 
 {% for featureview in featureviews %}
 
@@ -509,6 +1007,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}
@@ -594,4 +1096,297 @@ LEFT JOIN (
     FROM "{{ featureview.name }}__cleaned"
 ) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
 {% endfor %}
+{% endif %}
 """
+
+
+# ------------------------------------------------------------------ #
+#  Monitoring SQL push-down helpers
+# ------------------------------------------------------------------ #
+
+
+def _sql_numeric_stats(
+    conn,
+    from_expression: str,
+    feature_names: List[str],
+    ts_filter: str,
+    histogram_bins: int,
+) -> List[Dict[str, Any]]:
+    """Batch-compute numeric statistics via one SQL query, then histograms."""
+    # 11 aggregate columns per feature (non_null, mean..p99) + 1 row_count
+    select_parts = ["COUNT(*)"]
+    for col in feature_names:
+        q = f'"{col}"'
+        c = f"{q}::float8"
+        select_parts.extend(
+            [
+                f"COUNT({q})",
+                f"AVG({c})",
+                f"STDDEV_SAMP({c})",
+                f"MIN({c})",
+                f"MAX({c})",
+                f"PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY {c})",
+                f"PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY {c})",
+            ]
+        )
+
+    query = (
+        f"SELECT {', '.join(select_parts)} "
+        f"FROM {from_expression} AS _src WHERE {ts_filter}"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        row = cur.fetchone()
+
+    if row is None:
+        return [empty_numeric_metric(n) for n in feature_names]
+
+    row_count = row[0]
+    results: List[Dict[str, Any]] = []
+
+    for i, col in enumerate(feature_names):
+        base = 1 + i * 10
+        non_null = row[base] or 0
+        null_count = row_count - non_null
+
+        min_val = opt_float(row[base + 3])
+        max_val = opt_float(row[base + 4])
+
+        result: Dict[str, Any] = {
+            "feature_name": col,
+            "feature_type": "numeric",
+            "row_count": row_count,
+            "null_count": null_count,
+            "null_rate": null_count / row_count if row_count > 0 else 0.0,
+            "mean": opt_float(row[base + 1]),
+            "stddev": opt_float(row[base + 2]),
+            "min_val": min_val,
+            "max_val": max_val,
+            "p50": opt_float(row[base + 5]),
+            "p75": opt_float(row[base + 6]),
+            "p90": opt_float(row[base + 7]),
+            "p95": opt_float(row[base + 8]),
+            "p99": opt_float(row[base + 9]),
+            "histogram": None,
+        }
+
+        if min_val is not None and max_val is not None and non_null > 0:
+            result["histogram"] = _sql_numeric_histogram(
+                conn,
+                from_expression,
+                col,
+                ts_filter,
+                histogram_bins,
+                min_val,
+                max_val,
+            )
+
+        results.append(result)
+
+    return results
+
+
+def _sql_numeric_histogram(
+    conn,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    bins: int,
+    min_val: float,
+    max_val: float,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    if min_val == max_val:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) FROM {from_expression} AS _src "
+                f"WHERE {q_col} IS NOT NULL AND {ts_filter}"
+            )
+            cnt = (cur.fetchone() or (0,))[0]
+        return {"bins": [min_val, max_val], "counts": [cnt], "bin_width": 0.0}
+
+    upper = max_val + (max_val - min_val) * 1e-10
+    bin_width = (max_val - min_val) / bins
+
+    query = (
+        f"SELECT width_bucket({q_col}::float8, {min_val}, {upper}, {bins}) AS bucket, "
+        f"COUNT(*) AS cnt "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {q_col} IS NOT NULL AND {ts_filter} "
+        f"GROUP BY bucket ORDER BY bucket"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+
+    counts = [0] * bins
+    for bucket, cnt in rows:
+        if 1 <= bucket <= bins:
+            counts[bucket - 1] = cnt
+
+    bin_edges = [min_val + i * bin_width for i in range(bins + 1)]
+    return {
+        "bins": [float(b) for b in bin_edges],
+        "counts": counts,
+        "bin_width": float(bin_width),
+    }
+
+
+def _sql_categorical_stats(
+    conn,
+    from_expression: str,
+    col_name: str,
+    ts_filter: str,
+    top_n: int,
+) -> Dict[str, Any]:
+    q_col = f'"{col_name}"'
+
+    query = (
+        f"WITH filtered AS ("
+        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_filter}"
+        f") "
+        f"SELECT "
+        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
+        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
+        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
+        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
+        f"  {q_col}::text AS value, COUNT(*) AS cnt "
+        f"FROM filtered WHERE {q_col} IS NOT NULL "
+        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+
+    if not rows:
+        return empty_categorical_metric(col_name)
+
+    row_count = rows[0][0]
+    null_count = rows[0][1]
+    unique_count = rows[0][2]
+
+    top_entries = [{"value": r[3], "count": r[4]} for r in rows]
+    top_total = sum(e["count"] for e in top_entries)
+    other_count = (row_count - null_count) - top_total
+
+    return {
+        "feature_name": col_name,
+        "feature_type": "categorical",
+        "row_count": row_count,
+        "null_count": null_count,
+        "null_rate": null_count / row_count if row_count > 0 else 0.0,
+        "mean": None,
+        "stddev": None,
+        "min_val": None,
+        "max_val": None,
+        "p50": None,
+        "p75": None,
+        "p90": None,
+        "p95": None,
+        "p99": None,
+        "histogram": {
+            "values": top_entries,
+            "other_count": max(other_count, 0),
+            "unique_count": unique_count,
+        },
+    }
+
+
+# ------------------------------------------------------------------ #
+#  Monitoring metrics storage helpers
+# ------------------------------------------------------------------ #
+
+
+def _mon_upsert(
+    pg_config: PostgreSQLConfig,
+    table: str,
+    columns: List[str],
+    pk_columns: List[str],
+    rows: List[Dict[str, Any]],
+) -> None:
+    import json as _json
+
+    non_pk = [c for c in columns if c not in pk_columns]
+    col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+    placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in columns)
+    update_clause = sql.SQL(", ").join(
+        sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(c), sql.Identifier(c))
+        for c in non_pk
+    )
+    pk_ids = sql.SQL(", ").join(sql.Identifier(c) for c in pk_columns)
+
+    query = sql.SQL(
+        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT ({}) DO UPDATE SET {}"
+    ).format(sql.Identifier(table), col_ids, placeholders, pk_ids, update_clause)
+
+    with _get_conn(pg_config) as conn, conn.cursor() as cur:
+        for row in rows:
+            values = []
+            for col in columns:
+                val = row.get(col)
+                if col == "histogram" and val is not None:
+                    val = _json.dumps(val)
+                values.append(val)
+            cur.execute(query, values)
+        conn.commit()
+
+
+def _mon_query(
+    pg_config: PostgreSQLConfig,
+    metric_type: str,
+    columns: List[str],
+    project: str,
+    filters: Optional[Dict[str, Any]] = None,
+    start_date: Optional["date"] = None,
+    end_date: Optional["date"] = None,
+) -> List[Dict[str, Any]]:
+    table, _, _ = monitoring_table_meta(metric_type)
+
+    conditions: list = []
+    params: list = []
+
+    if project:
+        conditions.append(sql.SQL("project_id = %s"))
+        params.append(project)
+
+    if filters:
+        for key, value in filters.items():
+            if value is not None:
+                conditions.append(sql.SQL("{} = %s").format(sql.Identifier(key)))
+                params.append(value)
+
+    if start_date:
+        conditions.append(sql.SQL("metric_date >= %s"))
+        params.append(start_date)
+    if end_date:
+        conditions.append(sql.SQL("metric_date <= %s"))
+        params.append(end_date)
+
+    col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+    where = sql.SQL(" AND ").join(conditions) if conditions else sql.SQL("TRUE")
+    order_col = "metric_date" if "metric_date" in columns else "job_id"
+    query = sql.SQL("SELECT {} FROM {} WHERE {} ORDER BY {} ASC").format(
+        col_ids,
+        sql.Identifier(table),
+        where,
+        sql.Identifier(order_col),
+    )
+
+    with _get_conn(pg_config) as conn, conn.cursor() as cur:
+        conn.read_only = True
+        cur.execute(query, params)
+        rows = cur.fetchall()
+
+    results = []
+    for row in rows:
+        record = dict(zip(columns, row))
+        results.append(normalize_monitoring_row(record))
+
+    return results

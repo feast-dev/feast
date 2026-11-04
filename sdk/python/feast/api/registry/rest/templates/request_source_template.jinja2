@@ -1,0 +1,9 @@
+from feast import RequestSource, Field
+from feast.types import {{ feast_types | join(', ') }}
+
+{{ name }} = RequestSource(
+    name="{{ name }}",
+    schema=[
+{% for field in schema_lines %}{{ field }}
+{% endfor %}    ],
+) 

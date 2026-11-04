@@ -15,7 +15,7 @@ const DatasetCustomTabLoadingWrapper = ({
 
   if (!datasetName) {
     throw new Error(
-      "Route doesn't have a 'datasetName' part. This route is likely rendering the wrong component."
+      "Route doesn't have a 'datasetName' part. This route is likely rendering the wrong component.",
     );
   }
 

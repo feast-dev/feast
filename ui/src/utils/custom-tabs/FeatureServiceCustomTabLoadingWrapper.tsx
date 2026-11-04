@@ -15,7 +15,7 @@ const FeatureServiceCustomTabLoadingWrapper = ({
 
   if (!featureServiceName) {
     throw new Error(
-      `This route has no 'featureServiceName' part. This route is likely not supposed to render this component.`
+      `This route has no 'featureServiceName' part. This route is likely not supposed to render this component.`,
     );
   }
 

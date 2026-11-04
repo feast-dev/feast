@@ -9,7 +9,7 @@ We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast
 ## Getting started
 
 ### Which programming language should I use to run Feast in a microservice architecture?
-[We recommend Python](language.md).
+[We recommend Python](architecture/language.md).
 
 ### Do you have any examples of how Feast should be used?
 
@@ -39,7 +39,17 @@ Yes, this is possible. For example, you can use BigQuery as an offline store and
 
 ### How do I run `get_historical_features` without providing an entity dataframe?
 
-Feast does not provide a way to do this right now. This is an area we're actively interested in contributions for. See [GitHub issue](https://github.com/feast-dev/feast/issues/1611)
+Feast does support fetching historical features without passing an entity dataframe with the request.
+
+- **Supported offline stores:** Entity-less (entity dataframe–less) retrieval is supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. Postgres was the first to support it; Dask, Spark, and Ray have followed. Other offline stores may be added based on priority and community demand.
+- **Date range:** Retrieval is controlled by the `start_date` and `end_date` parameters. Supported combinations:
+  - Both params given → data in the given start-to-end time range.
+  - Only `start_date` given → data from the start date to now.
+  - Only `end_date` given → data from (end_date minus feature view TTL) to end_date.
+  - Neither given → data from (TTL window) to now.
+- **Multiple feature views:** When requesting features from multiple feature views in entity-less mode, the feature views must share entity keys so that joins can be performed correctly.
+
+We welcome contributions to add or improve entity-less retrieval. See [GitHub issue #1611](https://github.com/feast-dev/feast/issues/1611).
 
 ### Does Feast provide security or access control?
 

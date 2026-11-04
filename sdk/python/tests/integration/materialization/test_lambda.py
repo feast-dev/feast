@@ -7,14 +7,14 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.types import Float32
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
 )
-from tests.integration.feature_repos.universal.data_sources.redshift import (
+from tests.universal.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency
@@ -38,9 +38,8 @@ def test_lambda_materialization_consistency():
         },
         registry_location=RegistryLocation.S3,
     )
-    # TODO(adchia): figure out why entity_key_serialization_version 2 breaks with this test
     lambda_environment = construct_test_environment(
-        lambda_config, None, entity_key_serialization_version=1
+        lambda_config, None, entity_key_serialization_version=3
     )
 
     df = create_basic_driver_dataset()

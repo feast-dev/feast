@@ -6,6 +6,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from urllib import parse
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
@@ -113,6 +114,10 @@ class MsSqlServerOptions:
 class MsSqlServerSource(DataSource):
     """A MsSqlServerSource object defines a data source that a MsSqlServerOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add MsSqlServerSource to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: str,
@@ -125,6 +130,7 @@ class MsSqlServerSource(DataSource):
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = None,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a MsSqlServerSource object.
 
@@ -162,13 +168,12 @@ class MsSqlServerSource(DataSource):
             owner=owner,
             name=name,
             timestamp_field=event_timestamp_column,
+            connection_ref=connection_ref,
         )
 
     def __eq__(self, other):
         if not isinstance(other, MsSqlServerSource):
-            raise TypeError(
-                "Comparisons should only involve SqlServerSource class objects."
-            )
+            return False
 
         return (
             self.name == other.name
@@ -210,6 +215,7 @@ class MsSqlServerSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         options = json.loads(data_source.custom_options.configuration)
+        tags = dict(data_source.tags)
         return MsSqlServerSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -218,9 +224,11 @@ class MsSqlServerSource(DataSource):
             event_timestamp_column=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            tags=tags,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             type=DataSourceProto.CUSTOM_SOURCE,
             data_source_class_type="feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source.MsSqlServerSource",

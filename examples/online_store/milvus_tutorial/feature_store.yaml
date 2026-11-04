@@ -1,0 +1,16 @@
+project: milvus_tutorial
+provider: local
+registry: data/registry.db
+online_store:
+  type: milvus
+  host: localhost
+  port: 19530
+  vector_enabled: true
+  embedding_dim: 384
+  index_type: "FLAT"
+  metric_type: "L2"
+
+offline_store:
+  type: file
+
+entity_key_serialization_version: 3 

@@ -20,12 +20,15 @@ Options:
 Commands:
   apply                    Create or update a feature store deployment
   configuration            Display Feast configuration
+  delete                   Delete a Feast object from the registry
+  demo-notebooks           Generate demo Jupyter notebooks for the project
   entities                 Access entities
   feature-views            Access feature views
   init                     Create a new Feast repository
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
   permissions              Access permissions
+  registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -33,7 +36,7 @@ Commands:
 
 ## Global Options
 
-The Feast CLI provides one global top-level option that can be used with other commands
+The Feast CLI provides the following global options. Place them before the subcommand.
 
 **chdir \(-c, --chdir\)**
 
@@ -41,6 +44,26 @@ This command allows users to run Feast CLI commands in a different folder from t
 
 ```text
 feast -c path/to/my/feature/repo apply
+```
+
+The repository directory can also be set with the `FEATURE_REPO_DIR_ENV_VAR` environment variable. An explicit `--chdir` option takes precedence.
+
+**feature-store-yaml \(-f, --feature-store-yaml\)**
+
+Use a specific YAML configuration file instead of the default `feature_store.yaml` in the feature repository. Pass the path to the file, not its containing directory.
+
+```text
+feast -c path/to/my/feature/repo -f path/to/config/production.yaml configuration
+```
+
+An explicit relative `--feature-store-yaml` path is resolved from the current working directory, independently of `--chdir`. The `FEAST_FS_YAML_FILE_PATH` environment variable provides a fallback configuration file path when `--feature-store-yaml` is omitted.
+
+**log-level \(--log-level\)**
+
+Set the logging level to `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case-insensitive). The default is `warning`.
+
+```text
+feast --log-level info -c path/to/my/feature/repo apply
 ```
 
 ## Apply
@@ -51,24 +74,49 @@ Creates or updates a feature store deployment
 feast apply
 ```
 
+**Options:**
+* `--skip-source-validation`: Skip validation of data sources (don't check if tables exist)
+* `--skip-feature-view-validation`: Skip validation of feature views. Use with caution as this skips important checks
+
+```bash
+# Skip only data source validation
+feast apply --skip-source-validation
+
+# Skip only feature view validation
+feast apply --skip-feature-view-validation
+
+# Skip both validations
+feast apply --skip-source-validation --skip-feature-view-validation
+```
+
 **What does Feast apply do?**
 
 1. Feast will scan Python files in your feature repository and find all Feast object definitions, such as feature views, entities, and data sources.
-2. Feast will validate your feature definitions (e.g. for uniqueness of features)
+2. Feast will validate your feature definitions (e.g. for uniqueness of features). This validation can be skipped using the `--skip-feature-view-validation` flag if the type/validation system is being overly strict.
 3. Feast will sync the metadata about Feast objects to the registry. If a registry does not exist, then it will be instantiated. The standard registry is a simple protobuf binary file that is stored on disk \(locally or in an object store\).
 4. Feast CLI will create all necessary feature store infrastructure. The exact infrastructure that is deployed or configured depends on the `provider` configuration that you have set in `feature_store.yaml`. For example, setting `local` as your provider will result in a `sqlite` online store being created. 
+
+{% hint style="info" %}
+The `--skip-feature-view-validation` flag is particularly useful for On-Demand Feature Views (ODFVs) with complex transformations that may fail validation. However, use it with caution and please report any validation issues to the Feast team on GitHub.
+{% endhint %}
 
 {% hint style="warning" %}
 `feast apply` \(when configured to use cloud provider like `gcp` or `aws`\) will create cloud infrastructure. This may incur costs.
 {% endhint %}
 
+{% hint style="info" %}
+**Important:** `feast apply` only registers or updates objects found in your Python files. It does **not** delete objects that you've removed from your code. To delete objects from the registry, you must use the `feast delete` command or explicit delete methods in the Python SDK. See the [Delete command](#delete) below and the [Registry documentation](../getting-started/components/registry.md#deleting-objects-from-the-registry) for details.
+{% endhint %}
+
 ## Configuration
 
-Display the actual configuration being used by Feast, including both user-provided configurations and default configurations applied by Feast.
+Display the repository configuration as YAML, including defaults populated when the configuration is loaded. The output is not an exhaustive list of effective defaults: fields that have not been set are omitted. For example, `entity_key_serialization_version` can be absent from the output when it is omitted from `feature_store.yaml`, even though Feast uses its default value of `3`.
 
 ```bash
 feast configuration
 ```
+
+For a repository that explicitly configures the following values, an excerpt of the output looks like:
 
 ```yaml
 project: foo
@@ -79,10 +127,85 @@ online_store:
     path: data/online_store.db
 offline_store: 
     type: dask 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 auth:
     type: no_auth
 ```
+
+## Delete
+
+Delete a Feast object from the registry by its name.
+
+```bash
+feast delete <OBJECT_NAME>
+```
+
+**What does feast delete do?**
+
+The `feast delete` command removes a Feast object (such as a feature view, entity, data source, feature service, etc.) from the registry. The command will:
+
+1. Search for the object by name across all object types (entities, feature views, feature services, data sources, saved datasets, validation references, etc.)
+2. Delete the first matching object found
+3. Remove any associated infrastructure
+
+**Example:**
+
+```bash
+# Delete a feature view named "driver_hourly_stats"
+feast delete driver_hourly_stats
+
+# Delete an entity named "driver"
+feast delete driver
+```
+
+{% hint style="warning" %}
+The delete operation is permanent and will remove the object from the registry. Make sure you want to delete the object before running this command.
+{% endhint %}
+
+{% hint style="info" %}
+If multiple objects have the same name across different types, `feast delete` will delete the first one it finds. For programmatic deletion with more control, use the Python SDK methods like `store.delete_feature_view()`, `store.delete_feature_service()`, etc.
+{% endhint %}
+
+## Demo Notebooks
+
+Generate tailored demo Jupyter notebooks for each Feast project found in the current directory.
+
+```bash
+feast demo-notebooks
+```
+
+The command searches for `feature_store.yaml` in the current directory and every file inside the `feast-config/` directory. Each file is treated as a separate project config, and notebooks are created under `./feast-demo-notebooks/<project>/`.
+
+The generated notebooks adapt to your project configuration (online/offline store types, authentication, vector search) and cover:
+
+* **Feature store overview** — explore registered entities, feature views, and services.
+* **Historical feature retrieval** — build training datasets with point-in-time correct joins.
+* **Online feature serving** — materialize features and retrieve them at low latency.
+
+**Options:**
+
+* `-o, --output-dir` — Directory where the notebooks are written. Default: `./feast-demo-notebooks`.
+* `--overwrite` — Overwrite existing notebooks if the output directory already exists.
+
+```bash
+feast demo-notebooks -o ./my-notebooks --overwrite
+```
+
+You can also use the `--chdir` global option to point at a different feature repository:
+
+```bash
+feast -c /path/to/feature_repo demo-notebooks
+```
+
+The same functionality is available via the Python SDK:
+
+```python
+from feast import copy_demo_notebooks
+
+copy_demo_notebooks(output_dir="./feast-demo-notebooks", repo_path=".")
+```
+
+For more details see the [Demo Notebooks tutorial](../tutorials/demo-notebooks.md).
 
 ## Entities
 
@@ -116,6 +239,18 @@ Options:
 ```text
 NAME                 ENTITIES    TYPE
 driver_hourly_stats  {'driver'}  FeatureView
+```
+
+List version history for a feature view
+
+```text
+feast feature-views list-versions FEATURE_VIEW_NAME
+```
+
+```text
+VERSION  TYPE          CREATED              VERSION_ID
+v0       feature_view  2024-01-15 10:30:00  a1b2c3d4-...
+v1       feature_view  2024-01-16 14:22:00  e5f6g7h8-...
 ```
 
 ## Init
@@ -152,17 +287,29 @@ feast init -t gcp my_feature_repo
 
 ## Materialize
 
-Load data from feature views into the online store between two dates
+Load data from feature views into the online store.
 
+**With timestamps:**
 ```bash
 feast materialize 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
 
-Load data for specific feature views into the online store between two dates
+**Without timestamps (materializes all available data):**
+```bash
+feast materialize --disable-event-timestamp
+```
+
+Load data for specific feature views:
 
 ```text
 feast materialize -v driver_hourly_stats 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
+
+```text
+feast materialize --disable-event-timestamp -v driver_hourly_stats
+```
+
+The `--disable-event-timestamp` flag lets you materialize all available data (from 1970-01-01 up to the current UTC time) without specifying start and end timestamps. Rows keep the event timestamps from the source.
 
 ```text
 Materializing 1 feature views from 2020-01-01 to 2022-01-01
@@ -173,7 +320,9 @@ driver_hourly_stats:
 
 ## Materialize incremental
 
-Load data from feature views into the online store, beginning from either the previous `materialize` or `materialize-incremental` end date, or the beginning of time.
+For regular (non-on-demand) feature views, load data into the online store beginning from each feature view's most recent materialization end date.
+
+For a regular feature view with no previous materialization, the start date is the current time minus its `ttl`. A zero TTL uses a lookback of 52 weeks; a feature view with no TTL must first be materialized with `feast materialize` to establish a start date. The initial lookback is relative to the current time, rather than the supplied end timestamp.
 
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
@@ -358,6 +507,36 @@ reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ...
 ```
 
+
+## Registry
+
+### create-schema
+
+Pre-create the SQL registry schema so the application does not need DDL privileges at runtime. Use this with `schema_mode: verify` or `schema_mode: skip` in your `feature_store.yaml`.
+
+```text
+feast registry create-schema
+```
+
+This command only applies to SQL-based registries (`registry_type: sql`). It is safe to run multiple times — existing tables are not modified.
+
+## MLflow
+
+MLflow integration utilities for GenAI dataset sync and DataSource validation. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+
+```bash
+# Sync MLflow GenAI EvaluationDataset → FeatureView (via MlflowDatasetSource)
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Preview flattened dataset records
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+
+# Validate an MlflowDatasetSource-backed FeatureView
+feast mlflow validate-source eval_records
+
+# List all FeatureViews backed by MlflowDatasetSource
+feast mlflow list-sources
+```
 
 ## Teardown
 

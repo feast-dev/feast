@@ -18,20 +18,30 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       name: "Name",
       field: "spec.name",
       sortable: true,
-      render: (name: string) => {
+      render: (name: string, item: feast.core.IEntity) => {
+        // For "All Projects" view, link to the specific project
+        const itemProject =
+          item?.spec?.project || (item as any)?.project || projectName;
         return (
-          <EuiCustomLink to={`/p/${projectName}/entity/${name}`}>
+          <EuiCustomLink to={`/p/${itemProject}/entity/${name}`}>
             {name}
           </EuiCustomLink>
         );
       },
     },
     {
+      name: "Join Key",
+      field: "spec.joinKey",
+      sortable: true,
+    },
+    {
       name: "Type",
       field: "spec.valueType",
       sortable: true,
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: feast.types.ValueType.Enum | string | undefined) => {
+        if (!valueType) return "—";
+        if (typeof valueType === "string") return valueType;
+        return feast.types.ValueType.Enum[valueType] || String(valueType);
       },
     },
     {
@@ -45,6 +55,18 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       },
     },
   ];
+
+  // Add Project column when viewing all projects
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      field: "project",
+      sortable: true,
+      render: (project: string) => {
+        return <span>{project || "Unknown"}</span>;
+      },
+    });
+  }
 
   const getRowProps = (item: feast.core.IEntity) => {
     return {

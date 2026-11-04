@@ -9,7 +9,6 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
-from feast.value_type import ValueType
 from feast import FileSource
 
 file_path = "driver_stats.parquet"
@@ -70,7 +69,8 @@ def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
 
 
 generated_data_source = FileSource(
-    path="benchmark_data.parquet", timestamp_field="event_timestamp",
+    path="benchmark_data.parquet",
+    timestamp_field="event_timestamp",
 )
 
 entity = Entity(name="entity")
@@ -88,5 +88,6 @@ for i in range(25):
     benchmark_feature_views.append(fv)
 
 benchmark_feature_service = FeatureService(
-    name=f"benchmark_feature_service", features=benchmark_feature_views,
+    name="benchmark_feature_service",
+    features=benchmark_feature_views,
 )

@@ -10,6 +10,7 @@ from typing import (
     Generator,
     List,
     Literal,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -19,11 +20,22 @@ from typing import (
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
+from pydantic import NonNegativeInt
 
-from feast import Entity
-from feast.feature_view import FeatureView
+from feast import Entity, FeatureView, ValueType, utils
+from feast.filter_models import (
+    ComparisonFilter,
+    CompoundFilter,
+    FilterTranslator,
+    FilterType,
+    filters_contain_numeric_comparison,
+)
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import (
+    _to_naive_utc,
+    compute_table_id,
+    extract_text_and_num,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
@@ -45,9 +57,135 @@ SUPPORTED_DISTANCE_METRICS_DICT = {
     "inner_product": "<#>",
 }
 
+# Default for ``max_batched_result_rows``: the largest request, measured as entity
+# rows x feature views, that is read in one batched query. Past that, batching stops
+# paying for itself: the saved round trips are amortized away by the payload, while
+# holding every feature view's rows at once makes peak memory grow with the number of
+# views. The measure is a proxy taken from the request shape; the rows actually
+# returned also scale with the number of requested features. Measured against
+# Postgres 16, a 10-view request is ~3-5x faster at 1-100 entities and a wash at
+# 5000, where the combined result costs tens of MB per in-flight request. Past the
+# limit the generic one-query-per-view path is used instead, which processes and
+# releases a single view at a time.
+MAX_BATCHED_RESULT_ROWS = 2048
+
+_PG_COMPARISON_OPS: Dict[str, str] = {
+    "eq": "=",
+    "ne": "!=",
+    "gt": ">",
+    "gte": ">=",
+    "lt": "<",
+    "lte": "<=",
+}
+
+
+class _BatchedRead(NamedTuple):
+    """One feature view's share of a batched online read."""
+
+    table: FeatureView
+    requested_features: List[str]
+    keys: List[bytes]
+    idxs: Tuple[List[int], ...]
+    output_len: int
+
+
+class PostgresFilterTranslator(FilterTranslator):
+    """Translates Feast filters into Postgres SQL WHERE clause fragments."""
+
+    def __init__(self, table_name: str, alias: Optional[str] = None):
+        self.table_name = table_name
+        self.alias = alias
+
+    def translate(self, filters: FilterType) -> Tuple[sql.Composable, List[Any]]:
+        if filters is None:
+            return sql.SQL(""), []
+        return self._dispatch(filters)
+
+    def translate_comparison(
+        self, f: ComparisonFilter
+    ) -> Tuple[sql.Composable, List[Any]]:
+        key, value, op_type = f.key, f.value, f.type
+        ek_col = f"{self.alias}.entity_key" if self.alias else "entity_key"
+
+        if op_type in _PG_COMPARISON_OPS:
+            col, db_value = _pg_filter_col_and_val(value)
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} {op} %s)"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(self.table_name),
+                col=sql.Identifier(col),
+                op=sql.SQL(_PG_COMPARISON_OPS[op_type]),
+            )
+            return clause, [key, db_value]
+
+        if op_type == "in":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'in' filter requires a list value, got {type(value)}"
+                )
+            placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(value))
+            col, _ = _pg_filter_col_and_val(value[0]) if value else ("value_text", None)
+            db_values = [_pg_filter_col_and_val(v)[1] for v in value]
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} IN ({phs}))"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(self.table_name),
+                col=sql.Identifier(col),
+                phs=placeholders,
+            )
+            return clause, [key] + db_values
+
+        if op_type == "nin":
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'nin' filter requires a list value, got {type(value)}"
+                )
+            placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(value))
+            col, _ = _pg_filter_col_and_val(value[0]) if value else ("value_text", None)
+            db_values = [_pg_filter_col_and_val(v)[1] for v in value]
+            clause = sql.SQL(
+                "{ek_col} IN (SELECT entity_key FROM {tbl} WHERE feature_name = %s AND {col} NOT IN ({phs}))"
+            ).format(
+                ek_col=sql.SQL(ek_col),
+                tbl=sql.Identifier(self.table_name),
+                col=sql.Identifier(col),
+                phs=placeholders,
+            )
+            return clause, [key] + db_values
+
+        raise ValueError(f"Unknown comparison operator: {op_type}")
+
+    def translate_compound(self, f: CompoundFilter) -> Tuple[sql.Composable, List[Any]]:
+        if not f.filters:
+            return sql.SQL(""), []
+        parts: List[sql.Composable] = []
+        all_params: List[Any] = []
+        for sub in f.filters:
+            sub_clause, sub_params = self._dispatch(sub)
+            parts.append(sub_clause)
+            all_params.extend(sub_params)
+        joiner = sql.SQL(" AND " if f.type == "and" else " OR ")
+        combined = sql.SQL("(") + joiner.join(parts) + sql.SQL(")")
+        return combined, all_params
+
+
+def _pg_filter_col_and_val(value: Any) -> Tuple[str, Any]:
+    """Return the appropriate column name and DB-ready value for a filter value."""
+    if isinstance(value, bool):
+        return "value_num", 1.0 if value else 0.0
+    if isinstance(value, (int, float)):
+        return "value_num", float(value)
+    return "value_text", str(value)
+
 
 class PostgreSQLOnlineStoreConfig(PostgreSQLConfig, VectorStoreConfig):
     type: Literal["postgres"] = "postgres"
+    enable_openai_compatible_store: Optional[bool] = False
+    max_batched_result_rows: NonNegativeInt = MAX_BATCHED_RESULT_ROWS
+    """Largest request, as entity rows x feature views, read in one batched query.
+    Set to 0 to always read one feature view per query."""
 
 
 class PostgreSQLOnlineStore(OnlineStore):
@@ -56,6 +194,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     _conn_async: Optional[AsyncConnection] = None
     _conn_pool_async: Optional[AsyncConnectionPool] = None
+    _table_has_value_num: Optional[Dict[str, bool]] = None
 
     @contextlib.contextmanager
     def _get_conn(
@@ -97,6 +236,33 @@ class PostgreSQLOnlineStore(OnlineStore):
             await self._conn_async.set_autocommit(autocommit)
             yield self._conn_async
 
+    def _check_table_has_value_num(
+        self, cur, table_name: str, config: RepoConfig
+    ) -> bool:
+        """Check if the value_num column exists in the given table, with caching."""
+        if self._table_has_value_num is None:
+            self._table_has_value_num = {}
+        if table_name in self._table_has_value_num:
+            return self._table_has_value_num[table_name]
+
+        schema_name = config.online_store.db_schema or config.online_store.user
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s AND column_name = 'value_num'
+            """,
+            (schema_name, table_name),
+        )
+        exists = cur.fetchone() is not None
+        self._table_has_value_num[table_name] = exists
+        return exists
+
+    @staticmethod
+    def _filters_need_value_num(
+        filters: Union[ComparisonFilter, CompoundFilter],
+    ) -> bool:
+        return filters_contain_numeric_comparison(filters)
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -106,49 +272,71 @@ class PostgreSQLOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        # Format insert values
-        insert_values = []
-        for entity_key, values, timestamp, created_ts in data:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
-            timestamp = _to_naive_utc(timestamp)
-            if created_ts is not None:
-                created_ts = _to_naive_utc(created_ts)
+        table_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
 
-            for feature_name, val in values.items():
-                vector_val = None
-                if config.online_store.vector_enabled:
-                    vector_val = get_list_val_str(val)
-                insert_values.append(
-                    (
+        with self._get_conn(config) as conn, conn.cursor() as cur:
+            enable_value_num = getattr(
+                config.online_store, "enable_openai_compatible_store", False
+            )
+            has_value_num_col = self._check_table_has_value_num(cur, table_name, config)
+            compute_value_num = has_value_num_col
+            if enable_value_num and not has_value_num_col:
+                logging.warning(
+                    "enable_openai_compatible_store is True but value_num column "
+                    "not found in table '%s'. Run `feast apply` to add it. "
+                    "Writing without value_num.",
+                    table_name,
+                )
+                compute_value_num = False
+
+            columns = ["entity_key", "feature_name", "value", "value_text"]
+            if has_value_num_col:
+                columns.append("value_num")
+            columns.extend(["vector_value", "event_ts", "created_ts"])
+
+            pk_cols = {"entity_key", "feature_name"}
+            col_ids = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+            placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(columns))
+            update_set = sql.SQL(", ").join(
+                sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(c), sql.Identifier(c))
+                for c in columns
+                if c not in pk_cols
+            )
+            sql_query = sql.SQL(
+                "INSERT INTO {} ({}) VALUES ({}) "
+                "ON CONFLICT (entity_key, feature_name) DO UPDATE SET {};"
+            ).format(sql.Identifier(table_name), col_ids, placeholders, update_set)
+
+            insert_values: List[Tuple[Any, ...]] = []
+            for entity_key, values, timestamp, created_ts in data:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+                timestamp = _to_naive_utc(timestamp)
+                if created_ts is not None:
+                    created_ts = _to_naive_utc(created_ts)
+
+                for feature_name, val in values.items():
+                    value_text, value_num = extract_text_and_num(val, compute_value_num)
+
+                    vector_val = None
+                    if config.online_store.vector_enabled:
+                        vector_val = get_list_val_str(val)
+
+                    row: List[Any] = [
                         entity_key_bin,
                         feature_name,
                         val.SerializeToString(),
-                        vector_val,
-                        timestamp,
-                        created_ts,
-                    )
-                )
+                        value_text,
+                    ]
+                    if has_value_num_col:
+                        row.append(value_num)
+                    row.extend([vector_val, timestamp, created_ts])
+                    insert_values.append(tuple(row))
 
-        # Create insert query
-        sql_query = sql.SQL(
-            """
-            INSERT INTO {}
-            (entity_key, feature_name, value, vector_value, event_ts, created_ts)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (entity_key, feature_name) DO
-            UPDATE SET
-                value = EXCLUDED.value,
-                vector_value = EXCLUDED.vector_value,
-                event_ts = EXCLUDED.event_ts,
-                created_ts = EXCLUDED.created_ts;
-        """
-        ).format(sql.Identifier(_table_id(config.project, table)))
-
-        # Push data into the online store
-        with self._get_conn(config) as conn, conn.cursor() as cur:
             cur.executemany(sql_query, insert_values)
             conn.commit()
 
@@ -207,7 +395,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, requested_features)
         else:
@@ -217,7 +411,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 FROM {} WHERE entity_key = ANY(%s);
                 """
             ).format(
-                sql.Identifier(_table_id(config.project, table)),
+                sql.Identifier(
+                    _table_id(
+                        config.project,
+                        table,
+                        config.registry.enable_online_feature_view_versioning,
+                    )
+                ),
             )
             params = (keys, [])
         return query, params
@@ -251,6 +451,13 @@ class PostgreSQLOnlineStore(OnlineStore):
                 row[0] if isinstance(row[0], bytes) else row[0].tobytes()
             ].append(row[1:])
 
+        return PostgreSQLOnlineStore._result_from_values_dict(keys, values_dict)
+
+    @staticmethod
+    def _result_from_values_dict(
+        keys: List[bytes], values_dict: Dict[bytes, List[Tuple]]
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """Assemble per-entity rows in ``keys`` order from a feature-value mapping."""
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for key in keys:
             if key in values_dict:
@@ -264,6 +471,225 @@ class PostgreSQLOnlineStore(OnlineStore):
             else:
                 result.append((None, None))
         return result
+
+    def _read_features_per_fv(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Read every requested feature view in a single round trip.
+
+        The generic path issues one query per feature view. Each feature view lives
+        in its own table here, so the per-view reads can be combined with UNION ALL
+        and split apart again afterwards.
+        """
+        if not self._should_batch(config, grouped_refs, join_key_values):
+            return super()._read_features_per_fv(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
+                include_feature_view_version_metadata,
+            )
+
+        reads = self._prepare_batched_reads(
+            config, grouped_refs, join_key_values, entity_name_to_join_key_map
+        )
+
+        query, params = self._construct_batched_query_and_params(config, reads)
+        with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
+            cur.execute(query, params)
+            buckets = self._bucket_rows(reads, cur)
+
+        self._populate_from_buckets(
+            reads,
+            buckets,
+            online_features_response,
+            full_feature_names,
+            include_feature_view_version_metadata,
+        )
+
+    async def _read_features_per_fv_async(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Async version of :meth:`_read_features_per_fv`.
+
+        The generic async path issues the per-view queries concurrently. Combining
+        them still replaces those N queries with one.
+        """
+        if not self._should_batch(config, grouped_refs, join_key_values):
+            return await super()._read_features_per_fv_async(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
+                include_feature_view_version_metadata,
+            )
+
+        reads = self._prepare_batched_reads(
+            config, grouped_refs, join_key_values, entity_name_to_join_key_map
+        )
+
+        query, params = self._construct_batched_query_and_params(config, reads)
+        async with self._get_conn_async(config, autocommit=True) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                buckets = [defaultdict(list) for _ in reads]  # type: List[Dict[bytes, List[Tuple]]]
+                async for row in cur:
+                    self._bucket_row(buckets, row)
+
+        self._populate_from_buckets(
+            reads,
+            buckets,
+            online_features_response,
+            full_feature_names,
+            include_feature_view_version_metadata,
+        )
+
+    def _prepare_batched_reads(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+    ) -> List["_BatchedRead"]:
+        """Resolve the entity keys each feature view needs before querying.
+
+        Feature views can be keyed on different entities, so the serialized keys are
+        computed per view rather than shared.
+        """
+        reads = []
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            reads.append(
+                _BatchedRead(
+                    table=table,
+                    requested_features=requested_features,
+                    keys=self._prepare_keys(
+                        entity_key_protos, config.entity_key_serialization_version
+                    ),
+                    idxs=idxs,
+                    output_len=output_len,
+                )
+            )
+        return reads
+
+    @staticmethod
+    def _construct_batched_query_and_params(
+        config: RepoConfig, reads: List["_BatchedRead"]
+    ) -> Tuple[sql.Composed, List[Any]]:
+        """UNION ALL the per feature view reads into one statement.
+
+        Each branch selects a constant tag so the combined result can be split back
+        apart. The table name itself is not in the result set, and two feature views
+        can return the same entity key, so the tag is what keeps them separable.
+        """
+        versioning = config.registry.enable_online_feature_view_versioning
+        branches: List[sql.Composed] = []
+        params: List[Any] = []
+        for tag, read in enumerate(reads):
+            table_name = _table_id(config.project, read.table, versioning)
+            if read.requested_features:
+                branch = sql.SQL(
+                    "SELECT {tag} AS fv_tag, entity_key, feature_name, value, event_ts "
+                    "FROM {table} WHERE entity_key = ANY(%s) AND feature_name = ANY(%s)"
+                ).format(tag=sql.Literal(tag), table=sql.Identifier(table_name))
+                params.extend([read.keys, list(read.requested_features)])
+            else:
+                branch = sql.SQL(
+                    "SELECT {tag} AS fv_tag, entity_key, feature_name, value, event_ts "
+                    "FROM {table} WHERE entity_key = ANY(%s)"
+                ).format(tag=sql.Literal(tag), table=sql.Identifier(table_name))
+                params.append(read.keys)
+            branches.append(branch)
+
+        return sql.SQL(" UNION ALL ").join(branches), params
+
+    @staticmethod
+    def _should_batch(
+        config: RepoConfig, grouped_refs: List, join_key_values: Dict
+    ) -> bool:
+        """Whether to read this request's feature views in one batched query.
+
+        A single view has no round trips to save, so it keeps the generic path. The
+        size check is estimated from the request shape rather than from the resolved
+        keys, so that deciding against batching costs nothing. The number of entity
+        rows in the request is an upper bound on the unique keys any one view will
+        read. See :data:`MAX_BATCHED_RESULT_ROWS`.
+        """
+        if len(grouped_refs) < 2:
+            return False
+        limit = getattr(
+            config.online_store, "max_batched_result_rows", MAX_BATCHED_RESULT_ROWS
+        )
+        entity_rows = max(
+            (len(values) for values in join_key_values.values()), default=0
+        )
+        return entity_rows * len(grouped_refs) <= limit
+
+    @staticmethod
+    def _bucket_row(buckets: List[Dict[bytes, List[Tuple]]], row: Tuple) -> None:
+        """File one row under its feature view's bucket, keyed by entity key.
+
+        Only the three payload columns are kept. Slicing the row instead would copy
+        it a second time while the combined result is still referenced.
+        """
+        entity_key = row[1] if isinstance(row[1], bytes) else row[1].tobytes()
+        buckets[row[0]][entity_key].append((row[2], row[3], row[4]))
+
+    def _bucket_rows(
+        self, reads: List["_BatchedRead"], row_iter
+    ) -> List[Dict[bytes, List[Tuple]]]:
+        """Consume the combined result one row at a time.
+
+        The result spans every requested feature view, so calling ``fetchall()`` and
+        then slicing each row would hold two or three copies of it at peak. Bucketing
+        as rows arrive keeps a single copy.
+        """
+        buckets: List[Dict[bytes, List[Tuple]]] = [defaultdict(list) for _ in reads]
+        for row in row_iter:
+            self._bucket_row(buckets, row)
+        return buckets
+
+    def _populate_from_buckets(
+        self,
+        reads: List["_BatchedRead"],
+        buckets: List[Dict[bytes, List[Tuple]]],
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Hand each feature view's bucket to the response in grouped_refs order."""
+        for read, bucket in zip(reads, buckets):
+            utils._populate_response_from_feature_data(
+                read.requested_features,
+                self._result_from_values_dict(read.keys, bucket),
+                read.idxs,
+                online_features_response,
+                full_feature_names,
+                read.table,
+                read.output_len,
+                include_feature_view_version_metadata,
+            )
 
     def update(
         self,
@@ -297,17 +723,34 @@ class PostgreSQLOnlineStore(OnlineStore):
                     ),
                 )
 
+            versioning = config.registry.enable_online_feature_view_versioning
             for table in tables_to_delete:
-                table_name = _table_id(project, table)
-                cur.execute(_drop_table_and_index(table_name))
+                if versioning:
+                    _drop_all_version_tables(cur, project, table, schema_name)
+                else:
+                    table_name = _table_id(project, table)
+                    cur.execute(_drop_table_and_index(table_name))
 
             for table in tables_to_keep:
-                table_name = _table_id(project, table)
+                table_name = _table_id(project, table, versioning)
                 if config.online_store.vector_enabled:
-                    vector_value_type = f"vector({config.online_store.vector_len})"
+                    vector_value_type = "vector"
                 else:
                     # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
                     vector_value_type = "BYTEA"
+
+                has_string_features = any(
+                    f.dtype.to_value_type() == ValueType.STRING for f in table.features
+                )
+
+                value_num_col = (
+                    sql.SQL("value_num DOUBLE PRECISION NULL,")
+                    if getattr(
+                        config.online_store, "enable_openai_compatible_store", False
+                    )
+                    else sql.SQL("")
+                )
+
                 cur.execute(
                     sql.SQL(
                         """
@@ -316,6 +759,8 @@ class PostgreSQLOnlineStore(OnlineStore):
                             entity_key BYTEA,
                             feature_name TEXT,
                             value BYTEA,
+                            value_text TEXT NULL,
+                            {}
                             vector_value {} NULL,
                             event_ts TIMESTAMPTZ,
                             created_ts TIMESTAMPTZ,
@@ -325,11 +770,34 @@ class PostgreSQLOnlineStore(OnlineStore):
                         """
                     ).format(
                         sql.Identifier(table_name),
+                        value_num_col,
                         sql.SQL(vector_value_type),
                         sql.Identifier(f"{table_name}_ek"),
                         sql.Identifier(table_name),
                     )
                 )
+
+                if getattr(
+                    config.online_store, "enable_openai_compatible_store", False
+                ):
+                    cur.execute(
+                        sql.SQL(
+                            """ALTER TABLE {} ADD COLUMN IF NOT EXISTS value_num DOUBLE PRECISION NULL;"""
+                        ).format(sql.Identifier(table_name))
+                    )
+                    if self._table_has_value_num is None:
+                        self._table_has_value_num = {}
+                    self._table_has_value_num[table_name] = True
+
+                if has_string_features:
+                    cur.execute(
+                        sql.SQL(
+                            """CREATE INDEX IF NOT EXISTS {} ON {} USING GIN (to_tsvector('english', value_text));"""
+                        ).format(
+                            sql.Identifier(f"{table_name}_fts_idx"),
+                            sql.Identifier(table_name),
+                        )
+                    )
 
             conn.commit()
 
@@ -340,11 +808,16 @@ class PostgreSQLOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         project = config.project
+        schema_name = config.online_store.db_schema or config.online_store.user
+        versioning = config.registry.enable_online_feature_view_versioning
         try:
             with self._get_conn(config) as conn, conn.cursor() as cur:
                 for table in tables:
-                    table_name = _table_id(project, table)
-                    cur.execute(_drop_table_and_index(table_name))
+                    if versioning:
+                        _drop_all_version_tables(cur, project, table, schema_name)
+                    else:
+                        table_name = _table_id(project, table)
+                        cur.execute(_drop_table_and_index(table_name))
                 conn.commit()
         except Exception:
             logging.exception("Teardown failed")
@@ -354,7 +827,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
@@ -373,7 +845,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         Args:
             config: Feast configuration object
             table: FeatureView object as the table to search
-            requested_feature: The requested feature as the column to search
             requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The query embedding to search for
             top_k: The number of items to return
@@ -394,6 +865,11 @@ class PostgreSQLOnlineStore(OnlineStore):
                 f"Distance metric {distance_metric} is not supported. Supported distance metrics are {SUPPORTED_DISTANCE_METRICS_DICT.keys()}"
             )
 
+        if requested_features:
+            required_feature_names = ", ".join(
+                [feature for feature in requested_features]
+            )
+
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
 
         result: List[
@@ -406,7 +882,9 @@ class PostgreSQLOnlineStore(OnlineStore):
             ]
         ] = []
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
-            table_name = _table_id(project, table)
+            table_name = _table_id(
+                project, table, config.registry.enable_online_feature_view_versioning
+            )
 
             # Search query template to find the top k items that are closest to the given embedding
             # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
@@ -415,19 +893,18 @@ class PostgreSQLOnlineStore(OnlineStore):
                     """
                     SELECT
                         entity_key,
-                        feature_name,
+                        {feature_names},
                         value,
                         vector_value,
                         vector_value {distance_metric_sql} %s::vector as distance,
                         event_ts FROM {table_name}
-                    WHERE feature_name = {feature_name}
                     ORDER BY distance
                     LIMIT {top_k};
                     """
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
-                    feature_name=sql.Literal(requested_feature),
+                    feature_names=required_feature_names,
                     top_k=sql.Literal(top_k),
                 ),
                 (embedding,),
@@ -454,9 +931,392 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         return result
 
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieve documents using vector similarity search or keyword search in PostgreSQL.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            embedding: Query embedding to search for (optional)
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (optional)
+
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
+        if not config.online_store.vector_enabled:
+            raise ValueError("Vector search is not enabled in the online store config")
+
+        if embedding is None and query_string is None:
+            raise ValueError("Either embedding or query_string must be provided")
+
+        if filters is not None:
+            if not getattr(
+                config.online_store, "enable_openai_compatible_store", False
+            ):
+                raise ValueError(
+                    "Metadata filtering requires `enable_openai_compatible_store: true` "
+                    "in your online store config. After setting it, run `feast apply` "
+                    "to update the database schema."
+                )
+
+        distance_metric = distance_metric or "L2"
+
+        if distance_metric not in SUPPORTED_DISTANCE_METRICS_DICT:
+            raise ValueError(
+                f"Distance metric {distance_metric} is not supported. Supported distance metrics are {SUPPORTED_DISTANCE_METRICS_DICT.keys()}"
+            )
+
+        distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
+
+        string_fields = [
+            feature.name
+            for feature in table.features
+            if feature.dtype.to_value_type().value == 2
+            and feature.name in requested_features
+        ]
+
+        table_name = _table_id(
+            config.project,
+            table,
+            config.registry.enable_online_feature_view_versioning,
+        )
+
+        with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
+            if filters is not None and self._filters_need_value_num(filters):
+                if not self._check_table_has_value_num(cur, table_name, config):
+                    raise ValueError(
+                        "Numerical filtering requires the `value_num` column. "
+                        "Run `feast apply` to add it."
+                    )
+
+            query = None
+            params: Any = None
+
+            filter_clause, filter_params = PostgresFilterTranslator(
+                table_name, alias="t1"
+            ).translate(filters)
+            has_filters = bool(filter_params) or (
+                filters is not None
+                and not filter_params
+                and filter_clause.as_string(conn) != ""
+            )
+
+            if embedding is not None and query_string is not None and string_fields:
+                # Case 1: Hybrid Search (vector + text)
+                tsquery_str = " & ".join(query_string.split())
+
+                outer_where_parts: list[sql.Composable] = [
+                    sql.SQL("t1.feature_name = ANY(%s)")
+                ]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
+                query = sql.SQL(
+                    """
+                    WITH vector_candidates AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    ),
+                    text_candidates AS (
+                        SELECT entity_key,
+                            MAX(ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s))) as text_rank
+                        FROM {table_name}
+                        WHERE feature_name = ANY(%s)
+                            AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
+                        GROUP BY entity_key
+                        ORDER BY text_rank DESC
+                        LIMIT {top_k}
+                    ),
+                    all_candidates AS (
+                        SELECT entity_key FROM vector_candidates
+                        UNION
+                        SELECT entity_key FROM text_candidates
+                    ),
+                    scored AS (
+                        SELECT
+                            ac.entity_key,
+                            COALESCE(vc.distance,
+                                (SELECT MIN(t.vector_value {distance_metric_sql} %s::vector)
+                                 FROM {table_name} t
+                                 WHERE t.entity_key = ac.entity_key AND t.vector_value IS NOT NULL)
+                            ) as distance,
+                            COALESCE(tc.text_rank,
+                                COALESCE(
+                                    (SELECT MAX(ts_rank(to_tsvector('english', ft.value_text), to_tsquery('english', %s)))
+                                     FROM {table_name} ft
+                                     WHERE ft.entity_key = ac.entity_key AND ft.feature_name = ANY(%s) AND ft.value_text IS NOT NULL),
+                                    0
+                                )
+                            ) as text_rank
+                        FROM all_candidates ac
+                        LEFT JOIN vector_candidates vc ON ac.entity_key = vc.entity_key
+                        LEFT JOIN text_candidates tc ON ac.entity_key = tc.entity_key
+                        ORDER BY text_rank DESC, distance
+                        LIMIT {top_k}
+                    )
+                    SELECT
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        s.distance,
+                        s.text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN scored s ON t1.entity_key = s.entity_key
+                    WHERE {outer_where}
+                    ORDER BY s.text_rank DESC, s.distance
+                    """
+                ).format(
+                    distance_metric_sql=sql.SQL(distance_metric_sql),
+                    table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
+                    top_k=sql.Literal(top_k),
+                )
+                base_params: list[Any] = [
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    tsquery_str,
+                    embedding,
+                    tsquery_str,
+                    string_fields,
+                    requested_features,
+                ]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
+
+            elif embedding is not None:
+                # Case 2: Vector Search Only
+                outer_where_parts = [sql.SQL("t1.feature_name = ANY(%s)")]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
+                query = sql.SQL(
+                    """
+                    WITH vector_matches AS (
+                        SELECT entity_key,
+                            MIN(vector_value {distance_metric_sql} %s::vector) as distance
+                        FROM {table_name}
+                        WHERE vector_value IS NOT NULL
+                        GROUP BY entity_key
+                        ORDER BY distance
+                        LIMIT {top_k}
+                    )
+                    SELECT
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        t2.distance,
+                        NULL as text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN vector_matches t2 ON t1.entity_key = t2.entity_key
+                    WHERE {outer_where}
+                    ORDER BY t2.distance
+                    """
+                ).format(
+                    distance_metric_sql=sql.SQL(distance_metric_sql),
+                    table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
+                    top_k=sql.Literal(top_k),
+                )
+                base_params = [embedding, requested_features]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
+
+            elif query_string is not None and string_fields:
+                # Case 3: Text Search Only
+                tsquery_str = " & ".join(query_string.split())
+
+                outer_where_parts = [sql.SQL("t1.feature_name = ANY(%s)")]
+                if has_filters:
+                    outer_where_parts.append(filter_clause)
+                outer_where = sql.SQL(" AND ").join(outer_where_parts)
+
+                query = sql.SQL(
+                    """
+                    WITH text_matches AS (
+                        SELECT DISTINCT entity_key, ts_rank(to_tsvector('english', value_text), to_tsquery('english', %s)) as text_rank
+                        FROM {table_name}
+                        WHERE feature_name = ANY(%s)
+                            AND to_tsvector('english', value_text) @@ to_tsquery('english', %s)
+                        ORDER BY text_rank DESC
+                        LIMIT {top_k}
+                    )
+                    SELECT
+                        t1.entity_key,
+                        t1.feature_name,
+                        t1.value,
+                        t1.vector_value,
+                        NULL as distance,
+                        t2.text_rank,
+                        t1.event_ts,
+                        t1.created_ts
+                    FROM {table_name} t1
+                    INNER JOIN text_matches t2 ON t1.entity_key = t2.entity_key
+                    WHERE {outer_where}
+                    ORDER BY t2.text_rank DESC
+                    """
+                ).format(
+                    table_name=sql.Identifier(table_name),
+                    outer_where=outer_where,
+                    top_k=sql.Literal(top_k),
+                )
+                base_params = [
+                    tsquery_str,
+                    string_fields,
+                    tsquery_str,
+                    requested_features,
+                ]
+                if has_filters:
+                    base_params.extend(filter_params)
+                params = tuple(base_params)
+
+            else:
+                raise ValueError(
+                    "Either vector_enabled must be True for embedding search or string fields must be available for query_string search"
+                )
+
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+            # Group by entity_key to build feature records
+            entities_dict: Dict[str, Dict[str, Any]] = defaultdict(
+                lambda: {
+                    "features": {},
+                    "timestamp": None,
+                    "entity_key_proto": None,
+                    "vector_distance": float("inf"),
+                    "text_rank": 0.0,
+                }
+            )
+
+            for (
+                entity_key_bytes,
+                feature_name,
+                feature_val_bytes,
+                vector_val,
+                distance,
+                text_rank,
+                event_ts,
+                created_ts,
+            ) in rows:
+                entity_key_proto = None
+                if entity_key_bytes:
+                    from feast.infra.key_encoding_utils import deserialize_entity_key
+
+                    entity_key_proto = deserialize_entity_key(entity_key_bytes)
+
+                key = entity_key_bytes.hex() if entity_key_bytes else None
+
+                if key is None:
+                    continue
+
+                entities_dict[key]["entity_key_proto"] = entity_key_proto
+
+                if (
+                    entities_dict[key]["timestamp"] is None
+                    or event_ts > entities_dict[key]["timestamp"]
+                ):
+                    entities_dict[key]["timestamp"] = event_ts
+
+                val = ValueProto()
+                if feature_val_bytes:
+                    val.ParseFromString(feature_val_bytes)
+
+                entities_dict[key]["features"][feature_name] = val
+
+                if distance is not None:
+                    entities_dict[key]["vector_distance"] = min(
+                        entities_dict[key]["vector_distance"], float(distance)
+                    )
+                if text_rank is not None:
+                    entities_dict[key]["text_rank"] = max(
+                        entities_dict[key]["text_rank"], float(text_rank)
+                    )
+
+            sorted_entities = sorted(
+                entities_dict.values(),
+                key=lambda x: (
+                    (-x["text_rank"], x["vector_distance"])
+                    if query_string is not None
+                    else (x["vector_distance"],)
+                ),
+            )[:top_k]
+
+            result: List[
+                Tuple[
+                    Optional[datetime],
+                    Optional[EntityKeyProto],
+                    Optional[Dict[str, ValueProto]],
+                ]
+            ] = []
+            for entity_data in sorted_entities:
+                features = (
+                    entity_data["features"].copy()
+                    if isinstance(entity_data["features"], dict)
+                    else None
+                )
+
+                if features is not None:
+                    if "vector_distance" in entity_data and entity_data[
+                        "vector_distance"
+                    ] != float("inf"):
+                        dist_val = ValueProto()
+                        dist_val.double_val = entity_data["vector_distance"]
+                        features["distance"] = dist_val
+
+                    if embedding is None or query_string is not None:
+                        rank_val = ValueProto()
+                        rank_val.double_val = entity_data["text_rank"]
+                        features["text_rank"] = rank_val
+
+                result.append(
+                    (
+                        entity_data["timestamp"],
+                        entity_data["entity_key_proto"],
+                        features,
+                    )
+                )
+        return result
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
 
 
 def _drop_table_and_index(table_name):
@@ -469,3 +1329,23 @@ def _drop_table_and_index(table_name):
         sql.Identifier(table_name),
         sql.Identifier(f"{table_name}_ek"),
     )
+
+
+def _drop_all_version_tables(
+    cur, project: str, table: FeatureView, schema_name: Optional[str] = None
+) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    if schema_name:
+        cur.execute(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = %s AND (tablename = %s OR tablename ~ %s)",
+            (schema_name, base, f"^{base}_v[0-9]+$"),
+        )
+    else:
+        cur.execute(
+            "SELECT tablename FROM pg_tables WHERE tablename = %s OR tablename ~ %s",
+            (base, f"^{base}_v[0-9]+$"),
+        )
+    for (name,) in cur.fetchall():
+        cur.execute(_drop_table_and_index(name))

@@ -16,4 +16,4 @@ auth:
   client_secret: update-this-value
   username: ${FEAST_USERNAME}
   password: ${FEAST_PASSWORD}
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

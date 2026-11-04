@@ -18,6 +18,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -112,6 +113,7 @@ FeastObjectProto = TypeVar(
     FeatureServiceProto,
     OnDemandFeatureViewProto,
     StreamFeatureViewProto,
+    LabelViewProto,
     ValidationReferenceProto,
     SavedDatasetProto,
     PermissionProto,
@@ -314,6 +316,7 @@ def apply_diff_to_registry(
     registry_diff: RegistryDiff,
     project: str,
     commit: bool = True,
+    no_promote: bool = False,
 ):
     """
     Applies the given diff to the given Feast project in the registry.
@@ -323,6 +326,9 @@ def apply_diff_to_registry(
         registry_diff: The diff to apply.
         project: Feast project to be updated.
         commit: Whether the change should be persisted immediately
+        no_promote: If True, save new feature view version snapshots without
+            promoting them to the active definition. New versions are accessible
+            only via explicit @v<N> reads.
     """
     for feast_object_diff in registry_diff.feast_object_diffs:
         # There is no need to delete the object on an update, since applying the new object
@@ -342,6 +348,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
+                FeastObjectType.LABEL_VIEW,
             ]:
                 feature_view_obj = cast(
                     BaseFeatureView, feast_object_diff.current_feast_object
@@ -399,11 +406,13 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
+                FeastObjectType.LABEL_VIEW,
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),
                     project,
                     commit=False,
+                    no_promote=no_promote,
                 )
             elif feast_object_diff.feast_object_type == FeastObjectType.PERMISSION:
                 registry.apply_permission(

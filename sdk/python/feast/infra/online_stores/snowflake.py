@@ -1,4 +1,3 @@
-import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
@@ -67,7 +66,7 @@ class SnowflakeOnlineStoreConfig(FeastConfigBaseModel):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SnowflakeOnlineStore(OnlineStore):
@@ -149,7 +148,7 @@ class SnowflakeOnlineStore(OnlineStore):
                             "_feast_row" = 1;
                 """
                 execute_snowflake_statement(conn, query)
-
+                conn.commit()
             if progress:
                 progress(len(data))
 
@@ -168,20 +167,26 @@ class SnowflakeOnlineStore(OnlineStore):
 
         requested_features = requested_features if requested_features else []
 
+        # Pre-compute serialized entity keys to avoid redundant serialization
+        serialized_entity_keys = [
+            serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
+
         entity_fetch_str = ",".join(
             [
                 (
                     "TO_BINARY("
                     + hexlify(
-                        serialize_entity_key(
-                            combo[0],
-                            entity_key_serialization_version=config.entity_key_serialization_version,
-                        )
-                        + bytes(combo[1], encoding="utf-8")
+                        serialized_entity_key + bytes(feature, encoding="utf-8")
                     ).__str__()[1:]
                     + ")"
                 )
-                for combo in itertools.product(entity_keys, requested_features)
+                for serialized_entity_key in serialized_entity_keys
+                for feature in requested_features
             ]
         )
 
@@ -197,11 +202,7 @@ class SnowflakeOnlineStore(OnlineStore):
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
 
-        for entity_key in entity_keys:
-            entity_key_bin = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
+        for entity_key_bin in serialized_entity_keys:
             res = {}
             res_ts = None
             for index, row in df[df["entity_key"] == entity_key_bin].iterrows():

@@ -10,6 +10,7 @@ from feast.infra.online_stores.remote import (
     RemoteOnlineStoreConfig,
     get_remote_online_features,
 )
+from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
 
 
 @pytest.fixture
@@ -26,6 +27,9 @@ def none_feast_exception() -> RuntimeError:
 def test_rest_error_handling_with_feast_exception(
     mock_post, environment, feast_exception
 ):
+    # Close any cached session to ensure mock is applied to fresh session
+    HttpSessionManager.close_session()
+
     # Create a mock response object
     mock_response = Mock()
     mock_response.status_code = feast_exception.http_status_code()
@@ -54,6 +58,9 @@ def test_rest_error_handling_with_feast_exception(
 def test_rest_error_handling_with_none_feast_exception(
     mock_post, environment, none_feast_exception
 ):
+    # Close any cached session to ensure mock is applied to fresh session
+    HttpSessionManager.close_session()
+
     # Create a mock response object
     mock_response = Mock()
     mock_response.status_code = 500

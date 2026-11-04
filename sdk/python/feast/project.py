@@ -82,7 +82,7 @@ class Project:
 
     def __eq__(self, other):
         if not isinstance(other, Project):
-            raise TypeError("Comparisons should only involve Project class objects.")
+            return False
 
         if (
             self.name != other.name
@@ -117,7 +117,7 @@ class Project:
         if not is_valid_name(self.name):
             raise ValueError(
                 f"Project name, {self.name}, should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
             )
 
     @classmethod

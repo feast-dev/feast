@@ -68,12 +68,15 @@ def _get_conninfo(config: PostgreSQLConfig) -> str:
 
 def _get_conn_kwargs(config: PostgreSQLConfig) -> Dict[str, Any]:
     """Get the additional `kwargs` required for connection objects."""
+    search_path = (config.db_schema or config.user).strip()
+    if search_path != "public":
+        search_path += ",public"
     return {
         "sslmode": config.sslmode,
         "sslkey": config.sslkey_path,
         "sslcert": config.sslcert_path,
         "sslrootcert": config.sslrootcert_path,
-        "options": "-c search_path={}".format(config.db_schema or config.user),
+        "options": "-c search_path={}".format(search_path),
     }
 
 
@@ -98,7 +101,7 @@ def df_to_postgres_table(
     nr_columns = df.shape[1]
     placeholders = ", ".join(["%s"] * nr_columns)
     query = f"INSERT INTO {table_name} VALUES ({placeholders})"
-    values = df.replace({np.NaN: None}).to_numpy().tolist()
+    values = df.replace({np.nan: None}).to_numpy().tolist()
 
     with _get_conn(config) as conn, conn.cursor() as cur:
         cur.execute(_df_to_create_table_sql(df, table_name))

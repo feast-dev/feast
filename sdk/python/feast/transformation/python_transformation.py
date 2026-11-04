@@ -1,29 +1,79 @@
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Dict, Optional, cast
 
-import dill
 import pyarrow
 
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
 
 
-class PythonTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+class PythonTransformation(Transformation):
+    udf: FunctionType
+
+    def __new__(
+        cls,
+        udf: FunctionType,
+        udf_string: str,
+        singleton: bool = False,
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+    ) -> "PythonTransformation":
+        instance = super(PythonTransformation, cls).__new__(
+            cls,
+            mode=TransformationMode.PYTHON,
+            singleton=singleton,
+            udf=udf,
+            udf_string=udf_string,
+            name=name,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        return cast(PythonTransformation, instance)
+
+    def __init__(
+        self,
+        udf: FunctionType,
+        udf_string: str,
+        singleton: bool = False,
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         """
-        Creates an PythonTransformation object.
+        Creates a PythonTransformation object.
+
         Args:
-            udf: The user defined transformation function, which must take pandas
+            udf: The user-defined transformation function, which must take pandas
                 dataframes as inputs.
-            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
+            name: The name of the transformation.
+            udf_string: The source code version of the UDF (for diffing and displaying in Web UI).
+            tags: Metadata tags for the transformation.
+            description: A description of the transformation.
+            owner: The owner of the transformation.
         """
-        self.udf = udf
-        self.udf_string = udf_string
+        super().__init__(
+            mode=TransformationMode.PYTHON,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        self.singleton = singleton
 
     def transform_arrow(
         self,
@@ -58,11 +108,19 @@ class PythonTransformation:
                         f"Failed to infer type for feature '{feature_name}' with value "
                         + f"'{feature_value}' since no items were returned by the UDF."
                     )
-                inferred_type = type(feature_value[0])
                 inferred_value = feature_value[0]
-                if singleton:
-                    inferred_value = feature_value
-                    inferred_type = None  # type: ignore
+                if singleton and isinstance(inferred_value, list):
+                    # If we have a nested list like [[0.5, 0.5, ...]]
+                    if len(inferred_value) > 0:
+                        # Get the actual element type from the inner list
+                        inferred_type = type(inferred_value[0])
+                    else:
+                        raise TypeError(
+                            f"Failed to infer type for nested feature '{feature_name}' - inner list is empty"
+                        )
+                else:
+                    # For non-nested lists or when singleton is False
+                    inferred_type = type(inferred_value)
 
             else:
                 inferred_type = type(feature_value)
@@ -84,28 +142,37 @@ class PythonTransformation:
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
-            raise TypeError(
-                "Comparisons should only involve PythonTransformation class objects."
-            )
-
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
             return False
 
-        return True
+        # udf_string is the canonical diff identity. Source-first from_proto
+        # rebuilds a new callable (strip+exec) whose bytecode differs from the
+        # live repo function even when the source is unchanged — do not require
+        # co_code equality when both sides have source text.
+        left = self.udf_string or ""
+        right = other.udf_string or ""
+        if left and right:
+            return left == right
 
-    def to_proto(self) -> UserDefinedFunctionProto:
-        return UserDefinedFunctionProto(
-            name=self.udf.__name__,
-            body=dill.dumps(self.udf, recurse=True),
-            body_text=self.udf_string,
+        return self.udf.__code__.co_code == other.udf.__code__.co_code
+
+    def __reduce__(self):
+        """Support for pickle/dill serialization."""
+        return (
+            self.__class__,
+            (self.udf, self.udf_string, self.singleton),
         )
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
         return PythonTransformation(
-            udf=dill.loads(user_defined_function_proto.body),
-            udf_string=user_defined_function_proto.body_text,
+            udf=cast(FunctionType, udf),
+            udf_string=udf_string,
         )

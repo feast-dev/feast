@@ -41,7 +41,7 @@ online_store:
   password: password  # Couchbase password from access credentials
   bucket_name: feast  # Couchbase bucket name, defaults to feast
   kv_port: 11210  # Couchbase key-value port, defaults to 11210. Required if custom ports are used. 
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 ```
 
 #### Apply the feature definitions in [`example.py`](https://github.com/feast-dev/feast/blob/master/go/internal/test/feature_repo/example.py)
@@ -87,12 +87,13 @@ feature_vector = store.get_online_features(
     ],
 ).to_dict()
 pprint(feature_vector)
-
 ```
 #### Output
 ```python
-{'acc_rate': [0.01390857808291912, 0.4063614010810852],
- 'avg_daily_trips': [69, 706],
- 'conv_rate': [0.6624961495399475, 0.7595928311347961],
- 'driver_id': [1004, 1005]}
+{
+    "acc_rate": [0.01390857808291912, 0.4063614010810852],
+    "avg_daily_trips": [69, 706],
+    "conv_rate": [0.6624961495399475, 0.7595928311347961],
+    "driver_id": [1004, 1005],
+}
 ```

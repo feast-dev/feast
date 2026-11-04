@@ -20,9 +20,13 @@ def fetch_java():
 
     print(
         stub.GetOnlineFeatures(
-            GetOnlineFeaturesRequest(features=feature_refs, entities=entity_rows,)
+            GetOnlineFeaturesRequest(
+                features=feature_refs,
+                entities=entity_rows,
+            )
         )
     )
+
 
 if __name__ == "__main__":
     fetch_java()

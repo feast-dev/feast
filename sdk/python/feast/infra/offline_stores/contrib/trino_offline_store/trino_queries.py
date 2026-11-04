@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import signal
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -9,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import trino
+import trino.auth
 from trino.dbapi import Cursor
 from trino.exceptions import TrinoQueryError
 
@@ -37,7 +39,7 @@ class Trino:
         http_scheme: str,
         verify: bool,
         extra_credential: Optional[str],
-        auth: Optional[trino.Authentication],
+        auth: Optional[trino.auth.Authentication],
     ):
         self.host = host
         self.port = port
@@ -50,7 +52,8 @@ class Trino:
         self.auth = auth
         self._cursor: Optional[Cursor] = None
 
-    def _get_cursor(self) -> Cursor:
+    def get_cursor(self) -> Cursor:
+        """Return an active DB-API Cursor for Trino queries."""
         if self._cursor is None:
             headers = (
                 {trino.constants.HEADER_EXTRA_CREDENTIAL: self.extra_credential}
@@ -70,6 +73,9 @@ class Trino:
             ).cursor()
 
         return self._cursor
+
+    def _get_cursor(self) -> Cursor:
+        return self.get_cursor()
 
     def create_query(self, query_text: str) -> Query:
         """
@@ -91,8 +97,9 @@ class Query(object):
         self.status = QueryStatus.PENDING
         self._cursor = cursor
 
-        signal.signal(signal.SIGINT, self.cancel)
-        signal.signal(signal.SIGTERM, self.cancel)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, self.cancel)
+            signal.signal(signal.SIGTERM, self.cancel)
 
     def execute(self) -> Results:
         try:
@@ -106,7 +113,9 @@ class Query(object):
             self.execution_time = end_time - start_time
             self.status = QueryStatus.COMPLETED
 
-            return Results(data=rows, columns=self._cursor._query.columns)
+            query = self._cursor._query
+            assert query is not None, "Cursor query should not be None after execute"
+            return Results(data=rows, columns=query.columns)
         except TrinoQueryError as error:
             self.status = QueryStatus.ERROR
             raise error

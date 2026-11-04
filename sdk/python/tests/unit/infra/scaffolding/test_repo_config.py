@@ -48,7 +48,7 @@ def test_nullable_online_store_local():
         registry: "registry.db"
         provider: local
         online_store: null
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -62,7 +62,7 @@ def test_local_config():
         project: foo
         registry: "registry.db"
         provider: local
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -78,7 +78,7 @@ def test_local_config_with_full_online_class():
         provider: local
         online_store:
             type: feast.infra.online_stores.sqlite.SqliteOnlineStore
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -94,7 +94,7 @@ def test_local_config_with_full_online_class_directly():
         registry: "registry.db"
         provider: local
         online_store: feast.infra.online_stores.sqlite.SqliteOnlineStore
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -128,7 +128,7 @@ def test_no_online_store_type():
         provider: local
         online_store:
             path: "blah"
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -158,7 +158,7 @@ def test_no_project():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error="1 validation error for RepoConfig\nproject\n  Field required",
@@ -169,12 +169,12 @@ def test_invalid_project_name():
     _test_config(
         dedent(
             """
-        project: foo-1
+        project: -foo
         registry: "registry.db"
         provider: local
         """
         ),
-        expect_error="alphanumerical values ",
+        expect_error="alphanumerical values, underscores, and hyphens ",
     )
 
     _test_config(
@@ -185,7 +185,7 @@ def test_invalid_project_name():
         provider: local
         """
         ),
-        expect_error="alphanumerical values ",
+        expect_error="alphanumerical values, underscores, and hyphens ",
     )
 
 
@@ -197,7 +197,7 @@ def test_no_provider():
         registry: "registry.db"
         online_store:
             path: "blah"
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -219,7 +219,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error="missing authentication type",
@@ -240,7 +240,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error="invalid authentication type=not_valid_auth_type",
@@ -258,7 +258,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -286,7 +286,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -310,7 +310,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,
@@ -328,7 +328,7 @@ def test_auth_config():
         provider: local
         online_store:
             path: foo
-        entity_key_serialization_version: 2
+        entity_key_serialization_version: 3
         """
         ),
         expect_error=None,

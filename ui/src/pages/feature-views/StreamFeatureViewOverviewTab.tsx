@@ -88,7 +88,6 @@ const StreamFeatureViewOverviewTab = ({
             <EuiHorizontalRule margin="xs" />
             <EuiFlexGroup direction="column">
               {inputs.map(([key, inputGroup]) => {
-
                 return (
                   <EuiPanel hasBorder={true} key={key}>
                     <EuiText size="xs">
@@ -102,7 +101,11 @@ const StreamFeatureViewOverviewTab = ({
                       </EuiCustomLink>
                     </EuiTitle>
                     <EuiFlexItem key={key}>
-                      <EuiCodeBlock language="json" fontSize="m" paddingSize="m">
+                      <EuiCodeBlock
+                        language="json"
+                        fontSize="m"
+                        paddingSize="m"
+                      >
                         {JSON.stringify(inputGroup, null, 2)}
                       </EuiCodeBlock>
                     </EuiFlexItem>

@@ -14,4 +14,4 @@ offline_store:
     user: COUCHBASE_COLUMNAR_USER # Couchbase cluster access name from Settings > Access Control page in Capella Columnar console
     password: COUCHBASE_COLUMNAR_PASSWORD # Couchbase password from Settings > Access Control page in Capella Columnar console
     timeout: COUCHBASE_COLUMNAR_TIMEOUT # Timeout in seconds for Columnar operations, optional
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

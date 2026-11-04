@@ -31,6 +31,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from feast.infra.utils.clickhouse.connection_utils import get_client
 from feast.saved_dataset import SavedDatasetStorage
+from feast.utils import compute_non_entity_date_range
 
 
 class ClickhouseOfflineStoreConfig(ClickhouseConfig):
@@ -38,19 +39,32 @@ class ClickhouseOfflineStoreConfig(ClickhouseConfig):
 
 
 class ClickhouseOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def get_historical_features(
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, ClickhouseSource)
+
+        # Handle non-entity retrieval mode
+        if entity_df is None:
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
+            entity_df = pd.DataFrame({"event_timestamp": [end_date]})
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -112,6 +126,7 @@ class ClickhouseOfflineStore(OfflineStore):
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
                 yield query
             finally:
@@ -176,7 +191,7 @@ class ClickhouseOfflineStore(OfflineStore):
             FROM (
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-                FROM ({from_expression}) a
+                FROM {from_expression} a
                 WHERE a."{timestamp_field}"
                     BETWEEN toDateTime64('{start_date.replace(tzinfo=None)!s}', 6, '{start_date.tzinfo!s}')
                     AND toDateTime64('{end_date.replace(tzinfo=None)!s}', 6, '{end_date.tzinfo!s}')
@@ -189,6 +204,43 @@ class ClickhouseOfflineStore(OfflineStore):
             config=config,
             full_feature_names=False,
             on_demand_feature_views=None,
+        )
+
+    @staticmethod
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
+        assert isinstance(data_source, ClickhouseSource)
+
+        from_expression = data_source.get_table_query_string()
+
+        timestamp_fields = [timestamp_field]
+
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
+
+        field_string = ", ".join(
+            join_key_columns + feature_name_columns + timestamp_fields
+        )
+
+        query = f"""
+            SELECT {field_string}
+            FROM {from_expression}
+            WHERE {timestamp_field} BETWEEN parseDateTimeBestEffort('{start_date}') AND parseDateTimeBestEffort('{end_date}')
+        """
+
+        return ClickhouseRetrievalJob(
+            query=query,
+            config=config,
+            full_feature_names=False,
         )
 
 
@@ -490,6 +542,10 @@ WITH entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - interval {{ featureview.ttl }} second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 ),
 

@@ -26,10 +26,15 @@ def update_data_sources_with_inferred_event_timestamp_col(
 ) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
     for data_source in data_sources:
+        if data_source is None:
+            continue
         if isinstance(data_source, RequestSource):
             continue
         if isinstance(data_source, PushSource):
-            data_source = data_source.batch_source
+            if not isinstance(data_source.batch_source, DataSource):
+                continue
+            else:
+                data_source = data_source.batch_source
         if data_source.timestamp_field is None or data_source.timestamp_field == "":
             # prepare right match pattern for data source
             ts_column_type_regex_pattern: str
@@ -215,6 +220,9 @@ def _infer_features_and_entities(
         return _infer_on_demand_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
+
+    if fv.batch_source is None:
+        return
 
     entity_columns: List[Field] = fv.entity_columns if fv.entity_columns else []
     columns_to_exclude = {

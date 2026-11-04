@@ -28,13 +28,13 @@ The majority of Feast logic lives in these Python files:
 
 There are also several important submodules:
 * `infra/` contains all the infrastructure components, such as the provider, offline store, online store, batch materialization engine, and registry.
-* `dqm/` covers data quality monitoring, such as the dataset profiler.
+* `dqm/` covers data quality monitoring. See [`monitoring/`](../../sdk/python/feast/monitoring/) for the built-in monitoring system.
 * `diff/` covers the logic for determining how to apply infrastructure changes upon feature repo changes (e.g. the output of `feast plan` and `feast apply`).
 * `embedded_go/` covers the Go feature server.
 * `ui/` contains the embedded Web UI, to be launched on the `feast ui` command.
 
 Of these submodules, `infra/` is the most important.
-It contains the interfaces for the [provider](getting-started/components/provider.md), [offline store](getting-started/components/offline-store.md), [online store](getting-started/components/online-store.md), [batch materialization engine](getting-started/components/batch-materialization-engine.md), and [registry](getting-started/components/registry.md), as well as all of their individual implementations.
+It contains the interfaces for the [provider](getting-started/components/provider.md), [offline store](getting-started/components/offline-store.md), [online store](getting-started/components/online-store.md), [compute engine](getting-started/components/compute-engine.md), and [registry](getting-started/components/registry.md), as well as all of their individual implementations.
 
 ```
 $ tree --dirsfirst -L 1 infra   

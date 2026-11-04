@@ -24,12 +24,15 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
-from feast.infra.infra_object import Infra, InfraObject
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
+from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.compute_engines.base import (
+    ComputeEngine,
+)
+from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -62,7 +65,7 @@ class PassthroughProvider(Provider):
         self.repo_config = config
         self._offline_store = None
         self._online_store = None
-        self._batch_engine: Optional[BatchMaterializationEngine] = None
+        self._batch_engine: Optional[ComputeEngine] = None
 
     @property
     def online_store(self):
@@ -87,7 +90,7 @@ class PassthroughProvider(Provider):
         )
 
     @property
-    def batch_engine(self) -> BatchMaterializationEngine:
+    def batch_engine(self) -> ComputeEngine:
         if self._batch_engine:
             return self._batch_engine
         else:
@@ -140,8 +143,8 @@ class PassthroughProvider(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
+        tables_to_delete: Sequence[BaseFeatureView],
+        tables_to_keep: Sequence[BaseFeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -165,8 +168,8 @@ class PassthroughProvider(Provider):
         if self.batch_engine:
             self.batch_engine.update(
                 project,
-                tables_to_delete,
-                tables_to_keep,
+                tables_to_delete,  # type: ignore[arg-type]
+                tables_to_keep,  # type: ignore[arg-type]
                 entities_to_delete,
                 entities_to_keep,
             )
@@ -245,6 +248,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return self.online_store.get_online_features(
             config=config,
@@ -253,6 +257,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def get_online_features_async(
@@ -266,6 +271,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return await self.online_store.get_online_features_async(
             config=config,
@@ -274,6 +280,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def online_read_async(
@@ -294,7 +301,6 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
@@ -305,7 +311,6 @@ class PassthroughProvider(Provider):
             result = self.online_store.retrieve_online_documents(
                 config,
                 table,
-                requested_feature,
                 requested_features,
                 query,
                 top_k,
@@ -318,21 +323,25 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: Optional[List[str]],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List:
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents_v2(
-                config,
-                table,
-                requested_features,
-                query,
-                top_k,
-                distance_metric,
-                query_string,
+                config=config,
+                table=table,
+                requested_features=requested_features,
+                embedding=embedding,
+                top_k=top_k,
+                distance_metric=distance_metric,
+                query_string=query_string,
+                filters=filters,
+                include_feature_view_version_metadata=include_feature_view_version_metadata,
             )
         return result
 
@@ -364,7 +373,10 @@ class PassthroughProvider(Provider):
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature
             #   columns, not entity or timestamp columns.
-            if hasattr(feature_view, "batch_source"):
+            if (
+                hasattr(feature_view, "batch_source")
+                and feature_view.batch_source is not None
+            ):
                 if feature_view.batch_source.field_mapping is not None:
                     table = _run_pyarrow_field_mapping(
                         table, feature_view.batch_source.field_mapping
@@ -410,7 +422,10 @@ class PassthroughProvider(Provider):
         )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
-        if feature_view.batch_source.field_mapping is not None:
+        if (
+            feature_view.batch_source is not None
+            and feature_view.batch_source.field_mapping is not None
+        ):
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
             )
@@ -420,17 +435,25 @@ class PassthroughProvider(Provider):
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         start_date: datetime,
         end_date: datetime,
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        disable_event_timestamp: bool = False,
     ) -> None:
+        if isinstance(feature_view, OnDemandFeatureView):
+            if not feature_view.write_to_online_store:
+                raise ValueError(
+                    f"OnDemandFeatureView {feature_view.name} does not have write_to_online_store enabled"
+                )
+            return
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
             or isinstance(feature_view, FeatureView)
+            or isinstance(feature_view, OnDemandFeatureView)
         ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
         task = MaterializationTask(
             project=project,
@@ -438,8 +461,9 @@ class PassthroughProvider(Provider):
             start_time=start_date,
             end_time=end_date,
             tqdm_builder=tqdm_builder,
+            disable_event_timestamp=disable_event_timestamp,
         )
-        jobs = self.batch_engine.materialize(registry, [task])
+        jobs = self.batch_engine.materialize(registry, task)
         assert len(jobs) == 1
         if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
             e = jobs[0].error()
@@ -451,11 +475,14 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
+        **kwargs,
     ) -> RetrievalJob:
+        if kwargs.get("filter_by_created_timestamp"):
+            self.offline_store.ensure_filter_by_created_timestamp_supported()
         job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
@@ -464,6 +491,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            **kwargs,
         )
 
         return job
@@ -471,8 +499,12 @@ class PassthroughProvider(Provider):
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
+        from feast.utils import _strip_version_from_ref
+
         feature_name_columns = [
-            ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
+            _strip_version_from_ref(ref).replace(":", "__")
+            if dataset.full_feature_names
+            else ref.split(":")[1]
             for ref in dataset.features
         ]
 

@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from typeguard import typechecked
 
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, ZeroColumnQueryResult
 from feast.infra.utils.postgres.connection_utils import _get_conn
@@ -20,6 +21,10 @@ from feast.value_type import ValueType
 class PostgreSQLSource(DataSource):
     """A PostgreSQLSource object defines a data source that a PostgreSQLOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add Postgres to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -31,6 +36,7 @@ class PostgreSQLSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a PostgreSQLSource object.
 
@@ -66,6 +72,7 @@ class PostgreSQLSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     def __hash__(self):
@@ -73,9 +80,7 @@ class PostgreSQLSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, PostgreSQLSource):
-            raise TypeError(
-                "Comparisons should only involve PostgreSQLSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -91,6 +96,7 @@ class PostgreSQLSource(DataSource):
 
         postgres_options = json.loads(data_source.custom_options.configuration)
 
+        tags = dict(data_source.tags)
         return PostgreSQLSource(
             name=postgres_options["name"],
             query=postgres_options["query"],
@@ -99,11 +105,12 @@ class PostgreSQLSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,
@@ -141,10 +148,44 @@ class PostgreSQLSource(DataSource):
             )
 
     def get_table_query_string(self) -> str:
+        """Returns a string that can be used to reference this table in SQL.
+
+        For query-based sources, returns the query wrapped in parentheses.
+
+        Note:
+            When using the returned string directly in a FROM clause with PostgreSQL,
+            you may need to add an alias if this is a query-based source. PostgreSQL
+            requires all subqueries in FROM clauses to have aliases. Consider using
+            get_table_query_string_with_alias() for automatic aliasing.
+        """
         if self._postgres_options._table:
             return f"{self._postgres_options._table}"
         else:
             return f"({self._postgres_options._query})"
+
+    def get_table_query_string_with_alias(self, alias: str = "subquery") -> str:
+        """Returns a string for use in FROM clause with alias for PostgreSQL compatibility.
+
+        PostgreSQL requires all subqueries in FROM clauses to have aliases. This method
+        automatically adds an alias when the source is query-based.
+
+        Args:
+            alias: The alias to use for query-based sources. Defaults to "subquery".
+
+        Returns:
+            For table-based sources: the table name (no alias needed).
+            For query-based sources: "(query) AS alias".
+
+        Example::
+
+            source = PostgreSQLSource(query="SELECT * FROM my_table", ...)
+            entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+            # Results in: "SELECT id, ts FROM (SELECT * FROM my_table) AS subquery"
+        """
+        if self._postgres_options._table:
+            return f"{self._postgres_options._table}"
+        else:
+            return f"({self._postgres_options._query}) AS {alias}"
 
 
 class PostgreSQLOptions:
@@ -193,7 +234,7 @@ class SavedDatasetPostgreSQLStorage(SavedDatasetStorage):
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
-        return SavedDatasetStorageProto(custom_storage=self.postgres_options.to_proto())
+        return self._custom_storage_proto(self.postgres_options.to_proto())
 
     def to_data_source(self) -> DataSource:
         return PostgreSQLSource(table=self.postgres_options._table)

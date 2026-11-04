@@ -1,22 +1,34 @@
+import base64
+import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
-from pydantic import StrictStr
+from pydantic import StrictStr, field_validator
 from pymilvus import (
     CollectionSchema,
     DataType,
     FieldSchema,
     MilvusClient,
 )
+from pymilvus.client.types import LoadState
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import (
+    ComparisonFilter,
+    CompoundFilter,
+    FilterTranslator,
+    FilterType,
+    filters_contain_numeric_comparison,
+)
 from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     serialize_entity_key,
 )
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -41,8 +53,11 @@ from feast.utils import (
     to_naive_utc,
 )
 
+logger = logging.getLogger(__name__)
+
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
+    ValueType.IMAGE_BYTES: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
@@ -54,6 +69,12 @@ PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["double_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["map_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["json_list_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_val"]: DataType.VARCHAR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["struct_list_val"]: DataType.VARCHAR,
 }
 
 FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[
@@ -79,6 +100,113 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.VARCHAR
         elif base_value_type == ValueType.BOOL:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
+    elif isinstance(feast_type, ComplexFeastType):
+        milvus_type = PROTO_TO_MILVUS_TYPE_MAPPING.get(value_type)
+        if milvus_type:
+            FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = milvus_type
+
+logger = logging.getLogger(__name__)
+
+MILVUS_NATIVE_NUMERIC_TYPES = {
+    DataType.INT32,
+    DataType.INT64,
+    DataType.FLOAT,
+    DataType.DOUBLE,
+    DataType.BOOL,
+}
+
+# Milvus requires every collection to have a vector field, so feature views
+# without one get a small placeholder vector. Milvus servers reject vectors
+# with fewer than 2 dimensions and non-finite values, and a collection can only
+# be loaded once every vector field is indexed.
+PLACEHOLDER_VECTOR_FIELD = "_placeholder_vector"
+PLACEHOLDER_VECTOR_DIM = 2
+
+
+def _milvus_escape_string(s: str) -> str:
+    """Escape a string for safe use inside a Milvus single-quoted literal.
+
+    Backslashes must be escaped first; otherwise a trailing backslash in the
+    input would combine with the escaped quote to break out of the literal.
+    Also escapes quotes and common control characters that could disrupt
+    Milvus boolean expressions.
+    """
+    return (
+        s.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+
+
+def _milvus_fmt(value: Any) -> str:
+    """Format a Python value for use in a Milvus boolean expression.
+
+    Handles numeric types natively (unquoted) so that Milvus performs
+    numeric comparison instead of lexicographic string comparison.
+    Bool is checked first because Python ``bool`` is a subclass of ``int``.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return f"'{_milvus_escape_string(str(value))}'"
+
+
+class MilvusFilterTranslator(FilterTranslator):
+    """Translates Feast filters into Milvus boolean expression strings."""
+
+    def translate(self, filters: FilterType) -> Optional[str]:
+        if filters is None:
+            return None
+        return self._dispatch(filters)
+
+    def translate_comparison(self, f: ComparisonFilter) -> str:
+        key, value, op_type = f.key, f.value, f.type
+
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", key):
+            raise ValueError(
+                f"Invalid filter key: {key!r}. Keys must be valid field identifiers."
+            )
+
+        milvus_ops = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
+
+        if op_type == "eq":
+            return f"{key} == {_milvus_fmt(value)}"
+        elif op_type == "ne":
+            return f"{key} != {_milvus_fmt(value)}"
+        elif op_type in milvus_ops:
+            return f"{key} {milvus_ops[op_type]} {_milvus_fmt(value)}"
+        elif op_type in ("in", "nin"):
+            if not isinstance(value, list):
+                raise ValueError(
+                    f"'{op_type}' filter requires a list value, got {type(value)}"
+                )
+            formatted = [_milvus_fmt(v) for v in value]
+            kw = "not in" if op_type == "nin" else "in"
+            return f"{key} {kw} [{', '.join(formatted)}]"
+        raise ValueError(f"Unsupported comparison operator: {op_type}")
+
+    def translate_compound(self, f: CompoundFilter) -> str:
+        if not f.filters:
+            return ""
+        clauses = []
+        for sub_filter in f.filters:
+            clause = self._dispatch(sub_filter)
+            if clause:
+                clauses.append(f"({clause})")
+        if not clauses:
+            return ""
+        operator = " and " if f.type == "and" else " or "
+        return operator.join(clauses)
+
+
+def _has_empty_group(filters: FilterType) -> bool:
+    """True when a compound filter has no conditions, at any level."""
+    return isinstance(filters, CompoundFilter) and (
+        not filters.filters or any(_has_empty_group(f) for f in filters.filters)
+    )
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -88,16 +216,51 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
-    path: Optional[StrictStr] = "online_store.db"
-    host: Optional[StrictStr] = "localhost"
+    path: Optional[StrictStr] = ""
+    host: Optional[StrictStr] = "http://localhost"
     port: Optional[int] = 19530
+    # Full endpoint, e.g. a Zilliz Cloud https URI. Takes precedence over host/port.
+    uri: Optional[StrictStr] = None
+    # API key or "username:password". Takes precedence over username/password.
+    token: Optional[StrictStr] = None
+    # Milvus database to use. The database must already exist.
+    db_name: Optional[StrictStr] = None
     index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
+    text_search_enabled: Optional[bool] = False
     nlist: Optional[int] = 128
+    # Index build params for vector fields, e.g. {"M": 16, "efConstruction": 200}.
+    # Defaults to {"nlist": nlist}, or {} for AUTOINDEX.
+    index_params: Optional[Dict[str, Any]] = None
+    # Search params, e.g. {"ef": 64}, or {"level": 2} for AUTOINDEX.
+    # Defaults to {"nprobe": 10}, or {} for AUTOINDEX.
+    search_params: Optional[Dict[str, Any]] = None
+    # Sent with every read and search. When unset, Milvus uses the
+    # collection's level.
+    consistency_level: Optional[
+        Literal["Strong", "Bounded", "Session", "Eventually"]
+    ] = None
+    # Set when Feast creates a collection. When unset, Milvus uses its
+    # default (Bounded).
+    collection_consistency_level: Optional[
+        Literal["Strong", "Bounded", "Session", "Eventually"]
+    ] = None
+    # Field to use as the Milvus partition key in feature views that contain it.
+    # A feature view's "milvus.partition_key" tag takes precedence.
+    partition_key: Optional[StrictStr] = None
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
+    enable_openai_compatible_store: Optional[bool] = False
+    varchar_max_length: Optional[int] = 65535
+
+    @field_validator("varchar_max_length")
+    @classmethod
+    def validate_varchar_max_length(cls, v):
+        if v is not None and not (1 <= v <= 65535):
+            raise ValueError(f"varchar_max_length must be between 1 and 65535, got {v}")
+        return v
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -108,8 +271,10 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
-    client: Optional[MilvusClient] = None
-    _collections: Dict[str, Any] = {}
+    def __init__(self):
+        super().__init__()
+        self.client: Optional[MilvusClient] = None
+        self._collections: Dict[str, Any] = {}
 
     def _get_db_path(self, config: RepoConfig) -> str:
         assert (
@@ -125,17 +290,25 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            if config.provider == "local":
+            online_config = config.online_store
+            if (
+                config.provider == "local"
+                and online_config.path
+                and not online_config.uri
+            ):
                 db_path = self._get_db_path(config)
-                print(f"Connecting to Milvus in local mode using {db_path}")
+                logger.info("Connecting to Milvus in local mode using %s", db_path)
                 self.client = MilvusClient(db_path)
             else:
-                self.client = MilvusClient(
-                    url=f"{config.online_store.host}:{config.online_store.port}",
-                    token=f"{config.online_store.username}:{config.online_store.password}"
-                    if config.online_store.username and config.online_store.password
-                    else "",
-                )
+                uri = online_config.uri or f"{online_config.host}:{online_config.port}"
+                logger.info("Connecting to Milvus remotely at %s", uri)
+                client_kwargs: Dict[str, Any] = {
+                    "uri": uri,
+                    "token": _milvus_token(online_config),
+                }
+                if online_config.db_name:
+                    client_kwargs["db_name"] = online_config.db_name
+                self.client = MilvusClient(**client_kwargs)
         return self.client
 
     def _get_or_create_collection(
@@ -143,16 +316,18 @@ class MilvusOnlineStore(OnlineStore):
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
             composite_key_name = _get_composite_key_name(table)
-
+            varchar_max_length = int(config.online_store.varchar_max_length or 65535)
             fields = [
                 FieldSchema(
                     name=composite_key_name,
                     dtype=DataType.VARCHAR,
-                    max_length=512,
+                    max_length=varchar_max_length,
                     is_primary=True,
                 ),
                 FieldSchema(name="event_ts", dtype=DataType.INT64),
@@ -161,10 +336,15 @@ class MilvusOnlineStore(OnlineStore):
             fields_to_exclude = [
                 "event_ts",
                 "created_ts",
+                "event_timestamp",
+                "created_timestamp",
             ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
+            use_typed = config.online_store.enable_openai_compatible_store
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
+                if dtype is None and isinstance(field.dtype, ComplexFeastType):
+                    dtype = DataType.VARCHAR
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
                         fields.append(
@@ -174,15 +354,51 @@ class MilvusOnlineStore(OnlineStore):
                                 dim=config.online_store.embedding_dim,
                             )
                         )
+                    elif use_typed and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
+                        fields.append(
+                            FieldSchema(
+                                name=field.name,
+                                dtype=dtype,
+                            )
+                        )
                     else:
+                        if "max_length" in field.tags:
+                            try:
+                                field_max_length = int(field.tags["max_length"])
+                            except (ValueError, TypeError):
+                                raise ValueError(
+                                    f"Field '{field.name}' has invalid max_length tag"
+                                    f" '{field.tags['max_length']}': must be an integer."
+                                )
+                            if not (1 <= field_max_length <= 65535):
+                                raise ValueError(
+                                    f"Field '{field.name}' max_length tag must be"
+                                    f" between 1 and 65535, got {field_max_length}"
+                                )
+                        else:
+                            field_max_length = varchar_max_length
                         fields.append(
                             FieldSchema(
                                 name=field.name,
                                 dtype=DataType.VARCHAR,
-                                max_length=512,
+                                max_length=field_max_length,
                             )
                         )
-
+            has_vector_field = any(
+                f.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR)
+                for f in fields
+            )
+            if not has_vector_field:
+                fields.append(
+                    FieldSchema(
+                        name=PLACEHOLDER_VECTOR_FIELD,
+                        dtype=DataType.FLOAT_VECTOR,
+                        dim=PLACEHOLDER_VECTOR_DIM,
+                    )
+                )
+            partition_key = _partition_key_name(config.online_store, table)
+            if partition_key:
+                _mark_partition_key(fields, partition_key, table.name)
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
@@ -190,42 +406,65 @@ class MilvusOnlineStore(OnlineStore):
                 collection_name=collection_name
             )
             if not collection_exists:
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    dimension=config.online_store.embedding_dim,
-                    schema=schema,
-                )
                 index_params = self.client.prepare_index_params()
                 for vector_field in schema.fields:
-                    if (
-                        vector_field.dtype
-                        in [
-                            DataType.FLOAT_VECTOR,
-                            DataType.BINARY_VECTOR,
-                        ]
-                        and vector_field.name in vector_field_dict
-                    ):
+                    if vector_field.dtype not in [
+                        DataType.FLOAT_VECTOR,
+                        DataType.BINARY_VECTOR,
+                    ]:
+                        continue
+                    if vector_field.name in vector_field_dict:
                         metric = vector_field_dict[
                             vector_field.name
                         ].vector_search_metric
                         index_params.add_index(
-                            collection_name=collection_name,
                             field_name=vector_field.name,
                             metric_type=metric or config.online_store.metric_type,
                             index_type=config.online_store.index_type,
                             index_name=f"vector_index_{vector_field.name}",
-                            params={"nlist": config.online_store.nlist},
+                            params=_index_build_params(config.online_store),
                         )
-                self.client.create_index(
+                    else:
+                        # Vector fields that aren't searched (the placeholder,
+                        # or arrays without vector_index) still need an index,
+                        # otherwise Milvus servers refuse to load the collection.
+                        index_params.add_index(
+                            field_name=vector_field.name,
+                            metric_type="L2"
+                            if vector_field.name == PLACEHOLDER_VECTOR_FIELD
+                            else config.online_store.metric_type,
+                            index_type="FLAT",
+                            index_name=f"vector_index_{vector_field.name}",
+                        )
+                # Every collection has at least one vector field, and every
+                # vector field is indexed, so passing the index params here
+                # makes Milvus create the indexes and load the collection.
+                self.client.create_collection(
                     collection_name=collection_name,
+                    dimension=config.online_store.embedding_dim,
+                    schema=schema,
                     index_params=index_params,
+                    **_collection_consistency_kwargs(config.online_store),
                 )
             else:
-                self.client.load_collection(collection_name)
+                self._ensure_loaded(collection_name)
+            # Collections are only cached once loaded, so reads and searches
+            # don't need to load them again.
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
             )
+            if collection_exists and partition_key:
+                _warn_if_partition_key_missing(
+                    self._collections[collection_name], partition_key
+                )
         return self._collections[collection_name]
+
+    def _ensure_loaded(self, collection_name: str) -> None:
+        """Load an existing collection unless Milvus already has it loaded."""
+        assert self.client is not None, "Milvus client is not initialized"
+        load_state = self.client.get_load_state(collection_name).get("state")
+        if load_state != LoadState.Loaded:
+            self.client.load_collection(collection_name)
 
     def online_write_batch(
         self,
@@ -247,14 +486,28 @@ class MilvusOnlineStore(OnlineStore):
         entity_batch_to_insert = []
         unique_entities: dict[str, dict[str, Any]] = {}
         required_fields = {field["name"] for field in collection["fields"]}
+        collection_field_types = {
+            field["name"]: field["type"] for field in collection["fields"]
+        }
+        # Collections created by older Feast versions may use a 1-dim placeholder.
+        placeholder_dim = next(
+            (
+                int(field.get("params", {}).get("dim", PLACEHOLDER_VECTOR_DIM))
+                for field in collection["fields"]
+                if field["name"] == PLACEHOLDER_VECTOR_FIELD
+            ),
+            PLACEHOLDER_VECTOR_DIM,
+        )
+        schema_internal_fields = {"event_ts", "created_ts"}
+        collection_has_native_numerics = any(
+            collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
+            for name in required_fields - schema_internal_fields
+        )
         for entity_key, values_dict, timestamp, created_ts in data:
-            # need to construct the composite primary key also need to handle the fact that entities are a list
             entity_key_str = serialize_entity_key(
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
-            # to recover the entity key just run:
-            # deserialize_entity_key(bytes.fromhex(entity_key_str), entity_key_serialization_version=3)
             composite_key_name = _get_composite_key_name(table)
 
             timestamp_int = int(to_naive_utc(timestamp).timestamp() * 1e6)
@@ -272,7 +525,18 @@ class MilvusOnlineStore(OnlineStore):
                 values_dict,
                 vector_cols=vector_cols,
                 serialize_to_string=True,
+                use_native_numeric_types=collection_has_native_numerics,
             )
+
+            # Remove timestamp fields that are handled separately to avoid conflicts
+            timestamp_fields = [
+                "event_timestamp",
+                "created_timestamp",
+                "event_ts",
+                "created_ts",
+            ]
+            for field in timestamp_fields:
+                values_dict.pop(field, None)
 
             single_entity_record = {
                 composite_key_name: entity_key_str,
@@ -280,10 +544,15 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            # Ensure all required fields exist, setting missing ones to empty strings
             for field in required_fields:
                 if field not in single_entity_record:
-                    single_entity_record[field] = ""
+                    field_type = collection_field_types.get(field, DataType.VARCHAR)
+                    if field == PLACEHOLDER_VECTOR_FIELD:
+                        single_entity_record[field] = [0.0] * placeholder_dim
+                    else:
+                        single_entity_record[field] = _default_for_milvus_type(
+                            field_type
+                        )
             # Store only the latest event timestamp per entity
             if (
                 entity_key_str not in unique_entities
@@ -306,10 +575,11 @@ class MilvusOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
 
         composite_key_name = _get_composite_key_name(table)
@@ -338,11 +608,11 @@ class MilvusOnlineStore(OnlineStore):
             + ", ".join([f"'{e}'" for e in composite_entities])
             + "]"
         )
-        self.client.load_collection(collection_name)
         results = self.client.query(
             collection_name=collection_name,
             filter=query_filter_for_entities,
             output_fields=output_fields,
+            **_consistency_kwargs(config.online_store),
         )
         # Group hits by composite key.
         grouped_hits: Dict[str, Any] = {}
@@ -354,6 +624,10 @@ class MilvusOnlineStore(OnlineStore):
         feature_name_feast_primitive_type_map = {
             f.name: f.dtype for f in table.features
         }
+        if getattr(table, "write_to_online_store", False):
+            feature_name_feast_primitive_type_map.update(
+                {f.name: f.dtype for f in table.schema}
+            )
         # Build a dictionary mapping composite key -> (res_ts, res)
         results_dict: Dict[
             str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -394,6 +668,7 @@ class MilvusOnlineStore(OnlineStore):
                                 "int64_val",
                                 "float_val",
                                 "double_val",
+                                "string_val",
                             ]:
                                 setattr(
                                     val,
@@ -406,21 +681,25 @@ class MilvusOnlineStore(OnlineStore):
                                 "float_list_val",
                                 "double_list_val",
                             ]:
-                                setattr(
-                                    val,
-                                    proto_attr,
-                                    list(
-                                        map(
-                                            type(getattr(val, proto_attr)).__args__[0],
-                                            field_value,
-                                        )
-                                    ),
-                                )
+                                getattr(val, proto_attr).val.extend(field_value)
+                            elif proto_attr in [
+                                "map_val",
+                                "map_list_val",
+                                "struct_val",
+                                "struct_list_val",
+                                "json_list_val",
+                            ]:
+                                if isinstance(field_value, str) and field_value:
+                                    try:
+                                        proto_bytes = base64.b64decode(field_value)
+                                        val.ParseFromString(proto_bytes)
+                                    except Exception:
+                                        setattr(val, "string_val", field_value)
                             else:
                                 setattr(val, proto_attr, field_value)
                         else:
                             raise ValueError(
-                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value type {proto_attr}"
                             )
                         # res[field] = val
                         key_to_use = field.split(":", 1)[-1] if ":" in field else field
@@ -434,6 +713,52 @@ class MilvusOnlineStore(OnlineStore):
 
         return result_list
 
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: Optional[List[EntityKeyProto]] = None,
+        *,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+    ) -> None:
+        """Delete rows of a feature view by entity key or by filter.
+
+        Give exactly one of ``entity_keys`` and ``filters``. An empty key list
+        deletes nothing. A filter with an empty group is rejected, so a mistake
+        cannot delete more rows than it names. No tombstone is kept: a later
+        write creates the row again.
+        """
+        if (entity_keys is None) == (filters is None):
+            raise ValueError("Give exactly one of entity_keys or filters")
+        selector: Dict[str, Any]
+        if entity_keys is not None:
+            if not entity_keys:
+                return
+            selector = {
+                "ids": [
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    ).hex()
+                    for entity_key in entity_keys
+                ]
+            }
+        else:
+            if _has_empty_group(filters):
+                raise ValueError(
+                    "Each group of the deletion filter must have a condition"
+                )
+            selector = {"filter": MilvusFilterTranslator().translate(filters)}
+        self.client = self._connect(config)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
+        if collection_name not in self._collections:
+            if not self.client.has_collection(collection_name):
+                return
+            self._ensure_loaded(collection_name)
+        self.client.delete(collection_name=collection_name, **selector)
+
     def update(
         self,
         config: RepoConfig,
@@ -445,18 +770,19 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
-            self._collections = self._get_or_create_collection(config, table)
+            self._get_or_create_collection(config, table)
 
+        # Always drop the base collection plus any "_v{N}" siblings, regardless of
+        # the current versioning flag. This handles mixed-state repos where
+        # versioning was toggled on/off across applies and would otherwise leave
+        # orphan collections behind in Milvus.
         for table in tables_to_delete:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def plan(
         self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
-        raise NotImplementedError
+        return []
 
     def teardown(
         self,
@@ -465,11 +791,9 @@ class MilvusOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
+        # See update(): drop base + all "_v{N}" siblings to handle mixed-state repos.
         for table in tables:
-            collection_name = _table_id(config.project, table)
-            if self._collections.get(collection_name, None):
-                self.client.drop_collection(collection_name)
-                self._collections.pop(collection_name, None)
+            self._drop_all_version_collections(config.project, table)
 
     def retrieve_online_documents_v2(
         self,
@@ -480,6 +804,8 @@ class MilvusOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -487,20 +813,34 @@ class MilvusOnlineStore(OnlineStore):
             Optional[Dict[str, ValueProto]],
         ]
     ]:
-        assert embedding is not None, "Key Word Search not yet implemented for Milvus"
+        """
+        Retrieve documents using vector similarity search or keyword search in Milvus.
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            embedding: Query embedding to search for (optional)
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (optional)
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
         entity_name_feast_primitive_type_map = {
-            k.name: k.dtype for k in table.entity_columns
+            k.name: k.dtype
+            for k in list(table.entity_columns) + list(table.features)
+            if isinstance(k.dtype, PrimitiveFeastType)
         }
         self.client = self._connect(config)
-        collection_name = _table_id(config.project, table)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
         collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
 
-        search_params = {
-            "metric_type": distance_metric or config.online_store.metric_type,
-            "params": {"nprobe": 10},
-        }
+        if embedding is None and query_string is None:
+            raise ValueError("Either embedding or query_string must be provided")
 
         composite_key_name = _get_composite_key_name(table)
 
@@ -515,34 +855,161 @@ class MilvusOnlineStore(OnlineStore):
         ), (
             f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
         )
-        # Note we choose the first vector field as the field to search on. Not ideal but it's something.
-        ann_search_field = None
-        for field in collection["fields"]:
-            if (
-                field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
-                and field["name"] in output_fields
-            ):
-                ann_search_field = field["name"]
-                break
 
-        self.client.load_collection(collection_name)
-        results = self.client.search(
-            collection_name=collection_name,
-            data=[embedding],
-            anns_field=ann_search_field,
-            search_params=search_params,
-            limit=top_k,
-            output_fields=output_fields,
-        )
+        # Find the vector search field if we need it
+        ann_search_field = None
+        if embedding is not None:
+            for field in collection["fields"]:
+                if (
+                    field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+                    and field["name"] in output_fields
+                ):
+                    ann_search_field = field["name"]
+                    break
+
+        if filters and filters_contain_numeric_comparison(filters):
+            collection_field_types = {
+                f["name"]: f["type"] for f in collection["fields"]
+            }
+            schema_internal_fields = {"event_ts", "created_ts"}
+            has_native = any(
+                collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
+                for name in collection_field_types
+                if name not in schema_internal_fields
+            )
+            if not has_native:
+                logger.warning(
+                    "Numeric comparison filters (gt, gte, lt, lte) are being used "
+                    "but this collection stores numeric fields as VARCHAR. This "
+                    "causes lexicographic comparison instead of numeric comparison "
+                    "(e.g. '9' > '100' is True as a string). To fix this, set "
+                    "'enable_openai_compatible_store: true' in your online_store "
+                    "config, then teardown and re-apply your feature store to "
+                    "recreate collections with native numeric types."
+                )
+
+        metadata_filter_expr = MilvusFilterTranslator().translate(filters)
+
+        def _combine_exprs(*parts: Optional[str]) -> Optional[str]:
+            """Combine non-empty Milvus boolean expressions with AND."""
+            active = [p for p in parts if p]
+            if not active:
+                return None
+            if len(active) == 1:
+                return active[0]
+            return " and ".join(f"({p})" for p in active)
+
+        if (
+            embedding is not None
+            and query_string is not None
+            and config.online_store.vector_enabled
+        ):
+            string_field_list = [
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
+            ]
+
+            if not string_field_list:
+                raise ValueError(
+                    "No string fields found in the feature view for text search in hybrid mode"
+                )
+
+            escaped_query = _milvus_escape_string(query_string)
+            filter_expressions = []
+            for field in string_field_list:
+                if field in output_fields:
+                    filter_expressions.append(f"{field} LIKE '%{escaped_query}%'")
+
+            text_filter = " OR ".join(filter_expressions) if filter_expressions else ""
+            combined_filter = _combine_exprs(text_filter, metadata_filter_expr)
+
+            search_params = {
+                "metric_type": distance_metric or config.online_store.metric_type,
+                "params": _search_params(config.online_store),
+            }
+
+            results = self.client.search(
+                collection_name=collection_name,
+                data=[embedding],
+                anns_field=ann_search_field,
+                search_params=search_params,
+                limit=top_k,
+                output_fields=output_fields,
+                filter=combined_filter,
+                **_consistency_kwargs(config.online_store),
+            )
+
+        elif embedding is not None and config.online_store.vector_enabled:
+            # Vector search only
+            search_params = {
+                "metric_type": distance_metric or config.online_store.metric_type,
+                "params": _search_params(config.online_store),
+            }
+
+            results = self.client.search(
+                collection_name=collection_name,
+                data=[embedding],
+                anns_field=ann_search_field,
+                search_params=search_params,
+                limit=top_k,
+                output_fields=output_fields,
+                filter=metadata_filter_expr,
+                **_consistency_kwargs(config.online_store),
+            )
+
+        elif query_string is not None:
+            string_field_list = [
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
+            ]
+
+            if not string_field_list:
+                raise ValueError(
+                    "No string fields found in the feature view for text search"
+                )
+
+            escaped_query = _milvus_escape_string(query_string)
+            filter_expressions = []
+            for field in string_field_list:
+                if field in output_fields:
+                    filter_expressions.append(f"{field} LIKE '%{escaped_query}%'")
+
+            text_filter = " OR ".join(filter_expressions)
+
+            if not text_filter:
+                raise ValueError(
+                    "No text fields found in requested features for search"
+                )
+
+            combined_filter = _combine_exprs(text_filter, metadata_filter_expr)
+
+            query_results = self.client.query(
+                collection_name=collection_name,
+                filter=combined_filter or text_filter,
+                output_fields=output_fields,
+                limit=top_k,
+                **_consistency_kwargs(config.online_store),
+            )
+
+            results = [
+                [{"entity": entity, "distance": -1.0}] for entity in query_results
+            ]
+        else:
+            raise ValueError(
+                "Either vector_enabled must be True for embedding search or query_string must be provided for keyword search"
+            )
 
         result_list = []
         for hits in results:
             for hit in hits:
                 res = {}
                 res_ts = None
-                entity_key_bytes = bytes.fromhex(
-                    hit.get("entity", {}).get(composite_key_name, None)
-                )
+                raw_key = hit.get("entity", {}).get(composite_key_name)
+                entity_key_bytes = bytes.fromhex(raw_key) if raw_key else None
                 entity_key_proto = (
                     deserialize_entity_key(entity_key_bytes)
                     if entity_key_bytes
@@ -554,18 +1021,29 @@ class MilvusOnlineStore(OnlineStore):
                     # entity_key_proto = None
                     if field in ["created_ts", "event_ts"]:
                         res_ts = datetime.fromtimestamp(field_value / 1e6)
-                    elif field == ann_search_field:
+                    elif field == ann_search_field and embedding is not None:
                         serialized_embedding = _serialize_vector_to_float_list(
                             embedding
                         )
                         res[ann_search_field] = serialized_embedding
-                    elif entity_name_feast_primitive_type_map.get(
-                        field, PrimitiveFeastType.INVALID
-                    ) in [
-                        PrimitiveFeastType.STRING,
-                        PrimitiveFeastType.BYTES,
-                    ]:
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.STRING
+                    ):
                         res[field] = ValueProto(string_val=str(field_value))
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.BYTES
+                    ):
+                        try:
+                            decoded_bytes = base64.b64decode(field_value)
+                            res[field] = ValueProto(bytes_val=decoded_bytes)
+                        except Exception:
+                            res[field] = ValueProto(string_val=str(field_value))
                     elif entity_name_feast_primitive_type_map.get(
                         field, PrimitiveFeastType.INVALID
                     ) in [
@@ -573,39 +1051,196 @@ class MilvusOnlineStore(OnlineStore):
                         PrimitiveFeastType.INT32,
                     ]:
                         res[field] = ValueProto(int64_val=int(field_value))
+                    elif entity_name_feast_primitive_type_map.get(
+                        field, PrimitiveFeastType.INVALID
+                    ) in [
+                        PrimitiveFeastType.FLOAT64,
+                        PrimitiveFeastType.FLOAT32,
+                    ]:
+                        res[field] = ValueProto(double_val=float(field_value))
+                    elif (
+                        entity_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.BOOL
+                    ):
+                        res[field] = ValueProto(bool_val=bool(field_value))
                     elif field == composite_key_name:
                         pass
                     elif isinstance(field_value, bytes):
                         val.ParseFromString(field_value)
                         res[field] = val
+                    elif isinstance(field_value, int):
+                        res[field] = ValueProto(int64_val=field_value)
+                    elif isinstance(field_value, float):
+                        res[field] = ValueProto(double_val=field_value)
                     else:
-                        val.string_val = field_value
+                        val.string_val = str(field_value)
                         res[field] = val
-                distance = hit.get("distance", None)
+                raw_distance = hit.get("distance", None)
                 res["distance"] = (
-                    ValueProto(float_val=distance) if distance else ValueProto()
+                    ValueProto(float_val=raw_distance)
+                    if raw_distance is not None
+                    else ValueProto()
                 )
                 result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
+    def _drop_all_version_collections(self, project: str, table: FeatureView) -> None:
+        """Drop the base collection and every ``_v{N}`` versioned sibling.
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+        Mirrors the ``_drop_all_version_tables`` helpers in the MySQL/PostgreSQL
+        online stores. Always called from ``update`` and ``teardown`` so a
+        repo that toggles versioning on and off does not leave orphan
+        collections behind in Milvus.
+        """
+        base = f"{project}_{table.name}"
+        versioned_prefix = f"{base}_v"
+        assert self.client is not None, "Milvus client is not initialized"
+        for collection_name in self.client.list_collections():
+            if collection_name == base or (
+                collection_name.startswith(versioned_prefix)
+                and collection_name[len(versioned_prefix) :].isdigit()
+            ):
+                self.client.drop_collection(collection_name)
+                self._collections.pop(collection_name, None)
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)
+
+
+def _is_autoindex(online_config: MilvusOnlineStoreConfig) -> bool:
+    return (online_config.index_type or "").upper() == "AUTOINDEX"
+
+
+def _index_build_params(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """Build params for vector indexes. AUTOINDEX accepts none besides the metric."""
+    if online_config.index_params is not None:
+        return dict(online_config.index_params)
+    if _is_autoindex(online_config):
+        return {}
+    return {"nlist": online_config.nlist}
+
+
+def _search_params(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    if online_config.search_params is not None:
+        return dict(online_config.search_params)
+    if _is_autoindex(online_config):
+        return {}
+    return {"nprobe": 10}
+
+
+PARTITION_KEY_TAG = "milvus.partition_key"
+PARTITION_KEY_TYPES = {DataType.INT64, DataType.VARCHAR}
+
+
+def _partition_key_name(
+    online_config: MilvusOnlineStoreConfig, table: FeatureView
+) -> Optional[str]:
+    """Return the partition key field for a feature view, if one is configured.
+
+    The feature view's ``milvus.partition_key`` tag takes precedence over the
+    store-level ``partition_key``, which only applies to feature views that
+    contain that field.
+    """
+    tagged = table.tags.get(PARTITION_KEY_TAG)
+    if tagged:
+        return tagged
+    configured = online_config.partition_key
+    if configured and any(field.name == configured for field in table.schema):
+        return configured
+    return None
+
+
+def _mark_partition_key(
+    fields: List[FieldSchema], partition_key: str, table_name: str
+) -> None:
+    field = next((f for f in fields if f.name == partition_key), None)
+    if field is None:
+        raise ValueError(
+            f"Partition key '{partition_key}' is not a field of feature view "
+            f"'{table_name}'."
+        )
+    if field.dtype not in PARTITION_KEY_TYPES:
+        raise ValueError(
+            f"Partition key '{partition_key}' of feature view '{table_name}' is "
+            f"stored as {field.dtype.name}, but Milvus partition keys must be "
+            "INT64 or VARCHAR."
+        )
+    field.is_partition_key = True
+
+
+def _warn_if_partition_key_missing(
+    collection: Dict[str, Any], partition_key: str
+) -> None:
+    has_key = any(
+        field["name"] == partition_key and field.get("is_partition_key")
+        for field in collection["fields"]
+    )
+    if not has_key:
+        logger.warning(
+            "Collection '%s' was created without partition key '%s'. The partition "
+            "key only applies when a collection is created: run `feast teardown` "
+            "and `feast apply`, then materialize again to use it.",
+            collection["collection_name"],
+            partition_key,
+        )
+
+
+def _consistency_kwargs(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """Read and search kwargs; only pass a level when configured."""
+    if online_config.consistency_level:
+        return {"consistency_level": online_config.consistency_level}
+    return {}
+
+
+def _collection_consistency_kwargs(
+    online_config: MilvusOnlineStoreConfig,
+) -> Dict[str, Any]:
+    """create_collection kwargs; only pass a level when configured."""
+    if online_config.collection_consistency_level:
+        return {"consistency_level": online_config.collection_consistency_level}
+    return {}
+
+
+def _milvus_token(online_config: MilvusOnlineStoreConfig) -> str:
+    """Return the token to authenticate with: ``token``, else ``username:password``."""
+    if online_config.token:
+        return online_config.token
+    if online_config.username and online_config.password:
+        return f"{online_config.username}:{online_config.password}"
+    return ""
 
 
 def _get_composite_key_name(table: FeatureView) -> str:
     return "_".join([field.name for field in table.entity_columns]) + "_pk"
 
 
+_MILVUS_TYPE_DEFAULTS: Dict[DataType, Any] = {
+    DataType.INT32: 0,
+    DataType.INT64: 0,
+    DataType.FLOAT: 0.0,
+    DataType.DOUBLE: 0.0,
+    DataType.BOOL: False,
+    DataType.VARCHAR: "",
+}
+
+
+def _default_for_milvus_type(dtype: DataType) -> Any:
+    return _MILVUS_TYPE_DEFAULTS.get(dtype, "")
+
+
 def _extract_proto_values_to_dict(
     input_dict: Dict[str, Any],
     vector_cols: List[str],
-    serialize_to_string=False,
+    serialize_to_string: bool = False,
+    use_native_numeric_types: bool = False,
 ) -> Dict[str, Any]:
     numeric_vector_list_types = [
         k
         for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
-        if k is not None and "list" in k and "string" not in k
+        if k is not None and ("list" in k or "set" in k) and "string" not in k
     ]
     numeric_types = [
         "double_val",
@@ -629,9 +1264,20 @@ def _extract_proto_values_to_dict(
                     else:
                         if (
                             serialize_to_string
-                            and proto_val_type not in ["string_val"] + numeric_types
+                            and proto_val_type
+                            not in ["string_val", "bytes_val", "unix_timestamp_val"]
+                            + numeric_types
                         ):
-                            vector_values = feature_values.SerializeToString().decode()
+                            vector_values = base64.b64encode(
+                                feature_values.SerializeToString()
+                            ).decode("utf-8")
+                        elif proto_val_type == "bytes_val":
+                            byte_data = getattr(feature_values, proto_val_type)
+                            vector_values = base64.b64encode(byte_data).decode("utf-8")
+                        elif (
+                            use_native_numeric_types and proto_val_type in numeric_types
+                        ):
+                            vector_values = getattr(feature_values, proto_val_type)
                         else:
                             if not isinstance(feature_values, str):
                                 vector_values = str(
@@ -642,8 +1288,13 @@ def _extract_proto_values_to_dict(
                     output_dict[feature_name] = vector_values
             else:
                 if serialize_to_string:
-                    if not isinstance(feature_values, str):
-                        feature_values = str(feature_values)
-                    output_dict[feature_name] = feature_values
+                    if use_native_numeric_types and isinstance(
+                        feature_values, (int, float)
+                    ):
+                        output_dict[feature_name] = feature_values
+                    else:
+                        if not isinstance(feature_values, str):
+                            feature_values = str(feature_values)
+                        output_dict[feature_name] = feature_values
 
     return output_dict

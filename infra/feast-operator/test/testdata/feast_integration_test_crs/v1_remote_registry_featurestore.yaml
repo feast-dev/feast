@@ -1,0 +1,16 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: simple-feast-remote-setup
+spec:
+  feastProject: my_project
+  services:
+    offlineStore:
+      server: {}
+    ui: {}
+    registry:
+      remote:
+        feastRef:
+          name: simple-feast-setup
+          namespace: test-ns-feast
+

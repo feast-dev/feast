@@ -22,7 +22,12 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
                 "sub": f":::{intra_communication_base64}",  # Subject claim
             }
 
-            return jwt.encode(payload, "")
+            return jwt.encode(payload, "", algorithm="none")
+
+        # Check if user token is provided in config (for external users)
+        if hasattr(self.auth_config, "user_token") and self.auth_config.user_token:
+            logger.info("Using user token from configuration")
+            return self.auth_config.user_token
 
         try:
             token = self._read_token_from_file()

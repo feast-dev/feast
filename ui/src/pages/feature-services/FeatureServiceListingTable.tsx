@@ -28,9 +28,11 @@ const FeatureServiceListingTable = ({
     {
       name: "Name",
       field: "spec.name",
-      render: (name: string) => {
+      render: (name: string, item: feast.core.IFeatureService) => {
+        const itemProject =
+          item?.spec?.project || (item as any)?.project || projectName;
         return (
-          <EuiCustomLink to={`/p/${projectName}/feature-service/${name}`}>
+          <EuiCustomLink to={`/p/${itemProject}/feature-service/${name}`}>
             {name}
           </EuiCustomLink>
         );
@@ -39,10 +41,12 @@ const FeatureServiceListingTable = ({
     {
       name: "# of Features",
       field: "spec.features",
-      render: (featureViews: feast.core.IFeatureViewProjection[]) => {
-        var numFeatures = 0;
-        featureViews.forEach((featureView) => {
-          numFeatures += featureView.featureColumns!.length;
+      render: (
+        featureViews: feast.core.IFeatureViewProjection[] | undefined,
+      ) => {
+        let numFeatures = 0;
+        (featureViews || []).forEach((featureView) => {
+          numFeatures += (featureView.featureColumns || []).length;
         });
         return numFeatures;
       },
@@ -55,6 +59,17 @@ const FeatureServiceListingTable = ({
       },
     },
   ];
+
+  if (projectName === "all") {
+    columns.splice(1, 0, {
+      name: "Project",
+      field: "project",
+      sortable: true,
+      render: (project: string) => {
+        return project || "Unknown";
+      },
+    });
+  }
 
   tagKeysSet.forEach((key) => {
     columns.push({

@@ -15,7 +15,7 @@ const EntityCustomTabLoadingWrapper = ({
 
   if (!entityName) {
     throw new Error(
-      `This route has no 'entityName' part. This route is likely not supposed to render this component.`
+      `This route has no 'entityName' part. This route is likely not supposed to render this component.`,
     );
   }
 

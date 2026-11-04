@@ -35,11 +35,25 @@ FEATURE_TRANSFORMATION_SERVER_PORT_ENV_NAME: str = "FEATURE_TRANSFORMATION_SERVE
 # Default FTS port
 DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT = 6569
 
-# Default registry server port
+# Default registry server grpc port
 DEFAULT_REGISTRY_SERVER_PORT = 6570
+
+# Default registry server REST port
+DEFAULT_REGISTRY_REST_SERVER_PORT = 6572
 
 # Default offline server port
 DEFAULT_OFFLINE_SERVER_PORT = 8815
 
+DEFAULT_LINEAGE_SERVER_PORT = 6580
+
 # Default feature server registry ttl (seconds)
 DEFAULT_FEATURE_SERVER_REGISTRY_TTL = 5
+
+# Tag key set on Feast projects that are protected.
+# Protected projects are excluded from project listings,
+# shielded from teardown, and hidden from delete operations.
+PROTECTED_PROJECT_TAG = "feast.dev/protected-project"
+
+# Environment variable set by the operator on protected project pods.
+# When "true", the Feast server tags its own project as protected.
+FEAST_PROTECTED_PROJECT_ENV = "FEAST_PROTECTED_PROJECT"

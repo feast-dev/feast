@@ -22,12 +22,24 @@ import useLoadDataSource from "./useLoadDataSource";
 import { feast } from "../../protos";
 
 const DataSourceOverviewTab = () => {
-  let { dataSourceName } = useParams();
+  const { dataSourceName } = useParams();
 
   const dsName = dataSourceName === undefined ? "" : dataSourceName;
   const { isLoading, isSuccess, isError, data, consumingFeatureViews } =
     useLoadDataSource(dsName);
   const isEmpty = data === undefined;
+
+  const viewTypesForDs: Record<string, string> | undefined =
+    consumingFeatureViews && consumingFeatureViews.length > 0
+      ? consumingFeatureViews.reduce((acc: Record<string, string>, f: any) => {
+          acc[f.target.name] =
+            f.target.type === "labelView" ? "labelView" : "featureView";
+          return acc;
+        }, {})
+      : undefined;
+
+  const spec = data?.spec || data;
+  const sourceType = spec?.type;
 
   return (
     <React.Fragment>
@@ -49,16 +61,82 @@ const DataSourceOverviewTab = () => {
                       <h2>Properties</h2>
                     </EuiTitle>
                     <EuiHorizontalRule margin="xs" />
-                    {data.fileOptions || data.bigqueryOptions ? (
-                      <BatchSourcePropertiesView batchSource={data} />
-                    ) : data.type ? (
+                    {spec?.fileOptions || spec?.bigqueryOptions ? (
+                      <BatchSourcePropertiesView batchSource={spec} />
+                    ) : String(sourceType) ===
+                      String(feast.core.DataSource.SourceType.BATCH_ICEBERG) ? (
+                      (() => {
+                        let cfg: any = {};
+                        try {
+                          cfg = JSON.parse(
+                            spec?.customOptions?.configuration || "{}",
+                          );
+                        } catch {
+                          /* ignore */
+                        }
+                        return (
+                          <EuiDescriptionList>
+                            <EuiDescriptionListTitle>
+                              Source Type
+                            </EuiDescriptionListTitle>
+                            <EuiDescriptionListDescription>
+                              Iceberg / Unity Catalog
+                            </EuiDescriptionListDescription>
+                            <EuiDescriptionListTitle>
+                              Catalog Type
+                            </EuiDescriptionListTitle>
+                            <EuiDescriptionListDescription>
+                              {cfg.catalog_type || "rest"}
+                            </EuiDescriptionListDescription>
+                            {cfg.endpoint && (
+                              <>
+                                <EuiDescriptionListTitle>
+                                  Endpoint
+                                </EuiDescriptionListTitle>
+                                <EuiDescriptionListDescription>
+                                  {cfg.endpoint}
+                                </EuiDescriptionListDescription>
+                              </>
+                            )}
+                            <EuiDescriptionListTitle>
+                              Warehouse
+                            </EuiDescriptionListTitle>
+                            <EuiDescriptionListDescription>
+                              {cfg.warehouse || "—"}
+                            </EuiDescriptionListDescription>
+                            <EuiDescriptionListTitle>
+                              Namespace
+                            </EuiDescriptionListTitle>
+                            <EuiDescriptionListDescription>
+                              {cfg.namespace || "—"}
+                            </EuiDescriptionListDescription>
+                            <EuiDescriptionListTitle>
+                              Table
+                            </EuiDescriptionListTitle>
+                            <EuiDescriptionListDescription>
+                              {cfg.table || "—"}
+                            </EuiDescriptionListDescription>
+                            {cfg.token_env_var && (
+                              <>
+                                <EuiDescriptionListTitle>
+                                  Token Env Variable
+                                </EuiDescriptionListTitle>
+                                <EuiDescriptionListDescription>
+                                  {cfg.token_env_var}
+                                </EuiDescriptionListDescription>
+                              </>
+                            )}
+                          </EuiDescriptionList>
+                        );
+                      })()
+                    ) : sourceType ? (
                       <React.Fragment>
                         <EuiDescriptionList>
                           <EuiDescriptionListTitle>
                             Source Type
                           </EuiDescriptionListTitle>
                           <EuiDescriptionListDescription>
-                            {feast.core.DataSource.SourceType[data.type]}
+                            {sourceType}
                           </EuiDescriptionListDescription>
                         </EuiDescriptionList>
                       </React.Fragment>
@@ -71,19 +149,21 @@ const DataSourceOverviewTab = () => {
               <EuiSpacer size="m" />
               <EuiFlexGroup>
                 <EuiFlexItem>
-                  {data.requestDataOptions ? (
+                  {spec?.requestDataOptions ? (
                     <EuiPanel hasBorder={true}>
                       <EuiTitle size="xs">
                         <h2>Request Source Schema</h2>
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                       <RequestDataSourceSchemaTable
-                        fields={data?.requestDataOptions?.schema!.map((obj) => {
-                          return {
-                            fieldName: obj.name!,
-                            valueType: obj.valueType!,
-                          };
-                        })!}
+                        fields={data?.requestDataOptions?.schema!.map(
+                          (obj: any) => {
+                            return {
+                              fieldName: obj.name!,
+                              valueType: obj.valueType!,
+                            };
+                          },
+                        )!}
                       />
                     </EuiPanel>
                   ) : (
@@ -95,17 +175,18 @@ const DataSourceOverviewTab = () => {
             <EuiFlexItem>
               <EuiPanel hasBorder={true}>
                 <EuiTitle size="xs">
-                  <h2>Consuming Feature Views</h2>
+                  <h2>Consuming Views</h2>
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                 {consumingFeatureViews && consumingFeatureViews.length > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={consumingFeatureViews.map((f) => {
+                    fvNames={consumingFeatureViews.map((f: any) => {
                       return f.target.name;
                     })}
+                    viewTypes={viewTypesForDs}
                   />
                 ) : (
-                  <EuiText>No consuming feature views</EuiText>
+                  <EuiText>No consuming views</EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

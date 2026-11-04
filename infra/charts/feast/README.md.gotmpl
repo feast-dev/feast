@@ -43,7 +43,7 @@ feature-server:
               config:
                 host: localhost
                 port: 6379
-            entityKeySerializationVersion: 2
+            entityKeySerializationVersion: 3
 
 global:
   registry:

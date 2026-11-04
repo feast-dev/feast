@@ -1,0 +1,30 @@
+project: my_project
+registry: data/registry.db
+provider: local
+
+# Ray offline store configuration for data I/O operations
+offline_store:
+  type: ray
+  storage_path: data/ray_storage              # Optional: Path for storing datasets
+  # Conservative settings for local development and testing
+  broadcast_join_threshold_mb: 25             # Broadcast join threshold (MB)
+  max_parallelism_multiplier: 1               # Parallelism as multiple of CPU cores
+  target_partition_size_mb: 16                # Target partition size (MB)
+  enable_ray_logging: false                   # Disable Ray logging for cleaner output
+  # ray_address: "127.0.0.1:10001"            # Ray address
+
+# Ray compute engine configuration for distributed feature processing
+batch_engine:
+  type: ray.engine
+  max_workers: 2                              # Maximum number of Ray workers (conservative for local)
+  enable_optimization: true                   # Enable performance optimizations
+  broadcast_join_threshold_mb: 50             # Broadcast join threshold (MB)
+  target_partition_size_mb: 32                # Target partition size (MB)
+  window_size_for_joins: "1H"                 # Time window for distributed joins
+  # ray_address: "127.0.0.1:10001"            # Ray address
+
+# Online store for serving features
+online_store:
+  path: data/online_store.db
+
+entity_key_serialization_version: 3

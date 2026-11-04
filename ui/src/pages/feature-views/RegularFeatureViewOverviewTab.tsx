@@ -8,18 +8,23 @@ import {
   EuiStat,
   EuiText,
   EuiTitle,
+  EuiToolTip,
 } from "@elastic/eui";
 import React from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
+import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
+import useLoadFeatureUsage from "../../queries/useLoadFeatureUsage";
+import { getEntityPermissions } from "../../utils/permissionUtils";
 import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
+import FeatureViewUsagePanel from "./FeatureViewUsagePanel";
 import { feast } from "../../protos";
 import { toDate } from "../../utils/timestamp";
 
@@ -34,10 +39,12 @@ const whereFSconsumesThisFv = (fvName: string) => {
 
 interface RegularFeatureViewOverviewTabProps {
   data: feast.core.IFeatureView;
+  permissions?: any[];
 }
 
 const RegularFeatureViewOverviewTab = ({
   data,
+  permissions,
 }: RegularFeatureViewOverviewTabProps) => {
   const navigate = useNavigate();
 
@@ -47,13 +54,20 @@ const RegularFeatureViewOverviewTab = ({
   const fvName = featureViewName === undefined ? "" : featureViewName;
 
   const relationshipQuery = useLoadRelationshipData();
+  const { data: usageData } = useLoadFeatureUsage();
 
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data.filter(whereFSconsumesThisFv(fvName)).map((fs) => {
-      return fs.target.name;
-    })
+        return fs.target.name;
+      })
     : [];
   const numOfFs = fsNames.length;
+
+  const fvUsage = usageData?.feature_usage?.[fvName];
+  const runCount = fvUsage?.run_count ?? 0;
+  const lastUsed = fvUsage?.last_used ?? null;
+  const lastUsedLabel =
+    lastUsed != null ? new Date(lastUsed).toLocaleDateString() : "N/A";
 
   return (
     <React.Fragment>
@@ -61,6 +75,31 @@ const RegularFeatureViewOverviewTab = ({
         <EuiFlexItem>
           <EuiStat title={`${numOfFs}`} description="Consuming Services" />
         </EuiFlexItem>
+        {usageData?.mlflow_enabled && (
+          <>
+            <EuiFlexItem>
+              <EuiStat
+                title={`${runCount}`}
+                description="MLflow Training Runs"
+              />
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiToolTip
+                position="top"
+                content={
+                  lastUsed != null
+                    ? new Date(lastUsed).toLocaleString()
+                    : "No usage recorded"
+                }
+              >
+                <EuiStat
+                  title={lastUsedLabel}
+                  description="Last Used in MLflow"
+                />
+              </EuiToolTip>
+            </EuiFlexItem>
+          </>
+        )}
       </EuiFlexGroup>
       <EuiSpacer size="l" />
       <EuiFlexGroup>
@@ -124,6 +163,10 @@ const RegularFeatureViewOverviewTab = ({
             )}
           </EuiPanel>
           <EuiSpacer size="m" />
+          {usageData?.mlflow_enabled && (
+            <FeatureViewUsagePanel featureViewName={fvName} />
+          )}
+          <EuiSpacer size="m" />
           <EuiPanel hasBorder={true} grow={false}>
             <EuiTitle size="xs">
               <h3>Tags</h3>
@@ -143,6 +186,24 @@ const RegularFeatureViewOverviewTab = ({
               />
             ) : (
               <EuiText>No Tags specified on this feature view.</EuiText>
+            )}
+          </EuiPanel>
+          <EuiSpacer size="m" />
+          <EuiPanel hasBorder={true}>
+            <EuiTitle size="xs">
+              <h3>Permissions</h3>
+            </EuiTitle>
+            <EuiHorizontalRule margin="xs" />
+            {permissions ? (
+              <PermissionsDisplay
+                permissions={getEntityPermissions(
+                  permissions,
+                  FEAST_FCO_TYPES.featureView,
+                  data?.spec?.name,
+                )}
+              />
+            ) : (
+              <EuiText>No permissions defined for this feature view.</EuiText>
             )}
           </EuiPanel>
         </EuiFlexItem>

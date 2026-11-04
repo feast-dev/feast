@@ -16,8 +16,12 @@
 [feature-server.md](feature-server.md)
 {% endcontent-ref %}
 
-{% content-ref url="batch-materialization-engine.md" %}
-[batch-materialization-engine.md](batch-materialization-engine.md)
+{% content-ref url="compute-engine.md" %}
+[compute-engine.md](compute-engine.md)
+{% endcontent-ref %}
+
+{% content-ref url="stream-processor.md" %}
+[stream-processor.md](stream-processor.md)
 {% endcontent-ref %}
 
 {% content-ref url="provider.md" %}

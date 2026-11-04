@@ -5,37 +5,103 @@ import os
 import sys
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, Iterator, List, Optional, Union, cast
 
-import click
-import pyarrow as pa
-import pyarrow.flight as fl
-from google.protobuf.json_format import Parse
+_FIPS_CIPHER_SUITES = ":".join(
+    [
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "AES128-GCM-SHA256",
+        "AES256-GCM-SHA384",
+    ]
+)
 
-from feast import FeatureStore, FeatureView, utils
-from feast.arrow_error_handler import arrow_server_error_handling_decorator
-from feast.data_source import DataSource
-from feast.feature_logging import FeatureServiceLoggingSource
-from feast.feature_view import DUMMY_ENTITY_NAME
-from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.permissions.action import AuthzedAction
-from feast.permissions.security_manager import assert_permissions
-from feast.permissions.server.arrow import (
+
+def _is_fips_enabled() -> bool:
+    try:
+        with open("/proc/sys/crypto/fips_enabled") as f:
+            return f.read().strip() == "1"
+    except (FileNotFoundError, PermissionError, OSError):
+        return False
+
+
+def _configure_grpc_fips() -> bool:
+    if _is_fips_enabled() and "GRPC_SSL_CIPHER_SUITES" not in os.environ:
+        os.environ["GRPC_SSL_CIPHER_SUITES"] = _FIPS_CIPHER_SUITES
+        return True
+    return False
+
+
+# On FIPS-enabled systems (notably IBM Power ppc64le), gRPC reads
+# GRPC_SSL_CIPHER_SUITES during shared-library initialization.  The env var
+# must be set before any gRPC-linked module (pyarrow.flight) is imported.
+_fips_configured = _configure_grpc_fips()
+
+import click  # noqa: E402
+import pyarrow as pa  # noqa: E402
+import pyarrow.flight as fl  # noqa: E402
+from google.protobuf.json_format import Parse  # noqa: E402
+
+from feast import FeatureStore, FeatureView, utils  # noqa: E402
+from feast.arrow_error_handler import (  # noqa: E402
+    arrow_server_error_handling_decorator,
+)
+from feast.data_source import DataSource  # noqa: E402
+from feast.errors import FeatureViewNotFoundException  # noqa: E402
+from feast.feature_logging import FeatureServiceLoggingSource  # noqa: E402
+from feast.feature_view import DUMMY_ENTITY_NAME  # noqa: E402
+from feast.infra.offline_stores.offline_utils import (  # noqa: E402
+    get_offline_store_from_config,
+)
+from feast.permissions.action import AuthzedAction  # noqa: E402
+from feast.permissions.security_manager import assert_permissions  # noqa: E402
+from feast.permissions.server.arrow import (  # noqa: E402
     AuthorizationMiddlewareFactory,
     inject_user_details_decorator,
 )
-from feast.permissions.server.utils import (
+from feast.permissions.server.utils import (  # noqa: E402
     AuthManagerType,
     ServerType,
     init_auth_manager,
     init_security_manager,
     str_to_auth_manager_type,
 )
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
-from feast.saved_dataset import SavedDatasetStorage
+from feast.protos.feast.core.DataSource_pb2 import (  # noqa: E402
+    DataSource as DataSourceProto,
+)
+from feast.saved_dataset import SavedDatasetStorage  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+if _fips_configured:
+    logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
+
+
+# Arrow Flight/IPC refuses to send any single RecordBatch above 2GiB
+# ("Cannot send record batches exceeding 2GiB yet"); stay well under it.
+_MAX_BATCH_BYTES = 1_500_000_000
+
+
+def _split_oversized(batch: pa.RecordBatch) -> Iterator[pa.RecordBatch]:
+    if batch.num_rows <= 1 or pa.ipc.get_record_batch_size(batch) <= _MAX_BATCH_BYTES:
+        yield batch
+        return
+    half = batch.num_rows // 2
+    yield from _split_oversized(batch.slice(0, half))
+    yield from _split_oversized(batch.slice(half))
+
+
+def _bounded_reader(
+    data: Union[pa.Table, pa.RecordBatchReader],
+) -> pa.RecordBatchReader:
+    """Re-batch a result so no single RecordBatch exceeds _MAX_BATCH_BYTES."""
+    batches = data.to_batches() if isinstance(data, pa.Table) else data
+    return pa.RecordBatchReader.from_batches(
+        data.schema, (part for batch in batches for part in _split_oversized(batch))
+    )
 
 
 class OfflineServer(fl.FlightServerBase):
@@ -199,7 +265,7 @@ class OfflineServer(fl.FlightServerBase):
                             )
                             fv = fv.with_projection(p)
             return fv
-        except Exception:
+        except FeatureViewNotFoundException:
             try:
                 return self.store.registry.get_stream_feature_view(
                     name=fv_name, project=project
@@ -243,19 +309,7 @@ class OfflineServer(fl.FlightServerBase):
         logger.debug(f"get command is {command}")
         logger.debug(f"requested api is {api}")
         try:
-            if api == OfflineServer.get_historical_features.__name__:
-                table = self.get_historical_features(command, key).to_arrow()
-            elif api == OfflineServer.pull_all_from_table_or_query.__name__:
-                table = self.pull_all_from_table_or_query(command).to_arrow()
-            elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
-                table = self.pull_latest_from_table_or_query(command).to_arrow()
-            elif (
-                api
-                == OfflineServer.get_table_column_names_and_types_from_data_source.__name__
-            ):
-                table = self.get_table_column_names_and_types_from_data_source(command)
-            else:
-                raise NotImplementedError
+            table = self._execute_read_api(api, command, key)
         except Exception as e:
             logger.exception(e)
             traceback.print_exc()
@@ -263,7 +317,119 @@ class OfflineServer(fl.FlightServerBase):
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
-        return fl.RecordBatchStream(table)
+        return fl.RecordBatchStream(_bounded_reader(table))
+
+    @inject_user_details_decorator
+    @arrow_server_error_handling_decorator
+    def do_exchange(
+        self,
+        context: fl.ServerCallContext,
+        descriptor: fl.FlightDescriptor,
+        reader: fl.MetadataRecordBatchReader,
+        writer: fl.MetadataRecordBatchWriter,
+    ):
+        """Handle read APIs in a single bidirectional stream.
+
+        Unlike the legacy do_put → get_flight_info → do_get flow (which stores
+        intermediate state in ``self.flights`` between calls), ``do_exchange``
+        receives the entity data **and** returns the query results within one
+        gRPC stream.  This makes the offline server compatible with multiple
+        replicas / HPA because no cross-call in-memory state is required.
+        """
+        key = OfflineServer.descriptor_to_key(descriptor)
+        command = json.loads(key[1])
+        self._validate_do_get_parameters(command)
+        api = command["api"]
+
+        logger.debug(f"do_exchange: api={api}, command={command}")
+
+        # Read the entity data sent by the client on this stream.
+        data = reader.read_all()
+
+        # For get_historical_features the entity table must be converted to a
+        # pandas DataFrame and passed in via the ``key`` mechanism.  Other read
+        # APIs do not use entity data so we can call them directly.
+        try:
+            if api == OfflineServer.get_historical_features.__name__:
+                entity_df = pa.Table.to_pandas(data)
+                if len(entity_df.columns) == 1 and "key" in entity_df.columns:
+                    entity_df = None
+                if entity_df is None and "entity_df_sql" in command:
+                    entity_df = command["entity_df_sql"]
+                table = self._get_historical_features_direct(
+                    command, entity_df
+                ).to_arrow()
+            else:
+                table = self._execute_read_api(api, command, key=None)
+        except Exception as e:
+            logger.exception(e)
+            traceback.print_exc()
+            raise e
+
+        bounded = _bounded_reader(table)
+        writer.begin(bounded.schema)
+        for batch in bounded:
+            writer.write_batch(batch)
+
+    def _execute_read_api(
+        self, api: str, command: dict, key: Optional[str] = None
+    ) -> pa.Table:
+        """Dispatch a read API call and return the result as an Arrow table."""
+        if api == OfflineServer.get_historical_features.__name__:
+            return self.get_historical_features(command, key).to_arrow()
+        elif api == OfflineServer.pull_all_from_table_or_query.__name__:
+            return self.pull_all_from_table_or_query(command).to_arrow()
+        elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
+            return self.pull_latest_from_table_or_query(command).to_arrow()
+        elif (
+            api
+            == OfflineServer.get_table_column_names_and_types_from_data_source.__name__
+        ):
+            return self.get_table_column_names_and_types_from_data_source(command)
+        else:
+            raise NotImplementedError(f"Unknown read API: {api}")
+
+    def _get_historical_features_direct(self, command: dict, entity_df):
+        """Run get_historical_features without relying on self.flights."""
+        self._validate_get_historical_features_parameters(command, key=None)
+
+        feature_view_names = command["feature_view_names"]
+        name_aliases = command["name_aliases"]
+        feature_refs = command["feature_refs"]
+        project = command["project"]
+        full_feature_names = command["full_feature_names"]
+
+        feature_views = self.list_feature_views_by_name(
+            feature_view_names=feature_view_names,
+            name_aliases=name_aliases,
+            project=project,
+        )
+
+        for feature_view in feature_views:
+            assert_permissions(
+                resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
+            )
+
+        kwargs = {}
+        if "start_date" in command and command["start_date"] is not None:
+            kwargs["start_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["start_date"])
+            )
+        if "end_date" in command and command["end_date"] is not None:
+            kwargs["end_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["end_date"])
+            )
+
+        return self.offline_store.get_historical_features(
+            config=self.store.config,
+            feature_views=feature_views,
+            feature_refs=feature_refs,
+            entity_df=entity_df,
+            registry=self.store.registry,
+            project=project,
+            full_feature_names=full_feature_names,
+            **kwargs,
+        )
 
     def _validate_offline_write_batch_parameters(self, command: dict):
         assert "feature_view_names" in command, (
@@ -354,13 +520,16 @@ class OfflineServer(fl.FlightServerBase):
         assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
 
         return self.offline_store.pull_all_from_table_or_query(
-            self.store.config,
-            data_source,
-            command["join_key_columns"],
-            command["feature_name_columns"],
-            command["timestamp_field"],
-            utils.make_tzaware(datetime.fromisoformat(command["start_date"])),
-            utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
+            config=self.store.config,
+            data_source=data_source,
+            join_key_columns=command["join_key_columns"],
+            feature_name_columns=command["feature_name_columns"],
+            created_timestamp_column=command["created_timestamp_column"],
+            timestamp_field=command["timestamp_field"],
+            start_date=utils.make_tzaware(
+                datetime.fromisoformat(command["start_date"])
+            ),
+            end_date=utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
         )
 
     def _validate_pull_latest_from_table_or_query_parameters(self, command: dict):
@@ -410,20 +579,31 @@ class OfflineServer(fl.FlightServerBase):
             ),
         ]
 
-    def _validate_get_historical_features_parameters(self, command: dict, key: str):
-        assert key in self.flights, f"missing key={key}"
+    def _validate_get_historical_features_parameters(
+        self, command: dict, key: Optional[str] = None
+    ):
+        if key:
+            assert key in self.flights, f"missing key={key}"
         assert "feature_view_names" in command, "feature_view_names is mandatory"
         assert "name_aliases" in command, "name_aliases is mandatory"
         assert "feature_refs" in command, "feature_refs is mandatory"
         assert "project" in command, "project is mandatory"
         assert "full_feature_names" in command, "full_feature_names is mandatory"
 
-    def get_historical_features(self, command: dict, key: str):
+    def get_historical_features(self, command: dict, key: Optional[str] = None):
         self._validate_get_historical_features_parameters(command, key)
+        entity_df = None
+        if key:
+            # Extract parameters from the internal flights dictionary
+            entity_df_value = self.flights[key]
+            entity_df = pa.Table.to_pandas(entity_df_value)
+            # Check if this is a mock/empty table (contains only 'key' column)
+            if len(entity_df.columns) == 1 and "key" in entity_df.columns:
+                entity_df = None
 
-        # Extract parameters from the internal flights dictionary
-        entity_df_value = self.flights[key]
-        entity_df = pa.Table.to_pandas(entity_df_value)
+        # If the client sent a SQL string, use it directly
+        if entity_df is None and "entity_df_sql" in command:
+            entity_df = command["entity_df_sql"]
 
         feature_view_names = command["feature_view_names"]
         name_aliases = command["name_aliases"]
@@ -442,6 +622,17 @@ class OfflineServer(fl.FlightServerBase):
                 resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
             )
 
+        # Extract and deserialize start_date/end_date if present
+        kwargs = {}
+        if "start_date" in command and command["start_date"] is not None:
+            kwargs["start_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["start_date"])
+            )
+        if "end_date" in command and command["end_date"] is not None:
+            kwargs["end_date"] = utils.make_tzaware(
+                datetime.fromisoformat(command["end_date"])
+            )
+
         retJob = self.offline_store.get_historical_features(
             config=self.store.config,
             feature_views=feature_views,
@@ -450,6 +641,7 @@ class OfflineServer(fl.FlightServerBase):
             registry=self.store.registry,
             project=project,
             full_feature_names=full_feature_names,
+            **kwargs,
         )
 
         return retJob
@@ -569,6 +761,7 @@ def start_server(
     tls_cert_path: str = "",
 ):
     _init_auth_manager(store)
+    _configure_grpc_fips()
 
     tls_certificates = []
     scheme = "grpc+tcp"

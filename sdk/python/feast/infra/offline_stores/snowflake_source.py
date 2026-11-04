@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, no_type
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -38,6 +39,7 @@ class SnowflakeSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a SnowflakeSource object.
@@ -61,6 +63,7 @@ class SnowflakeSource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the snowflake source, typically the email of the primary
                 maintainer.
+            connection_ref (optional): Connection reference for credential resolution.
         """
 
         if warehouse:
@@ -99,6 +102,7 @@ class SnowflakeSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     @staticmethod
@@ -112,6 +116,7 @@ class SnowflakeSource(DataSource):
         Returns:
             A SnowflakeSource object based on the data_source protobuf.
         """
+        tags = dict(data_source.tags)
         return SnowflakeSource(
             name=data_source.name,
             timestamp_field=data_source.timestamp_field,
@@ -122,8 +127,9 @@ class SnowflakeSource(DataSource):
             field_mapping=dict(data_source.field_mapping),
             query=data_source.snowflake_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -132,9 +138,7 @@ class SnowflakeSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, SnowflakeSource):
-            raise TypeError(
-                "Comparisons should only involve SnowflakeSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -164,7 +168,7 @@ class SnowflakeSource(DataSource):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         """
         Converts a SnowflakeSource object to its protobuf representation.
 
@@ -245,6 +249,38 @@ class SnowflakeSource(DataSource):
                     "The following source:\n" + query + "\n ... is empty"
                 )
 
+        high_precision_number_columns = [
+            col["column_name"]
+            for col in metadata
+            if col["type_code"] == 0 and col["scale"] == 0 and col["precision"] > 19
+        ]
+
+        if high_precision_number_columns:
+            max_selects = [
+                f'MAX("{col}") AS "{col}"' for col in high_precision_number_columns
+            ]
+            query = (
+                f"SELECT {', '.join(max_selects)} FROM {self.get_table_query_string()}"
+            )
+
+            with GetSnowflakeConnection(config.offline_store) as conn:
+                result = execute_snowflake_statement(conn, query).fetch_pandas_all()
+
+            for col in high_precision_number_columns:
+                max_value = result[col].iloc[0]
+                if max_value is not None:
+                    str_length = len(str(int(max_value)))
+                    for row in metadata:
+                        if row["column_name"] == col:
+                            if str_length <= 9:
+                                row["snowflake_type"] = "NUMBER32"
+                            elif str_length <= 19:
+                                row["snowflake_type"] = "NUMBER64"
+                            else:
+                                raise NotImplementedError(
+                                    f"Number in column {col} larger than INT64 is not supported"
+                                )
+
         for row in metadata:
             if row["type_code"] == 0:
                 if row["scale"] == 0:
@@ -253,34 +289,7 @@ class SnowflakeSource(DataSource):
                     elif row["precision"] <= 18:  # max precision size to ensure INT64
                         row["snowflake_type"] = "NUMBER64"
                     else:
-                        column = row["column_name"]
-
-                        with GetSnowflakeConnection(config.offline_store) as conn:
-                            query = f'SELECT MAX("{column}") AS "{column}" FROM {self.get_table_query_string()}'
-                            result = execute_snowflake_statement(
-                                conn, query
-                            ).fetch_pandas_all()
-                        if (
-                            result.dtypes[column].name
-                            in python_int_to_snowflake_type_map
-                        ):
-                            row["snowflake_type"] = python_int_to_snowflake_type_map[
-                                result.dtypes[column].name
-                            ]
-                        else:
-                            if len(result) > 0:
-                                max_value = result.iloc[0][0]
-                                if max_value is not None and len(str(max_value)) <= 9:
-                                    row["snowflake_type"] = "NUMBER32"
-                                    continue
-                                elif (
-                                    max_value is not None and len(str(max_value)) <= 18
-                                ):
-                                    row["snowflake_type"] = "NUMBER64"
-                                    continue
-                            raise NotImplementedError(
-                                "NaNs or Numbers larger than INT64 are not supported"
-                            )
+                        continue
                 else:
                     row["snowflake_type"] = "NUMBERwSCALE"
 
@@ -300,6 +309,12 @@ class SnowflakeSource(DataSource):
             (str(column["column_name"]), str(column["snowflake_type"]))
             for column in metadata
         ]
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        """
+        Returns the source type of this data source.
+        """
+        return DataSourceProto.BATCH_SNOWFLAKE
 
 
 snowflake_type_code_map = {

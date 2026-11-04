@@ -55,7 +55,7 @@ def bootstrap():
         )
 
     repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
-    example_py_file = repo_path / "example_repo.py"
+    example_py_file = repo_path / "feature_definitions.py"
     replace_str_in_file(example_py_file, "%REDSHIFT_DATABASE%", database)
 
     config_file = repo_path / "feature_store.yaml"

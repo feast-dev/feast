@@ -1,4 +1,11 @@
-const transformNodeModules = ['@elastic/eui', 'uuid'];
+const transformNodeModules = [
+  "@elastic/eui",
+  "uuid",
+  "msw",
+  "until-async",
+  "chroma-js",
+  "keycloak-js",
+];
 
 module.exports = {
   roots: ["<rootDir>/src"],
@@ -14,7 +21,7 @@ module.exports = {
   testEnvironment: "@happy-dom/jest-environment",
   // https://mswjs.io/docs/migrations/1.x-to-2.x#cannot-find-module-mswnode-jsdom
   testEnvironmentOptions: {
-    customExportConditions: [''],
+    customExportConditions: [""],
   },
   transform: {
     "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": "<rootDir>/config/jest/babelTransform.js",
@@ -23,14 +30,15 @@ module.exports = {
       "<rootDir>/config/jest/fileTransform.js",
   },
   transformIgnorePatterns: [
-    `[/\\\\]node_modules[/\\\\](?!(${transformNodeModules.map(name => name.replaceAll('/', '[/\\\\]')).join('|')})[/\\\\])`,
+    `[/\\\\]node_modules[/\\\\](?!(${transformNodeModules.map((name) => name.replaceAll("/", "[/\\\\]")).join("|")})[/\\\\])`,
     "^.+\\.module\\.(css|sass|scss)$",
   ],
   modulePaths: [],
   moduleNameMapper: {
     "^react-native$": "react-native-web",
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
-    "chroma-js": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs",
+    "^chroma-js$": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs",
+    "^reactflow/dist/style\\.css$": "identity-obj-proxy",
   },
   moduleFileExtensions: [
     "web.js",

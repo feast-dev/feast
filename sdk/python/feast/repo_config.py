@@ -44,11 +44,16 @@ REGISTRY_CLASS_FOR_TYPE = {
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
-    "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
-    "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.k8s_materialization_engine.KubernetesMaterializationEngine",
-    "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
+    "local": "feast.infra.compute_engines.local.compute.LocalComputeEngine",
+    "snowflake.engine": "feast.infra.compute_engines.snowflake.snowflake_engine.SnowflakeComputeEngine",
+    "lambda": "feast.infra.compute_engines.aws_lambda.lambda_engine.LambdaComputeEngine",
+    "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
+    "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
+    "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
+    "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
+    "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
+    "trino.engine": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
+    "trino": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -57,14 +62,14 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
     "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
+    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "feast.infra.online_stores.contrib.milvus.MilvusOnlineStore": "feast.infra.online_stores.milvus.MilvusOnlineStore",
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
+    "aerospike": "feast.infra.online_stores.aerospike_online_store.AerospikeOnlineStore",
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
@@ -74,15 +79,18 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "scylladb": "feast.infra.online_stores.scylladb_online_store.scylladb.ScyllaDBOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "ikv": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
+    "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
+    "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
+    "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
+    "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -100,10 +108,16 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
+    "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
+    "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
+    "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "chronon": "feast.infra.offline_stores.contrib.chronon_offline_store.chronon.ChrononOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+    "mcp": "feast.infra.mcp_servers.mcp_config.McpFeatureServerConfig",
 }
 
 ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]
@@ -114,6 +128,24 @@ AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "oidc": "feast.permissions.auth_model.OidcAuthConfig",
     "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
+
+_OIDC_CLIENT_KEYS = frozenset(
+    {"client_secret", "token", "token_env_var", "username", "password"}
+)
+
+
+def _is_oidc_client_config(auth_dict: dict) -> bool:
+    """Decide whether an OIDC auth dict should be routed to OidcClientAuthConfig.
+
+    True when the dict carries any client-credential key, or when it is a bare
+    ``{"type": "oidc"}`` dict with no server-side keys (auth_discovery_url /
+    client_id), which signals token-passthrough via FEAST_OIDC_TOKEN.
+    """
+    if auth_dict.get("type") != AuthType.OIDC.value:
+        return False
+    has_client_keys = bool(_OIDC_CLIENT_KEYS & auth_dict.keys())
+    has_server_keys = "auth_discovery_url" in auth_dict
+    return has_client_keys or not has_server_keys
 
 
 class FeastBaseModel(BaseModel):
@@ -126,6 +158,13 @@ class FeastConfigBaseModel(BaseModel):
     """Feast Pydantic Configuration Class"""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+
+class McpRegistryConfig(FeastBaseModel):
+    """MCP (Model Context Protocol) configuration for the registry REST server."""
+
+    enabled: StrictBool = False
+    """ bool: Enable MCP support on the REST registry server. """
 
 
 class RegistryConfig(FeastBaseModel):
@@ -148,6 +187,12 @@ class RegistryConfig(FeastBaseModel):
      set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
+    cache_mode: StrictStr = "sync"
+    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation) and
+     'thread' (asynchronous background refresh at cache_ttl_seconds intervals). In 'sync' mode, registry changes
+     are immediately visible. In 'thread' mode, changes may take up to
+     cache_ttl_seconds to be visible."""
+
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
@@ -156,20 +201,245 @@ class RegistryConfig(FeastBaseModel):
         Once this is set to True, it cannot be reverted back to False. Reverting back to False will
         only reset the project but not all the projects"""
 
+    enable_online_feature_view_versioning: StrictBool = False
+    """ bool: Enable versioned resolution of version-qualified feature references
+        (e.g., 'fv@v2:feature'). Despite the 'online' in its name, this flag gates
+        both online and offline (get_historical_features) versioned reads, which
+        share the same resolution path; when True, each schema version also gets
+        its own online store table and can be queried independently. Version
+        history tracking in the registry is always active regardless of this
+        setting. """
+
+    serve_features_while_materializing: StrictBool = False
+    """ bool: Allow online serving to continue for a feature view while it is in
+        the ``MATERIALIZING`` state. When ``feature_store.materialize()`` runs against
+        a shared registry it transitions the feature view to ``MATERIALIZING`` and
+        commits that state, which otherwise causes concurrent feature servers to
+        reject requests until materialization completes. When True, feature views in
+        the ``MATERIALIZING`` state keep serving their last-materialized values.
+        Truly-unavailable states (e.g. ``CREATED``, ``GENERATED``) remain gated. """
+
+    mcp: Optional[McpRegistryConfig] = None
+    """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
+
+    @staticmethod
+    def _normalize_postgres_scheme(value: str, field_name: str) -> str:
+        """Rewrite a bare ``postgresql://`` URL to the psycopg3 driver, with a warning.
+
+        SQLAlchemy resolves a bare ``postgresql://`` to the psycopg2 driver, while
+        feast standardizes on psycopg3 (``postgresql+psycopg``). Pass an explicit
+        ``postgresql+psycopg2`` to keep psycopg2. Shared by the ``path`` and
+        ``read_path`` validators so both endpoints normalize identically.
+        """
+        if value.startswith("postgresql://"):
+            _logger.warning(
+                f"The `{field_name}` of the `RegistryConfig` starts with a plain "
+                "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitly "
+                f"to `{field_name}`. To silence this warning, pass `postgresql+psycopg` "
+                f"explicitly to `{field_name}`."
+            )
+            # Rewrite only the leading scheme, not any later occurrence (e.g.
+            # inside credentials or a query string).
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
-            if path.startswith("postgresql://"):
-                _logger.warning(
-                    "The `path` of the `RegistryConfig` starts with a plain "
-                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
-                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
-                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
-                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
-                    "explicitely to `path`."
-                )
-                return path.replace("postgresql://", "postgresql+psycopg://")
+            return cls._normalize_postgres_scheme(path, "path")
         return path
+
+    @model_validator(mode="after")
+    def _warn_on_unsafe_serve_while_materializing(self) -> "RegistryConfig":
+        """Warn when ``serve_features_while_materializing`` is combined with a
+        registry configuration where it is a no-op or where its guarantees may
+        not hold. These are advisory warnings only, never hard failures.
+        """
+        if self.serve_features_while_materializing:
+            if self.registry_type != "sql":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled but "
+                    f"`registry_type` is '{self.registry_type}'. The flag targets "
+                    "the serving interruption caused by concurrent servers sharing "
+                    "a `sql` registry that materialization flips to `MATERIALIZING`; "
+                    "on other registry types it typically has no effect."
+                )
+            if self.cache_mode == "thread":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled together with "
+                    "`cache_mode='thread'`. In thread mode the registry cache may lag "
+                    "by up to `cache_ttl_seconds`, so feature-view state transitions "
+                    "(including the exit from `MATERIALIZING`) may be observed stale."
+                )
+        return self
+
+
+class MaterializationConfig(BaseModel):
+    """Configuration options for feature materialization behavior."""
+
+    pull_latest_features: StrictBool = False
+    """ bool: If true, feature retrieval jobs will only pull the latest feature values for each entity.
+        If false, feature retrieval jobs will pull all feature values within the specified time range. """
+
+    online_write_batch_size: Optional[int] = Field(default=None, gt=0)
+    """ int: Number of rows to write to online store per batch during materialization.
+        If None (default), all rows are written in a single batch for backward compatibility.
+        Set to a positive integer (e.g., 10000) to enable batched writes.
+        Supported compute engines: local, spark, ray. """
+
+
+class DataQualityMonitoringConfig(FeastConfigBaseModel):
+    """Data Quality Monitoring configuration."""
+
+    auto_baseline: StrictBool = True
+    """Whether baseline distribution is computed automatically on ``feast apply``."""
+
+
+class OpenLineageConsumerConfig(FeastBaseModel):
+    """Configuration for the OpenLineage consumer (event receiver)."""
+
+    enabled: StrictBool = False
+    """ bool: Whether the consumer is enabled. """
+
+    store_type: StrictStr = "sql"
+    """ str: Storage backend type. Currently only 'sql' is supported. """
+
+    connection_string: Optional[StrictStr] = None
+    """ str: Optional separate database connection string. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: API key for authenticating producers sending events. """
+
+    namespace_mapping: Optional[Dict[str, str]] = None
+    """ dict: Read-side RBAC bridge mapping external OL namespaces to Feast project
+    names. Users who can DESCRIBE a project also see lineage from mapped namespaces.
+    Example: {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"} """
+
+    retention_days: int = 30
+    """ int: Number of days to retain OpenLineage events and runs. Set to 0 to
+    disable automatic pruning. Default: 30 days. """
+
+    retention_check_interval_hours: int = 6
+    """ int: How often the background pruning task runs, in hours. Default: 6. """
+
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
+
+
+class OpenLineageConfig(FeastBaseModel):
+    """Configuration for OpenLineage integration.
+
+    This enables automatic data lineage tracking for Feast operations like
+    materialization, feature retrieval, and registry changes.
+
+    Example configuration in feature_store.yaml:
+        openlineage:
+            enabled: true
+            transport_type: http
+            transport_url: http://localhost:5000
+            transport_endpoint: api/v1/lineage
+            namespace: feast
+    """
+
+    enabled: StrictBool = False
+    """ bool: Whether OpenLineage integration is enabled. Defaults to False. """
+
+    transport_type: Optional[StrictStr] = None
+    """ str: Type of transport (http, console, file, kafka). Defaults to None (uses OpenLineage SDK defaults). """
+
+    transport_url: Optional[StrictStr] = None
+    """ str: URL for HTTP transport. Required when transport_type is 'http'. """
+
+    transport_endpoint: StrictStr = "api/v1/lineage"
+    """ str: API endpoint for HTTP transport. Defaults to 'api/v1/lineage'. """
+
+    api_key: Optional[StrictStr] = None
+    """ str: Optional API key for authentication with the lineage server. """
+
+    namespace: StrictStr = "feast"
+    """ str: Default namespace for Feast jobs and datasets. """
+
+    producer: StrictStr = "feast"
+    """ str: Producer identifier for OpenLineage events. """
+
+    emit_on_apply: StrictBool = True
+    """ bool: Emit lineage events when 'feast apply' is called. """
+
+    emit_on_materialize: StrictBool = True
+    """ bool: Emit lineage events during materialization. """
+
+    consumer: Optional[OpenLineageConsumerConfig] = None
+    """ OpenLineageConsumerConfig: Consumer (event receiver) configuration. """
+
+    def to_openlineage_config(self):
+        """Convert to feast.openlineage.OpenLineageConfig."""
+        from feast.openlineage.config import OpenLineageConfig as OLConfig
+        from feast.openlineage.config import (
+            OpenLineageConsumerConfig as OLConsumerConfig,
+        )
+
+        consumer = None
+        if self.consumer:
+            consumer = OLConsumerConfig(
+                enabled=self.consumer.enabled,
+                store_type=self.consumer.store_type,
+                connection_string=self.consumer.connection_string,
+                api_key=self.consumer.api_key,
+                namespace_mapping=self.consumer.namespace_mapping or {},
+                retention_days=self.consumer.retention_days,
+                retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
+            )
+
+        return OLConfig(
+            enabled=self.enabled,
+            transport_type=self.transport_type,
+            transport_url=self.transport_url,
+            transport_endpoint=self.transport_endpoint,
+            api_key=self.api_key,
+            namespace=self.namespace,
+            producer=self.producer,
+            emit_on_apply=self.emit_on_apply,
+            emit_on_materialize=self.emit_on_materialize,
+            consumer=consumer or OLConsumerConfig(),
+        )
+
+
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the query-time embedding model used by the feature server.
+
+    Required when using ``openai_search`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    **Sentence Transformers** (default) — runs locally, no API key required.
+    Ideal for air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers   # default; can be omitted
+          model: all-MiniLM-L6-v2
+
+    Custom providers can be plugged in by implementing the
+    :class:`~feast.embedder.EmbeddingProvider` protocol and passing an
+    instance to :class:`~feast.feature_store.FeatureStore`.
+    """
+
+    provider: str = "sentence_transformers"
+    """Embedding backend to use.  Supported values:
+    ``'sentence_transformers'`` (default)."""
+
+    model: str
+    """Model identifier.
+
+    Any HuggingFace model name compatible with ``SentenceTransformer``,
+    e.g. ``'all-MiniLM-L6-v2'``, ``'BAAI/bge-small-en-v1.5'``.
+    """
 
 
 class RepoConfig(FeastBaseModel):
@@ -179,6 +449,10 @@ class RepoConfig(FeastBaseModel):
     """ str: This acts as a Feast unique project identifier. This can be any alphanumeric string and can have '_' but can not start with '_'.
         You can have multiple independent feature repositories deployed to the same cloud
         provider account, as long as they have different project identifier.
+    """
+
+    project_description: Optional[StrictStr] = None
+    """ str: Optional description of the project to provide context about the project's purpose and usage.
     """
 
     provider: StrictStr = "local"
@@ -207,27 +481,46 @@ class RepoConfig(FeastBaseModel):
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
 
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: Embedding model configuration.
+    Required when using openai_search or the
+    OpenAI-compatible vector store search endpoint. """
+
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """
 
     repo_path: Optional[Path] = None
     """When using relative path in FileSource path, this parameter is mandatory"""
 
-    entity_key_serialization_version: StrictInt = 1
+    entity_key_serialization_version: StrictInt = 3
     """ Entity key serialization version: This version is used to control what serialization scheme is
     used when writing data to the online store.
-    A value <= 1 uses the serialization scheme used by feast up to Feast 0.22.
-    A value of 2 uses a newer serialization scheme, supported as of Feast 0.23.
     A value of 3 uses the latest serialization scheme, supported as of Feast 0.38.
-    The main difference between the three schema is that
-    v1: the serialization scheme v1 stored `long` values as `int`s, which would result in errors trying to serialize a range of values.
-    v2: fixes this error, but v1 is kept around to ensure backwards compatibility - specifically the ability to read
-    feature values for entities that have already been written into the online store.
+
+    Version Schemas:
     v3: add entity_key value length to serialized bytes to enable deserialization, which can be used in retrieval of entity_key in document retrieval.
     """
 
     coerce_tz_aware: Optional[bool] = True
     """ If True, coerces entity_df timestamp columns to be timezone aware (to UTC by default). """
+
+    materialization_config: MaterializationConfig = Field(
+        MaterializationConfig(), alias="materialization"
+    )
+    """ MaterializationConfig: Configuration options for feature materialization behavior. """
+
+    openlineage_config: Optional[OpenLineageConfig] = Field(None, alias="openlineage")
+    """ Configuration for OpenLineage data lineage integration (optional). """
+
+    mlflow_config: Optional[Any] = Field(None, alias="mlflow")
+    """ MlflowConfig: Configuration for MLflow experiment tracking integration (optional). """
+
+    data_quality_monitoring_config: Optional[DataQualityMonitoringConfig] = Field(
+        None, alias="data_quality_monitoring"
+    )
+    """ DataQualityMonitoringConfig: Data Quality Monitoring configuration (optional). """
 
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -264,14 +557,21 @@ class RepoConfig(FeastBaseModel):
                 self.feature_server["type"]
             )(**self.feature_server)
 
-        if self.entity_key_serialization_version <= 1:
+        # Initialize OpenLineage configuration
+        self._openlineage: Optional[OpenLineageConfig] = None
+        if "openlineage" in data:
+            self.openlineage_config = data["openlineage"]
+
+        # Initialize MLflow configuration
+        self._mlflow = None
+        if "mlflow" in data:
+            self.mlflow_config = data["mlflow"]
+
+        if self.entity_key_serialization_version < 3:
             warnings.warn(
-                "`entity_key_serialization_version` is either not specified in the feature_store.yaml, "
-                "or is specified to a value <= 1."
-                "This serialization version may cause errors when trying to write fields with the `Long` data type"
-                " into the online store. Specifying `entity_key_serialization_version` to 2 is recommended for"
-                " new projects. ",
-                RuntimeWarning,
+                "The serialization version below 3 are deprecated. "
+                "Specifying `entity_key_serialization_version` to 3 is recommended.",
+                DeprecationWarning,
             )
 
     @property
@@ -286,10 +586,11 @@ class RepoConfig(FeastBaseModel):
                     # This may be a custom registry store, which does not need a 'registry_type'
                     self._registry = RegistryConfig(**self.registry_config)
             elif isinstance(self.registry_config, str):
-                # User passed in just a path to file registry
-                self._registry = get_registry_config_from_type("file")(
-                    path=self.registry_config
-                )
+                # Let Registry.__init__ auto-detect the correct store class
+                # from the URI scheme (e.g. gs:// -> GCSRegistryStore).
+                # Previously this hardcoded "file" type, which broke gs:// and
+                # s3:// paths because FileRegistryStore uses pathlib.Path.
+                self._registry = RegistryConfig(path=self.registry_config)
             elif self.registry_config:
                 self._registry = self.registry_config
         return self._registry
@@ -313,15 +614,12 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                is_oidc_client = (
-                    self.auth.get("type") == AuthType.OIDC.value
-                    and "username" in self.auth
-                    and "password" in self.auth
-                    and "client_secret" in self.auth
+                config_type = (
+                    "oidc_client"
+                    if _is_oidc_client_config(self.auth)
+                    else self.auth.get("type")
                 )
-                self._auth = get_auth_config_from_type(
-                    "oidc_client" if is_oidc_client else self.auth.get("type")
-                )(**self.auth)
+                self._auth = get_auth_config_from_type(config_type)(**self.auth)
             elif isinstance(self.auth, str):
                 self._auth = get_auth_config_from_type(self.auth)()
             elif self.auth:
@@ -358,6 +656,28 @@ class RepoConfig(FeastBaseModel):
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
+
+    @property
+    def openlineage(self) -> Optional[OpenLineageConfig]:
+        """Get the OpenLineage configuration."""
+        if not self._openlineage:
+            if isinstance(self.openlineage_config, Dict):
+                self._openlineage = OpenLineageConfig(**self.openlineage_config)
+            elif self.openlineage_config:
+                self._openlineage = self.openlineage_config
+        return self._openlineage
+
+    @property
+    def mlflow(self):
+        """Get the MLflow configuration."""
+        if not self._mlflow:
+            if isinstance(self.mlflow_config, Dict):
+                from feast.mlflow_integration.config import MlflowConfig
+
+                self._mlflow = MlflowConfig(**self.mlflow_config)
+            elif self.mlflow_config:
+                self._mlflow = self.mlflow_config
+        return self._mlflow
 
     @model_validator(mode="before")
     def _validate_auth_config(cls, values: Any) -> Any:
@@ -416,6 +736,7 @@ class RepoConfig(FeastBaseModel):
             online_config_class(**values["online_store"])
         except ValidationError as e:
             raise e
+
         return values
 
     @model_validator(mode="before")
@@ -471,13 +792,27 @@ class RepoConfig(FeastBaseModel):
 
     @field_validator("project")
     @classmethod
-    def _validate_project_name(cls, v: str) -> str:
+    def _validate_project_name(cls, v: str, info: ValidationInfo) -> str:
+        # Deferred import to avoid circular dependency during package initialization.
         from feast.repo_operations import is_valid_name
+
+        sqlite_compatible = False
+
+        online_store = info.data.get("online_store") if info else None
+        if online_store is None or online_store == {}:
+            sqlite_compatible = True
+        elif isinstance(online_store, dict):
+            sqlite_compatible = online_store.get("type", "sqlite") == "sqlite"
 
         if not is_valid_name(v):
             raise ValueError(
                 f"Project name, {v}, should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
+            )
+
+        if sqlite_compatible and "-" in v:
+            raise ValueError(
+                "Project names for SQLite online stores cannot contain hyphens because they are used in table names."
             )
         return v
 
@@ -573,11 +908,16 @@ def get_auth_config_from_type(auth_config_type: str):
     return import_class(module_name, config_class_name, config_class_name)
 
 
-def get_offline_config_from_type(offline_store_type: str):
+def get_offline_store_type(offline_store_type: str):
     if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
-        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+        return OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
     elif not offline_store_type.endswith("OfflineStore"):
         raise FeastOfflineStoreInvalidName(offline_store_type)
+    return offline_store_type
+
+
+def get_offline_config_from_type(offline_store_type: str):
+    offline_store_type = get_offline_store_type(offline_store_type)
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 

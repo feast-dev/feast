@@ -20,7 +20,7 @@ from feast.infra.offline_stores.contrib.trino_offline_store.trino_source import 
     TrinoSource,
 )
 from feast.repo_config import FeastConfigBaseModel
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

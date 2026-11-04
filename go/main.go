@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
-	//"strings"
+	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -18,23 +22,47 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	//grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
+var tracer trace.Tracer
+
+var newSignalStopChannel = func() (chan os.Signal, func()) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	return stop, func() {
+		signal.Stop(stop)
+	}
+}
+
 type ServerStarter interface {
-	StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
-	StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error
+	StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error
 }
 
 type RealServerStarter struct{}
 
-func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartHttpServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (s *RealServerStarter) StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, false, "", "")
 }
 
-func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	return StartGrpcServer(fs, host, port, writeLoggedFeaturesCallback, loggingOpts)
+func (s *RealServerStarter) StartHttpsServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, certFile string, keyFile string) error {
+	return StartHttpServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts, true, certFile, keyFile)
+}
+
+func (s *RealServerStarter) StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+	return StartGrpcServer(fs, host, port, metricsPort, writeLoggedFeaturesCallback, loggingOpts)
 }
 
 func main() {
@@ -42,19 +70,51 @@ func main() {
 	serverType := "http"
 	host := ""
 	port := 8080
+	metricsPort := 9090
 	server := RealServerStarter{}
+	certFile := ""
+	keyFile := ""
 	// Current Directory
 	repoPath, err := os.Getwd()
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed to get current directory")
 	}
 
-	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http or grpc)")
+	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http, https or grpc)")
 	flag.StringVar(&repoPath, "chdir", repoPath, "Repository path where feature store yaml file is stored")
 
 	flag.StringVar(&host, "host", host, "Specify a host for the server")
 	flag.IntVar(&port, "port", port, "Specify a port for the server")
+	flag.IntVar(&metricsPort, "metrics-port", metricsPort, "Specify a port for the metrics server")
+	flag.StringVar(&certFile, "tls-cert-file", "", "Path to the TLS certificate file")
+	flag.StringVar(&keyFile, "tls-key-file", "", "Path to the TLS key file")
 	flag.Parse()
+
+	// Initialize tracer
+	if OTELTracingEnabled() {
+		ctx := context.Background()
+
+		exp, err := newExporter(ctx)
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed to initialize exporter.")
+		}
+
+		// Create a new tracer provider with a batch span processor and the given exporter.
+		tp, err := newTracerProvider(exp)
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Failed to initialize tracer provider.")
+		}
+
+		// Handle shutdown properly so nothing leaks.
+		defer func() { _ = tp.Shutdown(ctx) }()
+
+		otel.SetTracerProvider(tp)
+
+		// Finally, set the tracer that can be used for this package.
+		tracer = tp.Tracer("github.com/feast-dev/feast/go")
+
+		log.Info().Msg("OTEL based tracing started.")
+	}
 
 	repoConfig, err := registry.NewRepoConfigFromFile(repoPath)
 	if err != nil {
@@ -74,11 +134,13 @@ func main() {
 	// TODO: writeLoggedFeaturesCallback is defaulted to nil. write_logged_features functionality needs to be
 	// implemented in Golang specific to OfflineStoreSink. Python Feature Server doesn't support this.
 	if serverType == "http" {
-		err = server.StartHttpServer(fs, host, port, nil, loggingOptions)
+		err = server.StartHttpServer(fs, host, port, metricsPort, nil, loggingOptions)
 	} else if serverType == "grpc" {
-		err = server.StartGrpcServer(fs, host, port, nil, loggingOptions)
+		err = server.StartGrpcServer(fs, host, port, metricsPort, nil, loggingOptions)
+	} else if serverType == "https" {
+		err = server.StartHttpsServer(fs, host, port, metricsPort, nil, loggingOptions, certFile, keyFile)
 	} else {
-		fmt.Println("Unknown server type. Please specify 'http' or 'grpc'.")
+		fmt.Println("Unknown server type. Please specify 'http' or 'grpc' or 'https'.")
 	}
 
 	if err != nil {
@@ -109,12 +171,7 @@ func constructLoggingService(fs *feast.FeatureStore, writeLoggedFeaturesCallback
 }
 
 // StartGprcServerWithLogging starts gRPC server with enabled feature logging
-func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	// #DD
-	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-	//	tracer.Start(tracer.WithRuntimeMetrics())
-	//	defer tracer.Stop()
-	//}
+func StartGrpcServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -125,33 +182,76 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 	if err != nil {
 		return err
 	}
-
-	grpcServer := grpc.NewServer()
+	srvMetrics := grpc_prometheus.NewServerMetrics(
+		grpc_prometheus.WithServerHandlingTimeHistogram(
+			grpc_prometheus.WithHistogramBuckets([]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}),
+		),
+	)
+	prometheus.MustRegister(srvMetrics)
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(srvMetrics.UnaryServerInterceptor()),
+	)
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	srvMetrics.InitializeMetrics(grpcServer)
+
+	// Start metrics server
+	metricsServer := &http.Server{Addr: fmt.Sprintf(":%d", metricsPort)}
+	go func() {
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		metricsServer.Handler = mux
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
 	go func() {
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the gRPC server...")
-		grpcServer.GracefulStop()
-		if loggingService != nil {
-			loggingService.Stop()
+		defer wg.Done()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the gRPC server...")
+			grpcServer.GracefulStop()
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("Stopping metrics server...")
+			if err := metricsServer.Shutdown(context.Background()); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			log.Info().Msg("gRPC server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
 		}
-		log.Info().Msg("gRPC server terminated")
 	}()
 
-	return grpcServer.Serve(lis)
+	err = grpcServer.Serve(lis)
+	close(serverExited)
+	wg.Wait()
+	return err
 }
 
 // StartHttpServerWithLogging starts HTTP server with enabled feature logging
 // Go does not allow direct assignment to package-level functions as a way to
 // mock them for tests
-func StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
+func StartHttpServer(fs *feast.FeatureStore, host string, port int, metricsPort int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions, httpsEnable bool, certFile string, keyFile string) error {
+	if httpsEnable && (certFile == "" || keyFile == "") {
+		return fmt.Errorf("--tls-cert-file and --tls-key-file must be provided for HTTPS server.")
+	}
+
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -159,22 +259,97 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 	ser := server.NewHttpServer(fs, loggingService)
 	log.Info().Msgf("Starting a HTTP server on host %s, port %d", host, port)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
+	// Start metrics server
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	metricsServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", metricsPort),
+		Handler: mux,
+	}
 	go func() {
-		// As soon as these signals are received from OS, try to gracefully stop the gRPC server
-		<-stop
-		log.Info().Msg("Stopping the HTTP server...")
-		err := ser.Stop()
-		if err != nil {
-			log.Error().Err(err).Msg("Error when stopping the HTTP server")
+		log.Info().Msgf("Starting metrics server on port %d", metricsPort)
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Failed to start metrics server")
 		}
-		if loggingService != nil {
-			loggingService.Stop()
-		}
-		log.Info().Msg("HTTP server terminated")
 	}()
 
-	return ser.Serve(host, port)
+	stop, stopCleanup := newSignalStopChannel()
+	defer stopCleanup()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	serverExited := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		select {
+		case <-stop:
+			// Received SIGINT/SIGTERM. Perform graceful shutdown.
+			log.Info().Msg("Stopping the HTTP server...")
+			err := ser.Stop()
+			if err != nil {
+				log.Error().Err(err).Msg("Error when stopping the HTTP server")
+			}
+			log.Info().Msg("Stopping metrics server...")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(ctx); err != nil {
+				log.Error().Err(err).Msg("Error stopping metrics server")
+			}
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+			log.Info().Msg("HTTP server terminated")
+		case <-serverExited:
+			// Server exited (e.g. startup error), ensure metrics server is stopped
+			metricsServer.Shutdown(context.Background())
+			if loggingService != nil {
+				loggingService.Stop()
+			}
+		}
+	}()
+
+	if httpsEnable {
+		err = ser.ServeTLS(host, port, certFile, keyFile)
+	} else {
+		err = ser.Serve(host, port)
+	}
+	close(serverExited)
+	wg.Wait()
+	return err
+}
+
+func OTELTracingEnabled() bool {
+	return strings.ToLower(os.Getenv("ENABLE_OTEL_TRACING")) == "true"
+}
+
+func newExporter(ctx context.Context) (*otlptrace.Exporter, error) {
+	exp, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return exp, nil
+}
+
+func newTracerProvider(exp sdktrace.SpanExporter) (*sdktrace.TracerProvider, error) {
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "FeastGoFeatureServer"
+	}
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+		),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(r),
+	), nil
 }

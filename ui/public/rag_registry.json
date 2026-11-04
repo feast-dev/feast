@@ -1,0 +1,121 @@
+{
+  "projects": [
+    {
+      "spec": {
+        "name": "rag_project",
+        "description": "Project for Retrieval Augmented Generation"
+      }
+    }
+  ],
+  "featureViews": [
+    {
+      "spec": {
+        "name": "rag_document_embeddings",
+        "features": [
+          {
+            "name": "document_embedding",
+            "valueType": 11
+          },
+          {
+            "name": "document_id",
+            "valueType": 2
+          }
+        ],
+        "entities": ["document"],
+        "description": "Document embeddings for RAG",
+        "batchSource": {
+          "name": "rag_document_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG documents"
+        }
+      }
+    },
+    {
+      "spec": {
+        "name": "rag_query_embeddings",
+        "features": [
+          {
+            "name": "query_embedding",
+            "valueType": 11
+          },
+          {
+            "name": "query_id",
+            "valueType": 2
+          }
+        ],
+        "entities": ["query"],
+        "description": "Query embeddings for RAG",
+        "batchSource": {
+          "name": "rag_query_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG queries"
+        }
+      }
+    },
+    {
+      "spec": {
+        "name": "rag_document_metadata",
+        "features": [
+          {
+            "name": "document_title",
+            "valueType": 2
+          },
+          {
+            "name": "document_source",
+            "valueType": 2
+          },
+          {
+            "name": "document_date",
+            "valueType": 6
+          }
+        ],
+        "entities": ["document"],
+        "description": "Document metadata for RAG",
+        "batchSource": {
+          "name": "rag_document_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG documents"
+        }
+      }
+    }
+  ],
+  "entities": [
+    {
+      "spec": {
+        "name": "document",
+        "description": "Document entity for RAG",
+        "valueType": 2
+      }
+    },
+    {
+      "spec": {
+        "name": "query",
+        "description": "Query entity for RAG",
+        "valueType": 2
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "rag_document_source",
+      "type": 1,
+      "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+      "spec": {
+        "name": "rag_document_source",
+        "description": "Source for RAG documents"
+      }
+    },
+    {
+      "name": "rag_query_source",
+      "type": 1,
+      "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+      "spec": {
+        "name": "rag_query_source",
+        "description": "Source for RAG queries"
+      }
+    }
+  ]
+}

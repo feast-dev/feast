@@ -10,8 +10,8 @@ const encodeSearchQueryString = (query: string) => {
       },
       {
         tags: query,
-      }
-    )
+      },
+    ),
   );
 };
 

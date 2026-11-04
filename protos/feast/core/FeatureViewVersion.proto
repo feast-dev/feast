@@ -1,0 +1,42 @@
+//
+// Copyright 2024 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "FeatureViewVersionProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/timestamp.proto";
+
+message FeatureViewVersionRecord {
+    string feature_view_name = 1;
+    string project_id = 2;
+    int32 version_number = 3;
+    // "feature_view" | "stream_feature_view" | "on_demand_feature_view"
+    string feature_view_type = 4;
+    // serialized FV proto snapshot
+    bytes feature_view_proto = 5;
+    google.protobuf.Timestamp created_timestamp = 6;
+    string description = 7;
+    // auto-generated UUID for unique identification
+    string version_id = 8;
+}
+
+message FeatureViewVersionHistory {
+    repeated FeatureViewVersionRecord records = 1;
+}

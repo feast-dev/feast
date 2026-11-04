@@ -126,7 +126,7 @@ class Entity:
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
-            raise TypeError("Comparisons should only involve Entity class objects.")
+            return False
 
         if (
             self.name != other.name
@@ -203,7 +203,7 @@ class Entity:
 
         spec = EntitySpecProto(
             name=self.name,
-            value_type=self.value_type.value,
+            value_type=self.value_type.value,  # type: ignore[arg-type]
             join_key=self.join_key,
             description=self.description,
             tags=self.tags,

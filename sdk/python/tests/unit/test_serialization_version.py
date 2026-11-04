@@ -12,6 +12,6 @@ def test_registry_entity_serialization_version():
             provider="local",
             online_store="redis",
             registry=f"{tmpdir}/registry.db",
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
-        assertpy.assert_that(r.entity_key_serialization_version).is_equal_to(2)
+        assertpy.assert_that(r.entity_key_serialization_version).is_equal_to(3)

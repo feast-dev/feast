@@ -91,9 +91,8 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
           we use `struct.pack("<l", v.int64_val)` to get the bytes of an int64 val. This actually extracts only 4 bytes,
           instead of 8 bytes as you'd expect from to serialize an int64 value.
           */
-          if (this.entityKeySerializationVersion <= 1) {
-            buffer.addAll(encodeInteger(Integer.BYTES));
-            buffer.addAll(encodeInteger(((Long) val.getInt64Val()).intValue()));
+          if (this.entityKeySerializationVersion <= 2) {
+            throw new RuntimeException("Entity key serialization version " + this.entityKeySerializationVersion + " is not supported. Please use version 3 or above. To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md");
           } else {
             buffer.addAll(encodeInteger(Long.BYTES));
             buffer.addAll(encodeLong(((Long) val.getInt64Val())));

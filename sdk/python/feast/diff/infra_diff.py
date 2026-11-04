@@ -1,25 +1,22 @@
 from dataclasses import dataclass
-from typing import Generic, Iterable, List, Tuple, TypeVar
+from typing import TYPE_CHECKING, Generic, Iterable, List, Optional, Tuple, TypeVar
+
+if TYPE_CHECKING:
+    from feast.diff.apply_progress import ApplyProgressContext
 
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
     DATASTORE_INFRA_OBJECT_CLASS_TYPE,
-    DYNAMODB_INFRA_OBJECT_CLASS_TYPE,
     SQLITE_INFRA_OBJECT_CLASS_TYPE,
     InfraObject,
 )
 from feast.protos.feast.core.DatastoreTable_pb2 import (
     DatastoreTable as DatastoreTableProto,
 )
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
-InfraObjectProto = TypeVar(
-    "InfraObjectProto", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto
-)
+InfraObjectProto = TypeVar("InfraObjectProto", DatastoreTableProto, SqliteTableProto)
 
 
 @dataclass
@@ -39,8 +36,9 @@ class InfraDiff:
     def __init__(self):
         self.infra_object_diffs = []
 
-    def update(self):
+    def update(self, progress_ctx: Optional["ApplyProgressContext"] = None):
         """Apply the infrastructure changes specified in this object."""
+
         for infra_object_diff in self.infra_object_diffs:
             if infra_object_diff.transition_type in [
                 TransitionType.DELETE,
@@ -49,6 +47,10 @@ class InfraDiff:
                 infra_object = InfraObject.from_proto(
                     infra_object_diff.current_infra_object
                 )
+                if progress_ctx:
+                    progress_ctx.update_phase_progress(
+                        f"Tearing down {infra_object_diff.name}"
+                    )
                 infra_object.teardown()
             elif infra_object_diff.transition_type in [
                 TransitionType.CREATE,
@@ -57,6 +59,10 @@ class InfraDiff:
                 infra_object = InfraObject.from_proto(
                     infra_object_diff.new_infra_object
                 )
+                if progress_ctx:
+                    progress_ctx.update_phase_progress(
+                        f"Creating/updating {infra_object_diff.name}"
+                    )
                 infra_object.update()
 
     def to_string(self):
@@ -104,13 +110,14 @@ def tag_infra_proto_objects_for_keep_delete_add(
 
 
 def diff_infra_protos(
-    current_infra_proto: InfraProto, new_infra_proto: InfraProto
+    current_infra_proto: InfraProto,
+    new_infra_proto: InfraProto,
+    project: Optional[str] = None,
 ) -> InfraDiff:
     infra_diff = InfraDiff()
 
     infra_object_class_types_to_str = {
         DATASTORE_INFRA_OBJECT_CLASS_TYPE: "datastore table",
-        DYNAMODB_INFRA_OBJECT_CLASS_TYPE: "dynamodb table",
         SQLITE_INFRA_OBJECT_CLASS_TYPE: "sqlite table",
     }
 
@@ -121,6 +128,19 @@ def diff_infra_protos(
         new_infra_objects = get_infra_object_protos_by_type(
             new_infra_proto, infra_object_class_type
         )
+
+        # Filter infra objects by project prefix when using shared online stores
+        # Table names include project prefix: {project}_{table_name}
+        if project:
+            project_prefix = f"{project}_"
+            current_infra_objects = [
+                obj
+                for obj in current_infra_objects
+                if obj.name.startswith(project_prefix)
+            ]
+            new_infra_objects = [
+                obj for obj in new_infra_objects if obj.name.startswith(project_prefix)
+            ]
         (
             infra_objects_to_keep,
             infra_objects_to_delete,

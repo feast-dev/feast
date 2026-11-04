@@ -1,6 +1,8 @@
+import json
 import uuid
 from pathlib import Path
 from tempfile import TemporaryFile
+from typing import Optional
 from urllib.parse import urlparse
 
 from feast.infra.registry.registry_store import RegistryStore
@@ -70,3 +72,39 @@ class GCSRegistryStore(RegistryStore):
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        registry_proto = self.get_registry_proto()
+        found = False
+        for pm in registry_proto.project_metadata:
+            if pm.project == project:
+                try:
+                    meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+                except Exception:
+                    meta = {}
+                if not isinstance(meta, dict):
+                    meta = {}
+                meta[key] = value
+                pm.project_uuid = json.dumps(meta)
+                found = True
+                break
+        if not found:
+            from feast.project_metadata import ProjectMetadata
+
+            pm = ProjectMetadata(project_name=project)
+            pm.project_uuid = json.dumps({key: value})
+            registry_proto.project_metadata.append(pm.to_proto())
+        self.update_registry_proto(registry_proto)
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        registry_proto = self.get_registry_proto()
+        for pm in registry_proto.project_metadata:
+            if pm.project == project:
+                try:
+                    meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+                except Exception:
+                    meta = {}
+                if not isinstance(meta, dict):
+                    return None
+                return meta.get(key, None)
+        return None

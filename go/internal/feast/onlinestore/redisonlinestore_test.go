@@ -15,7 +15,7 @@ func TestNewRedisOnlineStore(t *testing.T) {
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
-		EntityKeySerializationVersion: 2,
+		EntityKeySerializationVersion: 3,
 	}
 	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
@@ -32,7 +32,7 @@ func TestNewRedisOnlineStoreWithPassword(t *testing.T) {
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
-		EntityKeySerializationVersion: 2,
+		EntityKeySerializationVersion: 3,
 	}
 	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
@@ -47,7 +47,7 @@ func TestNewRedisOnlineStoreWithDB(t *testing.T) {
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
-		EntityKeySerializationVersion: 2,
+		EntityKeySerializationVersion: 3,
 	}
 	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
@@ -62,7 +62,7 @@ func TestNewRedisOnlineStoreWithSsl(t *testing.T) {
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
-		EntityKeySerializationVersion: 2,
+		EntityKeySerializationVersion: 3,
 	}
 	store, err := NewRedisOnlineStore("test", rc, config)
 	assert.Nil(t, err)
@@ -142,7 +142,7 @@ func TestBuildRedisKeys(t *testing.T) {
 	r := &RedisOnlineStore{
 		project: "test_project",
 		config: &registry.RepoConfig{
-			EntityKeySerializationVersion: 2,
+			EntityKeySerializationVersion: 3,
 		},
 	}
 

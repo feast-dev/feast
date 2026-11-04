@@ -29,11 +29,25 @@ def bootstrap():
     postgres_schema = click.prompt("Postgres schema", default="public")
     postgres_user = click.prompt("Postgres user")
     postgres_password = click.prompt("Postgres password", hide_input=True)
+    postgres_sslmode = click.prompt(
+        "Postgres sslmode (disable, allow, prefer, require, verify-ca, verify-full)",
+        default="require",
+    )
 
     if click.confirm(
         'Should I upload example data to Postgres (overwriting "feast_driver_hourly_stats" table)?',
         default=True,
     ):
+        config = PostgreSQLConfig(
+            host=postgres_host,
+            port=int(postgres_port),
+            database=postgres_database,
+            db_schema=postgres_schema,
+            user=postgres_user,
+            password=postgres_password,
+            sslmode=postgres_sslmode,
+        )
+
         db_connection = psycopg.connect(
             conninfo=(
                 f"postgresql://{postgres_user}"
@@ -42,6 +56,7 @@ def bootstrap():
                 f":{int(postgres_port)}"
                 f"/{postgres_database}"
             ),
+            sslmode=postgres_sslmode,
             options=f"-c search_path={postgres_schema}",
         )
 
@@ -49,14 +64,7 @@ def bootstrap():
             cur.execute('DROP TABLE IF EXISTS "feast_driver_hourly_stats"')
 
         df_to_postgres_table(
-            config=PostgreSQLConfig(
-                host=postgres_host,
-                port=int(postgres_port),
-                database=postgres_database,
-                db_schema=postgres_schema,
-                user=postgres_user,
-                password=postgres_password,
-            ),
+            config=config,
             df=driver_df,
             table_name="feast_driver_hourly_stats",
         )
@@ -67,6 +75,7 @@ def bootstrap():
     replace_str_in_file(config_file, "DB_SCHEMA", postgres_schema)
     replace_str_in_file(config_file, "DB_USERNAME", postgres_user)
     replace_str_in_file(config_file, "DB_PASSWORD", postgres_password)
+    replace_str_in_file(config_file, "DB_SSLMODE", postgres_sslmode)
 
 
 if __name__ == "__main__":

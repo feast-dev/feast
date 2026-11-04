@@ -1,6 +1,6 @@
 import struct
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any, List, Optional, Tuple
 
 import mmh3
 
@@ -23,7 +23,7 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
 
 
 def _redis_key(
-    project: str, entity_key: EntityKeyProto, entity_key_serialization_version=1
+    project: str, entity_key: EntityKeyProto, entity_key_serialization_version=3
 ) -> bytes:
     key: List[bytes] = [
         serialize_entity_key(
@@ -50,7 +50,7 @@ def _mmh3(key: str):
 
 
 def compute_entity_id(
-    entity_key: EntityKeyProto, entity_key_serialization_version=1
+    entity_key: EntityKeyProto, entity_key_serialization_version=3
 ) -> str:
     """
     Compute Entity id given Feast Entity Key for online stores.
@@ -70,3 +70,41 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts
     else:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
+
+
+def extract_text_and_num(
+    val: Any, compute_num: bool
+) -> Tuple[Optional[str], Optional[float]]:
+    """Extract (value_text, value_num) from a ValueProto.
+
+    Used by SQL-based online stores to populate the value_text and optional
+    value_num columns without duplicating type-dispatch logic.
+    """
+    val_type = val.WhichOneof("val")
+    if val_type == "string_val":
+        return val.string_val, None
+    if val_type in ("int64_val", "int32_val", "double_val", "float_val"):
+        raw = getattr(val, val_type)
+        return str(raw), float(raw) if compute_num else None
+    if val_type == "bool_val":
+        return str(val.bool_val), (
+            1.0 if val.bool_val else 0.0
+        ) if compute_num else None
+    return None, None
+
+
+def compute_versioned_name(table: Any, enable_versioning: bool = False) -> str:
+    """Return the table name with a ``_v{N}`` suffix when versioning is enabled."""
+    name = table.name
+    if enable_versioning:
+        version = getattr(table.projection, "version_tag", None)
+        if version is None:
+            version = getattr(table, "current_version_number", None)
+        if version is not None and version > 0:
+            name = f"{table.name}_v{version}"
+    return name
+
+
+def compute_table_id(project: str, table: Any, enable_versioning: bool = False) -> str:
+    """Build the online-store table name, appending a version suffix when versioning is enabled."""
+    return f"{project}_{compute_versioned_name(table, enable_versioning)}"
