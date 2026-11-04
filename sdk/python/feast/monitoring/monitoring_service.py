@@ -1085,9 +1085,7 @@ class MonitoringService:
         mat_path = getattr(batch_source, "materialization_path", None)
         if batch_source is not None and export_col:
             try:
-                export_ts = self._get_max_timestamp_for_source(
-                    batch_source, export_col
-                )
+                export_ts = self._get_max_timestamp_for_source(batch_source, export_col)
             except Exception:
                 export_ts = None
         elif mat_path:
