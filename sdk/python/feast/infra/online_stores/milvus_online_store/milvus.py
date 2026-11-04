@@ -202,6 +202,13 @@ class MilvusFilterTranslator(FilterTranslator):
         return operator.join(clauses)
 
 
+def _has_empty_group(filters: FilterType) -> bool:
+    """True when a compound filter has no conditions, at any level."""
+    return isinstance(filters, CompoundFilter) and (
+        not filters.filters or any(_has_empty_group(f) for f in filters.filters)
+    )
+
+
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
     Configuration for the Milvus online store.
@@ -705,6 +712,52 @@ class MilvusOnlineStore(OnlineStore):
         ]
 
         return result_list
+
+    def online_delete(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: Optional[List[EntityKeyProto]] = None,
+        *,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+    ) -> None:
+        """Delete rows of a feature view by entity key or by filter.
+
+        Give exactly one of ``entity_keys`` and ``filters``. An empty key list
+        deletes nothing. A filter with an empty group is rejected, so a mistake
+        cannot delete more rows than it names. No tombstone is kept: a later
+        write creates the row again.
+        """
+        if (entity_keys is None) == (filters is None):
+            raise ValueError("Give exactly one of entity_keys or filters")
+        selector: Dict[str, Any]
+        if entity_keys is not None:
+            if not entity_keys:
+                return
+            selector = {
+                "ids": [
+                    serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    ).hex()
+                    for entity_key in entity_keys
+                ]
+            }
+        else:
+            if _has_empty_group(filters):
+                raise ValueError(
+                    "Each group of the deletion filter must have a condition"
+                )
+            selector = {"filter": MilvusFilterTranslator().translate(filters)}
+        self.client = self._connect(config)
+        collection_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
+        )
+        if collection_name not in self._collections:
+            if not self.client.has_collection(collection_name):
+                return
+            self._ensure_loaded(collection_name)
+        self.client.delete(collection_name=collection_name, **selector)
 
     def update(
         self,
