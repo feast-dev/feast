@@ -18,6 +18,7 @@ import pandas as pd
 import pytest
 
 from feast.aggregation import Aggregation
+from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
@@ -27,7 +28,7 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
     on_demand_feature_view,
 )
-from feast.types import Float32
+from feast.types import Array, Float32, Float64, Int64, String, Struct
 
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -748,3 +749,59 @@ def test_on_demand_feature_view_org_field():
     odfv_org_a = OnDemandFeatureView(name="odfv-eq", org="ads", **common)
     odfv_org_b = OnDemandFeatureView(name="odfv-eq", org="search", **common)
     assert odfv_org_a != odfv_org_b
+
+
+def test_schema_field_metadata_survives_inference_and_proto_round_trip():
+    """Schema fields keep their description, tags and nested types end to end."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float64),
+            Field(name="feature2", dtype=Float64),
+        ],
+        source=file_source,
+    )
+    transformation = PandasTransformation(udf=udf1, udf_string="udf1 source code")
+    odfv = OnDemandFeatureView(
+        name="described-odfv",
+        sources=[feature_view],
+        schema=[
+            Field(name="output1", dtype=Float64, description="Copy of feature1"),
+            Field(name="output2", dtype=Float64, tags={"team": "risk"}),
+        ],
+        feature_transformation=transformation,
+    )
+
+    odfv.infer_features()
+
+    assert odfv.features[0].description == "Copy of feature1"
+    assert odfv.features[1].tags == {"team": "risk"}
+    assert OnDemandFeatureView.from_proto(odfv.to_proto()).features == odfv.features
+
+    nested_schema = [
+        Field(name="output1", dtype=Struct({"a": Int64})),
+        Field(name="output2", dtype=Array(Array(Int64))),
+    ]
+    nested_odfv = OnDemandFeatureView(
+        name="nested-odfv",
+        sources=[feature_view],
+        schema=nested_schema,
+        feature_transformation=transformation,
+    )
+    restored = OnDemandFeatureView.from_proto(nested_odfv.to_proto())
+    assert restored.features == nested_schema
+
+    wrong_type_odfv = OnDemandFeatureView(
+        name="wrong-type-odfv",
+        sources=[feature_view],
+        schema=[
+            Field(name="output1", dtype=String, description="Copy of feature1"),
+            Field(name="output2", dtype=Float64),
+        ],
+        feature_transformation=transformation,
+    )
+
+    with pytest.raises(SpecifiedFeaturesNotPresentError):
+        wrong_type_odfv.infer_features()
