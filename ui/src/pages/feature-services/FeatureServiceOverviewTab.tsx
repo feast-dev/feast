@@ -195,11 +195,9 @@ const FeatureServiceOverviewTab = () => {
                 <EuiHorizontalRule margin="xs" />
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={
-                      data?.spec?.features?.map((f: any) => {
-                        return f.featureViewName!;
-                      })!
-                    }
+                    fvNames={data?.spec?.features?.map((f: any) => {
+                      return f.featureViewName!;
+                    })!}
                     viewTypes={
                       data?.spec?.features?.reduce(
                         (acc: Record<string, string>, f: any) => {

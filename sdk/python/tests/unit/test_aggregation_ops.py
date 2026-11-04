@@ -135,3 +135,156 @@ def test_count_distinct_tiling_raises():
     agg = Aggregation(column="item_id", function="count_distinct")
     with pytest.raises(ValueError, match="count_distinct does not support tiling"):
         get_ir_metadata_for_aggregation(agg, "count_distinct_item_id")
+
+
+@pytest.mark.parametrize(
+    "function, expected_fn",
+    [
+        ("avg", lambda s: s.mean()),
+        ("std", lambda s: s.std()),
+        ("var", lambda s: s.var()),
+    ],
+)
+def test_tiled_holistic_aggregation_matches_pandas(function, expected_fn):
+    """Tiled avg/std/var over a sliding window match the pandas result."""
+    from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+    from feast.aggregation.tiling.tile_subtraction import (
+        convert_cumulative_to_windowed,
+    )
+
+    start = pd.Timestamp("2024-01-01")
+    values = [1.0, 2.0, 3.0, 10.0, 4.0, 7.0, 5.0, 8.0]
+    df = pd.DataFrame(
+        {
+            "driver_id": [1] * len(values),
+            "event_timestamp": [
+                start + timedelta(minutes=5 * i) for i in range(len(values))
+            ],
+            "trips": values,
+        }
+    )
+    window = timedelta(minutes=20)
+    agg = Aggregation(column="trips", function=function, time_window=window)
+
+    tiles = apply_sawtooth_window_tiling(
+        df=df.copy(),
+        aggregations=[agg],
+        group_by_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        hop_size=timedelta(minutes=5),
+    )
+    result = convert_cumulative_to_windowed(
+        tiles_df=tiles,
+        entity_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        aggregations=[agg],
+    )
+
+    feature_name = agg.resolved_name(window)
+    for _, row in result.iterrows():
+        tile_end = row["event_timestamp"]
+        in_window = df[
+            (df["event_timestamp"] >= tile_end - window)
+            & (df["event_timestamp"] < tile_end)
+        ]["trips"]
+        assert row[feature_name] == pytest.approx(expected_fn(in_window), nan_ok=True)
+
+
+@pytest.mark.parametrize("function", ["max", "min"])
+def test_tiled_max_min_aggregation_matches_pandas(function):
+    """Tiled max/min only consider the hops inside the sliding window."""
+    from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+    from feast.aggregation.tiling.tile_subtraction import (
+        convert_cumulative_to_windowed,
+    )
+
+    start = pd.Timestamp("2024-01-01")
+    # No events between minutes 20 and 35, so two hops are empty.
+    minutes = [0, 5, 10, 15, 20, 35, 40, 45]
+    values = [-1.0, -2.0, 30.0, -10.0, 4.0, -7.0, 5.0, -8.0]
+    df = pd.DataFrame(
+        {
+            "driver_id": [1] * len(values),
+            "event_timestamp": [start + timedelta(minutes=m) for m in minutes],
+            "trips": values,
+        }
+    )
+    window = timedelta(minutes=20)
+    agg = Aggregation(column="trips", function=function, time_window=window)
+
+    tiles = apply_sawtooth_window_tiling(
+        df=df.copy(),
+        aggregations=[agg],
+        group_by_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        hop_size=timedelta(minutes=5),
+    )
+    result = convert_cumulative_to_windowed(
+        tiles_df=tiles,
+        entity_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        aggregations=[agg],
+    )
+
+    feature_name = agg.resolved_name(window)
+    assert len(result) == 10
+    for _, row in result.iterrows():
+        tile_end = row["event_timestamp"]
+        in_window = df[
+            (df["event_timestamp"] >= tile_end - window)
+            & (df["event_timestamp"] < tile_end)
+        ]["trips"]
+        assert row[feature_name] == getattr(in_window, function)()
+
+
+@pytest.mark.parametrize("dtype", ["datetime64[us]", "datetime64[ms, UTC]"])
+def test_tiled_aggregation_does_not_depend_on_timestamp_resolution(dtype):
+    """Timestamps stored in a non-nanosecond unit give the same tiles."""
+    from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+    from feast.aggregation.tiling.tile_subtraction import (
+        convert_cumulative_to_windowed,
+    )
+
+    start = pd.Timestamp("2024-01-01")
+    minutes = [0, 5, 10, 30, 35]
+    df = pd.DataFrame(
+        {
+            "driver_id": [1] * len(minutes),
+            "event_timestamp": [start + timedelta(minutes=m) for m in minutes],
+            "trips": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
+    window = timedelta(minutes=20)
+    agg = Aggregation(column="trips", function="sum", time_window=window)
+
+    def windowed(frame):
+        tiles = apply_sawtooth_window_tiling(
+            df=frame,
+            aggregations=[agg],
+            group_by_keys=["driver_id"],
+            timestamp_col="event_timestamp",
+            window_size=window,
+            hop_size=timedelta(minutes=5),
+        )
+        return convert_cumulative_to_windowed(
+            tiles_df=tiles,
+            entity_keys=["driver_id"],
+            timestamp_col="event_timestamp",
+            window_size=window,
+            aggregations=[agg],
+        )
+
+    expected = windowed(df.copy())
+    ts = df["event_timestamp"]
+    if "UTC" in dtype:
+        ts = ts.dt.tz_localize("UTC")
+    result = windowed(df.assign(event_timestamp=ts.astype(dtype)))
+
+    feature_name = agg.resolved_name(window)
+    assert len(expected) == 8
+    assert result["event_timestamp"].tolist() == expected["event_timestamp"].tolist()
+    assert result[feature_name].tolist() == expected[feature_name].tolist()

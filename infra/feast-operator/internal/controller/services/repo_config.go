@@ -51,6 +51,89 @@ func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
 	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret, feast.extractConfigFromConfigMap, odhCaBundleExists)
 }
 
+func (feast *FeastServices) getLineageFeatureStoreYamlBase64() (string, error) {
+	odhCaBundleExists := feast.GetCustomCertificatesBundle().IsDefined
+	repoConfig, err := feast.getLineageRepoConfig(odhCaBundleExists)
+	if err != nil {
+		return "", err
+	}
+	yamlBytes, err := yaml.Marshal(repoConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(yamlBytes), nil
+}
+
+func (feast *FeastServices) getLineageRepoConfig(odhCaBundleExists bool) (RepoConfig, error) {
+	cr := feast.Handler.FeatureStore
+	applied := cr.Status.Applied
+
+	repoConfig := RepoConfig{
+		Project:  applied.FeastProject,
+		Provider: LocalProviderType,
+	}
+
+	// Lineage server needs the OL consumer block
+	if applied.OpenLineage != nil {
+		if err := setRepoConfigOpenLineage(applied.OpenLineage, feast.extractConfigFromSecret, &repoConfig); err != nil {
+			return repoConfig, err
+		}
+		// Force standalone_server=true in the consumer config
+		if repoConfig.OpenLineage != nil && repoConfig.OpenLineage.Consumer != nil {
+			standalone := true
+			repoConfig.OpenLineage.Consumer.StandaloneServer = &standalone
+		}
+	}
+
+	// Set registry to remote so the lineage server can reach the registry
+	// for RBAC permission checks (authz) or general registry access.
+	if applied.Services != nil && applied.Services.Registry != nil {
+		if applied.Services.Registry.Remote != nil {
+			// Remote registry (hostname or feastRef): use the already-resolved hostname
+			registryHostname := cr.Status.ServiceHostnames.Registry
+			if len(registryHostname) > 0 {
+				repoConfig.Registry = RegistryConfig{
+					RegistryType: RegistryRemoteConfigType,
+					Path:         registryHostname,
+				}
+			}
+		} else if applied.AuthzConfig != nil && applied.Services.Registry.Local != nil {
+			// Local registry with authz: point to the local registry gRPC service
+			registrySvcName := GetFeastServiceName(cr, RegistryFeastType)
+			registryUrl := fmt.Sprintf("%s.%s.svc.cluster.local", registrySvcName, cr.Namespace)
+			grpcPort := FeastServiceConstants[RegistryFeastType].TargetHttpPort
+			repoConfig.Registry = RegistryConfig{
+				RegistryType: RegistryRemoteConfigType,
+				Path:         fmt.Sprintf("%s:%d", registryUrl, grpcPort),
+			}
+		}
+	}
+
+	// Apply auth configuration so the lineage server enforces the same
+	// authentication as the other Feast servers.  Without this the
+	// standalone lineage endpoints would be unauthenticated even when
+	// Kubernetes or OIDC auth is configured on the FeatureStore CR.
+	if applied.AuthzConfig != nil && applied.AuthzConfig.OidcAuthz != nil {
+		authzConfig, err := resolveOidcServerAuthzConfig(applied.AuthzConfig.OidcAuthz, feast.extractConfigFromSecret, odhCaBundleExists)
+		if err != nil {
+			return repoConfig, err
+		}
+		repoConfig.AuthzConfig = authzConfig
+	} else if applied.AuthzConfig != nil {
+		if applied.AuthzConfig.NoAuth != nil && *applied.AuthzConfig.NoAuth {
+			repoConfig.AuthzConfig = AuthzConfig{Type: NoAuthAuthType}
+		} else if applied.AuthzConfig.KubernetesAuthz != nil {
+			repoConfig.AuthzConfig = AuthzConfig{Type: KubernetesAuthType}
+		} else {
+			return repoConfig, fmt.Errorf("authzConfig must specify OIDC, Kubernetes, or no-auth")
+		}
+	} else {
+		repoConfig.AuthzConfig = defaultAuthzConfig
+	}
+
+	return repoConfig, nil
+}
+
 func getServiceRepoConfig(
 	featureStore *feastdevv1.FeatureStore,
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
@@ -104,6 +187,11 @@ func getServiceRepoConfig(
 		if err := setRepoConfigOpenLineage(appliedSpec.OpenLineage, secretExtractionFunc, &repoConfig); err != nil {
 			return repoConfig, err
 		}
+		setOpenLineageAutoTransport(featureStore, &repoConfig)
+	}
+
+	if appliedSpec.Mlflow != nil && appliedSpec.Mlflow.Enabled {
+		setRepoConfigMlflow(appliedSpec.Mlflow, &repoConfig)
 	}
 
 	if appliedSpec.DataQualityMonitoring != nil {
@@ -125,42 +213,75 @@ func getBaseServiceRepoConfig(
 	}
 	appliedSpec := featureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
-		repoConfig.AuthzConfig = AuthzConfig{Type: OidcAuthType}
-		oidcAuthz := appliedSpec.AuthzConfig.OidcAuthz
-		oidcParameters := map[string]interface{}{}
-
-		var secretProperties map[string]interface{}
-		if oidcAuthz.SecretRef != nil {
-			var err error
-			secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
-			if err != nil {
-				return repoConfig, err
-			}
-			for _, prop := range OidcOptionalSecretProperties {
-				if val, exists := secretProperties[string(prop)]; exists {
-					oidcParameters[string(prop)] = val
-				}
-			}
-		}
-
-		discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+		authzConfig, err := resolveOidcServerAuthzConfig(appliedSpec.AuthzConfig.OidcAuthz, secretExtractionFunc, odhCaBundleExists)
 		if err != nil {
 			return repoConfig, err
 		}
-		oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
-
-		if oidcAuthz.VerifySSL != nil {
-			oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
-		}
-		if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
-			oidcParameters[string(OidcCaCertPath)] = caCertPath
-		}
-		repoConfig.AuthzConfig.OidcParameters = oidcParameters
+		repoConfig.AuthzConfig = authzConfig
 	} else {
 		repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 	}
 
 	return repoConfig, nil
+}
+
+// resolveOidcServerAuthzConfig builds the server-side OIDC AuthzConfig from the
+// CR's OidcAuthz spec.  Used by both getBaseServiceRepoConfig and
+// getLineageRepoConfig to avoid duplicating the secret extraction, discovery
+// URL resolution, and TLS/CA logic.
+func resolveOidcServerAuthzConfig(
+	oidcAuthz *feastdevv1.OidcAuthz,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error),
+	odhCaBundleExists bool,
+) (AuthzConfig, error) {
+	authzConfig := AuthzConfig{Type: OidcAuthType}
+	oidcParameters := map[string]interface{}{}
+
+	var secretProperties map[string]interface{}
+	if oidcAuthz.SecretRef != nil {
+		var err error
+		secretProperties, err = secretExtractionFunc("", oidcAuthz.SecretRef.Name, oidcAuthz.SecretKeyName)
+		if err != nil {
+			return authzConfig, err
+		}
+		for _, prop := range OidcOptionalSecretProperties {
+			if val, exists := secretProperties[string(prop)]; exists {
+				// Secret values are YAML-parsed on extraction, so an
+				// all-digits audience or issuer arrives as an int and
+				// would render unquoted, which the SDK's OidcAuthConfig
+				// rejects (Optional[str]). Coerce the claim keys back to
+				// strings; the five original keys keep their historical
+				// typing.
+				if prop == OidcAudience || prop == OidcIssuer {
+					if _, isString := val.(string); !isString {
+						val = fmt.Sprintf("%v", val)
+					}
+				}
+				oidcParameters[string(prop)] = val
+			}
+		}
+	}
+
+	discoveryUrl, err := resolveAuthDiscoveryUrl(oidcAuthz, secretProperties)
+	if err != nil {
+		return authzConfig, err
+	}
+	oidcParameters[string(OidcAuthDiscoveryUrl)] = discoveryUrl
+
+	if oidcAuthz.VerifySSL != nil {
+		oidcParameters[string(OidcVerifySsl)] = *oidcAuthz.VerifySSL
+	}
+	if oidcAuthz.JwksCacheLifespanSeconds != nil {
+		oidcParameters[string(OidcJwksCacheLifespanSeconds)] = *oidcAuthz.JwksCacheLifespanSeconds
+	}
+	if oidcAuthz.JwksRequestTimeoutSeconds != nil {
+		oidcParameters[string(OidcJwksRequestTimeoutSeconds)] = *oidcAuthz.JwksRequestTimeoutSeconds
+	}
+	if caCertPath := resolveOidcCACertPath(oidcAuthz, odhCaBundleExists); caCertPath != "" {
+		oidcParameters[string(OidcCaCertPath)] = caCertPath
+	}
+	authzConfig.OidcParameters = oidcParameters
+	return authzConfig, nil
 }
 
 // resolveAuthDiscoveryUrl determines the OIDC discovery URL from the first available source.
@@ -475,9 +596,11 @@ func setRepoConfigOpenLineage(
 
 	if ol.Consumer != nil {
 		consumerCfg := &OpenLineageConsumerYamlConfig{
-			Enabled:          ol.Consumer.Enabled,
-			StoreType:        ol.Consumer.StoreType,
-			NamespaceMapping: ol.Consumer.NamespaceMapping,
+			Enabled:                     ol.Consumer.Enabled,
+			StoreType:                   ol.Consumer.StoreType,
+			NamespaceMapping:            ol.Consumer.NamespaceMapping,
+			RetentionDays:               ol.Consumer.RetentionDays,
+			RetentionCheckIntervalHours: ol.Consumer.RetentionCheckIntervalHours,
 		}
 
 		if ol.Consumer.ConnectionStringSecretRef != nil {
@@ -518,11 +641,47 @@ func setRepoConfigOpenLineage(
 			consumerCfg.ApiKey = &apiKeyStr
 		}
 
+		// When lineage server is separate, mark embedded consumer as standalone
+		// so it skips mounting the consumer router in the main app.
+		if ol.Consumer.LineageServer != nil {
+			standalone := true
+			consumerCfg.StandaloneServer = &standalone
+		}
+
 		yamlCfg.Consumer = consumerCfg
 	}
 
 	repoConfig.OpenLineage = yamlCfg
 	return nil
+}
+
+// setOpenLineageAutoTransport auto-configures the producer transport_url
+// when a separate lineage server is enabled. Called after setRepoConfigOpenLineage
+// for the main deployment's YAML only.
+func setOpenLineageAutoTransport(
+	featureStore *feastdevv1.FeatureStore,
+	repoConfig *RepoConfig,
+) {
+	applied := featureStore.Status.Applied
+	if applied.OpenLineage == nil || applied.OpenLineage.Consumer == nil {
+		return
+	}
+	if applied.OpenLineage.Consumer.LineageServer == nil {
+		return
+	}
+	if repoConfig.OpenLineage == nil {
+		return
+	}
+
+	lineageSvcName := GetFeastServiceName(featureStore, LineageFeastType)
+	transportUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
+		lineageSvcName, featureStore.Namespace, HttpPort)
+	endpoint := "api/v1/lineage"
+	httpType := "http"
+
+	repoConfig.OpenLineage.TransportType = &httpType
+	repoConfig.OpenLineage.TransportUrl = &transportUrl
+	repoConfig.OpenLineage.TransportEndpoint = &endpoint
 }
 
 // coerceStringToYamlType converts "true"/"false" strings to native Go booleans
@@ -543,6 +702,28 @@ func coerceStringToYamlType(v string) interface{} {
 		return false
 	}
 	return v
+}
+
+// setRepoConfigMlflow maps the CRD MlflowConfig into the mlflow YAML block.
+func setRepoConfigMlflow(mlflow *feastdevv1.MlflowConfig, repoConfig *RepoConfig) {
+	yamlCfg := &MlflowYamlConfig{
+		Enabled:             mlflow.Enabled,
+		TrackingUri:         mlflow.TrackingUri,
+		UiUrl:               mlflow.UiUrl,
+		AutoLog:             mlflow.AutoLog,
+		AutoLogEntityDf:     mlflow.AutoLogEntityDf,
+		EntityDfMaxRows:     mlflow.EntityDfMaxRows,
+		LogOperations:       mlflow.LogOperations,
+		OpsExperimentSuffix: mlflow.OpsExperimentSuffix,
+	}
+	if len(mlflow.ExtraConfig) > 0 {
+		ec := make(map[string]interface{}, len(mlflow.ExtraConfig))
+		for k, v := range mlflow.ExtraConfig {
+			ec[k] = coerceStringToYamlType(v)
+		}
+		yamlCfg.ExtraConfig = ec
+	}
+	repoConfig.Mlflow = yamlCfg
 }
 
 func setRepoConfigDataQualityMonitoring(dqmConfig *feastdevv1.DataQualityMonitoringConfig, repoConfig *RepoConfig) {
@@ -602,6 +783,10 @@ func getClientRepoConfig(
 		}
 	}
 
+	if status.Applied.Mlflow != nil && status.Applied.Mlflow.Enabled {
+		setRepoConfigMlflow(status.Applied.Mlflow, &clientRepoConfig)
+	}
+
 	return clientRepoConfig
 }
 
@@ -609,7 +794,11 @@ func getRepoConfig(featureStore *feastdevv1.FeatureStore) RepoConfig {
 	status := featureStore.Status
 	repoConfig := initRepoConfig(status.Applied.FeastProject)
 	if status.Applied.AuthzConfig != nil {
-		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+		if status.Applied.AuthzConfig.NoAuth != nil && *status.Applied.AuthzConfig.NoAuth {
+			repoConfig.AuthzConfig = AuthzConfig{
+				Type: NoAuthAuthType,
+			}
+		} else if status.Applied.AuthzConfig.KubernetesAuthz != nil {
 			repoConfig.AuthzConfig = AuthzConfig{
 				Type: KubernetesAuthType,
 			}
@@ -755,7 +944,7 @@ var defaultOfflineStoreConfig = OfflineStoreConfig{
 }
 
 var defaultAuthzConfig = AuthzConfig{
-	Type: NoAuthAuthType,
+	Type: KubernetesAuthType,
 }
 
 // getCertificatePath returns the appropriate certificate path based on whether a custom CA bundle is available

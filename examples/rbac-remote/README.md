@@ -105,7 +105,7 @@ The application works with Kubernetes or OpenShift and the instructions assume t
 
 ### A. Kubernetes Authorization
 - **Step 1: Create the Client Feature Store YAML**
-    - Set up the client feature store with remote connection details for the registry, online, and offline store with auth type `kuberentes` . See the client remote setting example here: [feature_store.yaml](client/k8s/feature_repo/feature_store.yaml) 
+    - Set up the client feature store with remote connection details for the registry, online, and offline store with auth type `kubernetes` . See the client remote setting example here: [feature_store.yaml](client/k8s/feature_repo/feature_store.yaml) 
 - **Step 2: Deploy the Client Examples**
     - As an example, we created 3 different users: 1. [admin_user](client/k8s/admin_user_resources.yaml), 2. [readonly_user](client/k8s/readonly_user_resources.yaml) and 3. [unauthorized_user](client/k8s/unauthorized_user_resources.yaml) .
     - Each user is assigned their own service account and roles, as shown in the table below.

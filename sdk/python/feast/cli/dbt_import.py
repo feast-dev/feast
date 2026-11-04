@@ -130,10 +130,7 @@ def import_command(
     try:
         parser = DbtManifestParser(manifest_path)
         parser.parse()
-    except FileNotFoundError as e:
-        click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
-        raise SystemExit(1)
-    except ValueError as e:
+    except (FileNotFoundError, ValueError, ImportError) as e:
         click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
         raise SystemExit(1)
 
@@ -374,7 +371,7 @@ def list_command(
     try:
         parser = DbtManifestParser(manifest_path)
         parser.parse()
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, ImportError) as e:
         click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
         raise SystemExit(1)
 

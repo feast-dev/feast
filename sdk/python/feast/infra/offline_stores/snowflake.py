@@ -28,6 +28,7 @@ import pyarrow
 from pydantic import ConfigDict, Field, StrictStr
 
 from feast import OnDemandFeatureView
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -87,6 +88,37 @@ if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+def _get_snowflake_conn(config: "RepoConfig", data_source=None):
+    """Get a Snowflake connection, optionally overriding config from data source's connection_ref."""
+    override = get_connection_config_override(data_source) if data_source else None
+    if override:
+        from feast.infra.utils.snowflake.snowflake_utils import GetSnowflakeConnection
+
+        patched_config = config.offline_store.model_copy()
+        if "account" in override:
+            patched_config.account = override["account"]
+        if "user" in override or "username" in override:
+            patched_config.user = override.get("user") or override.get("username")
+        if "password" in override:
+            patched_config.password = override["password"]
+        if "database" in override:
+            patched_config.database = override["database"]
+        if "warehouse" in override:
+            patched_config.warehouse = override["warehouse"]
+        if "role" in override:
+            patched_config.role = override["role"]
+        if "schema" in override:
+            patched_config.schema_ = override["schema"]
+        if "authenticator" in override:
+            patched_config.authenticator = override["authenticator"]
+        if "private_key" in override:
+            patched_config.private_key = override["private_key"]
+        if "private_key_passphrase" in override:
+            patched_config.private_key_passphrase = override["private_key_passphrase"]
+        return GetSnowflakeConnection(patched_config)
+    return GetSnowflakeConnection(config.offline_store)
 
 
 class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
@@ -299,6 +331,8 @@ class SnowflakeOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        # supports_filter_by_created_timestamp stays False: the ASOF JOIN cannot
+        # express a created_timestamp cutoff.
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)
@@ -530,6 +564,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp" TIMESTAMP_TZ,
                 "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
                 "feature_type"      VARCHAR(50)  NOT NULL,
                 "row_count"         BIGINT,
@@ -557,6 +592,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"       TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp" TIMESTAMP_TZ,
                 "is_baseline"       BOOLEAN      NOT NULL DEFAULT FALSE,
                 "total_row_count"   BIGINT,
                 "total_features"    INTEGER,
@@ -575,6 +611,7 @@ class SnowflakeOfflineStore(OfflineStore):
                 "granularity"          VARCHAR(20)  NOT NULL DEFAULT 'daily',
                 "data_source_type"     VARCHAR(50)  NOT NULL DEFAULT 'batch',
                 "computed_at"          TIMESTAMP_TZ NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+                "max_event_timestamp"  TIMESTAMP_TZ,
                 "is_baseline"          BOOLEAN      NOT NULL DEFAULT FALSE,
                 "total_feature_views"  INTEGER,
                 "total_features"       INTEGER,
@@ -608,6 +645,11 @@ class SnowflakeOfflineStore(OfflineStore):
             execute_snowflake_statement(conn, ddl_view)
             execute_snowflake_statement(conn, ddl_service)
             execute_snowflake_statement(conn, ddl_job)
+            for fq in (fq_feature, fq_view, fq_service):
+                execute_snowflake_statement(
+                    conn,
+                    f'ALTER TABLE {fq} ADD COLUMN IF NOT EXISTS "max_event_timestamp" TIMESTAMP_TZ',
+                )
 
     @staticmethod
     def save_monitoring_metrics(

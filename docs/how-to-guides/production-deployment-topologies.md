@@ -1066,12 +1066,15 @@ Production environments in regulated industries (finance, government, defense) o
 
 ### Default init container behavior
 
-When `feastProjectDir` is set on the FeatureStore CR, the operator creates up to two init containers:
+When `feastProjectDir` is set on the FeatureStore CR, the operator creates up to two init containers unless `services.disableInitContainers` is `true`:
 
-1. **`feast-init`** — bootstraps the feature repository by running either `git clone` (if `feastProjectDir.git` is set) or `feast init` (if `feastProjectDir.init` is set), then writes the generated `feature_store.yaml` into the repo directory.
+1. **`feast-init`** — bootstraps the feature repository by running `git clone`, `feast init`, or copying a repository from `feastProjectDir.packaged.featureRepoPath`. It then writes the operator-generated `feature_store.yaml` into the initialized repository.
 2. **`feast-apply`** — runs `feast apply` to register feature definitions in the registry. Controlled by `runFeastApplyOnInit` (defaults to `true`). Skipped when `disableInitContainers` is `true`.
 
-In air-gapped environments, `git clone` will fail because the cluster cannot reach external Git repositories. The solution is to **pre-bake** the feature repository into a custom container image and disable the init containers entirely.
+In air-gapped environments, use `feastProjectDir.packaged` to identify a feature repository baked into an image. The operator supports two lifecycle modes:
+
+* Keep init containers enabled to refresh shared storage from the image, generate configuration from the FeatureStore CR, and optionally run `feast apply`.
+* Set `services.disableInitContainers: true` to run directly from the baked path and treat its `feature_store.yaml` as authoritative.
 
 ### Air-gapped deployment workflow
 
@@ -1086,12 +1089,12 @@ graph TD
     end
 
     subgraph InternalRegistry["Internal Container Registry"]
-        Mirror["registry.internal.example.com<br/>/feast/feature-server:v0.61"]
+        Mirror["registry.internal.example.com<br/>/feast/feature-server:release"]
     end
 
     subgraph AirGappedCluster["Air-Gapped Kubernetes Cluster"]
         SA["ServiceAccount<br/>(imagePullSecrets)"]
-        CR["FeatureStore CR<br/>disableInitContainers: true<br/>image: registry.internal..."]
+        CR["FeatureStore CR<br/>feastProjectDir.packaged<br/>disableInitContainers: true"]
         Deploy["Feast Deployment<br/>(no init containers)"]
         SA --> Deploy
         CR --> Deploy
@@ -1105,8 +1108,8 @@ graph TD
 
 1. **Build a custom container image** that bundles the feature repository and all Python dependencies into the Feast base image.
 2. **Push** the image to your internal container registry.
-3. **Set `services.disableInitContainers: true`** on the FeatureStore CR to skip `git clone` / `feast init` and `feast apply`.
-4. **Override the image** on each service using the per-service `image` field.
+3. **Configure `feastProjectDir.packaged`** with the image and the canonical absolute path to the bundled repository. Do not use `.`, `..`, repeated separators, or a trailing separator, and keep the path outside operator-mounted locations such as `/feast-data` so it cannot overlap the staged repository.
+4. **Choose the lifecycle:** leave init containers enabled for operator-managed configuration and `feast apply`, or set `services.disableInitContainers: true` to use the baked repository and configuration directly.
 5. **Set `imagePullPolicy: IfNotPresent`** (or `Never` if images are pre-loaded on nodes).
 6. **Configure `imagePullSecrets`** on the namespace's ServiceAccount — the FeatureStore CRD does not expose an `imagePullSecrets` field, so use the standard Kubernetes approach of attaching secrets to the ServiceAccount that the pods run under.
 
@@ -1119,6 +1122,10 @@ metadata:
   name: airgap-production
 spec:
   feastProject: my_project
+  feastProjectDir:
+    packaged:
+      image: registry.internal.example.com/feast/feature-server:release
+      featureRepoPath: /opt/feast/feature_repo
   services:
     disableInitContainers: true
     onlineStore:
@@ -1128,7 +1135,6 @@ spec:
           secretRef:
             name: feast-online-store
       server:
-        image: registry.internal.example.com/feast/feature-server:v0.61
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -1145,9 +1151,13 @@ spec:
             secretRef:
               name: feast-registry-store
         server:
-          image: registry.internal.example.com/feast/feature-server:v0.61
           imagePullPolicy: IfNotPresent
 ```
+
+The packaged image is the default for every Feast service and for the `feast-init` and
+`feast-apply` init containers. A per-service `image` still takes precedence for that
+service, and `services.initImage` takes precedence for both init containers. Remove
+`disableInitContainers: true` to use operator-managed staging and startup apply instead.
 
 {% hint style="info" %}
 **Pre-populating the registry:** With init containers disabled, `feast apply` does not run on pod startup. You can populate the registry by:

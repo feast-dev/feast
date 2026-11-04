@@ -26,6 +26,9 @@ _Appears in:_
 | --- | --- |
 | `kubernetes` _[KubernetesAuthz](#kubernetesauthz)_ |  |
 | `oidc` _[OidcAuthz](#oidcauthz)_ |  |
+| `noAuth` _boolean_ | NoAuth explicitly disables authentication and authorization.
+When set to true, Feast services run without any auth checks.
+Use only for development or testing environments. |
 
 
 #### AutoscalingConfig
@@ -70,6 +73,7 @@ ContainerConfigs k8s container settings for the server
 
 _Appears in:_
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [McpServerConfig](#mcpserverconfig)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -127,6 +131,7 @@ DefaultCtrConfigs k8s container settings that are applied by default
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [McpServerConfig](#mcpserverconfig)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -188,6 +193,23 @@ _Appears in:_
 | `template` _string_ | Template for the created project |
 
 
+#### FeastPackagedOptions
+
+
+
+FeastPackagedOptions describes a feature repository packaged in a feature server image.
+
+_Appears in:_
+- [FeastProjectDir](#feastprojectdir)
+
+| Field | Description |
+| --- | --- |
+| `image` _string_ | Image containing the packaged feature repository. When set, this image is used by the
+repository initialization and feast apply containers and as the default service image.
+When omitted, the operator's configured feature server image is used. |
+| `featureRepoPath` _string_ | FeatureRepoPath is the canonical absolute path to the feature repository in the image. |
+
+
 #### FeastProjectDir
 
 
@@ -201,6 +223,7 @@ _Appears in:_
 | --- | --- |
 | `git` _[GitCloneOptions](#gitcloneoptions)_ |  |
 | `init` _[FeastInitOptions](#feastinitoptions)_ |  |
+| `packaged` _[FeastPackagedOptions](#feastpackagedoptions)_ |  |
 
 
 #### FeatureStore
@@ -250,12 +273,15 @@ _Appears in:_
 | `onlineStore` _[OnlineStore](#onlinestore)_ |  |
 | `registry` _[Registry](#registry)_ |  |
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
+| `mcpServer` _[McpServerConfig](#mcpserverconfig)_ | McpServer deploys a standalone Feast MCP (Model Context Protocol) server container (`feast mcp`). It is separate from the embedded MCP of services.onlineStore.serving.mcp and services.registry.local.server.mcp. |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `podAnnotations` _object (keys:string, values:string)_ | PodAnnotations are annotations to be applied to the Deployment's PodTemplate metadata.
 This enables annotation-driven integrations like OpenTelemetry auto-instrumentation,
 Istio sidecar injection, Vault agent injection, etc. |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `initImage` _string_ | InitImage overrides the image for init containers (feast-init, feast-apply).
+Resolution order: InitImage → FeastProjectDir.Packaged.Image → RELATED_IMAGE_FEATURE_SERVER → DefaultImage. |
 | `runFeastApplyOnInit` _boolean_ | Runs feast apply on pod start to populate the registry. Defaults to true. Ignored when DisableInitContainers is true. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 | `scaling` _[ScalingConfig](#scalingconfig)_ | Scaling configures horizontal scaling for the FeatureStore deployment (e.g. HPA autoscaling).
@@ -269,6 +295,11 @@ Set to an empty array to disable auto-injection. |
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | Affinity defines the pod scheduling constraints for the FeatureStore deployment.
 When scaling is enabled and this is not set, the operator auto-injects a soft
 pod anti-affinity rule to prefer spreading pods across nodes. |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | Tolerations are applied to the FeatureStore deployment pods, allowing them to
+be scheduled onto nodes with matching taints. |
+| `nodeSelector` _object (keys:string, values:string)_ | NodeSelector is a selector which must be true for the FeatureStore deployment
+pods to fit on a node. This selector must match a node's labels for the pod to
+be scheduled on that node. |
 | `resourceClaims` _[PodResourceClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podresourceclaim-v1-core) array_ | ResourceClaims defines which ResourceClaims must be allocated
 and reserved before the Pod is allowed to start. The resources
 will be made available to those containers which consume them
@@ -300,6 +331,10 @@ Mutually exclusive with services.scaling.autoscaling. |
 Written into feature_store.yaml for all service pods. |
 | `openlineage` _[OpenLineageConfig](#openlineageconfig)_ | OpenLineage enables OpenLineage data lineage tracking for Feast operations.
 Written into feature_store.yaml for all service pods. |
+| `mlflow` _[MlflowConfig](#mlflowconfig)_ | Mlflow enables MLflow experiment tracking integration for Feast.
+Written into feature_store.yaml for all service pods and the client ConfigMap.
+When omitted and a cluster MLflow instance is detected, defaults to enabled
+with the discovered tracking URI. |
 
 
 #### FeatureStoreStatus
@@ -474,6 +509,21 @@ This configuration option is only providing a way to automate this procedure.
 Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions. |
 
 
+#### LineageServerConfig
+
+
+
+LineageServerConfig defines the separate lineage server Deployment.
+
+_Appears in:_
+- [OpenLineageConsumerConfig](#openlineageconsumerconfig)
+
+| Field | Description |
+| --- | --- |
+| `server` _[ServerConfigs](#serverconfigs)_ | Server configuration (image, resources, env, TLS, etc.). |
+| `replicas` _integer_ | Replicas for the lineage Deployment. Default 1. |
+
+
 #### LocalRegistryConfig
 
 
@@ -524,6 +574,104 @@ _Appears in:_
 | `serverName` _string_ | MCP server name for identification. Defaults to "feast-mcp-server". |
 | `serverVersion` _string_ | MCP server version string. Defaults to "1.0.0". |
 | `transport` _string_ | MCP transport protocol. |
+
+
+#### McpServerConfig
+
+
+
+McpServerConfig configures a standalone Feast MCP server container (the `feast mcp` command).
+The server proxies to the online feature server and/or REST registry server over HTTP. Its
+transport, upstream URLs, authentication and observability are read from a feast_mcp.yaml
+config file supplied via a ConfigMap. The operator owns the container's bind host and port
+(used for the generated Service). The container image defaults to the shared feature-server
+image (which already includes `feast mcp` via the `minimal` extra).
+
+NOTE: the following embedded ServerConfigs fields are ignored for mcpServer:
+`tls` (operator-managed TLS is not supported yet), `metrics`, and `workerConfigs`.
+To run multiple gunicorn workers, set `server.workers` in the feast_mcp.yaml ConfigMap.
+
+_Appears in:_
+- [FeatureStoreServices](#featurestoreservices)
+
+| Field | Description |
+| --- | --- |
+| `image` _string_ |  |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
+| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
+| `nodeSelector` _map[string]string_ |  |
+| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `logLevel` _string_ | LogLevel sets the logging level for the server
+Allowed values: "debug", "info", "warning", "error", "critical". |
+| `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
+| `dualStack` _boolean_ | DualStack binds the server to the IPv6 wildcard address instead of 0.0.0.0,
+which serves both IPv6 and IPv4 clients on Linux. Enable it on IPv6-only or dual-stack clusters.
+Unset or false binds 0.0.0.0 (IPv4 only) for every server that takes a host flag, including the registry's REST server. |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
+This allows attaching persistent storage, config files, secrets, or other resources
+required by the Feast components. Ensure that each volume mount has a corresponding
+volume definition in the Volumes field. |
+| `workerConfigs` _[WorkerConfigs](#workerconfigs)_ | WorkerConfigs defines the worker configuration for the Feast server.
+These options are primarily used for production deployments to optimize performance. |
+| `config` _[McpServerConfigSource](#mcpserverconfigsource)_ | Config references a ConfigMap holding the feast_mcp.yaml file passed to `feast mcp --config`. Its transport must be http, streamable-http or sse, because the stdio default cannot serve the Service. If omitted, the operator passes `--transport http` unless FEAST_MCP_TRANSPORT is set in env. |
+
+
+#### McpServerConfigSource
+
+
+
+McpServerConfigSource references a ConfigMap key holding the feast_mcp.yaml content.
+
+_Appears in:_
+- [McpServerConfig](#mcpserverconfig)
+
+| Field | Description |
+| --- | --- |
+| `configMapRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | ConfigMapRef is a reference to a ConfigMap in the same namespace containing the MCP config. |
+| `configMapKey` _string_ | ConfigMapKey is the key in the ConfigMap holding the feast_mcp.yaml content. |
+
+
+#### MlflowConfig
+
+
+
+MlflowConfig enables MLflow experiment tracking integration for Feast.
+When enabled, feature retrieval metadata is automatically logged to MLflow runs
+and the Feast UI displays lineage from feature views to registered models.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `enabled` _boolean_ | Enable MLflow integration. |
+| `trackingUri` _string_ | MLflow tracking server URI. When omitted, the operator auto-discovers
+from the cluster MLflow CR (status.address.url). Falls back to
+MLFLOW_TRACKING_URI env var on pods. |
+| `uiUrl` _string_ | Browser-reachable MLflow UI URL used for hyperlinks in Feast UI lineage.
+When omitted, the operator auto-discovers from the MLflow CR status.url
+(the external gateway route). Falls back to MLFLOW_UI_URL env var, then
+to trackingUri. Only needed when the tracking URI is cluster-internal. |
+| `autoLog` _boolean_ | Automatically log feature metadata on every retrieval inside an active MLflow run.
+Defaults to true when enabled. |
+| `autoLogEntityDf` _boolean_ | Save entity DataFrame as MLflow artifact on historical retrieval.
+Defaults to false. |
+| `entityDfMaxRows` _integer_ | Maximum number of entity DataFrame rows to save as an MLflow artifact.
+DataFrames exceeding this limit are skipped. Defaults to 100000. |
+| `logOperations` _boolean_ | Log feast apply and materialize operations to a separate MLflow experiment.
+Defaults to false. |
+| `opsExperimentSuffix` _string_ | Suffix appended to the project name for the operations experiment.
+Defaults to "-feast-ops". |
+| `trackingAuth` _string_ | Authentication method used by Feast pods when calling the MLflow tracking
+server. Common values: "kubernetes-namespaced" (token-based, default on
+OpenShift AI), "basic", "bearer", or "" (no auth for local/dev).
+Defaults to "kubernetes-namespaced". |
+| `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional MLflow key-value settings written inline into
+the mlflow block of feature_store.yaml. Boolean and integer string values
+are coerced to native YAML types. Keys must be valid Feast MlflowConfig
+YAML field names. |
 
 
 #### OfflinePushBatchingConfig
@@ -622,6 +770,11 @@ _Appears in:_
 | `tokenEnvVar` _string_ | Env var name for client pods to read an OIDC token from. Sets token_env_var in client config. |
 | `verifySSL` _boolean_ | Verify SSL certificates for the OIDC provider. Defaults to true. |
 | `caCertConfigMap` _[OidcCACertConfigMap](#oidccacertconfigmap)_ | ConfigMap with the CA certificate for self-signed OIDC providers. Auto-detected on RHOAI/ODH. |
+| `jwksCacheLifespanSeconds` _integer_ | Seconds the servers reuse the provider's fetched JWK set before refetching. Defaults to 300.
+Also bounds how long a key the provider revoked keeps validating tokens, so lower it if the
+provider rotates or revokes aggressively, at the cost of more JWKS fetches. |
+| `jwksRequestTimeoutSeconds` _integer_ | Seconds before a JWKS fetch times out. Defaults to 10. The fetch happens inline on the request
+path, so an unresponsive provider blocks serving for at most this long. |
 
 
 #### OidcCACertConfigMap
@@ -719,7 +872,7 @@ _Appears in:_
 | --- | --- |
 | `enabled` _boolean_ | Enable OpenLineage integration. |
 | `transportType` _string_ | Transport type for lineage events. |
-| `transportUrl` _string_ | URL for HTTP transport (e.g. http://marquez:5000). Required when transportType is "http". |
+| `transportUrl` _string_ | URL for HTTP transport (e.g. http://feast-example-lineage:6580). Required when transportType is "http". |
 | `transportEndpoint` _string_ | API endpoint path appended to transportUrl. Defaults to "api/v1/lineage". |
 | `apiKeySecretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to a Secret containing the key "api_key" for lineage server authentication. |
 | `extraConfig` _object (keys:string, values:string)_ | ExtraConfig holds additional OpenLineage key-value settings written inline into
@@ -754,6 +907,13 @@ lineage database. If omitted, the SQL registry database is reused. |
 provide in the X-API-Key header when sending events. |
 | `namespaceMapping` _object (keys:string, values:string)_ | NamespaceMapping maps OpenLineage namespaces to Feast projects for
 RBAC-based filtering of lineage data in the UI. |
+| `retentionDays` _integer_ | RetentionDays is the number of days to retain OpenLineage events and runs.
+Events older than this are automatically pruned. Set to 0 to disable pruning. |
+| `retentionCheckIntervalHours` _integer_ | RetentionCheckIntervalHours is how often the background pruning task runs, in hours. |
+| `lineageServer` _[LineageServerConfig](#lineageserverconfig)_ | LineageServer enables a separate Deployment for the OpenLineage consumer.
+When set, the consumer is removed from the UI/registry Pod and runs
+independently with its own scaling. The Feast producer transport is
+auto-configured to send events to the lineage Service. |
 
 
 #### OptionalCtrConfigs
@@ -765,6 +925,7 @@ OptionalCtrConfigs k8s container settings that are optional
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
 - [CronJobContainerConfigs](#cronjobcontainerconfigs)
+- [McpServerConfig](#mcpserverconfig)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -923,6 +1084,9 @@ _Appears in:_
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
 | `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
+| `dualStack` _boolean_ | DualStack binds the server to the IPv6 wildcard address instead of 0.0.0.0,
+which serves both IPv6 and IPv4 clients on Linux. Enable it on IPv6-only or dual-stack clusters.
+Unset or false binds 0.0.0.0 (IPv4 only) for every server that takes a host flag, including the registry's REST server. |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
@@ -1005,6 +1169,8 @@ ServerConfigs creates a server for the feast service, with specified container c
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
+- [LineageServerConfig](#lineageserverconfig)
+- [McpServerConfig](#mcpserverconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [RegistryServerConfigs](#registryserverconfigs)
@@ -1021,6 +1187,9 @@ _Appears in:_
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
 | `metrics` _boolean_ | Metrics exposes Prometheus-compatible metrics for the Feast server when enabled. |
+| `dualStack` _boolean_ | DualStack binds the server to the IPv6 wildcard address instead of 0.0.0.0,
+which serves both IPv6 and IPv4 clients on Linux. Enable it on IPv6-only or dual-stack clusters.
+Unset or false binds 0.0.0.0 (IPv4 only) for every server that takes a host flag, including the registry's REST server. |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
@@ -1045,6 +1214,8 @@ _Appears in:_
 | `registry` _string_ |  |
 | `registryRest` _string_ |  |
 | `ui` _string_ |  |
+| `lineage` _string_ |  |
+| `mcpServer` _string_ |  |
 
 
 #### ServingConfig
@@ -1092,6 +1263,7 @@ default to true when metrics is enabled. |
 TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
 
 _Appears in:_
+- [McpServerConfig](#mcpserverconfig)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 
@@ -1125,6 +1297,7 @@ WorkerConfigs defines the worker configuration for Feast servers.
 These settings control gunicorn worker processes for production deployments.
 
 _Appears in:_
+- [McpServerConfig](#mcpserverconfig)
 - [RegistryServerConfigs](#registryserverconfigs)
 - [ServerConfigs](#serverconfigs)
 

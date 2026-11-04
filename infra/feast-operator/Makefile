@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.65.0
+VERSION ?= 0.67.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -54,7 +54,7 @@ OPERATOR_SDK_VERSION ?= v1.41.0
 # the dev image generated using command `make build-feature-server-dev-docker`
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 FS_IMG ?= quay.io/feastdev/feature-server:$(VERSION)
-CJ_IMG ?= quay.io/openshift/origin-cli:4.17
+CJ_IMG ?= registry.k8s.io/kubectl:v1.35.9
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 

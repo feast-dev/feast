@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import feast.utils as utils
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 
 
 @pytest.fixture(autouse=True)
@@ -139,6 +140,36 @@ class TestFeatureResolutionCache:
         result_row_names_2 = r2[6]
         assert isinstance(result_row_names_1, frozenset)
         assert result_row_names_1 == result_row_names_2
+
+    @patch("feast.utils._get_online_request_context")
+    def test_grouped_refs_are_copied_per_request(self, mock_ctx):
+        """Downstream mutations must not leak into cached grouped refs."""
+        mock_ctx.return_value = _make_context()
+        registry = _make_registry(datetime.now(tz=timezone.utc))
+        entity_values = {"user_id": [ValueProto(int64_val=1)]}
+
+        first_result = utils._prepare_entities_to_read_from_online_store(
+            registry,
+            "proj",
+            ["fv:feat1"],
+            entity_values,
+            native_entity_values=False,
+        )
+        first_requested_features = first_result[1][0][1]
+        first_requested_features.append("_ts:fv")
+
+        second_result = utils._prepare_entities_to_read_from_online_store(
+            registry,
+            "proj",
+            ["fv:feat1"],
+            entity_values,
+            native_entity_values=False,
+        )
+        second_requested_features = second_result[1][0][1]
+        assert first_requested_features == ["feat1", "_ts:fv"]
+        assert second_requested_features == ["feat1"]
+        assert second_requested_features is not first_requested_features
+        mock_ctx.assert_called_once()
 
     @patch("feast.utils._get_online_request_context")
     def test_feature_service_cached_separately(self, mock_ctx):

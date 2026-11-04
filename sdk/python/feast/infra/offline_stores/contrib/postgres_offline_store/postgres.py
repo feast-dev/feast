@@ -75,6 +75,8 @@ class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
 
 
 class PostgreSQLOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -99,14 +101,35 @@ class PostgreSQLOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(_append_alias(timestamps, "a")) + " DESC"
-        a_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
-        )
-        b_field_string = ", ".join(
-            _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
-        )
-
-        query = f"""
+        # Empty feature_name_columns means "all source columns". BatchFeatureView
+        # python/pandas/ray transforms signal this via get_column_info. Selecting
+        # only join keys + timestamps would starve the UDF of input features.
+        if not feature_name_columns:
+            distinct_on = ", ".join(f'a."{c}"' for c in join_key_columns) or (
+                f'a."{timestamp_field}"'
+            )
+            order_by_parts = [f'a."{c}"' for c in join_key_columns] + [
+                f'a."{timestamp_field}" DESC'
+            ]
+            if created_timestamp_column:
+                order_by_parts.append(f'a."{created_timestamp_column}" DESC')
+            order_by = ", ".join(order_by_parts)
+            query = f"""
+            SELECT DISTINCT ON ({distinct_on})
+                a.*
+                {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
+            FROM {from_expression} a
+            WHERE a."{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            ORDER BY {order_by}
+            """
+        else:
+            a_field_string = ", ".join(
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "a")
+            )
+            b_field_string = ", ".join(
+                _append_alias(join_key_columns + feature_name_columns + timestamps, "b")
+            )
+            query = f"""
             SELECT
                 {b_field_string}
                 {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
@@ -135,6 +158,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
@@ -222,6 +246,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     use_cte=use_cte,
                     start_date=start_date,
                     end_date=end_date,
+                    filter_by_created_timestamp=filter_by_created_timestamp,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -271,12 +296,17 @@ class PostgreSQLOfflineStore(OfflineStore):
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
             timestamp_fields.append(created_timestamp_column)
-        field_string = ", ".join(
-            _append_alias(
-                join_key_columns + feature_name_columns + timestamp_fields,
-                "paftoq_alias",
+        # Empty feature_name_columns => SELECT * (BatchFeatureView python mode).
+        # Default materialization uses pull_all (pull_latest_features=False).
+        if not feature_name_columns:
+            field_string = "paftoq_alias.*"
+        else:
+            field_string = ", ".join(
+                _append_alias(
+                    join_key_columns + feature_name_columns + timestamp_fields,
+                    "paftoq_alias",
+                )
             )
-        )
 
         timestamp_filter = get_timestamp_filter_sql(
             start_date,
@@ -399,6 +429,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
                     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
                     feature_type      VARCHAR(50)  NOT NULL,
                     row_count         BIGINT,
@@ -438,6 +469,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity       VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type  VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp TIMESTAMPTZ,
                     is_baseline       BOOLEAN      NOT NULL DEFAULT FALSE,
                     total_row_count   BIGINT,
                     total_features    INTEGER,
@@ -457,6 +489,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     granularity          VARCHAR(20)  NOT NULL DEFAULT 'daily',
                     data_source_type     VARCHAR(50)  NOT NULL DEFAULT 'batch',
                     computed_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    max_event_timestamp  TIMESTAMPTZ,
                     is_baseline          BOOLEAN      NOT NULL DEFAULT FALSE,
                     total_feature_views  INTEGER,
                     total_features       INTEGER,
@@ -465,6 +498,15 @@ class PostgreSQLOfflineStore(OfflineStore):
                     PRIMARY KEY (project_id, feature_service_name, metric_date,
                                  granularity, data_source_type)
                 );
+            """)
+
+            cur.execute(f"""
+                ALTER TABLE {MON_TABLE_FEATURE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_VIEW}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
+                ALTER TABLE {MON_TABLE_FEATURE_SERVICE}
+                    ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMPTZ;
             """)
 
             cur.execute(f"""
@@ -693,6 +735,7 @@ def build_point_in_time_query(
     use_cte: bool = False,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -723,6 +766,7 @@ def build_point_in_time_query(
         "use_cte": use_cte,
         "start_date": start_date,
         "end_date": end_date,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
     }
 
     query = template.render(template_context)
@@ -963,6 +1007,10 @@ entity_dataframe AS (
 
         {% if featureview.ttl == 0 %}{% else %}
         AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+        {% endif %}
+
+        {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+        AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
         {% endif %}
 
         {% for entity in featureview.entities %}

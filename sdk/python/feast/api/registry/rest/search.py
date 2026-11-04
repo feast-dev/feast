@@ -322,8 +322,7 @@ def _validate_projects(
         err_msg = "Error getting projects"
         logger.error(f"{err_msg}: {e}")
 
-    finally:
-        return list(set(projects_to_search)), err_msg
+    return list(set(projects_to_search)), err_msg
 
 
 def _remove_tags_from_results(results: List[Dict]) -> List[Dict]:

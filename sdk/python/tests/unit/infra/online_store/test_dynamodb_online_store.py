@@ -75,6 +75,7 @@ def test_dynamodb_online_store_config_default():
     assert dynamodb_store_config.read_timeout == 10
     assert dynamodb_store_config.total_max_retry_attempts == 3
     assert dynamodb_store_config.retry_mode == "adaptive"
+    assert dynamodb_store_config.warmup_connections is False
 
 
 def test_dynamodb_online_store_config_custom_params():
@@ -88,12 +89,58 @@ def test_dynamodb_online_store_config_custom_params():
         batch_size=batch_size,
         endpoint_url=endpoint_url,
         table_name_template=table_name_template,
+        warmup_connections=True,
     )
     assert dynamodb_store_config.type == "dynamodb"
     assert dynamodb_store_config.batch_size == batch_size
     assert dynamodb_store_config.endpoint_url == endpoint_url
     assert dynamodb_store_config.region == aws_region
     assert dynamodb_store_config.table_name_template == table_name_template
+    assert dynamodb_store_config.warmup_connections is True
+
+
+@pytest.mark.asyncio
+async def test_dynamodb_online_store_warmup_connections():
+    """Test DynamoDBOnlineStore warmup connections in initialize method."""
+    from unittest.mock import AsyncMock
+
+    online_store = DynamoDBOnlineStore()
+
+    # Mock _get_aiodynamodb_client to return a mock client
+    mock_client = AsyncMock()
+    mock_client.describe_limits = AsyncMock()
+    online_store._get_aiodynamodb_client = AsyncMock(return_value=mock_client)
+
+    # Test case 1: warmup_connections=True
+    config_warmup = RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=DynamoDBOnlineStoreConfig(region=REGION, warmup_connections=True),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=3,
+    )
+    await online_store.initialize(config_warmup)
+    mock_client.describe_limits.assert_called_once()
+
+    # Test case 2: warmup_connections=False
+    mock_client.describe_limits.reset_mock()
+    config_no_warmup = RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=DynamoDBOnlineStoreConfig(region=REGION, warmup_connections=False),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=3,
+    )
+    await online_store.initialize(config_no_warmup)
+    mock_client.describe_limits.assert_not_called()
+
+    # Test case 3: warmup_connections=True and describe_limits raises an exception (should catch and log warning)
+    mock_client.describe_limits.reset_mock()
+    mock_client.describe_limits.side_effect = Exception("Connection failed")
+    await online_store.initialize(config_warmup)
+    mock_client.describe_limits.assert_called_once()
 
 
 def test_dynamodb_online_store_config_dynamodb_client(dynamodb_online_store):

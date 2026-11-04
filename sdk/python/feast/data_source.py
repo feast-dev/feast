@@ -15,13 +15,14 @@ import enum
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_format import StreamFormat
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -46,7 +47,7 @@ class KafkaOptions:
         self.kafka_bootstrap_servers = kafka_bootstrap_servers
         self.message_format = message_format
         self.topic = topic
-        self.watermark_delay_threshold = watermark_delay_threshold or None
+        self.watermark_delay_threshold = watermark_delay_threshold
 
     @classmethod
     def from_proto(cls, kafka_options_proto: DataSourceProto.KafkaOptions):
@@ -62,9 +63,7 @@ class KafkaOptions:
         watermark_delay_threshold = None
         if kafka_options_proto.HasField("watermark_delay_threshold"):
             watermark_delay_threshold = (
-                timedelta(days=0)
-                if kafka_options_proto.watermark_delay_threshold.ToNanoseconds() == 0
-                else kafka_options_proto.watermark_delay_threshold.ToTimedelta()
+                kafka_options_proto.watermark_delay_threshold.ToTimedelta()
             )
         kafka_options = cls(
             kafka_bootstrap_servers=kafka_options_proto.kafka_bootstrap_servers,
@@ -194,6 +193,10 @@ class DataSource(ABC):
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
+        connection_ref (optional): Connection reference for this data source.
+            When set, OfflineStores resolve connection type and credentials at runtime
+            via the registered CredentialProvider instead of using ambient env vars or
+            the global offline_store config. All fields except provider and name are optional.
         created_timestamp: The time when the data source was created.
         last_updated_timestamp: The time when the data source was last updated.
     """
@@ -207,6 +210,7 @@ class DataSource(ABC):
     owner: str
     date_partition_column: str
     timestamp_field_type: str
+    connection_ref: Optional[ConnectionRef]
     created_timestamp: Optional[datetime]
     last_updated_timestamp: Optional[datetime]
 
@@ -222,6 +226,7 @@ class DataSource(ABC):
         owner: Optional[str] = "",
         date_partition_column: Optional[str] = None,
         timestamp_field_type: Optional[str] = None,
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a DataSource object.
@@ -243,6 +248,8 @@ class DataSource(ABC):
             timestamp_field_type (optional): Type of the timestamp_field column.
                 Defaults to "TIMESTAMP". Set to "DATE" when the event timestamp column
                 is a DATE type, so SQL generation uses date-only comparisons.
+            connection_ref (optional): Connection reference for this data source.
+                See :class:`~feast.credentials.ConnectionRef`.
         """
         self.name = name
         self.timestamp_field = timestamp_field or ""
@@ -264,9 +271,22 @@ class DataSource(ABC):
             date_partition_column if date_partition_column else ""
         )
         self.timestamp_field_type = timestamp_field_type if timestamp_field_type else ""
+        self.connection_ref = connection_ref
         now = _utc_now()
         self.created_timestamp = now
         self.last_updated_timestamp = now
+
+    def resolve_credentials(self) -> Optional[Dict[str, str]]:
+        """Resolve credentials from the ``connection_ref`` if set.
+
+        Returns ``None`` when no ``connection_ref`` is configured (ambient
+        credentials are used instead).
+        """
+        if self.connection_ref is None:
+            return None
+        from feast.credentials import resolve_credentials
+
+        return resolve_credentials(self.connection_ref)
 
     def __hash__(self):
         return hash((self.name, self.timestamp_field))
@@ -291,6 +311,7 @@ class DataSource(ABC):
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
+            or self.connection_ref != other.connection_ref
         ):
             return False
 
@@ -329,6 +350,9 @@ class DataSource(ABC):
             data_source_instance = cls.from_proto(data_source)
 
         data_source_instance._extract_timestamps_from_proto(data_source)
+        data_source_instance.connection_ref = ConnectionRef.from_tags(
+            dict(data_source.tags)
+        )
 
         return data_source_instance
 
@@ -338,6 +362,10 @@ class DataSource(ABC):
         """
         proto = self._to_proto_impl()
         self._set_timestamps_in_proto(proto)
+
+        if self.connection_ref is not None:
+            for key, value in self.connection_ref.to_tags().items():
+                proto.tags[key] = value
 
         return proto
 
@@ -522,12 +550,9 @@ class KafkaSource(DataSource):
     @staticmethod
     def from_proto(data_source: DataSourceProto):
         watermark_delay_threshold = None
-        if data_source.kafka_options.watermark_delay_threshold:
+        if data_source.kafka_options.HasField("watermark_delay_threshold"):
             watermark_delay_threshold = (
-                timedelta(days=0)
-                if data_source.kafka_options.watermark_delay_threshold.ToNanoseconds()
-                == 0
-                else data_source.kafka_options.watermark_delay_threshold.ToTimedelta()
+                data_source.kafka_options.watermark_delay_threshold.ToTimedelta()
             )
         return KafkaSource(
             name=data_source.name,
@@ -545,7 +570,7 @@ class KafkaSource(DataSource):
             owner=data_source.owner,
             batch_source=(
                 DataSource.from_proto(data_source.batch_source)
-                if data_source.batch_source
+                if data_source.HasField("batch_source")
                 else None
             ),
         )
@@ -732,7 +757,7 @@ class KinesisSource(DataSource):
             owner=data_source.owner,
             batch_source=(
                 DataSource.from_proto(data_source.batch_source)
-                if data_source.batch_source
+                if data_source.HasField("batch_source")
                 else None
             ),
         )
@@ -851,12 +876,14 @@ class PushSource(DataSource):
     # TODO(adchia): consider adding schema here in case where Feast manages pushing events to the offline store
     # TODO(adchia): consider a "mode" to support pushing raw vs transformed events
     batch_source: Optional[DataSource] = None
+    upstream_feature_view_names: List[str] = []
 
     def __init__(
         self,
         *,
         name: str,
         batch_source: Optional[DataSource] = None,
+        upstream_feature_view_names: Optional[Sequence[Union[Any, str]]] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -865,9 +892,14 @@ class PushSource(DataSource):
         Creates a PushSource object.
 
         Args:
-            name: Name of the push source
-            batch_source: The batch source that backs this push source. It's used when materializing from the offline
-                store to the online store, and when retrieving historical features.
+            name: Name of the push source.
+            batch_source (optional): The batch source that backs this push source. It's used when
+                materializing from the offline store to the online store, and when retrieving
+                historical features.
+            upstream_feature_view_names (optional): Sequence of upstream FeatureView/LabelView
+                objects or names consumed by the external process feeding this push source.
+                Represents external pipeline lineage metadata and does not trigger Feast-managed
+                DAG execution.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the data source, typically the email of the primary
@@ -875,6 +907,27 @@ class PushSource(DataSource):
         """
         super().__init__(name=name, description=description, tags=tags, owner=owner)
         self.batch_source = batch_source
+
+        normalized_upstream_names: List[str] = []
+        if upstream_feature_view_names is not None:
+            for item in upstream_feature_view_names:
+                if hasattr(item, "name"):
+                    name_val = item.name
+                    if not isinstance(name_val, str) or not name_val.strip():
+                        raise ValueError(
+                            f"Upstream feature view object {item} has an invalid or empty name"
+                        )
+                    normalized_upstream_names.append(name_val.strip())
+                elif isinstance(item, str):
+                    if not item.strip():
+                        raise ValueError("Upstream feature view name cannot be empty")
+                    normalized_upstream_names.append(item.strip())
+                else:
+                    raise TypeError(
+                        f"Unsupported type for upstream feature view: {type(item)}. "
+                        "Expected str or object with a 'name' attribute (e.g. FeatureView, LabelView)."
+                    )
+        self.upstream_feature_view_names = normalized_upstream_names
 
     def __eq__(self, other):
         if not isinstance(other, PushSource):
@@ -884,6 +937,9 @@ class PushSource(DataSource):
             return False
 
         if self.batch_source != other.batch_source:
+            return False
+
+        if self.upstream_feature_view_names != other.upstream_feature_view_names:
             return False
 
         return True
@@ -907,9 +963,16 @@ class PushSource(DataSource):
             else None
         )
 
+        upstream_feature_view_names = (
+            list(data_source.push_options.upstream_feature_view_names)
+            if data_source.HasField("push_options")
+            else []
+        )
+
         return PushSource(
             name=data_source.name,
             batch_source=batch_source,
+            upstream_feature_view_names=upstream_feature_view_names,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -922,6 +985,10 @@ class PushSource(DataSource):
             description=self.description,
             tags=self.tags,
             owner=self.owner,
+        )
+
+        data_source_proto.push_options.upstream_feature_view_names.extend(
+            self.upstream_feature_view_names
         )
 
         # Only set timestamp fields if we have a batch source and this PushSource doesn't have its own fields

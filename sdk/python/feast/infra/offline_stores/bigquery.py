@@ -27,6 +27,7 @@ from pydantic import StrictStr, field_validator
 from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from feast import flags_helper
+from feast.credentials import get_connection_config_override
 from feast.data_source import DataSource
 from feast.errors import (
     BigQueryJobCancelled,
@@ -137,6 +138,8 @@ class BigQueryOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class BigQueryOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -273,6 +276,7 @@ class BigQueryOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs: Any,
     ) -> RetrievalJob:
         # TODO: Add entity_df validation in order to fail before interacting with BigQuery
@@ -388,6 +392,7 @@ class BigQueryOfflineStore(OfflineStore):
                 entity_df_columns=entity_schema_keys,
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                 full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
             )
 
             try:
@@ -688,7 +693,7 @@ def _bq_scalar_param_type(column: str) -> str:
         return "BOOL"
     if column == "metric_date":
         return "DATE"
-    if column == "computed_at":
+    if column in ("computed_at", "max_event_timestamp"):
         return "TIMESTAMP"
     if column in {
         "row_count",
@@ -884,6 +889,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   feature_type STRING NOT NULL,
   row_count INT64,
@@ -910,6 +916,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_VIEW}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_row_count INT64,
   total_features INT64,
@@ -927,6 +934,7 @@ CREATE TABLE IF NOT EXISTS `{proj}.{ds}.{MON_TABLE_FEATURE_SERVICE}` (
   granularity STRING NOT NULL,
   data_source_type STRING NOT NULL,
   computed_at TIMESTAMP NOT NULL,
+  max_event_timestamp TIMESTAMP,
   is_baseline BOOL NOT NULL,
   total_feature_views INT64,
   total_features INT64,
@@ -953,6 +961,11 @@ PRIMARY KEY (job_id) NOT ENFORCED
 """
     for ddl in (feature_ddl, view_ddl, service_ddl, job_ddl):
         client.query(ddl).result()
+    for tbl in (MON_TABLE_FEATURE, MON_TABLE_FEATURE_VIEW, MON_TABLE_FEATURE_SERVICE):
+        client.query(
+            f"ALTER TABLE `{proj}.{ds}.{tbl}` "
+            "ADD COLUMN IF NOT EXISTS max_event_timestamp TIMESTAMP"
+        ).result()
 
 
 def _bq_get_monitoring_max_timestamp(
@@ -1582,8 +1595,28 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _get_bigquery_client(
-    project: Optional[str] = None, location: Optional[str] = None
+    project: Optional[str] = None,
+    location: Optional[str] = None,
+    data_source=None,
 ) -> bigquery.Client:
+    override = get_connection_config_override(data_source) if data_source else None
+    if override and "service_account_json" in override:
+        from google.oauth2 import service_account
+
+        try:
+            sa_info = json.loads(override["service_account_json"])
+        except json.JSONDecodeError as exc:
+            raise FeastProviderLoginError(
+                "The 'service_account_json' credential resolved from "
+                f"ConnectionRef is not valid JSON: {exc}"
+            )
+        credentials = service_account.Credentials.from_service_account_info(sa_info)
+        return bigquery.Client(
+            project=override.get("project", project),
+            location=location,
+            credentials=credentials,
+            client_info=get_http_client_info(),
+        )
     try:
         client = bigquery.Client(
             project=project, location=location, client_info=get_http_client_info()
@@ -1732,6 +1765,10 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= Timestamp_sub(entity_dataframe.entity_timestamp, interval {{ featureview.ttl }} second)
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}

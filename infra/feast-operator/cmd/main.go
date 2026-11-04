@@ -34,8 +34,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -102,7 +100,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var featureStoreMetrics bool
-	var tlsOpts []func(*tls.Config)
+	tlsOpts := make([]func(*tls.Config), 0, 2)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -130,46 +128,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	tlsProfileFetched := false
-	tlsProfile, err := tlspkg.FetchAPIServerTLSProfile(context.Background(), bootstrapClient)
+	tlsResult, err := bootstrapTLS(context.Background(), bootstrapClient)
 	if err != nil {
-		switch {
-		case apimeta.IsNoMatchError(err):
-			setupLog.Info("TLS profile not available, using hardened defaults (non-OpenShift cluster)")
-		case apierrors.IsNotFound(err):
-			setupLog.Info("APIServer resource not found, using hardened defaults")
-		default:
-			setupLog.Error(err, "unable to read APIServer TLS profile, refusing to start with unknown TLS posture")
-			os.Exit(1)
-		}
-	} else {
-		tlsProfileFetched = true
-		tlsConfigFn, unsupported := tlspkg.NewTLSConfigFromProfile(tlsProfile)
-		if len(unsupported) > 0 {
-			setupLog.Info("TLS profile contains ciphers unsupported by Go", "unsupported", unsupported)
-		}
-		tlsOpts = append(tlsOpts, tlsConfigFn)
+		setupLog.Error(err, "TLS bootstrap failed")
+		os.Exit(1)
 	}
-
-	tlsAdherenceFetched := false
-	tlsAdherence, err := tlspkg.FetchAPIServerTLSAdherencePolicy(context.Background(), bootstrapClient)
-	if err != nil {
-		switch {
-		case apimeta.IsNoMatchError(err):
-			setupLog.Info("TLS adherence policy not available (non-OpenShift cluster)")
-		case apierrors.IsNotFound(err):
-			setupLog.Info("APIServer resource not found, skipping adherence policy")
-		default:
-			setupLog.Error(err, "unable to read APIServer TLS adherence policy, refusing to start")
-			os.Exit(1)
-		}
-	} else {
-		tlsAdherenceFetched = true
-	}
-
-	tlsOpts = append(tlsOpts, func(c *tls.Config) {
-		c.NextProtos = []string{"h2", "http/1.1"}
-	})
+	tlsOpts = append(tlsOpts, tlsResult.TLSOpts...)
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
@@ -271,17 +235,17 @@ func main() {
 	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	defer cancel()
 
-	if tlsProfileFetched {
+	if tlsResult.ProfileFetched {
 		watcher := &tlspkg.SecurityProfileWatcher{
 			Client:                mgr.GetClient(),
-			InitialTLSProfileSpec: tlsProfile,
+			InitialTLSProfileSpec: tlsResult.ProfileSpec,
 			OnProfileChange: func(_ context.Context, _, _ configv1.TLSProfileSpec) {
 				setupLog.Info("TLS profile changed, initiating shutdown to reload")
 				cancel()
 			},
 		}
-		if tlsAdherenceFetched {
-			watcher.InitialTLSAdherencePolicy = tlsAdherence
+		if tlsResult.AdherenceFetched {
+			watcher.InitialTLSAdherencePolicy = tlsResult.AdherencePolicy
 			watcher.OnAdherencePolicyChange = func(_ context.Context, _, _ configv1.TLSAdherencePolicy) {
 				setupLog.Info("TLS adherence policy changed, initiating shutdown to reload")
 				cancel()

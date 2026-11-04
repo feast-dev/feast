@@ -263,7 +263,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 				sa)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Clearing the OIDC authorization and reconciling")
+			By("Clearing the OIDC authorization and reconciling (defaults to Kubernetes auth)")
 			resourceNew := resource.DeepCopy()
 			resourceNew.Spec.AuthzConfig = nil
 			err = k8sClient.Update(ctx, resourceNew)
@@ -278,15 +278,14 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
 
-			// check no RoleBinding
+			// With authz cleared, operator defaults to Kubernetes auth, so RoleBinding should exist
 			roleBinding = &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
-			Expect(err).To(HaveOccurred())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
@@ -493,6 +492,8 @@ func expectedServerOidcAuthorizConfig() services.AuthzConfig {
 			string(services.OidcClientSecret):     "client-secret",
 			string(services.OidcUsername):         "username",
 			string(services.OidcPassword):         "password",
+			string(services.OidcAudience):         "api://feast-feature-server",
+			string(services.OidcIssuer):           "https://keycloak.example.com/realms/test",
 		},
 	}
 }
@@ -509,6 +510,8 @@ func validOidcSecretMap() map[string]string {
 		string(services.OidcClientSecret):     "client-secret",
 		string(services.OidcUsername):         "username",
 		string(services.OidcPassword):         "password",
+		string(services.OidcAudience):         "api://feast-feature-server",
+		string(services.OidcIssuer):           "https://keycloak.example.com/realms/test",
 	}
 }
 

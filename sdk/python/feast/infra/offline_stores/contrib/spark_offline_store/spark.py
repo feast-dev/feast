@@ -93,6 +93,8 @@ class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
 
 
 class SparkOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -172,6 +174,7 @@ class SparkOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
@@ -332,6 +335,7 @@ class SparkOfflineStore(OfflineStore):
             entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
         return SparkRetrievalJob(
@@ -357,7 +361,16 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+
+        if isinstance(feature_view.batch_source, IcebergSource):
+            _iceberg_offline_write_batch(config, feature_view, table)
+            return
+
         assert isinstance(feature_view.batch_source, SparkSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
@@ -570,6 +583,18 @@ class SparkOfflineStore(OfflineStore):
         )
         for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
             spark_session.sql(stmt)
+        from pyspark.sql.utils import AnalysisException
+
+        for stmt in (
+            f"ALTER TABLE {MON_TABLE_FEATURE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+        ):
+            try:
+                spark_session.sql(stmt)
+            except AnalysisException:
+                # Column already exists on newly created tables.
+                pass
 
     @staticmethod
     def save_monitoring_metrics(
@@ -674,6 +699,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     feature_type      STRING NOT NULL,
     row_count         BIGINT,
@@ -699,6 +725,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     total_row_count   BIGINT,
     total_features    INT,
@@ -715,6 +742,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     granularity          STRING NOT NULL,
     data_source_type     STRING NOT NULL,
     computed_at          TIMESTAMP NOT NULL,
+    max_event_timestamp  TIMESTAMP,
     is_baseline          BOOLEAN NOT NULL,
     total_feature_views  INT,
     total_features       INT,
@@ -910,29 +938,33 @@ def _spark_sql_categorical_stats(
 ) -> Dict[str, Any]:
     q_col = f"`{col_name}`"
 
-    query = (
-        f"WITH filtered AS ("
-        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
-        f") "
+    counts_query = (
         f"SELECT "
-        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
-        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
-        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
-        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
-        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
-        f"FROM filtered WHERE {q_col} IS NOT NULL "
-        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {ts_clause}"
     )
-
-    rows = spark_session.sql(query).collect()
-    if not rows:
+    rows = spark_session.sql(counts_query).collect()
+    if not rows or rows[0][0] is None or int(rows[0][0]) == 0:
         return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
     unique_count = int(rows[0][2] or 0)
 
-    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+            f"FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        top_rows = spark_session.sql(top_n_query).collect()
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
     top_total = sum(e["count"] for e in top_entries)
     other_count = (row_count - null_count) - top_total
 
@@ -1224,7 +1256,7 @@ def _register_iceberg_source_as_temp_view(
 
     iceberg_table = _load_pyiceberg_table(data_source)
     arrow_table = iceberg_table.scan().to_arrow()
-    df = spark_session.createDataFrame(arrow_table.to_pandas())
+    df = spark_session.createDataFrame(arrow_table)
     df.createOrReplaceTempView(view_name)
 
 
@@ -1235,25 +1267,29 @@ def _load_pyiceberg_table(data_source: "DataSource"):
     )
 
     assert isinstance(data_source, IcebergSource)
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
+    return data_source.load_pyiceberg_table()
 
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        return catalog_client.load_table(fqn)
 
-    from pyiceberg.catalog import load_catalog
+def _iceberg_offline_write_batch(
+    config: "RepoConfig",
+    feature_view: "FeatureView",
+    table: "pyarrow.Table",
+) -> None:
+    """Write a PyArrow table to an IcebergSource via PyIceberg.
 
-    catalog_config: Dict[str, str] = {
-        "type": "rest",
-        "uri": data_source.endpoint,
-        "warehouse": data_source.warehouse,
-    }
-    if data_source.token_env_var:
-        token = os.environ.get(data_source.token_env_var)
-        if token:
-            catalog_config["token"] = token
-    catalog = load_catalog(data_source.catalog_name, **catalog_config)
-    return catalog.load_table(fqn)
+    Uses PyIceberg's append() API which produces proper Iceberg snapshots,
+    handles schema evolution, and updates catalog metadata — making the
+    written data discoverable via any Iceberg-compatible engine.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(feature_view.batch_source, IcebergSource)
+    data_source: IcebergSource = feature_view.batch_source
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    iceberg_table.append(table)
 
 
 def _pull_from_iceberg_source(
@@ -1790,6 +1826,10 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}

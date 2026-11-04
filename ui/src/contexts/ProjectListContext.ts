@@ -20,6 +20,7 @@ type ProjectsListType = z.infer<typeof ProjectsListSchema>;
 interface ProjectsListContextInterface {
   projectsListPromise: Promise<any>;
   isCustom: boolean;
+  basename?: string;
 }
 
 const ProjectListContext = React.createContext<

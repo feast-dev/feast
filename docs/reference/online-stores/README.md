@@ -6,6 +6,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [overview.md](overview.md)
 {% endcontent-ref %}
 
+{% content-ref url="chronon.md" %}
+[chronon.md](chronon.md)
+{% endcontent-ref %}
+
 {% content-ref url="sqlite.md" %}
 [sqlite.md](sqlite.md)
 {% endcontent-ref %}
@@ -22,6 +26,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [dragonfly.md](dragonfly.md)
 {% endcontent-ref %}
 
+{% content-ref url="valkey.md" %}
+[valkey.md](valkey.md)
+{% endcontent-ref %}
+
 {% content-ref url="datastore.md" %}
 [datastore.md](datastore.md)
 {% endcontent-ref %}
@@ -31,7 +39,7 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 {% endcontent-ref %}
 
 {% content-ref url="bigtable.md" %}
-[bigtable.md](mysql.md)
+[bigtable.md](bigtable.md)
 {% endcontent-ref %}
 
 {% content-ref url="postgres.md" %}
@@ -88,6 +96,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="milvus.md" %}
 [milvus.md](milvus.md)
+{% endcontent-ref %}
+
+{% content-ref url="pinecone.md" %}
+[pinecone.md](pinecone.md)
 {% endcontent-ref %}
 
 {% content-ref url="faiss.md" %}

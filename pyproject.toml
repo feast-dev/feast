@@ -17,7 +17,7 @@ dependencies = [
     "attrs",
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
-    "dill~=0.3.0",
+    "dill>=0.3.0,<0.5",
     "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "mmh3",
@@ -36,14 +36,16 @@ dependencies = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "starlette>=1.0.1",
-    "uvicorn[standard]>=0.30.6,<=0.34.0",
+    "uvicorn[standard]>=0.30.6",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client>=0.20.0,<0.25.0",
     "psutil",
     "bigtree>=0.19.2",
-    "pyjwt",
+    # >=2.13 for PyJWKClient's JWK-set cache surviving transient fetch
+    # failures; the OIDC token parser reuses one client and relies on it.
+    "pyjwt>=2.13.0",
 ]
 
 [project.optional-dependencies]
@@ -56,13 +58,13 @@ azure = [
     "azure-identity>=1.6.1",
     "SQLAlchemy>=1.4.19",
     "pyodbc>=4.0.30",
-    "pymssql<2.3.3"
+    "pymssql>=2.3.6"
 ]
 cassandra = ["cassandra-driver>=3.26.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
-docling = ["docling==2.27.0"]
+docling = ["docling>=2.135.0"]
 duckdb = ["ibis-framework[duckdb]>=10.0.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
@@ -78,12 +80,14 @@ gcp = [
     "fsspec>=2024.1.0",
 ]
 ge = ["great_expectations>=0.15.41,<1"]
+glide = ["valkey-glide-sync>=2.5,<3"]
 go = ["cffi>=1.15.0"]
 grpcio = [
     "grpcio>=1.56.2",
     "grpcio-reflection>=1.56.2",
     "grpcio-health-checking>=1.56.2",
 ]
+remote = ["grpcio>=1.56.2"]
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
@@ -112,12 +116,17 @@ openlineage = ["openlineage-python>=1.40.0"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=4.0.0"]
 iceberg = ["pyiceberg>=0.7.0"]
+lance = [
+    "pylance>=12.0.0",
+    "lance-namespace>=0.11.1",
+]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]>=3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
 # https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
 postgres-c = ["psycopg[c,pool]>=3.2.5"]
 pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
+pinecone = ["pinecone>=5.0,<6.0"]
 qdrant = ["qdrant-client>=1.12.0"]
 rag = [
     "transformers>=4.36.0",
@@ -139,7 +148,18 @@ snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<5",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
-mcp = ["fastapi_mcp"]
+mcp = ["fastapi_mcp", "mcp>=1.0,<1.30"]
+# Runtime dependencies of the standalone `feast mcp` server (feast.mcp), which
+# proxies to a running feature server / registry server. Deliberately separate
+# from the `mcp` extra above: that one powers the in-process fastapi_mcp
+# endpoint on `feast serve`, a different server built on different libraries.
+# `minimal` pulls this one in as well, because the feast-mcp image is built
+# FROM the feature-server image and runs `feast mcp` as its entrypoint.
+mcp-server = [
+    "fastmcp>=3.0",
+    "httpx>=0.24",
+    "python-dotenv>=1.0",
+]
 mlflow = ["mlflow>=2.10.0"]
 
 dbt = ["dbt-artifacts-parser"]
@@ -158,21 +178,23 @@ test = [
     "py>=1.11.0",
     "testcontainers>=4.15.0rc2",
     "minio==7.2.11",
-    "python-keycloak==4.2.2",
+    "python-keycloak>=4.7.3,<5",
     "cryptography>=43.0",
 ]
 
 ci = [
-    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, mcp, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
+    "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, lance, mcp, mcp-server, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, pinecone, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
-    "virtualenv==20.23.0",
+    "virtualenv==21.14.1",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
     "grpcio-tools>=1.56.2",
     "grpcio-testing>=1.56.2",
-    # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-    "httpx==0.27.2",
+    # fastmcp requires >=0.28.1. Was pinned to 0.27.2 because python-keycloak
+    # <4.7.3 passed the `proxies` argument httpx removed in 0.28
+    # (python-keycloak#623); the floor on python-keycloak above fixes that.
+    "httpx>=0.28.1",
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
@@ -199,29 +221,7 @@ nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
-minimal-sdist-build = [
-    "feast[minimal]",
-    "feast[ibis]",
-    "meson<1.7.2",
-    "pybindgen==0.22.0",
-    "sphinx!=4.0.0",
-    "types_psutil<7.0.0.20250401",
-
-    # sqlalchemy[mypy] dep
-    "greenlet!=0.4.17",
-
-    # numpy deps
-    "meson-python<0.16.0,>=0.15.0",
-    "Cython<3.1,>=0.29.34",
-    "flit_core<4,>=3.8",
-    "patchelf>=0.11.0",
-    "scikit-build-core>=0.10",
-    "hatch-fancy-pypi-readme>=23.2.0",
-    "hatch-vcs==0.4.0",
-    "hatchling>=1.6.0,<2",
-    "calver<2025.4.1",
-]
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus, mcp-server]"]
 setuptools = [
     # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
     "setuptools>=60,<81",
@@ -235,6 +235,14 @@ name = "Feast"
 
 [project.scripts]
 feast = "feast.cli.cli:cli"
+# Standalone entry point for the MCP server; equivalent to `feast mcp`,
+# but skips loading the rest of the Feast CLI.
+feast-mcp = "feast.mcp.server:main"
+
+# MLflow plugin: inject Authorization headers from mlflow_token_scope (ContextVar).
+# Avoids mutating MLFLOW_TRACKING_TOKEN in os.environ under concurrent Feast requests.
+[project.entry-points."mlflow.request_header_provider"]
+feast = "feast.infra.data_sources.mlflow.auth:FeastMLflowHeaderProvider"
 
 [build-system]
 requires = [
@@ -261,6 +269,10 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 line-length = 88
 target-version = "py310"
 include = ["*.py", "*.pyi"]
+
+[tool.ruff.lint]
+# Keep on using old default rules: https://astral.sh/blog/ruff-v0.16.0
+select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.format]
 # exclude a few common directories in the root of the project
@@ -317,7 +329,8 @@ python = "~=3.10.0"
 feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
 
 [tool.pixi.feature.duckdb-tests.tasks]
-test = { cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
+install-delta-extension = "python -c \"import duckdb; duckdb.connect().install_extension('delta')\""
+test = { depends-on = ["install-delta-extension"], cmd = "python -m pytest -n 8 --integration -m 'not ray_offline_stores_only' --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py sdk/python/tests/integration/offline_store", env = { PYTHONPATH = ".", FULL_REPO_CONFIGS_MODULE = "sdk.python.tests.universal.feature_repos.duckdb_repo_configuration", FEAST_IS_LOCAL_TEST = "True" } }
 
 [tool.pixi.feature.ray-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["ray", "grpcio", "test"] }

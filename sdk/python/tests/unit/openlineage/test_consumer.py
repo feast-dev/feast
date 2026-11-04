@@ -111,7 +111,7 @@ class TestEventIngestion:
     def test_single_event_returns_201(self, app_no_key):
         app, _ = app_no_key
         client = TestClient(app)
-        resp = client.post("/api/v1/v1/lineage", json=_make_run_event())
+        resp = client.post("/api/v1/lineage", json=_make_run_event())
         assert resp.status_code == 201
         assert "event_id" in resp.json()
 
@@ -119,7 +119,7 @@ class TestEventIngestion:
         app, _ = app_no_key
         client = TestClient(app)
         events = [_make_run_event(run_id=f"r{i}") for i in range(3)]
-        resp = client.post("/api/v1/v1/lineage", json=events)
+        resp = client.post("/api/v1/lineage", json=events)
         assert resp.status_code == 200
         assert resp.json()["summary"]["received"] == 3
         assert resp.json()["summary"]["successful"] == 3
@@ -128,26 +128,26 @@ class TestEventIngestion:
         app, _ = app_no_key
         client = TestClient(app)
         events = [_make_run_event(run_id=f"r{i}") for i in range(2)]
-        resp = client.post("/api/v1/v1/lineage/batch", json=events)
+        resp = client.post("/api/v1/lineage/batch", json=events)
         assert resp.status_code == 204
 
     def test_batch_rejects_non_array(self, app_no_key):
         app, _ = app_no_key
         client = TestClient(app)
-        resp = client.post("/api/v1/v1/lineage/batch", json={"not": "array"})
+        resp = client.post("/api/v1/lineage/batch", json={"not": "array"})
         assert resp.status_code == 400
 
     def test_api_key_required(self, app_with_key):
         app, _ = app_with_key
         client = TestClient(app)
-        resp = client.post("/api/v1/v1/lineage", json=_make_run_event())
+        resp = client.post("/api/v1/lineage", json=_make_run_event())
         assert resp.status_code == 401
 
     def test_api_key_via_header(self, app_with_key):
         app, _ = app_with_key
         client = TestClient(app)
         resp = client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(),
             headers={"X-API-Key": "secret-key"},
         )
@@ -157,7 +157,7 @@ class TestEventIngestion:
         app, _ = app_with_key
         client = TestClient(app)
         resp = client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(),
             headers={"Authorization": "Bearer secret-key"},
         )
@@ -167,7 +167,7 @@ class TestEventIngestion:
         app, _ = app_with_key
         client = TestClient(app)
         resp = client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(),
             headers={"X-API-Key": "wrong-key"},
         )
@@ -180,7 +180,7 @@ class TestEventIngestion:
 class TestQueryEndpoints:
     def _ingest(self, client, events):
         for evt in events:
-            client.post("/api/v1/v1/lineage", json=evt)
+            client.post("/api/v1/lineage", json=evt)
 
     def test_get_events(self, app_no_key):
         app, _ = app_no_key
@@ -292,7 +292,7 @@ class TestResetEndpoint:
         app, store = app_with_key
         client = TestClient(app)
         client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(),
             headers={"X-API-Key": "secret-key"},
         )
@@ -308,12 +308,12 @@ class TestResetEndpoint:
         app, store = app_with_key
         client = TestClient(app)
         client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(job_ns="ns-keep", run_id="r1"),
             headers={"X-API-Key": "secret-key"},
         )
         client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(job_ns="ns-delete", run_id="r2"),
             headers={"X-API-Key": "secret-key"},
         )
@@ -338,7 +338,7 @@ class TestResetEndpoint:
 class TestRunsEndpoints:
     def _seed(self, client):
         client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(
                 job_ns="ns-a",
                 job_name="j1",
@@ -348,7 +348,7 @@ class TestRunsEndpoints:
             ),
         )
         client.post(
-            "/api/v1/v1/lineage",
+            "/api/v1/lineage",
             json=_make_run_event(
                 job_ns="ns-b",
                 job_name="j2",

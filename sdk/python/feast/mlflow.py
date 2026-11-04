@@ -80,7 +80,7 @@ def _build_client() -> Any:
     except ImportError:
         raise ImportError(
             "mlflow package is not installed. "
-            "Install it with: pip install feast[mlflow]"
+            "Install the 'feast[mlflow]' extra in your environment."
         )
 
 

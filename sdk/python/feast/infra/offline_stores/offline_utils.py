@@ -21,7 +21,11 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
-from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
+from feast.utils import (
+    _get_requested_feature_views_to_features_dict,
+    _get_requested_on_demand_feature_views,
+    to_naive_utc,
+)
 from feast.value_type import ValueType
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -116,7 +120,9 @@ def get_feature_view_query_context(
         feature_views_to_feature_map,
         on_demand_feature_views_to_features,
     ) = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
+        feature_refs,
+        feature_views,
+        _get_requested_on_demand_feature_views(feature_refs, project, registry),
     )
 
     query_context = []
@@ -200,6 +206,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
+    filter_by_created_timestamp: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -228,6 +235,7 @@ def build_point_in_time_query(
         ),
         "featureviews": [asdict(context) for context in feature_view_query_contexts],
         "full_feature_names": full_feature_names,
+        "filter_by_created_timestamp": filter_by_created_timestamp,
         "final_output_feature_names": final_output_feature_names,
     }
 

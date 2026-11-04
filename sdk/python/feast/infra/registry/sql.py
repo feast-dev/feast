@@ -4,9 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Union, cast
 
-from pydantic import StrictInt, StrictStr
+from pydantic import StrictInt, StrictStr, field_validator
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
@@ -25,6 +25,9 @@ from sqlalchemy import (  # type: ignore
     select,
     text,
     update,
+)
+from sqlalchemy import (
+    inspect as sa_inspect,
 )
 from sqlalchemy.dialects import mysql
 from sqlalchemy.engine import Engine
@@ -306,6 +309,31 @@ class SqlRegistryConfig(RegistryConfig):
     thread_pool_executor_worker_count: StrictInt = 0
     """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
 
+    schema_mode: Literal["auto", "verify", "skip"] = "auto"
+    """ str: Controls schema creation on startup.
+    'auto' (default) — creates tables if they don't exist (current behavior).
+    'verify' — skips DDL; checks that all expected tables exist and raises an error if any are missing.
+    'skip' — skips both creation and verification. """
+
+    @field_validator("read_path")
+    def validate_read_path(cls, read_path: Optional[str]) -> Optional[str]:
+        # Mirror `RegistryConfig.validate_path`: a bare `postgresql://` read_path
+        # must be rewritten to the psycopg3 driver too, otherwise it silently
+        # falls back to psycopg2 while `path` uses psycopg3.
+        if read_path is not None:
+            return cls._normalize_postgres_scheme(read_path, "read_path")
+        return read_path
+
+
+class FeastRegistrySchemaError(Exception):
+    def __init__(self, missing_tables: List[str]) -> None:
+        tables = ", ".join(missing_tables)
+        super().__init__(
+            f"SQL registry schema is incomplete — missing tables: {tables}. "
+            "Run 'feast registry create-schema' to create them, "
+            "or set schema_mode='auto' to create tables on startup."
+        )
+
 
 class SqlRegistry(CachingRegistry):
     def __init__(
@@ -330,7 +358,12 @@ class SqlRegistry(CachingRegistry):
             )
         else:
             self.read_engine = self.write_engine
-        metadata.create_all(self.write_engine)
+        if registry_config.schema_mode == "auto":
+            metadata.create_all(self.write_engine)
+        elif registry_config.schema_mode == "verify":
+            self._verify_schema(self.write_engine)
+            if self.read_engine is not self.write_engine:
+                self._verify_schema(self.read_engine)
         self._warn_if_narrow_blob_columns(self.write_engine)
         if self.read_engine is not self.write_engine:
             # A read replica can be on a different schema version (e.g. mid
@@ -343,17 +376,32 @@ class SqlRegistry(CachingRegistry):
         self.enable_online_versioning = (
             registry_config.enable_online_feature_view_versioning
         )
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
         )
-        # Sync feast_metadata to projects table
-        # when purge_feast_metadata is set to True, Delete data from
-        # feast_metadata table and list_project_metadata will not return any data
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
+
+    @staticmethod
+    def _verify_schema(engine: Engine, registry_metadata: MetaData = metadata) -> None:
+        """Verify that all expected registry tables exist in the database.
+
+        Raises ``FeastRegistrySchemaError`` listing missing tables and
+        suggesting ``feast registry create-schema``.
+        """
+        expected = set(registry_metadata.tables.keys())
+        actual = set(
+            sa_inspect(engine).get_table_names(schema=registry_metadata.schema)
+        )
+        missing = expected - actual
+        if missing:
+            raise FeastRegistrySchemaError(sorted(missing))
 
     @staticmethod
     def _warn_if_narrow_blob_columns(
@@ -1041,14 +1089,13 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(data_sources).where(
-                data_sources.c.data_source_name == name,
-                data_sources.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise DataSourceObjectNotFoundException(name, project)
+        return self._delete_object(
+            data_sources,
+            name,
+            project,
+            "data_source_name",
+            DataSourceObjectNotFoundException,
+        )
 
     def _list_feature_services(
         self, project: str, tags: Optional[dict[str, str]], **kwargs
@@ -1228,6 +1275,10 @@ class SqlRegistry(CachingRegistry):
             FeatureViewNotFoundException,
         )
         fv.materialization_intervals.append((start_date, end_date))
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            fv.state = FeatureViewState.AVAILABLE_ONLINE
         self._apply_object(
             table, project, "feature_view_name", fv, "feature_view_proto"
         )
@@ -1699,9 +1750,11 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
-            if self.cache_mode == "sync":
-                self.refresh()
-            return rows.rowcount
+        # Refresh only after the transaction commits, otherwise the cache is
+        # rebuilt from a snapshot that still contains the deleted object.
+        if self.cache_mode == "sync":
+            self.refresh()
+        return rows.rowcount
 
     def _get_object(
         self,
@@ -1875,14 +1928,9 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(permissions).where(
-                permissions.c.permission_name == name,
-                permissions.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise PermissionNotFoundException(name, project)
+        return self._delete_object(
+            permissions, name, project, "permission_name", PermissionNotFoundException
+        )
 
     def _list_projects(
         self,
