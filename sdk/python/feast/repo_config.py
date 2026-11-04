@@ -52,6 +52,8 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
     "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
     "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
+    "trino.engine": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
+    "trino": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -88,6 +90,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
+    "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -108,6 +111,8 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "chronon": "feast.infra.offline_stores.contrib.chronon_offline_store.chronon.ChrononOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -197,10 +202,22 @@ class RegistryConfig(FeastBaseModel):
         only reset the project but not all the projects"""
 
     enable_online_feature_view_versioning: StrictBool = False
-    """ bool: Enable versioned online store tables and version-qualified reads
-        (e.g., 'fv@v2:feature'). When True, each schema version gets its own
-        online store table and can be queried independently. Version history
-        tracking in the registry is always active regardless of this setting. """
+    """ bool: Enable versioned resolution of version-qualified feature references
+        (e.g., 'fv@v2:feature'). Despite the 'online' in its name, this flag gates
+        both online and offline (get_historical_features) versioned reads, which
+        share the same resolution path; when True, each schema version also gets
+        its own online store table and can be queried independently. Version
+        history tracking in the registry is always active regardless of this
+        setting. """
+
+    serve_features_while_materializing: StrictBool = False
+    """ bool: Allow online serving to continue for a feature view while it is in
+        the ``MATERIALIZING`` state. When ``feature_store.materialize()`` runs against
+        a shared registry it transitions the feature view to ``MATERIALIZING`` and
+        commits that state, which otherwise causes concurrent feature servers to
+        reject requests until materialization completes. When True, feature views in
+        the ``MATERIALIZING`` state keep serving their last-materialized values.
+        Truly-unavailable states (e.g. ``CREATED``, ``GENERATED``) remain gated. """
 
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
@@ -233,6 +250,30 @@ class RegistryConfig(FeastBaseModel):
         if values.data.get("registry_type") == "sql":
             return cls._normalize_postgres_scheme(path, "path")
         return path
+
+    @model_validator(mode="after")
+    def _warn_on_unsafe_serve_while_materializing(self) -> "RegistryConfig":
+        """Warn when ``serve_features_while_materializing`` is combined with a
+        registry configuration where it is a no-op or where its guarantees may
+        not hold. These are advisory warnings only, never hard failures.
+        """
+        if self.serve_features_while_materializing:
+            if self.registry_type != "sql":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled but "
+                    f"`registry_type` is '{self.registry_type}'. The flag targets "
+                    "the serving interruption caused by concurrent servers sharing "
+                    "a `sql` registry that materialization flips to `MATERIALIZING`; "
+                    "on other registry types it typically has no effect."
+                )
+            if self.cache_mode == "thread":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled together with "
+                    "`cache_mode='thread'`. In thread mode the registry cache may lag "
+                    "by up to `cache_ttl_seconds`, so feature-view state transitions "
+                    "(including the exit from `MATERIALIZING`) may be observed stale."
+                )
+        return self
 
 
 class MaterializationConfig(BaseModel):
@@ -272,7 +313,21 @@ class OpenLineageConsumerConfig(FeastBaseModel):
     """ str: API key for authenticating producers sending events. """
 
     namespace_mapping: Optional[Dict[str, str]] = None
-    """ dict: Map of OL namespace -> Feast project for RBAC scoping. """
+    """ dict: Read-side RBAC bridge mapping external OL namespaces to Feast project
+    names. Users who can DESCRIBE a project also see lineage from mapped namespaces.
+    Example: {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"} """
+
+    retention_days: int = 30
+    """ int: Number of days to retain OpenLineage events and runs. Set to 0 to
+    disable automatic pruning. Default: 30 days. """
+
+    retention_check_interval_hours: int = 6
+    """ int: How often the background pruning task runs, in hours. Default: 6. """
+
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
 
 
 class OpenLineageConfig(FeastBaseModel):
@@ -335,6 +390,9 @@ class OpenLineageConfig(FeastBaseModel):
                 connection_string=self.consumer.connection_string,
                 api_key=self.consumer.api_key,
                 namespace_mapping=self.consumer.namespace_mapping or {},
+                retention_days=self.consumer.retention_days,
+                retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
             )
 
         return OLConfig(

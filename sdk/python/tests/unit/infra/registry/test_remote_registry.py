@@ -18,8 +18,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.infra.registry.remote import RemoteRegistry
 from feast.protos.feast.registry import RegistryServer_pb2
+from feast.saved_dataset import SavedDataset
 
 
 @pytest.fixture
@@ -83,3 +85,29 @@ def test_updated_since_none(remote_registry):
         remote_registry.stub.ListAllFeatureViews.call_args[0][0]
     )
     assert not request.HasField("updated_since")
+
+
+def test_apply_saved_dataset_calls_apply_saved_dataset_rpc(remote_registry):
+    """apply_saved_dataset() must invoke the ApplySavedDataset RPC, not
+    ApplyFeatureService -- calling the wrong RPC means the server tries to
+    deserialize an ApplySavedDatasetRequest as an ApplyFeatureServiceRequest,
+    which the server cannot handle correctly."""
+    saved_dataset = SavedDataset(
+        name="test_saved_dataset",
+        features=["feature_view:feature"],
+        join_keys=["entity_id"],
+        storage=SavedDatasetFileStorage(path="/tmp/does-not-need-to-exist.parquet"),
+        tags={},
+    )
+
+    remote_registry.apply_saved_dataset(saved_dataset, "project", commit=True)
+
+    remote_registry.stub.ApplySavedDataset.assert_called_once()
+    remote_registry.stub.ApplyFeatureService.assert_not_called()
+
+    request: RegistryServer_pb2.ApplySavedDatasetRequest = (
+        remote_registry.stub.ApplySavedDataset.call_args[0][0]
+    )
+    assert request.saved_dataset.spec.name == "test_saved_dataset"
+    assert request.project == "project"
+    assert request.commit is True

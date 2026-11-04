@@ -109,7 +109,10 @@ class SparkFeatureBuilder(FeatureBuilder):
     def build_transformation_node(self, view, input_nodes):
         udf_name = view.feature_transformation.name
         udf = view.feature_transformation.udf
-        node = SparkTransformationNode(udf_name, udf, inputs=input_nodes)
+        udf_string = getattr(view.feature_transformation, "udf_string", "") or ""
+        node = SparkTransformationNode(
+            udf_name, udf, inputs=input_nodes, udf_string=udf_string
+        )
         self.nodes.append(node)
         return node
 

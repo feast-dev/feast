@@ -564,6 +564,30 @@ class TestRemoteOnlineStoreGetOnlineFeatures:
         assert proto.results[2].statuses[0] == FieldStatus.NULL_VALUE
         assert proto.results[3].statuses[0] == FieldStatus.OUTSIDE_MAX_AGE
 
+    def test_build_online_response_feature_view_metadata(self, remote_store):
+        """feature_view_metadata returned by the server must be carried over
+        to the reconstructed proto, so versioned reads work end-to-end."""
+        resp_json = {
+            "metadata": {
+                "feature_names": ["user_id", "score"],
+                "feature_view_metadata": [
+                    {"name": "user_stats", "version": 2},
+                    {"name": "user_profile"},
+                ],
+            },
+            "results": [
+                {"values": [101], "statuses": ["PRESENT"]},
+                {"values": [0.95], "statuses": ["PRESENT"]},
+            ],
+        }
+
+        result = remote_store._build_online_response_from_json(resp_json)
+        fv_metadata = result.proto.metadata.feature_view_metadata
+        assert [(m.name, m.version) for m in fv_metadata] == [
+            ("user_stats", 2),
+            ("user_profile", 0),
+        ]
+
     # ── Error handling ────────────────────────────────────────────────
 
     @patch("feast.infra.online_stores.remote.get_remote_online_features")

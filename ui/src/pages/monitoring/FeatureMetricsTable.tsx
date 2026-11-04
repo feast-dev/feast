@@ -39,9 +39,10 @@ const formatNum = (val: number | null, decimals = 2): string => {
   return val.toFixed(decimals);
 };
 
-const formatFreshness = (computedAt: string | null): string => {
-  if (!computedAt) return "—";
-  const diff = Date.now() - new Date(computedAt).getTime();
+const formatFreshness = (timestamp: string | null): string => {
+  if (!timestamp) return "—";
+  const diff = Date.now() - new Date(timestamp).getTime();
+  if (Number.isNaN(diff)) return "—";
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -52,13 +53,17 @@ const formatFreshness = (computedAt: string | null): string => {
   return `${Math.floor(days / 30)}mo ago`;
 };
 
-const freshnessColor = (computedAt: string | null): string => {
-  if (!computedAt) return "subdued";
-  const hrs = (Date.now() - new Date(computedAt).getTime()) / 3_600_000;
+const freshnessColor = (timestamp: string | null): string => {
+  if (!timestamp) return "subdued";
+  const hrs = (Date.now() - new Date(timestamp).getTime()) / 3_600_000;
+  if (Number.isNaN(hrs)) return "subdued";
   if (hrs < 24) return "success";
   if (hrs < 72) return "warning";
   return "danger";
 };
+
+const freshnessTimestamp = (metric: FeatureMetric): string | null =>
+  metric.max_event_timestamp || metric.metric_date || null;
 
 const MiniHistogram = ({ metric }: { metric: FeatureMetric }) => {
   if (!metric.histogram) return <span style={{ color: "#98A2B3" }}>—</span>;
@@ -257,7 +262,7 @@ const FeatureMetricsTable = ({
     {
       title: "Freshness",
       description:
-        "Recency of the underlying data. Green (< 24h old), Yellow (24–72h), Red (> 72h). Hover for the data date.",
+        "Age of the newest source event (MAX of the event timestamp). Green (< 24h old), Yellow (24–72h), Red (> 72h). Hover for the exact event time.",
     },
     {
       title: "Source",
@@ -346,17 +351,20 @@ const FeatureMetricsTable = ({
       render: (val: number | null) => formatNum(val),
     },
     {
-      field: "metric_date",
+      field: "max_event_timestamp",
       name: "Freshness",
       sortable: true,
       width: "110px",
-      render: (val: string) => (
-        <EuiToolTip content={val ? `Data from: ${val}` : "Unknown"}>
-          <EuiHealth color={freshnessColor(val)}>
-            {formatFreshness(val)}
-          </EuiHealth>
-        </EuiToolTip>
-      ),
+      render: (_val: string | null, item: FeatureMetric) => {
+        const ts = freshnessTimestamp(item);
+        return (
+          <EuiToolTip content={ts ? `Newest event: ${ts}` : "Unknown"}>
+            <EuiHealth color={freshnessColor(ts)}>
+              {formatFreshness(ts)}
+            </EuiHealth>
+          </EuiToolTip>
+        );
+      },
     },
     {
       field: "data_source_type",

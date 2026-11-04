@@ -29,6 +29,37 @@ GRANULARITY_WINDOWS = {
     "quarterly": timedelta(days=90),
 }
 
+
+def _as_utc_datetime(val: Any) -> Optional[datetime]:
+    """Parse a timestamp-like value to a timezone-aware UTC datetime."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+    if isinstance(val, date):
+        return datetime.combine(val, datetime.min.time(), tzinfo=timezone.utc)
+    if isinstance(val, str):
+        parsed = datetime.fromisoformat(val.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return None
+
+
+def _newest_event_in_window(
+    max_ts: Optional[datetime],
+    start_dt: datetime,
+    end_dt: datetime,
+) -> Optional[datetime]:
+    """Newest source event that falls inside ``[start_dt, end_dt]``.
+
+    ``max_ts`` is MAX(event_timestamp) over the whole source. If that
+    timestamp is after the window, the window end is used as an upper bound.
+    """
+    aware_max = _as_utc_datetime(max_ts)
+    if aware_max is None or aware_max < start_dt:
+        return None
+    return min(aware_max, end_dt)
+
+
 _FLOAT_FIELDS = frozenset(
     {
         "null_rate",
@@ -91,18 +122,24 @@ class MonitoringService:
         self,
         project: Optional[str] = None,
         feature_view_name: Optional[str] = None,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Detect date ranges from source data and compute all granularities.
 
         Also computes baseline for any features that don't have one yet
         (idempotent -- features with existing baselines are skipped).
+
+        ``allowed_feature_view_names`` optionally restricts a selector-free run to an
+        explicit set of views (e.g. the caller's authorized subset).
         """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
             project = self._store.config.project
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
         total_features = 0
         total_views = 0
         baseline_features = 0
@@ -146,6 +183,7 @@ class MonitoringService:
                             granularity="baseline",
                             set_baseline=True,
                             now=now,
+                            max_event_timestamp=max_ts,
                         )
                         baseline_features += len(bl_metrics)
 
@@ -165,6 +203,7 @@ class MonitoringService:
                         granularity=granularity,
                         set_baseline=False,
                         now=now,
+                        max_event_timestamp=max_ts,
                     )
                     self._compute_feature_service_metrics(
                         project=project,
@@ -251,6 +290,11 @@ class MonitoringService:
             granularity=granularity,
             set_baseline=set_baseline,
             now=now,
+            max_event_timestamp=_newest_event_in_window(
+                self._get_max_timestamp_for_source(data_source, ts_field),
+                start_dt,
+                end_dt,
+            ),
         )
 
         duration_ms = int((time.time() - start_time) * 1000)
@@ -268,8 +312,13 @@ class MonitoringService:
         self,
         project: Optional[str] = None,
         feature_service_name: Optional[str] = None,
+        allowed_feature_service_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """Auto-detect date ranges from log data and compute all granularities."""
+        """Auto-detect date ranges from log data and compute all granularities.
+
+        ``allowed_feature_service_names`` optionally restricts a selector-free run to an
+        explicit set of services (e.g. the caller's authorized subset).
+        """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
@@ -280,6 +329,11 @@ class MonitoringService:
                 self._store.registry.get_feature_service(
                     name=feature_service_name, project=project
                 )
+            ]
+        elif allowed_feature_service_names is not None:
+            services = [
+                self._store.registry.get_feature_service(name=name, project=project)
+                for name in allowed_feature_service_names
             ]
         else:
             services = self._store.registry.list_feature_services(project=project)
@@ -324,6 +378,7 @@ class MonitoringService:
                         granularity=gran,
                         set_baseline=False,
                         now=now,
+                        max_event_timestamp=max_ts,
                     )
                     total_features += len(metrics_list)
                     granularities_computed.add(gran)
@@ -354,17 +409,23 @@ class MonitoringService:
         project: Optional[str] = None,
         feature_view_name: Optional[str] = None,
         feature_names: Optional[List[str]] = None,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Compute baseline metrics from all available source data.
 
         Idempotent: only features without existing baselines are computed.
+
+        ``allowed_feature_view_names`` optionally restricts a selector-free run to an
+        explicit set of views (e.g. the caller's authorized subset).
         """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
             project = self._store.config.project
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
         total_features = 0
         total_views = 0
 
@@ -402,6 +463,7 @@ class MonitoringService:
                     granularity="baseline",
                     set_baseline=True,
                     now=now,
+                    max_event_timestamp=self._get_max_timestamp(fv),
                 )
 
                 total_features += len(metrics_list)
@@ -434,6 +496,7 @@ class MonitoringService:
         end_date: Optional[date] = None,
         granularity: str = "daily",
         set_baseline: bool = False,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         self._ensure_monitoring_tables()
         if granularity not in VALID_GRANULARITIES:
@@ -445,7 +508,9 @@ class MonitoringService:
         start_time = time.time()
         start_dt, end_dt = self._to_date_range(start_date, end_date)
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
 
         total_features = 0
         total_views = 0
@@ -453,6 +518,7 @@ class MonitoringService:
 
         for fv in feature_views:
             try:
+                max_ts = self._get_max_timestamp(fv)
                 fv_metrics = self._compute_for_feature_view(
                     project=project,
                     feature_view=fv,
@@ -461,6 +527,7 @@ class MonitoringService:
                     end_dt=end_dt,
                     granularity=granularity,
                     set_baseline=set_baseline,
+                    max_event_timestamp=max_ts,
                 )
                 total_features += fv_metrics["feature_count"]
                 total_views += 1
@@ -561,8 +628,10 @@ class MonitoringService:
             parameters=parameters,
         )
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
-        return self.job_manager.get_job(job_id)
+    def get_job(
+        self, job_id: str, project: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        return self.job_manager.get_job(job_id, project=project)
 
     def execute_job(self, job_id: str) -> Dict[str, Any]:
         return self.job_manager.execute_job(job_id, self)
@@ -834,6 +903,7 @@ class MonitoringService:
         granularity: str,
         set_baseline: bool,
         now: datetime,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> None:
         if not metrics_list:
             return
@@ -855,6 +925,7 @@ class MonitoringService:
             m["granularity"] = granularity
             m["data_source_type"] = "batch"
             m["computed_at"] = now
+            m["max_event_timestamp"] = max_event_timestamp
             m["is_baseline"] = set_baseline
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
@@ -866,6 +937,7 @@ class MonitoringService:
             "granularity": granularity,
             "data_source_type": "batch",
             "computed_at": now,
+            "max_event_timestamp": max_event_timestamp,
             "is_baseline": set_baseline,
             **build_view_aggregate(metrics_list),
         }
@@ -895,12 +967,24 @@ class MonitoringService:
             results.extend(query_fn(fv_name))
         return results
 
-    def _resolve_feature_views(self, project: str, feature_view_name: Optional[str]):
+    def _resolve_feature_views(
+        self,
+        project: str,
+        feature_view_name: Optional[str],
+        allowed_feature_view_names: Optional[List[str]] = None,
+    ):
         if feature_view_name:
             fv = self._store.registry.get_feature_view(
                 name=feature_view_name, project=project
             )
             return [fv]
+        if allowed_feature_view_names is not None:
+            # Explicit allow-list (e.g. the caller's authorized subset for a
+            # selector-free request). An empty list resolves to no views.
+            return [
+                self._store.registry.get_feature_view(name=name, project=project)
+                for name in allowed_feature_view_names
+            ]
         return self._store.registry.list_feature_views(project=project)
 
     def _get_features_without_baseline(self, project, feature_view, feature_names=None):
@@ -925,6 +1009,7 @@ class MonitoringService:
         end_dt: datetime,
         granularity: str,
         set_baseline: bool,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         feature_fields = self._classify_fields(
             feature_view, feature_names=feature_names
@@ -950,6 +1035,11 @@ class MonitoringService:
             granularity=granularity,
             set_baseline=set_baseline,
             now=now,
+            max_event_timestamp=_newest_event_in_window(
+                max_event_timestamp,
+                start_dt,
+                end_dt,
+            ),
         )
 
         return {"feature_count": len(metrics_list), "dates": {metric_date}}
@@ -1119,6 +1209,7 @@ class MonitoringService:
         granularity: str,
         set_baseline: bool,
         now: datetime,
+        max_event_timestamp: Optional[datetime] = None,
     ) -> None:
         """Save log-sourced metrics tagged with data_source_type='log'.
 
@@ -1145,6 +1236,7 @@ class MonitoringService:
             m["granularity"] = granularity
             m["data_source_type"] = "log"
             m["computed_at"] = now
+            m["max_event_timestamp"] = max_event_timestamp
             m["is_baseline"] = set_baseline
 
         offline_store.save_monitoring_metrics(config, "feature", metrics_list)
@@ -1162,6 +1254,7 @@ class MonitoringService:
                 "granularity": granularity,
                 "data_source_type": "log",
                 "computed_at": now,
+                "max_event_timestamp": max_event_timestamp,
                 "is_baseline": set_baseline,
                 **build_view_aggregate(vmetrics),
             }
@@ -1178,6 +1271,7 @@ class MonitoringService:
             "granularity": granularity,
             "data_source_type": "log",
             "computed_at": now,
+            "max_event_timestamp": max_event_timestamp,
             "is_baseline": set_baseline,
             "total_feature_views": len(by_view),
             "total_features": svc_agg["total_features"],
@@ -1252,6 +1346,15 @@ class MonitoringService:
                         if m.get("avg_null_rate") is not None
                     ]
 
+                    newest_events = [
+                        ts
+                        for ts in (
+                            _as_utc_datetime(m.get("max_event_timestamp"))
+                            for m in relevant
+                        )
+                        if ts is not None
+                    ]
+
                     service_metric = {
                         "project_id": project,
                         "feature_service_name": fs.name,
@@ -1261,6 +1364,9 @@ class MonitoringService:
                         "granularity": granularity,
                         "data_source_type": "batch",
                         "computed_at": now,
+                        "max_event_timestamp": max(newest_events)
+                        if newest_events
+                        else None,
                         "is_baseline": set_baseline,
                         "total_feature_views": len(relevant),
                         "total_features": sum(

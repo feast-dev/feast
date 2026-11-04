@@ -21,7 +21,11 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 from feast.type_map import feast_value_type_to_pa
-from feast.utils import _get_requested_feature_views_to_features_dict, to_naive_utc
+from feast.utils import (
+    _get_requested_feature_views_to_features_dict,
+    _get_requested_on_demand_feature_views,
+    to_naive_utc,
+)
 from feast.value_type import ValueType
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
@@ -116,7 +120,9 @@ def get_feature_view_query_context(
         feature_views_to_feature_map,
         on_demand_feature_views_to_features,
     ) = _get_requested_feature_views_to_features_dict(
-        feature_refs, feature_views, registry.list_on_demand_feature_views(project)
+        feature_refs,
+        feature_views,
+        _get_requested_on_demand_feature_views(feature_refs, project, registry),
     )
 
     query_context = []

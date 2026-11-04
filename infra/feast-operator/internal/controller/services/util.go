@@ -22,6 +22,7 @@ import (
 
 var isOpenShift = false
 var hasServiceMonitorCRD = false
+var hasMlflowCRD = false
 
 func IsRegistryServer(featureStore *feastdevv1.FeatureStore) bool {
 	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
@@ -91,6 +92,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
+	applyDefaultAuthzConfig(applied)
 	if applied.FeastProjectDir == nil {
 		applied.FeastProjectDir = &feastdevv1.FeastProjectDir{
 			Init: &feastdevv1.FeastInitOptions{},
@@ -191,14 +193,31 @@ func ApplyDefaultsToStatus(cr *feastdevv1.FeatureStore) {
 		setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
 	}
 
-	if services.UI != nil {
-		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
-	}
+	setDefaultServiceImages(services, defaultFeatureServerImage)
 
 	if applied.CronJob == nil {
 		applied.CronJob = &feastdevv1.FeastCronJob{}
 	}
 	setDefaultCronJobConfigs(applied.CronJob)
+}
+
+// setDefaultServiceImages defaults the container image for services that share the
+// feature-server image but have no dedicated defaulting logic elsewhere (UI, MCP server).
+func setDefaultServiceImages(services *feastdevv1.FeatureStoreServices, defaultFeatureServerImage string) {
+	if services.UI != nil {
+		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
+	}
+	if services.McpServer != nil {
+		setDefaultCtrConfigs(&services.McpServer.ContainerConfigs.DefaultCtrConfigs, defaultFeatureServerImage)
+	}
+}
+
+func applyDefaultAuthzConfig(applied *feastdevv1.FeatureStoreSpec) {
+	if applied.AuthzConfig == nil {
+		applied.AuthzConfig = &feastdevv1.AuthzConfig{
+			KubernetesAuthz: &feastdevv1.KubernetesAuthz{},
+		}
+	}
 }
 
 func setDefaultCtrConfigs(defaultConfigs *feastdevv1.DefaultCtrConfigs, defaultImage string) {
@@ -401,6 +420,12 @@ func HasServiceMonitorCRD() bool {
 	return hasServiceMonitorCRD
 }
 
+// HasMlflowCRD returns whether the mlflow.opendatahub.io API group
+// (MLflow Operator) is available in the cluster.
+func HasMlflowCRD() bool {
+	return hasMlflowCRD
+}
+
 // SetIsOpenShift sets the global flag isOpenShift by the controller manager.
 // We don't need to keep fetching the API every reconciliation cycle that we need to know about the platform.
 func SetIsOpenShift(cfg *rest.Config) {
@@ -423,6 +448,9 @@ func SetIsOpenShift(cfg *rest.Config) {
 		}
 		if v.Name == "monitoring.coreos.com" {
 			hasServiceMonitorCRD = true
+		}
+		if v.Name == "mlflow.opendatahub.io" {
+			hasMlflowCRD = true
 		}
 	}
 }
@@ -467,6 +495,11 @@ func GetUIContainer(deployment appsv1.Deployment) *corev1.Container {
 
 func GetOnlineContainer(deployment appsv1.Deployment) *corev1.Container {
 	_, container := getContainerByType(OnlineFeastType, deployment.Spec.Template.Spec)
+	return container
+}
+
+func GetMcpServerContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(McpServerFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 

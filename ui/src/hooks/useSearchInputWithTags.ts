@@ -7,8 +7,7 @@ import { sortTagsByTotalUsage } from "./useFCOExploreSuggestions";
 type tagTokenType = Record<"key" | "value", string>;
 type tagTokenGroupsType = Record<string, string[]>;
 type tagAggregationRecordType =
-  | Record<string, Record<string, unknown[]>>
-  | undefined;
+  Record<string, Record<string, unknown[]>> | undefined;
 
 type SuggestionModes = "KEY" | "VALUE";
 

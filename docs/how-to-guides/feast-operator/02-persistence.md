@@ -192,15 +192,15 @@ services:
 
 | `type` | Secret key | SDK docs |
 |--------|------------|---------|
-| `sqlite` | `sqlite` | [SQLite](../reference/online-stores/sqlite.md) |
-| `redis` | `redis` | [Redis](../reference/online-stores/redis.md) |
-| `postgres` | `postgres` | [Postgres](../reference/online-stores/postgres.md) |
-| `cassandra` | `cassandra` | [Cassandra](../reference/online-stores/cassandra.md) |
-| `hazelcast` | `hazelcast` | [Hazelcast](../reference/online-stores/hazelcast.md) |
-| `hbase` | `hbase` | [HBase](../reference/online-stores/hbase.md) |
-| `datastore` | `datastore` | [Datastore](../reference/online-stores/datastore.md) |
-| `dynamodb` | `dynamodb` | [DynamoDB](../reference/online-stores/dynamodb.md) |
-| `bigtable` | `bigtable` | [Bigtable](../reference/online-stores/bigtable.md) |
+| `sqlite` | `sqlite` | [SQLite](../../reference/online-stores/sqlite.md) |
+| `redis` | `redis` | [Redis](../../reference/online-stores/redis.md) |
+| `postgres` | `postgres` | [Postgres](../../reference/online-stores/postgres.md) |
+| `cassandra` | `cassandra` | [Cassandra](../../reference/online-stores/cassandra.md) |
+| `hazelcast` | `hazelcast` | [Hazelcast](../../reference/online-stores/hazelcast.md) |
+| `hbase` | `hbase` | [HBase](../../reference/online-stores/hbase.md) |
+| `datastore` | `datastore` | [Datastore](../../reference/online-stores/datastore.md) |
+| `dynamodb` | `dynamodb` | [DynamoDB](../../reference/online-stores/dynamodb.md) |
+| `bigtable` | `bigtable` | [Bigtable](../../reference/online-stores/bigtable.md) |
 
 > For all store-specific YAML keys (connection options, pool sizes, etc.) see the
 > linked SDK docs — the Secret value accepts the same keys.
@@ -215,7 +215,15 @@ services:
 
 For external DB-backed offline stores (BigQuery, Snowflake, Spark, Trino, etc.), use
 `persistence.store.type` and a Secret with the matching key. See
-[Offline Stores](../reference/offline-stores/) in the SDK docs.
+[Offline Stores](../../reference/offline-stores/) in the SDK docs.
+
+> **Important — contrib store drivers require a custom image.**
+> The published `quay.io/feastdev/feature-server` image ships with `feast[minimal]`
+> (aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry,
+> grpcio, k8s, duckdb, mcp, milvus). Contrib offline stores such as **Trino, Iceberg,
+> Spark, Athena, ClickHouse**, and others are **not** included in the base image. To use
+> them, build a custom feature-server image that adds the required extras. See
+> [Building a custom feature-server image](#building-a-custom-feature-server-image) below.
 
 ### Registry
 
@@ -376,7 +384,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Redis](../reference/online-stores/redis.md)
+SDK reference: [Redis](../../reference/online-stores/redis.md)
 
 ---
 
@@ -428,7 +436,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Postgres](../reference/online-stores/postgres.md)
+SDK reference: [Postgres](../../reference/online-stores/postgres.md)
 
 ---
 
@@ -469,7 +477,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Cassandra](../reference/online-stores/cassandra.md)
+SDK reference: [Cassandra](../../reference/online-stores/cassandra.md)
 
 ---
 
@@ -502,7 +510,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Snowflake](../reference/online-stores/snowflake.md)
+SDK reference: [Snowflake](../../reference/online-stores/snowflake.md)
 
 ---
 
@@ -531,7 +539,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [DynamoDB](../reference/online-stores/dynamodb.md)
+SDK reference: [DynamoDB](../../reference/online-stores/dynamodb.md)
 
 ---
 
@@ -560,7 +568,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Bigtable](../reference/online-stores/bigtable.md)
+SDK reference: [Bigtable](../../reference/online-stores/bigtable.md)
 
 ---
 
@@ -589,7 +597,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Datastore](../reference/online-stores/datastore.md)
+SDK reference: [Datastore](../../reference/online-stores/datastore.md)
 
 ---
 
@@ -621,7 +629,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [MySQL](../reference/online-stores/mysql.md)
+SDK reference: [MySQL](../../reference/online-stores/mysql.md)
 
 ---
 
@@ -652,7 +660,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [Hazelcast](../reference/online-stores/hazelcast.md)
+SDK reference: [Hazelcast](../../reference/online-stores/hazelcast.md)
 
 ---
 
@@ -682,7 +690,7 @@ services:
           name: feast-online-store
 ```
 
-SDK reference: [HBase](../reference/online-stores/hbase.md)
+SDK reference: [HBase](../../reference/online-stores/hbase.md)
 
 ---
 
@@ -693,14 +701,14 @@ Place the driver-specific YAML keys from the SDK docs under the matching Secret 
 
 | `type` | Secret key | SDK docs |
 |--------|------------|----------|
-| `sqlite` | `sqlite` | [SQLite](../reference/online-stores/sqlite.md) |
-| `singlestore` | `singlestore` | [SingleStore](../reference/online-stores/singlestore.md) |
-| `elasticsearch` | `elasticsearch` | [Elasticsearch](../reference/online-stores/elasticsearch.md) |
-| `qdrant` | `qdrant` | [Qdrant](../reference/online-stores/qdrant.md) |
-| `couchbase.online` | `couchbase.online` | [Couchbase](../reference/online-stores/couchbase.md) |
-| `milvus` | `milvus` | [Milvus](../reference/online-stores/milvus.md) |
-| `mongodb` | `mongodb` | [MongoDB](../reference/online-stores/mongodb.md) |
-| `hybrid` | `hybrid` | [Hybrid](../reference/online-stores/hybrid.md) |
+| `sqlite` | `sqlite` | [SQLite](../../reference/online-stores/sqlite.md) |
+| `singlestore` | `singlestore` | [SingleStore](../../reference/online-stores/singlestore.md) |
+| `elasticsearch` | `elasticsearch` | [Elasticsearch](../../reference/online-stores/elasticsearch.md) |
+| `qdrant` | `qdrant` | [Qdrant](../../reference/online-stores/qdrant.md) |
+| `couchbase.online` | `couchbase.online` | [Couchbase](../../reference/online-stores/couchbase.md) |
+| `milvus` | `milvus` | [Milvus](../../reference/online-stores/milvus.md) |
+| `mongodb` | `mongodb` | [MongoDB](../../reference/online-stores/mongodb.md) |
+| `hybrid` | `hybrid` | [Hybrid](../../reference/online-stores/hybrid.md) |
 
 ---
 
@@ -739,7 +747,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [Snowflake](../reference/offline-stores/snowflake.md)
+SDK reference: [Snowflake](../../reference/offline-stores/snowflake.md)
 
 ---
 
@@ -768,7 +776,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [BigQuery](../reference/offline-stores/bigquery.md)
+SDK reference: [BigQuery](../../reference/offline-stores/bigquery.md)
 
 ---
 
@@ -801,7 +809,7 @@ services:
           name: feast-offline-store
 ```
 
-SDK reference: [Postgres](../reference/offline-stores/postgres.md)
+SDK reference: [Postgres](../../reference/offline-stores/postgres.md)
 
 ---
 
@@ -809,15 +817,15 @@ SDK reference: [Postgres](../reference/offline-stores/postgres.md)
 
 | `type` | Secret key | SDK docs |
 |--------|------------|----------|
-| `redshift` | `redshift` | [Redshift](../reference/offline-stores/redshift.md) |
-| `spark` | `spark` | [Spark](../reference/offline-stores/spark.md) |
-| `trino` | `trino` | [Trino](../reference/offline-stores/trino.md) |
-| `athena` | `athena` | [Athena](../reference/offline-stores/athena.md) |
-| `mssql` | `mssql` | [MSSQL](../reference/offline-stores/mssql.md) |
-| `couchbase.offline` | `couchbase.offline` | [Couchbase](../reference/offline-stores/couchbase.md) |
-| `clickhouse` | `clickhouse` | [ClickHouse](../reference/offline-stores/clickhouse.md) |
-| `ray` | `ray` | [Ray](../reference/offline-stores/ray.md) |
-| `oracle` | `oracle` | [Oracle](../reference/offline-stores/oracle.md) |
+| `redshift` | `redshift` | [Redshift](../../reference/offline-stores/redshift.md) |
+| `spark` | `spark` | [Spark](../../reference/offline-stores/spark.md) |
+| `trino` | `trino` | [Trino](../../reference/offline-stores/trino.md) |
+| `athena` | `athena` | [Athena](../../reference/offline-stores/athena.md) |
+| `mssql` | `mssql` | [MSSQL](../../reference/offline-stores/mssql.md) |
+| `couchbase.offline` | `couchbase.offline` | [Couchbase](../../reference/offline-stores/couchbase.md) |
+| `clickhouse` | `clickhouse` | [ClickHouse](../../reference/offline-stores/clickhouse.md) |
+| `ray` | `ray` | [Ray](../../reference/offline-stores/ray.md) |
+| `oracle` | `oracle` | [Oracle](../../reference/offline-stores/oracle.md) |
 
 ---
 
@@ -855,7 +863,7 @@ services:
             name: feast-registry-store
 ```
 
-SDK reference: [SQL Registry](../reference/registries/sql.md)
+SDK reference: [SQL Registry](../../reference/registries/sql.md)
 
 ---
 
@@ -891,7 +899,7 @@ services:
             name: feast-registry-store
 ```
 
-SDK reference: [Snowflake Registry](../reference/registries/snowflake.md)
+SDK reference: [Snowflake Registry](../../reference/registries/snowflake.md)
 
 ---
 
@@ -985,6 +993,200 @@ See [Guide 6 — Batch & Jobs](06-batch-and-jobs.md) for full details.
 
 ---
 
+## Building a custom feature-server image
+
+The published `quay.io/feastdev/feature-server` image includes a curated subset of Feast
+extras. Contrib store drivers (Trino, Iceberg, Spark, Athena, ClickHouse, etc.) and any
+additional Python packages your feature transformations depend on are **not** included. To
+use them, build a custom image that extends the base image with the packages you need.
+
+> **You do not need to clone the Feast repository.** Extend the published base image and
+> install extra packages on top.
+
+### Writing the Dockerfile
+
+Create a `Dockerfile` in your own infrastructure repository (or the repository that holds
+your Feast feature definitions):
+
+```dockerfile
+FROM quay.io/feastdev/feature-server:0.65.0
+
+RUN uv pip install --no-cache-dir \
+    "feast[trino,redis,iceberg]==0.65.0"
+```
+
+Pin the Feast version in both the base image tag and the `pip install` command so the
+server and client libraries stay in sync. Add any other Python packages your feature
+transformations need (ML libraries, internal SDKs, etc.):
+
+```dockerfile
+FROM quay.io/feastdev/feature-server:0.65.0
+
+RUN uv pip install --no-cache-dir \
+    "feast[trino,redis,iceberg,mlflow]==0.65.0" \
+    "scikit-learn>=1.3,<2" \
+    "my-internal-sdk==1.2.3"
+```
+
+### Building and pushing via CI/CD
+
+The image build and push should run entirely in CI/CD — never from a developer laptop in
+a production workflow.
+
+```yaml
+# Example: GitHub Actions
+name: Build Feast Feature Server
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'feast/Dockerfile'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: registry.example.com
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: feast/
+          push: true
+          tags: registry.example.com/feast/feature-server:0.65.0-custom
+```
+
+### Referencing the custom image in the FeatureStore CR
+
+Point the operator at the custom image using `server.image` on each service that needs it.
+Also set `services.initImage` so the init containers (`feast-init` for git clone/staging
+and `feast-apply` for registry updates) use the same custom image — otherwise they run
+with the default image which lacks the contrib drivers:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  feastProjectDir:
+    git:
+      url: https://github.com/my-org/feast-feature-repo
+      ref: <pinned-commit-sha>
+  services:
+    initImage: registry.example.com/feast/feature-server:0.65.0-custom
+    offlineStore:
+      server:
+        image: registry.example.com/feast/feature-server:0.65.0-custom
+      persistence:
+        store:
+          type: trino
+          secretRef:
+            name: feast-offline-store
+    onlineStore:
+      server:
+        image: registry.example.com/feast/feature-server:0.65.0-custom
+      persistence:
+        store:
+          type: redis
+          secretRef:
+            name: feast-online-store
+    registry:
+      local:
+        server:
+          image: registry.example.com/feast/feature-server:0.65.0-custom
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
+```
+
+The `git` section above points to your **feature-definition repository** (not Feast's
+GitHub repository). The operator clones that repository at deployment time to load
+`feature_store.yaml` and feature definitions.
+
+Alternatively, set the image once for all services cluster-wide via the operator
+environment variable:
+
+```sh
+kubectl set env deployment/feast-operator-controller-manager \
+  RELATED_IMAGE_FEATURE_SERVER=registry.example.com/feast/feature-server:0.65.0-custom \
+  -n feast-operator-system
+```
+
+See [Guide 3 — Serving & Observability](03-serving-and-observability.md#container-image-and-resources)
+for the full image resolution priority chain.
+
+### Baking the feature repo into the custom image
+
+If the cluster cannot clone a Git repository at runtime (air-gapped environments), combine
+the custom dependencies with the feature repository in one image:
+
+```dockerfile
+FROM quay.io/feastdev/feature-server:0.65.0
+
+RUN uv pip install --no-cache-dir \
+    "feast[trino,redis,iceberg]==0.65.0"
+
+COPY feature_repo/ /opt/feast/feature_repo/
+```
+
+Then use the `packaged` provisioning mode so the operator reads the baked-in repo:
+
+```yaml
+spec:
+  feastProject: my_project
+  feastProjectDir:
+    packaged:
+      image: registry.example.com/feast/feature-server:0.65.0-custom
+      featureRepoPath: /opt/feast/feature_repo
+  services:
+    runFeastApplyOnInit: false      # apply is handled separately
+    offlineStore:
+      server: {}
+      persistence:
+        store:
+          type: trino
+          secretRef:
+            name: feast-offline-store
+```
+
+See [Guide 1 — Project Provisioning](01-project-provisioning.md#option-c--use-a-repository-packaged-in-an-image-feastprojectdirpackaged)
+for full `packaged` details.
+
+### Included extras in the base image
+
+For reference, the base `quay.io/feastdev/feature-server` image installs `feast[minimal]`,
+which expands to:
+
+```
+feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]
+```
+
+The `minimal` extra is defined in the Feast
+[`pyproject.toml`](https://github.com/feast-dev/feast/blob/stable/pyproject.toml).
+
+Extras **not** included in `minimal` (require a custom image):
+
+| Extra | Offline store |
+|-------|---------------|
+| `trino` | [Trino](../../reference/offline-stores/trino.md) |
+| `spark` | [Spark](../../reference/offline-stores/spark.md) |
+| `athena` | [Athena](../../reference/offline-stores/athena.md) |
+| `mssql` | [MSSQL](../../reference/offline-stores/mssql.md) |
+| `clickhouse` | [ClickHouse](../../reference/offline-stores/clickhouse.md) |
+| `oracle` | [Oracle](../../reference/offline-stores/oracle.md) |
+| `couchbase` | [Couchbase](../../reference/offline-stores/couchbase.md) |
+| `iceberg` | Apache Iceberg |
+| `mlflow` | MLflow model registry |
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -1005,6 +1207,6 @@ See [Guide 6 — Batch & Jobs](06-batch-and-jobs.md) for full details.
 - [Sample: DB persistence (Postgres)](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_db_persistence.yaml)
 - [Sample: PVC persistence](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_pvc_persistence.yaml)
 - [Sample: object store (GCS)](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_gcs.yaml)
-- [Feast SDK — Online Stores](../reference/online-stores/)
-- [Feast SDK — Offline Stores](../reference/offline-stores/)
-- [Feast SDK — Registries](../reference/registries/)
+- [Feast SDK — Online Stores](../../reference/online-stores/)
+- [Feast SDK — Offline Stores](../../reference/offline-stores/)
+- [Feast SDK — Registries](../../reference/registries/)

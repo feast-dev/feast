@@ -32,3 +32,16 @@ def test_user_has_matching_role(users, username, roles, result):
     assertpy.assert_that(user.has_matching_role(requested_roles=roles)).is_equal_to(
         result
     )
+
+
+def test_users_have_independent_default_permissions():
+    first_user = User("first")
+    second_user = User("second")
+
+    first_user.roles.append("reader")
+    first_user.groups.append("analytics")
+    first_user.namespaces.append("production")
+
+    assert second_user.roles == []
+    assert second_user.groups == []
+    assert second_user.namespaces == []

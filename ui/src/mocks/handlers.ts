@@ -119,6 +119,10 @@ const restPermissions = http.get("/api/v1/permissions", () =>
   }),
 );
 
+const restVersion = http.get("/api/v1/version", () =>
+  HttpResponse.json({ version: "0.66.0" }),
+);
+
 // Detail endpoints
 const restFeatureViewDetail = http.get(
   "/api/v1/feature_views/:name",
@@ -304,6 +308,7 @@ const allRestHandlers = [
   restLabelViews,
   restLabels,
   restPermissions,
+  restVersion,
   // Detail endpoints
   restFeatureViewDetail,
   restEntityDetail,

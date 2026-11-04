@@ -20,6 +20,8 @@ metadata:
   namespace: test-ns-feast-rest
 spec:
   feastProject: credit_scoring_local
+  authz:
+    noAuth: true
   feastProjectDir:
     git:
       url: https://github.com/feast-dev/feast-credit-score-local-tutorial.git

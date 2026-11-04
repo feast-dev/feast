@@ -780,6 +780,16 @@ class TestComputeEngineDispatch:
         provider.offline_store.compute_monitoring_metrics.assert_called()
         provider.offline_store.pull_all_from_table_or_query.assert_not_called()
 
+        newest = datetime(2025, 3, 27, tzinfo=timezone.utc)
+        feature_saves = [
+            call
+            for call in provider.offline_store.save_monitoring_metrics.call_args_list
+            if call.args[1] == "feature"
+        ]
+        assert feature_saves
+        saved = feature_saves[0].args[2]
+        assert all(row["max_event_timestamp"] == newest for row in saved)
+
 
 # ------------------------------------------------------------------ #
 #  Test: Native storage dispatch

@@ -154,7 +154,7 @@ def postgres_server():
 
 @pytest.fixture(scope="session")
 def minio_server():
-    container = MinioContainer()
+    container = MinioContainer(image="pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
     container.start()
 
     yield container

@@ -25,7 +25,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 import ray
-from ray.data.context import DatasetContext
+from ray.data.context import DatasetContext, ShuffleStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -698,8 +698,10 @@ def _initialize_local_ray(config: Any, enable_logging: bool = False) -> None:
 
     # Configure DatasetContext
     ctx = DatasetContext.get_current()
-    ctx.shuffle_strategy = "sort"  # type: ignore
+    ctx.shuffle_strategy = ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
     ctx.enable_tensor_extension_casting = False
+    if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+        ctx.enable_arrow_backed_pandas_conversion = False
 
     # Log cluster info
     if enable_logging:
@@ -758,8 +760,10 @@ def _initialize_remote_ray(config: Any, enable_logging: bool = False) -> None:
 
     # Configure DatasetContext
     ctx = DatasetContext.get_current()
-    ctx.shuffle_strategy = "sort"  # type: ignore
+    ctx.shuffle_strategy = ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
     ctx.enable_tensor_extension_casting = False
+    if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+        ctx.enable_arrow_backed_pandas_conversion = False
 
     # Log cluster info
     if enable_logging:
@@ -851,8 +855,10 @@ def ensure_ray_initialized(
         logger.info("Ray is already initialized externally, using existing cluster")
         # Configure DatasetContext even if Ray is already initialized
         ctx = DatasetContext.get_current()
-        ctx.shuffle_strategy = "sort"  # type: ignore
+        ctx.shuffle_strategy = ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
         ctx.enable_tensor_extension_casting = False
+        if hasattr(ctx, "enable_arrow_backed_pandas_conversion"):
+            ctx.enable_arrow_backed_pandas_conversion = False
         if not enable_logging:
             _suppress_ray_logging()
         _ray_initialized = True

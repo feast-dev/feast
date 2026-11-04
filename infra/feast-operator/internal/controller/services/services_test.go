@@ -495,6 +495,56 @@ var _ = Describe("Registry Service", func() {
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
 		})
 
+		It("should apply top-level NodeSelector to pod spec when configured", func() {
+			featureStore.Spec.Services.NodeSelector = map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			expectedNodeSelector := map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
+		It("should let per-service NodeSelector override top-level NodeSelector on conflicting keys", func() {
+			featureStore.Spec.Services.NodeSelector = map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     computeNodeType,
+			}
+			registryNodeSelector := map[string]string{
+				nodeTypeLabel: "registry",
+				zoneLabel:     "us-west-1a",
+			}
+			featureStore.Spec.Services.Registry.Local.Server.ContainerConfigs.OptionalCtrConfigs.NodeSelector = &registryNodeSelector
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify merged NodeSelector is applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			expectedNodeSelector := map[string]string{
+				kubernetesOsLabel: linuxOS,
+				nodeTypeLabel:     "registry",
+				zoneLabel:         "us-west-1a",
+			}
+			Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(expectedNodeSelector))
+		})
+
 		It("should enable metrics on the online service when configured", func() {
 			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
 				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true)},
@@ -538,6 +588,25 @@ var _ = Describe("Registry Service", func() {
 			}))
 		})
 
+		It("should bind the online service dual-stack when configured", func() {
+			featureStore.Spec.Services.OnlineStore = &feastdevv1.OnlineStore{
+				Server: &feastdevv1.ServerConfigs{Metrics: ptr.To(true), DualStack: ptr.To(true)},
+			}
+
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			Expect(feast.deployFeastServiceByType(OnlineFeastType)).To(Succeed())
+			deployment := feast.initFeastDeploy()
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			onlineContainer := GetOnlineContainer(*deployment)
+			Expect(onlineContainer).NotTo(BeNil())
+			Expect(onlineContainer.Command).To(Equal([]string{feastCommand, "serve", "--metrics", "-h", "[::]", "-p", "6566"}))
+		})
+
 		It("should handle empty NodeSelector gracefully", func() {
 			// Set empty NodeSelector
 			emptyNodeSelector := map[string]string{}
@@ -554,6 +623,45 @@ var _ = Describe("Registry Service", func() {
 
 			// Verify no NodeSelector is applied (empty selector)
 			Expect(deployment.Spec.Template.Spec.NodeSelector).To(BeEmpty())
+		})
+	})
+
+	Describe("Tolerations Configuration", func() {
+		It("should apply Tolerations to pod spec when configured", func() {
+			tolerations := []corev1.Toleration{
+				{
+					Key:      "dedicated",
+					Operator: corev1.TolerationOpEqual,
+					Value:    "feast",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			}
+			featureStore.Spec.Services.Tolerations = tolerations
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify Tolerations are applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.Tolerations).To(Equal(tolerations))
+		})
+
+		It("should leave Tolerations empty when not configured", func() {
+			Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+			Expect(feast.ApplyDefaults()).To(Succeed())
+			applySpecToStatus(featureStore)
+			feast.refreshFeatureStore(ctx, typeNamespacedName)
+
+			// Create deployment and verify no Tolerations are applied
+			deployment := feast.initFeastDeploy()
+			Expect(deployment).NotTo(BeNil())
+			Expect(feast.setDeployment(deployment)).To(Succeed())
+
+			Expect(deployment.Spec.Template.Spec.Tolerations).To(BeEmpty())
 		})
 	})
 
@@ -768,8 +876,8 @@ var _ = Describe("Service AppProtocol Configuration", func() {
 		Expect(feast.getServiceAppProtocol(OnlineFeastType, false)).To(BeNil())
 	})
 
-	It("should return nil appProtocol for the offline store service", func() {
-		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(BeNil())
+	It("should return grpc appProtocol for the offline store service", func() {
+		Expect(feast.getServiceAppProtocol(OfflineFeastType, false)).To(Equal(ptr.To("grpc")))
 	})
 
 	It("should return nil appProtocol when registry gRPC is disabled", func() {
@@ -806,6 +914,28 @@ var _ = Describe("Service AppProtocol Configuration", func() {
 
 		Expect(restSvc.Spec.Ports).To(HaveLen(1))
 		Expect(restSvc.Spec.Ports[0].AppProtocol).To(BeNil())
+	})
+
+	It("should set grpc appProtocol on the offline Service port", func() {
+		featureStore.Spec.Services.OfflineStore = &feastdevv1.OfflineStore{
+			Server: &feastdevv1.ServerConfigs{
+				ContainerConfigs: feastdevv1.ContainerConfigs{
+					DefaultCtrConfigs: feastdevv1.DefaultCtrConfigs{
+						Image: ptr.To("test-image"),
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Update(ctx, featureStore)).To(Succeed())
+		Expect(feast.ApplyDefaults()).To(Succeed())
+		applySpecToStatus(featureStore)
+
+		svc := feast.initFeastSvc(OfflineFeastType)
+		Expect(svc).NotTo(BeNil())
+		Expect(feast.setService(svc, OfflineFeastType, false)).To(Succeed())
+
+		Expect(svc.Spec.Ports).To(HaveLen(1))
+		Expect(svc.Spec.Ports[0].AppProtocol).To(Equal(ptr.To("grpc")))
 	})
 })
 

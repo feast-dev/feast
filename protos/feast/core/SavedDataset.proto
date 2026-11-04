@@ -61,6 +61,26 @@ message SavedDatasetSpec {
 
   // Description of the saved dataset.
   string description = 11;
+
+  // Optional schema column definitions for data-registry assets.
+  // Used to map Iceberg REST / OpenAPI SchemaField (name/type/description/nullable).
+  // Empty means no schema was provided at registration time.
+  repeated SavedDatasetColumn columns = 12;
+}
+
+message SavedDatasetColumn {
+  // Column name.
+  string name = 1;
+
+  // Column type name (Iceberg-compatible), e.g. "string", "long", "double", "date".
+  string type = 2;
+
+  // Optional human-readable column description.
+  string description = 3;
+
+  // Whether the column accepts NULL values (OpenAPI SchemaField.nullable).
+  // optional so unset ≠ false: absent means default true (OpenAPI / SDK).
+  optional bool nullable = 4;
 }
 
 message SavedDatasetStorage {

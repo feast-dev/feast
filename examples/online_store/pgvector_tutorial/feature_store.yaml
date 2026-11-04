@@ -10,7 +10,6 @@ online_store:
   user: feast
   password: feast
   vector_enabled: true  
-  vector_len: 384  
 
 offline_store:
   type: file

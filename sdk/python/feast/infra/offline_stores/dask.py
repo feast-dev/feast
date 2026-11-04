@@ -40,6 +40,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.monitoring.monitoring_utils import (
     MONITORING_DIR,
     MONITORING_PARQUET_FILES,
+    MONITORING_TIMESTAMP_FIELDS,
     monitoring_parquet_meta,
     normalize_monitoring_row,
     opt_float,
@@ -49,6 +50,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.utils import (
     _get_requested_feature_views_to_features_dict,
+    _get_requested_on_demand_feature_views,
     compute_non_entity_date_range,
 )
 
@@ -197,7 +199,9 @@ class DaskOfflineStore(OfflineStore):
         ) = _get_requested_feature_views_to_features_dict(
             feature_refs,
             feature_views,
-            registry.list_on_demand_feature_views(config.project),
+            _get_requested_on_demand_feature_views(
+                feature_refs, config.project, registry
+            ),
         )
 
         entity_df_event_timestamp_range = (
@@ -657,11 +661,14 @@ class DaskOfflineStore(OfflineStore):
             uri=data_source.file_options.uri,
         )
         filesystem, path = FileSource.create_filesystem_and_path(
-            str(absolute_path), data_source.file_options.s3_endpoint_override
+            str(absolute_path),
+            data_source.file_options.s3_endpoint_override,
+            resolved_credentials=data_source.resolve_credentials(),
         )
         try:
             t = pq.read_table(path, filesystem=filesystem, columns=[timestamp_field])
-        except Exception:
+        except FileNotFoundError:
+            # Nothing written to the source yet: no data to monitor.
             return None
         if t.num_rows == 0:
             return None
@@ -778,7 +785,9 @@ def _dask_read_batch_arrow(
         uri=data_source.file_options.uri,
     )
     filesystem, path = FileSource.create_filesystem_and_path(
-        str(absolute_path), data_source.file_options.s3_endpoint_override
+        str(absolute_path),
+        data_source.file_options.s3_endpoint_override,
+        resolved_credentials=data_source.resolve_credentials(),
     )
     return pq.read_table(path, filesystem=filesystem)
 
@@ -964,7 +973,7 @@ def _dask_parquet_query(
     for _, row in df.iterrows():
         record = {c: row.get(c) for c in columns}
         normalize_monitoring_row(record)
-        for key in ("metric_date", "computed_at"):
+        for key in MONITORING_TIMESTAMP_FIELDS:
             val = record.get(key)
             if (
                 val is not None
@@ -999,15 +1008,26 @@ def _get_entity_df_event_timestamp_range(
 
 
 def _read_datasource(data_source, repo_path) -> dd.DataFrame:
-    storage_options = (
-        {
+    storage_options: Optional[dict] = None
+    resolved_creds = data_source.resolve_credentials()
+
+    if resolved_creds:
+        storage_options = {
+            "key": resolved_creds.get("AWS_ACCESS_KEY_ID", ""),
+            "secret": resolved_creds.get("AWS_SECRET_ACCESS_KEY", ""),
+        }
+        endpoint = data_source.file_options.s3_endpoint_override
+        if endpoint:
+            storage_options["client_kwargs"] = {"endpoint_url": endpoint}
+        session_token = resolved_creds.get("AWS_SESSION_TOKEN")
+        if session_token:
+            storage_options["token"] = session_token
+    elif data_source.file_options.s3_endpoint_override:
+        storage_options = {
             "client_kwargs": {
                 "endpoint_url": data_source.file_options.s3_endpoint_override
             }
         }
-        if data_source.file_options.s3_endpoint_override
-        else None
-    )
 
     path = FileSource.get_uri_for_file_path(
         repo_path=repo_path,

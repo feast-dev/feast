@@ -44,7 +44,9 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "chronon": "feast.infra.chronon_provider.ChrononProvider",
     "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
+    "polaris": "feast.infra.data_sources.contrib.iceberg_catalog.polaris_provider.PolarisProvider",
 }
 
 
@@ -243,7 +245,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
-            disable_event_timestamp: If True, materializes all available data using current datetime as event timestamp instead of source event timestamps.
+            disable_event_timestamp: If True, materializes all available data (from 1970-01-01 up to the current UTC time). Rows keep their source event timestamps.
         """
         pass
 

@@ -158,7 +158,9 @@ def test_get_online_features() -> None:
 
         # Feature values
         assert tensor_result["lon"] == ["1.0", "1.0"]  # String -> not tensor
-        assert torch.equal(tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0]))
+        assert torch.equal(
+            tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0], device=device)
+        )
         assert tensor_result["name"] == ["John", "John"]
         assert torch.equal(tensor_result["trips"], torch.tensor([7, 7], device=device))
 

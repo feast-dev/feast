@@ -28,6 +28,7 @@ Commands:
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
   permissions              Access permissions
+  registry                 Manage the feature registry
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -35,7 +36,7 @@ Commands:
 
 ## Global Options
 
-The Feast CLI provides one global top-level option that can be used with other commands
+The Feast CLI provides the following global options. Place them before the subcommand.
 
 **chdir \(-c, --chdir\)**
 
@@ -43,6 +44,26 @@ This command allows users to run Feast CLI commands in a different folder from t
 
 ```text
 feast -c path/to/my/feature/repo apply
+```
+
+The repository directory can also be set with the `FEATURE_REPO_DIR_ENV_VAR` environment variable. An explicit `--chdir` option takes precedence.
+
+**feature-store-yaml \(-f, --feature-store-yaml\)**
+
+Use a specific YAML configuration file instead of the default `feature_store.yaml` in the feature repository. Pass the path to the file, not its containing directory.
+
+```text
+feast -c path/to/my/feature/repo -f path/to/config/production.yaml configuration
+```
+
+An explicit relative `--feature-store-yaml` path is resolved from the current working directory, independently of `--chdir`. The `FEAST_FS_YAML_FILE_PATH` environment variable provides a fallback configuration file path when `--feature-store-yaml` is omitted.
+
+**log-level \(--log-level\)**
+
+Set the logging level to `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (case-insensitive). The default is `warning`.
+
+```text
+feast --log-level info -c path/to/my/feature/repo apply
 ```
 
 ## Apply
@@ -89,11 +110,13 @@ The `--skip-feature-view-validation` flag is particularly useful for On-Demand F
 
 ## Configuration
 
-Display the actual configuration being used by Feast, including both user-provided configurations and default configurations applied by Feast.
+Display the repository configuration as YAML, including defaults populated when the configuration is loaded. The output is not an exhaustive list of effective defaults: fields that have not been set are omitted. For example, `entity_key_serialization_version` can be absent from the output when it is omitted from `feature_store.yaml`, even though Feast uses its default value of `3`.
 
 ```bash
 feast configuration
 ```
+
+For a repository that explicitly configures the following values, an excerpt of the output looks like:
 
 ```yaml
 project: foo
@@ -271,7 +294,7 @@ Load data from feature views into the online store.
 feast materialize 2020-01-01T00:00:00 2022-01-01T00:00:00
 ```
 
-**Without timestamps (uses current datetime):**
+**Without timestamps (materializes all available data):**
 ```bash
 feast materialize --disable-event-timestamp
 ```
@@ -286,7 +309,7 @@ feast materialize -v driver_hourly_stats 2020-01-01T00:00:00 2022-01-01T00:00:00
 feast materialize --disable-event-timestamp -v driver_hourly_stats
 ```
 
-The `--disable-event-timestamp` flag is useful when your source data lacks event timestamp columns, allowing you to materialize all available data using the current datetime as the event timestamp.
+The `--disable-event-timestamp` flag lets you materialize all available data (from 1970-01-01 up to the current UTC time) without specifying start and end timestamps. Rows keep the event timestamps from the source.
 
 ```text
 Materializing 1 feature views from 2020-01-01 to 2022-01-01
@@ -297,7 +320,9 @@ driver_hourly_stats:
 
 ## Materialize incremental
 
-Load data from feature views into the online store, beginning from either the previous `materialize` or `materialize-incremental` end date, or the beginning of time.
+For regular (non-on-demand) feature views, load data into the online store beginning from each feature view's most recent materialization end date.
+
+For a regular feature view with no previous materialization, the start date is the current time minus its `ttl`. A zero TTL uses a lookback of 52 weeks; a feature view with no TTL must first be materialized with `feast materialize` to establish a start date. The initial lookback is relative to the current time, rather than the supplied end timestamp.
 
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
@@ -482,6 +507,36 @@ reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ...
 ```
 
+
+## Registry
+
+### create-schema
+
+Pre-create the SQL registry schema so the application does not need DDL privileges at runtime. Use this with `schema_mode: verify` or `schema_mode: skip` in your `feature_store.yaml`.
+
+```text
+feast registry create-schema
+```
+
+This command only applies to SQL-based registries (`registry_type: sql`). It is safe to run multiple times — existing tables are not modified.
+
+## MLflow
+
+MLflow integration utilities for GenAI dataset sync and DataSource validation. Requires `pip install 'feast[mlflow]'`. See [MLflow Integration](mlflow.md).
+
+```bash
+# Sync MLflow GenAI EvaluationDataset → FeatureView (via MlflowDatasetSource)
+feast mlflow sync-dataset --feature-view mlflow_labels
+
+# Preview flattened dataset records
+feast mlflow preview-dataset --source agent-feedback-v3 --limit 10
+
+# Validate an MlflowDatasetSource-backed FeatureView
+feast mlflow validate-source eval_records
+
+# List all FeatureViews backed by MlflowDatasetSource
+feast mlflow list-sources
+```
 
 ## Teardown
 

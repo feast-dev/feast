@@ -404,5 +404,5 @@ when MCP is enabled.
 - [Sample: serving + metrics + offline push batching](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_serving.yaml)
 - [Sample: MCP](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_mcp.yaml)
 - [Sample: log levels](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_services_loglevel.yaml)
-- [Feast SDK — Python Feature Server](../reference/feature-servers/python-feature-server.md)
+- [Feast SDK — Python Feature Server](../../reference/feature-servers/python-feature-server.md)
 - [Online Server Performance Tuning](../online-server-performance-tuning.md)

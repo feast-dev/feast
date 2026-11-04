@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, 
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from pydantic import StrictStr
+from pydantic import PositiveInt, StrictStr
 
 from feast import Entity, FeatureView, utils
 from feast.feature_view import DUMMY_ENTITY_NAME
@@ -19,11 +19,13 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 logger = logging.getLogger(__name__)
 
-# Number of mutations per Bigtable write operation we're aiming for. The official max is
-# 100K; we're being conservative.
+# Default number of mutations per Bigtable write operation we're aiming for. The official
+# max is 100K; we're being conservative. Overridable via
+# ``BigtableOnlineStoreConfig.mutations_per_write``.
 MUTATIONS_PER_OP = 50_000
-# The Bigtable client library limits the connection pool size to 10. This imposes a
-# limitation to the concurrency we can get using a thread pool in each worker.
+# Default thread-pool size used to parallelize writes within a worker. The Bigtable client
+# library limits the connection pool size to 10, which bounds the useful concurrency.
+# Overridable via ``BigtableOnlineStoreConfig.write_concurrency``.
 BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
 
 
@@ -41,6 +43,16 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
 
     max_versions: int = 2
     """The number of historical versions of data that will be kept around."""
+
+    mutations_per_write: PositiveInt = MUTATIONS_PER_OP
+    """(optional) Target number of cell mutations per Bigtable write request. Bigtable's
+    hard limit is 100K; lower values produce smaller requests, which reduces the write
+    burst a materialization places on the instance. Defaults to 50,000."""
+
+    write_concurrency: PositiveInt = BIGTABLE_CLIENT_CONNECTION_POOL_SIZE
+    """(optional) Maximum number of concurrent write requests (thread-pool size) issued
+    per worker during ``online_write_batch``. Lower values reduce the write load placed
+    on the Bigtable instance at the cost of longer materialization. Defaults to 10."""
 
 
 class BigtableOnlineStore(OnlineStore):
@@ -133,10 +145,13 @@ class BigtableOnlineStore(OnlineStore):
         # `columns_per_row` is used to calculate the number of rows we are allowed to
         # mutate in one request.
         columns_per_row = len(feature_view.features) + 1  # extra for event timestamp
-        rows_per_write = MUTATIONS_PER_OP // columns_per_row
+        # At least one row per request even when a feature view is very wide.
+        rows_per_write = max(
+            1, config.online_store.mutations_per_write // columns_per_row
+        )
 
         with futures.ThreadPoolExecutor(
-            max_workers=BIGTABLE_CLIENT_CONNECTION_POOL_SIZE
+            max_workers=config.online_store.write_concurrency
         ) as executor:
             fs = []
             while data:
