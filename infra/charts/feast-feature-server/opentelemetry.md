@@ -8,7 +8,7 @@ Feast instrumentation Using OpenTelemetry and Prometheus -
 
 ### Deploy Prometheus Operator
 Follow the Prometheus Operator documentation to install the operator - 
-https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md
+https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/getting-started/installation.md
 
 ### Deploy OpenTelemetry Operator
 Before installing OTEL Operator, install `cert-manager` and validate the `pods` should spin up --
