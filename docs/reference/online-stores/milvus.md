@@ -197,6 +197,26 @@ When Feast finds an existing collection it checks its load state and loads it on
 Reads and searches never load collections, so a collection released outside Feast is only reloaded
 the next time a Feast process first accesses it.
 
+## Row deletion
+
+`MilvusOnlineStore.online_delete` removes rows of a feature view, by entity key or by filter:
+
+```python
+from feast.filter_models import ComparisonFilter
+
+online_store.online_delete(config, feature_view, entity_keys=[entity_key])
+online_store.online_delete(
+    config,
+    feature_view,
+    filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+)
+```
+
+Give exactly one of `entity_keys` and `filters`. An empty key list deletes nothing, and a filter
+with an empty group is rejected, so a mistake cannot delete more rows than it names. A deleted row
+leaves no tombstone: a later write creates it again, and Feast does not order a delete against
+writes from other processes. Deletion works on every collection that Feast created.
+
 ## Feature views without vectors
 
 Milvus requires every collection to have a vector field. For feature views that have no vector

@@ -1,37 +1,35 @@
 # Introduction
 
-## What is Feast?
+Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams operate production ML systems at scale by allowing them to define, manage, validate, and serve machine learning features both in batch and real-time environments. Whether you are training batch or real-time models, Feast reuses your existing data infrastructure to empower both training and inference workflows.
 
-Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams 
-operate production ML systems at scale by allowing them to define, manage, validate, and serve features for production 
-AI/ML. 
+Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning features to real-time models. For more details, please review our [architecture](getting-started/architecture/overview.md).
 
-Feast's feature store is composed of two foundational components: (1) an [offline store](getting-started/components/offline-store.md) 
-for historical feature extraction used in model training and (2) an [online store](getting-started/components/online-store.md) 
-for serving features at low-latency in production systems and applications.
+## Why Feast?
+Feast helps ML platform teams improve productivity, reduce duplication, and ship models to production faster by providing:
+- **Consistent features**: Manage an offline store (batch training) and an online store (real-time serving) under one feature server.
+- **Avoid Data leakage**: Generate point-in-time correct feature sets to ensure no future data leaks into model training.
+- **Decouple ML from data Infra**: Provide a single data access layer that abstracts storage from retrieval, ensuring portability across batch and real-time environments.
+- **Serve features at low latency**: Feast is optimized for real-time feature delivery, enabling instant access during inference.
+- **Empower collaboration**: Centralize feature definitions so that data scientists, ML engineers, and data engineers can work from a shared catalog.
 
-Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning 
-features to real-time models. For more details, please review our [architecture](getting-started/architecture/overview.md).
+![](assets/feast_marchitecture.png)
 
-Concretely, Feast provides:
+## Core Components
+- **[Offline Store](getting-started/components/offline-store.md)**: Manages historical feature extraction for large-scale batch scoring or model training.
+- **[Online Store](getting-started/components/online-store.md)**: Powers low-latency feature serving for real-time production systems.
+- **[Feature Server](reference/feature-servers/README.md)**: REST/gRPC interface for online feature retrieval.
+- **[Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)**: Loads features from offline to online stores.
+- **[Provider](getting-started/components/provider.md)**: Acts as a bridge between Feast and infrastructure.
+- **[Authorization Manager](getting-started/components/authorization-manager.md)**: Controls access to features and resources.
+- **[OpenTelemetry Integration](getting-started/components/opentelemetry.md)**: Adds observability and tracing.
 
-* A Python SDK for programmatically defining features, entities, sources, and (optionally) transformations
-* A Python SDK for reading and writing features to configured offline and online data stores
-* An [optional feature server](reference/feature-servers/README.md) for reading and writing features (useful for non-python languages)
-* A [UI](reference/alpha-web-ui.md) for viewing and exploring information about features defined in the project
-* A [CLI tool](reference/feast-cli-commands.md) for viewing and updating feature information
-
-Feast allows ML platform teams to:
-
-* **Make features consistently available for training and low-latency serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (to serve pre-computed features online).
-* **Avoid data leakage** by generating point-in-time correct feature sets so data scientists can focus on feature engineering rather than debugging error-prone dataset joining logic. This ensures that future feature values do not leak to models during training.
-* **Decouple ML from data infrastructure** by providing a single data access layer that abstracts feature storage from feature retrieval, ensuring models remain portable as you move from training models to serving models, from batch models to real-time models, and from one data infra system to another.
+## User Interfaces
+- **[CLI](reference/feast-cli-commands.md)**: Command-line interface for managing feature definitions.
+- **[Web UI](reference/alpha-web-ui.md)**: Visual exploration of feature data and metadata.
 
 {% hint style="info" %}
 **Note:** Feast today primarily addresses _timestamped structured data_.
 {% endhint %}
-
-![](assets/feast_marchitecture.png)
 
 {% hint style="info" %}
 **Note:** Feast uses a push model for online serving. This means that the feature store pushes feature values to the 
@@ -54,7 +52,6 @@ Feast helps ML platform/MLOps teams with DevOps experience productionize real-ti
 
 
 ![](assets/feast_persona_diagram.png)
-
 
 
 ## What Feast is not?
@@ -82,18 +79,12 @@ Many companies have used Feast to power real-world ML use cases such as:
 * Churn prediction (an offline model), generating feature values for all users at a fixed cadence in batch
 * Credit scoring, using pre-computed historical features to compute the probability of default
 
-## How can I get started?
+## Getting Started
+- **[Quickstart](getting-started/quickstart.md)**: Fastest way to try Feast with a sample project.
+- **[Concepts](getting-started/concepts/)**: Learn key concepts such as entities, feature views, data sources, and transformations.
+- **[Architecture](getting-started/architecture/)**: Understand how Feast components interact under the hood.
+- **[Tutorials](tutorials/tutorials-overview/)**: Explore end-to-end examples using Feast in real machine learning applications.
+- **[How to Guides](how-to-guides/feast-snowflake-gcp-aws/)**: Set up Feast on AWS, GCP, Snowflake, and more.
+- **[FAQ](faq.md)**: Frequently asked questions about installation, usage, and limitations.
 
-{% hint style="info" %}
-The best way to learn Feast is to use it. Head over to our [Quickstart](getting-started/quickstart.md) and try it out!
-{% endhint %}
-
-Explore the following resources to get started with Feast:
-
-* [Quickstart](getting-started/quickstart.md) is the fastest way to get started with Feast
-* [Concepts](getting-started/concepts/) describes all important Feast API concepts
-* [Architecture](getting-started/architecture/) describes Feast's overall architecture.
-* [Tutorials](tutorials/tutorials-overview/) show full examples of using Feast in machine learning applications.
-* [Running Feast with Snowflake/GCP/AWS](how-to-guides/feast-snowflake-gcp-aws/) provides a more in-depth guide to using Feast.
-* [Reference](reference/feast-cli-commands.md) contains detailed API and design documents.
-* [Contributing](project/contributing.md) contains resources for anyone who wants to contribute to Feast.
+For contributing guidelines and more advanced usage, see **[Contributing](project/contributing.md)**.
