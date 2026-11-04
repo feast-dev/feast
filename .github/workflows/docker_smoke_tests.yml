@@ -1,0 +1,112 @@
+name: docker-smoke-tests
+
+on:
+  pull_request:
+    paths:
+      - "sdk/python/feast/infra/feature_servers/multicloud/**"
+      - "sdk/python/feast/feature_server.py"
+      - "infra/scripts/feature_server_docker_smoke.py"
+      - "Makefile"
+      - ".github/workflows/publish_images.yml"
+      - ".github/workflows/docker_smoke_tests.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  feature-server-docker-smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+      - name: Build feature-server image
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          make build-feature-server-docker REGISTRY=feastdev VERSION=smoke-${ARCH} DOCKER_PLATFORMS=linux/${ARCH}
+      - name: Run container
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run -d --rm \
+            --name feature-server-smoke-${ARCH} \
+            --platform linux/${ARCH} \
+            -p 6566:6566 \
+            -v "${GITHUB_WORKSPACE}/infra/scripts/feature_server_docker_smoke.py:/smoke.py:ro" \
+            feastdev/feature-server:smoke-${ARCH} \
+            python /smoke.py
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:6566/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "feature-server /health did not become ready"
+          docker logs feature-server-smoke-${{ matrix.arch }} || true
+          exit 1
+      - name: Cleanup
+        if: always()
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker stop feature-server-smoke-${ARCH} || true
+  feature-server-dev-docker-smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+      - name: Build feature-server-dev image
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          make build-feature-server-dev-docker REGISTRY=feastdev VERSION=smoke-${ARCH} DOCKER_PLATFORMS=linux/${ARCH}
+      - name: Run container
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run -d --rm \
+            --name feature-server-dev-smoke-${ARCH} \
+            --platform linux/${ARCH} \
+            -p 6566:6566 \
+            -v "${GITHUB_WORKSPACE}/infra/scripts/feature_server_docker_smoke.py:/smoke.py:ro" \
+            feastdev/feature-server:smoke-${ARCH} \
+            python /smoke.py
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:6566/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "feature-server /health did not become ready"
+          docker logs feature-server-dev-smoke-${{ matrix.arch }} || true
+          exit 1
+      - name: Cleanup
+        if: always()
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker stop feature-server-dev-smoke-${ARCH} || true

@@ -1,6 +1,6 @@
 import click
 
-from feast.repo_operations import create_feature_store, registry_dump
+from feast.repo_operations import create_feature_store
 
 
 @click.command()
@@ -19,14 +19,6 @@ from feast.repo_operations import create_feature_store, registry_dump
     default=8888,
     show_default=True,
     help="Specify a port for the server",
-)
-@click.option(
-    "--registry_ttl_sec",
-    "-r",
-    help="Number of seconds after which the registry is refreshed",
-    type=click.INT,
-    default=5,
-    show_default=True,
 )
 @click.option(
     "--root_path",
@@ -52,15 +44,31 @@ from feast.repo_operations import create_feature_store, registry_dump
     show_default=False,
     help="path to TLS(SSL) certificate public key. You need to pass --key arg as well to start server in TLS mode",
 )
+@click.option(
+    "--cors-allowed-origins",
+    "cors_allowed_origins",
+    type=click.STRING,
+    default="",
+    envvar="FEAST_UI_CORS_ALLOWED_ORIGINS",
+    show_default=False,
+    help=(
+        "Comma-separated list of trusted origins allowed to make cross-origin "
+        "(CORS) requests to the UI server, e.g. "
+        "'https://feast.example.com,https://app.example.com'. May also be set "
+        "via the FEAST_UI_CORS_ALLOWED_ORIGINS environment variable. By default "
+        "no cross-origin requests are allowed. Avoid '*', which combined with "
+        "credentials exposes the server to CVE-2024-11602."
+    ),
+)
 @click.pass_context
 def ui(
     ctx: click.Context,
     host: str,
     port: int,
-    registry_ttl_sec: int,
     root_path: str = "",
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    cors_allowed_origins: str = "",
 ):
     """
     Shows the Feast UI over the current directory
@@ -69,14 +77,15 @@ def ui(
         raise click.BadParameter(
             "Please configure --key and --cert args to start the feature server in SSL mode."
         )
+    cors_allowed_origins_list = [
+        origin.strip() for origin in cors_allowed_origins.split(",") if origin.strip()
+    ]
     store = create_feature_store(ctx)
-    # Pass in the registry_dump method to get around a circular dependency
     store.serve_ui(
         host=host,
         port=port,
-        get_registry_dump=registry_dump,
-        registry_ttl_sec=registry_ttl_sec,
         root_path=root_path,
         tls_key_path=tls_key_path,
         tls_cert_path=tls_cert_path,
+        cors_origins=cors_allowed_origins_list,
     )

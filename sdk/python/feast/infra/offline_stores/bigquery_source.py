@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -34,10 +35,13 @@ class BigQuerySource(DataSource):
         table: Optional[str] = None,
         created_timestamp_column: Optional[str] = "",
         field_mapping: Optional[Dict[str, str]] = None,
+        date_partition_column: Optional[str] = None,
+        timestamp_field_type: Optional[str] = None,
         query: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
@@ -46,18 +50,23 @@ class BigQuerySource(DataSource):
                 case the table must be specified.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
-            table (optional): BigQuery table where the features are stored. Exactly one of 'table'
-                and 'query' must be specified.
-            table (optional): The BigQuery table where features can be found.
+            table (optional): BigQuery table where the features are stored. At least one of 'table'
+                and 'query' must be specified. When both are set, 'query' is used for reads and
+                'table' is used as the write destination.
             created_timestamp_column (optional): Timestamp column when row was created, used for deduplicating rows.
             field_mapping (optional): A dictionary mapping of column names in this data source to feature names in a feature table
                 or view. Only used for feature columns, not entities or timestamp columns.
-            query (optional): The query to be executed to obtain the features. Exactly one of 'table'
-                and 'query' must be specified.
+            date_partition_column (optional): Timestamp column used for partitioning.
+            timestamp_field_type (optional): Type of the timestamp_field column.
+                Set to "DATE" when the event timestamp column is a DATE type,
+                so SQL generation uses date-only comparisons instead of TIMESTAMP().
+            query (optional): The query to be executed to obtain the features. When both 'table'
+                and 'query' are provided, 'query' takes priority for reads.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
+            connection_ref (optional): Connection reference for credential resolution.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -78,9 +87,12 @@ class BigQuerySource(DataSource):
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
+            date_partition_column=date_partition_column,
+            timestamp_field_type=timestamp_field_type,
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -89,9 +101,7 @@ class BigQuerySource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, BigQuerySource):
-            raise TypeError(
-                "Comparisons should only involve BigQuerySource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -111,16 +121,20 @@ class BigQuerySource(DataSource):
     def from_proto(data_source: DataSourceProto):
         assert data_source.HasField("bigquery_options")
 
+        tags = dict(data_source.tags)
         return BigQuerySource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
             table=data_source.bigquery_options.table,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
+            date_partition_column=data_source.date_partition_column,
+            timestamp_field_type=data_source.timestamp_field_type or None,
             query=data_source.bigquery_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -134,6 +148,8 @@ class BigQuerySource(DataSource):
             owner=self.owner,
             timestamp_field=self.timestamp_field,
             created_timestamp_column=self.created_timestamp_column,
+            date_partition_column=self.date_partition_column,
+            timestamp_field_type=self.timestamp_field_type,
         )
 
         return data_source_proto
@@ -151,10 +167,10 @@ class BigQuerySource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        if self.table:
-            return f"`{self.table}`"
-        else:
+        if self.query:
             return f"({self.query})"
+        else:
+            return f"`{self.table}`"
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -180,14 +196,14 @@ class BigQuerySource(DataSource):
             location=config.offline_store.location,
             client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
         )
-        if self.table:
-            schema = client.get_table(self.table).schema
-            if not isinstance(schema[0], bigquery.schema.SchemaField):
-                raise TypeError("Could not parse BigQuery table schema.")
-        else:
+        if self.query:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"
             query_res = client.query(bq_columns_query).result()
             schema = query_res.schema
+        else:
+            schema = client.get_table(self.table).schema
+            if not isinstance(schema[0], bigquery.schema.SchemaField):
+                raise TypeError("Could not parse BigQuery table schema.")
 
         name_type_pairs: List[Tuple[str, str]] = []
         for field in schema:

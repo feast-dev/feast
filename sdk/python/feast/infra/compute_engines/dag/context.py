@@ -42,6 +42,18 @@ class ColumnInfo:
         """
         return self._get_mapped_column(self.created_ts_col)
 
+    @property
+    def join_keys_columns(self) -> List[str]:
+        """
+        Get the join keys, mapped through field_mapping to their post-rename
+        column names. Use this when looking up columns on a DataFrame that has
+        already had its source columns renamed (e.g. inside DAG nodes that
+        consume the output of a source-read node).
+        """
+        if not self.field_mapping:
+            return list(self.join_keys)
+        return [self.field_mapping.get(key, key) for key in self.join_keys]
+
     def _get_mapped_column(self, column: Optional[str]) -> Optional[str]:
         """
         Helper method to get the mapped column name if it exists in field_mapping.

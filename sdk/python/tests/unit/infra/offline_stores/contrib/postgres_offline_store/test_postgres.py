@@ -195,6 +195,69 @@ def test_pull_all_from_table_or_query(mock_get_conn):
 
 
 @patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
+def test_pull_all_empty_feature_cols_selects_star(mock_get_conn):
+    """Empty feature_name_columns means all source columns (BFV transform modes)."""
+    mock_conn = MagicMock()
+    mock_get_conn.return_value.__enter__.return_value = mock_conn
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=_mock_offline_store_config(),
+    )
+    test_data_source = PostgreSQLSource(
+        name="test_batch_source",
+        table="offline_store_database_name.offline_store_table_name",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = PostgreSQLOfflineStore.pull_all_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["entity_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    sql = retrieval_job.to_sql()
+    assert "paftoq_alias.*" in sql
+    assert 'paftoq_alias."entity_id"' not in sql
+
+
+@patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
+def test_pull_latest_empty_feature_cols_selects_star(mock_get_conn):
+    mock_conn = MagicMock()
+    mock_get_conn.return_value.__enter__.return_value = mock_conn
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=_mock_offline_store_config(),
+    )
+    test_data_source = PostgreSQLSource(
+        name="test_batch_source",
+        table="offline_store_database_name.offline_store_table_name",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = PostgreSQLOfflineStore.pull_latest_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["entity_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    sql = retrieval_job.to_sql()
+    assert "DISTINCT ON" in sql
+    assert "a.*" in sql
+    assert 'ORDER BY a."entity_id", a."event_timestamp" DESC' in sql
+
+
+@patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
 @patch(
     "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.df_to_postgres_table"
 )
@@ -615,6 +678,71 @@ class TestNonEntityRetrieval:
                             assert "start_date" not in str(e)
                             assert "end_date" not in str(e)
 
+    def test_non_entity_entity_df_uses_end_date(self):
+        """Test that the synthetic entity_df uses end_date, not start_date.
+
+        Regression test: the old code used pd.date_range(start=start_date, ...)[:1]
+        which put start_date in the entity_df. Since PIT joins use
+        MAX(entity_timestamp) as the upper bound, start_date made end_date
+        unreachable. The fix uses [end_date] directly.
+        """
+        test_repo_config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=_mock_offline_store_config(),
+        )
+
+        feature_view = _mock_feature_view("test_fv", ttl=timedelta(days=1))
+        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
+
+        mock_get_entity_schema = MagicMock(
+            return_value={"event_timestamp": "timestamp"}
+        )
+
+        with (
+            patch.multiple(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+                _get_conn=MagicMock(),
+                _upload_entity_df=MagicMock(),
+                _get_entity_schema=mock_get_entity_schema,
+                _get_entity_df_event_timestamp_range=MagicMock(
+                    return_value=(start_date, end_date)
+                ),
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df",
+            ),
+            patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                return_value=[],
+            ),
+        ):
+            PostgreSQLOfflineStore.get_historical_features(
+                config=test_repo_config,
+                feature_views=[feature_view],
+                feature_refs=["test_fv:feature1"],
+                entity_df=None,
+                registry=MagicMock(),
+                project="test_project",
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+        # _get_entity_schema is called with the synthetic entity_df
+        df = mock_get_entity_schema.call_args[0][0]
+        assert len(df) == 1
+        ts = df["event_timestamp"].iloc[0]
+        # The entity_df must use end_date, not start_date
+        assert ts == end_date, (
+            f"entity_df timestamp should be end_date ({end_date}), got {ts}"
+        )
+
     def test_non_entity_mode_with_end_date_only(self):
         """Test non-entity retrieval calculates start_date from TTL"""
         test_repo_config = RepoConfig(
@@ -888,7 +1016,10 @@ class TestNonEntityRetrieval:
         from pathlib import Path
         from textwrap import dedent
 
-        from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+        from click.testing import CliRunner
+
+        from feast.cli.cli import cli
+        from feast.feature_store import FeatureStore
 
         runner = CliRunner()
 
@@ -910,43 +1041,208 @@ class TestNonEntityRetrieval:
             """)
             )
 
-            repo_example = repo_path / "example.py"
-            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+            retrieval_job = MagicMock()
+            retrieval_job.to_df.return_value = pd.DataFrame()
 
-            result = runner.run(["apply"], cwd=repo_path)
-            assert result.returncode == 0
+            with patch.object(
+                FeatureStore, "get_historical_features", return_value=retrieval_job
+            ) as mock_get_historical_features:
+                # Test 1: Both dates provided - should parse correctly
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                        "--start-date",
+                        "2023-01-01 00:00:00",
+                        "--end-date",
+                        "2023-01-07 00:00:00",
+                    ],
+                )
 
-            # Test 1: Both dates provided - should parse correctly
-            result = runner.run(
-                [
-                    "get-historical-features",
-                    "--features",
-                    "driver_hourly_stats:conv_rate",
-                    "--start-date",
-                    "2023-01-01 00:00:00",
-                    "--end-date",
-                    "2023-01-07 00:00:00",
-                ],
-                cwd=repo_path,
-            )
+                assert result.exit_code == 0, result.output
+                assert mock_get_historical_features.call_args.kwargs[
+                    "start_date"
+                ] == datetime(2023, 1, 1)
+                assert mock_get_historical_features.call_args.kwargs[
+                    "end_date"
+                ] == datetime(2023, 1, 7)
 
-            # Should not fail on date parsing
-            stderr_output = result.stderr.decode()
-            assert "Error parsing" not in stderr_output
-            assert "time data" not in stderr_output  # datetime parsing errors
+                # Test 2: Only end date provided - should work (start_date calculated from TTL)
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                        "--end-date",
+                        "2023-01-07 00:00:00",
+                    ],
+                )
 
-            # Test 2: Only end date provided - should work (start_date calculated from TTL)
-            result = runner.run(
-                [
-                    "get-historical-features",
-                    "--features",
-                    "driver_hourly_stats:conv_rate",
-                    "--end-date",
-                    "2023-01-07 00:00:00",
-                ],
-                cwd=repo_path,
-            )
+                assert result.exit_code == 0, result.output
+                assert (
+                    mock_get_historical_features.call_args.kwargs["start_date"] is None
+                )
+                assert mock_get_historical_features.call_args.kwargs[
+                    "end_date"
+                ] == datetime(2023, 1, 7)
 
-            # Should not fail on parameter validation
-            stderr_output = result.stderr.decode()
-            assert "must be provided" not in stderr_output
+                # Test 3: No date or dataframe provided - should fail validation before retrieval.
+                result = runner.invoke(
+                    cli,
+                    [
+                        "--chdir",
+                        str(repo_path),
+                        "get-historical-features",
+                        "--features",
+                        "driver_hourly_stats:conv_rate",
+                    ],
+                )
+
+                assert result.exit_code == 0, result.output
+                assert (
+                    "Either --dataframe or --start-date and/or --end-date must be provided."
+                    in result.output
+                )
+                assert mock_get_historical_features.call_count == 2
+
+
+class TestPostgreSQLSourceQueryStringAlias:
+    """Test suite for get_table_query_string_with_alias() method.
+
+    This addresses GitHub issue #5605: PostgreSQL requires all subqueries
+    in FROM clauses to have aliases.
+    """
+
+    def test_table_source_get_table_query_string(self):
+        """Test get_table_query_string() with table-based source"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="my_schema.my_table",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string()
+        assert result == "my_schema.my_table"
+
+    def test_query_source_get_table_query_string(self):
+        """Test get_table_query_string() with query-based source"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT * FROM my_table WHERE active = true",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string()
+        assert result == "(SELECT * FROM my_table WHERE active = true)"
+
+    def test_table_source_with_alias(self):
+        """Test get_table_query_string_with_alias() with table-based source returns table without alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="my_schema.my_table",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias()
+        # Table sources don't need aliases
+        assert result == "my_schema.my_table"
+
+    def test_query_source_with_default_alias(self):
+        """Test get_table_query_string_with_alias() with query-based source uses default alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT * FROM my_table WHERE active = true",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias()
+        assert result == "(SELECT * FROM my_table WHERE active = true) AS subquery"
+
+    def test_query_source_with_custom_alias(self):
+        """Test get_table_query_string_with_alias() with custom alias"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, name FROM users",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias(alias="user_data")
+        assert result == "(SELECT id, name FROM users) AS user_data"
+
+    def test_table_source_with_custom_alias_ignored(self):
+        """Test get_table_query_string_with_alias() ignores alias for table-based sources"""
+        source = PostgreSQLSource(
+            name="test_source",
+            table="events",
+            timestamp_field="event_timestamp",
+        )
+        result = source.get_table_query_string_with_alias(alias="ignored_alias")
+        # Alias should be ignored for table sources
+        assert result == "events"
+
+    def test_sql_query_with_alias_is_valid(self):
+        """Test that SQL using get_table_query_string_with_alias() is syntactically valid"""
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, ts FROM raw_data",
+            timestamp_field="ts",
+        )
+
+        # Construct a SQL query using the new method
+        entity_sql = f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+
+        # Verify SQL is valid using sqlglot
+        parsed = sqlglot.parse(entity_sql, dialect="postgres")
+        assert len(parsed) == 1
+        assert parsed[0] is not None
+
+    def test_sql_query_without_alias_fails_in_postgres(self):
+        """Test that SQL using get_table_query_string() for query source produces invalid PostgreSQL
+
+        This demonstrates the issue that get_table_query_string_with_alias() fixes:
+        PostgreSQL requires all subqueries in FROM clauses to have aliases.
+        """
+        source = PostgreSQLSource(
+            name="test_source",
+            query="SELECT id, ts FROM raw_data",
+            timestamp_field="ts",
+        )
+
+        # Using the old method (without alias) for query-based source
+        entity_sql_without_alias = (
+            f"SELECT id, ts FROM {source.get_table_query_string()}"
+        )
+
+        # This produces: SELECT id, ts FROM (SELECT id, ts FROM raw_data)
+        # which is invalid in PostgreSQL (subquery needs alias)
+        # sqlglot is lenient and may parse it, but PostgreSQL would reject it
+        assert "AS" not in entity_sql_without_alias, (
+            "get_table_query_string() should not add alias"
+        )
+
+        # Using the new method (with alias) produces valid SQL
+        entity_sql_with_alias = (
+            f"SELECT id, ts FROM {source.get_table_query_string_with_alias()}"
+        )
+        assert "AS subquery" in entity_sql_with_alias
+
+    def test_complex_query_with_alias(self):
+        """Test get_table_query_string_with_alias() with complex nested query"""
+        complex_query = """
+            SELECT u.id, u.name, o.total
+            FROM users u
+            JOIN orders o ON u.id = o.user_id
+            WHERE o.created_at > '2023-01-01'
+        """
+        source = PostgreSQLSource(
+            name="test_source",
+            query=complex_query,
+            timestamp_field="created_at",
+        )
+
+        result = source.get_table_query_string_with_alias(alias="user_orders")
+        assert result.startswith("(")
+        assert result.endswith(") AS user_orders")
+        assert "SELECT u.id" in result

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -19,6 +20,8 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 )
+
+var versionTagRegex = regexp.MustCompile(`^[vV]\d+$`)
 
 /*
 FeatureVector type represent result of retrieving single feature for multiple rows.
@@ -492,6 +495,18 @@ func ParseFeatureReference(featureRef string) (featureViewName, featureName stri
 		featureViewName = parsedFeatureName[0]
 		featureName = parsedFeatureName[1]
 	}
+
+	// Handle @version qualifier on feature view name
+	if atIdx := strings.Index(featureViewName, "@"); atIdx >= 0 {
+		suffix := featureViewName[atIdx+1:]
+		if versionTagRegex.MatchString(suffix) {
+			e = fmt.Errorf("versioned feature refs (@%s) are not supported by the Go feature server", suffix)
+			return
+		}
+		if strings.EqualFold(suffix, "latest") {
+			featureViewName = featureViewName[:atIdx]
+		}
+	}
 	return
 }
 
@@ -652,7 +667,7 @@ func getQualifiedFeatureName(viewName string, featureName string, fullFeatureNam
 func validateJoinKeys(
 	joinKeyValues map[string]*prototypes.RepeatedValue,
 	expectedJoinKeysSet map[string]interface{}) error {
-	for joinKey, _ := range joinKeyValues {
+	for joinKey := range joinKeyValues {
 		if _, ok := expectedJoinKeysSet[joinKey]; !ok {
 			return fmt.Errorf("Invalid entity join key. key=%s", joinKey)
 		}

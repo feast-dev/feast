@@ -128,6 +128,52 @@ auth:
 
 `cert` is an optional configuration to the public certificate path when the registry server starts in TLS(SSL) mode. Typically, this file ends with `*.crt`, `*.cer`, or `*.pem`.
 
+### Feast client connecting to remote registry server with mTLS
+
+If the Registry Server requires mutual TLS (mTLS), the client must present a certificate and private key in addition to trusting the server's CA certificate. Add `client_cert` and `client_key` to the registry configuration:
+
+```yaml
+project: feast-project
+registry:
+  registry_type: remote
+  path: feature-registry.example.com:443
+  cert: /path/to/ca.crt
+  client_cert: /path/to/tls.crt
+  client_key: /path/to/tls.key
+provider: local
+online_store:
+  path: http://localhost:6566
+  type: remote
+entity_key_serialization_version: 3
+auth:
+  type: no_auth
+```
+
+* `cert` — CA certificate used to verify the server (or use the `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` environment variable).
+* `client_cert` — Client certificate presented to the server. Must be paired with `client_key`.
+* `client_key` — Private key for the client certificate.
+
+#### Connecting through a tunnel or proxy
+
+When connecting through a tunnel (e.g. `gcloud compute start-iap-tunnel`) the client connects to `localhost`, but the server certificate is issued for the real service hostname. Set the `authority` field so that gRPC's TLS hostname verification passes:
+
+```shell
+# In one terminal — start the tunnel:
+gcloud compute start-iap-tunnel feature-registry.example.com 443 --local-host-port=localhost:8443
+```
+
+```yaml
+registry:
+  registry_type: remote
+  path: localhost:8443
+  cert: /path/to/ca.crt
+  client_cert: /path/to/tls.crt
+  client_key: /path/to/tls.key
+  authority: feature-registry.example.com
+```
+
+Without `authority`, the gRPC client would check the server certificate against `localhost`, which would fail because the certificate's Subject Alternative Name (SAN) is `feature-registry.example.com`.
+
 ## Starting feast offline server in TLS mode
 
 To start the offline server in TLS mode, you need to provide the private and public keys using the `--key` and `--cert` arguments with the `feast serve_offline` command.

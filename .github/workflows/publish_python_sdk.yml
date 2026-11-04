@@ -4,9 +4,18 @@ on:
   workflow_dispatch: # Allows manual trigger of the workflow
     inputs:
       custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        description: 'Custom version to publish (e.g., v1.2.3 or v1.2.3.dev4) -- only edit if you know what you are doing'
         required: false
         type: string
+      checkout_ref:
+        description: 'Git ref to checkout before building wheels. Defaults to the release version.'
+        required: false
+        type: string
+      build_docker_images:
+        description: 'Build Docker images as part of release verification.'
+        required: true
+        default: true
+        type: boolean
       token:
         description: 'Personal Access Token'
         required: true
@@ -16,9 +25,18 @@ on:
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       custom_version: # Optional input for a custom version
-        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        description: 'Custom version to publish (e.g., v1.2.3 or v1.2.3.dev4) -- only edit if you know what you are doing'
         required: false
         type: string
+      checkout_ref:
+        description: 'Git ref to checkout before building wheels. Defaults to the release version.'
+        required: false
+        type: string
+      build_docker_images:
+        description: 'Build Docker images as part of release verification.'
+        required: false
+        default: true
+        type: boolean
       token:
         description: 'Personal Access Token'
         required: true
@@ -30,8 +48,10 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
     secrets: inherit
     with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
+      custom_version: ${{ inputs.custom_version }}
+      checkout_ref: ${{ inputs.checkout_ref }}
+      build_docker_images: ${{ inputs.build_docker_images }}
+      token: ${{ inputs.token }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'

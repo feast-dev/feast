@@ -30,7 +30,8 @@ class SerializedArtifacts:
         # unserialize
         proto = FeatureViewProto()
         proto.ParseFromString(self.feature_view_proto)
-        feature_view = FeatureView.from_proto(proto)
+        # skip_udf=True: the write node only needs schema / entity metadata.
+        feature_view = FeatureView.from_proto(proto, skip_udf=True)
 
         # load
         repo_config = dill.loads(self.repo_config_byte)

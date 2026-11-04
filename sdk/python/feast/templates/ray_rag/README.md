@@ -110,7 +110,7 @@ results = store.retrieve_online_documents_v2(
 
 # Display results with metadata
 for i in range(len(results["document_id_pk"])):
-    print(f"{i+1}. {results['movie_name'][i]}")
+    print(f"{i + 1}. {results['movie_name'][i]}")
     print(f"   Director: {results['movie_director'][i]}")
     print(f"   Distance: {results['distance'][i]:.3f}")
 ```

@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -23,7 +23,7 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.registry_server import RegistryServer
-from feast.utils import _utc_now
+from feast.utils import _make_dual_stack_socket, _utc_now
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -33,7 +33,7 @@ class RestRegistryServer:
     def __init__(self, store: FeatureStore):
         self.store = store
         self.registry = store.registry
-        self.grpc_handler = RegistryServer(self.registry)
+        self.grpc_handler = RegistryServer(self.registry, store=self.store)
         recent_visit_logging_cfg = {}
         feature_server_cfg = getattr(
             getattr(store, "config", None), "feature_server", None
@@ -63,18 +63,36 @@ class RestRegistryServer:
             root_path="/api/v1",
             docs_url="/",
             redoc_url="/docs",
-            default_status_code=status.HTTP_200_OK,
-            default_headers={
-                "X-Content-Type-Options": "nosniff",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Frame-Options": "DENY",
-            },
         )
         self._add_exception_handlers()
         self._add_logging_middleware()
         self._add_openapi_security()
         self._init_auth()
         self._register_routes()
+
+        registry_cfg = getattr(store.config, "registry", None)
+        mcp_cfg = getattr(registry_cfg, "mcp", None)
+        if mcp_cfg and getattr(mcp_cfg, "enabled", False):
+            try:
+                from fastapi_mcp import FastApiMCP
+
+                from feast.infra.mcp_servers.mcp_server import (
+                    _patch_fastapi_mcp_schema_resolver,
+                )
+
+                _patch_fastapi_mcp_schema_resolver()
+                mcp = FastApiMCP(self.app, name="feast-registry-mcp")
+                mount_sse = getattr(mcp, "mount_sse", None)
+                if mount_sse is not None:
+                    mount_sse()
+                else:
+                    mcp.mount()
+                logger.info("MCP support enabled on REST registry server")
+            except ImportError:
+                logger.warning(
+                    "MCP support requested but fastapi_mcp is not installed. "
+                    "Install it with: pip install feast[mcp]"
+                )
 
     def _add_exception_handlers(self):
         """Add custom exception handlers to include HTTP status codes in JSON responses."""
@@ -220,28 +238,35 @@ class RestRegistryServer:
                     else:
                         object_type = None
                         object_name = None
-                    visit = {
-                        "path": path,
-                        "timestamp": _utc_now().isoformat(),
-                        "project": project,
-                        "user": user,
-                        "object": object_type,
-                        "object_name": object_name,
-                        "method": method,
-                    }
-                    try:
-                        visits_json = self.registry.get_project_metadata(project, key)
-                        visits = json.loads(visits_json) if visits_json else []
-                    except Exception:
-                        visits = []
-                    visits.append(visit)
-                    visits = visits[-self.recent_visits_limit :]
-                    try:
-                        self.registry.set_project_metadata(
-                            project, key, json.dumps(visits)
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to persist recent visits: {e}")
+
+                    response = await call_next(request)
+
+                    if response.status_code < 400:
+                        visit = {
+                            "path": path,
+                            "timestamp": _utc_now().isoformat(),
+                            "project": project,
+                            "user": user,
+                            "object": object_type,
+                            "object_name": object_name,
+                            "method": method,
+                        }
+                        try:
+                            visits_json = self.registry.get_project_metadata(
+                                project, key
+                            )
+                            visits = json.loads(visits_json) if visits_json else []
+                        except Exception:
+                            visits = []
+                        visits.append(visit)
+                        visits = visits[-self.recent_visits_limit :]
+                        try:
+                            self.registry.set_project_metadata(
+                                project, key, json.dumps(visits)
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to persist recent visits: {e}")
+                    return response
                 response = await call_next(request)
                 return response
 
@@ -291,26 +316,40 @@ class RestRegistryServer:
     def start_server(
         self,
         port: int,
+        host: str = "::",
         tls_key_path: str = "",
         tls_cert_path: str = "",
     ):
+        """Start the REST registry server. host="::" (default) binds dual-stack
+        via a pre-built socket; any other host falls back to plain uvicorn.run."""
         import uvicorn
 
+        from feast.registry_server import _sync_protected_project_tag
+
+        _sync_protected_project_tag(self.store)
+
+        ssl_kwargs: dict = {}
         if tls_key_path and tls_cert_path:
-            logger.info("Starting REST registry server in TLS(SSL) mode")
-            logger.info(f"REST registry server listening on https://localhost:{port}")
-            uvicorn.run(
-                self.app,
-                host="0.0.0.0",
-                port=port,
-                ssl_keyfile=tls_key_path,
-                ssl_certfile=tls_cert_path,
-            )
+            ssl_kwargs = {"ssl_keyfile": tls_key_path, "ssl_certfile": tls_cert_path}
+            scheme = "https"
         else:
-            logger.info("Starting REST registry server in non-TLS(SSL) mode")
-            logger.info(f"REST registry server listening on http://localhost:{port}")
-            uvicorn.run(
-                self.app,
-                host="0.0.0.0",
-                port=port,
+            scheme = "http"
+
+        if host == "::":
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
             )
+            logger.info(
+                f"REST registry server listening on {scheme}://localhost:{port}"
+            )
+            sock = _make_dual_stack_socket(port)
+            config = uvicorn.Config(self.app, **ssl_kwargs)
+            uvicorn.Server(config).run(sockets=[sock])
+        else:
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
+            )
+            logger.info(f"REST registry server listening on {scheme}://{host}:{port}")
+            uvicorn.run(self.app, host=host, port=port, **ssl_kwargs)

@@ -14,4 +14,5 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: feast-operator
     control-plane: controller-manager

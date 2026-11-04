@@ -9,6 +9,7 @@ from feast.errors import (
     FeastPermissionError,
     PushSourceNotFoundException,
 )
+from feast.permissions.security_manager import get_security_manager
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
@@ -18,13 +19,22 @@ MATCH_SCORE_DEFAULT_THRESHOLD = 0.75
 MATCH_SCORE_NAME = 100
 MATCH_SCORE_DESCRIPTION = 80
 MATCH_SCORE_TAGS = 60
-MATCH_SCORE_PARTIAL = 40
 
 
 def grpc_call(handler_fn, request):
     """
     Wrapper to invoke gRPC method with context=None and handle common errors.
+
+    Sets SecurityManager's current project from ``request.project`` so REST
+    handlers (which call RegistryServer methods in-process, not through the
+    gRPC AuthInterceptor) authorize against the target project's permissions.
     """
+    sm = get_security_manager()
+    project_token = None
+    if sm is not None:
+        project_token = sm.set_current_project(
+            getattr(request, "project", None) or None
+        )
     try:
         response = handler_fn(request, context=None)
         return MessageToDict(response)
@@ -36,6 +46,9 @@ def grpc_call(handler_fn, request):
         raise
     except Exception as e:
         raise e
+    finally:
+        if sm is not None and project_token is not None:
+            sm.reset_current_project(project_token)
 
 
 def get_object_relationships(
@@ -131,6 +144,7 @@ def aggregate_across_projects(
     sort_by: Optional[str] = None,
     sort_order: str = "asc",
     include_relationships: bool = False,
+    extra_request_params: Optional[Dict] = None,
 ) -> Dict:
     """
     Fetches and aggregates objects across all projects, adds project field, handles relationships, and paginates/sorts.
@@ -148,6 +162,7 @@ def aggregate_across_projects(
         req = request_cls(
             project=project_name,
             allow_cache=allow_cache,
+            **(extra_request_params or {}),
         )
         response = grpc_call(list_method, req)
         objects = response.get(response_key, [])
@@ -435,9 +450,11 @@ def get_all_project_resources(
         "entities": [],
         "dataSources": [],
         "featureViews": [],
+        "labelViews": [],
         "featureServices": [],
         "savedDatasets": [],
         "features": [],
+        "labels": [],
         "pagination": {},
         "errors": [],
     }
@@ -485,6 +502,18 @@ def get_all_project_resources(
         if err_msg:
             errors.append(err_msg)
 
+        # Get label views
+        resources["labelViews"], pagination["labelViews"], err_msg = list_label_views(
+            grpc_handler=grpc_handler,
+            project=project,
+            allow_cache=allow_cache,
+            tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
+        )
+        if err_msg:
+            errors.append(err_msg)
+
         # Get feature services
         resources["featureServices"], pagination["featureServices"], err_msg = (
             list_feature_services(
@@ -524,12 +553,23 @@ def get_all_project_resources(
         if err_msg:
             errors.append(err_msg)
 
+        # Get labels
+        resources["labels"], pagination["labels"], err_msg = list_labels(
+            grpc_handler=grpc_handler,
+            project=project,
+            allow_cache=allow_cache,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
+        )
+        if err_msg:
+            errors.append(err_msg)
+
     except Exception as e:
         err_msg = f"Error getting resources for project '{project}'"
         errors.append(err_msg)
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return resources, pagination, errors
+
+    return resources, pagination, errors
 
 
 def filter_search_results_and_match_score(
@@ -537,12 +577,42 @@ def filter_search_results_and_match_score(
 ) -> List[Dict]:
     """Filter search results based on query string"""
     if not query:
+        # Add all tags as matched_tags when no query (all tags match)
+        for result in results:
+            result["matched_tags"] = result.get("tags", {})
         return results
 
     query_lower = query.lower()
     filtered_results = []
 
     for result in results:
+        matched_tags = {}
+        best_fuzzy_tag_score = 0.0
+
+        # Collect all matching tags (exact and fuzzy) upfront
+        tags = result.get("tags", {})
+        has_exact_tag_match = False
+
+        for key, value in tags.items():
+            key_lower = str(key).lower()
+            value_str = str(value).lower()
+            tag_combined = f"{key_lower}={value_str}"
+
+            # Exact match in key or value
+            if query_lower in tag_combined:
+                has_exact_tag_match = True
+                matched_tags[key] = value
+            else:
+                # Fuzzy match for tags (on combined "key:value" string)
+                tag_fuzzy_score = fuzzy_match(query_lower, tag_combined)
+
+                if tag_fuzzy_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
+                    matched_tags[key] = value
+                    if tag_fuzzy_score > best_fuzzy_tag_score:
+                        best_fuzzy_tag_score = tag_fuzzy_score
+
+        result["matched_tags"] = matched_tags
+
         # Search in name
         if query_lower in result.get("name", "").lower():
             result["match_score"] = MATCH_SCORE_NAME
@@ -555,42 +625,15 @@ def filter_search_results_and_match_score(
             filtered_results.append(result)
             continue
 
-        # Search in tags
-        tags = result.get("tags", {})
-        tag_match = False
-        matched_tag = None
-        best_fuzzy_score = 0.0
-        best_fuzzy_tag = None
-
-        for key, value in tags.items():
-            key_lower = key.lower()
-            value_str = str(value).lower()
-
-            # Exact match in key or value
-            if query_lower in key_lower or query_lower in value_str:
-                tag_match = True
-                # Store the matched tag as a dictionary
-                matched_tag = {key: value}
-                break
-
-            # Fuzzy match for tags (on combined "key:value" string)
-            tag_combined = f"{key_lower}={value_str}"
-            tag_fuzzy_score = fuzzy_match(query_lower, tag_combined)
-
-            if tag_fuzzy_score > best_fuzzy_score:
-                best_fuzzy_score = tag_fuzzy_score
-                best_fuzzy_tag = {key: value}
-
-        if tag_match:
+        # Exact tag match
+        if has_exact_tag_match:
             result["match_score"] = MATCH_SCORE_TAGS
-            result["matched_tag"] = matched_tag
             filtered_results.append(result)
             continue
 
         # Fuzzy tag match
-        if best_fuzzy_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
-            result["match_score"] = best_fuzzy_score * 100
-            result["matched_tag"] = best_fuzzy_tag
+        if best_fuzzy_tag_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
+            result["match_score"] = best_fuzzy_tag_score * 100
             filtered_results.append(result)
             continue
 
@@ -656,8 +699,8 @@ def list_entities(
     except Exception as e:
         err_msg = f"Error searching entities in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return entities, pagination, err_msg
+
+    return entities, pagination, err_msg
 
 
 def list_feature_views(
@@ -702,8 +745,8 @@ def list_feature_views(
     except Exception as e:
         err_msg = f"Error searching feature views in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_views, pagination, err_msg
+
+    return feature_views, pagination, err_msg
 
 
 def list_feature_services(
@@ -747,8 +790,8 @@ def list_feature_services(
     except Exception as e:
         err_msg = f"Error searching feature services in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_services, pagination, err_msg
+
+    return feature_services, pagination, err_msg
 
 
 def list_data_sources(
@@ -792,8 +835,8 @@ def list_data_sources(
     except Exception as e:
         err_msg = f"Error searching data sources in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return data_sources, pagination, err_msg
+
+    return data_sources, pagination, err_msg
 
 
 def list_saved_datasets(
@@ -837,8 +880,8 @@ def list_saved_datasets(
     except Exception as e:
         err_msg = f"Error searching saved datasets in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return saved_datasets, pagination, err_msg
+
+    return saved_datasets, pagination, err_msg
 
 
 def list_features(
@@ -878,8 +921,89 @@ def list_features(
     except Exception as e:
         err_msg = f"Error searching features in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return features, pagination, err_msg
+
+    return features, pagination, err_msg
+
+
+def list_label_views(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any], str]:
+    """List label views in a project with optional sorting and pagination"""
+    label_views: List[Dict[str, Any]] = []
+    pagination: Dict[str, Any] = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        req = RegistryServer_pb2.ListLabelViewsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        response = grpc_call(grpc_handler.ListLabelViews, req)
+        label_views, pagination = (
+            response.get("labelViews", []),
+            response.get("pagination", {}),
+        )
+    except Exception as e:
+        err_msg = f"Error searching label views in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+
+    return label_views, pagination, err_msg
+
+
+def list_labels(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any], str]:
+    """List labels in a project with optional sorting and pagination"""
+    labels: List[Dict[str, Any]] = []
+    pagination: Dict[str, Any] = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            kind="label",
+        )
+        response = grpc_call(grpc_handler.ListFeatures, req)
+        labels, pagination = (
+            response.get("features", []),
+            response.get("pagination", {}),
+        )
+    except Exception as e:
+        err_msg = f"Error searching labels in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+
+    return labels, pagination, err_msg
 
 
 def list_all_projects(
@@ -919,5 +1043,5 @@ def list_all_projects(
     except Exception as e:
         err_msg = "Error searching all projects"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return projects, pagination, err_msg
+
+    return projects, pagination, err_msg

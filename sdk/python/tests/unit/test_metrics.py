@@ -1,0 +1,2415 @@
+# Copyright 2025 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import http.client
+import os
+import socket
+import threading
+import time
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from feast.metrics import (
+    _make_metrics_httpd,
+    emit_offline_audit_log,
+    emit_online_audit_log,
+    feature_freshness_seconds,
+    materialization_duration_seconds,
+    materialization_result_total,
+    offline_store_request_latency_seconds,
+    offline_store_request_total,
+    offline_store_row_count,
+    online_features_entity_count,
+    online_features_request_count,
+    online_features_status_total,
+    online_store_read_duration_seconds,
+    push_request_count,
+    request_count,
+    request_latency,
+    track_feature_statuses,
+    track_materialization,
+    track_online_features_entities,
+    track_online_store_read,
+    track_push,
+    track_request_latency,
+    track_transformation,
+    track_write_transformation,
+    transformation_duration_seconds,
+    update_feature_freshness,
+    write_transformation_duration_seconds,
+)
+
+
+def _all_enabled_flags():
+    """Return a _MetricsFlags with every category enabled."""
+    import feast.metrics as m
+
+    return m._MetricsFlags(
+        enabled=True,
+        resource=True,
+        request=True,
+        online_features=True,
+        push=True,
+        materialization=True,
+        freshness=True,
+        offline_features=True,
+        audit_logging=True,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _enable_metrics():
+    """Enable all metric categories for each test, then restore."""
+    import feast.metrics as m
+
+    original = m._config
+    m._config = _all_enabled_flags()
+    yield
+    m._config = original
+
+
+class TestTrackRequestLatency:
+    def test_success_increments_counter_and_records_latency(self):
+        before_count = request_count.labels(
+            endpoint="/test", status="success"
+        )._value.get()
+
+        with track_request_latency("/test"):
+            pass
+
+        after_count = request_count.labels(
+            endpoint="/test", status="success"
+        )._value.get()
+        assert after_count == before_count + 1
+
+    def test_error_increments_error_counter(self):
+        before_count = request_count.labels(
+            endpoint="/test-err", status="error"
+        )._value.get()
+
+        with pytest.raises(ValueError):
+            with track_request_latency("/test-err"):
+                raise ValueError("boom")
+
+        after_count = request_count.labels(
+            endpoint="/test-err", status="error"
+        )._value.get()
+        assert after_count == before_count + 1
+
+    def test_latency_is_recorded(self):
+        before_sum = request_latency.labels(
+            endpoint="/test-latency", feature_count="", feature_view_count=""
+        )._sum.get()
+
+        with track_request_latency("/test-latency"):
+            import time
+
+            time.sleep(0.01)
+
+        after_sum = request_latency.labels(
+            endpoint="/test-latency", feature_count="", feature_view_count=""
+        )._sum.get()
+        assert after_sum > before_sum
+
+    def test_feature_count_and_feature_view_count_labels(self):
+        """Latency histogram carries feature_count and feature_view_count labels."""
+        label_set = dict(
+            endpoint="/get-online-features",
+            feature_count="5",
+            feature_view_count="2",
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        with track_request_latency(
+            "/get-online-features", feature_count="5", feature_view_count="2"
+        ):
+            pass
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_default_labels_are_empty_string(self):
+        """Non-online-features endpoints get empty-string labels by default."""
+        label_set = dict(
+            endpoint="/materialize", feature_count="", feature_view_count=""
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        with track_request_latency("/materialize"):
+            pass
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_labels_updated_via_yielded_context(self):
+        """Labels set on the yielded context are used in the final metrics."""
+        label_set = dict(
+            endpoint="/ctx-update", feature_count="3", feature_view_count="1"
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        with track_request_latency("/ctx-update") as ctx:
+            ctx.feature_count = "3"
+            ctx.feature_view_count = "1"
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_error_before_labels_set_still_records(self):
+        """Errors before labels are updated still record with default labels."""
+        before_count = request_count.labels(
+            endpoint="/early-fail", status="error"
+        )._value.get()
+
+        with pytest.raises(RuntimeError):
+            with track_request_latency("/early-fail") as _ctx:
+                raise RuntimeError("auth failed")
+
+        after_count = request_count.labels(
+            endpoint="/early-fail", status="error"
+        )._value.get()
+        assert after_count == before_count + 1
+
+        recorded_sum = request_latency.labels(
+            endpoint="/early-fail", feature_count="", feature_view_count=""
+        )._sum.get()
+        assert recorded_sum > 0
+
+
+class TestMetricsOptIn:
+    """Verify that when a category is disabled, its helpers are true no-ops."""
+
+    @staticmethod
+    def _all_off():
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags()  # everything False
+
+    def test_track_request_latency_noop_when_disabled(self):
+        self._all_off()
+        label_set = dict(
+            endpoint="/disabled-test", feature_count="", feature_view_count=""
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        with track_request_latency("/disabled-test"):
+            pass
+
+        assert request_latency.labels(**label_set)._sum.get() == before_sum
+
+    def test_track_online_features_entities_noop_when_disabled(self):
+        self._all_off()
+        before = online_features_request_count._value.get()
+        track_online_features_entities(100)
+        assert online_features_request_count._value.get() == before
+
+    def test_track_push_noop_when_disabled(self):
+        self._all_off()
+        before = push_request_count.labels(
+            push_source="src", mode="online"
+        )._value.get()
+        track_push("src", "online")
+        assert (
+            push_request_count.labels(push_source="src", mode="online")._value.get()
+            == before
+        )
+
+    def test_track_materialization_noop_when_disabled(self):
+        self._all_off()
+        before = materialization_result_total.labels(
+            feature_view="fv_disabled", status="success"
+        )._value.get()
+        track_materialization("fv_disabled", success=True, duration_seconds=1.0)
+        assert (
+            materialization_result_total.labels(
+                feature_view="fv_disabled", status="success"
+            )._value.get()
+            == before
+        )
+
+
+class TestGranularCategoryControl:
+    """Verify individual category toggles work independently."""
+
+    def test_request_disabled_but_push_enabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            request=False,
+            push=True,
+            resource=True,
+            online_features=True,
+            materialization=True,
+            freshness=True,
+        )
+
+        # request should be no-op
+        label_set = dict(
+            endpoint="/granular-req", feature_count="", feature_view_count=""
+        )
+        before_req = request_latency.labels(**label_set)._sum.get()
+        with track_request_latency("/granular-req"):
+            pass
+        assert request_latency.labels(**label_set)._sum.get() == before_req
+
+        # push should still record
+        before_push = push_request_count.labels(
+            push_source="s", mode="online"
+        )._value.get()
+        track_push("s", "online")
+        assert (
+            push_request_count.labels(push_source="s", mode="online")._value.get()
+            == before_push + 1
+        )
+
+    def test_online_features_disabled_but_materialization_enabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            online_features=False,
+            materialization=True,
+            resource=True,
+            request=True,
+            push=True,
+            freshness=True,
+        )
+
+        # online_features should be no-op
+        before_of = online_features_request_count._value.get()
+        track_online_features_entities(50)
+        assert online_features_request_count._value.get() == before_of
+
+        # materialization should still record
+        before_mat = materialization_result_total.labels(
+            feature_view="fv_gran", status="success"
+        )._value.get()
+        track_materialization("fv_gran", success=True, duration_seconds=1.0)
+        assert (
+            materialization_result_total.labels(
+                feature_view="fv_gran", status="success"
+            )._value.get()
+            == before_mat + 1
+        )
+
+    def test_only_resource_enabled(self):
+        """When only resource is on, all request-path helpers are no-ops."""
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=False,
+        )
+
+        label_set = dict(endpoint="/res-only", feature_count="", feature_view_count="")
+        before_req = request_latency.labels(**label_set)._sum.get()
+        before_of = online_features_request_count._value.get()
+        before_push = push_request_count.labels(
+            push_source="x", mode="offline"
+        )._value.get()
+        before_mat = materialization_result_total.labels(
+            feature_view="fv_res", status="success"
+        )._value.get()
+
+        with track_request_latency("/res-only"):
+            pass
+        track_online_features_entities(10)
+        track_push("x", "offline")
+        track_materialization("fv_res", success=True, duration_seconds=1.0)
+
+        assert request_latency.labels(**label_set)._sum.get() == before_req
+        assert online_features_request_count._value.get() == before_of
+        assert (
+            push_request_count.labels(push_source="x", mode="offline")._value.get()
+            == before_push
+        )
+        assert (
+            materialization_result_total.labels(
+                feature_view="fv_res", status="success"
+            )._value.get()
+            == before_mat
+        )
+
+
+class TestInitWorkerFreshnessMonitoring:
+    """init_worker_freshness_monitoring mirrors init_worker_monitoring's gating."""
+
+    def test_starts_daemon_thread_when_freshness_enabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=False,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=True,
+        )
+        mock_store = MagicMock()
+
+        with patch("feast.metrics.threading.Thread") as mock_thread_cls:
+            m.init_worker_freshness_monitoring(mock_store)
+
+        mock_thread_cls.assert_called_once_with(
+            target=m.monitor_freshness, args=(mock_store, 30), daemon=True
+        )
+        mock_thread_cls.return_value.start.assert_called_once()
+
+    def test_does_not_start_thread_when_freshness_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=False,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=False,
+        )
+        mock_store = MagicMock()
+
+        with patch("feast.metrics.threading.Thread") as mock_thread_cls:
+            m.init_worker_freshness_monitoring(mock_store)
+
+        mock_thread_cls.assert_not_called()
+
+
+class TestStartMetricsServerProcess:
+    """Verify start_metrics_server launches the HTTP endpoint in a child process."""
+
+    def test_launches_dedicated_process(self):
+        """start_metrics_server spawns a multiprocessing.Process, not a Thread."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store, port=9090)
+
+            mock_proc_cls.assert_called_once_with(
+                target=m._run_metrics_server,
+                args=(9090, m._prometheus_mp_dir, mock_event),
+                daemon=True,
+                name="feast-metrics-server",
+            )
+            mock_proc.start.assert_called_once()
+
+    def test_process_receives_correct_mp_dir(self):
+        """The child process receives the multiprocess directory path."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 99
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store)
+
+            _, kwargs = mock_proc_cls.call_args
+            assert kwargs["args"][1] == m._prometheus_mp_dir
+
+    def test_background_threads_still_started(self):
+        """Resource and freshness monitoring threads still launch in-process."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+        flags = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            freshness=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+        )
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 1
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(
+                mock_store,
+                metrics_config=flags,
+                start_resource_monitoring=True,
+                start_freshness_monitoring=True,
+            )
+
+            thread_calls = mock_thread_cls.call_args_list
+            targets = [c.kwargs.get("target") for c in thread_calls]
+            assert m.monitor_resources in targets
+            assert m.monitor_freshness in targets
+
+    def test_no_threads_when_monitoring_deferred(self):
+        """When monitoring is deferred to workers, no threads are started."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 1
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(
+                mock_store,
+                start_resource_monitoring=False,
+                start_freshness_monitoring=False,
+            )
+
+            mock_thread_cls.assert_not_called()
+
+    def test_waits_for_ready_event(self):
+        """start_metrics_server waits on the readiness event from the child."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 42
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store)
+
+            mock_event.wait.assert_called_once_with(timeout=5)
+
+    def test_logs_error_when_child_exits_before_ready(self):
+        """If the child process dies before signalling readiness, log an error."""
+        import feast.metrics as m
+
+        mock_store = MagicMock()
+        mock_event = MagicMock()
+        mock_event.wait.return_value = False
+
+        with (
+            patch("feast.metrics.multiprocessing.Process") as mock_proc_cls,
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+            patch("feast.metrics.threading.Thread"),
+            patch("feast.metrics.logger") as mock_logger,
+        ):
+            mock_proc = MagicMock()
+            mock_proc.pid = 7
+            mock_proc.is_alive.return_value = False
+            mock_proc_cls.return_value = mock_proc
+
+            m.start_metrics_server(mock_store, port=9999)
+
+            mock_logger.error.assert_called_once()
+            assert "9999" in str(mock_logger.error.call_args)
+
+    def test_child_shutdown_handler_dispatches_asynchronously(self):
+        """The SIGTERM handler must call httpd.shutdown() from a separate thread."""
+        import os
+        import signal
+
+        import feast.metrics as m
+
+        mock_httpd = MagicMock()
+        mock_httpd.serve_forever.side_effect = lambda: None
+        captured_handlers = {}
+
+        def capture_signal(signum, handler):
+            captured_handlers[signum] = handler
+
+        with (
+            patch(
+                "feast.metrics._make_metrics_httpd",
+                return_value=mock_httpd,
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+            patch("feast.metrics.threading.Thread") as mock_thread_cls,
+        ):
+            original_signal = signal.signal
+            signal.signal = capture_signal
+            try:
+                m._run_metrics_server(
+                    8000,
+                    os.environ.get("PROMETHEUS_MULTIPROCESS_DIR", "/tmp"),
+                )
+            finally:
+                signal.signal = original_signal
+
+            handler = captured_handlers.get(signal.SIGTERM)
+            assert handler is not None, "SIGTERM handler was not registered"
+
+            handler(signal.SIGTERM, None)
+
+            mock_thread_cls.assert_called_once()
+            call_kwargs = mock_thread_cls.call_args
+            assert call_kwargs.kwargs.get("target") == mock_httpd.shutdown
+            assert call_kwargs.kwargs.get("daemon") is True
+
+    def test_child_logs_and_exits_on_bind_failure(self):
+        """If _make_metrics_httpd() fails (e.g. port in use), child logs and returns."""
+        import feast.metrics as m
+
+        with (
+            patch(
+                "feast.metrics._make_metrics_httpd",
+                side_effect=OSError("Address already in use"),
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+            patch("feast.metrics.logger") as mock_logger,
+        ):
+            mock_event = MagicMock()
+
+            m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
+
+            mock_logger.exception.assert_called_once()
+            assert "8000" in str(mock_logger.exception.call_args)
+            mock_event.set.assert_not_called()
+
+    def test_ready_event_set_on_successful_bind(self):
+        """The ready_event is set after _make_metrics_httpd() succeeds."""
+        import feast.metrics as m
+
+        mock_httpd = MagicMock()
+        mock_httpd.serve_forever.side_effect = lambda: None
+
+        with (
+            patch(
+                "feast.metrics._make_metrics_httpd",
+                return_value=mock_httpd,
+            ),
+            patch("prometheus_client.CollectorRegistry"),
+            patch("prometheus_client.multiprocess.MultiProcessCollector"),
+            patch("prometheus_client.make_wsgi_app"),
+        ):
+            mock_event = MagicMock()
+
+            m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
+
+            mock_event.set.assert_called_once()
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+@pytest.mark.filterwarnings(
+    "ignore:This process .* is multi-threaded:DeprecationWarning"
+)
+class TestMetricsProcessSurvivesForkedChildExit:
+    """A forked child (e.g. a Gunicorn worker) must not terminate the metrics server on exit."""
+
+    def test_forked_child_does_not_track_metrics_process(self):
+        import multiprocessing
+
+        import feast.metrics as m
+
+        # Stand-in for the metrics-server process: a real daemon process that
+        # starts instantly on every platform, registered by start_metrics_server.
+        proc = multiprocessing.get_context("fork").Process(
+            target=time.sleep, args=(60,), daemon=True
+        )
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process", return_value=proc),
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+        ):
+            m.start_metrics_server(
+                MagicMock(),
+                start_resource_monitoring=False,
+                start_freshness_monitoring=False,
+            )
+        try:
+            pid = os.fork()
+            if pid == 0:
+                # A worker's interpreter exit terminates every daemon process in
+                # active_children(); report whether the metrics process is in it.
+                tracked = proc in multiprocessing.active_children()
+                os._exit(1 if tracked else 0)
+            _, status = os.waitpid(pid, 0)
+
+            assert os.waitstatus_to_exitcode(status) == 0
+            assert proc.is_alive()
+        finally:
+            proc.kill()
+            proc.join(timeout=5)
+            m._metrics_process = None
+
+
+def test_forget_metrics_process_in_child_removes_it_from_registry():
+    import multiprocessing
+
+    import feast.metrics as m
+
+    proc = MagicMock()
+    children = {proc}
+    with (
+        patch.object(multiprocessing.process, "_children", children),
+        patch.object(m, "_metrics_process", proc),
+    ):
+        m._forget_metrics_process_in_child()
+    assert proc not in children
+
+
+class TestMetricsYamlConfig:
+    """Verify metrics config in feature_store.yaml is respected.
+
+    We mock out everything past the metrics-gate check in ``start_server``
+    so these tests never actually launch a real HTTP server.
+    """
+
+    @staticmethod
+    def _call_start_server(mock_store, cli_metrics: bool):
+        """Call start_server with enough mocking to avoid side-effects."""
+        from feast.feature_server import start_server
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_fm,
+            patch("feast.feature_server.str_to_auth_manager_type"),
+            patch("feast.feature_server.init_security_manager"),
+            patch("feast.feature_server.init_auth_manager"),
+            patch(
+                "feast.feature_server.FeastServeApplication",
+                side_effect=RuntimeError("stop"),
+            )
+            if hasattr(__import__("sys"), "platform")
+            and __import__("sys").platform != "win32"
+            else patch("uvicorn.run", side_effect=RuntimeError("stop")),
+        ):
+            try:
+                start_server(
+                    store=mock_store,
+                    host="127.0.0.1",
+                    port=6566,
+                    no_access_log=True,
+                    workers=1,
+                    worker_connections=1000,
+                    max_requests=1000,
+                    max_requests_jitter=50,
+                    keep_alive_timeout=30,
+                    registry_ttl_sec=60,
+                    tls_key_path="",
+                    tls_cert_path="",
+                    metrics=cli_metrics,
+                )
+            except (RuntimeError, Exception):
+                pass
+            return mock_fm
+
+    def test_metrics_enabled_from_yaml_config(self):
+        """start_server enables metrics when config has metrics.enabled=True,
+        even though the CLI flag is False."""
+        from types import SimpleNamespace
+
+        metrics_cfg = SimpleNamespace(enabled=True)
+        fs_cfg = SimpleNamespace(metrics=metrics_cfg)
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(feature_server=fs_cfg)
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=False)
+        mock_fm.build_metrics_flags.assert_called_once_with(metrics_cfg)
+        mock_fm.start_metrics_server.assert_called_once()
+
+    def test_cli_flag_enables_metrics_without_yaml_config(self):
+        """start_server enables metrics when --metrics is passed even without
+        any feature_server config section."""
+        from types import SimpleNamespace
+
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(feature_server=None)
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=True)
+        mock_fm.build_metrics_flags.assert_called_once_with(None)
+        mock_fm.start_metrics_server.assert_called_once()
+
+    def test_metrics_not_started_when_both_disabled(self):
+        """start_server does NOT start metrics when neither CLI nor config enables it."""
+        from types import SimpleNamespace
+
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(
+            feature_server=SimpleNamespace(metrics=SimpleNamespace(enabled=False)),
+        )
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=False)
+        mock_fm.start_metrics_server.assert_not_called()
+
+    def test_metrics_not_started_when_config_is_none(self):
+        """start_server does NOT start metrics when feature_server config is None
+        and CLI flag is also False."""
+        from types import SimpleNamespace
+
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(feature_server=None)
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=False)
+        mock_fm.start_metrics_server.assert_not_called()
+
+    def test_freshness_monitoring_deferred_same_as_resource_monitoring(self):
+        """start_freshness_monitoring must mirror start_resource_monitoring exactly."""
+        from types import SimpleNamespace
+
+        mock_store = MagicMock()
+        mock_store.config = SimpleNamespace(
+            feature_server=SimpleNamespace(metrics=SimpleNamespace(enabled=True)),
+        )
+
+        mock_fm = self._call_start_server(mock_store, cli_metrics=False)
+        _, kwargs = mock_fm.start_metrics_server.call_args
+        assert (
+            kwargs["start_resource_monitoring"] == kwargs["start_freshness_monitoring"]
+        )
+
+
+class TestTrackOnlineFeaturesEntities:
+    def test_increments_request_count(self):
+        before = online_features_request_count._value.get()
+        track_online_features_entities(10)
+        assert online_features_request_count._value.get() == before + 1
+
+    def test_records_entity_count(self):
+        before_count = online_features_entity_count._sum.get()
+        track_online_features_entities(42)
+        assert online_features_entity_count._sum.get() >= before_count + 42
+
+
+class TestTrackFeatureStatuses:
+    def test_increments_present_and_not_found(self):
+        before_present = online_features_status_total.labels(
+            feature_view="fv_status", status="present"
+        )._value.get()
+        before_not_found = online_features_status_total.labels(
+            feature_view="fv_status", status="not_found"
+        )._value.get()
+
+        track_feature_statuses("fv_status", present_count=3, not_found_count=2)
+
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="present"
+            )._value.get()
+            == before_present + 3
+        )
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="not_found"
+            )._value.get()
+            == before_not_found + 2
+        )
+
+    @patch("feast.metrics.track_feature_statuses")
+    def test_populate_response_passes_correct_counts(self, mock_track):
+        """Integration: _populate_response_from_feature_data computes and
+        forwards the right present/not_found counts.
+
+        3 entities, 2 features each:
+          Entity 0 — both present (2 PRESENT)
+          Entity 1 — missing       (2 NOT_FOUND)
+          Entity 2 — partial       (1 PRESENT, 1 NOT_FOUND)
+        """
+        from feast.protos.feast.serving.ServingService_pb2 import (
+            GetOnlineFeaturesResponse,
+        )
+        from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+        from feast.utils import _populate_response_from_feature_data
+
+        now = datetime.now(tz=timezone.utc)
+        val = ValueProto(int64_val=1)
+        table = MagicMock()
+        table.name = "driver_fv"
+        table.projection.name_to_use.return_value = "driver_fv"
+        table.projection.name_alias = None
+        table.projection.name = "driver_fv"
+
+        _populate_response_from_feature_data(
+            requested_features=["feat_a", "feat_b"],
+            read_rows=[
+                (now, {"feat_a": val, "feat_b": val}),
+                (None, None),
+                (now, {"feat_a": val}),
+            ],
+            indexes=([0], [1], [2]),
+            online_features_response=GetOnlineFeaturesResponse(),
+            full_feature_names=False,
+            table=table,
+            output_len=3,
+        )
+
+        mock_track.assert_called_once_with("driver_fv", 3, 3)
+
+
+class TestTrackPush:
+    def test_increments_push_counter(self):
+        before = push_request_count.labels(
+            push_source="my_source", mode="online"
+        )._value.get()
+        track_push("my_source", "online")
+        assert (
+            push_request_count.labels(
+                push_source="my_source", mode="online"
+            )._value.get()
+            == before + 1
+        )
+
+
+class TestTrackMaterialization:
+    def test_success_counter(self):
+        before = materialization_result_total.labels(
+            feature_view="fv1", status="success"
+        )._value.get()
+        track_materialization("fv1", success=True, duration_seconds=1.5)
+        assert (
+            materialization_result_total.labels(
+                feature_view="fv1", status="success"
+            )._value.get()
+            == before + 1
+        )
+
+    def test_failure_counter(self):
+        before = materialization_result_total.labels(
+            feature_view="fv2", status="failure"
+        )._value.get()
+        track_materialization("fv2", success=False, duration_seconds=0.5)
+        assert (
+            materialization_result_total.labels(
+                feature_view="fv2", status="failure"
+            )._value.get()
+            == before + 1
+        )
+
+    def test_duration_histogram(self):
+        before_sum = materialization_duration_seconds.labels(
+            feature_view="fv3"
+        )._sum.get()
+        track_materialization("fv3", success=True, duration_seconds=3.7)
+        after_sum = materialization_duration_seconds.labels(
+            feature_view="fv3"
+        )._sum.get()
+        assert pytest.approx(after_sum - before_sum, abs=0.01) == 3.7
+
+
+class TestUpdateFeatureFreshness:
+    def test_sets_freshness_for_materialized_views(self):
+        mock_fv = MagicMock()
+        mock_fv.name = "test_fv"
+        mock_fv.most_recent_end_time = datetime.now(tz=timezone.utc) - timedelta(
+            minutes=5
+        )
+
+        mock_sfv = MagicMock()
+        mock_sfv.name = "test_sfv"
+        mock_sfv.most_recent_end_time = datetime.now(tz=timezone.utc) - timedelta(
+            minutes=5
+        )
+
+        mock_store = MagicMock()
+        mock_store.project = "test_project"
+        mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = [mock_sfv]
+
+        update_feature_freshness(mock_store)
+
+        staleness = feature_freshness_seconds.labels(
+            feature_view="test_fv", project="test_project"
+        )._value.get()
+        assert 280 < staleness < 320
+
+        sfv_staleness = feature_freshness_seconds.labels(
+            feature_view="test_sfv", project="test_project"
+        )._value.get()
+        assert 280 < sfv_staleness < 320
+
+    def test_skips_unmaterialized_views(self):
+        mock_fv = MagicMock()
+        mock_fv.name = "unmaterialized_fv"
+        mock_fv.most_recent_end_time = None
+
+        mock_store = MagicMock()
+        mock_store.project = "test_project"
+        mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = []
+
+        update_feature_freshness(mock_store)
+
+    def test_handles_naive_datetime(self):
+        mock_fv = MagicMock()
+        mock_fv.name = "naive_fv"
+        # Simulate a naive UTC datetime (no tzinfo), as Feast typically stores
+        naive_utc_now = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+        mock_fv.most_recent_end_time = naive_utc_now - timedelta(hours=1)
+
+        mock_store = MagicMock()
+        mock_store.project = "test_project"
+        mock_store.list_feature_views.return_value = [mock_fv]
+        mock_store.list_stream_feature_views.return_value = []
+
+        update_feature_freshness(mock_store)
+
+        staleness = feature_freshness_seconds.labels(
+            feature_view="naive_fv", project="test_project"
+        )._value.get()
+        assert 3500 < staleness < 3700
+
+    def test_handles_registry_errors_gracefully(self):
+        mock_store = MagicMock()
+        mock_store.list_feature_views.side_effect = Exception("registry down")
+
+        update_feature_freshness(mock_store)
+
+
+class TestResolveFeatureCounts:
+    """Verify _resolve_feature_counts for both feature-ref lists and FeatureService."""
+
+    def test_feature_ref_list(self):
+        from feast.feature_server import _resolve_feature_counts
+
+        refs = ["driver_fv:conv_rate", "driver_fv:acc_rate", "vehicle_fv:mileage"]
+        feat_count, fv_count = _resolve_feature_counts(refs)
+        assert feat_count == "3"
+        assert fv_count == "2"
+
+    def test_single_feature_view(self):
+        from feast.feature_server import _resolve_feature_counts
+
+        refs = ["fv1:a", "fv1:b", "fv1:c"]
+        feat_count, fv_count = _resolve_feature_counts(refs)
+        assert feat_count == "3"
+        assert fv_count == "1"
+
+    def test_empty_list(self):
+        from feast.feature_server import _resolve_feature_counts
+
+        feat_count, fv_count = _resolve_feature_counts([])
+        assert feat_count == "0"
+        assert fv_count == "0"
+
+    def test_feature_service(self):
+        from feast.feature_server import _resolve_feature_counts
+
+        proj1 = MagicMock()
+        proj1.features = [MagicMock(), MagicMock()]
+        proj2 = MagicMock()
+        proj2.features = [MagicMock()]
+
+        fs_svc = MagicMock()
+        fs_svc.feature_view_projections = [proj1, proj2]
+
+        from feast.feature_service import FeatureService
+
+        fs_svc.__class__ = FeatureService
+
+        feat_count, fv_count = _resolve_feature_counts(fs_svc)
+        assert feat_count == "3"
+        assert fv_count == "2"
+
+
+class TestBinFeatureCount:
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (0, "0"),
+            (1, "1-10"),
+            (10, "1-10"),
+            (11, "11-50"),
+            (50, "11-50"),
+            (51, "51-200"),
+            (200, "51-200"),
+            (201, "201+"),
+        ],
+    )
+    def test_default_boundaries(self, count, expected):
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [10, 50, 200]) == expected
+
+    @pytest.mark.parametrize(
+        ("count", "expected"),
+        [
+            (1, "1-5"),
+            (5, "1-5"),
+            (6, "6-20"),
+            (20, "6-20"),
+            (21, "21+"),
+        ],
+    )
+    def test_custom_boundaries(self, count, expected):
+
+        from feast.feature_server import bin_feature_count
+
+        assert bin_feature_count(count, [5, 20]) == expected
+
+
+class TestMetricsConfig:
+    def test_feature_count_bins_default(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig()
+        assert config.feature_count_bins == [10, 50, 200]
+
+    def test_feature_count_bins_custom(self):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        config = MetricsConfig(feature_count_bins=[5, 20])
+        assert config.feature_count_bins == [5, 20]
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [0, 10, 50],
+            [-1, 10, 50],
+        ],
+    )
+    def test_feature_count_bins_must_be_positive(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="positive"):
+            MetricsConfig(feature_count_bins=bins)
+
+    @pytest.mark.parametrize(
+        "bins",
+        [
+            [50, 10, 200],
+            [10, 10, 200],
+        ],
+    )
+    def test_feature_count_bins_must_be_strictly_increasing(self, bins):
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            MetricsConfig(feature_count_bins=bins)
+
+
+class TestFeatureServerMetricsIntegration:
+    """Test that feature server endpoints record metrics."""
+
+    @pytest.fixture
+    def mock_fs_factory(self):
+        from tests.foo_provider import FooProvider
+
+        def builder(**async_support):
+            provider = FooProvider.with_async_support(**async_support)
+            fs = MagicMock()
+
+            from feast.infra.feature_servers.base_config import MetricsConfig
+
+            fs.config.feature_server.metrics = MetricsConfig()
+
+            fs._get_provider.return_value = provider
+            from feast.online_response import OnlineResponse
+            from feast.protos.feast.serving.ServingService_pb2 import (
+                GetOnlineFeaturesResponse,
+            )
+
+            empty_response = OnlineResponse(GetOnlineFeaturesResponse(results=[]))
+            fs.get_online_features = MagicMock(return_value=empty_response)
+            fs.push = MagicMock()
+            fs.get_online_features_async = MagicMock(return_value=empty_response)
+            fs.push_async = MagicMock()
+            return fs
+
+        return builder
+
+    def test_get_online_features_records_metrics(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+
+        fs = mock_fs_factory(online_read=False)
+        client = TestClient(get_app(fs))
+
+        before_req = request_count.labels(
+            endpoint="/get-online-features", status="success"
+        )._value.get()
+        before_entity = online_features_request_count._value.get()
+
+        client.post(
+            "/get-online-features",
+            json={
+                "features": ["fv:feat1"],
+                "entities": {"id": [1, 2, 3]},
+            },
+        )
+
+        assert (
+            request_count.labels(
+                endpoint="/get-online-features", status="success"
+            )._value.get()
+            == before_req + 1
+        )
+        assert online_features_request_count._value.get() == before_entity + 1
+
+    @pytest.mark.parametrize(
+        "features,expected_feat_count,expected_fv_count",
+        [
+            (["fv1:a"], "1-10", "1"),
+            (["fv1:a", "fv1:b", "fv2:c"], "1-10", "2"),
+            (
+                ["fv1:a", "fv1:b", "fv2:c", "fv2:d", "fv3:e"],
+                "1-10",
+                "3",
+            ),
+            (
+                [f"fv1:f{i}" for i in range(11)],
+                "11-50",
+                "1",
+            ),
+        ],
+        ids=[
+            "1_feat_1_fv",
+            "3_feats_2_fvs",
+            "5_feats_3_fvs",
+            "11_feats_1_fv",
+        ],
+    )
+    def test_latency_labels_with_varying_request_sizes(
+        self, mock_fs_factory, features, expected_feat_count, expected_fv_count
+    ):
+        """Verify feature_count is bucketed while feature_view_count remains exact."""
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+
+        fs = mock_fs_factory(online_read=False)
+        client = TestClient(get_app(fs))
+
+        label_set = dict(
+            endpoint="/get-online-features",
+            feature_count=expected_feat_count,
+            feature_view_count=expected_fv_count,
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        client.post(
+            "/get-online-features",
+            json={
+                "features": features,
+                "entities": {"id": [1]},
+            },
+        )
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_latency_labels_use_custom_feature_count_bins(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        fs = mock_fs_factory(online_read=False)
+        fs.config.feature_server.metrics = MetricsConfig(feature_count_bins=[2, 4])
+
+        client = TestClient(get_app(fs))
+
+        label_set = dict(
+            endpoint="/get-online-features",
+            feature_count="3-4",
+            feature_view_count="1",
+        )
+        before_sum = request_latency.labels(**label_set)._sum.get()
+
+        client.post(
+            "/get-online-features",
+            json={
+                "features": ["fv:a", "fv:b", "fv:c"],
+                "entities": {"id": [1]},
+            },
+        )
+
+        after_sum = request_latency.labels(**label_set)._sum.get()
+        assert after_sum > before_sum
+
+    def test_push_records_metrics(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.utils import _utc_now
+
+        fs = mock_fs_factory(online_write=False)
+        client = TestClient(get_app(fs))
+
+        before = push_request_count.labels(
+            push_source="driver_locations_push", mode="online"
+        )._value.get()
+
+        client.post(
+            "/push",
+            json={
+                "push_source_name": "driver_locations_push",
+                "df": {
+                    "driver_lat": [42.0],
+                    "driver_long": ["42.0"],
+                    "driver_id": [123],
+                    "event_timestamp": [str(_utc_now())],
+                    "created_timestamp": [str(_utc_now())],
+                },
+                "to": "online",
+            },
+        )
+
+        assert (
+            push_request_count.labels(
+                push_source="driver_locations_push", mode="online"
+            )._value.get()
+            == before + 1
+        )
+
+
+class TestBuildMetricsFlags:
+    """Verify build_metrics_flags correctly maps MetricsConfig to _MetricsFlags."""
+
+    def test_no_config_enables_all(self):
+        from feast.metrics import build_metrics_flags
+
+        flags = build_metrics_flags(None)
+        assert flags.enabled is True
+        assert flags.resource is True
+        assert flags.request is True
+        assert flags.online_features is True
+        assert flags.push is True
+        assert flags.materialization is True
+        assert flags.freshness is True
+
+    def test_selective_disable(self):
+        from types import SimpleNamespace
+
+        from feast.metrics import build_metrics_flags
+
+        mc = SimpleNamespace(
+            enabled=True,
+            resource=True,
+            request=False,
+            online_features=True,
+            push=False,
+            materialization=True,
+            freshness=False,
+        )
+        flags = build_metrics_flags(mc)
+        assert flags.enabled is True
+        assert flags.resource is True
+        assert flags.request is False
+        assert flags.online_features is True
+        assert flags.push is False
+        assert flags.materialization is True
+        assert flags.freshness is False
+
+    def test_all_categories_disabled(self):
+        from types import SimpleNamespace
+
+        from feast.metrics import build_metrics_flags
+
+        mc = SimpleNamespace(
+            enabled=True,
+            resource=False,
+            request=False,
+            online_features=False,
+            push=False,
+            materialization=False,
+            freshness=False,
+        )
+        flags = build_metrics_flags(mc)
+        assert flags.enabled is True
+        assert flags.resource is False
+        assert flags.request is False
+
+
+class TestCleanupMultiprocessDir:
+    """Verify the atexit handler only deletes the temp dir in the owner process."""
+
+    def test_cleanup_skipped_in_forked_child(self, tmp_path):
+        """Simulate a forked worker: _owns_mp_dir=True but _owner_pid != current PID."""
+        import feast.metrics as m
+
+        original_dir = m._prometheus_mp_dir
+        original_owns = m._owns_mp_dir
+        original_pid = m._owner_pid
+
+        fake_dir = tmp_path / "feast_metrics_test"
+        fake_dir.mkdir()
+
+        m._prometheus_mp_dir = str(fake_dir)
+        m._owns_mp_dir = True
+        m._owner_pid = -1  # Different from os.getpid()
+
+        try:
+            m._cleanup_multiprocess_dir()
+            assert fake_dir.exists(), (
+                "Directory should NOT be deleted when _owner_pid != os.getpid()"
+            )
+        finally:
+            m._prometheus_mp_dir = original_dir
+            m._owns_mp_dir = original_owns
+            m._owner_pid = original_pid
+
+    def test_cleanup_runs_in_owner_process(self, tmp_path):
+        """The owner process (matching PID) should delete the directory."""
+        import os
+
+        import feast.metrics as m
+
+        original_dir = m._prometheus_mp_dir
+        original_owns = m._owns_mp_dir
+        original_pid = m._owner_pid
+
+        fake_dir = tmp_path / "feast_metrics_test"
+        fake_dir.mkdir()
+
+        m._prometheus_mp_dir = str(fake_dir)
+        m._owns_mp_dir = True
+        m._owner_pid = os.getpid()
+
+        try:
+            m._cleanup_multiprocess_dir()
+            assert not fake_dir.exists(), (
+                "Directory SHOULD be deleted when _owner_pid == os.getpid()"
+            )
+        finally:
+            m._prometheus_mp_dir = original_dir
+            m._owns_mp_dir = original_owns
+            m._owner_pid = original_pid
+
+
+class TestTrackOnlineStoreRead:
+    """Tests for the online store read duration metric."""
+
+    def test_records_duration(self):
+        before_sum = online_store_read_duration_seconds._sum.get()
+
+        track_online_store_read(0.123)
+
+        assert online_store_read_duration_seconds._sum.get() >= before_sum + 0.123
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        before_sum = online_store_read_duration_seconds._sum.get()
+
+        track_online_store_read(0.5)
+
+        assert online_store_read_duration_seconds._sum.get() == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+
+class TestTrackTransformation:
+    """Tests for the ODFV transformation duration metric."""
+
+    def test_records_python_mode(self):
+        labels = ("my_odfv", "python")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("my_odfv", "python", 0.042)
+
+        sample = transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.042
+
+    def test_records_pandas_mode(self):
+        labels = ("my_odfv", "pandas")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("my_odfv", "pandas", 0.15)
+
+        sample = transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.15
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        labels = ("disabled_odfv", "python")
+        before = transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_transformation("disabled_odfv", "python", 1.0)
+
+        sample = transformation_duration_seconds._metrics.get(labels, None)
+        after_sum = sample._sum.get() if sample else 0.0
+        assert after_sum == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+    def test_multiple_odfvs_tracked_independently(self):
+        labels_a = ("odfv_a", "python")
+        labels_b = ("odfv_b", "pandas")
+        before_a = transformation_duration_seconds._metrics.get(labels_a, None)
+        before_a_sum = before_a._sum.get() if before_a else 0.0
+        before_b = transformation_duration_seconds._metrics.get(labels_b, None)
+        before_b_sum = before_b._sum.get() if before_b else 0.0
+
+        track_transformation("odfv_a", "python", 0.01)
+        track_transformation("odfv_b", "pandas", 0.05)
+
+        sample_a = transformation_duration_seconds._metrics[labels_a]
+        sample_b = transformation_duration_seconds._metrics[labels_b]
+        assert sample_a._sum.get() >= before_a_sum + 0.01
+        assert sample_b._sum.get() >= before_b_sum + 0.05
+
+
+class TestTrackWriteTransformation:
+    """Tests for the write-path ODFV transformation duration metric."""
+
+    def test_records_python_mode(self):
+        labels = ("write_odfv", "python")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("write_odfv", "python", 0.033)
+
+        sample = write_transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.033
+
+    def test_records_pandas_mode(self):
+        labels = ("write_odfv", "pandas")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("write_odfv", "pandas", 0.12)
+
+        sample = write_transformation_duration_seconds._metrics[labels]
+        assert sample._sum.get() >= before_sum + 0.12
+
+    def test_noop_when_online_features_disabled(self):
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, online_features=False)
+
+        labels = ("disabled_write_odfv", "python")
+        before = write_transformation_duration_seconds._metrics.get(labels, None)
+        before_sum = before._sum.get() if before else 0.0
+
+        track_write_transformation("disabled_write_odfv", "python", 1.0)
+
+        sample = write_transformation_duration_seconds._metrics.get(labels, None)
+        after_sum = sample._sum.get() if sample else 0.0
+        assert after_sum == before_sum
+
+        m._config = m._MetricsFlags(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+
+    def test_separate_from_read_transform_metric(self):
+        """Write and read transform metrics are independent histograms."""
+        read_labels = ("shared_odfv", "python")
+        write_labels = ("shared_odfv", "python")
+
+        read_before = transformation_duration_seconds._metrics.get(read_labels, None)
+        read_before_sum = read_before._sum.get() if read_before else 0.0
+        write_before = write_transformation_duration_seconds._metrics.get(
+            write_labels, None
+        )
+        write_before_sum = write_before._sum.get() if write_before else 0.0
+
+        track_transformation("shared_odfv", "python", 0.01)
+        track_write_transformation("shared_odfv", "python", 0.05)
+
+        read_after = transformation_duration_seconds._metrics[read_labels]
+        write_after = write_transformation_duration_seconds._metrics[write_labels]
+
+        read_delta = read_after._sum.get() - read_before_sum
+        write_delta = write_after._sum.get() - write_before_sum
+
+        assert abs(read_delta - 0.01) < 0.001
+        assert abs(write_delta - 0.05) < 0.001
+
+
+class TestOfflineStoreMetrics:
+    """Tests for the offline store Prometheus metrics (RED pattern)."""
+
+    def test_request_total_increments_on_success(self):
+        before = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
+
+        offline_store_request_total.labels(method="to_arrow", status="success").inc()
+
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before + 1
+        )
+
+    def test_request_total_increments_on_error(self):
+        before = offline_store_request_total.labels(
+            method="to_arrow", status="error"
+        )._value.get()
+
+        offline_store_request_total.labels(method="to_arrow", status="error").inc()
+
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="error"
+            )._value.get()
+            == before + 1
+        )
+
+    def test_latency_histogram_records(self):
+        before_sum = offline_store_request_latency_seconds.labels(
+            method="to_arrow"
+        )._sum.get()
+
+        offline_store_request_latency_seconds.labels(method="to_arrow").observe(2.5)
+
+        after_sum = offline_store_request_latency_seconds.labels(
+            method="to_arrow"
+        )._sum.get()
+        assert pytest.approx(after_sum - before_sum, abs=0.01) == 2.5
+
+    def test_row_count_histogram_records(self):
+        before_sum = offline_store_row_count.labels(method="to_arrow")._sum.get()
+
+        offline_store_row_count.labels(method="to_arrow").observe(1000)
+
+        after_sum = offline_store_row_count.labels(method="to_arrow")._sum.get()
+        assert pytest.approx(after_sum - before_sum, abs=1) == 1000
+
+    def test_different_methods_tracked_independently(self):
+        before_a = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
+        before_b = offline_store_request_total.labels(
+            method="other", status="success"
+        )._value.get()
+
+        offline_store_request_total.labels(method="to_arrow", status="success").inc()
+
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before_a + 1
+        )
+        assert (
+            offline_store_request_total.labels(
+                method="other", status="success"
+            )._value.get()
+            == before_b
+        )
+
+
+class TestEmitAuditLogs:
+    """Tests for structured JSON audit log emission."""
+
+    def test_emit_online_audit_log_writes_json(self):
+        import json
+        import logging
+
+        _audit_logger = logging.getLogger("feast.audit")
+        with patch.object(_audit_logger, "info") as mock_info:
+            emit_online_audit_log(
+                requestor_id="user@example.com",
+                entity_keys=["driver_id", "customer_id"],
+                entity_count=10,
+                feature_views=["driver_fv", "order_fv"],
+                feature_count=5,
+                status="success",
+                latency_ms=42.0,
+            )
+
+            mock_info.assert_called_once()
+            logged_json = mock_info.call_args[0][0]
+            record = json.loads(logged_json)
+
+        assert record["event"] == "online_feature_request"
+        assert record["requestor_id"] == "user@example.com"
+        assert record["entity_keys"] == ["driver_id", "customer_id"]
+        assert record["entity_count"] == 10
+        assert record["feature_views"] == ["driver_fv", "order_fv"]
+        assert record["feature_count"] == 5
+        assert record["status"] == "success"
+        assert record["latency_ms"] == pytest.approx(42.0)
+        assert "timestamp" in record
+
+    def test_emit_online_audit_log_noop_when_disabled(self):
+        import logging
+
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, audit_logging=False)
+        _audit_logger = logging.getLogger("feast.audit")
+        with patch.object(_audit_logger, "info") as mock_info:
+            emit_online_audit_log(
+                requestor_id="user@example.com",
+                entity_keys=["driver_id"],
+                entity_count=1,
+                feature_views=["driver_fv"],
+                feature_count=1,
+                status="success",
+                latency_ms=10.0,
+            )
+            mock_info.assert_not_called()
+
+    def test_emit_offline_audit_log_writes_json(self):
+        import json
+        import logging
+
+        _audit_logger = logging.getLogger("feast.audit")
+        with patch.object(_audit_logger, "info") as mock_info:
+            emit_offline_audit_log(
+                method="to_arrow",
+                feature_views=["driver_fv"],
+                feature_count=3,
+                row_count=500,
+                status="success",
+                start_time="2026-04-27T12:00:00+00:00",
+                end_time="2026-04-27T12:00:01+00:00",
+                duration_ms=1230.0,
+            )
+
+            mock_info.assert_called_once()
+            logged_json = mock_info.call_args[0][0]
+            record = json.loads(logged_json)
+
+        assert record["event"] == "offline_feature_retrieval"
+        assert "timestamp" in record
+        assert record["method"] == "to_arrow"
+        assert record["feature_views"] == ["driver_fv"]
+        assert record["feature_count"] == 3
+        assert record["row_count"] == 500
+        assert record["status"] == "success"
+        assert record["duration_ms"] == pytest.approx(1230.0)
+        assert record["start_time"] == "2026-04-27T12:00:00+00:00"
+        assert record["end_time"] == "2026-04-27T12:00:01+00:00"
+
+    def test_emit_offline_audit_log_noop_when_disabled(self):
+        import logging
+
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(enabled=True, audit_logging=False)
+        _audit_logger = logging.getLogger("feast.audit")
+        with patch.object(_audit_logger, "info") as mock_info:
+            emit_offline_audit_log(
+                method="to_arrow",
+                feature_views=["fv"],
+                feature_count=1,
+                row_count=10,
+                status="success",
+                start_time="t0",
+                end_time="t1",
+                duration_ms=500.0,
+            )
+            mock_info.assert_not_called()
+
+    def test_emit_online_audit_log_with_error_status(self):
+        import json
+        import logging
+
+        _audit_logger = logging.getLogger("feast.audit")
+        with patch.object(_audit_logger, "info") as mock_info:
+            emit_online_audit_log(
+                requestor_id="unknown",
+                entity_keys=[],
+                entity_count=0,
+                feature_views=[],
+                feature_count=0,
+                status="error",
+                latency_ms=1.0,
+            )
+
+            record = json.loads(mock_info.call_args[0][0])
+            assert record["status"] == "error"
+
+
+class TestBuildMetricsFlagsOfflineAndAudit:
+    """Tests for the new offline_features and audit_logging flags."""
+
+    def test_no_config_defaults_for_new_flags(self):
+        from feast.metrics import build_metrics_flags
+
+        flags = build_metrics_flags(None)
+        assert flags.offline_features is True
+        assert flags.audit_logging is False
+
+    def test_explicit_enable(self):
+        from types import SimpleNamespace
+
+        from feast.metrics import build_metrics_flags
+
+        mc = SimpleNamespace(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+            offline_features=True,
+            audit_logging=True,
+        )
+        flags = build_metrics_flags(mc)
+        assert flags.offline_features is True
+        assert flags.audit_logging is True
+
+    def test_explicit_disable(self):
+        from types import SimpleNamespace
+
+        from feast.metrics import build_metrics_flags
+
+        mc = SimpleNamespace(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+            offline_features=False,
+            audit_logging=False,
+        )
+        flags = build_metrics_flags(mc)
+        assert flags.offline_features is False
+        assert flags.audit_logging is False
+
+    def test_missing_new_attrs_fall_back_to_defaults(self):
+        from types import SimpleNamespace
+
+        from feast.metrics import build_metrics_flags
+
+        mc = SimpleNamespace(
+            enabled=True,
+            resource=True,
+            request=True,
+            online_features=True,
+            push=True,
+            materialization=True,
+            freshness=True,
+        )
+        flags = build_metrics_flags(mc)
+        assert flags.offline_features is True
+        assert flags.audit_logging is False
+
+
+class TestExtractRetrievalMetadata:
+    """Tests for _extract_retrieval_metadata helper."""
+
+    def test_extracts_feature_views_and_count(self):
+        from feast.infra.offline_stores.offline_store import (
+            RetrievalMetadata,
+            _extract_retrieval_metadata,
+        )
+
+        job = MagicMock()
+        job.metadata = RetrievalMetadata(
+            features=[
+                "driver_fv:conv_rate",
+                "driver_fv:acc_rate",
+                "vehicle_fv:mileage",
+            ],
+            keys=["driver_id"],
+        )
+
+        fv_names, feat_count = _extract_retrieval_metadata(job)
+        assert feat_count == 3
+        assert set(fv_names) == {"driver_fv", "vehicle_fv"}
+
+    def test_returns_empty_when_no_metadata(self):
+        from feast.infra.offline_stores.offline_store import (
+            _extract_retrieval_metadata,
+        )
+
+        job = MagicMock()
+        job.metadata = None
+
+        fv_names, feat_count = _extract_retrieval_metadata(job)
+        assert fv_names == []
+        assert feat_count == 0
+
+    def test_handles_not_implemented_metadata(self):
+        from feast.infra.offline_stores.offline_store import (
+            _extract_retrieval_metadata,
+        )
+
+        job = MagicMock()
+        type(job).metadata = property(
+            lambda self: (_ for _ in ()).throw(NotImplementedError())
+        )
+
+        fv_names, feat_count = _extract_retrieval_metadata(job)
+        assert fv_names == []
+        assert feat_count == 0
+
+
+class TestRetrievalJobToArrowInstrumentation:
+    """Tests for the metrics/audit instrumentation in RetrievalJob.to_arrow()."""
+
+    def _make_job(
+        self, table, on_demand_fvs=None, metadata=None, raise_on_internal=None
+    ):
+        """Create a concrete RetrievalJob subclass for testing."""
+        from feast.infra.offline_stores.offline_store import RetrievalJob
+
+        class _TestJob(RetrievalJob):
+            def __init__(self):
+                self._table = table
+                self._odfvs = on_demand_fvs or []
+                self._metadata = metadata
+                self._raise = raise_on_internal
+
+            def _to_arrow_internal(self, timeout=None):
+                if self._raise:
+                    raise self._raise
+                return self._table
+
+            @property
+            def full_feature_names(self):
+                return False
+
+            @property
+            def on_demand_feature_views(self):
+                return self._odfvs
+
+            @property
+            def metadata(self):
+                return self._metadata
+
+        return _TestJob()
+
+    def test_success_increments_counter_and_records_latency(self):
+        import pyarrow as pa
+
+        table = pa.table({"col": [1, 2, 3]})
+        job = self._make_job(table)
+
+        before_count = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
+        before_latency = offline_store_request_latency_seconds.labels(
+            method="to_arrow"
+        )._sum.get()
+
+        result = job.to_arrow()
+
+        assert result.num_rows == 3
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before_count + 1
+        )
+        assert (
+            offline_store_request_latency_seconds.labels(method="to_arrow")._sum.get()
+            > before_latency
+        )
+
+    def test_error_increments_error_counter(self):
+        job = self._make_job(None, raise_on_internal=RuntimeError("query failed"))
+
+        before_error = offline_store_request_total.labels(
+            method="to_arrow", status="error"
+        )._value.get()
+
+        with pytest.raises(RuntimeError, match="query failed"):
+            job.to_arrow()
+
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="error"
+            )._value.get()
+            == before_error + 1
+        )
+
+    def test_row_count_recorded_on_success(self):
+        import pyarrow as pa
+
+        table = pa.table({"a": list(range(500))})
+        job = self._make_job(table)
+
+        before_sum = offline_store_row_count.labels(method="to_arrow")._sum.get()
+
+        job.to_arrow()
+
+        assert (
+            offline_store_row_count.labels(method="to_arrow")._sum.get()
+            >= before_sum + 500
+        )
+
+    def test_row_count_recorded_when_zero(self):
+        """Zero-row result must still record an observation so operators can
+        distinguish 'metric not emitted' from 'query returned 0 rows'."""
+        import pyarrow as pa
+
+        table = pa.table({"a": pa.array([], type=pa.int64())})
+        job = self._make_job(table)
+
+        hist = offline_store_row_count.labels(method="to_arrow")
+        before_bucket = hist._buckets[0].get()
+        before_sum = hist._sum.get()
+        before_count = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
+
+        job.to_arrow()
+
+        assert hist._buckets[0].get() == before_bucket + 1
+        assert hist._sum.get() == before_sum  # 0 rows adds 0 to sum
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before_count + 1
+        )
+
+    def test_metrics_skipped_when_offline_features_disabled(self):
+        import pyarrow as pa
+
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True, offline_features=False, audit_logging=False
+        )
+
+        table = pa.table({"col": [1, 2]})
+        job = self._make_job(table)
+
+        before_count = offline_store_request_total.labels(
+            method="to_arrow", status="success"
+        )._value.get()
+
+        job.to_arrow()
+
+        assert (
+            offline_store_request_total.labels(
+                method="to_arrow", status="success"
+            )._value.get()
+            == before_count
+        )
+
+    def test_audit_log_emitted_on_success(self):
+        import pyarrow as pa
+
+        from feast.infra.offline_stores.offline_store import RetrievalMetadata
+
+        meta = RetrievalMetadata(
+            features=["driver_fv:conv_rate", "driver_fv:acc_rate"],
+            keys=["driver_id"],
+        )
+        table = pa.table({"col": [1, 2, 3]})
+        job = self._make_job(table, metadata=meta)
+
+        with patch("feast.metrics.emit_offline_audit_log") as mock_audit:
+            job.to_arrow()
+
+            mock_audit.assert_called_once()
+            call_kwargs = mock_audit.call_args[1]
+            assert call_kwargs["method"] == "to_arrow"
+            assert call_kwargs["status"] == "success"
+            assert call_kwargs["row_count"] == 3
+            assert call_kwargs["feature_count"] == 2
+            assert set(call_kwargs["feature_views"]) == {"driver_fv"}
+
+    def test_audit_log_skipped_when_disabled(self):
+        import pyarrow as pa
+
+        import feast.metrics as m
+
+        m._config = m._MetricsFlags(
+            enabled=True, offline_features=True, audit_logging=False
+        )
+
+        table = pa.table({"col": [1]})
+        job = self._make_job(table)
+
+        with patch("feast.metrics.emit_offline_audit_log") as mock_audit:
+            job.to_arrow()
+            mock_audit.assert_not_called()
+
+    def test_instrumentation_failure_does_not_mask_query_error(self):
+        """If metrics code itself throws, the original query error still propagates."""
+        import pyarrow as pa
+
+        table = pa.table({"col": [1]})
+        job = self._make_job(table)
+
+        with patch(
+            "feast.metrics._config",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(RuntimeError("metrics broken"))
+            ),
+        ):
+            result = job.to_arrow()
+            assert result.num_rows == 1
+
+
+class TestParseFeatureInfo:
+    """Tests for _parse_feature_info in feature_server."""
+
+    def test_feature_ref_list(self):
+        from feast.feature_server import _parse_feature_info
+
+        refs = ["driver_fv:conv_rate", "driver_fv:acc_rate", "vehicle_fv:mileage"]
+        fv_names, feat_count = _parse_feature_info(refs)
+        assert feat_count == 3
+        assert set(fv_names) == {"driver_fv", "vehicle_fv"}
+
+    def test_empty_list(self):
+        from feast.feature_server import _parse_feature_info
+
+        fv_names, feat_count = _parse_feature_info([])
+        assert fv_names == []
+        assert feat_count == 0
+
+    def test_feature_service(self):
+        from feast.feature_server import _parse_feature_info
+
+        proj1 = MagicMock()
+        proj1.name = "driver_fv"
+        proj1.features = [MagicMock(), MagicMock()]
+        proj2 = MagicMock()
+        proj2.name = "order_fv"
+        proj2.features = [MagicMock()]
+
+        fs_svc = MagicMock()
+        fs_svc.feature_view_projections = [proj1, proj2]
+
+        from feast.feature_service import FeatureService
+
+        fs_svc.__class__ = FeatureService
+
+        fv_names, feat_count = _parse_feature_info(fs_svc)
+        assert feat_count == 3
+        assert fv_names == ["driver_fv", "order_fv"]
+
+    def test_strips_version_suffix(self):
+        from feast.feature_server import _parse_feature_info
+
+        refs = ["driver_fv@v2:conv_rate"]
+        fv_names, feat_count = _parse_feature_info(refs)
+        assert feat_count == 1
+        assert fv_names == ["driver_fv"]
+
+
+class TestEmitOnlineAudit:
+    """Tests for the _emit_online_audit helper in feature_server."""
+
+    def test_skips_when_audit_logging_disabled(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_metrics,
+            patch(
+                "feast.permissions.security_manager.get_security_manager",
+            ) as mock_sm,
+        ):
+            mock_metrics._config.audit_logging = False
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=1,
+                status="success",
+                latency_ms=10.0,
+            )
+            mock_metrics.emit_online_audit_log.assert_not_called()
+            mock_sm.assert_not_called()
+
+    def test_emits_audit_log_with_anonymous_user(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1, 2]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_metrics,
+            patch(
+                "feast.permissions.security_manager.get_security_manager",
+                return_value=None,
+            ),
+        ):
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=2,
+                status="success",
+                latency_ms=15.0,
+            )
+
+            mock_metrics.emit_online_audit_log.assert_called_once()
+            kwargs = mock_metrics.emit_online_audit_log.call_args[1]
+            assert kwargs["requestor_id"] == "anonymous"
+            assert kwargs["entity_keys"] == ["driver_id"]
+            assert kwargs["entity_count"] == 2
+            assert kwargs["status"] == "success"
+
+    def test_emits_audit_log_with_authenticated_user(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        mock_sm = MagicMock()
+        mock_sm.current_user.username = "jdoe"
+
+        with (
+            patch("feast.feature_server.feast_metrics") as mock_metrics,
+            patch(
+                "feast.permissions.security_manager.get_security_manager",
+                return_value=mock_sm,
+            ),
+        ):
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=1,
+                status="success",
+                latency_ms=10.0,
+            )
+
+            kwargs = mock_metrics.emit_online_audit_log.call_args[1]
+            assert kwargs["requestor_id"] == "jdoe"
+
+    def test_does_not_raise_on_failure(self):
+        from feast.feature_server import GetOnlineFeaturesRequest, _emit_online_audit
+
+        request = GetOnlineFeaturesRequest(
+            entities={"driver_id": [1]},
+            features=["driver_fv:conv_rate"],
+        )
+
+        with patch(
+            "feast.permissions.security_manager.get_security_manager",
+            side_effect=RuntimeError("auth broken"),
+        ):
+            _emit_online_audit(
+                request=request,
+                features=request.features,
+                entity_count=1,
+                status="error",
+                latency_ms=5.0,
+            )
+
+
+def _ok_app(environ, start_response):
+    start_response("200 OK", [("Content-Type", "text/plain")])
+    return [b"ok"]
+
+
+def _serve(httpd):
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    return t
+
+
+def _http_get_ok(host, port):
+    # Use http.client directly, not urllib, so a corporate/system HTTP proxy
+    # can't intercept the loopback request and mask a real bind failure.
+    conn = http.client.HTTPConnection(host, port, timeout=5)
+    try:
+        conn.request("GET", "/")
+        resp = conn.getresponse()
+        return resp.read()
+    finally:
+        conn.close()
+
+
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
+
+
+def test_metrics_httpd_is_dual_stack_when_ipv6_available():
+    from feast.metrics import _make_metrics_httpd
+
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+    httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET6
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+        assert _http_get_ok("::1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_metrics_httpd_falls_back_to_ipv4_without_ipv6():
+    from feast.metrics import _make_metrics_httpd
+
+    with patch("feast.utils._ipv6_available", return_value=False):
+        httpd = _make_metrics_httpd(0, _ok_app)
+    _serve(httpd)
+    try:
+        port = httpd.server_address[1]
+        assert httpd.address_family == socket.AF_INET
+        assert _http_get_ok("127.0.0.1", port) == b"ok"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_ipv6_available_false_when_af_inet6_unsupported():
+    from feast.utils import _ipv6_available
+
+    # _ipv6_available is @lru_cache'd (IPv6 support can't change mid-process).
+    # Clear before *and* after: before, so this test isn't seeing another
+    # test's cached result; after, so this test's mocked result doesn't leak
+    # into a later test that expects a real, uncached probe.
+    _ipv6_available.cache_clear()
+    try:
+        with patch(
+            "socket.socket", side_effect=OSError(97, "Address family not supported")
+        ):
+            assert _ipv6_available() is False
+    finally:
+        _ipv6_available.cache_clear()
+
+
+def test_ipv6_available_true_uses_v6only_off_and_wildcard_bind():
+    from feast.utils import _ipv6_available
+
+    _ipv6_available.cache_clear()
+    mock_sock = MagicMock()
+    mock_sock.__enter__.return_value = mock_sock
+    mock_sock.__exit__.return_value = False
+    try:
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            assert _ipv6_available() is True
+    finally:
+        _ipv6_available.cache_clear()
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_called_once_with(
+        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0
+    )
+    mock_sock.bind.assert_called_once_with(("::", 0))
+
+
+def test_run_metrics_server_wires_make_metrics_httpd(mocker):
+    """The dedicated metrics child process binds via _make_metrics_httpd."""
+    from feast.metrics import _run_metrics_server
+
+    mock_httpd = MagicMock()
+    mock_httpd.serve_forever.side_effect = lambda: None
+    mock_make_metrics_httpd = mocker.patch(
+        "feast.metrics._make_metrics_httpd", return_value=mock_httpd
+    )
+    mocker.patch("prometheus_client.CollectorRegistry")
+    mocker.patch("prometheus_client.multiprocess.MultiProcessCollector")
+    mocker.patch("prometheus_client.make_wsgi_app")
+
+    _run_metrics_server(9999, "/tmp/fake_mp_dir")
+
+    mock_make_metrics_httpd.assert_called_once()
+    args, _ = mock_make_metrics_httpd.call_args
+    assert args[0] == 9999
+    mock_httpd.serve_forever.assert_called_once()
+
+
+class TestMetricsHttpdDoesNotLog:
+    """The metrics server must not write to stderr per request (fork safety, see _QuietWSGIRequestHandler)."""
+
+    def test_scrape_writes_nothing_to_stderr(self, capsys):
+        def app(environ, start_response):
+            start_response("200 OK", [("Content-Type", "text/plain")])
+            return [b"ok"]
+
+        httpd = _make_metrics_httpd(0, app)
+        port = httpd.server_address[1]
+        server = threading.Thread(target=httpd.handle_request, daemon=True)
+        server.start()
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", "/metrics")
+            assert conn.getresponse().status == 200
+            server.join(timeout=5)
+        finally:
+            httpd.server_close()
+
+        assert "GET /metrics" not in capsys.readouterr().err

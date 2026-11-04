@@ -1,3 +1,6 @@
+import warnings
+from datetime import timedelta
+
 import pytest
 
 from feast.data_format import ProtoFormat
@@ -44,6 +47,121 @@ def test_push_source_without_batch_source():
     push_source_unproto = PushSource.from_proto(push_source_proto)
     assert push_source_unproto.batch_source is None
     assert push_source_unproto.name == "test_push_source"
+
+
+def test_push_source_with_upstream_feature_view_names():
+    class DummyFeatureView:
+        def __init__(self, name: str):
+            self.name = name
+
+    fv1 = DummyFeatureView("user_transaction_stats")
+    fv2 = DummyFeatureView("user_credit_profile")
+
+    # Initialize with objects and strings
+    push_source = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[fv1, fv2],
+        description="test push source with lineage",
+    )
+
+    assert push_source.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Convert to proto and verify
+    proto = push_source.to_proto()
+    assert proto.HasField("push_options")
+    assert list(proto.push_options.upstream_feature_view_names) == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+
+    # Deserialize from proto and verify
+    unproto = PushSource.from_proto(proto)
+    assert unproto.name == "risk_calc_pipeline"
+    assert unproto.upstream_feature_view_names == [
+        "user_transaction_stats",
+        "user_credit_profile",
+    ]
+    assert unproto.description == "test push source with lineage"
+    assert unproto == push_source
+
+    # Verify equality and inequality
+    push_source_same = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=[
+            "user_transaction_stats",
+            "user_credit_profile",
+        ],
+        description="test push source with lineage",
+    )
+    assert push_source == push_source_same
+
+    push_source_diff = PushSource(
+        name="risk_calc_pipeline",
+        batch_source=BigQuerySource(table="test.test"),
+        upstream_feature_view_names=["user_transaction_stats"],
+        description="test push source with lineage",
+    )
+    assert push_source != push_source_diff
+
+
+def test_push_source_upstream_validation():
+    # Invalid type
+    with pytest.raises(TypeError, match="Unsupported type for upstream feature view"):
+        PushSource(
+            name="invalid_type",
+            upstream_feature_view_names=[123],  # type: ignore[list-item]
+        )
+
+    # Empty string
+    with pytest.raises(ValueError, match="Upstream feature view name cannot be empty"):
+        PushSource(
+            name="empty_string",
+            upstream_feature_view_names=[""],
+        )
+
+    # Object with empty name
+    class BadFeatureView:
+        def __init__(self):
+            self.name = "   "
+
+    with pytest.raises(ValueError, match="invalid or empty name"):
+        PushSource(
+            name="bad_fv_obj",
+            upstream_feature_view_names=[BadFeatureView()],
+        )
+
+
+def test_validate_data_sources_upstream_warning():
+    from feast.feature_store import _validate_data_sources
+
+    class DummyFV:
+        def __init__(self, name: str):
+            self.name = name
+
+    ps = PushSource(
+        name="risk_push",
+        upstream_feature_view_names=["existing_fv", "missing_fv"],
+    )
+
+    # Warning expected for "missing_fv"
+    with pytest.warns(
+        UserWarning,
+        match="PushSource 'risk_push' references upstream feature view 'missing_fv'",
+    ):
+        _validate_data_sources([ps], all_feature_views=[DummyFV("existing_fv")])
+
+    # No warning when all are found
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _validate_data_sources(
+            [ps],
+            all_feature_views=[DummyFV("existing_fv"), DummyFV("missing_fv")],
+        )
 
 
 def test_request_source_primitive_type_to_proto():
@@ -306,3 +424,112 @@ def test_redshift_fully_qualified_table_name(source_kwargs, expected_name):
     )
 
     assert redshift_source.redshift_options.fully_qualified_table_name == expected_name
+
+
+def test_data_source_eq_cross_type_returns_false():
+    """A DataSource compared to a different type returns ``False``, never ``TypeError``.
+
+    Regression: ``__eq__`` used to ``raise TypeError("Comparisons should only involve
+    <X> class objects.")`` on a cross-type comparison, so changing a feature view's
+    source type and re-``apply()``-ing over an existing registry crashed. Comparing
+    objects of different types must return ``False``, matching ``PushSource.__eq__``.
+    """
+    file_source = FileSource(name="src", path="/tmp/x.parquet", timestamp_field="ts")
+    snowflake_source = SnowflakeSource(
+        name="src", database="D", schema="S", table="T", timestamp_field="ts"
+    )
+
+    # Cross-type comparison is False in both directions, not a raise.
+    assert (file_source == snowflake_source) is False
+    assert (snowflake_source == file_source) is False
+
+    # Comparison against a non-DataSource operand is also False, not a raise.
+    assert (file_source == "not a data source") is False
+    assert (file_source == 42) is False
+
+    # Same-type equality still holds for two independently-built equal instances.
+    assert file_source == FileSource(
+        name="src", path="/tmp/x.parquet", timestamp_field="ts"
+    )
+
+
+def test_kafka_source_keeps_a_zero_watermark_delay_threshold():
+    """A watermark delay of zero is a value, not an unset option.
+
+    ``KafkaOptions`` stored ``watermark_delay_threshold or None``, so a
+    ``timedelta(0)`` was read as "not given" and never reached the proto. The
+    ``from_proto`` branch that turned an explicit zero ``Duration`` back into
+    ``timedelta(0)`` could therefore never return it.
+    """
+    file_source = FileSource(
+        name="batch", path="/tmp/x.parquet", timestamp_field="event_timestamp"
+    )
+
+    def kafka_source(watermark):
+        return KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+            watermark_delay_threshold=watermark,
+            batch_source=file_source,
+        )
+
+    zero = kafka_source(timedelta(0))
+    assert zero.kafka_options.watermark_delay_threshold == timedelta(0)
+
+    zero_proto = zero.to_proto()
+    assert zero_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert KafkaSource.from_proto(
+        zero_proto
+    ).kafka_options.watermark_delay_threshold == timedelta(0)
+
+    # An absent delay stays absent, and is not read as a zero
+    unset = kafka_source(None)
+    assert unset.kafka_options.watermark_delay_threshold is None
+
+    unset_proto = unset.to_proto()
+    assert not unset_proto.kafka_options.HasField("watermark_delay_threshold")
+    assert (
+        KafkaSource.from_proto(unset_proto).kafka_options.watermark_delay_threshold
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "stream_source",
+    [
+        KafkaSource(
+            name="test_source",
+            kafka_bootstrap_servers="test_servers",
+            message_format=ProtoFormat("class_path"),
+            topic="test_topic",
+            timestamp_field="event_timestamp",
+        ),
+        KinesisSource(
+            name="test_source",
+            region="test_region",
+            record_format=ProtoFormat("class_path"),
+            stream_name="test_stream",
+            timestamp_field="event_timestamp",
+        ),
+    ],
+    ids=["kafka", "kinesis"],
+)
+def test_stream_source_without_batch_source_round_trips(stream_source):
+    """``batch_source`` is optional on Kafka and Kinesis sources.
+
+    ``from_proto`` checked ``if data_source.batch_source``, but an unset proto
+    sub-message is still truthy, so the empty message was parsed as a data
+    source and failed with "Could not identify the source type being added."
+    That made these sources impossible to read back from the registry.
+    """
+    proto = stream_source.to_proto()
+    assert not proto.HasField("batch_source")
+
+    restored = DataSource.from_proto(proto)
+
+    assert isinstance(restored, type(stream_source))
+    assert restored.batch_source is None
+    assert restored.name == stream_source.name

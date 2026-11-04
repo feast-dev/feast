@@ -115,7 +115,7 @@ Maintainers control overall project organization and resolving disputes. They al
 - (optional) Guide design decisions to reinforce key project values (e.g. simplicity)
 
 ### Optional maintainer responsibilities
-Other optional activites a maintainer (project or area maintainer) may participate in:
+Other optional activities a maintainer (project or area maintainer) may participate in:
   *   Perform code reviews for other maintainers and the community. The areas of specialization listed in [OWNERS.md](OWNERS.md) can be used to help with routing an issue/question to the right person.
   *   Triage GitHub issues, applying [labels]([https://github.com/feast-dev/feast/labels](https://github.com/feast-dev/feast/labels)) to each new item. Labels are extremely useful for future issue follow ups. Adding labels is somewhat subjective, so please use your best judgment. 
   *   Triage build issues, filing issues for known flaky builds or bugs, fixing or finding someone to fix any master build breakages.
@@ -217,8 +217,9 @@ The "RFC" (request for comments) process is intended to provide a consistent and
 2. Users, Contributors, and Maintainers discuss and upvote the draft
 3. If confident on its success, contributor completes the RFC with more in-detail technical specifications
 4. Maintainers approve RFC when it is ready
-5. Maintainers meet every quarter and choose three or five items based on popularity and alignment with project vision and goals
-6. Those selected items become part of the Mid-term goals
+5. Once finalized, the RFC should be added as an [Architecture Decision Record (ADR)](../docs/adr/README.md) in the repository
+6. Maintainers meet every quarter and choose three or five items based on popularity and alignment with project vision and goals
+7. Those selected items become part of the Mid-term goals
 
 
 ### When to Use RFCs

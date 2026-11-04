@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import tempfile
@@ -383,6 +384,18 @@ def test_remote_online_store_read_write(auth_config, tls_mode):
                 "avg_daily_trips": [50, 45],
                 "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")] * 2,
                 "created": [pd.Timestamp(_utc_now()).round("ms")] * 2,
+                "driver_metadata": [
+                    {"vehicle_type": "sedan", "rating": "4.5"},
+                    {"vehicle_type": "suv", "rating": "3.8"},
+                ],
+                "driver_config": [
+                    json.dumps({"max_distance_km": 100, "preferred_zones": ["north"]}),
+                    json.dumps({"max_distance_km": 50, "preferred_zones": ["south"]}),
+                ],
+                "driver_profile": [
+                    {"name": "driver_1000", "age": "30"},
+                    {"name": "driver_1001", "age": "35"},
+                ],
             }
         )
 

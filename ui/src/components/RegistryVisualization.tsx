@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ReactFlow,
   Node,
   Edge,
   Controls,
+  ControlButton,
   Background,
   useNodesState,
   useEdgesState,
@@ -21,9 +28,11 @@ import {
   EuiSpacer,
   EuiLoadingSpinner,
   EuiToolTip,
+  EuiBadge,
 } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
+import { MlflowRunData } from "../queries/useLoadMlflowRuns";
 import { feast } from "../protos";
 import { useTheme } from "../contexts/ThemeContext";
 import {
@@ -64,6 +73,8 @@ interface NodeData {
   type: FEAST_FCO_TYPES;
   metadata: any;
   permissions?: any[]; // Add permissions field
+  versionNumber?: number;
+  versionInfo?: { totalVersions: number; latestDescription?: string };
 }
 
 const getNodeColor = (type: FEAST_FCO_TYPES) => {
@@ -76,6 +87,18 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#ff8000"; // Orange
     case FEAST_FCO_TYPES.dataSource:
       return "#cc0000"; // Red
+    case FEAST_FCO_TYPES.labelView:
+      return "#e6570e"; // Deep orange for label views
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#8B5CF6"; // Purple for saved datasets
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "#0194e2"; // MLflow brand blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#7b2d8e"; // Purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#e67300"; // Deep orange for OL jobs
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#3366cc"; // Steel blue for OL datasets
     default:
       return "#666666"; // Gray
   }
@@ -91,6 +114,18 @@ const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
       return "#fff2e6"; // Light orange
     case FEAST_FCO_TYPES.dataSource:
       return "#ffe6e6"; // Light red
+    case FEAST_FCO_TYPES.labelView:
+      return "#fde8dc"; // Light deep orange
+    case FEAST_FCO_TYPES.savedDataset:
+      return "#EDE9FE"; // Light purple
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "#e6f6fd"; // Light MLflow blue
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "#f3e6f9"; // Light purple
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "#fff0e0"; // Light deep orange
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "#e0ecff"; // Light steel blue
     default:
       return "#f0f0f0"; // Light gray
   }
@@ -106,6 +141,18 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
       return "▲"; // Triangle for entity
     case FEAST_FCO_TYPES.dataSource:
       return "◆"; // Diamond for data source
+    case FEAST_FCO_TYPES.labelView:
+      return "◉"; // Bullseye for label view
+    case FEAST_FCO_TYPES.savedDataset:
+      return "⬟"; // Pentagon for saved dataset
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "⬡"; // Hexagon for MLflow run
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "⬢"; // Filled hexagon for registered model
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "⚙"; // Gear for OL job
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "⬡"; // Hexagon for OL dataset
     default:
       return "●"; // Default circle
   }
@@ -119,8 +166,17 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const icon = getNodeIcon(data.type);
   const [isHovered, setIsHovered] = useState(false);
   const hasPermissions = data.permissions && data.permissions.length > 0;
+  const hasVersion = data.versionNumber != null && data.versionNumber > 1;
 
   const handleClick = () => {
+    if (
+      (data.type === FEAST_FCO_TYPES.mlflowRun ||
+        data.type === FEAST_FCO_TYPES.mlflowModel) &&
+      data.metadata?.mlflow_url
+    ) {
+      window.open(data.metadata.mlflow_url, "_blank", "noopener,noreferrer");
+      return;
+    }
     let path;
     switch (data.type) {
       case FEAST_FCO_TYPES.dataSource:
@@ -134,6 +190,12 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         break;
       case FEAST_FCO_TYPES.featureService:
         path = `/p/${projectName}/feature-service/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.labelView:
+        path = `/p/${projectName}/label-view/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.savedDataset:
+        path = `/p/${projectName}/data-set/${data.label}`;
         break;
       default:
         return;
@@ -179,7 +241,10 @@ const CustomNode = ({ data }: { data: NodeData }) => {
             zIndex: 5,
           }}
         >
-          View Details
+          {data.type === FEAST_FCO_TYPES.mlflowRun ||
+          data.type === FEAST_FCO_TYPES.mlflowModel
+            ? "Open in MLflow ↗"
+            : "View Details"}
         </div>
       )}
 
@@ -203,6 +268,40 @@ const CustomNode = ({ data }: { data: NodeData }) => {
             }}
           >
             P
+          </div>
+        </EuiToolTip>
+      )}
+
+      {/* Version indicator */}
+      {hasVersion && (
+        <EuiToolTip
+          position="bottom"
+          content={
+            <div style={{ margin: 0 }}>
+              <div>Version: {data.versionNumber}</div>
+              {data.versionInfo && (
+                <>
+                  <div>Total versions: {data.versionInfo.totalVersions}</div>
+                  {data.versionInfo.latestDescription && (
+                    <div>Latest: {data.versionInfo.latestDescription}</div>
+                  )}
+                </>
+              )}
+              <div style={{ marginTop: 4, fontStyle: "italic" }}>
+                Click node for full history
+              </div>
+            </div>
+          }
+        >
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              zIndex: 5,
+            }}
+          >
+            <EuiBadge color="hollow">v{data.versionNumber}</EuiBadge>
           </div>
         </EuiToolTip>
       )}
@@ -360,6 +459,12 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.entity]: [],
     [FEAST_FCO_TYPES.featureView]: [],
     [FEAST_FCO_TYPES.featureService]: [],
+    [FEAST_FCO_TYPES.labelView]: [],
+    [FEAST_FCO_TYPES.savedDataset]: [],
+    [FEAST_FCO_TYPES.mlflowRun]: [],
+    [FEAST_FCO_TYPES.mlflowModel]: [],
+    [FEAST_FCO_TYPES.openlineageJob]: [],
+    [FEAST_FCO_TYPES.openlineageDataset]: [],
   };
 
   isolatedNodes.forEach((node) => {
@@ -414,8 +519,12 @@ const Legend = () => {
   const types = [
     { type: FEAST_FCO_TYPES.featureService, label: "Feature Service" },
     { type: FEAST_FCO_TYPES.featureView, label: "Feature View" },
+    { type: FEAST_FCO_TYPES.labelView, label: "Label View" },
     { type: FEAST_FCO_TYPES.entity, label: "Entity" },
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+    { type: FEAST_FCO_TYPES.savedDataset, label: "Saved Dataset" },
+    { type: FEAST_FCO_TYPES.mlflowRun, label: "MLflow Run" },
+    { type: FEAST_FCO_TYPES.mlflowModel, label: "Registered Model" },
   ];
 
   const isDarkMode = colorMode === "dark";
@@ -474,6 +583,20 @@ const Legend = () => {
           <div style={{ fontSize: 12, color: textColor }}>{item.label}</div>
         </div>
       ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginTop: 5,
+          paddingTop: 5,
+          borderTop: `1px solid ${borderColor}`,
+        }}
+      >
+        <EuiBadge color="hollow" style={{ marginRight: 8 }}>
+          vN
+        </EuiBadge>
+        <div style={{ fontSize: 12, color: textColor }}>Version Changed</div>
+      </div>
     </div>
   );
 };
@@ -482,9 +605,42 @@ const registryToFlow = (
   objects: feast.core.Registry,
   relationships: EntityRelation[],
   permissions?: any[],
+  versionHistory?: feast.core.IFeatureViewVersionRecord[],
+  mlflowRuns?: MlflowRunData[],
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+
+  // Build a lookup of version info by feature view name
+  const versionInfoMap = new Map<
+    string,
+    { totalVersions: number; latestDescription?: string }
+  >();
+  if (versionHistory) {
+    const grouped: Record<string, feast.core.IFeatureViewVersionRecord[]> = {};
+    for (let i = 0; i < versionHistory.length; i++) {
+      const record = versionHistory[i];
+      const name = record.featureViewName;
+      if (!name) continue;
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push(record);
+    }
+    const groupedNames = Object.keys(grouped);
+    for (let i = 0; i < groupedNames.length; i++) {
+      const name = groupedNames[i];
+      const records = grouped[name];
+      records.sort(
+        (
+          a: feast.core.IFeatureViewVersionRecord,
+          b: feast.core.IFeatureViewVersionRecord,
+        ) => (b.versionNumber ?? 0) - (a.versionNumber ?? 0),
+      );
+      versionInfoMap.set(name, {
+        totalVersions: records.length,
+        latestDescription: records[0]?.description ?? undefined,
+      });
+    }
+  }
 
   objects.featureServices?.forEach((fs) => {
     nodes.push({
@@ -507,60 +663,69 @@ const registryToFlow = (
   });
 
   objects.featureViews?.forEach((fv) => {
+    const fvName = fv.spec?.name;
     nodes.push({
-      id: `fv-${fv.spec?.name}`,
+      id: `fv-${fvName}`,
       type: "custom",
       data: {
-        label: fv.spec?.name,
+        label: fvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: fv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              fv.spec?.name,
+              fvName,
             )
           : [],
+        versionNumber: fv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: fvName ? versionInfoMap.get(fvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
   });
 
   objects.onDemandFeatureViews?.forEach((odfv) => {
+    const odfvName = odfv.spec?.name;
     nodes.push({
-      id: `odfv-${odfv.spec?.name}`,
+      id: `fv-${odfvName}`,
       type: "custom",
       data: {
-        label: odfv.spec?.name,
+        label: odfvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: odfv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              odfv.spec?.name,
+              odfvName,
             )
           : [],
+        versionNumber: odfv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: odfvName ? versionInfoMap.get(odfvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
   });
 
   objects.streamFeatureViews?.forEach((sfv) => {
+    const sfvName = sfv.spec?.name;
     nodes.push({
-      id: `sfv-${sfv.spec?.name}`,
+      id: `fv-${sfvName}`,
       type: "custom",
       data: {
-        label: sfv.spec?.name,
+        label: sfvName,
         type: FEAST_FCO_TYPES.featureView,
         metadata: sfv,
         permissions: permissions
           ? getEntityPermissions(
               permissions,
               FEAST_FCO_TYPES.featureView,
-              sfv.spec?.name,
+              sfvName,
             )
           : [],
+        versionNumber: sfv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: sfvName ? versionInfoMap.get(sfvName) : undefined,
       },
       position: { x: 0, y: 0 },
     });
@@ -586,11 +751,54 @@ const registryToFlow = (
     });
   });
 
+  objects.labelViews?.forEach((lv: any) => {
+    const lvName = lv.spec?.name;
+    nodes.push({
+      id: `lv-${lvName}`,
+      type: "custom",
+      data: {
+        label: lvName,
+        type: FEAST_FCO_TYPES.labelView,
+        metadata: lv,
+        permissions: permissions
+          ? getEntityPermissions(permissions, FEAST_FCO_TYPES.labelView, lvName)
+          : [],
+        versionNumber: lv.meta?.currentVersionNumber ?? undefined,
+        versionInfo: lvName ? versionInfoMap.get(lvName) : undefined,
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
+  (objects as any).savedDatasets?.forEach((sd: any) => {
+    const sdName = sd.spec?.name;
+    nodes.push({
+      id: `sd-${sdName}`,
+      type: "custom",
+      data: {
+        label: sdName,
+        type: FEAST_FCO_TYPES.savedDataset,
+        metadata: sd,
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.savedDataset,
+              sdName,
+            )
+          : [],
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
   const dataSources = new Set<string>();
 
   objects.featureViews?.forEach((fv) => {
     if (fv.spec?.batchSource?.name) {
       dataSources.add(fv.spec.batchSource.name);
+    }
+    if (fv.spec?.streamSource?.name) {
+      dataSources.add(fv.spec.streamSource.name);
     }
   });
 
@@ -601,6 +809,34 @@ const registryToFlow = (
     if (sfv.spec?.streamSource?.name) {
       dataSources.add(sfv.spec.streamSource.name);
     }
+  });
+
+  objects.onDemandFeatureViews?.forEach((odfv: any) => {
+    if (odfv.spec?.sources) {
+      Object.values(odfv.spec.sources).forEach((input: any) => {
+        if (input.requestDataSource?.name) {
+          dataSources.add(input.requestDataSource.name);
+        }
+      });
+    }
+  });
+
+  (objects as any).labelViews?.forEach((lv: any) => {
+    if (lv.spec?.source?.name) {
+      dataSources.add(lv.spec.source.name);
+    }
+    if (lv.spec?.source?.batchSource?.name) {
+      dataSources.add(lv.spec.source.batchSource.name);
+    }
+    if (lv.spec?.batchSource?.name) {
+      dataSources.add(lv.spec.batchSource.name);
+    }
+  });
+
+  // Also include standalone registered data sources
+  ((objects as any).dataSources || []).forEach((ds: any) => {
+    const name = ds.spec?.name || ds.name;
+    if (name) dataSources.add(name);
   });
 
   Array.from(dataSources).forEach((dsName) => {
@@ -650,6 +886,101 @@ const registryToFlow = (
     });
   });
 
+  if (mlflowRuns && mlflowRuns.length > 0) {
+    mlflowRuns.forEach((run) => {
+      const runLabel = run.run_name || run.run_id.substring(0, 8);
+      nodes.push({
+        id: `mlflow-${run.run_id}`,
+        type: "custom",
+        data: {
+          label: runLabel,
+          type: FEAST_FCO_TYPES.mlflowRun,
+          metadata: {
+            mlflow_url: run.mlflow_url,
+            retrieval_type: run.retrieval_type,
+            status: run.status,
+            run_id: run.run_id,
+          },
+        },
+        position: { x: 0, y: 0 },
+      });
+
+      if (run.feature_service) {
+        const fsNodeId = `fs-${run.feature_service}`;
+        const fsNodeExists = nodes.some((n) => n.id === fsNodeId);
+        if (fsNodeExists) {
+          edges.push({
+            id: `edge-mlflow-${run.run_id}`,
+            source: fsNodeId,
+            sourceHandle: "source",
+            target: `mlflow-${run.run_id}`,
+            targetHandle: "target",
+            animated: true,
+            style: {
+              strokeWidth: 3,
+              stroke: "#0194e2",
+              strokeDasharray: "10 5",
+              animation: "dataflow 2s linear infinite",
+            },
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "#0194e2",
+            },
+          });
+        }
+      }
+
+      if (run.registered_models && run.registered_models.length > 0) {
+        run.registered_models.forEach((model) => {
+          const modelNodeId = `model-${model.model_name}-v${model.version}`;
+          const modelExists = nodes.some((n) => n.id === modelNodeId);
+          if (!modelExists) {
+            nodes.push({
+              id: modelNodeId,
+              type: "custom",
+              data: {
+                label: `${model.model_name} v${model.version}`,
+                type: FEAST_FCO_TYPES.mlflowModel,
+                metadata: {
+                  mlflow_url: model.mlflow_url,
+                  model_name: model.model_name,
+                  version: model.version,
+                  stage: model.stage,
+                },
+              },
+              position: { x: 0, y: 0 },
+            });
+          }
+
+          edges.push({
+            id: `edge-model-${run.run_id}-${model.model_name}-v${model.version}`,
+            source: `mlflow-${run.run_id}`,
+            sourceHandle: "source",
+            target: modelNodeId,
+            targetHandle: "target",
+            animated: true,
+            style: {
+              strokeWidth: 3,
+              stroke: "#7b2d8e",
+              strokeDasharray: "10 5",
+              animation: "dataflow 2s linear infinite",
+            },
+            type: "smoothstep",
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "#7b2d8e",
+            },
+          });
+        });
+      }
+    });
+  }
+
   return { nodes, edges };
 };
 
@@ -663,6 +994,18 @@ const getNodePrefix = (type: FEAST_FCO_TYPES) => {
       return "entity";
     case FEAST_FCO_TYPES.dataSource:
       return "ds";
+    case FEAST_FCO_TYPES.labelView:
+      return "lv";
+    case FEAST_FCO_TYPES.savedDataset:
+      return "sd";
+    case FEAST_FCO_TYPES.mlflowRun:
+      return "mlflow";
+    case FEAST_FCO_TYPES.mlflowModel:
+      return "model";
+    case FEAST_FCO_TYPES.openlineageJob:
+      return "ol-job";
+    case FEAST_FCO_TYPES.openlineageDataset:
+      return "ol-ds";
     default:
       return "unknown";
   }
@@ -673,7 +1016,10 @@ interface RegistryVisualizationProps {
   relationships: EntityRelation[];
   indirectRelationships: EntityRelation[];
   filterNode?: { type: FEAST_FCO_TYPES; name: string };
-  permissions?: any[]; // Add permissions field
+  permissions?: any[];
+  mlflowRuns?: MlflowRunData[];
+  extraCheckboxes?: React.ReactNode;
+  filterControls?: React.ReactNode;
 }
 
 const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
@@ -682,6 +1028,9 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   indirectRelationships,
   filterNode,
   permissions,
+  mlflowRuns,
+  extraCheckboxes,
+  filterControls,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -690,6 +1039,64 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     useState(false);
   const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
+
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const edgesRef = useRef<Edge[]>([]);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!graphContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      graphContainerRef.current.requestFullscreen();
+    }
+  }, []);
+
+  const connectedIds = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const ids = new Set<string>([hoveredNodeId]);
+    const allEdges = edgesRef.current;
+
+    // Walk upstream (target → source)
+    const upQueue = [hoveredNodeId];
+    while (upQueue.length > 0) {
+      const cur = upQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.target === cur && !ids.has(e.source)) {
+          ids.add(e.source);
+          upQueue.push(e.source);
+        }
+      }
+    }
+
+    // Walk downstream (source → target)
+    const downQueue = [hoveredNodeId];
+    while (downQueue.length > 0) {
+      const cur = downQueue.shift()!;
+      for (const e of allEdges) {
+        if (e.source === cur && !ids.has(e.target)) {
+          ids.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    }
+
+    return ids;
+  }, [hoveredNodeId]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id),
+    [],
+  );
+  const onNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
 
   useEffect(() => {
     if (registryData && relationships) {
@@ -750,10 +1157,15 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         return rel.source && rel.target && rel.source.name && rel.target.name;
       });
 
+      const versionRecords =
+        registryData.featureViewVersionHistory?.records ?? undefined;
+
       const { nodes: initialNodes, edges: initialEdges } = registryToFlow(
         registryData,
         validRelationships,
         permissions,
+        versionRecords as feast.core.IFeatureViewVersionRecord[] | undefined,
+        mlflowRuns,
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
@@ -764,6 +1176,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           showIsolatedNodes,
         );
 
+      edgesRef.current = layoutedEdges;
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
@@ -775,9 +1188,36 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
     showIndirectRelationships,
     showIsolatedNodes,
     filterNode,
+    permissions,
+    mlflowRuns,
     setNodes,
     setEdges,
   ]);
+
+  const styledNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        opacity: connectedIds.has(n.id) ? 1 : 0.15,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [nodes, connectedIds]);
+
+  const styledEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      style: {
+        ...e.style,
+        opacity:
+          connectedIds.has(e.source) && connectedIds.has(e.target) ? 1 : 0.08,
+        transition: "opacity 0.2s",
+      },
+    }));
+  }, [edges, connectedIds]);
 
   return (
     <EuiPanel>
@@ -792,7 +1232,15 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         <EuiTitle size="s">
           <h2>Lineage</h2>
         </EuiTitle>
-        <div style={{ display: "flex", gap: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            alignItems: "center",
+            fontSize: 13,
+          }}
+        >
+          {extraCheckboxes}
           <label>
             <input
               type="checkbox"
@@ -812,16 +1260,24 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         </div>
       </div>
       <EuiSpacer size="m" />
+      {filterControls}
 
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
           <EuiLoadingSpinner size="xl" />
         </div>
       ) : (
-        <div style={{ height: 600, border: "1px solid #ddd" }}>
+        <div
+          ref={graphContainerRef}
+          style={{
+            height: isFullscreen ? "100vh" : 600,
+            border: "1px solid #ddd",
+            background: "#fff",
+          }}
+        >
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={styledNodes}
+            edges={styledEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -829,9 +1285,18 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             fitView
             minZoom={0.1}
             maxZoom={8}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
           >
             <Background color="#f0f0f0" gap={16} />
-            <Controls />
+            <Controls>
+              <ControlButton
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? "⊡" : "⛶"}
+              </ControlButton>
+            </Controls>
             <Legend />
           </ReactFlow>
         </div>

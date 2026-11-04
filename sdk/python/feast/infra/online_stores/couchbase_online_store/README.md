@@ -87,12 +87,13 @@ feature_vector = store.get_online_features(
     ],
 ).to_dict()
 pprint(feature_vector)
-
 ```
 #### Output
 ```python
-{'acc_rate': [0.01390857808291912, 0.4063614010810852],
- 'avg_daily_trips': [69, 706],
- 'conv_rate': [0.6624961495399475, 0.7595928311347961],
- 'driver_id': [1004, 1005]}
+{
+    "acc_rate": [0.01390857808291912, 0.4063614010810852],
+    "avg_daily_trips": [69, 706],
+    "conv_rate": [0.6624961495399475, 0.7595928311347961],
+    "driver_id": [1004, 1005],
+}
 ```

@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from feast import ValueType
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import Trino
@@ -101,6 +102,7 @@ class TrinoSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a TrinoSource object.
@@ -137,6 +139,7 @@ class TrinoSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
         self._trino_options = TrinoOptions(table=table, query=query)
@@ -146,9 +149,7 @@ class TrinoSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, TrinoSource):
-            raise TypeError(
-                "Comparisons should only involve TrinoSource class objects."
-            )
+            return False
 
         return (
             super().__eq__(other)
@@ -189,6 +190,7 @@ class TrinoSource(DataSource):
     def from_proto(data_source: DataSourceProto):
         assert data_source.HasField("trino_options")
 
+        tags = dict(data_source.tags)
         return TrinoSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -197,8 +199,9 @@ class TrinoSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:

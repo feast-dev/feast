@@ -41,9 +41,7 @@ def setup_data():
     # Please read more in Feast RFC-031
     # (link https://docs.google.com/document/d/12UuvTQnTTCJhdRgy6h10zSbInNGSyEJkIxpOcgOen1I/edit)
     # about this benchmark setup
-    def generate_data(
-        num_rows, num_features, destination
-    ):
+    def generate_data(num_rows, num_features, destination):
         features = [f"feature_{i}" for i in range(num_features)]
         columns = ["entity", "event_timestamp"] + features
         df = pd.DataFrame(0, index=np.arange(num_rows), columns=columns)

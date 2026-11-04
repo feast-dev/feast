@@ -36,8 +36,22 @@ type NamespaceRegistryData struct {
 	Namespaces map[string][]string `json:"namespaces"`
 }
 
+// isProtectedProject checks if this CR is annotated as a protected project
+func (feast *FeastServices) isProtectedProject() bool {
+	annotations := feast.Handler.FeatureStore.GetAnnotations()
+	return annotations[ProtectedProjectAnnotation] == "true"
+}
+
 // deployNamespaceRegistry creates and manages the namespace registry ConfigMap
 func (feast *FeastServices) deployNamespaceRegistry() error {
+	// Skip namespace registry for protected projects.
+	// Protected projects are managed externally and should not be visible to other instances.
+	if feast.isProtectedProject() {
+		logger := log.FromContext(feast.Handler.Context)
+		logger.V(1).Info("Skipping namespace registry for protected project", "project", feast.Handler.FeatureStore.Spec.FeastProject)
+		return nil
+	}
+
 	// Check if we can determine the target namespace before creating any resources
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
@@ -163,42 +177,38 @@ func (feast *FeastServices) createNamespaceRegistryRoleBinding(targetNamespace s
 
 // setNamespaceRegistryRoleBinding sets the RoleBinding for namespace registry access
 func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBinding) error {
-	// Create a Role that allows reading the ConfigMap
+	roleName := NamespaceRegistryConfigMapName + "-reader"
+
+	desiredRules := []rbacv1.PolicyRule{
+		{
+			APIGroups:     []string{""},
+			Resources:     []string{"configmaps"},
+			ResourceNames: []string{NamespaceRegistryConfigMapName},
+			Verbs:         []string{"get", "list"},
+		},
+	}
+
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamespaceRegistryConfigMapName + "-reader",
+			Name:      roleName,
 			Namespace: rb.Namespace,
 		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
-		},
 	}
+	role.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("Role"))
 
-	// Create or update the Role
-	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, controllerutil.MutateFn(func() error {
-		role.Rules = []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"configmaps"},
-				ResourceNames: []string{NamespaceRegistryConfigMapName},
-				Verbs:         []string{"get", "list"},
-			},
-		}
+	if _, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, role, func() error {
+		role.Labels = feast.getLabels()
+		role.Rules = desiredRules
 		return nil
-	})); err != nil {
-		return err
+	}); err != nil {
+		return fmt.Errorf("failed to reconcile namespace registry Role: %w", err)
 	}
 
-	// Set the RoleBinding
+	rb.Labels = feast.getLabels()
 	rb.RoleRef = rbacv1.RoleRef{
 		APIGroup: "rbac.authorization.k8s.io",
 		Kind:     "Role",
-		Name:     role.Name,
+		Name:     roleName,
 	}
 
 	rb.Subjects = []rbacv1.Subject{
@@ -234,6 +244,11 @@ func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
 
 // AddToNamespaceRegistry adds a feature store instance to the namespace registry
 func (feast *FeastServices) AddToNamespaceRegistry() error {
+	// Skip for protected projects — they should not appear in the namespace registry.
+	if feast.isProtectedProject() {
+		return nil
+	}
+
 	logger := log.FromContext(feast.Handler.Context)
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {

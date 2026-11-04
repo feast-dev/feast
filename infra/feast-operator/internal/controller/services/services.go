@@ -18,6 +18,8 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -32,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +43,7 @@ import (
 // Apply defaults and set service hostnames in FeatureStore status
 func (feast *FeastServices) ApplyDefaults() error {
 	ApplyDefaultsToStatus(feast.Handler.FeatureStore)
+	feast.applyMlflowDefaults()
 	if err := feast.setTlsDefaults(); err != nil {
 		return err
 	}
@@ -47,6 +51,48 @@ func (feast *FeastServices) ApplyDefaults() error {
 		return err
 	}
 	return nil
+}
+
+// applyMlflowDefaults auto-enables MLflow integration when:
+//   - spec.mlflow is nil (not explicitly configured) — auto-discover from cluster MLflow CR
+//   - spec.mlflow.enabled is true but trackingUri is omitted — auto-discover the URI
+//
+// When spec.mlflow.enabled is explicitly false, the applied config is cleared (opt-out).
+func (feast *FeastServices) applyMlflowDefaults() {
+	cr := feast.Handler.FeatureStore
+	if cr.Spec.Mlflow != nil {
+		if !cr.Spec.Mlflow.Enabled {
+			cr.Status.Applied.Mlflow = nil
+			return
+		}
+		// enabled: true but missing trackingUri or uiUrl → discover them
+		needsDiscovery := cr.Spec.Mlflow.TrackingUri == nil || cr.Spec.Mlflow.UiUrl == nil
+		if needsDiscovery && feast.Handler.Client != nil {
+			if discovered, ok := DiscoverMlflow(feast.Handler.Context, feast.Handler.Client); ok {
+				if cr.Status.Applied.Mlflow != nil && cr.Status.Applied.Mlflow.TrackingUri == nil {
+					cr.Status.Applied.Mlflow.TrackingUri = &discovered.TrackingUri
+				}
+				if cr.Status.Applied.Mlflow != nil && cr.Status.Applied.Mlflow.UiUrl == nil && discovered.UiUrl != "" {
+					cr.Status.Applied.Mlflow.UiUrl = &discovered.UiUrl
+				}
+			}
+		}
+		return
+	}
+	// spec.mlflow is nil → attempt auto-discovery
+	if feast.Handler.Client == nil {
+		return
+	}
+	if discovered, ok := DiscoverMlflow(feast.Handler.Context, feast.Handler.Client); ok {
+		applied := &feastdevv1.MlflowConfig{
+			Enabled:     true,
+			TrackingUri: &discovered.TrackingUri,
+		}
+		if discovered.UiUrl != "" {
+			applied.UiUrl = &discovered.UiUrl
+		}
+		cr.Status.Applied.Mlflow = applied
+	}
 }
 
 // Deploy the feast services
@@ -71,14 +117,63 @@ func (feast *FeastServices) Deploy() error {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
 	}
 
+	if err := feast.reconcileServices(); err != nil {
+		return err
+	}
+
+	if err := feast.createServiceAccount(); err != nil {
+		return err
+	}
+	if err := feast.reconcileBatchEngineRBAC(); err != nil {
+		return err
+	}
+	if err := feast.createDeployment(); err != nil {
+		return err
+	}
+	if err := feast.createOrDeleteHPA(); err != nil {
+		return err
+	}
+	if err := feast.applyOrDeletePDB(); err != nil {
+		return err
+	}
+	if err := feast.reconcileLineageDeployment(); err != nil {
+		return err
+	}
+	if err := feast.deployClient(); err != nil {
+		return err
+	}
+	// Remove RoleBindings created by older operator versions that incorrectly
+	// bound the FeatureStore SA to an MLflow ClusterRole. Auth is handled via
+	// MLFLOW_TRACKING_AUTH (SA token), not Kubernetes RBAC RoleBindings.
+	if err := feast.cleanupLegacyMlflowRoleBinding(); err != nil {
+		return err
+	}
+	if err := feast.deployNamespaceRegistry(); err != nil {
+		return err
+	}
+	if err := feast.deployOpenLineageDiscovery(); err != nil {
+		return err
+	}
+	if err := feast.deployCronJob(); err != nil {
+		return err
+	}
+	if err := feast.createOrDeleteServiceMonitor(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// reconcileServices validates persistence and deploys or removes each feast
+// service type based on the applied spec.
+func (feast *FeastServices) reconcileServices() error {
 	services := feast.Handler.FeatureStore.Status.Applied.Services
+
 	if feast.isOfflineStore() {
-		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
-		if err != nil {
+		if err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
+		if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
 			return err
 		}
 	} else {
@@ -88,12 +183,10 @@ func (feast *FeastServices) Deploy() error {
 	}
 
 	if feast.isOnlineStore() {
-		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
-		if err != nil {
+		if err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
+		if err := feast.deployFeastServiceByType(OnlineFeastType); err != nil {
 			return err
 		}
 	} else {
@@ -103,12 +196,10 @@ func (feast *FeastServices) Deploy() error {
 	}
 
 	if feast.isLocalRegistry() {
-		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
-		if err != nil {
+		if err := feast.validateRegistryPersistence(services.Registry.Local.Persistence); err != nil {
 			return err
 		}
-
-		if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
+		if err := feast.deployFeastServiceByType(RegistryFeastType); err != nil {
 			return err
 		}
 	} else {
@@ -116,11 +207,12 @@ func (feast *FeastServices) Deploy() error {
 			return err
 		}
 	}
+
 	if feast.isUiServer() {
-		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
+		if err := feast.deployFeastServiceByType(UIFeastType); err != nil {
 			return err
 		}
-		if err = feast.createRoute(UIFeastType); err != nil {
+		if err := feast.createRoute(UIFeastType); err != nil {
 			return err
 		}
 	} else {
@@ -132,20 +224,27 @@ func (feast *FeastServices) Deploy() error {
 		}
 	}
 
-	if err := feast.createServiceAccount(); err != nil {
-		return err
+	if feast.isLineageServer() {
+		if err := feast.validateLineageServerConfig(); err != nil {
+			return feast.setFeastServiceCondition(err, LineageFeastType)
+		}
+		if err := feast.createService(LineageFeastType); err != nil {
+			return feast.setFeastServiceCondition(err, LineageFeastType)
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(LineageFeastType); err != nil {
+			return err
+		}
 	}
-	if err := feast.createDeployment(); err != nil {
-		return err
-	}
-	if err := feast.deployClient(); err != nil {
-		return err
-	}
-	if err := feast.deployNamespaceRegistry(); err != nil {
-		return err
-	}
-	if err := feast.deployCronJob(); err != nil {
-		return err
+
+	if feast.isMcpServer() {
+		if err := feast.deployFeastServiceByType(McpServerFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(McpServerFeastType); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -338,6 +437,8 @@ func (feast *FeastServices) createDeployment() error {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
 	}
 
+	feast.updateScalingStatus(deploy)
+
 	return nil
 }
 
@@ -367,10 +468,13 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 	}
 
 	// PVCs are immutable, so we only create... we don't update an existing one.
+	// Treat AlreadyExists as success: a pre-existing PVC without the managed-by label
+	// won't appear in the filtered cache (Client.Get returns NotFound), but Create
+	// will hit AlreadyExists on the API server — both cases mean the PVC is present.
 	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
 		err = feast.Handler.Client.Create(feast.Handler.Context, pvc)
-		if err != nil {
+		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 		logger.Info("Successfully created", "PersistentVolumeClaim", pvc.Name)
@@ -381,16 +485,25 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1.PvcCreate, feastType
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 	cr := feast.Handler.FeatureStore
+
+	// Determine replica count:
+	// - spec.replicas is set on the Deployment (defaults to 1)
+	// - When HPA is configured, replicas is left unset so the HPA controller manages it
 	replicas := deploy.Spec.Replicas
+	if desired := feast.getDesiredReplicas(); desired != nil {
+		replicas = desired
+	}
 
 	deploy.Labels = feast.getLabels()
+	selectorLabels := feast.getSelectorLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: replicas,
-		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
+		Selector: metav1.SetAsLabelSelector(selectorLabels),
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: deploy.GetLabels(),
+				Labels:      deploy.GetLabels(),
+				Annotations: cr.Status.Applied.Services.PodAnnotations,
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
@@ -411,13 +524,22 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountMcpServerConfig(podSpec)
 	feast.mountUserDefinedVolumes(podSpec)
 	feast.applyNodeSelector(podSpec)
+	feast.applyTolerations(podSpec)
+	feast.applyTopologySpread(podSpec)
+	feast.applyAffinity(podSpec)
+	feast.applyResourceClaims(podSpec)
 
 	return nil
 }
 
 func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
+	if err := feast.validatePackagedFeatureRepoPath(); err != nil {
+		return err
+	}
+
 	fsYamlB64, err := feast.GetServiceFeatureStoreYamlBase64()
 	if err != nil {
 		return err
@@ -436,6 +558,23 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	if feast.isUiServer() {
 		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
 	}
+	if feast.isMcpServer() {
+		feast.setContainer(&podSpec.Containers, McpServerFeastType, fsYamlB64)
+	}
+
+	// When the CR is annotated as a protected project, set FEAST_PROTECTED_PROJECT=true
+	// so the registry server tags its own project in the shared registry.
+	// Other FeatureStore instances then exclude this project automatically.
+	if feast.isProtectedProject() {
+		protectedEnv := corev1.EnvVar{
+			Name:  "FEAST_PROTECTED_PROJECT",
+			Value: "true",
+		}
+		for i := range podSpec.Containers {
+			podSpec.Containers[i].Env = append(podSpec.Containers[i].Env, protectedEnv)
+		}
+	}
+
 	return nil
 }
 
@@ -472,7 +611,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			})
 			if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
 				container.Ports = append(container.Ports, corev1.ContainerPort{
-					Name:          "metrics",
+					Name:          metricsPortName,
 					ContainerPort: MetricsPort,
 					Protocol:      corev1.ProtocolTCP,
 				})
@@ -483,21 +622,58 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
 			FailureThreshold: 40,
+			TimeoutSeconds:   5,
 		}
 		container.LivenessProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    20,
 			FailureThreshold: 6,
+			TimeoutSeconds:   5,
 		}
 		container.ReadinessProbe = &corev1.Probe{
-			ProbeHandler:  probeHandler,
-			PeriodSeconds: 10,
+			ProbeHandler:   probeHandler,
+			PeriodSeconds:  10,
+			TimeoutSeconds: 5,
 		}
 		volumeMounts := feast.getVolumeMounts(feastType)
 		if len(volumeMounts) > 0 {
 			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 		}
+		feast.injectMlflowEnv(container)
 		*containers = append(*containers, *container)
+	}
+}
+
+const defaultMlflowTrackingAuth = "kubernetes-namespaced"
+
+// injectMlflowEnv adds MLFLOW_TRACKING_AUTH and MLFLOW_TRACKING_URI env vars
+// to the container when MLflow integration is enabled.
+func (feast *FeastServices) injectMlflowEnv(container *corev1.Container) {
+	applied := feast.Handler.FeatureStore.Status.Applied.Mlflow
+	if applied == nil || !applied.Enabled {
+		return
+	}
+
+	trackingAuth := defaultMlflowTrackingAuth
+	if applied.TrackingAuth != nil {
+		trackingAuth = *applied.TrackingAuth
+	}
+
+	var mlflowEnv []corev1.EnvVar
+	if trackingAuth != "" {
+		mlflowEnv = append(mlflowEnv, corev1.EnvVar{
+			Name:  "MLFLOW_TRACKING_AUTH",
+			Value: trackingAuth,
+		})
+	}
+	if applied.TrackingUri != nil {
+		mlflowEnv = append(mlflowEnv, corev1.EnvVar{
+			Name:  "MLFLOW_TRACKING_URI",
+			Value: *applied.TrackingUri,
+		})
+	}
+	if len(mlflowEnv) > 0 {
+		container.Env = envOverride(container.Env, mlflowEnv)
 	}
 }
 
@@ -564,7 +740,13 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
-	baseCommand := "feast"
+	// The standalone MCP server (`feast mcp`) has its own flag surface (no -p/--grpc/TLS
+	// args), so it does not go through the shared serve-command builder below.
+	if feastType == McpServerFeastType {
+		return feast.getMcpServerCommand()
+	}
+
+	baseCommand := feastCommand
 	options := []string{}
 	logLevel := feast.getLogLevelForType(feastType)
 	if logLevel != nil {
@@ -573,7 +755,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 
 	deploySettings := FeastServiceConstants[feastType]
 	deploySettings.Args = append([]string{}, deploySettings.Args...)
-	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
+	// Only inject --metrics CLI flag for the server.metrics bool path.
+	// When serving.metrics.enabled is used, Python reads it from feature_store.yaml
+	// and starts the metrics server itself — no CLI flag needed.
+	if feastType == OnlineFeastType && feast.isMetricsEnabledViaCLI(feastType) {
 		deploySettings.Args = append([]string{deploySettings.Args[0], "--metrics"}, deploySettings.Args[1:]...)
 	}
 	targetPort := deploySettings.TargetHttpPort
@@ -588,8 +773,36 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 		if feast.isRegistryRestEnabled() {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
+			deploySettings.Args = append(deploySettings.Args, "-h", hostAllIPv4)
 		}
 	}
+	deploySettings.Args = withBindHost(feastType, deploySettings.Args, feast.getServerConfigs(feastType))
+
+	// Add worker configuration options for online store (feast serve)
+	if feastType == OnlineFeastType {
+		workerConfigs := feast.getWorkerConfigs(feastType)
+		if workerConfigs != nil {
+			if workerConfigs.Workers != nil {
+				deploySettings.Args = append(deploySettings.Args, "--workers", strconv.Itoa(int(*workerConfigs.Workers)))
+			}
+			if workerConfigs.WorkerConnections != nil {
+				deploySettings.Args = append(deploySettings.Args, "--worker-connections", strconv.Itoa(int(*workerConfigs.WorkerConnections)))
+			}
+			if workerConfigs.MaxRequests != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests", strconv.Itoa(int(*workerConfigs.MaxRequests)))
+			}
+			if workerConfigs.MaxRequestsJitter != nil {
+				deploySettings.Args = append(deploySettings.Args, "--max-requests-jitter", strconv.Itoa(int(*workerConfigs.MaxRequestsJitter)))
+			}
+			if workerConfigs.KeepAliveTimeout != nil {
+				deploySettings.Args = append(deploySettings.Args, "--keep-alive-timeout", strconv.Itoa(int(*workerConfigs.KeepAliveTimeout)))
+			}
+			if workerConfigs.RegistryTTLSeconds != nil {
+				deploySettings.Args = append(deploySettings.Args, "--registry_ttl_sec", strconv.Itoa(int(*workerConfigs.RegistryTTLSeconds)))
+			}
+		}
+	}
+
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
@@ -605,9 +818,108 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	return feastCommand
 }
 
+// withBindHost returns a copy of args with the "-h"/"--host" host set to the IPv6 wildcard when dual-stack is enabled.
+// gunicorn (online) and Arrow Flight (offline) need the bracketed form; uvicorn (ui, lineage, mcp) rejects it.
+func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feastdevv1.ServerConfigs) []string {
+	out := append([]string{}, args...)
+	if serverConfigs == nil || serverConfigs.DualStack == nil || !*serverConfigs.DualStack {
+		return out
+	}
+	host := hostAllIPv6
+	if feastType == OnlineFeastType || feastType == OfflineFeastType {
+		host = hostAllIPv6Bracketed
+	}
+	for i := 0; i+1 < len(out); i++ {
+		if out[i] == "-h" || out[i] == "--host" {
+			out[i+1] = host
+		}
+	}
+	return out
+}
+
+// getMcpServerCommand builds the `feast mcp` command for the standalone MCP server container.
+// The operator owns the bind host/port (so they match the generated Service); everything else
+// (transport, upstream feature/registry URLs, auth, observability) is read from the mounted
+// feast_mcp.yaml config file when provided. Without one, the transport defaults to http,
+// because the process default (stdio) cannot serve the Service.
+func (feast *FeastServices) getMcpServerCommand() []string {
+	cmd := []string{feastCommand}
+	if logLevel := feast.getLogLevelForType(McpServerFeastType); logLevel != nil {
+		cmd = append(cmd, "--log-level", strings.ToUpper(*logLevel))
+	}
+	targetPort := FeastServiceConstants[McpServerFeastType].TargetHttpPort
+	cmd = append(cmd, "mcp", "--host", hostAllIPv4, "--port", strconv.Itoa(int(targetPort)))
+	if configPath := feast.getMcpServerConfigPath(); configPath != "" {
+		cmd = append(cmd, "--config", configPath)
+	} else if !feast.hasMcpServerTransportEnv() {
+		cmd = append(cmd, "--transport", "http")
+	}
+	return withBindHost(McpServerFeastType, cmd, feast.getServerConfigs(McpServerFeastType))
+}
+
+// hasMcpServerTransportEnv reports whether the user set the MCP transport through mcpServer.env.
+func (feast *FeastServices) hasMcpServerTransportEnv() bool {
+	if !feast.isMcpServer() {
+		return false
+	}
+	env := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Env
+	return env != nil && getEnvVar(mcpServerTransportEnvVar, *env) != -1
+}
+
+// getMcpServerConfigPath returns the in-container path to the mounted feast_mcp.yaml, or ""
+// when no config ConfigMap is referenced.
+func (feast *FeastServices) getMcpServerConfigPath() string {
+	if !feast.isMcpServer() {
+		return ""
+	}
+	config := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Config
+	if config == nil {
+		return ""
+	}
+	key := config.ConfigMapKey
+	if len(key) == 0 {
+		key = mcpServerConfigDefaultKey
+	}
+	return mcpServerConfigMountPath + "/" + key
+}
+
+// mountMcpServerConfig mounts the user-supplied feast_mcp.yaml ConfigMap into the MCP server
+// container only. No-op when the MCP server is not configured or has no config reference.
+func (feast *FeastServices) mountMcpServerConfig(podSpec *corev1.PodSpec) {
+	if !feast.isMcpServer() {
+		return
+	}
+	config := feast.Handler.FeatureStore.Status.Applied.Services.McpServer.Config
+	if config == nil {
+		return
+	}
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: mcpServerConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: config.ConfigMapRef,
+			},
+		},
+	})
+	for i := range podSpec.Containers {
+		if podSpec.Containers[i].Name == string(McpServerFeastType) {
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      mcpServerConfigVolumeName,
+				MountPath: mcpServerConfigMountPath,
+				ReadOnly:  true,
+			})
+		}
+	}
+}
+
 func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 	if feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy != nil {
 		return *feast.Handler.FeatureStore.Status.Applied.Services.DeploymentStrategy
+	}
+	if isScalingEnabled(feast.Handler.FeatureStore) {
+		return appsv1.DeploymentStrategy{
+			Type: appsv1.RollingUpdateDeploymentStrategyType,
+		}
 	}
 	return appsv1.DeploymentStrategy{
 		Type: appsv1.RecreateDeploymentStrategyType,
@@ -620,9 +932,10 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 		feastProjectDir := applied.FeastProjectDir
 		workingDir := getOfflineMountPath(feast.Handler.FeatureStore)
 		projectPath := workingDir + "/" + applied.FeastProject
+		initImage := getInitContainerImage(&applied)
 		container := corev1.Container{
-			Name:  "feast-init",
-			Image: getFeatureServerImage(),
+			Name:  feastInitContainerName,
+			Image: initImage,
 			Env: []corev1.EnvVar{
 				{
 					Name:  TmpFeatureStoreYamlEnvVar,
@@ -633,6 +946,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 			WorkingDir: workingDir,
 		}
 
+		featureRepoDir := feast.getFeatureRepoDir()
 		var createCommand string
 		if feastProjectDir.Init != nil {
 			initSlice := []string{"feast", "init"}
@@ -662,20 +976,89 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 			if feastProjectDir.Git.EnvFrom != nil {
 				container.EnvFrom = *feastProjectDir.Git.EnvFrom
 			}
+		} else if feastProjectDir.Packaged != nil {
+			container.Env = append(container.Env,
+				corev1.EnvVar{
+					Name:  packagedFeatureRepoEnvVar,
+					Value: path.Clean(feastProjectDir.Packaged.FeatureRepoPath),
+				},
+				corev1.EnvVar{
+					Name:  stagedFeatureRepoEnvVar,
+					Value: featureRepoDir,
+				},
+			)
+			container.Args = []string{
+				"set -euo pipefail\n" +
+					"echo \"Staging packaged feast repository...\"\n" +
+					"if [[ ! -d \"${" + packagedFeatureRepoEnvVar + "}\" ]]; then " +
+					"echo \"Packaged feature repository not found: ${" + packagedFeatureRepoEnvVar + "}\" >&2; exit 1; fi\n" +
+					"rm -rf -- \"${" + stagedFeatureRepoEnvVar + "}\"\n" +
+					"mkdir -p -- \"${" + stagedFeatureRepoEnvVar + "}\"\n" +
+					"cp -a -- \"${" + packagedFeatureRepoEnvVar + "}/.\" \"${" + stagedFeatureRepoEnvVar + "}/\"\n" +
+					"printf '%s' \"${" + TmpFeatureStoreYamlEnvVar + "}\" | base64 -d > \"${" + stagedFeatureRepoEnvVar + "}/feature_store.yaml\"\n" +
+					"echo \"Packaged feast repository staging complete\"\n",
+			}
 		}
 
-		featureRepoDir := feast.getFeatureRepoDir()
-		container.Args = []string{
-			"echo \"Creating feast repository...\"\necho '" + createCommand + "'\n" +
-				"if [[ ! -d " + featureRepoDir + " ]]; then " + createCommand + "; fi;\n" +
-				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
+		if feastProjectDir.Packaged == nil {
+			container.Args = []string{
+				"echo \"Creating feast repository...\"\necho '" + createCommand + "'\n" +
+					"if [[ ! -d " + featureRepoDir + " ]]; then " + createCommand + "; fi;\n" +
+					"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
+			}
 		}
 		podSpec.InitContainers = append(podSpec.InitContainers, container)
+
+		if applied.Services.RunFeastApplyOnInit != nil && *applied.Services.RunFeastApplyOnInit {
+			applyContainer := corev1.Container{
+				Name:       feastApplyContainerName,
+				Image:      initImage,
+				Command:    []string{feastCommand, "apply"},
+				WorkingDir: featureRepoDir,
+			}
+			// feast apply needs DB/store connectivity, so inherit env, envFrom
+			// and volume mounts from all server container configs.
+			seen := map[string]bool{}
+			for _, feastType := range []FeastServiceType{RegistryFeastType, OnlineFeastType, OfflineFeastType} {
+				if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+					if serverConfigs.OptionalCtrConfigs.Env != nil {
+						applyContainer.Env = envOverride(applyContainer.Env, *serverConfigs.OptionalCtrConfigs.Env)
+					}
+					if serverConfigs.OptionalCtrConfigs.EnvFrom != nil {
+						applyContainer.EnvFrom = append(applyContainer.EnvFrom, *serverConfigs.OptionalCtrConfigs.EnvFrom...)
+					}
+					for _, vm := range feast.getVolumeMounts(feastType) {
+						if !seen[vm.MountPath] {
+							applyContainer.VolumeMounts = append(applyContainer.VolumeMounts, vm)
+							seen[vm.MountPath] = true
+						}
+					}
+				}
+			}
+			podSpec.InitContainers = append(podSpec.InitContainers, applyContainer)
+		}
 	}
 }
 
+// getServiceAppProtocol returns the appProtocol for a Service port.
+// The registry gRPC service and the offline (Arrow Flight) service use the gRPC
+// protocol, which requires HTTP/2. Setting appProtocol allows service meshes
+// (e.g. Istio) and load balancers to correctly classify the traffic and avoid
+// downgrading to HTTP/1.1.
+func (feast *FeastServices) getServiceAppProtocol(feastType FeastServiceType, isRestService bool) *string {
+	if (feastType == RegistryFeastType && !isRestService && feast.isRegistryGrpcEnabled()) ||
+		feastType == OfflineFeastType {
+		return ptr.To("grpc")
+	}
+	return nil
+}
+
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
-	svc.Labels = feast.getFeastTypeLabels(feastType)
+	if feastType == LineageFeastType {
+		svc.Labels = feast.getLineageLabels()
+	} else {
+		svc.Labels = feast.getFeastTypeLabels(feastType)
+	}
 	if feast.isOpenShiftTls(feastType) {
 		if len(svc.Annotations) == 0 {
 			svc.Annotations = map[string]string{}
@@ -692,26 +1075,26 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 				// The certificate will include both hostnames as SANs
 				if !isRestService {
 					grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
-					svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+					svc.Annotations[openshiftServingCertSecretAnnotation] = grpcSvcName + tlsNameSuffix // pragma: allowlist secret
 
 					// Add Subject Alternative Names (SANs) for both services
 					grpcHostname := grpcSvcName + "." + svc.Namespace + ".svc.cluster.local"
 					restHostname := feast.GetFeastRestServiceName(RegistryFeastType) + "." + svc.Namespace + ".svc.cluster.local"
-					svc.Annotations["service.beta.openshift.io/serving-cert-sans"] = grpcHostname + "," + restHostname
+					svc.Annotations[openshiftServingCertSansAnnotation] = grpcHostname + "," + restHostname
 				}
 				// REST service should not have the annotation - it will use the same certificate
 				// from the gRPC service secret (mounted in the pod)
 			} else if grpcEnabled && !restEnabled {
 				// Only gRPC enabled: Use gRPC service name
 				grpcSvcName := feast.initFeastSvc(RegistryFeastType).Name
-				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = grpcSvcName + tlsNameSuffix
+				svc.Annotations[openshiftServingCertSecretAnnotation] = grpcSvcName + tlsNameSuffix // pragma: allowlist secret
 			} else if !grpcEnabled && restEnabled {
 				// Only REST enabled: Use REST service name
-				svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+				svc.Annotations[openshiftServingCertSecretAnnotation] = svc.Name + tlsNameSuffix // pragma: allowlist secret
 			}
 		} else {
 			// Standard behavior for non-registry services
-			svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+			svc.Annotations[openshiftServingCertSecretAnnotation] = svc.Name + tlsNameSuffix // pragma: allowlist secret
 		}
 	}
 
@@ -730,22 +1113,27 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		targetPort = getTargetPort(feastType, tls)
 	}
 
+	svcSelector := feast.getSelectorLabels()
+	if feastType == LineageFeastType {
+		svcSelector = feast.getLineageLabels()
+	}
 	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getLabels(),
+		Selector: svcSelector,
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
-				Name:       scheme,
-				Port:       port,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(targetPort)),
+				Name:        scheme,
+				Port:        port,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(int(targetPort)),
+				AppProtocol: feast.getServiceAppProtocol(feastType, isRestService),
 			},
 		},
 	}
 
 	if feastType == OnlineFeastType && feast.isMetricsEnabled(feastType) {
 		svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
-			Name:       "metrics",
+			Name:       metricsPortName,
 			Port:       MetricsPort,
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(int(MetricsPort)),
@@ -781,6 +1169,7 @@ func (feast *FeastServices) setServiceAccount(sa *corev1.ServiceAccount) error {
 
 func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
 	pvc := feast.initPVC(feastType)
+	pvc.Labels = feast.getFeastTypeLabels(feastType)
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
 		AccessModes: pvcCreate.AccessModes,
@@ -809,6 +1198,10 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 		}
 	case UIFeastType:
 		return appliedServices.UI
+	case McpServerFeastType:
+		if feast.isMcpServer() {
+			return &appliedServices.McpServer.ServerConfigs
+		}
 	}
 	return nil
 }
@@ -820,13 +1213,48 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 	return nil
 }
 
+func (feast *FeastServices) getWorkerConfigs(feastType FeastServiceType) *feastdevv1.WorkerConfigs {
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.WorkerConfigs
+	}
+	return nil
+}
+
+// isMetricsEnabledViaCLI returns true only when metrics are enabled via the
+// server.metrics bool flag, which requires the --metrics CLI argument to be
+// injected into the feast serve command.
+func (feast *FeastServices) isMetricsEnabledViaCLI(feastType FeastServiceType) bool {
+	if feastType != OnlineFeastType {
+		return false
+	}
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil && serviceConfigs.Metrics != nil {
+		return *serviceConfigs.Metrics
+	}
+	return false
+}
+
 func (feast *FeastServices) isMetricsEnabled(feastType FeastServiceType) bool {
 	if feastType != OnlineFeastType {
 		return false
 	}
 
-	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil && serviceConfigs.Metrics != nil {
-		return *serviceConfigs.Metrics
+	// CLI flag path: server.metrics: true → adds --metrics arg + exposes port 8000.
+	// Only return true immediately; an explicit false must not suppress the YAML path.
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil &&
+		serviceConfigs.Metrics != nil && *serviceConfigs.Metrics {
+		return true
+	}
+
+	// YAML config path: serving.metrics.enabled: true → written into feature_store.yaml;
+	// Python reads it and starts the metrics server on port 8000 automatically.
+	// We still need to expose the port and Service so Prometheus can scrape it.
+	appliedSpec := feast.Handler.FeatureStore.Status.Applied
+	if appliedSpec.Services != nil &&
+		appliedSpec.Services.OnlineStore != nil &&
+		appliedSpec.Services.OnlineStore.Serving != nil &&
+		appliedSpec.Services.OnlineStore.Serving.Metrics != nil &&
+		appliedSpec.Services.OnlineStore.Serving.Metrics.Enabled {
+		return true
 	}
 
 	return false
@@ -840,11 +1268,21 @@ func (feast *FeastServices) getNodeSelectorForType(feastType FeastServiceType) *
 }
 
 func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
-	// Merge node selectors from all services
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	// Start with the pod-level node selector configured on the FeatureStore
+	// services, then overlay per-service container config node selectors
+	// (per-service selectors win on key conflicts).
 	mergedNodeSelector := make(map[string]string)
+	if services != nil && len(services.NodeSelector) > 0 {
+		for k, v := range services.NodeSelector {
+			mergedNodeSelector[k] = v
+		}
+	}
 
 	// Check all service types for node selector configuration
-	allServiceTypes := append(feastServerTypes, UIFeastType)
+	allServiceTypes := append(feastServerTypes, UIFeastType, McpServerFeastType)
 	for _, feastType := range allServiceTypes {
 		if selector := feast.getNodeSelectorForType(feastType); selector != nil && len(*selector) > 0 {
 			for k, v := range *selector {
@@ -862,6 +1300,69 @@ func (feast *FeastServices) applyNodeSelector(podSpec *corev1.PodSpec) {
 	// This preserves pre-existing selectors while adding operator requirements
 	finalNodeSelector := feast.mergeNodeSelectors(podSpec.NodeSelector, mergedNodeSelector)
 	podSpec.NodeSelector = finalNodeSelector
+}
+
+func (feast *FeastServices) applyTolerations(podSpec *corev1.PodSpec) {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+
+	if services != nil && services.Tolerations != nil {
+		podSpec.Tolerations = services.Tolerations
+	}
+}
+
+func (feast *FeastServices) applyTopologySpread(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	// User-provided explicit constraints take precedence (including empty array to disable)
+	if services != nil && services.TopologySpreadConstraints != nil {
+		podSpec.TopologySpreadConstraints = services.TopologySpreadConstraints
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{{
+		MaxSkew:           1,
+		TopologyKey:       "topology.kubernetes.io/zone",
+		WhenUnsatisfiable: corev1.ScheduleAnyway,
+		LabelSelector:     metav1.SetAsLabelSelector(feast.getSelectorLabels()),
+	}}
+}
+
+func (feast *FeastServices) applyAffinity(podSpec *corev1.PodSpec) {
+	cr := feast.Handler.FeatureStore
+	services := cr.Status.Applied.Services
+
+	if services != nil && services.Affinity != nil {
+		podSpec.Affinity = services.Affinity
+		return
+	}
+
+	if !isScalingEnabled(cr) {
+		return
+	}
+
+	podSpec.Affinity = &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight: 100,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					TopologyKey:   "kubernetes.io/hostname",
+					LabelSelector: metav1.SetAsLabelSelector(feast.getSelectorLabels()),
+				},
+			}},
+		},
+	}
+}
+
+func (feast *FeastServices) applyResourceClaims(podSpec *corev1.PodSpec) {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+	if services != nil && len(services.ResourceClaims) > 0 {
+		podSpec.ResourceClaims = services.ResourceClaims
+	}
 }
 
 // mergeNodeSelectors merges existing and operator node selectors
@@ -918,9 +1419,32 @@ func (feast *FeastServices) getFeastTypeLabels(feastType FeastServiceType) map[s
 	return labels
 }
 
-func (feast *FeastServices) getLabels() map[string]string {
+// getLineageLabels returns labels for the lineage deployment whose NameLabelKey
+// is set to "<cr-name>-lineage" so lineage pods do NOT match the main
+// deployment's immutable selector (which uses NameLabelKey = "<cr-name>").
+func (feast *FeastServices) getLineageLabels() map[string]string {
+	return map[string]string{
+		NameLabelKey:        feast.Handler.FeatureStore.Name + "-" + string(LineageFeastType),
+		ManagedByLabelKey:   ManagedByLabelValue,
+		ServiceTypeLabelKey: string(LineageFeastType),
+	}
+}
+
+// getSelectorLabels returns the minimal label set used for immutable selectors
+// (Deployment spec.selector, Service spec.selector, TopologySpreadConstraints, PodAffinity).
+// This must NOT change after initial resource creation.
+func (feast *FeastServices) getSelectorLabels() map[string]string {
 	return map[string]string{
 		NameLabelKey: feast.Handler.FeatureStore.Name,
+	}
+}
+
+// getLabels returns the full label set for mutable metadata (ObjectMeta.Labels).
+// Includes the managed-by label used by the informer cache filter.
+func (feast *FeastServices) getLabels() map[string]string {
+	return map[string]string{
+		NameLabelKey:      feast.Handler.FeatureStore.Name,
+		ManagedByLabelKey: ManagedByLabelValue,
 	}
 }
 
@@ -955,6 +1479,22 @@ func (feast *FeastServices) setServiceHostnames() error {
 		feast.Handler.FeatureStore.Status.ServiceHostnames.UI = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.TLS)
 	}
+	if feast.isLineageServer() {
+		objMeta := feast.initFeastSvc(LineageFeastType)
+		var tls *feastdevv1.TlsConfigs
+		if svr := feast.Handler.FeatureStore.Status.Applied.OpenLineage.Consumer.LineageServer.Server; svr != nil {
+			tls = svr.TLS
+		}
+		feast.Handler.FeatureStore.Status.ServiceHostnames.Lineage = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(tls)
+	}
+	if feast.isMcpServer() {
+		objMeta := feast.initFeastSvc(McpServerFeastType)
+		// The MCP server does not support operator-managed TLS yet, so its Service always
+		// listens on the plain HTTP port.
+		feast.Handler.FeatureStore.Status.ServiceHostnames.McpServer = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(nil)
+	}
 	return nil
 }
 
@@ -963,13 +1503,12 @@ func (feast *FeastServices) setFeastServiceCondition(err error, feastType FeastS
 	if err != nil {
 		logger := log.FromContext(feast.Handler.Context)
 		cond := conditionMap[metav1.ConditionFalse]
-		cond.Message = "Error: " + err.Error()
+		cond.Message = ErrorMessagePrefix + err.Error()
 		apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, cond)
 		logger.Error(err, "Error deploying the FeatureStore "+string(ClientFeastType)+" service")
 		return err
-	} else {
-		apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, conditionMap[metav1.ConditionTrue])
 	}
+	apimeta.SetStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, conditionMap[metav1.ConditionTrue])
 	return nil
 }
 
@@ -1012,9 +1551,6 @@ func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, err
 				return nil, errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
 			}
 			return nil, err
-		}
-		if feast.Handler.FeatureStore.Status.Applied.FeastProject != remoteFeastObj.Status.Applied.FeastProject {
-			return nil, errors.New("FeatureStore '" + remoteFeastObj.Name + "' is using a different feast project than '" + feast.Handler.FeatureStore.Status.Applied.FeastProject + "'. Project names must match.")
 		}
 		return &FeastServices{
 			Handler: handler.FeastHandler{
@@ -1067,7 +1603,7 @@ func (feast *FeastServices) isOnlineServer() bool {
 
 func (feast *FeastServices) isOnlineStore() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
-	return appliedServices != nil && appliedServices.OnlineStore != nil
+	return appliedServices != nil && appliedServices.OnlineStore != nil && !appliedServices.OnlineStore.Disabled
 }
 
 func (feast *FeastServices) noLocalCoreServerConfigured() bool {
@@ -1077,6 +1613,159 @@ func (feast *FeastServices) noLocalCoreServerConfigured() bool {
 func (feast *FeastServices) isUiServer() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.UI != nil
+}
+
+func (feast *FeastServices) validateLineageServerConfig() error {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	consumer := applied.OpenLineage.Consumer
+
+	hasConsumerDB := consumer.ConnectionStringSecretRef != nil //nolint:gosec // pragma: allowlist secret
+
+	hasRegistrySqlDB := false
+	if applied.Services != nil && applied.Services.Registry != nil &&
+		applied.Services.Registry.Local != nil &&
+		applied.Services.Registry.Local.Persistence != nil &&
+		applied.Services.Registry.Local.Persistence.DBPersistence != nil {
+		hasRegistrySqlDB = true
+	}
+
+	if !hasConsumerDB && !hasRegistrySqlDB {
+		return errors.New(
+			"lineageServer requires a SQL database. Either set " +
+				"consumer.connectionStringSecretRef or configure " +
+				"registry.local.persistence.store (SQL registry)")
+	}
+
+	if applied.AuthzConfig != nil {
+		hasLocalRegistry := applied.Services != nil && applied.Services.Registry != nil &&
+			applied.Services.Registry.Local != nil
+		hasRemoteRegistry := applied.Services != nil && applied.Services.Registry != nil &&
+			applied.Services.Registry.Remote != nil
+		if !hasLocalRegistry && !hasRemoteRegistry {
+			return errors.New(
+				"lineageServer with authz requires a registry (local or remote) " +
+					"so the lineage server can connect for RBAC checks")
+		}
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) isLineageServer() bool {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	ol := applied.OpenLineage
+	return ol != nil && ol.Consumer != nil && ol.Consumer.LineageServer != nil
+}
+
+func (feast *FeastServices) reconcileLineageDeployment() error {
+	logger := log.FromContext(feast.Handler.Context)
+	lineageDeploy := &appsv1.Deployment{
+		ObjectMeta: feast.GetObjectMetaType(LineageFeastType),
+	}
+	lineageDeploy.SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
+
+	if !feast.isLineageServer() {
+		if err := feast.Handler.DeleteOwnedFeastObj(lineageDeploy); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, lineageDeploy, controllerutil.MutateFn(func() error {
+		return feast.setLineageDeployment(lineageDeploy)
+	})); err != nil {
+		return feast.setFeastServiceCondition(err, LineageFeastType)
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "Deployment", lineageDeploy.Name, "operation", op)
+	}
+
+	return feast.setFeastServiceCondition(nil, LineageFeastType)
+}
+
+func (feast *FeastServices) setLineageDeployment(deploy *appsv1.Deployment) error {
+	cr := feast.Handler.FeatureStore
+	lineageSvr := cr.Status.Applied.OpenLineage.Consumer.LineageServer
+
+	var replicas *int32
+	if lineageSvr.Replicas != nil {
+		replicas = lineageSvr.Replicas
+	} else {
+		one := int32(1)
+		replicas = &one
+	}
+
+	lineageLabels := feast.getLineageLabels()
+	deploy.Labels = lineageLabels
+	deploy.Spec = appsv1.DeploymentSpec{
+		Replicas: replicas,
+		Selector: metav1.SetAsLabelSelector(lineageLabels),
+		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: lineageLabels,
+			},
+		},
+	}
+
+	svcConsts := FeastServiceConstants[LineageFeastType]
+	port := svcConsts.TargetHttpPort
+
+	serverConfigs := lineageSvr.Server
+	var image string
+	if serverConfigs != nil && serverConfigs.Image != nil && len(*serverConfigs.Image) > 0 {
+		image = *serverConfigs.Image
+	} else {
+		image = getInitContainerImage(&cr.Status.Applied)
+	}
+
+	container := corev1.Container{
+		Name:    string(LineageFeastType),
+		Image:   image,
+		Command: append([]string{feastCommand}, withBindHost(LineageFeastType, svcConsts.Args, serverConfigs)...),
+		Args:    []string{"-p", fmt.Sprintf("%d", port)},
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          "http",
+				ContainerPort: port,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
+		ReadinessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt32(port),
+				},
+			},
+			InitialDelaySeconds: 10,
+			PeriodSeconds:       10,
+		},
+	}
+
+	if serverConfigs != nil {
+		if serverConfigs.Resources != nil {
+			container.Resources = *serverConfigs.Resources
+		}
+		if serverConfigs.Env != nil && len(*serverConfigs.Env) > 0 {
+			container.Env = append(container.Env, *serverConfigs.Env...)
+		}
+	}
+
+	fsYamlB64, err := feast.getLineageFeatureStoreYamlBase64()
+	if err != nil {
+		return err
+	}
+	container.Env = append(container.Env, corev1.EnvVar{
+		Name:  "FEATURE_STORE_YAML_BASE64",
+		Value: fsYamlB64,
+	})
+
+	deploy.Spec.Template.Spec.Containers = []corev1.Container{container}
+
+	return controllerutil.SetControllerReference(cr, deploy, feast.Handler.Scheme)
+}
+
+func (feast *FeastServices) isMcpServer() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.McpServer != nil
 }
 
 func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {
@@ -1173,13 +1862,11 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				},
 			},
 		})
-		if feastType == OfflineFeastType {
-			for i := range podSpec.InitContainers {
-				podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
-					Name:      volName,
-					MountPath: pvcConfig.MountPath,
-				})
-			}
+		for i := range podSpec.InitContainers {
+			podSpec.InitContainers[i].VolumeMounts = append(podSpec.InitContainers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: pvcConfig.MountPath,
+			})
 		}
 		for i := range podSpec.Containers {
 			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
@@ -1198,11 +1885,47 @@ func (feast *FeastServices) mountEmptyDirVolumes(podSpec *corev1.PodSpec) {
 
 func (feast *FeastServices) getFeatureRepoDir() string {
 	applied := feast.Handler.FeatureStore.Status.Applied
+	if applied.FeastProjectDir != nil && applied.FeastProjectDir.Packaged != nil && applied.Services.DisableInitContainers {
+		return path.Clean(applied.FeastProjectDir.Packaged.FeatureRepoPath)
+	}
 	feastProjectDir := getOfflineMountPath(feast.Handler.FeatureStore) + "/" + applied.FeastProject
 	if applied.FeastProjectDir != nil && applied.FeastProjectDir.Git != nil && len(applied.FeastProjectDir.Git.FeatureRepoPath) > 0 {
 		return feastProjectDir + "/" + applied.FeastProjectDir.Git.FeatureRepoPath
 	}
 	return feastProjectDir + "/" + FeatureRepoDir
+}
+
+func (feast *FeastServices) validatePackagedFeatureRepoPath() error {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	if applied.FeastProjectDir == nil || applied.FeastProjectDir.Packaged == nil {
+		return nil
+	}
+
+	featureRepoPath := applied.FeastProjectDir.Packaged.FeatureRepoPath
+	cleanFeatureRepoPath := path.Clean(featureRepoPath)
+	if !path.IsAbs(featureRepoPath) || cleanFeatureRepoPath == "/" || cleanFeatureRepoPath != featureRepoPath {
+		return errors.New("packaged feature repository path " + strconv.Quote(featureRepoPath) + " must be a canonical absolute, non-root path")
+	}
+
+	if !applied.Services.DisableInitContainers {
+		stagedFeatureRepoPath := path.Clean(feast.getFeatureRepoDir())
+		if pathsOverlap(cleanFeatureRepoPath, stagedFeatureRepoPath) {
+			return errors.New(
+				"packaged feature repository path " + strconv.Quote(cleanFeatureRepoPath) +
+					" overlaps staged repository path " + strconv.Quote(stagedFeatureRepoPath),
+			)
+		}
+	}
+
+	return nil
+}
+
+func pathsOverlap(firstPath, secondPath string) bool {
+	firstPath = path.Clean(firstPath)
+	secondPath = path.Clean(secondPath)
+	return firstPath == secondPath ||
+		strings.HasPrefix(firstPath, secondPath+"/") ||
+		strings.HasPrefix(secondPath, firstPath+"/")
 }
 
 func mountEmptyDirVolume(podSpec *corev1.PodSpec) {
@@ -1267,7 +1990,7 @@ func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *fea
 			return probeHandler
 		}
 	}
-	if feastType == OnlineFeastType {
+	if feastType == OnlineFeastType || feastType == McpServerFeastType {
 		probeHandler := corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health",
@@ -1294,6 +2017,67 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 	}
 
 	return false
+}
+
+// GetPodContainerFailureMessage inspects pods belonging to the given deployment
+// and returns a human-readable message describing the first init or regular
+// container that is in a failing state. Returns empty string if no failure found.
+func (feast *FeastServices) GetPodContainerFailureMessage(deploy appsv1.Deployment) string {
+	podList := corev1.PodList{}
+	selectorLabels := feast.getSelectorLabels()
+	if err := feast.Handler.Client.List(feast.Handler.Context, &podList,
+		client.InNamespace(deploy.Namespace),
+		client.MatchingLabels(selectorLabels),
+	); err != nil {
+		return ""
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if msg := initContainerFailureMessage(pod); msg != "" {
+			return msg
+		}
+		if msg := containerFailureMessage(pod); msg != "" {
+			return msg
+		}
+	}
+	return ""
+}
+
+func initContainerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "PodInitializing" {
+			return "Init container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Init container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func containerFailureMessage(pod *corev1.Pod) string {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil && cs.State.Waiting.Reason != "" && cs.State.Waiting.Reason != "ContainerCreating" {
+			return "Container '" + cs.Name + "' waiting: " + cs.State.Waiting.Reason +
+				messageIfPresent(cs.State.Waiting.Message)
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Container '" + cs.Name + "' failed with exit code " +
+				strconv.Itoa(int(cs.State.Terminated.ExitCode)) +
+				messageIfPresent(cs.State.Terminated.Message)
+		}
+	}
+	return ""
+}
+
+func messageIfPresent(msg string) string {
+	if msg != "" {
+		return " - " + msg
+	}
+	return ""
 }
 
 // GetFeastRestServiceName returns the feast REST service object name based on service type

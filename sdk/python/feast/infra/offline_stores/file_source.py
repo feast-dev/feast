@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -10,6 +11,7 @@ from pyarrow.parquet import ParquetDataset
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -23,6 +25,8 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.value_type import ValueType
+
+logger = logging.getLogger(__name__)
 
 
 @typechecked
@@ -46,6 +50,7 @@ class FileSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """
         Creates a FileSource object.
@@ -67,6 +72,8 @@ class FileSource(DataSource):
                 maintainer.
             timestamp_field (optional): Event timestamp field used for point in time
                 joins of feature values.
+            connection_ref (optional): Connection reference (K8s Secret, Vault path, etc.)
+                with optional connection_type, auth_type, and non-sensitive params.
 
         Examples:
             >>> from feast import FileSource
@@ -86,6 +93,7 @@ class FileSource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -94,7 +102,7 @@ class FileSource(DataSource):
 
     def __eq__(self, other):
         if not isinstance(other, FileSource):
-            raise TypeError("Comparisons should only involve FileSource class objects.")
+            return False
 
         return (
             super().__eq__(other)
@@ -121,6 +129,7 @@ class FileSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
+        tags = dict(data_source.tags)
         return FileSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -130,8 +139,9 @@ class FileSource(DataSource):
             created_timestamp_column=data_source.created_timestamp_column,
             s3_endpoint_override=data_source.file_options.s3_endpoint_override,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -151,8 +161,43 @@ class FileSource(DataSource):
         return data_source_proto
 
     def validate(self, config: RepoConfig):
-        # TODO: validate a FileSource
-        pass
+        """Validate that the file source exists and is readable.
+
+        Checks that the path resolves to an existing Parquet or Delta file
+        and that the declared timestamp column is present in the schema.
+        """
+        from feast.infra.offline_stores.file_source import FileSource
+
+        uri = self.path
+        repo_path = config.repo_path if hasattr(config, "repo_path") else None
+        resolved = FileSource.get_uri_for_file_path(repo_path, uri)
+
+        try:
+            filesystem, path = FileSystem.from_uri(resolved)
+            file_info = filesystem.get_file_info(path)
+            if file_info.type == pyarrow.fs.FileType.NotFound:
+                raise FileNotFoundError(f"FileSource path does not exist: {resolved}")
+        except Exception as e:
+            logger.warning("Could not validate FileSource path '%s': %s", resolved, e)
+            return
+
+        try:
+            if isinstance(self.file_options.file_format, DeltaFormat):
+                return
+            pq_dataset = ParquetDataset(path, filesystem=filesystem)
+            schema = pq_dataset.schema
+            if self.timestamp_field and self.timestamp_field not in schema.names:
+                logger.warning(
+                    "Timestamp field '%s' not found in FileSource schema at '%s'. "
+                    "Available columns: %s",
+                    self.timestamp_field,
+                    resolved,
+                    schema.names,
+                )
+        except Exception as e:
+            logger.warning(
+                "Could not read schema from FileSource '%s': %s", resolved, e
+            )
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
@@ -202,11 +247,18 @@ class FileSource(DataSource):
                 "AWS_ENDPOINT_URL": str(self.s3_endpoint_override),
             }
 
-            schema = (
-                DeltaTable(self.path, storage_options=storage_options)
-                .schema()
-                .to_pyarrow()
-            )
+            delta_schema = DeltaTable(
+                self.path, storage_options=storage_options
+            ).schema()
+            if hasattr(delta_schema, "to_arrow"):
+                # deltalake >= 0.10.0
+                arro3_schema = delta_schema.to_arrow()
+                schema = pyarrow.schema(arro3_schema)
+            elif hasattr(delta_schema, "to_pyarrow"):
+                # deltalake < 0.10.0
+                schema = delta_schema.to_pyarrow()
+            else:
+                raise Exception("Unknown DeltaTable package version")
         else:
             raise Exception(f"Unknown FileFormat -> {self.file_format}")
 
@@ -214,12 +266,46 @@ class FileSource(DataSource):
 
     @staticmethod
     def create_filesystem_and_path(
-        path: str, s3_endpoint_override: str
+        path: str,
+        s3_endpoint_override: str,
+        resolved_credentials: Optional[Dict[str, str]] = None,
     ) -> Tuple[Optional[FileSystem], str]:
+        """Build a PyArrow filesystem for the given path.
+
+        For S3 paths, ``resolved_credentials`` (from ``ConnectionRef``) may
+        supply explicit AWS credentials.  Supported keys:
+
+        - ``AWS_ACCESS_KEY_ID`` + ``AWS_SECRET_ACCESS_KEY`` — static credentials
+        - ``AWS_SESSION_TOKEN`` — STS / assumed-role temporary credentials
+        - ``AWS_DEFAULT_REGION`` — override the default region
+
+        AWS auth methods that do **not** require ``ConnectionRef`` (they are
+        resolved automatically by the AWS SDK / boto3 credential chain):
+
+        - IAM instance profiles (EC2)
+        - IRSA / EKS Pod Identity (Kubernetes)
+        - OIDC federation
+        - Environment variables set directly on the Pod
+        """
         if path.startswith("s3://"):
-            s3fs = S3FileSystem(
-                endpoint_override=s3_endpoint_override if s3_endpoint_override else None
-            )
+            kwargs: Dict[str, Optional[str]] = {}
+            if s3_endpoint_override:
+                kwargs["endpoint_override"] = s3_endpoint_override
+
+            if resolved_credentials:
+                access_key = resolved_credentials.get("AWS_ACCESS_KEY_ID", "")
+                secret_key = resolved_credentials.get("AWS_SECRET_ACCESS_KEY", "")
+                session_token = resolved_credentials.get("AWS_SESSION_TOKEN")
+                region = resolved_credentials.get("AWS_DEFAULT_REGION")
+                if access_key and secret_key:
+                    kwargs["access_key"] = access_key
+                    kwargs["secret_key"] = secret_key
+                if session_token:
+                    kwargs["session_token"] = session_token
+                if region:
+                    kwargs["region"] = region
+
+            s3fs = S3FileSystem(**kwargs)
             return s3fs, path.replace("s3://", "")
         else:
             return None, path

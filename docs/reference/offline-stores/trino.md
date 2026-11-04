@@ -22,19 +22,19 @@ project_description: This Feast project is a Trino Offline Store demo.
 provider: local
 registry: data/registry.db
 offline_store:
-	type: trino
-	host: ${TRINO_HOST}
-	port: ${TRINO_PORT}
-	http-scheme: http
-	ssl-verify: false
-	catalog: hive
-	dataset: ${DATASET_NAME}
+    type: trino
+    host: ${TRINO_HOST}
+    port: ${TRINO_PORT}
+    http-scheme: http
+    ssl-verify: false
+    catalog: hive
+    dataset: ${DATASET_NAME}
     # Hive connection as example
-	connector:
-		type: hive
-		file_format: parquet
-	user: trino
-		# Enables authentication in Trino connections, pick the one you need
+    connector:
+        type: hive
+        file_format: parquet
+    user: trino
+        # Enables authentication in Trino connections, pick the one you need
     auth:
         # Basic Auth
         type: basic
@@ -69,12 +69,12 @@ offline_store:
             delegate: true
             ca_bundle: /path/to/ca/bundle/file
 online_store:
-	path: data/online_store.db
+    path: data/online_store.db
 # Prevents "Unsupported Hive type: timestamp(3) with time zone" TrinoUserError
 coerce_tz_aware: false
 entity_key_serialization_version: 3
 auth:
-	type: no_auth
+    type: no_auth
 ```
 {% endcode %}
 

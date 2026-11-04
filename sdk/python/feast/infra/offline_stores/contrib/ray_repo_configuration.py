@@ -15,10 +15,10 @@ from feast.infra.offline_stores.file_source import (
 )
 from feast.repo_config import FeastConfigBaseModel
 from feast.saved_dataset import SavedDatasetStorage
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 

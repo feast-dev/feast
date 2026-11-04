@@ -30,8 +30,9 @@ const FeaturesList = ({
     {
       name: "Value Type",
       field: "valueType",
-      render: (valueType: feast.types.ValueType.Enum) => {
-        return feast.types.ValueType.Enum[valueType];
+      render: (valueType: feast.types.ValueType.Enum | string) => {
+        if (typeof valueType === "string") return valueType;
+        return feast.types.ValueType.Enum[valueType] || String(valueType || "");
       },
     },
   ];

@@ -51,7 +51,7 @@ To fully implement the interface for the offline store, you will need to impleme
 * `pull_latest_from_table_or_query` is invoked when running materialization (using the `feast materialize` or `feast materialize-incremental` commands, or the corresponding `FeatureStore.materialize()` method. This method pull data from the offline store, and the `FeatureStore` class takes care of writing this data into the online store.
 * `get_historical_features` is invoked when reading values from the offline store using the `FeatureStore.get_historical_features()` method. Typically, this method is used to retrieve features when training ML models.
 * (optional) `offline_write_batch` is a method that supports directly pushing a pyarrow table to a feature view. Given a feature view with a specific schema, this function should write the pyarrow table to the batch source defined. More details about the push api can be found [here](../docs/reference/data-sources/push.md). This method only needs implementation if you want to support the push api in your offline store.
-* (optional) `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date. This method is only used for **SavedDatasets** as part of data quality monitoring validation.
+* (optional) `pull_all_from_table_or_query` is a method that pulls all the data from an offline store from a specified start date to a specified end date. This method is used for **SavedDatasets** and as a fallback compute path for the [Feature Quality Monitoring](../../how-to-guides/feature-monitoring.md) system (backends without native SQL push-down).
 * (optional) `write_logged_features` is a method that takes a pyarrow table or a path that points to a parquet file and writes the data to a defined source defined by `LoggingSource` and `LoggingConfig`. This method is only used internally for **SavedDatasets**.
 
 {% code title="feast_custom_offline_store/file.py" %}
@@ -385,7 +385,7 @@ Even if you have created the `OfflineStore` class in a separate repo, you can st
     ```
 3.  Next, set up your offline store to run the universal integration tests. These are integration tests specifically intended to test offline and online stores against Feast API functionality, to ensure that the Feast APIs works with your offline store.
 
-    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
+    * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/universal/feature_repos/repo_configuration.py` which stores different offline store classes for testing.
     * To overwrite the default configurations to use your own offline store, you can simply create your own file that contains a `FULL_REPO_CONFIGS` dictionary, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file. The module should add new `IntegrationTestRepoConfig` classes to the `AVAILABLE_OFFLINE_STORES` by defining an offline store that you would like Feast to test with.
 
     A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
@@ -440,10 +440,10 @@ test-python-universal-spark:
 
 ### 7. Dependencies
 
-Add any dependencies for your offline store to our `sdk/python/setup.py` under a new `<OFFLINE_STORE>__REQUIRED` list with the packages and add it to the setup script so that if your offline store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements files:
+Add any dependencies for your offline store to `pyproject.toml` under `[project.optional-dependencies]` as a new extra (e.g. `<offline_store> = ["package1>=1.0", "package2"]`). These packages should be defined as extras so that they are not installed by users by default. You will need to regenerate our requirements lock files:
 
 ```
-make lock-python-ci-dependencies-all
+make lock-python-dependencies-all
 ```
 
 ### 8. Add Documentation

@@ -3,10 +3,9 @@ import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import ibis
-import ibis.selectors as s
 import numpy as np
 import pandas as pd
 import pyarrow
@@ -33,6 +32,33 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 
+def read_mlflow_data_source(data_source: DataSource) -> Optional[Table]:
+    """Shared helper for ibis-based offline stores to read from MlflowDatasetSource.
+
+    Returns an ibis Table if ``data_source`` is an ``MlflowDatasetSource``,
+    otherwise returns ``None`` so the caller can fall through to other readers.
+    Gracefully returns ``None`` when the ``mlflow`` package is not installed.
+
+    Delegates fully to ``data_source.to_arrow()`` which handles:
+      - Auth (token resolution + ContextVar scoping)
+      - Tracking URI (thread-safe global mutation)
+      - Mode dispatch (GenAI vs Artifact)
+      - Short-lived TTL caching
+    """
+    try:
+        from feast.infra.data_sources.mlflow.mlflow_dataset_source import (
+            MlflowDatasetSource,
+        )
+    except ImportError:
+        return None
+
+    if not isinstance(data_source, MlflowDatasetSource):
+        return None
+
+    arrow_table = data_source.to_arrow()
+    return ibis.memtable(arrow_table)
+
+
 def _get_entity_schema(entity_df: pd.DataFrame) -> Dict[str, np.dtype]:
     return dict(zip(entity_df.columns, entity_df.dtypes))
 
@@ -54,8 +80,8 @@ def pull_latest_from_table_or_query_ibis(
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
         fields.append(created_timestamp_column)
-    start_date = start_date.astimezone(tz=timezone.utc)
-    end_date = end_date.astimezone(tz=timezone.utc)
+    start_date = start_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
+    end_date = end_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
     table = data_source_reader(data_source, str(config.repo_path))
 
@@ -67,8 +93,8 @@ def pull_latest_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field] >= ibis.literal(start_date),
-            table[timestamp_field] <= ibis.literal(end_date),
+            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date),
+            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date),
         )
     )
 
@@ -121,6 +147,27 @@ def _to_utc(entity_df: pd.DataFrame, event_timestamp_col):
     return entity_df
 
 
+def _entity_row_id(entity_table: Table, columns: Iterable[str]):
+    """Build an id that is the same only for rows with equal values in columns.
+
+    Each value is length-prefixed so that different rows cannot concatenate to
+    the same id (e.g. "1" + "11" and "11" + "1"), and a null value gets its own
+    marker instead of turning the whole id into null.
+    """
+    r = ibis.literal("_")
+
+    for e in columns:
+        value = entity_table[e].cast("string")
+        r = r.concat(
+            value.isnull().ifelse(
+                "N",
+                value.length().cast("string").concat(":", value),
+            )
+        )
+
+    return r
+
+
 def _generate_row_id(
     entity_table: Table, feature_views: List[FeatureView], event_timestamp_col
 ) -> Table:
@@ -131,12 +178,9 @@ def _generate_row_id(
         else:
             all_entities.extend([e.name for e in fv.entity_columns])
 
-    r = ibis.literal("")
-
-    for e in set(all_entities):
-        r = r.concat(entity_table[e].cast("string"))  # type: ignore
-
-    entity_table = entity_table.mutate(entity_row_id=r)
+    entity_table = entity_table.mutate(
+        entity_row_id=_entity_row_id(entity_table, set(all_entities))
+    )
 
     return entity_table
 
@@ -154,6 +198,7 @@ def get_historical_features_ibis(
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
     event_expire_timestamp_fn=None,
+    filter_by_created_timestamp: bool = False,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -175,6 +220,10 @@ def get_historical_features_ibis(
     def read_fv(
         feature_view: FeatureView, feature_refs: List[str], full_feature_names: bool
     ) -> Tuple:
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
         fv_table: Table = data_source_reader(
             feature_view.batch_source, str(config.repo_path)
         )
@@ -184,17 +233,22 @@ def get_historical_features_ibis(
                 fv_table = fv_table.rename({new_name: old_name})
 
         timestamp_field = feature_view.batch_source.timestamp_field
+        created_timestamp_column = feature_view.batch_source.created_timestamp_column
 
-        # TODO mutate only if tz-naive
+        # deduplicate() orders by created_timestamp_column whether or not the cutoff is
+        # on, so this cannot be gated on it. Casting an already-UTC column is a no-op.
+        utc_columns = [timestamp_field]
+        if created_timestamp_column:
+            utc_columns.append(created_timestamp_column)
+
         fv_table = fv_table.mutate(
             **{
-                timestamp_field: fv_table[timestamp_field].cast(
-                    dt.Timestamp(timezone="UTC")
-                )
+                column: fv_table[column].cast(dt.Timestamp(timezone="UTC"))
+                for column in utc_columns
             }
         )
 
-        full_name_prefix = feature_view.projection.name_alias or feature_view.name
+        full_name_prefix = feature_view.projection.name_to_use()
 
         feature_refs = [
             fr.split(":")[1]
@@ -202,19 +256,22 @@ def get_historical_features_ibis(
             if fr.startswith(f"{full_name_prefix}:")
         ]
 
+        # Use base name (without version) for column naming
+        base_name_prefix = feature_view.projection.name_alias or feature_view.name
+
         if full_feature_names:
             fv_table = fv_table.rename(
-                {f"{full_name_prefix}__{feature}": feature for feature in feature_refs}
+                {f"{base_name_prefix}__{feature}": feature for feature in feature_refs}
             )
 
             feature_refs = [
-                f"{full_name_prefix}__{feature}" for feature in feature_refs
+                f"{base_name_prefix}__{feature}" for feature in feature_refs
             ]
 
         return (
             fv_table,
-            feature_view.batch_source.timestamp_field,
-            feature_view.batch_source.created_timestamp_column,
+            timestamp_field,
+            created_timestamp_column,
             feature_view.projection.join_key_map
             or {e.name: e.name for e in feature_view.entity_columns},
             feature_refs,
@@ -229,6 +286,7 @@ def get_historical_features_ibis(
         ],
         event_timestamp_col=event_timestamp_col,
         event_expire_timestamp_fn=event_expire_timestamp_fn,
+        filter_by_created_timestamp=filter_by_created_timestamp,
     )
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
@@ -273,9 +331,9 @@ def pull_all_from_table_or_query_ibis(
         timestamp_fields.append(created_timestamp_column)
     fields = join_key_columns + feature_name_columns + timestamp_fields
     if start_date:
-        start_date = start_date.astimezone(tz=timezone.utc)
+        start_date = start_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
     if end_date:
-        end_date = end_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
     table = data_source_reader(data_source, str(config.repo_path))
 
@@ -287,10 +345,10 @@ def pull_all_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field] >= ibis.literal(start_date)
+            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date)
             if start_date
             else ibis.literal(True),
-            table[timestamp_field] <= ibis.literal(end_date)
+            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date)
             if end_date
             else ibis.literal(True),
         )
@@ -336,6 +394,8 @@ def offline_write_batch_ibis(
     progress: Optional[Callable[[int], Any]],
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
 ):
+    if feature_view.batch_source is None:
+        raise ValueError(f"Feature view '{feature_view.name}' has no batch_source.")
     pa_schema, column_names = get_pyarrow_schema_from_batch_source(
         config, feature_view.batch_source
     )
@@ -371,6 +431,7 @@ def point_in_time_join(
     feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
     event_expire_timestamp_fn=None,
+    filter_by_created_timestamp: bool = False,
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
@@ -384,14 +445,15 @@ def point_in_time_join(
     ) in feature_tables:
         all_entities.extend(join_key_map.values())
 
-    r = ibis.literal("")
-
-    for e in set(all_entities):
-        r = r.concat(entity_table[e].cast("string"))  # type: ignore
-
-    entity_table = entity_table.mutate(entity_row_id=r)
+    entity_table = entity_table.mutate(
+        entity_row_id=_entity_row_id(entity_table, set(all_entities))
+    )
 
     acc_table = entity_table
+
+    # Track the columns we want to keep explicitly
+    entity_columns = list(entity_table.columns)
+    all_feature_cols: List[str] = []
 
     for (
         feature_table,
@@ -410,7 +472,7 @@ def point_in_time_join(
             else:
                 alias = "".join(random.choices(string.ascii_uppercase, k=10))
 
-                feature_table = feature_table.alias(alias=alias).sql(
+                feature_table = feature_table.alias(alias).sql(
                     f"SELECT *, {event_expire_timestamp_fn(timestamp_field, ttl)} AS event_expire_timestamp FROM {alias}"
                 )
 
@@ -422,6 +484,12 @@ def point_in_time_join(
             feature_table[timestamp_field] <= entity_table[event_timestamp_col],
         )
 
+        if filter_by_created_timestamp and created_timestamp_field:
+            predicates.append(
+                feature_table[created_timestamp_field]
+                <= entity_table[event_timestamp_col],
+            )
+
         if ttl:
             predicates.append(
                 feature_table["event_expire_timestamp"]
@@ -432,7 +500,8 @@ def point_in_time_join(
             entity_table, predicates, lname="", rname="{name}_y"
         )
 
-        feature_table = feature_table.drop(s.endswith("_y"))
+        cols_to_drop_y = [c for c in feature_table.columns if c.endswith("_y")]
+        feature_table = feature_table.drop(*cols_to_drop_y)
 
         feature_table = deduplicate(
             table=feature_table,
@@ -445,6 +514,9 @@ def point_in_time_join(
         select_cols.extend(feature_refs)
         feature_table = feature_table.select(select_cols)
 
+        # Track the feature columns we're adding
+        all_feature_cols.extend(feature_refs)
+
         acc_table = acc_table.left_join(
             feature_table,
             predicates=[feature_table.entity_row_id == acc_table.entity_row_id],
@@ -452,9 +524,9 @@ def point_in_time_join(
             rname="{name}_yyyy",
         )
 
-        acc_table = acc_table.drop(s.endswith("_yyyy"))
-
-    acc_table = acc_table.drop("entity_row_id")
+    # Select only the columns we want: entity columns (minus entity_row_id) + all feature columns
+    final_cols = [c for c in entity_columns if c != "entity_row_id"] + all_feature_cols
+    acc_table = acc_table.select(final_cols)
 
     return acc_table
 

@@ -2,7 +2,7 @@ name: Get semantic release version
 description: ""
 inputs:
   custom_version: # Optional input for a custom version
-    description: "Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing"
+    description: "Custom version to publish (e.g., v1.2.3 or v1.2.3.dev4) -- only edit if you know what you are doing"
     required: false
   token:
     description: "Personal Access Token"
@@ -10,10 +10,10 @@ inputs:
     default: ""
 outputs:
   release_version:
-    description: "The release version to use (e.g., v1.2.3)"
+    description: "The release version to use (e.g., v1.2.3 or v1.2.3.dev4)"
     value: ${{ steps.get_release_version.outputs.release_version }}
   version_without_prefix:
-    description: "The release version to use without 'v' (e.g., 1.2.3)"
+    description: "The release version to use without 'v' (e.g., 1.2.3 or 1.2.3.dev4)"
     value: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
   highest_semver_tag:
     description: "The highest semantic version tag without the 'v' prefix (e.g., 1.2.3)"
@@ -32,10 +32,10 @@ runs:
         GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
       run: |
         if [[ -n "${{ inputs.custom_version }}" ]]; then
-          VERSION_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
+          VERSION_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$"
           echo "Using custom version: ${{ inputs.custom_version }}"
           if [[ ! "${{ inputs.custom_version }}" =~ $VERSION_REGEX ]]; then
-            echo "Error: custom_version must match semantic versioning (e.g., v1.2.3)."
+            echo "Error: custom_version must match semantic versioning (e.g., v1.2.3 or v1.2.3.dev4)."
             exit 1
           fi
           echo "::set-output name=release_version::${{ inputs.custom_version }}"

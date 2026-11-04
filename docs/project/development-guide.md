@@ -91,13 +91,12 @@ See [Creating a pull request from a fork](https://docs.github.com/en/github/coll
 
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
-1. Ensure that you have Python (3.7 and above) with `pip`, installed.
-2. Install `pre-commit` with `pip` &amp; install pre-push hooks
+1. Ensure that you have Python (3.10 and above) with [uv](https://docs.astral.sh/uv/) installed.
+2. Install `pre-commit` and hooks:
 ```sh
-pip install pre-commit
-pre-commit install --hook-type pre-commit --hook-type pre-push
+make install-precommit
 ```
-3. On push, the pre-commit hook will run. This runs `make format` and `make lint`.
+3. On commit, the pre-commit hook will run. This runs `make format` and `make lint`.
 
 ### Signing off commits
 > :warning: Warning: using the default integrations with IDEs like VSCode or IntelliJ will not sign commits.
@@ -129,7 +128,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 - [uv](https://docs.astral.sh/) for managing python dependencies. [installation instructions](https://docs.astral.sh/uv/getting-started/installation/)
 - (M1 Mac only): Follow the [dev guide if you have issues](https://github.com/feast-dev/feast/issues/2105)
 - (Optional): Node & Yarn (needed for building the feast UI)
-- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versioons.
+- (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versions.
 
 ### Quick start
 - create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version)
@@ -218,7 +217,7 @@ make test-python-integration-local
 To test across clouds, on top of setting up Redis, you also need GCP / AWS / Snowflake setup.
 
 > Note: you can manually control what tests are run today by inspecting
-> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/integration/feature_repos/repo_configuration.py)
+> [RepoConfiguration](https://github.com/feast-dev/feast/blob/master/sdk/python/tests/universal/feature_repos/repo_configuration.py)
 > and commenting out tests that are added to `DEFAULT_FULL_REPO_CONFIGS`
 
 **GCP**
@@ -240,7 +239,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   ```
   Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
   ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"` to add the application credentials to your .zshrc or .bashrc.
 5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
 6. Running `gcloud config list` should give you something like this:
   ```sh
@@ -308,7 +307,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
   export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
   export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
-  export BLOB_EXPORT_URI='[your data unloading blob uri]`
+  export BLOB_EXPORT_URI='[your data unloading blob uri]'
   ```
 7. Once everything is setup, running snowflake integration tests should pass without failures.
 
@@ -351,18 +350,18 @@ You can run `make test-python-integration-container` to run tests against the co
 
 ### Contrib integration tests
 #### (Contrib) Running tests for Spark offline store
-You can run `make test-python-universal-spark` to run all tests against the Spark offline store. (Note: you'll have to run `pip install -e ".[dev]"` first).
+You can run `make test-python-universal-spark` to run all tests against the Spark offline store. (Note: you'll have to run `make install-python-dependencies-dev` first).
 
 Not all tests are passing yet
 
 #### (Contrib) Running tests for Trino offline store
-You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `make test-python-universal-trino` to run all tests against the Trino offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for Postgres offline store
-You can run `test-python-universal-postgres-offline` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `test-python-universal-postgres-offline` to run all tests against the Postgres offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for Postgres online store
-You can run `test-python-universal-postgres-online` to run all tests against the Postgres offline store. (Note: you'll have to run `pip install -e ".[dev]"` first)
+You can run `test-python-universal-postgres-online` to run all tests against the Postgres offline store. (Note: you'll have to run `make install-python-dependencies-dev` first)
 
 #### (Contrib) Running tests for HBase online store
 TODO
@@ -395,7 +394,7 @@ It will:
 - install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
 
 ### Feast Python Feature Server Helm Chart
-See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
+See the Python demo example (it has development instructions too using minikube) [here](https://github.com/feast-dev/feast/blob/master/examples/python-helm-demo/README.md)
 
 It will:
 - run `make build-feature-server-dev` to build a local python feature server binary

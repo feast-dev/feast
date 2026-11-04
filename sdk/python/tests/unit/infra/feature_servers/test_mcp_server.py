@@ -1,8 +1,142 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from pydantic import ValidationError
+
+import feast.api.registry.rest.rest_registry_server  # noqa: F401
 from feast.feature_store import FeatureStore
 from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
+from feast.infra.mcp_servers.mcp_server import _resolve_schema_references_safe
+
+
+class TestResolveSchemaReferencesSafe(unittest.TestCase):
+    """Tests for the circular-ref-safe OpenAPI schema resolver."""
+
+    def test_simple_ref_resolution(self):
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Pet": {
+                        "type": "object",
+                        "properties": {"name": {"type": "string"}},
+                    }
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Pet"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        self.assertNotIn("$ref", result)
+        self.assertIn("name", result["properties"])
+
+    def test_circular_ref_breaks_cycle(self):
+        """Value -> Struct -> Value must not recurse infinitely."""
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Value": {
+                        "type": "object",
+                        "properties": {
+                            "struct_value": {"$ref": "#/components/schemas/Struct"},
+                        },
+                    },
+                    "Struct": {
+                        "type": "object",
+                        "properties": {
+                            "fields": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Value"
+                                },
+                            }
+                        },
+                    },
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Value"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        self.assertNotIn("$ref", result)
+        # The circular Value ref should be replaced with {"type": "object"}
+        additional = result["properties"]["struct_value"]["properties"]["fields"][
+            "additionalProperties"
+        ]
+        self.assertEqual(additional.get("type"), "object")
+        self.assertNotIn("$ref", additional)
+
+    def test_self_referential_schema(self):
+        """A schema referencing itself (e.g. a tree node)."""
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "TreeNode": {
+                        "type": "object",
+                        "properties": {
+                            "children": {
+                                "type": "array",
+                                "items": {"$ref": "#/components/schemas/TreeNode"},
+                            }
+                        },
+                    }
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/TreeNode"}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(result["type"], "object")
+        child_items = result["properties"]["children"]["items"]
+        self.assertEqual(child_items.get("type"), "object")
+        self.assertNotIn("$ref", child_items)
+
+    def test_no_ref_passthrough(self):
+        schema_part = {"type": "string", "description": "a name"}
+        result = _resolve_schema_references_safe(schema_part, {})
+        self.assertEqual(result, schema_part)
+
+    def test_unknown_ref_preserved(self):
+        schema_part = {"$ref": "#/components/schemas/Missing"}
+        reference_schema = {"components": {"schemas": {}}}
+        result = _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertIn("$ref", result)
+
+    def test_does_not_mutate_input(self):
+        reference_schema = {
+            "components": {
+                "schemas": {
+                    "Foo": {"type": "object"},
+                }
+            }
+        }
+        schema_part = {"$ref": "#/components/schemas/Foo"}
+        original_copy = schema_part.copy()
+        _resolve_schema_references_safe(schema_part, reference_schema)
+        self.assertEqual(schema_part, original_copy)
+
+
+class TestPatchFastapiMcpSchemaResolver(unittest.TestCase):
+    """Tests for the monkey-patch helper."""
+
+    @patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
+    def test_patch_replaces_function(self):
+        from feast.infra.mcp_servers.mcp_server import (
+            _patch_fastapi_mcp_schema_resolver,
+            _resolve_schema_references_safe,
+        )
+
+        try:
+            import fastapi_mcp.openapi.utils as mcp_utils
+
+            original = mcp_utils.resolve_schema_references
+            _patch_fastapi_mcp_schema_resolver()
+            self.assertIs(
+                mcp_utils.resolve_schema_references,
+                _resolve_schema_references_safe,
+            )
+            mcp_utils.resolve_schema_references = original
+        except ImportError:
+            self.skipTest("fastapi_mcp not installed")
 
 
 class TestMcpFeatureServerConfig(unittest.TestCase):
@@ -17,7 +151,7 @@ class TestMcpFeatureServerConfig(unittest.TestCase):
         self.assertFalse(config.mcp_enabled)
         self.assertEqual(config.mcp_server_name, "feast-mcp-server")
         self.assertEqual(config.mcp_server_version, "1.0.0")
-        self.assertIsNone(config.mcp_transport)
+        self.assertEqual(config.mcp_transport, "sse")
         self.assertEqual(config.transformation_service_endpoint, "localhost:6566")
 
     def test_custom_config(self):
@@ -41,11 +175,11 @@ class TestMcpFeatureServerConfig(unittest.TestCase):
 
     def test_config_validation(self):
         """Test configuration validation."""
-        # Test valid transport options
-        valid_transports = ["sse", "websocket", None]
-        for transport in valid_transports:
+        for transport in ["sse", "http"]:
             config = McpFeatureServerConfig(mcp_transport=transport)
             self.assertEqual(config.mcp_transport, transport)
+        with self.assertRaises(ValidationError):
+            McpFeatureServerConfig(mcp_transport="websocket")
 
     def test_config_inheritance(self):
         """Test that McpFeatureServerConfig properly inherits from BaseFeatureServerConfig."""
@@ -66,12 +200,13 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
-        mock_config.mcp_server_version = "1.0.0"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server",
+            mcp_server_version="1.0.0",
+            mcp_transport="sse",
+        )
 
-        # Mock the FastApiMCP instance
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
@@ -83,8 +218,7 @@ class TestMCPServerUnit(unittest.TestCase):
             description="Feast Feature Store MCP Server - Access feature store data and operations through MCP",
         )
 
-        # Verify mount was called
-        mock_mcp_instance.mount.assert_called_once()
+        mock_mcp_instance.mount_sse.assert_called_once()
 
         # Verify the result
         self.assertEqual(result, mock_mcp_instance)
@@ -96,11 +230,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        # Don't set mcp_server_name to test default
-        del mock_config.mcp_server_name
+        mock_config = SimpleNamespace(mcp_transport="sse")
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
@@ -115,6 +247,40 @@ class TestMCPServerUnit(unittest.TestCase):
         self.assertEqual(result, mock_mcp_instance)
 
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
+    def test_add_mcp_support_http_transport(self, mock_fast_api_mcp):
+        from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+        mock_app = Mock()
+        mock_store = Mock(spec=FeatureStore)
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="http"
+        )
+
+        mock_mcp_instance = Mock(spec_set=["mount_http"])
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
+        mock_mcp_instance.mount_http.assert_called_once()
+        self.assertEqual(result, mock_mcp_instance)
+
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
+    def test_add_mcp_support_http_missing_mount_http_fails(self, mock_fast_api_mcp):
+        from feast.infra.mcp_servers.mcp_server import (
+            McpTransportNotSupportedError,
+            add_mcp_support_to_app,
+        )
+
+        mock_app = Mock()
+        mock_store = Mock(spec=FeatureStore)
+        mock_config = SimpleNamespace(mcp_transport="http")
+
+        mock_mcp_instance = Mock(spec_set=["mount"])
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        with self.assertRaises(McpTransportNotSupportedError):
+            add_mcp_support_to_app(mock_app, mock_store, mock_config)
+
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     @patch("feast.infra.mcp_servers.mcp_server.logger")
     def test_add_mcp_support_with_exception(self, mock_logger, mock_fast_api_mcp):
         """Test MCP support addition when FastApiMCP raises an exception."""
@@ -122,8 +288,9 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
         # Mock FastApiMCP to raise an exception
         mock_fast_api_mcp.side_effect = Exception("MCP initialization failed")
@@ -135,7 +302,8 @@ class TestMCPServerUnit(unittest.TestCase):
 
         # Verify error was logged
         mock_logger.error.assert_called_once_with(
-            "Failed to initialize MCP integration: MCP initialization failed"
+            "Failed to initialize MCP integration: MCP initialization failed",
+            exc_info=True,
         )
 
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
@@ -145,10 +313,11 @@ class TestMCPServerUnit(unittest.TestCase):
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
-        mock_config = Mock()
-        mock_config.mcp_server_name = "test-server"
+        mock_config = SimpleNamespace(
+            mcp_server_name="test-server", mcp_transport="sse"
+        )
 
-        mock_mcp_instance = Mock()
+        mock_mcp_instance = Mock(spec_set=["mount"])
         mock_mcp_instance.mount.side_effect = Exception("Mount failed")
         mock_fast_api_mcp.return_value = mock_mcp_instance
 
@@ -203,3 +372,90 @@ class TestFeatureServerMCPHooks(unittest.TestCase):
             mock_logger.error.assert_called_with(
                 "Error checking/adding MCP support: Test error"
             )
+
+    @patch("feast.infra.mcp_servers.mcp_server.add_mcp_support_to_app")
+    def test_add_mcp_support_if_enabled_transport_not_supported_fails(self, mock_add):
+        from feast.feature_server import _add_mcp_support_if_enabled
+        from feast.infra.mcp_servers.mcp_server import McpTransportNotSupportedError
+
+        mock_app = Mock()
+        mock_store = Mock()
+        mock_store.config.feature_server = Mock()
+        mock_store.config.feature_server.type = "mcp"
+        mock_store.config.feature_server.mcp_enabled = True
+        mock_store.config.feature_server.mcp_transport = "http"
+
+        mock_add.side_effect = McpTransportNotSupportedError("bad")
+
+        with self.assertRaises(McpTransportNotSupportedError):
+            _add_mcp_support_if_enabled(mock_app, mock_store)
+
+
+class TestRestRegistryServerMCP(unittest.TestCase):
+    """Test MCP integration in RestRegistryServer."""
+
+    @patch("fastapi_mcp.FastApiMCP")
+    @patch("feast.api.registry.rest.rest_registry_server.RegistryServer")
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_mounted_when_enabled(
+        self, mock_register, mock_auth, mock_grpc, mock_fast_api_mcp
+    ):
+        """Test that MCP is mounted on RestRegistryServer when registry.mcp.enabled is True."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = SimpleNamespace(enabled=True)
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        mock_mcp_instance = Mock(spec_set=["mount_sse", "mount", "mount_http"])
+        mock_fast_api_mcp.return_value = mock_mcp_instance
+
+        server = RestRegistryServer(mock_store)
+
+        mock_fast_api_mcp.assert_called_once_with(server.app, name="feast-registry-mcp")
+        mock_mcp_instance.mount_sse.assert_called_once()
+
+    @patch("feast.api.registry.rest.rest_registry_server.RegistryServer")
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_not_mounted_when_disabled(self, mock_register, mock_auth, mock_grpc):
+        """Test that MCP is not mounted when registry.mcp.enabled is False."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = SimpleNamespace(enabled=False)
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        with patch("fastapi_mcp.FastApiMCP") as mock_fast_api_mcp:
+            RestRegistryServer(mock_store)
+            mock_fast_api_mcp.assert_not_called()
+
+    @patch("feast.api.registry.rest.rest_registry_server.RegistryServer")
+    @patch("feast.api.registry.rest.rest_registry_server.RestRegistryServer._init_auth")
+    @patch(
+        "feast.api.registry.rest.rest_registry_server.RestRegistryServer._register_routes"
+    )
+    def test_mcp_not_mounted_when_mcp_config_absent(
+        self, mock_register, mock_auth, mock_grpc
+    ):
+        """Test that MCP is not mounted when registry.mcp is None."""
+        from feast.api.registry.rest.rest_registry_server import RestRegistryServer
+
+        mock_store = Mock()
+        mock_store.config.registry.mcp = None
+        mock_store.config.auth_config.type = "no_auth"
+        mock_store.registry = Mock()
+        mock_store.project = "test_project"
+
+        with patch("fastapi_mcp.FastApiMCP") as mock_fast_api_mcp:
+            RestRegistryServer(mock_store)
+            mock_fast_api_mcp.assert_not_called()

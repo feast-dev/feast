@@ -4,14 +4,14 @@ import pytest
 
 from feast import Entity, Feature, FeatureView, ValueType
 from tests.data.data_creator import create_basic_driver_dataset
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
     RegistryLocation,
 )
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     construct_test_environment,
 )
-from tests.integration.feature_repos.universal.data_sources.redshift import (
+from tests.universal.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
 )
 from tests.utils.e2e_test_validation import validate_offline_online_store_consistency

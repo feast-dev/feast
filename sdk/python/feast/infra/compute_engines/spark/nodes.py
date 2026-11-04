@@ -1,9 +1,27 @@
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional, Union, cast
+from typing import Callable, Dict, List, Optional, Set, Union, cast
 
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
+from pyspark.sql.types import (
+    ArrayType,
+    BinaryType,
+    BooleanType,
+    DoubleType,
+    FloatType,
+    IntegerType,
+    LongType,
+    MapType,
+    StringType,
+    StructType,
+    TimestampType,
+)
+from pyspark.sql.types import (
+    DataType as SparkDataType,
+)
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
@@ -15,7 +33,9 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.utils import map_in_arrow
 from feast.infra.compute_engines.utils import (
+    ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
+    infer_entity_timestamp_column,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
@@ -24,11 +44,103 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
-from feast.infra.offline_stores.offline_utils import (
-    infer_event_timestamp_from_entity_df,
-)
+from feast.transformation.udf_rehydrate import resolve_udf
 
-ENTITY_TS_ALIAS = "__entity_event_timestamp"
+logger = logging.getLogger(__name__)
+
+
+def from_feast_to_spark_type(feast_type) -> Optional[SparkDataType]:
+    """Convert a Feast type to a PySpark DataType.
+
+    Returns None if the Feast type cannot be mapped.
+    """
+    from feast.types import (
+        Array,
+        PrimitiveFeastType,
+        Set,
+        Struct,
+    )
+
+    if isinstance(feast_type, Struct):
+        from pyspark.sql.types import StructField
+
+        spark_fields = []
+        for name, ftype in feast_type.fields.items():
+            spark_type = from_feast_to_spark_type(ftype)
+            if spark_type is None:
+                return None
+            spark_fields.append(StructField(name, spark_type, nullable=True))
+        return StructType(spark_fields)
+
+    if isinstance(feast_type, PrimitiveFeastType):
+        mapping = {
+            PrimitiveFeastType.BYTES: BinaryType(),
+            PrimitiveFeastType.STRING: StringType(),
+            PrimitiveFeastType.INT32: IntegerType(),
+            PrimitiveFeastType.INT64: LongType(),
+            PrimitiveFeastType.FLOAT64: DoubleType(),
+            PrimitiveFeastType.FLOAT32: FloatType(),
+            PrimitiveFeastType.BOOL: BooleanType(),
+            PrimitiveFeastType.UNIX_TIMESTAMP: TimestampType(),
+            PrimitiveFeastType.MAP: MapType(StringType(), StringType()),
+            PrimitiveFeastType.JSON: StringType(),
+        }
+        return mapping.get(feast_type)
+
+    if isinstance(feast_type, Array):
+        base_type = feast_type.base_type
+        if isinstance(base_type, Struct):
+            inner = from_feast_to_spark_type(base_type)
+            return ArrayType(inner) if inner else None
+        if isinstance(base_type, PrimitiveFeastType):
+            if base_type == PrimitiveFeastType.MAP:
+                return ArrayType(MapType(StringType(), StringType()))
+            inner = from_feast_to_spark_type(base_type)
+            return ArrayType(inner) if inner else None
+
+    if isinstance(feast_type, Set):
+        inner = from_feast_to_spark_type(feast_type.base_type)
+        return ArrayType(inner) if inner else None
+
+    return None
+
+
+def _spark_types_compatible(expected: SparkDataType, actual: SparkDataType) -> bool:
+    """Check if two Spark types are compatible for validation purposes.
+
+    Exact match is always compatible. Beyond that, we allow common
+    representations that arise from different data source encodings.
+    """
+    if expected == actual:
+        return True
+
+    # Map ↔ Struct: data sources may encode maps as structs or vice versa
+    if isinstance(expected, MapType) and isinstance(actual, (MapType, StructType)):
+        return True
+    if isinstance(expected, StructType) and isinstance(actual, (StructType, MapType)):
+        return True
+
+    # Json (StringType) is always compatible with StringType
+    if isinstance(expected, StringType) and isinstance(actual, StringType):
+        return True
+
+    # Integer widening: IntegerType ↔ LongType
+    if isinstance(expected, (IntegerType, LongType)) and isinstance(
+        actual, (IntegerType, LongType)
+    ):
+        return True
+
+    # Float widening: FloatType ↔ DoubleType
+    if isinstance(expected, (FloatType, DoubleType)) and isinstance(
+        actual, (FloatType, DoubleType)
+    ):
+        return True
+
+    # Array compatibility: compare element types
+    if isinstance(expected, ArrayType) and isinstance(actual, ArrayType):
+        return _spark_types_compatible(expected.elementType, actual.elementType)
+
+    return False
 
 
 # Rename entity_df event_timestamp_col to match feature_df
@@ -43,9 +155,7 @@ def rename_entity_ts_column(
         spark_session=spark_session,
         entity_df=entity_df,
     )
-    event_timestamp_col = infer_event_timestamp_from_entity_df(
-        entity_schema=entity_schema,
-    )
+    event_timestamp_col = infer_entity_timestamp_column(entity_schema)
     if not isinstance(entity_df, DataFrame):
         entity_df = spark_session.createDataFrame(entity_df)
     entity_df = entity_df.withColumnRenamed(event_timestamp_col, ENTITY_TS_ALIAS)
@@ -80,7 +190,8 @@ class SparkReadNode(DAGNode):
         if isinstance(retrieval_job, SparkRetrievalJob):
             spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
         else:
-            spark_df = self.spark_session.createDataFrame(retrieval_job.to_arrow())
+            arrow_table = retrieval_job.to_arrow()
+            spark_df = self.spark_session.createDataFrame(arrow_table)
 
         return DAGValue(
             data=spark_df,
@@ -188,7 +299,7 @@ class SparkAggregationNode(DAGNode):
             expected_columns = entity_keys + [self.timestamp_col]
             for time_window, window_aggs in aggs_by_window.items():
                 for agg in window_aggs:
-                    feature_name = f"{agg.function}_{agg.column}_{int(time_window.total_seconds())}s"
+                    feature_name = agg.resolved_name(time_window)
                     if feature_name not in expected_columns:
                         expected_columns.append(feature_name)
 
@@ -248,12 +359,11 @@ class SparkAggregationNode(DAGNode):
         """Execute standard Spark aggregation (existing logic)."""
         agg_exprs = []
         for agg in self.aggregations:
-            func = getattr(F, agg.function)
-            expr = func(agg.column).alias(
-                f"{agg.function}_{agg.column}_{int(agg.time_window.total_seconds())}s"
-                if agg.time_window
-                else f"{agg.function}_{agg.column}"
-            )
+            if agg.function == "count_distinct":
+                func_expr = F.countDistinct(agg.column)
+            else:
+                func_expr = getattr(F, agg.function)(agg.column)
+            expr = func_expr.alias(agg.resolved_name(agg.time_window))
             agg_exprs.append(expr)
 
         if any(agg.time_window for agg in self.aggregations):
@@ -486,9 +596,32 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, udf: Callable, inputs: List[DAGNode]):
+    def __init__(
+        self,
+        name: str,
+        udf: Callable,
+        inputs: List[DAGNode],
+        udf_string: str = "",
+    ):
         super().__init__(name, inputs)
         self.udf = udf
+        self.udf_string = udf_string or ""
+        self._resolved_udf: Optional[Callable] = None
+
+    def _resolve_udf(self) -> Callable:
+        """Prefer source reconstruction over dill callables.
+
+        Dill-deserialized functions that call DataFrame.withColumn / __getitem__
+        can segfault (exit 139) on Spark 4.0.1. Re-executing ``udf_string``
+        yields a healthy callable. Result is cached for the lifetime of the node.
+        """
+        if self._resolved_udf is None:
+            self._resolved_udf = resolve_udf(
+                udf_string=self.udf_string,
+                fallback_udf=self.udf,
+                preferred_name=self.name,
+            )
+        return self._resolved_udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         input_values = self.get_input_values(context)
@@ -497,8 +630,112 @@ class SparkTransformationNode(DAGNode):
 
         input_dfs: List[DataFrame] = [val.data for val in input_values]
 
-        transformed_df = self.udf(*input_dfs)
+        transformed_df = self._resolve_udf()(*input_dfs)
 
         return DAGValue(
             data=transformed_df, format=DAGFormat.SPARK, metadata={"transformed": True}
         )
+
+
+class SparkValidationNode(DAGNode):
+    """
+    Spark node for validating feature data against the declared schema.
+
+    Checks that all expected columns are present in the Spark DataFrame,
+    validates column types using native Spark types, and checks JSON
+    well-formedness for Json columns.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        expected_columns: Dict[str, Optional[SparkDataType]],
+        json_columns: Optional[Set[str]] = None,
+        inputs: Optional[List[DAGNode]] = None,
+    ):
+        super().__init__(name, inputs=inputs)
+        self.expected_columns = expected_columns
+        self.json_columns = json_columns or set()
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.SPARK)
+        spark_df: DataFrame = input_value.data
+
+        if not self.expected_columns:
+            context.node_outputs[self.name] = input_value
+            return input_value
+
+        self._validate_schema(spark_df)
+
+        logger.debug("[Validation: %s] Schema validation passed.", self.name)
+        context.node_outputs[self.name] = input_value
+        return input_value
+
+    def _validate_schema(self, spark_df: DataFrame):
+        """Validate the Spark DataFrame against the expected schema.
+
+        Checks for missing columns, type mismatches using native Spark types,
+        and JSON well-formedness for declared Json columns.
+        """
+        actual_columns = set(spark_df.columns)
+        expected_names = set(self.expected_columns.keys())
+
+        missing = expected_names - actual_columns
+        if missing:
+            raise ValueError(
+                f"[Validation: {self.name}] Missing expected columns: {missing}. "
+                f"Actual columns: {sorted(actual_columns)}"
+            )
+
+        # Type validation using native Spark types
+        schema = spark_df.schema
+        for col_name, expected_type in self.expected_columns.items():
+            if expected_type is None:
+                continue
+            try:
+                actual_field = schema[col_name]
+            except (KeyError, IndexError):
+                continue
+            actual_type = actual_field.dataType
+            if not _spark_types_compatible(expected_type, actual_type):
+                logger.warning(
+                    "[Validation: %s] Column '%s' type mismatch: expected %s, got %s",
+                    self.name,
+                    col_name,
+                    expected_type.simpleString(),
+                    actual_type.simpleString(),
+                )
+
+        # Validate JSON well-formedness for declared Json columns
+        if self.json_columns:
+            sample_rows = spark_df.limit(1000).collect()
+            for col_name in self.json_columns:
+                if col_name not in actual_columns:
+                    continue
+
+                invalid_count = 0
+                first_error = None
+                first_error_row = None
+
+                for i, row in enumerate(sample_rows):
+                    value = row[col_name]
+                    if value is None:
+                        continue
+                    if not isinstance(value, str):
+                        continue
+                    try:
+                        json.loads(value)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        invalid_count += 1
+                        if first_error is None:
+                            first_error = str(e)
+                            first_error_row = i
+
+                if invalid_count > 0:
+                    raise ValueError(
+                        f"[Validation: {self.name}] Column '{col_name}' declared as "
+                        f"Json contains {invalid_count} invalid JSON value(s) in "
+                        f"sampled rows. First error at row {first_error_row}: "
+                        f"{first_error}"
+                    )

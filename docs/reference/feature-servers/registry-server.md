@@ -48,6 +48,27 @@ Most endpoints support these common query parameters:
 - `sort_by` (optional): Field to sort by
 - `sort_order` (optional): Sort order: "asc" or "desc" (default: "asc")
 
+### System
+
+#### Get Runtime Version
+
+- **Endpoint**: `GET /api/v1/version`
+- **Description**: Return the Feast package version installed in the running server process
+- **Example**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/version"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "version": "0.66.0"
+  }
+  ```
+
+The endpoint returns `"unknown"` when the running process cannot resolve installed package
+metadata.
+
 ### Entities
 
 #### List Entities
@@ -214,6 +235,7 @@ Most endpoints support these common query parameters:
   - `feature` (optional): Filter feature views by feature name
   - `feature_service` (optional): Filter feature views by feature service name
   - `data_source` (optional): Filter feature views by data source name
+  - `updated_since` (optional): Only return feature views updated at or after this ISO-8601 UTC timestamp (e.g. `2024-01-01T00:00:00Z`)
   - `page` (optional): Page number for pagination
   - `limit` (optional): Number of items per page
   - `sort_by` (optional): Field to sort by
@@ -223,27 +245,31 @@ Most endpoints support these common query parameters:
   # Basic list
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project"
-  
+
   # With pagination and relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&include_relationships=true&page=1&limit=5&sort_by=name"
-  
+
   # Filter by entity
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user"
-  
+
   # Filter by feature
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&feature=age"
-  
+
   # Filter by data source
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&data_source=user_profile_source"
-  
+
   # Filter by feature service
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&feature_service=user_service"
-  
+
+  # Filter by last-updated timestamp
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&updated_since=2024-06-01T00:00:00Z"
+
   # Multiple filters combined
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user&feature=age"
@@ -1207,28 +1233,33 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
         "name": "user_id",
         "description": "Primary identifier for users",
         "project": "project1",
-        "match_score": 100
+        "match_score": 100,
+        "matched_tags": {}
       },
       {
         "type": "featureView",
         "name": "user_features",
         "description": "User demographic and behavioral features",
         "project": "project1",
-        "match_score": 100
+        "match_score": 100,
+        "matched_tags": {"team": "user_analytics"}
       },
       {
         "type": "feature",
         "name": "user_age",
         "description": "Age of the user in years",
         "project": "project1",
-        "match_score": 80
+        "featureView": "user_features",
+        "match_score": 80,
+        "matched_tags": {}
       },
       {
         "type": "dataSource",
         "name": "user_analytics",
         "description": "Analytics data for user behavior tracking",
         "project": "project2",
-        "match_score": 80
+        "match_score": 80,
+        "matched_tags": {"source": "user_data"}
       }
     ],
     "pagination": {
@@ -1408,4 +1439,3 @@ feature_server:
 - Only the most recent `limit` visits per user are stored
 - Metrics endpoints (`/metrics/*`) are automatically excluded from logging to prevent circular references
 - Visit data is stored per user and per project in the registry metadata
-

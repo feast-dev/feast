@@ -1,0 +1,59 @@
+# Reference feature_store.yaml demonstrating all three Aerospike
+# extension points wired together. Copy the `online_store:` block into
+# your own feature repo and adjust hosts / namespaces / hook import
+# path for your project.
+#
+# Prerequisites:
+#   - The `feast_ram` and `feast_ssd` namespaces must already exist on
+#     the Aerospike cluster. Aerospike cannot create namespaces at
+#     runtime; a missing namespace surfaces as AEROSPIKE_ERR_PARAM on
+#     the first read or write touching that view.
+#   - `FEAST_PII_SALT` must be set in every process that calls
+#     online_write_batch through this store.
+
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+
+online_store:
+  type: aerospike
+
+  hosts:
+    - ["aerospike.internal", 3000]
+
+  # Store-level defaults. Anything not listed in *_overrides below
+  # falls back to these.
+  namespace: feast
+  set_name_template: "{project}_{collection_suffix}"
+
+  # Pin individual feature views to different namespaces -- typically
+  # one in-memory namespace for hot, latency-sensitive views and one
+  # device-backed namespace for cold, wide views.
+  namespace_overrides:
+    driver_realtime_stats: feast_ram
+    driver_history_lookup: feast_ssd
+
+  # Isolate one feature view in its own set so that admin operations on
+  # it (truncate, scan-based deletion via `feast apply`) do not touch
+  # the records of other views.
+  set_overrides:
+    isolated_view: my_feature_repo_isolated
+
+  # Project-wide write-side hook. The store dynamically imports the
+  # callable on first use and caches it. Adjust the import path to
+  # whatever module is on your writers' PYTHONPATH; the value below
+  # assumes you have the example folder on PYTHONPATH from the
+  # repository root.
+  prewriting_hook: examples.online_store.aerospike_overrides_and_hooks.hooks.hash_pii_string_features
+
+  # Standard timing knobs (optional -- shown for completeness).
+  ttl_seconds: 86400
+  read_timeout_ms: 150
+  write_timeout_ms: 300
+  batch_total_timeout_ms: 500
+  socket_timeout_ms: 50
+  max_retries: 2
+
+# Offline store / entity_key_serialization_version / etc. are
+# project-specific and intentionally omitted; this file is a snippet,
+# not a runnable repo.

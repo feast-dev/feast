@@ -19,3 +19,7 @@ stringData:
   client_secret: client_secret
   username: username
   password: password
+  # Optional: enable audience/issuer claim verification on the servers.
+  # Values must match the claims in the tokens your IdP issues.
+  # audience: api://feast-feature-server
+  # issuer: https://idp.example.com/realms/feast

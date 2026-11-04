@@ -15,10 +15,11 @@ import (
 
 var REGISTRY_SCHEMA_VERSION string = "1"
 var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
-	"gs":   "GCSRegistryStore",
-	"s3":   "S3RegistryStore",
-	"file": "FileRegistryStore",
-	"":     "FileRegistryStore",
+	"gs":    "GCSRegistryStore",
+	"s3":    "S3RegistryStore",
+	"file":  "FileRegistryStore",
+	"mysql": "MySQLRegistryStore",
+	"":      "FileRegistryStore",
 }
 
 /*
@@ -80,6 +81,10 @@ func (r *Registry) InitializeRegistry() error {
 }
 
 func (r *Registry) RefreshRegistryOnInterval() {
+	if r.cachedRegistryProtoTtl <= 0 {
+		log.Info().Msg("Registry cache TTL is non-positive; skipping periodic refresh")
+		return
+	}
 	ticker := time.NewTicker(r.cachedRegistryProtoTtl)
 	for ; true; <-ticker.C {
 		err := r.refresh()
@@ -357,7 +362,7 @@ func getRegistryStoreFromScheme(registryPath string, registryConfig *RegistryCon
 	if registryStoreType, ok := REGISTRY_STORE_CLASS_FOR_SCHEME[uri.Scheme]; ok {
 		return getRegistryStoreFromType(registryStoreType, registryConfig, repoPath, project)
 	}
-	return nil, fmt.Errorf("registry path %s has unsupported scheme %s. Supported schemes are file, s3 and gs", registryPath, uri.Scheme)
+	return nil, fmt.Errorf("registry path %s has unsupported scheme %s. Supported schemes are file, s3, gcs, and mysql", registryPath, uri.Scheme)
 }
 
 func getRegistryStoreFromType(registryStoreType string, registryConfig *RegistryConfig, repoPath string, project string) (RegistryStore, error) {
@@ -366,6 +371,10 @@ func getRegistryStoreFromType(registryStoreType string, registryConfig *Registry
 		return NewFileRegistryStore(registryConfig, repoPath), nil
 	case "S3RegistryStore":
 		return NewS3RegistryStore(registryConfig, repoPath), nil
+	case "GCSRegistryStore":
+		return NewGCSRegistryStore(registryConfig, repoPath), nil
+	case "MySQLRegistryStore":
+		return NewMySQLRegistryStore(registryConfig, repoPath, project), nil
 	}
-	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
+	return nil, errors.New("only FileRegistryStore, S3RegistryStore, GCSRegistryStore, and MySQLRegistryStore are supported at this moment")
 }

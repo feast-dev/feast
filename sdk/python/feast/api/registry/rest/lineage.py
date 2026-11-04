@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_lineage_router(grpc_handler) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(tags=["Lineage"])
 
     @router.get("/lineage/registry")
     def get_registry_lineage(
@@ -86,6 +86,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             "featureView",
             "featureService",
             "feature",
+            "savedDataset",
         ]
         if object_type not in valid_types:
             raise ValueError(
@@ -171,18 +172,23 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 "entities": project_resources.get("entities", []),
                 "dataSources": project_resources.get("dataSources", []),
                 "featureViews": project_resources.get("featureViews", []),
+                "labelViews": project_resources.get("labelViews", []),
                 "featureServices": project_resources.get("featureServices", []),
                 "features": project_resources.get("features", []),
+                "labels": project_resources.get("labels", []),
+                "savedDatasets": project_resources.get("savedDatasets", []),
             },
             "relationships": lineage_response.get("relationships", []),
             "indirectRelationships": lineage_response.get("indirectRelationships", []),
             "pagination": {
-                # Get pagination metadata from project_resources if available, otherwise use empty dicts
                 "entities": pagination.get("entities", {}),
                 "dataSources": pagination.get("dataSources", {}),
                 "featureViews": pagination.get("featureViews", {}),
+                "labelViews": pagination.get("labelViews", {}),
                 "featureServices": pagination.get("featureServices", {}),
                 "features": pagination.get("features", {}),
+                "labels": pagination.get("labels", {}),
+                "savedDatasets": pagination.get("savedDatasets", {}),
                 "relationships": lineage_response.get("relationshipsPagination", {}),
                 "indirectRelationships": lineage_response.get(
                     "indirectRelationshipsPagination", {}
@@ -263,10 +269,16 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 ds["project"] = project_name
             for fv in project_resources.get("featureViews", []):
                 fv["project"] = project_name
+            for lv in project_resources.get("labelViews", []):
+                lv["project"] = project_name
             for fs in project_resources.get("featureServices", []):
                 fs["project"] = project_name
             for feat in project_resources.get("features", []):
                 feat["project"] = project_name
+            for lbl in project_resources.get("labels", []):
+                lbl["project"] = project_name
+            for sd in project_resources.get("savedDatasets", []):
+                sd["project"] = project_name
             all_data.append(
                 {
                     "project": project_name,
@@ -274,8 +286,11 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                         "entities": project_resources.get("entities", []),
                         "dataSources": project_resources.get("dataSources", []),
                         "featureViews": project_resources.get("featureViews", []),
+                        "labelViews": project_resources.get("labelViews", []),
                         "featureServices": project_resources.get("featureServices", []),
                         "features": project_resources.get("features", []),
+                        "labels": project_resources.get("labels", []),
+                        "savedDatasets": project_resources.get("savedDatasets", []),
                     },
                     "relationships": lineage_response.get("relationships", []),
                     "indirectRelationships": lineage_response.get(

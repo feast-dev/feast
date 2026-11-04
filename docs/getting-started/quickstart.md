@@ -4,7 +4,7 @@
 
 Feast (Feature Store) is an open-source feature store designed to facilitate the management and serving of machine learning features in a way that supports both batch and real-time applications.
 
-* *For Data Scientists*: Feast is a a tool where you can easily define, store, and retrieve your features for both model development and model deployment. By using Feast, you can focus on what you do best: build features that power your AI/ML models and maximize the value of your data.
+* *For Data Scientists*: Feast is a tool where you can easily define, store, and retrieve your features for both model development and model deployment. By using Feast, you can focus on what you do best: build features that power your AI/ML models and maximize the value of your data.
 	
 * *For MLOps Engineers*: Feast is a library that allows you to connect your existing infrastructure (e.g., online database, application server, microservice, analytical database, and orchestration tooling) that enables your Data Scientists to ship features for their models to production using a friendly SDK without having to be concerned with software engineering challenges that occur from serving real-time production systems. By using Feast, you can focus on maintaining a resilient system, instead of implementing features for Data Scientists.
 	
@@ -160,8 +160,10 @@ driver_stats_source = FileSource(
 # three feature column. Here we define a Feature View that will allow us to serve this
 # data to our model online.
 driver_stats_fv = FeatureView(
-    # The unique name of this feature view. Two feature views in a single
-    # project cannot have the same name
+# The unique name of this feature view. Two feature views in a single
+# project cannot have the same name, and names must be unique across
+# all feature view types (regular, stream, on-demand) to avoid conflicts
+# during `feast apply`.
     name="driver_hourly_stats",
     entities=[driver],
     ttl=timedelta(days=1),
@@ -368,6 +370,9 @@ entity_df = pd.DataFrame.from_dict(
         # entity's join key -> entity values
         "driver_id": [1001, 1002, 1003],
         # "event_timestamp" (reserved key) -> timestamps
+        # Each timestamp acts as the upper bound for the point-in-time join:
+        # Feast retrieves the latest feature values at or before this time,
+        # preventing data leakage from future events.
         "event_timestamp": [
             datetime(2021, 4, 12, 10, 59, 42),
             datetime(2021, 4, 12, 8, 12, 10),
@@ -496,7 +501,7 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/feature_definitions.py](feature_repo/feature_repo/feature_definitions.py)).
+We now serialize the latest values of features from the materialization window to prepare for serving. `materialize-incremental` starts from each feature view's most recent materialization end date. On the first run, it starts from the current time minus the feature view's `ttl`. In this example, the initial lookback is one day (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
 
 {% tabs %}
 {% tab title="Bash (with timestamp)" %}
@@ -508,7 +513,7 @@ feast materialize-incremental $CURRENT_TIME
 {% endtab %}
 {% tab title="Bash (simple)" %}
 ```bash
-# Alternative: Materialize all data using current timestamp (for data without event timestamps)
+# Alternative: Materialize all available data without specifying start/end timestamps
 feast materialize --disable-event-timestamp
 ```
 {% endtab %}
@@ -661,6 +666,7 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 
 ## Next steps
 
+* Run `feast demo-notebooks` to generate tailored Jupyter notebooks for your project. See [Demo Notebooks](../tutorials/demo-notebooks.md).
 * Read the [Concepts](concepts/) page to understand the Feast data model.
 * Read the [Architecture](architecture/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.

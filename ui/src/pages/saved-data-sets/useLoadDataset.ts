@@ -1,22 +1,18 @@
-import { useContext } from "react";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
-import useLoadRegistry from "../../queries/useLoadRegistry";
+import { useParams } from "react-router-dom";
+import useResourceQuery, {
+  savedDatasetDetailPath,
+} from "../../queries/useResourceQuery";
 
-const useLoadEntity = (entityName: string) => {
-  const registryUrl = useContext(RegistryPathContext);
-  const registryQuery = useLoadRegistry(registryUrl);
+const useLoadDataset = (datasetName: string) => {
+  const { projectName } = useParams();
 
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.savedDatasets?.find(
-          (fv) => fv.spec?.name === entityName,
-        );
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<any>({
+    resourceType: `saved-dataset:${datasetName}`,
+    project: projectName,
+    restPath: savedDatasetDetailPath(datasetName, projectName || ""),
+    restSelect: (d) => d,
+    enabled: !!datasetName,
+  });
 };
 
-export default useLoadEntity;
+export default useLoadDataset;

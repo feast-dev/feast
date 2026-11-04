@@ -15,7 +15,6 @@ from feast.ui_server import get_app
 EXPECTED_SUCCESS_STATUS = 200
 EXPECTED_ERROR_STATUS = 503
 TEST_PROJECT_NAME = "test_project"
-REGISTRY_TTL_SECS = 60
 
 
 def _create_mock_ui_files(temp_dir):
@@ -23,12 +22,10 @@ def _create_mock_ui_files(temp_dir):
     ui_dir = os.path.join(temp_dir, "ui", "build")
     os.makedirs(ui_dir, exist_ok=True)
 
-    # Create projects-list.json file
     projects_file = os.path.join(ui_dir, "projects-list.json")
     with open(projects_file, "w") as f:
         json.dump({"projects": []}, f)
 
-    # Create index.html file
     index_file = os.path.join(ui_dir, "index.html")
     with open(index_file, "w") as f:
         f.write("<html><body>Test UI</body></html>")
@@ -36,20 +33,13 @@ def _create_mock_ui_files(temp_dir):
 
 @contextlib.contextmanager
 def _setup_importlib_mocks(temp_dir):
-    """Helper function to setup importlib resource mocks.
-
-    This function mocks the importlib_resources functionality used by the UI server
-    to serve static files. It creates a proper context manager that returns the
-    temporary directory path when used with importlib_resources.as_file().
-    """
+    """Helper function to setup importlib resource mocks."""
     mock_path = Path(temp_dir)
 
-    # Create a proper context manager mock
     mock_context_manager = MagicMock()
     mock_context_manager.__enter__.return_value = mock_path
     mock_context_manager.__exit__.return_value = None
 
-    # Mock the files() method to return a mock that supports division
     mock_file_ref = MagicMock()
     mock_file_ref.__truediv__.return_value = MagicMock()
 
@@ -63,190 +53,74 @@ def _setup_importlib_mocks(temp_dir):
         yield mock_files, mock_as_file
 
 
+def _make_project_mock(name, description=""):
+    """Create a mock project object with the given name and description."""
+    proj = MagicMock()
+    proj.name = name
+    proj.description = description
+    return proj
+
+
 @pytest.fixture
 def mock_feature_store():
     """Fixture for creating a mock feature store"""
     mock_store = MagicMock()
-    mock_store.refresh_registry = MagicMock()
     return mock_store
 
 
 @pytest.fixture
 def ui_app_with_registry(mock_feature_store):
-    """Fixture for UI app with valid registry data.
-
-    Creates a UI app instance with a properly configured feature store
-    that has valid registry data available for testing endpoints that
-    require registry access.
-    """
+    """Fixture for UI app with valid registry data."""
     mock_registry = MagicMock()
-    mock_proto = MagicMock()
-    mock_proto.SerializeToString.return_value = b"mock_proto_data"
-    mock_registry.proto.return_value = mock_proto
+    mock_registry.list_projects.return_value = []
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             yield app
 
 
 @pytest.fixture
 def ui_app_without_registry(mock_feature_store):
-    """Fixture for UI app with None registry data.
-
-    Creates a UI app instance with a feature store that has no registry
-    data available, used for testing error conditions and service
-    unavailable responses.
-    """
+    """Fixture for UI app where registry raises on list_projects."""
     mock_registry = MagicMock()
-    mock_registry.proto.return_value = None
+    mock_registry.list_projects.side_effect = Exception("registry unavailable")
     mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             yield app
 
 
 def test_ui_server_health_endpoint(ui_app_with_registry):
-    """Test the UI server health endpoint returns 200 when registry is available.
-
-    This test verifies that the /health endpoint correctly returns HTTP 200
-    when the feature store registry is properly initialized and contains data.
-    """
+    """Health endpoint returns 200 when registry is available."""
     client = TestClient(ui_app_with_registry)
     response = client.get("/health")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
 
 
-def test_ui_server_health_endpoint_with_none_registry(ui_app_without_registry):
-    """Test the UI server health endpoint returns 503 when registry is None.
+def test_ui_server_exposes_version_under_rest_api(ui_app_with_registry):
+    """Version endpoint is mounted under the authenticated REST API."""
+    client = TestClient(ui_app_with_registry)
 
-    This test verifies that the /health endpoint correctly returns HTTP 503
-    (Service Unavailable) when the feature store registry is not available
-    or contains no data.
-    """
+    with patch("feast.api.registry.rest.system.get_version", return_value="1.2.3"):
+        response = client.get("/api/v1/version")
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(response.json()).is_equal_to({"version": "1.2.3"})
+
+
+def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):
+    """Health endpoint returns 503 when registry is unavailable."""
     client = TestClient(ui_app_without_registry)
     response = client.get("/health")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
-
-
-def test_registry_endpoint_with_valid_data(ui_app_with_registry):
-    """Test the registry endpoint returns valid data with correct content type.
-
-    This test verifies that the /registry endpoint correctly returns HTTP 200
-    with the proper content-type header when registry data is available.
-    """
-    client = TestClient(ui_app_with_registry)
-    response = client.get("/registry")
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-    assertpy.assert_that(response.headers["content-type"]).is_equal_to(
-        "application/octet-stream"
-    )
-
-
-def test_registry_endpoint_with_none_data(ui_app_without_registry):
-    """Test the registry endpoint returns 503 when registry data is None.
-
-    This test verifies that the /registry endpoint correctly returns HTTP 503
-    (Service Unavailable) when no registry data is available.
-    """
-    client = TestClient(ui_app_without_registry)
-    response = client.get("/registry")
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
-
-
-def test_save_document_endpoint_success(ui_app_with_registry):
-    """Test the save document endpoint successfully saves data to a labels file.
-
-    This test verifies that the /save-document endpoint correctly processes
-    a valid request, creates a labels file, and returns success confirmation.
-    """
-    client = TestClient(ui_app_with_registry)
-
-    # Create a temporary file in the current working directory for testing
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False, dir=os.getcwd()
-    ) as f:
-        test_file_path = f.name
-        f.write("# Test file content")
-
-    try:
-        request_data = {
-            "file_path": test_file_path,
-            "data": {"test": "data", "key": "value"},
-        }
-
-        response = client.post("/save-document", json=request_data)
-        assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-
-        response_data = response.json()
-        assertpy.assert_that(response_data["success"]).is_true()
-        assertpy.assert_that(response_data).contains_key("saved_to")
-
-        # Verify the file was created
-        labels_file = response_data["saved_to"]
-        assertpy.assert_that(os.path.exists(labels_file)).is_true()
-
-        with open(labels_file, "r") as f:
-            saved_data = json.load(f)
-        assertpy.assert_that(saved_data).is_equal_to(request_data["data"])
-
-    finally:
-        # Cleanup
-        if os.path.exists(test_file_path):
-            os.unlink(test_file_path)
-        labels_file = test_file_path.replace(".py", "-labels.json")
-        if os.path.exists(labels_file):
-            os.unlink(labels_file)
-
-
-def test_save_document_endpoint_invalid_path(ui_app_with_registry):
-    """Test the save document endpoint returns error for invalid file path.
-
-    This test verifies that the /save-document endpoint correctly rejects
-    file paths that are outside the current working directory for security.
-    """
-    client = TestClient(ui_app_with_registry)
-
-    request_data = {
-        "file_path": "/invalid/absolute/path/outside/workspace.py",
-        "data": {"test": "data"},
-    }
-
-    response = client.post("/save-document", json=request_data)
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-
-    response_data = response.json()
-    assertpy.assert_that(response_data).contains_key("error")
-    assertpy.assert_that(response_data["error"]).contains("Invalid file path")
-
-
-def test_save_document_endpoint_exception_handling(ui_app_with_registry):
-    """Test the save document endpoint handles exceptions gracefully.
-
-    This test verifies that the /save-document endpoint properly catches
-    and returns error responses when exceptions occur during processing.
-    """
-    client = TestClient(ui_app_with_registry)
-
-    # Test with a file path outside the current working directory (will cause an exception)
-    request_data = {
-        "file_path": "/invalid/absolute/path/outside/workspace.py",
-        "data": {"test": "data"},
-    }
-
-    response = client.post("/save-document", json=request_data)
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
-
-    response_data = response.json()
-    assertpy.assert_that(response_data).contains_key("error")
-    assertpy.assert_that(response_data["error"]).contains("Invalid file path")
 
 
 @pytest.mark.parametrize(
@@ -256,42 +130,372 @@ def test_save_document_endpoint_exception_handling(ui_app_with_registry):
 def test_health_endpoint_status(
     registry_available, expected_status, mock_feature_store
 ):
-    """Test the health endpoint returns correct status based on registry availability.
-
-    This parametrized test verifies that the /health endpoint returns the
-    appropriate HTTP status code based on whether registry data is available.
-    """
+    """Health endpoint returns correct status based on registry availability."""
+    mock_registry = MagicMock()
     if registry_available:
-        mock_registry = MagicMock()
-        mock_proto = MagicMock()
-        mock_proto.SerializeToString.return_value = b"mock_proto_data"
-        mock_registry.proto.return_value = mock_proto
-        mock_feature_store.registry = mock_registry
+        mock_registry.list_projects.return_value = []
     else:
-        mock_registry = MagicMock()
-        mock_registry.proto.return_value = None
-        mock_feature_store.registry = mock_registry
+        mock_registry.list_projects.side_effect = Exception("unavailable")
+    mock_feature_store.registry = mock_registry
 
     with tempfile.TemporaryDirectory() as temp_dir:
         _create_mock_ui_files(temp_dir)
 
         with _setup_importlib_mocks(temp_dir):
-            app = get_app(mock_feature_store, TEST_PROJECT_NAME, REGISTRY_TTL_SECS)
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             client = TestClient(app)
             response = client.get("/health")
             assertpy.assert_that(response.status_code).is_equal_to(expected_status)
 
 
 def test_catch_all_route(ui_app_with_registry):
-    """Test the catch-all route for React router paths.
-
-    This test reveals a bug in the original UI server code where ui_dir
-    is not in scope for the catch_all function. The ui_dir variable is defined
-    inside the importlib_resources context manager but used outside of it.
-    This causes a NameError when the route is accessed.
-    """
+    """Test the catch-all route for React router paths."""
     client = TestClient(ui_app_with_registry)
 
-    # The route will fail due to the scope issue with ui_dir
-    with pytest.raises(Exception):  # Expecting NameError or FileNotFoundError
+    with pytest.raises(Exception):
         client.get("/p/some/react/path")
+
+
+# ---------- projects-list.json tests ----------
+
+
+def _read_projects_list(app):
+    """Fetch the projects-list.json from the dynamic endpoint."""
+    client = TestClient(app)
+    resp = client.get("/projects-list.json")
+    assertpy.assert_that(resp.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    return resp.json()
+
+
+def test_projects_list_registry_path(mock_feature_store):
+    """projects-list.json uses /api/v1 as registryPath."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(app)
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to("/api/v1")
+
+
+def test_projects_list_with_root_path(mock_feature_store):
+    """root_path prefix is included in registryPath."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                root_path="/feast",
+            )
+
+        data = _read_projects_list(app)
+        assertpy.assert_that(data["projects"][0]["registryPath"]).is_equal_to(
+            "/feast/api/v1"
+        )
+
+
+def test_projects_list_multiple_projects(mock_feature_store):
+    """Multiple projects get an 'All Projects' entry prepended."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = [
+        _make_project_mock("project_alpha", "Alpha project"),
+        _make_project_mock("project_beta", "Beta project"),
+    ]
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(app)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(3)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("all")
+        assertpy.assert_that(data["projects"][1]["id"]).is_equal_to("project_alpha")
+        assertpy.assert_that(data["projects"][2]["id"]).is_equal_to("project_beta")
+
+
+def test_projects_list_fallback_on_empty(mock_feature_store):
+    """When list_projects returns empty, fallback project is used."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(app)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(1)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
+
+
+def test_projects_list_fallback_on_exception(mock_feature_store):
+    """When list_projects raises, fallback project is used."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.side_effect = Exception("not implemented")
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        data = _read_projects_list(app)
+        assertpy.assert_that(len(data["projects"])).is_equal_to(1)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to(TEST_PROJECT_NAME)
+
+
+def test_projects_list_dynamic_refresh(mock_feature_store):
+    """New projects appear without restarting the server."""
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = [
+        _make_project_mock("picked_elk"),
+    ]
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        client = TestClient(app)
+
+        data = client.get("/projects-list.json").json()
+        assertpy.assert_that(len(data["projects"])).is_equal_to(1)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("picked_elk")
+
+        mock_registry.list_projects.return_value = [
+            _make_project_mock("picked_elk"),
+            _make_project_mock("picked_elk2"),
+        ]
+
+        data = client.get("/projects-list.json").json()
+        assertpy.assert_that(len(data["projects"])).is_equal_to(3)
+        assertpy.assert_that(data["projects"][0]["id"]).is_equal_to("all")
+        assertpy.assert_that(data["projects"][1]["id"]).is_equal_to("picked_elk")
+        assertpy.assert_that(data["projects"][2]["id"]).is_equal_to("picked_elk2")
+
+
+def test_registry_refresh_endpoint(mock_feature_store):
+    """POST /api/v1/registry/refresh calls store.refresh_registry()."""
+    mock_feature_store.refresh_registry = MagicMock()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        client = TestClient(app)
+        resp = client.post("/api/v1/registry/refresh")
+        assertpy.assert_that(resp.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+        mock_feature_store.refresh_registry.assert_called_once()
+
+
+def test_registry_refresh_endpoint_error(mock_feature_store):
+    """POST /api/v1/registry/refresh returns 500 when refresh_registry raises."""
+    mock_feature_store.refresh_registry = MagicMock(
+        side_effect=Exception("registry unreachable")
+    )
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(mock_feature_store, TEST_PROJECT_NAME)
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post("/api/v1/registry/refresh")
+        assertpy.assert_that(resp.status_code).is_equal_to(500)
+
+
+# ---------- CORS tests (CVE-2024-11602) ----------
+
+
+@contextlib.contextmanager
+def _cors_client(mock_feature_store, cors_origins):
+    """Yield a TestClient for a UI app built with the given cors_origins.
+
+    The static-files directory is only valid while the TemporaryDirectory is
+    open, so the client must be used inside this context.
+    """
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                cors_origins=cors_origins,
+            )
+        yield TestClient(app)
+
+
+def test_cors_disabled_by_default(mock_feature_store):
+    """Without cors_origins, no cross-origin request is granted.
+
+    Regression test for CVE-2024-11602: the server used to send
+    ``Access-Control-Allow-Origin: *`` with credentials, letting any website a
+    user visits read authenticated responses from this server. The CVE's
+    proof of concept is exactly this -- a cross-origin GET carrying an Origin
+    header.
+    """
+    with _cors_client(mock_feature_store, cors_origins=None) as client:
+        response = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+        assertpy.assert_that(response.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_allows_only_configured_origins(mock_feature_store):
+    """With an explicit allowlist, only trusted origins are echoed back."""
+    trusted = "https://feast.example.com"
+    with _cors_client(mock_feature_store, cors_origins=[trusted]) as client:
+        allowed = client.get("/health", headers={"Origin": trusted})
+        assertpy.assert_that(
+            allowed.headers.get("access-control-allow-origin")
+        ).is_equal_to(trusted)
+
+        denied = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(denied.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_never_uses_wildcard(mock_feature_store):
+    """An untrusted origin is never reflected even when an allowlist is set."""
+    with _cors_client(
+        mock_feature_store, cors_origins=["https://feast.example.com"]
+    ) as client:
+        response = client.get(
+            "/health", headers={"Origin": "https://attacker.example.com"}
+        )
+        assertpy.assert_that(
+            response.headers.get("access-control-allow-origin")
+        ).is_none()
+
+
+def test_wildcard_cors_origin_is_allowed_but_warns(mock_feature_store, caplog):
+    """An explicit '*' is honored (informed opt-in) but logs a warning.
+
+    We intentionally do not reject '*': it is a deliberate, documented operator
+    choice for local development (mirroring Feast's own `auth_type=no_auth`).
+    The warning makes the risk visible so it can't be set unknowingly.
+    """
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="feast.ui_server"):
+        with _cors_client(mock_feature_store, cors_origins=["*"]) as client:
+            response = client.get(
+                "/health", headers={"Origin": "https://any.example.com"}
+            )
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(caplog.text.lower()).contains("allow all origins")
+
+
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_dual_stack_binds_prebuilt_socket(mock_get_app, mock_uvicorn):
+    """host="::" must go through a pre-bound dual-stack socket, not
+    uvicorn.run(host="::"), which binds IPv6-only and drops IPv4 clients."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+    mock_sock = MagicMock()
+
+    with patch(
+        "feast.utils._make_dual_stack_socket", return_value=mock_sock
+    ) as mock_make_sock:
+        start_server(
+            MagicMock(),
+            host="::",
+            port=8888,
+            project_id=TEST_PROJECT_NAME,
+            tls_key_path="key.pem",
+            tls_cert_path="cert.pem",
+        )
+
+    mock_make_sock.assert_called_once_with(8888)
+    mock_uvicorn.Config.assert_called_once_with(
+        mock_app, ssl_keyfile="key.pem", ssl_certfile="cert.pem"
+    )
+    mock_uvicorn.Server.assert_called_once_with(mock_uvicorn.Config.return_value)
+    mock_uvicorn.Server.return_value.run.assert_called_once_with(sockets=[mock_sock])
+    mock_uvicorn.run.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_plain_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A non dual-stack host keeps today's plain uvicorn.run behavior. Also
+    mocks _make_dual_stack_socket so a broken host comparison fails fast on
+    an assertion instead of hanging in a real uvicorn.Server.run()."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="0.0.0.0",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="0.0.0.0", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_non_wildcard_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A host that sorts after "::" (e.g. starting with a letter) must still
+    take the plain uvicorn.run path -- regression test for a comparison
+    mutant (host == "::" weakened to >=) that a "0.0.0.0"-only test can't
+    catch, since "0.0.0.0" < "::" either way."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="example.com",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="example.com", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()

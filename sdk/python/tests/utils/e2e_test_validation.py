@@ -1,4 +1,3 @@
-import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -10,21 +9,15 @@ import yaml
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _utc_now
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.universal.data_source_creator import (
+from tests.universal.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.integration.feature_repos.universal.data_sources.bigquery import (
-    BigQueryDataSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.file import (
+from tests.universal.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     FileParquetDatasetSourceCreator,
-)
-from tests.integration.feature_repos.universal.data_sources.redshift import (
-    RedshiftDataSourceCreator,
 )
 
 
@@ -38,7 +31,8 @@ def validate_offline_online_store_consistency(
 
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
-    start_date = (now - timedelta(hours=5)).replace(tzinfo=timezone.utc)
+    # Anchor the range to the fixture so setup crossing an hour cannot exclude rows.
+    start_date = (split_dt - timedelta(hours=4)).astimezone(timezone.utc)
     end_date = split_dt
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
@@ -165,18 +159,16 @@ def _check_offline_and_online_features(
                     < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
-                    df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                )
+                val_list = df.to_dict(orient="list")[f"{fv.name}__value"]
+                assert not val_list or pd.isna(val_list[0])
         else:
             if expected_value:
                 assert (
                     abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")["value"] or math.isnan(
-                    df.to_dict(orient="list")["value"][0]
-                )
+                val_list = df.to_dict(orient="list")["value"]
+                assert not val_list or pd.isna(val_list[0])
 
 
 def make_feature_store_yaml(
@@ -225,6 +217,13 @@ NULLABLE_ONLINE_STORE_CONFIGS: List[IntegrationTestRepoConfig] = [
 
 # Only test if this is NOT a local test
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
+    from tests.universal.feature_repos.universal.data_sources.bigquery import (
+        BigQueryDataSourceCreator,
+    )
+    from tests.universal.feature_repos.universal.data_sources.redshift import (
+        RedshiftDataSourceCreator,
+    )
+
     NULLABLE_ONLINE_STORE_CONFIGS.extend(
         [
             IntegrationTestRepoConfig(

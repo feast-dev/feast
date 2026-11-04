@@ -6,3 +6,5 @@ class DAGFormat(str, Enum):
     PANDAS = "pandas"
     ARROW = "arrow"
     RAY = "ray"
+    FLINK = "flink"
+    TRINO = "trino"

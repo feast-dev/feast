@@ -24,9 +24,14 @@ from google.protobuf.message import Message
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
+from feast.errors import (
+    ConflictingFeatureViewNames,
+    FeatureViewNotFoundException,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.labeling.label_view import LabelView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -37,6 +42,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.LabelView_pb2 import LabelView as LabelViewProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -58,6 +64,11 @@ class BaseRegistry(ABC):
     The interface that Feast uses to apply, list, retrieve, and delete Feast objects (e.g. entities,
     feature views, and data sources).
     """
+
+    # Opt-in: keep serving a feature view's last-materialized values while it is
+    # MATERIALIZING. Registries built from a RegistryConfig set it from
+    # ``registry_config.serve_features_while_materializing``.
+    serve_features_while_materializing: bool = False
 
     # Entity operations
     @abstractmethod
@@ -251,7 +262,11 @@ class BaseRegistry(ABC):
     # Feature view operations
     @abstractmethod
     def apply_feature_view(
-        self, feature_view: BaseFeatureView, project: str, commit: bool = True
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        commit: bool = True,
+        no_promote: bool = False,
     ):
         """
         Registers a single feature view with Feast
@@ -260,8 +275,89 @@ class BaseRegistry(ABC):
             feature_view: Feature view that will be registered
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
+            no_promote: If True, save a new version snapshot without promoting
+                it to the active definition. The new version is accessible only
+                via explicit @v<N> reads.
         """
         raise NotImplementedError
+
+    def _ensure_feature_view_name_is_unique(
+        self,
+        feature_view: BaseFeatureView,
+        project: str,
+        allow_cache: bool = False,
+    ):
+        """
+        Validates that no feature view name conflict exists across feature view types.
+        Raises ConflictingFeatureViewNames if a different type already uses the name.
+
+        This is a defense-in-depth check for direct apply_feature_view() calls.
+        The primary validation happens in _validate_all_feature_views() during feast plan/apply.
+        """
+        name = feature_view.name
+        new_type = type(feature_view).__name__
+
+        def _check_conflict(getter, not_found_exc, existing_type: str):
+            try:
+                getter(name, project, allow_cache=allow_cache)
+                raise ConflictingFeatureViewNames(name, existing_type, new_type)
+            except not_found_exc:
+                pass
+
+        # Check StreamFeatureView before FeatureView since StreamFeatureView is a subclass
+        # Note: All getters raise FeatureViewNotFoundException (not type-specific exceptions)
+        if isinstance(feature_view, LabelView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+        elif isinstance(feature_view, StreamFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
+            )
+        elif isinstance(feature_view, FeatureView):
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_on_demand_feature_view,
+                FeatureViewNotFoundException,
+                "OnDemandFeatureView",
+            )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
+            )
+        elif isinstance(feature_view, OnDemandFeatureView):
+            _check_conflict(
+                self.get_feature_view, FeatureViewNotFoundException, "FeatureView"
+            )
+            _check_conflict(
+                self.get_stream_feature_view,
+                FeatureViewNotFoundException,
+                "StreamFeatureView",
+            )
+            _check_conflict(
+                self.get_label_view, FeatureViewNotFoundException, "LabelView"
+            )
 
     @abstractmethod
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
@@ -302,6 +398,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[StreamFeatureView]:
         """
         Retrieve a list of stream feature views from the registry
@@ -310,6 +407,7 @@ class BaseRegistry(ABC):
             project: Filter stream feature views based on project name
             allow_cache: Whether to allow returning stream feature views from a cached registry
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of stream feature views
@@ -341,6 +439,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[OnDemandFeatureView]:
         """
         Retrieve a list of on demand feature views from the registry
@@ -349,9 +448,61 @@ class BaseRegistry(ABC):
             project: Filter on demand feature views based on project name
             allow_cache: Whether to allow returning on demand feature views from a cached registry
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of on demand feature views
+        """
+        raise NotImplementedError
+
+    # Label view operations
+    @abstractmethod
+    def get_label_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> LabelView:
+        """
+        Retrieves a label view.
+
+        Args:
+            name: Name of label view
+            project: Feast project that this label view belongs to
+            allow_cache: Whether to allow returning this label view from a cached registry
+
+        Returns:
+            Returns either the specified label view, or raises an exception if
+            none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_label_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[LabelView]:
+        """
+        Retrieve a list of label views from the registry
+
+        Args:
+            project: Filter label views based on project name
+            allow_cache: Whether to allow returning label views from a cached registry
+            tags: Filter by tags
+
+        Returns:
+            List of label views
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_label_view(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a label view or raises an exception if not found.
+
+        Args:
+            name: Name of label view
+            project: Feast project that this label view belongs to
+            commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError
 
@@ -380,6 +531,7 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
     ) -> List[FeatureView]:
         """
         Retrieve a list of feature views from the registry
@@ -388,6 +540,7 @@ class BaseRegistry(ABC):
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
 
         Returns:
             List of feature views
@@ -418,6 +571,8 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        skip_udf: bool = False,
+        updated_since: Optional[datetime] = None,
     ) -> List[BaseFeatureView]:
         """
         Retrieve a list of feature views of all types from the registry
@@ -426,16 +581,58 @@ class BaseRegistry(ABC):
             allow_cache: Allow returning feature views from the cached registry
             project: Filter feature views based on project name
             tags: Filter by tags
+            skip_udf: Skip deserializing UDFs (for metadata-only operations)
+            updated_since: Only return feature views updated at or after this timestamp
 
         Returns:
             List of feature views
         """
         raise NotImplementedError
 
+    def list_feature_view_versions(
+        self, name: str, project: str
+    ) -> List[Dict[str, Any]]:
+        """
+        List version history for a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+
+        Returns:
+            List of version records with version, version_number, feature_view_type,
+            created_timestamp, and version_id.
+        """
+        raise NotImplementedError(
+            "list_feature_view_versions is not implemented for this registry"
+        )
+
+    def get_feature_view_by_version(
+        self, name: str, project: str, version_number: int, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieve a feature view snapshot for a specific version number.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            version_number: The version number to retrieve
+            allow_cache: Whether to allow returning from a cached registry
+
+        Returns:
+            The feature view snapshot at the specified version.
+
+        Raises:
+            FeatureViewVersionNotFound: if the version doesn't exist.
+        """
+        raise NotImplementedError(
+            "get_feature_view_by_version is not implemented for this registry"
+        )
+
     @abstractmethod
     def apply_materialization(
         self,
-        feature_view: Union[FeatureView, OnDemandFeatureView],
+        feature_view: Union[FeatureView, OnDemandFeatureView, "LabelView"],
         project: str,
         start_date: datetime,
         end_date: datetime,
@@ -506,6 +703,8 @@ class BaseRegistry(ABC):
         project: str,
         allow_cache: bool = False,
         tags: Optional[dict[str, str]] = None,
+        namespace: Optional[str] = None,
+        collection: Optional[str] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves a list of all saved datasets in specified project
@@ -514,6 +713,8 @@ class BaseRegistry(ABC):
             project: Feast project
             allow_cache: Whether to allow returning this dataset from a cached registry
             tags: Filter by tags
+            namespace: Filter by logical namespace grouping
+            collection: Filter by collection sub-grouping within namespace
 
         Returns:
             Returns the list of SavedDatasets
@@ -805,6 +1006,16 @@ class BaseRegistry(ABC):
         """Refreshes the state of the registry cache by fetching the registry state from the remote registry store."""
         raise NotImplementedError
 
+    def is_cache_valid(self) -> bool:
+        """Check whether the registry's local cache is still within its TTL.
+
+        Returns True if cached data can be used without a refresh.
+        Subclasses that support caching should override this.
+        Registries without caching always return False (every read goes
+        to the backing store).
+        """
+        return False
+
     # Lineage operations
     def get_registry_lineage(
         self,
@@ -934,6 +1145,11 @@ class BaseRegistry(ABC):
         for on_demand_feature_view in on_demand_feature_views:
             registry.on_demand_feature_views.append(on_demand_feature_view.to_proto())
 
+        # Add all label views
+        label_views = self.list_label_views(project=project, allow_cache=allow_cache)
+        for label_view in label_views:
+            registry.label_views.append(label_view.to_proto())
+
         # Add all feature services
         feature_services = self.list_feature_services(
             project=project, allow_cache=allow_cache
@@ -1037,6 +1253,13 @@ class BaseRegistry(ABC):
             )
             registry_dict["streamFeatureViews"].append(sfv_dict)
 
+        for label_view in sorted(
+            self.list_label_views(project=project),
+            key=lambda lv: lv.name,
+        ):
+            registry_dict["labelViews"].append(
+                self._message_to_sorted_dict(label_view.to_proto())
+            )
         for saved_dataset in sorted(
             self.list_saved_datasets(project=project), key=lambda item: item.name
         ):
@@ -1068,6 +1291,8 @@ class BaseRegistry(ABC):
             return StreamFeatureViewProto.FromString(serialized_proto)
         if feast_obj_type == OnDemandFeatureView:
             return OnDemandFeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == LabelView:
+            return LabelViewProto.FromString(serialized_proto)
         if feast_obj_type == FeatureService:
             return FeatureServiceProto.FromString(serialized_proto)
         if feast_obj_type == Permission:

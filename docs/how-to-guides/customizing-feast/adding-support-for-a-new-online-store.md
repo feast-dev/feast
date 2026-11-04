@@ -322,7 +322,7 @@ Even if you have created the `OnlineStore` class in a separate repo, you can sti
     make test-python-unit
     ```
 2. The universal tests, which are integration tests specifically intended to test offline and online stores, should be run against Feast to ensure that the Feast APIs works with your online store.
-   * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/integration/feature_repos/repo_configuration.py` which stores different online store classes for testing.
+   * Feast parametrizes integration tests using the `FULL_REPO_CONFIGS` variable defined in `sdk/python/tests/universal/feature_repos/repo_configuration.py` which stores different online store classes for testing.
    * To overwrite these configurations, you can simply create your own file that contains a `FULL_REPO_CONFIGS` variable, and point Feast to that file by setting the environment variable `FULL_REPO_CONFIGS_MODULE` to point to that file.
 
 A sample `FULL_REPO_CONFIGS_MODULE` looks something like this:
@@ -350,7 +350,7 @@ If you are planning instead to use a Dockerized container to run your tests agai
 
 If you create a containerized docker image for testing, developers who are trying to test with your online store will not have to spin up their own instance of the online store for testing. An example of an `OnlineStoreCreator` is shown below:
 
-{% code title="sdk/python/tests/integration/feature_repos/universal/online_store/redis.py" %}
+{% code title="sdk/python/tests/universal/feature_repos/universal/online_store/redis.py" %}
 ```python
 class RedisOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
@@ -373,7 +373,7 @@ class RedisOnlineStoreCreator(OnlineStoreCreator):
 test-python-universal-cassandra:
 	PYTHONPATH='.' \
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
-	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
+	PYTEST_PLUGINS=sdk.python.tests.universal.feature_repos.universal.online_store.cassandra \
 	IS_TEST=True \
 	python -m pytest -x --integration \
 	sdk/python/tests
@@ -384,13 +384,12 @@ test-python-universal-cassandra:
 
 ### 5. Add Dependencies
 
-Add any dependencies for your online store to our `sdk/python/setup.py` under a new `<ONLINE_STORE>_REQUIRED` list with the packages and add it to the setup script so that if your online store is needed, users can install the necessary python packages. These packages should be defined as extras so that they are not installed by users by default.
+Add any dependencies for your online store to `pyproject.toml` under `[project.optional-dependencies]` as a new extra (e.g. `<online_store> = ["package1>=1.0", "package2"]`). These packages should be defined as extras so that they are not installed by users by default.
 
-* You will need to regenerate our requirements files. To do this, create separate pyenv environments for python 3.8, 3.9, and 3.10. In each environment, run the following commands:
+* You will need to regenerate our requirements lock files:
 
 ```
-export PYTHON=<version>
-make lock-python-ci-dependencies
+make lock-python-dependencies-all
 ```
 
 ### 6. Add Documentation

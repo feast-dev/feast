@@ -409,6 +409,234 @@ response = client.chat.completions.create(
 print('\n'.join([c.message.content for c in response.choices]))
 ```
 
+## Alternative: Using DocEmbedder for Simplified Ingestion
+
+Instead of manually chunking, embedding, and writing documents as shown above, you can use Feast's `DocEmbedder` class to handle the entire pipeline in a single step. `DocEmbedder` automates chunking, embedding generation, FeatureView creation, and writing to the online store.
+
+### Install Dependencies
+
+```bash
+pip install feast[milvus,rag]
+```
+
+### Set Up and Ingest with DocEmbedder
+
+```python
+from feast import DocEmbedder
+import pandas as pd
+
+# Prepare your documents as a DataFrame
+df = pd.DataFrame({
+    "id": ["doc1", "doc2", "doc3"],
+    "text": [
+        "Aaron is a prophet, high priest, and the brother of Moses...",
+        "God at Sinai granted Aaron the priesthood for himself...",
+        "His rod turned into a snake. Then he stretched out...",
+    ],
+})
+
+# DocEmbedder handles everything: generates FeatureView, applies repo,
+# chunks text, generates embeddings, and writes to the online store
+embedder = DocEmbedder(
+    repo_path="feature_repo/",
+    feature_view_name="text_feature_view",
+)
+
+result = embedder.embed_documents(
+    documents=df,
+    id_column="id",
+    source_column="text",
+    column_mapping=("text", "text_embedding"),
+)
+```
+
+### Retrieve and Query
+
+Once documents are ingested, you can retrieve them the same way as shown in Step 5 above:
+
+```python
+from feast import FeatureStore
+
+store = FeatureStore("feature_repo/")
+
+query_embedding = embed_text("Who are the authors of the paper?")
+context_data = store.retrieve_online_documents_v2(
+    features=[
+        "text_feature_view:embedding",
+        "text_feature_view:text",
+        "text_feature_view:source_id",
+    ],
+    query=query_embedding,
+    top_k=3,
+    distance_metric="COSINE",
+).to_df()
+```
+
+### Customizing the Pipeline
+
+`DocEmbedder` is extensible at every stage. Below are examples of how to create custom components and wire them together.
+
+#### Custom Chunker
+
+Subclass `BaseChunker` to implement your own chunking strategy. The `load_parse_and_chunk` method receives each document and must return a list of chunk dictionaries.
+
+```python
+from feast.chunker import BaseChunker, ChunkingConfig
+from typing import Any, Optional
+
+class SentenceChunker(BaseChunker):
+    """Chunks text by sentences instead of word count."""
+
+    def load_parse_and_chunk(
+        self,
+        source: Any,
+        source_id: str,
+        source_column: str,
+        source_type: Optional[str] = None,
+    ) -> list[dict]:
+        import re
+
+        text = str(source)
+        # Split on sentence boundaries
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+
+        chunks = []
+        current_chunk = []
+        chunk_index = 0
+
+        for sentence in sentences:
+            current_chunk.append(sentence)
+            combined = " ".join(current_chunk)
+
+            if len(combined.split()) >= self.config.chunk_size:
+                chunks.append({
+                    "chunk_id": f"{source_id}_{chunk_index}",
+                    "original_id": source_id,
+                    source_column: combined,
+                    "chunk_index": chunk_index,
+                })
+                # Keep overlap by retaining the last sentence
+                current_chunk = [sentence]
+                chunk_index += 1
+
+        # Don't forget the last chunk
+        if current_chunk and len(" ".join(current_chunk).split()) >= self.config.min_chunk_size:
+            chunks.append({
+                "chunk_id": f"{source_id}_{chunk_index}",
+                "original_id": source_id,
+                source_column: " ".join(current_chunk),
+                "chunk_index": chunk_index,
+            })
+
+        return chunks
+```
+
+Or simply configure the built-in `TextChunker`:
+
+```python
+from feast import TextChunker, ChunkingConfig
+
+chunker = TextChunker(config=ChunkingConfig(
+    chunk_size=200,
+    chunk_overlap=50,
+    min_chunk_size=30,
+    max_chunk_chars=1000,
+))
+```
+
+#### Custom Embedder
+
+Subclass `BaseEmbedder` to use a different embedding model. Register modality handlers in `_register_default_modalities` and implement the `embed` method.
+
+```python
+from feast.embedder import BaseEmbedder, EmbeddingConfig
+from typing import Any, List, Optional
+import numpy as np
+
+class OpenAIEmbedder(BaseEmbedder):
+    """Embedder that uses the OpenAI API for text embeddings."""
+
+    def __init__(self, model: str = "text-embedding-3-small", config: Optional[EmbeddingConfig] = None):
+        self.model = model
+        self._client = None
+        super().__init__(config)
+
+    def _register_default_modalities(self) -> None:
+        self.register_modality("text", self._embed_text)
+
+    @property
+    def client(self):
+        if self._client is None:
+            from openai import OpenAI
+            self._client = OpenAI()
+        return self._client
+
+    def get_embedding_dim(self, modality: str) -> Optional[int]:
+        # text-embedding-3-small produces 1536-dim vectors
+        if modality == "text":
+            return 1536
+        return None
+
+    def embed(self, inputs: List[Any], modality: str) -> np.ndarray:
+        if modality not in self._modality_handlers:
+            raise ValueError(f"Unsupported modality: '{modality}'")
+        return self._modality_handlers[modality](inputs)
+
+    def _embed_text(self, inputs: List[str]) -> np.ndarray:
+        response = self.client.embeddings.create(input=inputs, model=self.model)
+        return np.array([item.embedding for item in response.data])
+```
+
+#### Custom Logical Layer Function
+
+The schema transform function transforms the chunked + embedded DataFrame into the exact schema your FeatureView expects. It must accept a `pd.DataFrame` and return a `pd.DataFrame`.
+
+```python
+import pandas as pd
+from datetime import datetime, timezone
+
+def my_schema_transform_fn(df: pd.DataFrame) -> pd.DataFrame:
+    """Map chunked + embedded columns to the FeatureView schema."""
+    return pd.DataFrame({
+        "passage_id": df["chunk_id"],
+        "text": df["text"],
+        "embedding": df["text_embedding"],
+        "event_timestamp": [datetime.now(timezone.utc)] * len(df),
+        "source_id": df["original_id"],
+        # Add any extra columns your FeatureView expects
+        "chunk_index": df["chunk_index"],
+    })
+```
+
+#### Putting It All Together
+
+Pass your custom components to `DocEmbedder`:
+
+```python
+from feast import DocEmbedder
+
+embedder = DocEmbedder(
+    repo_path="feature_repo/",
+    feature_view_name="text_feature_view",
+    chunker=SentenceChunker(config=ChunkingConfig(chunk_size=150, min_chunk_size=20)),
+    embedder=OpenAIEmbedder(model="text-embedding-3-small"),
+    schema_transform_fn=my_schema_transform_fn,
+    vector_length=1536,  # Match the OpenAI embedding dimension
+)
+
+# Embed and ingest
+result = embedder.embed_documents(
+    documents=df,
+    id_column="id",
+    source_column="text",
+    column_mapping=("text", "text_embedding"),
+)
+```
+
+> **Note:** When using a custom `schema_transform_fn`, ensure the returned DataFrame columns match your FeatureView schema. When using a custom embedder with a different output dimension, set `vector_length` accordingly (or let it auto-detect via `get_embedding_dim`).
+
+For a complete end-to-end example, see the [DocEmbedder notebook](https://github.com/feast-dev/feast/tree/master/examples/rag-retriever/rag_feast_docembedder.ipynb).
+
 ## Why Feast for RAG?
 
 Feast makes it remarkably easy to set up and manage a RAG system by:

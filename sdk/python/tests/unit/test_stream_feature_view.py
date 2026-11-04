@@ -222,8 +222,17 @@ def test_stream_feature_view_copy():
         source=stream_source,
         aggregations=[],
         udf=lambda x: x,
+        offline=True,
+        enable_tiling=True,
+        tiling_hop_size=timedelta(minutes=1),
+        stream_engine={"spark.sql.shuffle.partitions": "4"},
     )
-    assert sfv == copy.copy(sfv)
+    sfv_copy = copy.copy(sfv)
+    assert sfv == sfv_copy
+    assert sfv_copy.offline
+    assert sfv_copy.enable_tiling
+    assert sfv_copy.tiling_hop_size == timedelta(minutes=1)
+    assert sfv_copy.stream_engine == {"spark.sql.shuffle.partitions": "4"}
 
 
 def test_update_materialization_intervals():
@@ -303,3 +312,36 @@ def test_update_materialization_intervals():
         updated_stream_feature_view.materialization_intervals[0][1]
         == stored_stream_feature_view.materialization_intervals[0][1]
     )
+
+
+def test_stream_feature_view_org_field():
+    """Test that the optional `org` field is stored, serialized, and round-trips correctly."""
+    stream_source = KafkaSource(
+        name="kafka",
+        timestamp_field="event_timestamp",
+        kafka_bootstrap_servers="",
+        message_format=AvroFormat(""),
+        topic="topic",
+        batch_source=FileSource(path="some path"),
+    )
+    common = dict(
+        entities=[],
+        ttl=timedelta(days=30),
+        schema=[Field(name="dummy_field", dtype=Float32)],
+        source=stream_source,
+    )
+
+    sfv_no_org = StreamFeatureView(name="sfv-no-org", **common)
+    assert sfv_no_org.org == ""
+
+    sfv_with_org = StreamFeatureView(name="sfv-with-org", org="ads", **common)
+    assert sfv_with_org.org == "ads"
+
+    proto = sfv_with_org.to_proto()
+    assert proto.spec.org == "ads"
+
+    roundtripped = StreamFeatureView.from_proto(proto)
+    assert roundtripped.org == "ads"
+
+    sfv_other_org = StreamFeatureView(name="sfv-with-org", org="search", **common)
+    assert sfv_with_org != sfv_other_org

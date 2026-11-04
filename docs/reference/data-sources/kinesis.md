@@ -71,4 +71,4 @@ def driver_hourly_stats_stream(df: DataFrame):
 ```
 
 ### Ingesting data
-See [here](https://github.com/feast-dev/streaming-tutorial) for a example of how to ingest data from a Kafka source into Feast. The approach used in the tutorial can be easily adapted to work for Kinesis as well.
+See [here](https://github.com/feast-dev/streaming-tutorial) for an example of how to ingest data from a Kafka source into Feast. The approach used in the tutorial can be easily adapted to work for Kinesis as well.

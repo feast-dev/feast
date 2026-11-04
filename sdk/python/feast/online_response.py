@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, List, TypeAlias, Union
+import uuid as uuid_module
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -21,13 +22,12 @@ from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.torch_wrapper import get_torch
 from feast.type_map import feast_value_type_to_python_type
+from feast.value_type import ValueType
 
 if TYPE_CHECKING:
-    import torch
-
-    TorchTensor: TypeAlias = torch.Tensor
+    from torch import Tensor as TorchTensor
 else:
-    TorchTensor: TypeAlias = Any
+    TorchTensor = Any
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
@@ -37,14 +37,20 @@ class OnlineResponse:
     Defines an online response in feast.
     """
 
-    def __init__(self, online_response_proto: GetOnlineFeaturesResponse):
+    def __init__(
+        self,
+        online_response_proto: GetOnlineFeaturesResponse,
+        feature_types: Optional[Dict[str, ValueType]] = None,
+    ):
         """
         Construct a native online response from its protobuf version.
 
         Args:
         online_response_proto: GetOnlineResponse proto object to construct from.
+        feature_types: Optional mapping of feature names to ValueType for type-aware deserialization.
         """
         self.proto = online_response_proto
+        self._feature_types = feature_types or {}
         # Delete DUMMY_ENTITY_ID from proto if it exists
         for idx, val in enumerate(self.proto.metadata.feature_names.val):
             if val == DUMMY_ENTITY_ID:
@@ -65,8 +71,10 @@ class OnlineResponse:
         for feature_ref, feature_vector in zip(
             self.proto.metadata.feature_names.val, self.proto.results
         ):
+            feature_type = self._feature_types.get(feature_ref)
             response[feature_ref] = [
-                feast_value_type_to_python_type(v) for v in feature_vector.values
+                feast_value_type_to_python_type(v, feature_type)
+                for v in feature_vector.values
             ]
 
             if include_event_timestamps:
@@ -94,8 +102,9 @@ class OnlineResponse:
         Args:
         include_event_timestamps: bool Optionally include feature timestamps in the table
         """
-
-        return pa.Table.from_pydict(self.to_dict(include_event_timestamps))
+        result = self.to_dict(include_event_timestamps)
+        result = _convert_uuids_for_arrow(result)
+        return pa.Table.from_pydict(result)
 
     def to_tensor(
         self,
@@ -125,8 +134,11 @@ class OnlineResponse:
         tensor_dict: Dict[str, Union[TorchTensor, List[Any]]] = {}
         for key in feature_keys:
             raw_values = feature_dict[key]
+            # Infer the feature type from the retrieved values, not from the
+            # substituted ones: default_value is a stand-in for a missing entity
+            # and says nothing about the feature's actual type.
+            first_valid = next((v for v in raw_values if v is not None), default_value)
             values = [v if v is not None else default_value for v in raw_values]
-            first_valid = next((v for v in values if v is not None), None)
             if isinstance(first_valid, (int, float, bool)):
                 try:
                     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -140,3 +152,31 @@ class OnlineResponse:
                     values  # Return as-is for strings or unsupported types
                 )
         return tensor_dict
+
+
+def _convert_uuids_for_arrow(result: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+    """Convert uuid.UUID objects and sets to Arrow-compatible types."""
+    for key, values in result.items():
+        first_valid = next((v for v in values if v is not None), None)
+        if isinstance(first_valid, uuid_module.UUID):
+            result[key] = [
+                str(v) if isinstance(v, uuid_module.UUID) else v for v in values
+            ]
+        elif isinstance(first_valid, list):
+            inner = next((e for e in first_valid if e is not None), None)
+            if isinstance(inner, uuid_module.UUID):
+                result[key] = [
+                    [str(e) if isinstance(e, uuid_module.UUID) else e for e in v]
+                    if isinstance(v, list)
+                    else v
+                    for v in values
+                ]
+        elif isinstance(first_valid, set):
+            inner = next((e for e in first_valid if e is not None), None)
+            if isinstance(inner, uuid_module.UUID):
+                result[key] = [
+                    [str(e) for e in v] if isinstance(v, set) else v for v in values
+                ]
+            else:
+                result[key] = [list(v) if isinstance(v, set) else v for v in values]
+    return result

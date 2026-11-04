@@ -7,6 +7,7 @@ TRANSFORMATION_CLASS_FOR_TYPE = {
     "sql": "feast.transformation.sql_transformation.SQLTransformation",
     "spark_sql": "feast.transformation.spark_transformation.SparkTransformation",
     "spark": "feast.transformation.spark_transformation.SparkTransformation",
+    "flink": "feast.transformation.flink_transformation.FlinkTransformation",
     "ray": "feast.transformation.ray_transformation.RayTransformation",
 }
 

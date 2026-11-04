@@ -10,6 +10,7 @@ from pymysql.cursors import Cursor
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -70,6 +71,7 @@ class MySQLOnlineStore(OnlineStore):
         cur = conn.cursor()
 
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         batch_write = config.online_store.batch_write
         if not batch_write:
@@ -92,6 +94,7 @@ class MySQLOnlineStore(OnlineStore):
                         table,
                         timestamp,
                         val,
+                        versioning,
                     )
                 conn.commit()
                 if progress:
@@ -124,7 +127,9 @@ class MySQLOnlineStore(OnlineStore):
 
                     if len(insert_values) >= batch_size:
                         try:
-                            self._execute_batch(cur, project, table, insert_values)
+                            self._execute_batch(
+                                cur, project, table, insert_values, versioning
+                            )
                             conn.commit()
                             if progress:
                                 progress(len(insert_values))
@@ -135,7 +140,7 @@ class MySQLOnlineStore(OnlineStore):
 
             if insert_values:
                 try:
-                    self._execute_batch(cur, project, table, insert_values)
+                    self._execute_batch(cur, project, table, insert_values, versioning)
                     conn.commit()
                     if progress:
                         progress(len(insert_values))
@@ -143,9 +148,12 @@ class MySQLOnlineStore(OnlineStore):
                     conn.rollback()
                     raise e
 
-    def _execute_batch(self, cur, project, table, insert_values):
-        sql = f"""
-            INSERT INTO {_table_id(project, table)}
+    def _execute_batch(
+        self, cur, project, table, insert_values, enable_versioning=False
+    ):
+        table_name = _table_id(project, table, enable_versioning)
+        stmt = f"""
+            INSERT INTO {table_name}
             (entity_key, feature_name, value, event_ts, created_ts)
             values (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
@@ -154,22 +162,29 @@ class MySQLOnlineStore(OnlineStore):
                 created_ts = VALUES(created_ts);
         """
         try:
-            cur.executemany(sql, insert_values)
+            cur.executemany(stmt, insert_values)
         except Exception as e:
-            # Log SQL info for debugging without leaking sensitive data
             first_sample = insert_values[0] if insert_values else None
             raise RuntimeError(
-                f"Failed to execute batch insert into table '{_table_id(project, table)}' "
+                f"Failed to execute batch insert into table '{table_name}' "
                 f"(rows={len(insert_values)}, sample={first_sample}): {e}"
             ) from e
 
     @staticmethod
     def write_to_table(
-        created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val
+        created_ts,
+        cur,
+        entity_key_bin,
+        feature_name,
+        project,
+        table,
+        timestamp,
+        val,
+        enable_versioning=False,
     ) -> None:
         cur.execute(
             f"""
-            INSERT INTO {_table_id(project, table)}
+            INSERT INTO {_table_id(project, table, enable_versioning)}
             (entity_key, feature_name, value, event_ts, created_ts)
             values (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
@@ -204,6 +219,7 @@ class MySQLOnlineStore(OnlineStore):
         result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
 
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
         for entity_key in entity_keys:
             entity_key_bin = serialize_entity_key(
                 entity_key,
@@ -211,7 +227,7 @@ class MySQLOnlineStore(OnlineStore):
             ).hex()
 
             cur.execute(
-                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table)} WHERE entity_key = %s",
+                f"SELECT feature_name, value, event_ts FROM {_table_id(project, table, versioning)} WHERE entity_key = %s",
                 (entity_key_bin,),
             )
 
@@ -243,10 +259,11 @@ class MySQLOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         cur = conn.cursor()
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         # We don't create any special state for the entities in this implementation.
         for table in tables_to_keep:
-            table_name = _table_id(project, table)
+            table_name = _table_id(project, table, versioning)
             index_name = f"{table_name}_ek"
             cur.execute(
                 f"""CREATE TABLE IF NOT EXISTS {table_name} (entity_key VARCHAR(512),
@@ -269,7 +286,10 @@ class MySQLOnlineStore(OnlineStore):
                 )
 
         for table in tables_to_delete:
-            _drop_table_and_index(cur, project, table)
+            if versioning:
+                _drop_all_version_tables(cur, project, table)
+            else:
+                _drop_table_and_index(cur, _table_id(project, table))
 
     def teardown(
         self,
@@ -280,16 +300,30 @@ class MySQLOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         cur = conn.cursor()
         project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables:
-            _drop_table_and_index(cur, project, table)
+            if versioning:
+                _drop_all_version_tables(cur, project, table)
+            else:
+                _drop_table_and_index(cur, _table_id(project, table))
 
 
-def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None:
-    table_name = _table_id(project, table)
-    cur.execute(f"DROP INDEX {table_name}_ek ON {table_name};")
+def _drop_table_and_index(cur: Cursor, table_name: str) -> None:
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
+def _drop_all_version_tables(cur: Cursor, project: str, table: FeatureView) -> None:
+    """Drop the base table and all versioned tables (e.g. _v1, _v2, ...)."""
+    base = f"{project}_{table.name}"
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = DATABASE() AND (table_name = %s OR table_name REGEXP %s)",
+        (base, f"^{base}_v[0-9]+$"),
+    )
+    for (name,) in cur.fetchall():
+        _drop_table_and_index(cur, name)
+
+
+def _table_id(project: str, table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_table_id(project, table, enable_versioning)

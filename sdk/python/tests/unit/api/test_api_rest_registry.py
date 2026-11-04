@@ -1,12 +1,14 @@
 import ast
 import os
 import tempfile
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
 from feast import Entity, FeatureService, FeatureStore, FeatureView, Field, FileSource
+from feast.api.registry.rest import rest_utils, search
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
 from feast.data_source import RequestSource
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
@@ -139,7 +141,7 @@ def fastapi_test_app():
             test_on_demand_feature_view,
         ]
     )
-    store._registry.apply_saved_dataset(test_saved_dataset, "demo_project")
+    store.registry.apply_saved_dataset(test_saved_dataset, "demo_project")
 
     # Build REST app with registered routes
     rest_server = RestRegistryServer(store)
@@ -211,6 +213,26 @@ def test_feature_views_type_field_via_rest(fastapi_test_app):
     assert "type" in data
     assert data["type"] == "featureView"
     assert data["spec"]["name"] == "user_profile"
+
+
+def test_feature_views_spec_project_via_rest(fastapi_test_app):
+    """Test that spec.project is populated on every feature view endpoint."""
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    for fv in response.json()["featureViews"]:
+        assert fv["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
+    assert response.status_code == 200
+    assert response.json()["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/all")
+    assert response.status_code == 200
+    feature_views = response.json()["featureViews"]
+    assert feature_views
+    for fv in feature_views:
+        assert fv["project"] == "demo_project"
+        assert fv["spec"]["project"] == "demo_project"
 
 
 def test_feature_views_entity_filtering_via_rest(fastapi_test_app):
@@ -335,6 +357,34 @@ def test_feature_views_comprehensive_filtering_via_rest(fastapi_test_app):
     data = response.json()
     assert "featureViews" in data
     assert len(data["featureViews"]) == 0
+
+
+def test_feature_views_updated_since_via_rest(fastapi_test_app):
+    """Test that feature views can be filtered by updated_since timestamp."""
+    # A timestamp in the past should return all feature views
+    response = fastapi_test_app.get(
+        "/feature_views?project=demo_project&updated_since=2000-01-01T00:00:00Z"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    all_count = len(data["featureViews"])
+    assert all_count > 0
+
+    # A timestamp far in the future should return no feature views
+    response = fastapi_test_app.get(
+        "/feature_views?project=demo_project&updated_since=2999-01-01T00:00:00Z"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    assert len(data["featureViews"]) == 0
+
+    # Without updated_since returns the same count as the past-timestamp query
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["featureViews"]) == all_count
 
 
 def test_feature_services_via_rest(fastapi_test_app):
@@ -773,7 +823,7 @@ def fastapi_test_app_with_multiple_objects():
     store.apply(entities + data_sources + feature_views + feature_services)
 
     for dataset in saved_datasets:
-        store._registry.apply_saved_dataset(dataset, "demo_project")
+        store.registry.apply_saved_dataset(dataset, "demo_project")
 
     rest_server = RestRegistryServer(store)
     client = TestClient(rest_server.app)
@@ -1503,10 +1553,49 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     assert "featureViews" in counts
     assert "featureServices" in counts
 
-    # Verify counts are integers
     for key, value in counts.items():
         assert isinstance(value, int)
         assert value >= 0
+
+    # Verify feature services summaries
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+    assert len(data["featureServices"]) == counts["featureServices"]
+    for fs in data["featureServices"]:
+        assert "name" in fs
+        assert "project" in fs
+        assert fs["project"] == "demo_project"
+    service_names = [fs["name"] for fs in data["featureServices"]]
+    assert "user_service" in service_names
+
+    # Verify feature views summaries with detail
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    assert len(data["featureViews"]) == counts["featureViews"]
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+        assert isinstance(fv["featureCount"], int)
+        assert fv["featureCount"] >= 0
+        assert fv["project"] == "demo_project"
+    fv_names = [fv["name"] for fv in data["featureViews"]]
+    assert "user_profile" in fv_names
+    user_profile_fv = next(
+        fv for fv in data["featureViews"] if fv["name"] == "user_profile"
+    )
+    assert user_profile_fv["featureCount"] == 2
+
+    # Verify projects list
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) == 1
+    assert data["projects"][0]["name"] == "demo_project"
+
+    # Verify registry last updated
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
 
     # Test without project parameter (should return all projects)
     response = fastapi_test_app.get("/metrics/resource_counts")
@@ -1526,6 +1615,116 @@ def test_metrics_resource_counts_via_rest(fastapi_test_app):
     per_project = data["perProject"]
     assert "demo_project" in per_project
     assert isinstance(per_project["demo_project"], dict)
+
+    # Verify metadata in all-projects mode
+    assert "featureServices" in data
+    assert isinstance(data["featureServices"], list)
+
+    assert "featureViews" in data
+    assert isinstance(data["featureViews"], list)
+    for fv in data["featureViews"]:
+        assert "name" in fv
+        assert "project" in fv
+        assert "type" in fv
+        assert "featureCount" in fv
+
+    assert "projects" in data
+    assert isinstance(data["projects"], list)
+    assert len(data["projects"]) >= 1
+    for proj in data["projects"]:
+        assert "name" in proj
+        assert "description" in proj
+
+    assert "registryLastUpdated" in data
+    assert data["registryLastUpdated"] is not None
+
+
+def test_metrics_resource_counts_with_permission_errors(fastapi_test_app):
+    """
+    Test that /metrics/resource_counts returns 200 with zero counts for
+    resource types that raise FeastPermissionError, instead of failing
+    the entire request. This simulates the scenario where access is
+    restricted for some resource types via GroupBasedPolicy,
+    NamespaceBasedPolicy, or CombinedGroupNamespacePolicy.
+    """
+    from unittest.mock import patch
+
+    from feast.errors import FeastPermissionError
+
+    original_get = fastapi_test_app.get
+
+    # First, get the baseline counts to know which resources have data
+    baseline = original_get("/metrics/resource_counts?project=demo_project").json()
+    baseline_counts = baseline["counts"]
+
+    # Patch grpc_call to raise FeastPermissionError for entities and data sources
+    # while allowing other resource types to succeed
+    original_grpc_call = None
+
+    def grpc_call_entities_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name in ("ListEntities", "ListDataSources"):
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return original_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        import feast.api.registry.rest.metrics as metrics_module
+
+        original_grpc_call = metrics_module.__dict__.get("grpc_call")
+        # Restore actual import since patch replaces it
+        from feast.api.registry.rest.rest_utils import grpc_call as real_grpc_call
+
+        original_grpc_call = real_grpc_call
+        mock_grpc_call.side_effect = grpc_call_entities_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200, (
+        f"Expected 200 but got {response.status_code}: {response.text}"
+    )
+    data = response.json()
+    assert "counts" in data
+    counts = data["counts"]
+
+    # Denied resource types should have 0 counts
+    assert counts["entities"] == 0
+    assert counts["dataSources"] == 0
+
+    # Permitted resource types should still have their original counts
+    assert counts["featureViews"] == baseline_counts["featureViews"]
+    assert counts["featureServices"] == baseline_counts["featureServices"]
+    assert counts["features"] == baseline_counts["features"]
+    assert counts["savedDatasets"] == baseline_counts["savedDatasets"]
+
+    # Permitted metadata summaries should still be populated
+    assert len(data["featureViews"]) == baseline_counts["featureViews"]
+    assert len(data["featureServices"]) == baseline_counts["featureServices"]
+
+    # Now test with ALL resource types denied
+    def grpc_call_all_denied(handler_fn, request):
+        handler_name = getattr(handler_fn, "__name__", "")
+        if handler_name.startswith("List") and handler_name != "ListProjects":
+            raise FeastPermissionError(f"Permission denied for {handler_name}")
+        return real_grpc_call(handler_fn, request)
+
+    with patch("feast.api.registry.rest.metrics.grpc_call") as mock_grpc_call:
+        mock_grpc_call.side_effect = grpc_call_all_denied
+
+        response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+
+    assert response.status_code == 200
+    data = response.json()
+    counts = data["counts"]
+
+    # All counts should be 0 when all resource types are denied
+    for resource_type, count in counts.items():
+        assert count == 0, (
+            f"Expected 0 for {resource_type} when permission denied, got {count}"
+        )
+
+    # Metadata summaries should be empty when all permissions are denied
+    assert data["featureViews"] == []
+    assert data["featureServices"] == []
 
 
 def test_feature_views_all_types_and_resource_counts_match(fastapi_test_app):
@@ -1851,3 +2050,400 @@ def test_all_endpoints_return_404_for_invalid_objects(fastapi_test_app):
     data = response.json()
     assert data["status_code"] == 404
     assert data["error_type"] == "FeastObjectNotFoundException"
+
+
+def test_apply_and_delete_entity_via_rest(fastapi_test_app):
+    """Test POST /entities and DELETE /entities/{name} endpoints."""
+    # Apply a new entity
+    response = fastapi_test_app.post(
+        "/entities",
+        json={
+            "name": "driver_id",
+            "project": "demo_project",
+            "join_key": "driver_id",
+            "value_type": 2,
+            "description": "Driver entity",
+            "owner": "ml-team",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "driver_id"
+    assert data["status"] == "applied"
+
+    # Verify it exists
+    response = fastapi_test_app.get("/entities/driver_id?project=demo_project")
+    assert response.status_code == 200
+    assert response.json()["spec"]["name"] == "driver_id"
+
+    # Delete it
+    response = fastapi_test_app.delete("/entities/driver_id?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "driver_id"
+    assert data["status"] == "deleted"
+
+    # Verify it's gone
+    response = fastapi_test_app.get("/entities/driver_id?project=demo_project")
+    assert response.status_code == 404
+
+
+def test_apply_and_delete_data_source_via_rest(fastapi_test_app):
+    """Test POST /data_sources and DELETE /data_sources/{name} endpoints."""
+    # Apply a new file data source
+    response = fastapi_test_app.post(
+        "/data_sources",
+        json={
+            "name": "test_file_source",
+            "project": "demo_project",
+            "type": 1,
+            "timestamp_field": "event_timestamp",
+            "description": "Test file source",
+            "file_options": {"uri": "s3://bucket/path/data.parquet"},
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "test_file_source"
+    assert data["status"] == "applied"
+
+    # Verify it exists
+    response = fastapi_test_app.get(
+        "/data_sources/test_file_source?project=demo_project"
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "test_file_source"
+
+    # Delete it
+    response = fastapi_test_app.delete(
+        "/data_sources/test_file_source?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "test_file_source"
+    assert data["status"] == "deleted"
+
+    # Verify it's gone
+    response = fastapi_test_app.get(
+        "/data_sources/test_file_source?project=demo_project"
+    )
+    assert response.status_code == 404
+
+
+def test_apply_and_delete_feature_view_via_rest(fastapi_test_app):
+    """Test POST /feature_views and DELETE /feature_views/{name} endpoints."""
+    # Apply a new feature view (no batch_source: a bare DataSourceProto with only a
+    # name but no type is rejected by the registry's source-type validation)
+    response = fastapi_test_app.post(
+        "/feature_views",
+        json={
+            "name": "driver_stats",
+            "project": "demo_project",
+            "entities": ["user_id"],
+            "features": [
+                {
+                    "name": "trip_count",
+                    "value_type": 2,
+                    "description": "Number of completed trips",
+                },
+                {
+                    "name": "avg_rating",
+                    "value_type": 4,
+                    "description": "Average driver rating",
+                },
+            ],
+            "ttl_seconds": 86400,
+            "online": True,
+            "description": "Driver statistics feature view",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "driver_stats"
+    assert data["status"] == "applied"
+
+    # Verify it exists
+    response = fastapi_test_app.get("/feature_views/driver_stats?project=demo_project")
+    assert response.status_code == 200
+    spec = response.json()["spec"]
+    assert spec["name"] == "driver_stats"
+    assert spec["features"][0]["description"] == "Number of completed trips"
+    assert spec["features"][1]["description"] == "Average driver rating"
+
+    # Delete it
+    response = fastapi_test_app.delete(
+        "/feature_views/driver_stats?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "driver_stats"
+    assert data["status"] == "deleted"
+
+    # Verify it's gone
+    response = fastapi_test_app.get("/feature_views/driver_stats?project=demo_project")
+    assert response.status_code == 404
+
+
+def test_apply_and_delete_feature_service_via_rest(fastapi_test_app):
+    """Test POST /feature_services and DELETE /feature_services/{name} endpoints."""
+    response = fastapi_test_app.post(
+        "/feature_views",
+        json={
+            "name": "driver_stats_for_service",
+            "project": "demo_project",
+            "entities": ["user_id"],
+            "features": [
+                {
+                    "name": "trip_count",
+                    "value_type": 2,
+                    "description": "Number of completed trips",
+                },
+            ],
+            "ttl_seconds": 86400,
+            "online": True,
+            "description": "Driver statistics feature view",
+        },
+    )
+    assert response.status_code == 201
+
+    response = fastapi_test_app.post(
+        "/feature_services",
+        json={
+            "name": "driver_activity_v1",
+            "project": "demo_project",
+            "features": [
+                {
+                    "feature_view_name": "driver_stats_for_service",
+                    "feature_names": ["trip_count"],
+                }
+            ],
+            "description": "Driver activity feature service",
+            "owner": "ml-team",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "driver_activity_v1"
+    assert data["status"] == "applied"
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["spec"]["name"] == "driver_activity_v1"
+    projections = data["spec"]["features"]
+    assert len(projections) == 1
+    assert projections[0]["featureViewName"] == "driver_stats_for_service"
+    assert len(projections[0]["featureColumns"]) == 1
+    assert projections[0]["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.get("/feature_services?project=demo_project")
+    assert response.status_code == 200
+    listed = next(
+        fs
+        for fs in response.json()["featureServices"]
+        if fs["spec"]["name"] == "driver_activity_v1"
+    )
+    listed_projection = listed["spec"]["features"][0]
+    assert listed_projection["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.post(
+        "/feature_services",
+        json={
+            "name": "driver_activity_all",
+            "project": "demo_project",
+            "features": [
+                {"feature_view_name": "driver_stats_for_service"},
+            ],
+            "description": "All features from the feature view",
+        },
+    )
+    assert response.status_code == 201
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_all?project=demo_project"
+    )
+    assert response.status_code == 200
+    all_features_projection = response.json()["spec"]["features"][0]
+    assert all_features_projection["featureViewName"] == "driver_stats_for_service"
+    assert len(all_features_projection["featureColumns"]) == 1
+    assert all_features_projection["featureColumns"][0]["name"] == "trip_count"
+
+    response = fastapi_test_app.delete(
+        "/feature_services/driver_activity_all?project=demo_project"
+    )
+    assert response.status_code == 200
+
+    response = fastapi_test_app.delete(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "driver_activity_v1"
+    assert data["status"] == "deleted"
+
+    response = fastapi_test_app.get(
+        "/feature_services/driver_activity_v1?project=demo_project"
+    )
+    assert response.status_code == 404
+
+    response = fastapi_test_app.delete(
+        "/feature_views/driver_stats_for_service?project=demo_project"
+    )
+    assert response.status_code == 200
+
+
+def _apply_permission_body(**overrides):
+    body = {
+        "name": "fv_reader",
+        "project": "demo_project",
+        "types": ["FEATURE_VIEW"],
+        "actions": ["DESCRIBE"],
+        "policy": {"role_based_policy": {"roles": ["reader"]}},
+    }
+    body.update(overrides)
+    return body
+
+
+def test_apply_and_delete_permission_via_rest(fastapi_test_app):
+    """Test POST /permissions and DELETE /permissions/{name} endpoints."""
+    response = fastapi_test_app.post("/permissions", json=_apply_permission_body())
+    assert response.status_code == 201
+    assert response.json()["status"] == "applied"
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+    spec = response.json()["spec"]
+    assert spec["types"] == ["FEATURE_VIEW"]
+    assert spec["actions"] == ["DESCRIBE"]
+
+    response = fastapi_test_app.delete("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 200
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "overrides, invalid_name",
+    [
+        ({"types": ["feature_view"]}, "feature_view"),
+        ({"types": ["FEATURE_VIEW", "FEATURE_VIWE"]}, "FEATURE_VIWE"),
+        ({"actions": ["describe"]}, "describe"),
+        ({"actions": ["DESCRIBE", "READ"]}, "READ"),
+    ],
+)
+def test_apply_permission_rejects_unknown_names_via_rest(
+    fastapi_test_app, overrides, invalid_name
+):
+    """Unknown types or actions must be rejected instead of silently dropped."""
+    response = fastapi_test_app.post(
+        "/permissions", json=_apply_permission_body(**overrides)
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert invalid_name in detail
+    assert "Valid options are" in detail
+
+    response = fastapi_test_app.get("/permissions/fv_reader?project=demo_project")
+    assert response.status_code == 404
+
+
+def test_metrics_resource_counts_nonexistent_project(fastapi_test_app):
+    """Test /metrics/resource_counts with a non-existent project returns empty data."""
+    response = fastapi_test_app.get(
+        "/metrics/resource_counts?project=nonexistent_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    counts = data["counts"]
+    for value in counts.values():
+        assert value == 0
+    assert data["featureServices"] == []
+    assert data["featureViews"] == []
+    assert "registryLastUpdated" in data
+
+
+def test_registry_refresh_via_rest(fastapi_test_app):
+    """POST /registry/refresh invalidates the registry cache and returns 200."""
+    response = fastapi_test_app.post("/registry/refresh")
+    assert response.status_code == 200
+
+
+def test_registry_refresh_via_rest_error():
+    """POST /registry/refresh returns 500 when refresh fails."""
+    from unittest.mock import patch
+
+    from feast.api.registry.rest import register_all_routes
+    from feast.registry_server import RegistryServer
+
+    tmp_dir = tempfile.TemporaryDirectory()
+    registry_path = os.path.join(tmp_dir.name, "registry.db")
+
+    config = {
+        "registry": registry_path,
+        "project": "demo_project",
+        "provider": "local",
+        "offline_store": {"type": "file"},
+        "online_store": {"type": "sqlite", "path": ":memory:"},
+    }
+    from fastapi import FastAPI
+
+    from feast.repo_config import RepoConfig
+
+    store = FeatureStore(config=RepoConfig.model_validate(config))
+    store.apply([])
+
+    app = FastAPI()
+    grpc_handler = RegistryServer(store.registry, store=store)
+    register_all_routes(app, grpc_handler, store=store)
+
+    with patch.object(store, "refresh_registry", side_effect=Exception("db error")):
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.post("/registry/refresh")
+        assert response.status_code == 500
+
+    tmp_dir.cleanup()
+
+
+@pytest.mark.parametrize(
+    "list_fn",
+    [
+        rest_utils.list_entities,
+        rest_utils.list_feature_views,
+        rest_utils.list_feature_services,
+        rest_utils.list_data_sources,
+        rest_utils.list_saved_datasets,
+        rest_utils.list_features,
+        rest_utils.list_label_views,
+        rest_utils.list_labels,
+    ],
+)
+def test_list_helpers_do_not_swallow_base_exceptions(list_fn):
+    # Regular errors are reported through err_msg, but KeyboardInterrupt /
+    # SystemExit must propagate instead of turning into an empty result.
+    with patch.object(rest_utils, "grpc_call", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            list_fn(grpc_handler=MagicMock(), project="p", allow_cache=True)
+
+
+def test_list_all_projects_does_not_swallow_base_exceptions():
+    with patch.object(rest_utils, "grpc_call", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            rest_utils.list_all_projects(grpc_handler=MagicMock(), allow_cache=True)
+
+
+def test_get_all_project_resources_does_not_swallow_base_exceptions():
+    with patch.object(rest_utils, "list_entities", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            rest_utils.get_all_project_resources(
+                grpc_handler=MagicMock(), project="p", allow_cache=True
+            )
+
+
+def test_validate_projects_does_not_swallow_base_exceptions():
+    with patch.object(search, "list_all_projects", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            search._validate_projects(["p"], MagicMock(), allow_cache=True)

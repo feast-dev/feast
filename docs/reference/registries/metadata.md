@@ -20,6 +20,7 @@ The metadata info of Feast `feature_store.yaml` is:
 | registry.warehouse | N | string | snowflake warehouse name |
 | registry.database | N | string | snowflake db name |
 | registry.schema   | N | string | snowflake schema name |
+| registry.enable_online_feature_view_versioning | N | boolean | enable versioned online store tables and version-qualified reads (default: false). Version history tracking is always active. |
 | online_store  | Y | | |
 | offline_store  | Y | NA | | |
 | offline_store.type | Y | string | storage type | 

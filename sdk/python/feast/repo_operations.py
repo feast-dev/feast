@@ -26,7 +26,8 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
+from feast.labeling.label_view import LabelView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
@@ -92,9 +93,9 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         ".git",
         ".feastignore",
         ".venv",
-        ".pytest_cache",
-        "__pycache__",
-        ".ipynb_checkpoints",
+        "**/.ipynb_checkpoints",
+        "**/.pytest_cache",
+        "**/__pycache__",
     ]
     ignore_files = get_ignore_files(repo_root, ignore_paths)
 
@@ -127,6 +128,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
+        label_views=[],
         permissions=[],
     )
 
@@ -164,8 +166,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                assert batch_source
-                if not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
 
                 # Handle stream sources defined with feature views.
@@ -180,10 +183,10 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                if not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
-
-                # Handle stream sources defined with feature views.
                 assert obj.stream_source
                 stream_source = obj.stream_source
                 if not any((stream_source is ds) for ds in res.data_sources):
@@ -195,7 +198,9 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
                 # Handle batch sources defined with feature views.
                 batch_source = obj.batch_source
-                if not any((batch_source is ds) for ds in res.data_sources):
+                if batch_source is not None and not any(
+                    (batch_source is ds) for ds in res.data_sources
+                ):
                     res.data_sources.append(batch_source)
             elif isinstance(obj, Entity) and not any(
                 (obj is entity) for entity in res.entities
@@ -209,6 +214,22 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is odfv) for odfv in res.on_demand_feature_views
             ):
                 res.on_demand_feature_views.append(obj)
+            elif isinstance(obj, LabelView) and not any(
+                (obj is lv) for lv in res.label_views
+            ):
+                res.label_views.append(obj)
+                if obj.source is not None and not any(
+                    (obj.source is ds) for ds in res.data_sources
+                ):
+                    res.data_sources.append(obj.source)
+                if (
+                    isinstance(obj.source, PushSource)
+                    and obj.source.batch_source
+                    and not any(
+                        (obj.source.batch_source is ds) for ds in res.data_sources
+                    )
+                ):
+                    res.data_sources.append(obj.source.batch_source)
             elif isinstance(obj, Permission) and not any(
                 (obj is p) for p in res.permissions
             ):
@@ -220,7 +241,12 @@ def parse_repo(repo_root: Path) -> RepoContents:
     return res
 
 
-def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+def plan(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
@@ -229,12 +255,16 @@ def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool)
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project
         if not skip_source_validation:
             provider = store._get_provider()
-            data_sources = [t.batch_source for t in repo.feature_views]
+            data_sources = [
+                t.batch_source for t in repo.feature_views if t.batch_source is not None
+            ]
             # Make sure the data source used by this feature view is supported by Feast
             for data_source in data_sources:
                 provider.validate_data_source(store.config, data_source)
 
-        registry_diff, infra_diff, _ = store.plan(repo)
+        registry_diff, infra_diff, _ = store.plan(
+            repo, skip_feature_view_validation=skip_feature_view_validation
+        )
         click.echo(registry_diff.to_string())
         click.echo(infra_diff.to_string())
 
@@ -334,10 +364,14 @@ def apply_total_with_repo_instance(
     registry: BaseRegistry,
     repo: RepoContents,
     skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
+    no_promote: bool = False,
 ):
     if not skip_source_validation:
         provider = store._get_provider()
-        data_sources = [t.batch_source for t in repo.feature_views]
+        data_sources = [
+            t.batch_source for t in repo.feature_views if t.batch_source is not None
+        ]
         # Make sure the data source used by this feature view is supported by Feast
         for data_source in data_sources:
             provider.validate_data_source(store.config, data_source)
@@ -350,15 +384,90 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
-    if store._should_use_plan():
-        registry_diff, infra_diff, new_infra = store.plan(repo)
-        click.echo(registry_diff.to_string())
+    try:
+        if store._should_use_plan():
+            # Planning phase - compute diffs first without progress bars
+            registry_diff, infra_diff, new_infra = store.plan(
+                repo,
+                skip_feature_view_validation=skip_feature_view_validation,
+            )
+            click.echo(registry_diff.to_string())
 
-        store._apply_diffs(registry_diff, infra_diff, new_infra)
-        click.echo(infra_diff.to_string())
-    else:
-        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
-        log_infra_changes(views_to_keep, views_to_delete)
+            # Only show progress bars if there are actual infrastructure changes
+            progress_ctx = None
+            if len(infra_diff.infra_object_diffs) > 0:
+                from feast.diff.apply_progress import ApplyProgressContext
+
+                progress_ctx = ApplyProgressContext()
+                progress_ctx.start_overall_progress()
+
+            # Apply phase
+            store._apply_diffs(
+                registry_diff,
+                infra_diff,
+                new_infra,
+                progress_ctx=progress_ctx,
+                no_promote=no_promote,
+            )
+            click.echo(infra_diff.to_string())
+        else:
+            # Legacy apply path - no progress bars for legacy path
+            store.apply(
+                all_to_apply,
+                objects_to_delete=all_to_delete,
+                partial=False,
+                skip_feature_view_validation=skip_feature_view_validation,
+                no_promote=no_promote,
+            )
+            log_infra_changes(views_to_keep, views_to_delete)
+    finally:
+        # Cleanup is handled in the new _apply_diffs method
+        pass
+
+    # Submit baseline jobs if needed
+    dqm = store.config.data_quality_monitoring_config
+    if dqm is not None and dqm.auto_baseline:
+        _submit_baseline_jobs(store, project_name, repo)
+
+
+def _submit_baseline_jobs(store, project_name, repo):
+    try:
+        from feast.monitoring.monitoring_service import MonitoringService
+
+        svc = MonitoringService(store)
+        feature_views = list(repo.feature_views)
+        if not feature_views:
+            return
+
+        job_ids = svc.submit_baseline_for_new_features(
+            project=project_name, feature_views=feature_views
+        )
+        if not job_ids:
+            return
+
+        import threading
+
+        def _run_baseline_jobs():
+            for job_id in job_ids:
+                try:
+                    svc.execute_job(job_id)
+                    click.echo(f"  ✓ Baseline computed (job: {job_id})")
+                except Exception:
+                    logging.getLogger(__name__).debug(
+                        "Baseline job %s execution failed (non-critical)",
+                        job_id,
+                        exc_info=True,
+                    )
+
+        click.echo(
+            f"  → Computing baseline metrics in background ({len(job_ids)} job(s))..."
+        )
+        thread = threading.Thread(target=_run_baseline_jobs)
+        thread.start()
+    except Exception:
+        logging.getLogger(__name__).debug(
+            "Monitoring baseline submission skipped (non-critical)", exc_info=True
+        )
 
 
 def log_infra_changes(
@@ -396,7 +505,13 @@ def create_feature_store(
         return FeatureStore(repo_path=str(repo), fs_yaml_file=fs_yaml_file)
 
 
-def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
+def apply_total(
+    repo_config: RepoConfig,
+    repo_path: Path,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool = False,
+    no_promote: bool = False,
+):
     os.chdir(repo_path)
     repo = _get_repo_contents(repo_path, repo_config.project, repo_config)
     for project in repo.projects:
@@ -411,7 +526,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
         print(f"Applying changes for project {project.name}")
         apply_total_with_repo_instance(
-            store, project.name, registry, repo, skip_source_validation
+            store,
+            project.name,
+            registry,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
+            no_promote=no_promote,
         )
 
 
@@ -423,15 +544,9 @@ def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
 
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
-    registry_config = repo_config.registry
     project = repo_config.project
-    registry = Registry(
-        project,
-        registry_config=registry_config,
-        repo_path=repo_path,
-        auth_config=repo_config.auth_config,
-    )
-    registry_dict = registry.to_dict(project=project)
+    feature_store = FeatureStore(repo_path=str(repo_path), config=repo_config)
+    registry_dict = feature_store.registry.to_dict(project=project)
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 

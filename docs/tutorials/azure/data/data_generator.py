@@ -7,8 +7,7 @@ from datetime import datetime, timedelta
 from pytz import FixedOffset, timezone, utc
 from random import randint
 from enum import Enum
-from sqlalchemy import create_engine, DateTime
-from datetime import datetime
+from sqlalchemy import DateTime
 
 DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL = "event_timestamp"
 
@@ -65,7 +64,8 @@ def create_orders_df(
             )
         ]
         df.sort_values(
-            by=["e_ts", "order_id", "driver_id", "customer_id"], inplace=True,
+            by=["e_ts", "order_id", "driver_id", "customer_id"],
+            inplace=True,
         )
     else:
         df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = [
@@ -208,9 +208,7 @@ def create_customer_daily_profile_df(customers, start_date, end_date) -> pd.Data
 
 def generate_entities(date, n_customers, n_drivers, order_count):
     end_date = date
-    before_start_date = end_date - timedelta(days=365)
     start_date = end_date - timedelta(days=7)
-    after_end_date = end_date + timedelta(days=365)
     customer_entities = [20000 + c_id for c_id in range(n_customers)]
     driver_entities = [50000 + d_id for d_id in range(n_drivers)]
     orders_df = create_orders_df(
@@ -225,7 +223,7 @@ def generate_entities(date, n_customers, n_drivers, order_count):
 
 
 def save_df_to_csv(df, table_name, dtype):
-    df.to_csv(table_name+".csv", index=False)
+    df.to_csv(table_name + ".csv", index=False)
 
 
 if __name__ == "__main__":
@@ -246,7 +244,6 @@ if __name__ == "__main__":
     drivers_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
 
     print(drivers_df.head())
-
 
     orders_table = "orders"
     driver_hourly_table = "driver_hourly"

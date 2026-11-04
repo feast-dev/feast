@@ -37,6 +37,8 @@ The Feature Server operates as a stateless service backed by two key components:
 | `/push`                      | Pushes feature data to the online and/or offline store.                 |
 | `/materialize`               | Materializes features within a specific time range to the online store. |
 | `/materialize-incremental`   | Incrementally materializes features up to the current timestamp.        |
-| `/retrieve-online-documents` | Supports Vector Similarity Search for RAG (Alpha end-ponit)             |
+| `/search` | Vector similarity search for RAG (Alpha endpoint) |
+| `/v1/vector_stores/{id}/search` | OpenAI-compatible vector search with server-side embedding |
+| `/retrieve-online-documents` | **Deprecated.** Use `/search` instead. |
 | `/docs`                      | API Contract for available endpoints                                    | 
 

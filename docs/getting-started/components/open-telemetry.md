@@ -38,7 +38,7 @@ The OpenTelemetry integration in Feast consists of several components working to
 To add monitoring to the Feast Feature Server, follow these steps:
 
 ### 1. Deploy Prometheus Operator
-Follow the [Prometheus Operator documentation](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md) to install the operator.
+Follow the [Prometheus Operator documentation](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/getting-started/installation.md) to install the operator.
 
 ### 2. Deploy OpenTelemetry Operator
 Before installing the OpenTelemetry Operator:
@@ -144,6 +144,12 @@ Once configured, you can monitor various metrics including:
 
 - `feast_feature_server_memory_usage`: Memory utilization of the feature server
 - `feast_feature_server_cpu_usage`: CPU usage statistics
+- `feast_feature_server_request_latency_seconds`: Request latency with feature count dimensions
+- `feast_feature_server_online_store_read_duration_seconds`: Online store read phase duration
+- `feast_feature_server_transformation_duration_seconds`: ODFV read-path transformation duration (per ODFV, requires `track_metrics=True`)
+- `feast_feature_server_write_transformation_duration_seconds`: ODFV write-path transformation duration (per ODFV, requires `track_metrics=True`)
 - Additional custom metrics based on your configuration
+
+For the full list of metrics, see the [Python Feature Server reference](../../reference/feature-servers/python-feature-server.md#available-metrics).
 
 These metrics can be visualized using Prometheus and other compatible monitoring tools.

@@ -88,3 +88,11 @@ var _ = AfterSuite(func() {
 func testSetIsOpenShift() {
 	isOpenShift = true
 }
+
+func testSetHasServiceMonitorCRD(val bool) {
+	hasServiceMonitorCRD = val
+}
+
+func testSetHasMlflowCRD(val bool) {
+	hasMlflowCRD = val
+}

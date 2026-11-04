@@ -3,8 +3,9 @@ import { Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
 
 import { FeatureIcon } from "../../graphics/FeatureIcon";
-import { useMatchExact } from "../../hooks/useMatchSubpath";
+import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import FeatureOverviewTab from "./FeatureOverviewTab";
+import FeatureMonitoringTab from "./FeatureMonitoringTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   useFeatureCustomTabs,
@@ -34,12 +35,20 @@ const FeatureInstance = () => {
               navigate("");
             },
           },
+          {
+            label: "Monitoring",
+            isSelected: useMatchSubpath("monitoring"),
+            onClick: () => {
+              navigate("monitoring");
+            },
+          },
           ...customNavigationTabs,
         ]}
       />
       <EuiPageTemplate.Section>
         <Routes>
           <Route path="/" element={<FeatureOverviewTab />} />
+          <Route path="/monitoring" element={<FeatureMonitoringTab />} />
           {CustomTabRoutes}
         </Routes>
       </EuiPageTemplate.Section>

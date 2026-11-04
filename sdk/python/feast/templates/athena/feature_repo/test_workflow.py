@@ -50,6 +50,7 @@ def test_end_to_end():
             ],
             online=True,
             source=driver_hourly_stats,
+            version="latest",
         )
 
         # apply repository

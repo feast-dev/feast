@@ -53,6 +53,9 @@ class TestCachingRegistry(CachingRegistry):
     def _get_stream_feature_view(self, *args, **kwargs):
         pass
 
+    def _get_label_view(self, *args, **kwargs):
+        pass
+
     def _get_validation_reference(self, *args, **kwargs):
         pass
 
@@ -87,6 +90,9 @@ class TestCachingRegistry(CachingRegistry):
         pass
 
     def _list_stream_feature_views(self, *args, **kwargs):
+        pass
+
+    def _list_label_views(self, *args, **kwargs):
         pass
 
     def _list_validation_references(self, *args, **kwargs):
@@ -135,6 +141,9 @@ class TestCachingRegistry(CachingRegistry):
         pass
 
     def delete_feature_view(self, *args, **kwargs):
+        pass
+
+    def delete_label_view(self, *args, **kwargs):
         pass
 
     def delete_permission(self, *args, **kwargs):

@@ -20,6 +20,10 @@
 [compute-engine.md](compute-engine.md)
 {% endcontent-ref %}
 
+{% content-ref url="stream-processor.md" %}
+[stream-processor.md](stream-processor.md)
+{% endcontent-ref %}
+
 {% content-ref url="provider.md" %}
 [provider.md](provider.md)
 {% endcontent-ref %}

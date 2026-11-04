@@ -27,6 +27,8 @@ const (
 	FeatureStoreName         = "simple-feast-setup"
 	FeastResourceName        = FeastPrefix + FeatureStoreName
 	FeatureStoreResourceName = "featurestores.feast.dev"
+	feastCommand             = "feast"
+	listCommand              = "list"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -108,6 +110,32 @@ func CheckIfDeploymentExistsAndAvailable(namespace string, deploymentName string
 	}
 }
 
+// checkFeatureStoreReconcileError checks the FeatureStore CR status for reconciliation errors.
+// Returns an error with the failure reason if the CR is in a failed state, nil otherwise.
+func checkFeatureStoreReconcileError(namespace, featureStoreName string) error {
+	cmd := exec.Command("kubectl", "get", FeatureStoreResourceName, featureStoreName, "-n", namespace, "-o", "json")
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil
+	}
+
+	var resource feastdevv1.FeatureStore
+	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
+		return nil
+	}
+
+	for _, condition := range resource.Status.Conditions {
+		if condition.Status == "False" {
+			return fmt.Errorf("FeatureStore %s has failed condition: type=%s reason=%s message=%s",
+				featureStoreName, condition.Type, condition.Reason, condition.Message)
+		}
+	}
+	return nil
+}
+
 // validates if a service account exists using the kubectl CLI.
 func checkIfServiceAccountExists(namespace, saName string) error {
 	cmd := exec.Command("kubectl", "get", "sa", saName, "-n", namespace)
@@ -169,6 +197,27 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	// Check the output to confirm presence
 	if !strings.Contains(out.String(), serviceName) {
 		return fmt.Errorf("kubernetes service %s not found in namespace %s", serviceName, namespace)
+	}
+
+	return nil
+}
+
+// validates if a CronJob exists using the kubectl CLI.
+func checkIfCronJobExists(namespace, cronJobName string) error {
+	cmd := exec.Command("kubectl", "get", "cronjob", cronJobName, "-n", namespace)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to find CronJob %s in namespace %s. Error: %v. Stderr: %s",
+			cronJobName, namespace, err, stderr.String())
+	}
+
+	if !strings.Contains(out.String(), cronJobName) {
+		return fmt.Errorf("CronJob %s not found in namespace %s", cronJobName, namespace)
 	}
 
 	return nil
@@ -241,6 +290,12 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		"Error occurred while checking FeatureStore %s is having remote registry or not. \nError: %v\n",
 		featureStoreName, err))
 
+	By("Checking FeatureStore reconciliation status for early failures")
+	time.Sleep(15 * time.Second)
+	if reconcileErr := checkFeatureStoreReconcileError(namespace, featureStoreName); reconcileErr != nil {
+		Fail(fmt.Sprintf("FeatureStore reconciliation failed before deployment check: %v", reconcileErr))
+	}
+
 	k8sResourceNames := []string{feastResourceName}
 
 	if !hasRemoteRegistry {
@@ -250,6 +305,14 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 	for _, deploymentName := range k8sResourceNames {
 		By(fmt.Sprintf("validate the feast deployment: %s is up and in availability state.", deploymentName))
 		err = CheckIfDeploymentExistsAndAvailable(namespace, deploymentName, timeout)
+		if err != nil {
+			if reconcileErr := checkFeatureStoreReconcileError(namespace, featureStoreName); reconcileErr != nil {
+				Fail(fmt.Sprintf(
+					"Deployment %s not available due to FeatureStore reconciliation error: %v",
+					deploymentName, reconcileErr,
+				))
+			}
+		}
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
 			"Deployment %s is not available but expected to be available. \nError: %v\n",
 			deploymentName, err,
@@ -285,6 +348,14 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		))
 		fmt.Printf("kubernetes service %s is available\n", serviceName)
 	}
+
+	By(fmt.Sprintf("validate the feast CronJob: %s exists.", feastResourceName))
+	err = checkIfCronJobExists(namespace, feastResourceName)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
+		"CronJob %s does not exist in namespace %s. Error: %v",
+		feastResourceName, namespace, err,
+	))
+	fmt.Printf("CronJob %s exists in namespace %s\n", feastResourceName, namespace)
 
 	By(fmt.Sprintf("Checking FeatureStore customer resource: %s is in Ready Status.", featureStoreName))
 	err = checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namespace)
@@ -408,6 +479,10 @@ func DeployOperatorFromCode(testDir string, skipBuilds bool) {
 		cmd = exec.Command("make", "install")
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("deleting existing controller-manager deployment to allow selector changes on upgrade")
+		cmd = exec.Command("kubectl", "delete", "deployment", ControllerDeploymentName, "-n", FeastControllerNamespace, "--ignore-not-found=true")
+		_, _ = Run(cmd, testDir)
 
 		By("deploying the controller-manager")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage), fmt.Sprintf("FS_IMG=%s", feastLocalImage))
@@ -544,27 +619,27 @@ func VerifyFeastMethods(namespace string, feastDeploymentName string, testDir st
 	}
 	checks := []feastCheck{
 		{
-			command:   []string{"feast", "projects", "list"},
+			command:   []string{feastCommand, "projects", listCommand},
 			expected:  []string{"credit_scoring_local"},
 			logPrefix: "Projects List",
 		},
 		{
-			command:   []string{"feast", "feature-views", "list"},
+			command:   []string{feastCommand, "feature-views", listCommand},
 			expected:  []string{"credit_history", "zipcode_features", "total_debt_calc"},
 			logPrefix: "Feature Views List",
 		},
 		{
-			command:   []string{"feast", "entities", "list"},
+			command:   []string{feastCommand, "entities", listCommand},
 			expected:  []string{"zipcode", "dob_ssn"},
 			logPrefix: "Entities List",
 		},
 		{
-			command:   []string{"feast", "data-sources", "list"},
+			command:   []string{feastCommand, "data-sources", listCommand},
 			expected:  []string{"Zipcode source", "Credit history", "application_data"},
 			logPrefix: "Data Sources List",
 		},
 		{
-			command: []string{"feast", "features", "list"},
+			command: []string{feastCommand, "features", listCommand},
 			expected: []string{
 				"credit_card_due", "mortgage_due", "student_loan_due", "vehicle_loan_due",
 				"hard_pulls", "missed_payments_2y", "missed_payments_1y", "missed_payments_6m",
@@ -695,78 +770,4 @@ func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentNa
 
 	By("Verifying client feature_store.yaml for expected store types")
 	validateFeatureStoreYaml(namespace, feastDeploymentName)
-}
-
-// ReplaceNamespaceInYaml reads a YAML file, replaces all existingNamespace with the actual namespace
-func ReplaceNamespaceInYamlFilesInPlace(filePaths []string, existingNamespace string, actualNamespace string) error {
-	for _, filePath := range filePaths {
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to read YAML file %s: %w", filePath, err)
-		}
-		updated := strings.ReplaceAll(string(data), existingNamespace, actualNamespace)
-
-		err = os.WriteFile(filePath, []byte(updated), 0644)
-		if err != nil {
-			return fmt.Errorf("failed to write updated YAML file %s: %w", filePath, err)
-		}
-	}
-	return nil
-}
-
-func ApplyFeastPermissions(fileName string, registryFilePath string, namespace string, podNamePrefix string) {
-	By("Applying Feast permissions to the Feast registry pod")
-
-	// 1. Get the pod by prefix
-	By(fmt.Sprintf("Finding pod with prefix %q in namespace %q", podNamePrefix, namespace))
-	pod, err := getPodByPrefix(namespace, podNamePrefix)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	ExpectWithOffset(1, pod).NotTo(BeNil())
-
-	podName := pod.Name
-	fmt.Printf("Found pod: %s\n", podName)
-
-	cmd := exec.Command(
-		"oc", "cp",
-		fileName, // local source file
-		fmt.Sprintf("%s/%s:%s", namespace, podName, registryFilePath), // remote destination
-		"-c", "registry",
-	)
-
-	_, err = Run(cmd, "/test/e2e_rhoai")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	fmt.Printf("Successfully copied file to pod: %s\n", podName)
-
-	// Run `feast apply` inside the pod to apply updated permissions
-	By("Running feast apply inside the Feast registry pod")
-	cmd = exec.Command(
-		"oc", "exec", podName,
-		"-n", namespace,
-		"-c", "registry",
-		"--",
-		"bash", "-c",
-		"cd /feast-data/credit_scoring_local/feature_repo && feast apply",
-	)
-	_, err = Run(cmd, "/test/e2e_rhoai")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	fmt.Println("Feast permissions apply executed successfully")
-
-	By("Validating that Feast permission has been applied")
-
-	cmd = exec.Command(
-		"oc", "exec", podName,
-		"-n", namespace,
-		"-c", "registry",
-		"--",
-		"feast", "permissions", "list",
-	)
-
-	output, err := Run(cmd, "/test/e2e_rhoai")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	// Change "feast-auth" if your permission name is different
-	ExpectWithOffset(1, output).To(ContainSubstring("feast-auth"), "Expected permission 'feast-auth' to exist")
-
-	fmt.Println("Verified: Feast permission 'feast-auth' exists")
 }

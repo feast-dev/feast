@@ -134,7 +134,7 @@ def start_keycloak_server():
 
 @pytest.fixture(scope="session")
 def mysql_server():
-    container = MySqlContainer("mysql:latest")
+    container = MySqlContainer("mysql:latest", dialect="pymysql")
     container.start()
 
     yield container
@@ -154,7 +154,7 @@ def postgres_server():
 
 @pytest.fixture(scope="session")
 def minio_server():
-    container = MinioContainer()
+    container = MinioContainer(image="pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
     container.start()
 
     yield container

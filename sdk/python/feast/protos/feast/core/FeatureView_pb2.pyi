@@ -24,16 +24,58 @@ import feast.core.Transformation_pb2
 import google.protobuf.descriptor
 import google.protobuf.duration_pb2
 import google.protobuf.internal.containers
+import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
 import google.protobuf.timestamp_pb2
 import sys
+import typing
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 10):
     import typing as typing_extensions
 else:
     import typing_extensions
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
+
+class _FeatureViewState:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _FeatureViewStateEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_FeatureViewState.ValueType], builtins.type):  # noqa: F821
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    STATE_UNSPECIFIED: _FeatureViewState.ValueType  # 0
+    """Default value for backward compatibility. Treated as AVAILABLE_ONLINE
+    for existing feature views that predate the state machine.
+    """
+    CREATED: _FeatureViewState.ValueType  # 1
+    """Feature view has been registered via feast apply but no data is available."""
+    GENERATED: _FeatureViewState.ValueType  # 2
+    """Feature engineering / offline data generation is complete.
+    The feature view is ready to be materialized.
+    """
+    MATERIALIZING: _FeatureViewState.ValueType  # 3
+    """Materialization is currently in progress."""
+    AVAILABLE_ONLINE: _FeatureViewState.ValueType  # 4
+    """Materialization completed. Features are available in the online store."""
+
+class FeatureViewState(_FeatureViewState, metaclass=_FeatureViewStateEnumTypeWrapper):
+    """Lifecycle state of a feature view."""
+
+STATE_UNSPECIFIED: FeatureViewState.ValueType  # 0
+"""Default value for backward compatibility. Treated as AVAILABLE_ONLINE
+for existing feature views that predate the state machine.
+"""
+CREATED: FeatureViewState.ValueType  # 1
+"""Feature view has been registered via feast apply but no data is available."""
+GENERATED: FeatureViewState.ValueType  # 2
+"""Feature engineering / offline data generation is complete.
+The feature view is ready to be materialized.
+"""
+MATERIALIZING: FeatureViewState.ValueType  # 3
+"""Materialization is currently in progress."""
+AVAILABLE_ONLINE: FeatureViewState.ValueType  # 4
+"""Materialization completed. Features are available in the online store."""
+global___FeatureViewState = FeatureViewState
 
 class FeatureView(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -58,7 +100,7 @@ class FeatureView(google.protobuf.message.Message):
 global___FeatureView = FeatureView
 
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 17
+    """Next available id: 20
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -95,6 +137,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
     SOURCE_VIEWS_FIELD_NUMBER: builtins.int
     FEATURE_TRANSFORMATION_FIELD_NUMBER: builtins.int
     MODE_FIELD_NUMBER: builtins.int
+    ENABLE_VALIDATION_FIELD_NUMBER: builtins.int
+    VERSION_FIELD_NUMBER: builtins.int
+    ORG_FIELD_NUMBER: builtins.int
+    DISABLED_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -117,14 +163,18 @@ class FeatureViewSpec(google.protobuf.message.Message):
         """
     @property
     def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Batch/Offline DataSource where this view can retrieve offline feature data."""
+        """Batch/Offline DataSource where this view can retrieve offline feature data.
+        Optional: if not set, the feature view has no associated batch data source (e.g. purely derived views).
+        """
     online: builtins.bool
     """Whether these features should be served online or not
     This is also used to determine whether the features should be written to the online store
     """
     @property
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
-        """Streaming DataSource from where this view can consume "online" feature data."""
+        """Streaming DataSource from where this view can consume "online" feature data.
+        Optional: only required for streaming feature views.
+        """
     description: builtins.str
     """Description of the feature view."""
     owner: builtins.str
@@ -141,6 +191,17 @@ class FeatureViewSpec(google.protobuf.message.Message):
         """Feature transformation for batch feature views"""
     mode: builtins.str
     """The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")"""
+    enable_validation: builtins.bool
+    """Whether schema validation is enabled during materialization"""
+    version: builtins.str
+    """User-specified version pin (e.g. "latest", "v2", "version2")"""
+    org: builtins.str
+    """Organizational unit that owns this feature view (e.g. "ads", "search")."""
+    disabled: builtins.bool
+    """Whether this feature view is disabled for serving and materialization.
+    When true, the feature view will not serve online features or be materialized.
+    Defaults to false (enabled) for backward compatibility.
+    """
     def __init__(
         self,
         *,
@@ -160,9 +221,13 @@ class FeatureViewSpec(google.protobuf.message.Message):
         source_views: collections.abc.Iterable[global___FeatureViewSpec] | None = ...,
         feature_transformation: feast.core.Transformation_pb2.FeatureTransformationV2 | None = ...,
         mode: builtins.str = ...,
+        enable_validation: builtins.bool = ...,
+        version: builtins.str = ...,
+        org: builtins.str = ...,
+        disabled: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "disabled", b"disabled", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 
@@ -172,6 +237,9 @@ class FeatureViewMeta(google.protobuf.message.Message):
     CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     MATERIALIZATION_INTERVALS_FIELD_NUMBER: builtins.int
+    CURRENT_VERSION_NUMBER_FIELD_NUMBER: builtins.int
+    VERSION_ID_FIELD_NUMBER: builtins.int
+    STATE_FIELD_NUMBER: builtins.int
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
@@ -181,15 +249,24 @@ class FeatureViewMeta(google.protobuf.message.Message):
     @property
     def materialization_intervals(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___MaterializationInterval]:
         """List of pairs (start_time, end_time) for which this feature view has been materialized."""
+    current_version_number: builtins.int
+    """The current version number of this feature view in the version history."""
+    version_id: builtins.str
+    """Auto-generated UUID identifying this specific version."""
+    state: global___FeatureViewState.ValueType
+    """Lifecycle state of this feature view."""
     def __init__(
         self,
         *,
         created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         materialization_intervals: collections.abc.Iterable[global___MaterializationInterval] | None = ...,
+        current_version_number: builtins.int = ...,
+        version_id: builtins.str = ...,
+        state: global___FeatureViewState.ValueType = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "state", b"state", "version_id", b"version_id"]) -> None: ...
 
 global___FeatureViewMeta = FeatureViewMeta
 

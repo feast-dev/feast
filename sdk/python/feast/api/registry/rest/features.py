@@ -38,6 +38,7 @@ def get_feature_router(grpc_handler) -> APIRouter:
             feature_view=feature_view or "",
             name=name or "",
             allow_cache=allow_cache,
+            kind="feature",
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
@@ -127,6 +128,76 @@ def get_feature_router(grpc_handler) -> APIRouter:
             limit=limit,
             sort_by=sort_by,
             sort_order=sort_order,
+            extra_request_params={"kind": "feature"},
         )
+
+    # --- Labels endpoints (items from LabelViews only) ---
+
+    @router.get("/labels")
+    def list_labels(
+        project: str = Query(...),
+        feature_view: str = Query(None, description="Filter by label view name"),
+        name: str = Query(None, description="Filter by label name"),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each label"
+        ),
+        allow_cache: bool = Query(True),
+        pagination_params: dict = Depends(get_pagination_params),
+        sorting_params: dict = Depends(get_sorting_params),
+    ):
+        req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            feature_view=feature_view or "",
+            name=name or "",
+            allow_cache=allow_cache,
+            kind="label",
+            pagination=create_grpc_pagination_params(pagination_params),
+            sorting=create_grpc_sorting_params(sorting_params),
+        )
+        response = grpc_call(grpc_handler.ListFeatures, req)
+        if "features" not in response:
+            response["features"] = []
+        if "pagination" not in response:
+            response["pagination"] = {}
+
+        # Rename key for clarity in the response
+        response["labels"] = response.pop("features")
+
+        if include_relationships:
+            labels = response.get("labels", [])
+            relationships = get_relationships_for_objects(
+                grpc_handler, labels, "feature", project, allow_cache
+            )
+            response["relationships"] = relationships
+        return response
+
+    @router.get("/labels/all")
+    def list_labels_all(
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100),
+        sort_by: str = Query(None),
+        sort_order: str = Query("asc"),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each label"
+        ),
+        allow_cache: bool = Query(True),
+    ):
+        result = aggregate_across_projects(
+            grpc_handler=grpc_handler,
+            list_method=grpc_handler.ListFeatures,
+            request_cls=RegistryServer_pb2.ListFeaturesRequest,
+            response_key="features",
+            object_type="feature",
+            include_relationships=include_relationships,
+            allow_cache=allow_cache,
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            extra_request_params={"kind": "label"},
+        )
+        if "features" in result:
+            result["labels"] = result.pop("features")
+        return result
 
     return router

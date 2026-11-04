@@ -11,7 +11,6 @@ Subpackages
    feast.infra.online_stores.couchbase_online_store
    feast.infra.online_stores.hazelcast_online_store
    feast.infra.online_stores.hbase_online_store
-   feast.infra.online_stores.ikv_online_store
    feast.infra.online_stores.mysql_online_store
 
 Submodules

@@ -21,7 +21,7 @@ Usage:
 Example configuration (feature_store.yaml):
 
     online_store:
-      type: hybrid_online_store.HybridOnlineStore
+      type: hybrid
       routing_tag: team  # or any tag name you want to use for routing
       online_stores:
         - type: feast.infra.online_stores.bigtable.BigtableOnlineStore
@@ -64,9 +64,7 @@ class HybridOnlineStoreConfig(FeastConfigBaseModel):
         online_stores: A list of OnlineStoresWithConfig, each specifying the type and config for an online store backend.
     """
 
-    type: Literal["HybridOnlineStore", "hybrid_online_store.HybridOnlineStore"] = (
-        "hybrid_online_store.HybridOnlineStore"
-    )
+    type: Literal["hybrid"] = "hybrid"
 
     class OnlineStoresWithConfig(FeastConfigBaseModel):
         """

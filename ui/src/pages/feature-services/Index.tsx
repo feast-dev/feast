@@ -1,19 +1,20 @@
-import React, { useContext } from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import {
   EuiPageTemplate,
   EuiLoadingSpinner,
-  EuiTitle,
   EuiSpacer,
+  EuiTitle,
+  EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiFieldSearch,
+  EuiButton,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
 
-import useLoadRegistry from "../../queries/useLoadRegistry";
 import FeatureServiceListingTable from "./FeatureServiceListingTable";
 import {
   useSearchQuery,
@@ -22,27 +23,29 @@ import {
   tagTokenGroupsType,
 } from "../../hooks/useSearchInputWithTags";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureServiceIndexEmptyState from "./FeatureServiceIndexEmptyState";
 import TagSearch from "../../components/TagSearch";
 import ExportButton from "../../components/ExportButton";
+import FeatureServiceFormModal, {
+  FeatureServiceFormData,
+} from "../../components/FeatureServiceFormModal";
+import { useApplyFeatureService } from "../../queries/mutations/useFeatureServiceMutations";
 import { useFeatureServiceTagsAggregation } from "../../hooks/useTagsAggregation";
 import { feast } from "../../protos";
+import useResourceQuery, {
+  featureServiceListPath,
+  featureViewListPath,
+  restFeatureViewsToMergedList,
+} from "../../queries/useResourceQuery";
 
 const useLoadFeatureServices = () => {
-  const registryUrl = useContext(RegistryPathContext);
   const { projectName } = useParams();
-  const registryQuery = useLoadRegistry(registryUrl, projectName);
-
-  const data =
-    registryQuery.data === undefined
-      ? undefined
-      : registryQuery.data.objects.featureServices;
-
-  return {
-    ...registryQuery,
-    data,
-  };
+  return useResourceQuery<any[]>({
+    resourceType: "feature-services-list",
+    project: projectName,
+    restPath: featureServiceListPath(projectName),
+    restSelect: (d) => d.featureServices,
+  });
 };
 
 const shouldIncludeFSsGivenTokenGroups = (
@@ -54,7 +57,7 @@ const shouldIncludeFSsGivenTokenGroups = (
 
     if (entryTagValue) {
       return values.every((value) => {
-        return value.length > 0 ? entryTagValue.indexOf(value) >= 0 : true; // Don't filter if the string is empty
+        return value.length > 0 ? entryTagValue.indexOf(value) >= 0 : true;
       });
     } else {
       return false;
@@ -88,9 +91,45 @@ const filterFn = (
   return filteredByTags;
 };
 
+const formDataToPayload = (
+  formData: FeatureServiceFormData,
+  project: string,
+) => ({
+  name: formData.name,
+  project,
+  features: formData.projections.map((projection) => ({
+    feature_view_name: projection.featureViewName,
+    feature_names: projection.featureNames,
+  })),
+  description: formData.description,
+  owner: formData.owner,
+  tags: Object.fromEntries(
+    formData.tags
+      .filter((tag) => tag.key.trim())
+      .map((tag) => [tag.key, tag.value]),
+  ),
+});
+
 const Index = () => {
-  const { isLoading, isSuccess, isError, data } = useLoadFeatureServices();
+  const { projectName } = useParams();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadFeatureServices();
+  const isAllProjects = projectName === "all";
   const tagAggregationQuery = useFeatureServiceTagsAggregation();
+
+  const featureViewsQuery = useResourceQuery<any[]>({
+    resourceType: "feature-views-list-fs-prereq",
+    project: projectName,
+    restPath: featureViewListPath(projectName),
+    restSelect: restFeatureViewsToMergedList,
+    enabled: !isAllProjects,
+  });
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [prereqWarning, setPrereqWarning] = useState<string | null>(null);
+  const applyFeatureService = useApplyFeatureService();
 
   useDocumentTitle(`Feature Services | Feast`);
 
@@ -112,6 +151,40 @@ const Index = () => {
     ? filterFn(data, { tagTokenGroups, searchTokens })
     : data;
 
+  const handleCreateClick = () => {
+    const featureViews = featureViewsQuery.data || [];
+    if (featureViews.length === 0) {
+      setPrereqWarning(
+        "Feature services require at least one feature view. Create a feature view first, or proceed and add views later.",
+      );
+    } else {
+      setPrereqWarning(null);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCreateSubmit = (formData: FeatureServiceFormData) => {
+    const payload = formDataToPayload(formData, projectName || "");
+    applyFeatureService.mutate(payload, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setErrorMessage(null);
+        setPrereqWarning(null);
+        setSuccessMessage(
+          `Feature service "${formData.name}" created successfully.`,
+        );
+        setTimeout(() => setSuccessMessage(null), 5000);
+      },
+      onError: (err: unknown) => {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
+        setErrorMessage(message);
+      },
+    });
+  };
+
+  const showEmptyState = isSuccess && (!data || data.length === 0);
+
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Header
@@ -119,22 +192,68 @@ const Index = () => {
         iconType={FeatureServiceIcon}
         pageTitle="Feature Services"
         rightSideItems={[
+          ...(isAllProjects
+            ? []
+            : [
+                <EuiButton
+                  fill
+                  iconType="plus"
+                  onClick={handleCreateClick}
+                  key="create"
+                >
+                  Create Feature Service
+                </EuiButton>,
+              ]),
           <ExportButton
             data={filterResult ?? []}
             fileName="feature_services"
             formats={["json"]}
+            key="export"
           />,
         ]}
       />
       <EuiPageTemplate.Section>
+        {successMessage && (
+          <>
+            <EuiCallOut
+              title={successMessage}
+              color="success"
+              iconType="check"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
+        {prereqWarning && !isModalOpen && (
+          <>
+            <EuiCallOut
+              title={prereqWarning}
+              color="warning"
+              iconType="alert"
+              size="s"
+            />
+            <EuiSpacer size="m" />
+          </>
+        )}
         {isLoading && (
           <p>
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
-        {isSuccess && !data && <FeatureServiceIndexEmptyState />}
-        {isSuccess && filterResult && (
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view feature services.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
+        {showEmptyState && (
+          <FeatureServiceIndexEmptyState
+            onCreate={isAllProjects ? undefined : handleCreateClick}
+          />
+        )}
+        {isSuccess && filterResult && filterResult.length > 0 && (
           <React.Fragment>
             <EuiFlexGroup>
               <EuiFlexItem grow={2}>
@@ -169,6 +288,18 @@ const Index = () => {
           </React.Fragment>
         )}
       </EuiPageTemplate.Section>
+
+      {isModalOpen && (
+        <FeatureServiceFormModal
+          onClose={() => {
+            setIsModalOpen(false);
+            setErrorMessage(null);
+          }}
+          onSubmit={handleCreateSubmit}
+          isSubmitting={applyFeatureService.isLoading}
+          submitError={errorMessage}
+        />
+      )}
     </EuiPageTemplate>
   );
 };

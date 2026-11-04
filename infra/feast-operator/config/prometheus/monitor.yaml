@@ -27,4 +27,5 @@ spec:
         insecureSkipVerify: true
   selector:
     matchLabels:
+      app.kubernetes.io/name: feast-operator
       control-plane: controller-manager

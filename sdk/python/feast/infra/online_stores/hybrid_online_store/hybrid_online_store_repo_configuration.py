@@ -16,10 +16,10 @@
 # It enables running integration tests with multiple online store backends.
 # Update this file if you add more backends or change test setup.
 
-from tests.integration.feature_repos.integration_test_repo_config import (
+from tests.universal.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
-from tests.integration.feature_repos.universal.online_store.hybrid_online_store import (
+from tests.universal.feature_repos.universal.online_store.hybrid_online_store import (
     HybridOnlineStoreCreator,
 )
 

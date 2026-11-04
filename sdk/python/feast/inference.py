@@ -221,6 +221,9 @@ def _infer_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
 
+    if fv.batch_source is None:
+        return
+
     entity_columns: List[Field] = fv.entity_columns if fv.entity_columns else []
     columns_to_exclude = {
         fv.batch_source.timestamp_field,

@@ -14,8 +14,10 @@
 import asyncio
 import contextlib
 import itertools
+import json
 import logging
 from collections import OrderedDict, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -23,13 +25,17 @@ from aiobotocore.config import AioConfig
 from pydantic import StrictBool, StrictStr
 
 from feast import Entity, FeatureView, utils
-from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.infra_object import InfraObject
+from feast.infra.online_stores.helpers import compute_entity_id, compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.infra.utils.aws_utils import dynamo_write_items_async
+from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 from feast.utils import get_user_agent
 
 try:
@@ -53,11 +59,13 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     type: Literal["dynamodb"] = "dynamodb"
     """Online store type selector"""
 
-    batch_size: int = 40
-    """Number of items to retrieve in a DynamoDB BatchGetItem call."""
+    batch_size: int = 100
+    """Number of items to retrieve in a DynamoDB BatchGetItem call.
+    DynamoDB supports up to 100 items per BatchGetItem request."""
 
     endpoint_url: Union[str, None] = None
-    """DynamoDB local development endpoint Url, i.e. http://localhost:8000"""
+    """DynamoDB endpoint URL. Use for local development (e.g., http://localhost:8000)
+    or VPC endpoints for improved latency."""
 
     region: StrictStr
     """AWS Region Name"""
@@ -68,36 +76,46 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     consistent_reads: StrictBool = False
     """Whether to read from Dynamodb by forcing consistent reads"""
 
+    warmup_connections: StrictBool = False
+    """Whether to warm up the connection pool with a lightweight call on initialization"""
+
     tags: Union[Dict[str, str], None] = None
     """AWS resource tags added to each table"""
 
     session_based_auth: bool = False
     """AWS session based client authentication"""
 
-    max_pool_connections: int = 10
-    """Max number of connections for async Dynamodb operations"""
+    max_read_workers: int = 10
+    """Maximum number of parallel threads for batch read operations.
+    Higher values improve throughput for large batch reads but increase resource usage."""
 
-    keepalive_timeout: float = 12.0
-    """Keep-alive timeout in seconds for async Dynamodb connections."""
+    max_pool_connections: int = 50
+    """Max number of connections for async Dynamodb operations.
+    Increase for high-throughput workloads."""
 
-    connect_timeout: Union[int, float] = 60
+    keepalive_timeout: float = 30.0
+    """Keep-alive timeout in seconds for async Dynamodb connections.
+    Higher values help reuse connections under sustained load."""
+
+    connect_timeout: Union[int, float] = 5
     """The time in seconds until a timeout exception is thrown when attempting to make
-    an async connection."""
+    an async connection. Lower values enable faster failure detection."""
 
-    read_timeout: Union[int, float] = 60
+    read_timeout: Union[int, float] = 10
     """The time in seconds until a timeout exception is thrown when attempting to read
-    from an async connection."""
+    from an async connection. Lower values enable faster failure detection."""
 
-    total_max_retry_attempts: Union[int, None] = None
+    total_max_retry_attempts: Union[int, None] = 3
     """Maximum number of total attempts that will be made on a single request.
 
     Maps to `retries.total_max_attempts` in botocore.config.Config.
     """
 
-    retry_mode: Union[Literal["legacy", "standard", "adaptive"], None] = None
+    retry_mode: Union[Literal["legacy", "standard", "adaptive"], None] = "adaptive"
     """The type of retry mode (aio)botocore should use.
 
     Maps to `retries.mode` in botocore.config.Config.
+    'adaptive' mode provides intelligent retry with client-side rate limiting.
     """
 
 
@@ -111,21 +129,27 @@ class DynamoDBOnlineStore(OnlineStore):
         _aioboto_session: Async boto session.
         _aioboto_client: Async boto client.
         _aioboto_context_stack: Async context stack.
+        _type_deserializer: Cached TypeDeserializer instance for performance.
     """
 
     _dynamodb_client = None
     _dynamodb_resource = None
+    # Class-level cached TypeDeserializer to avoid per-request instantiation
+    _type_deserializer: Optional[TypeDeserializer] = None
 
     def __init__(self):
         super().__init__()
         self._aioboto_session = None
         self._aioboto_client = None
         self._aioboto_context_stack = None
+        # Initialize cached TypeDeserializer if not already done
+        if DynamoDBOnlineStore._type_deserializer is None:
+            DynamoDBOnlineStore._type_deserializer = TypeDeserializer()
 
     async def initialize(self, config: RepoConfig):
         online_config = config.online_store
 
-        await self._get_aiodynamodb_client(
+        client = await self._get_aiodynamodb_client(
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
@@ -133,7 +157,16 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.read_timeout,
             online_config.total_max_retry_attempts,
             online_config.retry_mode,
+            online_config.endpoint_url,
         )
+
+        if online_config.warmup_connections:
+            try:
+                await client.describe_limits()
+            except Exception:
+                logger.warning(
+                    "Failed to warmup DynamoDB connection pool", exc_info=True
+                )
 
     async def close(self):
         await self._aiodynamodb_close()
@@ -153,6 +186,7 @@ class DynamoDBOnlineStore(OnlineStore):
         read_timeout: Union[int, float],
         total_max_retry_attempts: Union[int, None],
         retry_mode: Union[Literal["legacy", "standard", "adaptive"], None],
+        endpoint_url: Optional[str] = None,
     ):
         if self._aioboto_client is None:
             logger.debug("initializing the aiobotocore dynamodb client")
@@ -163,16 +197,23 @@ class DynamoDBOnlineStore(OnlineStore):
             if retry_mode is not None:
                 retries["mode"] = retry_mode
 
-            client_context = self._get_aioboto_session().create_client(
-                "dynamodb",
-                region_name=region,
-                config=AioConfig(
+            # Build client kwargs, including endpoint_url for VPC endpoints or local testing
+            client_kwargs: Dict[str, Any] = {
+                "region_name": region,
+                "config": AioConfig(
                     max_pool_connections=max_pool_connections,
                     connect_timeout=connect_timeout,
                     read_timeout=read_timeout,
                     retries=retries if retries else None,
                     connector_args={"keepalive_timeout": keepalive_timeout},
                 ),
+            }
+            if endpoint_url:
+                client_kwargs["endpoint_url"] = endpoint_url
+
+            client_context = self._get_aioboto_session().create_client(
+                "dynamodb",
+                **client_kwargs,
             )
             self._aioboto_context_stack = contextlib.AsyncExitStack()
             self._aioboto_client = (
@@ -181,12 +222,10 @@ class DynamoDBOnlineStore(OnlineStore):
         return self._aioboto_client
 
     async def _aiodynamodb_close(self):
-        if self._aioboto_client:
-            await self._aioboto_client.close()
-            self._aioboto_client = None
         if self._aioboto_context_stack:
             await self._aioboto_context_stack.aclose()
             self._aioboto_context_stack = None
+        self._aioboto_client = None
         if self._aioboto_session:
             self._aioboto_session = None
 
@@ -213,18 +252,45 @@ class DynamoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):
+        """Update DynamoDB table tags using a diff-based approach.
+
+        Instead of removing all tags and re-adding them (which is vulnerable to
+        the eventual-consistency window between UntagResource and TagResource),
+        this method computes the minimal set of changes needed:
+
+        - Only removes tags that are no longer present in new_tags.
+        - Only adds/updates tags whose value has changed or that are new.
+
+        This avoids the race condition described in
+        https://github.com/feast-dev/feast/issues/6418 where calling
+        TagResource immediately after UntagResource can leave a table with no
+        tags due to DynamoDB's asynchronous tag operations.
+        """
         table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
             "TableArn"
         ]
         current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn)[
             "Tags"
         ]
-        if current_tags:
-            remove_keys = [tag["Key"] for tag in current_tags]
-            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=remove_keys)
 
-        if new_tags:
-            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+        current_tag_map = {tag["Key"]: tag["Value"] for tag in current_tags}
+        new_tag_map = {tag["Key"]: tag["Value"] for tag in new_tags}
+
+        # Remove only tags that are no longer in new_tags
+        keys_to_remove = [k for k in current_tag_map if k not in new_tag_map]
+        # Add / update only tags whose value is new or has changed
+        tags_to_add = [
+            {"Key": k, "Value": v}
+            for k, v in new_tag_map.items()
+            if current_tag_map.get(k) != v
+        ]
+
+        if keys_to_remove:
+            dynamodb_client.untag_resource(
+                ResourceArn=table_arn, TagKeys=keys_to_remove
+            )
+        if tags_to_add:
+            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=tags_to_add)
 
     def update(
         self,
@@ -329,6 +395,31 @@ class DynamoDBOnlineStore(OnlineStore):
                 _get_table_name(online_config, config, table_to_delete),
             )
 
+    def plan(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> List[InfraObject]:
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        # feature_views and stream_feature_views are distinct proto types
+        # (FeatureViewProto vs StreamFeatureViewProto); each needs its
+        # matching from_proto(), not one applied to both indiscriminately.
+        views = [
+            FeatureView.from_proto(view)
+            for view in desired_registry_proto.feature_views
+        ] + [
+            StreamFeatureView.from_proto(view)
+            for view in desired_registry_proto.stream_feature_views
+        ]
+        return [
+            DynamoDBTable(
+                name=_get_table_name(online_config, config, view),
+                region=online_config.region,
+                endpoint_url=online_config.endpoint_url,
+            )
+            for view in views
+        ]
+
     def teardown(
         self,
         config: RepoConfig,
@@ -431,6 +522,7 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.read_timeout,
             online_config.total_max_retry_attempts,
             online_config.retry_mode,
+            online_config.endpoint_url,
         )
         await dynamo_write_items_async(client, table_name, items)
 
@@ -448,6 +540,7 @@ class DynamoDBOnlineStore(OnlineStore):
             config: The RepoConfig for the current FeatureStore.
             table: Feast FeatureView.
             entity_keys: a list of entity keys that should be read from the FeatureStore.
+            requested_features: Optional list of feature names to retrieve.
         """
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
@@ -457,31 +550,71 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.endpoint_url,
             online_config.session_based_auth,
         )
-        table_instance = dynamodb_resource.Table(
-            _get_table_name(online_config, config, table)
-        )
+        table_name = _get_table_name(online_config, config, table)
 
         batch_size = online_config.batch_size
         entity_ids = self._to_entity_ids(config, entity_keys)
-        entity_ids_iter = iter(entity_ids)
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
+        # Split entity_ids into batches upfront
+        batches: List[List[str]] = []
+        entity_ids_iter = iter(entity_ids)
         while True:
             batch = list(itertools.islice(entity_ids_iter, batch_size))
-
-            # No more items to insert
-            if len(batch) == 0:
+            if not batch:
                 break
+            batches.append(batch)
+
+        if not batches:
+            return []
+
+        # For single batch, no parallelization overhead needed
+        if len(batches) == 1:
             batch_entity_ids = self._to_resource_batch_get_payload(
-                online_config, table_instance.name, batch
+                online_config, table_name, batches[0], requested_features
             )
-            response = dynamodb_resource.batch_get_item(
-                RequestItems=batch_entity_ids,
+            response = dynamodb_resource.batch_get_item(RequestItems=batch_entity_ids)
+            return self._process_batch_get_response(table_name, response, batches[0])
+
+        # Execute batch requests in parallel for multiple batches
+        # Note: boto3 clients ARE thread-safe, so we can share a single client
+        # https://docs.aws.amazon.com/boto3/latest/guide/clients.html#multithreading-or-multiprocessing-with-clients
+        dynamodb_client = self._get_dynamodb_client(
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
+        )
+
+        def fetch_batch(batch: List[str]) -> Dict[str, Any]:
+            batch_entity_ids = self._to_client_batch_get_payload(
+                online_config, table_name, batch, requested_features
             )
+            return dynamodb_client.batch_get_item(RequestItems=batch_entity_ids)
+
+        # Use ThreadPoolExecutor for parallel I/O
+        max_workers = min(len(batches), online_config.max_read_workers)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            responses = list(executor.map(fetch_batch, batches))
+
+        # Process responses and merge results in order
+        # Client responses need deserialization (unlike resource responses)
+        if self._type_deserializer is None:
+            self._type_deserializer = TypeDeserializer()
+        deserialize = self._type_deserializer.deserialize
+
+        def to_tbl_resp(raw_client_response):
+            return {
+                "entity_id": deserialize(raw_client_response["entity_id"]),
+                "event_ts": deserialize(raw_client_response["event_ts"]),
+                "values": deserialize(raw_client_response["values"]),
+            }
+
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
+        for batch, response in zip(batches, responses):
             batch_result = self._process_batch_get_response(
-                table_instance.name, response, entity_ids, batch
+                table_name, response, batch, to_tbl_response=to_tbl_resp
             )
             result.extend(batch_result)
+
         return result
 
     async def online_read_async(
@@ -513,7 +646,10 @@ class DynamoDBOnlineStore(OnlineStore):
         entity_ids_iter = iter(entity_ids)
         table_name = _get_table_name(online_config, config, table)
 
-        deserialize = TypeDeserializer().deserialize
+        # Use cached TypeDeserializer for better performance
+        if self._type_deserializer is None:
+            self._type_deserializer = TypeDeserializer()
+        deserialize = self._type_deserializer.deserialize
 
         def to_tbl_resp(raw_client_response):
             return {
@@ -529,7 +665,7 @@ class DynamoDBOnlineStore(OnlineStore):
             if not batch:
                 break
             entity_id_batch = self._to_client_batch_get_payload(
-                online_config, table_name, batch
+                online_config, table_name, batch, requested_features
             )
             batches.append(batch)
             entity_id_batches.append(entity_id_batch)
@@ -542,6 +678,7 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.read_timeout,
             online_config.total_max_retry_attempts,
             online_config.retry_mode,
+            online_config.endpoint_url,
         )
         response_batches = await asyncio.gather(
             *[
@@ -557,7 +694,6 @@ class DynamoDBOnlineStore(OnlineStore):
             result_batch = self._process_batch_get_response(
                 table_name,
                 response,
-                entity_ids,
                 batch,
                 to_tbl_response=to_tbl_resp,
             )
@@ -589,26 +725,6 @@ class DynamoDBOnlineStore(OnlineStore):
             )
         return self._dynamodb_resource
 
-    def _sort_dynamodb_response(
-        self,
-        responses: list,
-        order: list,
-        to_tbl_response: Callable = lambda raw_dict: raw_dict,
-    ) -> Any:
-        """DynamoDB Batch Get Item doesn't return items in a particular order."""
-        # Assign an index to order
-        order_with_index = {value: idx for idx, value in enumerate(order)}
-        # Sort table responses by index
-        table_responses_ordered: Any = [
-            (order_with_index[tbl_res["entity_id"]], tbl_res)
-            for tbl_res in map(to_tbl_response, responses)
-        ]
-        table_responses_ordered = sorted(
-            table_responses_ordered, key=lambda tup: tup[0]
-        )
-        _, table_responses_ordered = zip(*table_responses_ordered)
-        return table_responses_ordered
-
     def _write_batch_non_duplicates(
         self,
         table_instance,
@@ -630,37 +746,77 @@ class DynamoDBOnlineStore(OnlineStore):
                     progress(1)
 
     def _process_batch_get_response(
-        self, table_name, response, entity_ids, batch, **sort_kwargs
-    ):
-        response = response.get("Responses")
-        table_responses = response.get(table_name)
+        self,
+        table_name: str,
+        response: Dict[str, Any],
+        batch: List[str],
+        to_tbl_response: Callable = lambda raw_dict: raw_dict,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """Process batch get response using O(1) dictionary lookup.
 
-        batch_result = []
-        if table_responses:
-            table_responses = self._sort_dynamodb_response(
-                table_responses, entity_ids, **sort_kwargs
-            )
-            entity_idx = 0
-            for tbl_res in table_responses:
-                entity_id = tbl_res["entity_id"]
-                while entity_id != batch[entity_idx]:
-                    batch_result.append((None, None))
-                    entity_idx += 1
-                res = {}
-                for feature_name, value_bin in tbl_res["values"].items():
+        DynamoDB BatchGetItem doesn't return items in a particular order,
+        so we use a dictionary for O(1) lookup instead of O(n log n) sorting.
+
+        This method:
+        - Uses dictionary lookup instead of sorting for response ordering
+        - Pre-allocates the result list with None values
+        - Minimizes object creation in the hot path
+
+        Args:
+            table_name: Name of the DynamoDB table
+            response: Raw response from DynamoDB batch_get_item
+            batch: List of entity_ids in the order they should be returned
+            to_tbl_response: Function to transform raw DynamoDB response items
+                (used for async client responses that need deserialization)
+
+        Returns:
+            List of (timestamp, features) tuples in the same order as batch
+        """
+        responses_data = response.get("Responses")
+        if not responses_data:
+            # No responses at all, return all None tuples
+            return [(None, None)] * len(batch)
+
+        table_responses = responses_data.get(table_name)
+        if not table_responses:
+            # No responses for this table, return all None tuples
+            return [(None, None)] * len(batch)
+
+        # Build a dictionary for O(1) lookup instead of O(n log n) sorting
+        response_dict: Dict[str, Any] = {
+            tbl_res["entity_id"]: tbl_res
+            for tbl_res in map(to_tbl_response, table_responses)
+        }
+
+        # Pre-allocate result list with None tuples (faster than appending)
+        batch_size = len(batch)
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = [
+            (None, None)
+        ] * batch_size
+
+        # Process each entity in batch order using O(1) dict lookup
+        for idx, entity_id in enumerate(batch):
+            tbl_res = response_dict.get(entity_id)
+            if tbl_res is not None:
+                # Parse feature values
+                features: Dict[str, ValueProto] = {}
+                values_data = tbl_res["values"]
+                for feature_name, value_bin in values_data.items():
                     val = ValueProto()
                     val.ParseFromString(value_bin.value)
-                    res[feature_name] = val
-                batch_result.append((datetime.fromisoformat(tbl_res["event_ts"]), res))
-                entity_idx += 1
-        # Not all entities in a batch may have responses
-        # Pad with remaining values in batch that were not found
-        batch_size_nones = ((None, None),) * (len(batch) - len(batch_result))
-        batch_result.extend(batch_size_nones)
-        return batch_result
+                    features[feature_name] = val
+
+                # Parse timestamp and set result
+                result[idx] = (
+                    datetime.fromisoformat(tbl_res["event_ts"]),
+                    features,
+                )
+
+        return result
 
     @staticmethod
     def _to_entity_ids(config: RepoConfig, entity_keys: List[EntityKeyProto]):
+        """Convert entity keys to entity IDs."""
         return [
             compute_entity_id(
                 entity_key,
@@ -670,22 +826,391 @@ class DynamoDBOnlineStore(OnlineStore):
         ]
 
     @staticmethod
-    def _to_resource_batch_get_payload(online_config, table_name, batch):
-        return {
-            table_name: {
-                "Keys": [{"entity_id": entity_id} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+    def _to_resource_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": entity_id} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
         }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
 
     @staticmethod
-    def _to_client_batch_get_payload(online_config, table_name, batch):
-        return {
-            table_name: {
-                "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
-                "ConsistentRead": online_config.consistent_reads,
-            }
+    def _to_client_batch_get_payload(
+        online_config, table_name, batch, requested_features=None
+    ):
+        payload: Dict[str, Any] = {
+            "Keys": [{"entity_id": {"S": entity_id}} for entity_id in batch],
+            "ConsistentRead": online_config.consistent_reads,
         }
+        projection = DynamoDBOnlineStore._build_projection_expression(
+            requested_features
+        )
+        if projection:
+            payload["ProjectionExpression"] = projection["ProjectionExpression"]
+            payload["ExpressionAttributeNames"] = projection["ExpressionAttributeNames"]
+        return {table_name: payload}
+
+    @staticmethod
+    def _build_projection_expression(
+        requested_features: Optional[List[str]],
+    ) -> Optional[Dict[str, Any]]:
+        if not requested_features:
+            return None
+        attr_names: Dict[str, str] = {
+            "#entity_id": "entity_id",
+            "#event_ts": "event_ts",
+            "#vals": "values",
+        }
+        projections = ["#entity_id", "#event_ts"]
+        for i, feat in enumerate(requested_features):
+            alias = f"#feat{i}"
+            attr_names[alias] = feat
+            projections.append(f"#vals.{alias}")
+        return {
+            "ProjectionExpression": ", ".join(projections),
+            "ExpressionAttributeNames": attr_names,
+        }
+
+    def update_online_store(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        update_expressions: Dict[str, str],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Update features in DynamoDB using UpdateItem with custom UpdateExpression.
+
+        This method provides DynamoDB-specific list update functionality using
+        native UpdateItem operations with list_append and other expressions.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            data: Feature data to update. Each tuple contains an entity key,
+                  feature values, event timestamp, and optional created timestamp.
+            update_expressions: Dict mapping feature names to DynamoDB update expressions.
+                Examples:
+                - "transactions": "list_append(transactions, :new_val)"
+                - "recent_items": "list_append(:new_val, recent_items)"  # prepend
+            progress: Optional progress callback function.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        dynamodb_resource = self._get_dynamodb_resource(
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
+        )
+
+        table_instance = dynamodb_resource.Table(
+            _get_table_name(online_config, config, table)
+        )
+
+        # Process each entity update
+        for entity_key, features, timestamp, _ in _latest_data_to_write(data):
+            entity_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+
+            self._update_item_with_expression(
+                table_instance,
+                entity_id,
+                features,
+                timestamp,
+                update_expressions,
+                config,
+            )
+
+            if progress:
+                progress(1)
+
+    async def update_online_store_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        update_expressions: Dict[str, str],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Async version of update_online_store.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        table_name = _get_table_name(online_config, config, table)
+        client = await self._get_aiodynamodb_client(
+            online_config.region,
+            online_config.max_pool_connections,
+            online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
+            online_config.endpoint_url,
+        )
+
+        # Process each entity update
+        for entity_key, features, timestamp, _ in _latest_data_to_write(data):
+            entity_id = compute_entity_id(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+
+            await self._update_item_with_expression_async(
+                client,
+                table_name,
+                entity_id,
+                features,
+                timestamp,
+                update_expressions,
+                config,
+            )
+
+            if progress:
+                progress(1)
+
+    def _update_item_with_expression(
+        self,
+        table_instance,
+        entity_id: str,
+        features: Dict[str, ValueProto],
+        timestamp: datetime,
+        update_expressions: Dict[str, str],
+        config: RepoConfig,
+    ):
+        """Execute DynamoDB UpdateItem with list operations via read-modify-write."""
+        # Read existing item to get current values for list operations
+        existing_values: Dict[str, ValueProto] = {}
+        item_exists = False
+        try:
+            response = table_instance.get_item(Key={"entity_id": entity_id})
+            if "Item" in response:
+                item_exists = True
+                if "values" in response["Item"]:
+                    for feat_name, val_bin in response["Item"]["values"].items():
+                        val = ValueProto()
+                        val.ParseFromString(val_bin.value)
+                        existing_values[feat_name] = val
+        except ClientError:
+            pass
+
+        # Build final feature values by applying list operations
+        final_features: Dict[str, ValueProto] = {}
+        for feature_name, value_proto in features.items():
+            if feature_name in update_expressions:
+                final_features[feature_name] = self._apply_list_operation(
+                    existing_values.get(feature_name),
+                    value_proto,
+                    update_expressions[feature_name],
+                )
+            else:
+                final_features[feature_name] = value_proto
+
+        # For new items, use put_item
+        if not item_exists:
+            item = {
+                "entity_id": entity_id,
+                "event_ts": str(utils.make_tzaware(timestamp)),
+                "values": {k: v.SerializeToString() for k, v in final_features.items()},
+            }
+            table_instance.put_item(Item=item)
+            return
+
+        # Build UpdateExpression for existing items
+        update_expr_parts: list[str] = []
+        expression_attribute_values: Dict[str, Any] = {}
+        expression_attribute_names: Dict[str, str] = {
+            "#values": "values",
+            "#event_ts": "event_ts",
+        }
+
+        update_expr_parts.append("#event_ts = :event_ts")
+        expression_attribute_values[":event_ts"] = str(utils.make_tzaware(timestamp))
+
+        for feature_name, value_proto in final_features.items():
+            feat_attr = f"#feat_{feature_name}"
+            val_name = f":val_{feature_name}"
+            expression_attribute_names[feat_attr] = feature_name
+            expression_attribute_values[val_name] = value_proto.SerializeToString()  # type: ignore[assignment]
+            update_expr_parts.append(f"#values.{feat_attr} = {val_name}")
+
+        try:
+            table_instance.update_item(
+                Key={"entity_id": entity_id},
+                UpdateExpression="SET " + ", ".join(update_expr_parts),
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+        except ClientError as e:
+            logger.error(f"Failed to update item {entity_id}: {e}")
+            raise
+
+    def _apply_list_operation(
+        self, existing: Optional[ValueProto], new_value: ValueProto, update_expr: str
+    ) -> ValueProto:
+        """Apply list operation (append/prepend) and return merged ValueProto."""
+        result = ValueProto()
+        is_prepend = update_expr.strip().startswith("list_append(:new_val")
+        existing_list = self._extract_list_values(existing) if existing else []
+        new_list = self._extract_list_values(new_value)
+        merged = new_list + existing_list if is_prepend else existing_list + new_list
+        self._set_list_values(result, new_value, merged)
+        return result
+
+    def _extract_list_values(self, value_proto: ValueProto) -> list:
+        """Extract list values from ValueProto."""
+        if value_proto.HasField("string_list_val"):
+            return list(value_proto.string_list_val.val)
+        elif value_proto.HasField("int32_list_val"):
+            return list(value_proto.int32_list_val.val)
+        elif value_proto.HasField("int64_list_val"):
+            return list(value_proto.int64_list_val.val)
+        elif value_proto.HasField("float_list_val"):
+            return list(value_proto.float_list_val.val)
+        elif value_proto.HasField("double_list_val"):
+            return list(value_proto.double_list_val.val)
+        elif value_proto.HasField("bool_list_val"):
+            return list(value_proto.bool_list_val.val)
+        elif value_proto.HasField("bytes_list_val"):
+            return list(value_proto.bytes_list_val.val)
+        elif value_proto.HasField("map_list_val"):
+            return list(value_proto.map_list_val.val)
+        elif value_proto.HasField("json_list_val"):
+            return list(value_proto.json_list_val.val)
+        elif value_proto.HasField("struct_list_val"):
+            return list(value_proto.struct_list_val.val)
+        return []
+
+    def _set_list_values(
+        self, result: ValueProto, template: ValueProto, values: list
+    ) -> None:
+        """Set list values on result ValueProto based on template type."""
+        if template.HasField("string_list_val"):
+            result.string_list_val.val.extend(values)
+        elif template.HasField("int32_list_val"):
+            result.int32_list_val.val.extend(values)
+        elif template.HasField("int64_list_val"):
+            result.int64_list_val.val.extend(values)
+        elif template.HasField("float_list_val"):
+            result.float_list_val.val.extend(values)
+        elif template.HasField("double_list_val"):
+            result.double_list_val.val.extend(values)
+        elif template.HasField("bool_list_val"):
+            result.bool_list_val.val.extend(values)
+        elif template.HasField("bytes_list_val"):
+            result.bytes_list_val.val.extend(values)
+        elif template.HasField("map_list_val"):
+            result.map_list_val.val.extend(values)
+        elif template.HasField("json_list_val"):
+            result.json_list_val.val.extend(values)
+        elif template.HasField("struct_list_val"):
+            result.struct_list_val.val.extend(values)
+
+    async def _update_item_with_expression_async(
+        self,
+        client,
+        table_name: str,
+        entity_id: str,
+        features: Dict[str, ValueProto],
+        timestamp: datetime,
+        update_expressions: Dict[str, str],
+        config: RepoConfig,
+    ):
+        """Async version of _update_item_with_expression."""
+        # Read existing item
+        existing_values: Dict[str, ValueProto] = {}
+        item_exists = False
+        try:
+            response = await client.get_item(
+                TableName=table_name, Key={"entity_id": {"S": entity_id}}
+            )
+            if "Item" in response:
+                item_exists = True
+                if "values" in response["Item"] and "M" in response["Item"]["values"]:
+                    for feat_name, val_data in response["Item"]["values"]["M"].items():
+                        if "B" in val_data:
+                            val = ValueProto()
+                            val.ParseFromString(val_data["B"])
+                            existing_values[feat_name] = val
+        except ClientError:
+            pass
+
+        # Build final feature values
+        final_features: Dict[str, ValueProto] = {}
+        for feature_name, value_proto in features.items():
+            if feature_name in update_expressions:
+                final_features[feature_name] = self._apply_list_operation(
+                    existing_values.get(feature_name),
+                    value_proto,
+                    update_expressions[feature_name],
+                )
+            else:
+                final_features[feature_name] = value_proto
+
+        # For new items, use put_item
+        if not item_exists:
+            item = {
+                "entity_id": {"S": entity_id},
+                "event_ts": {"S": str(utils.make_tzaware(timestamp))},
+                "values": {
+                    "M": {
+                        k: {"B": v.SerializeToString()}
+                        for k, v in final_features.items()
+                    }
+                },
+            }
+            await client.put_item(TableName=table_name, Item=item)
+            return
+
+        # Build UpdateExpression for existing items
+        update_expr_parts: list[str] = []
+        expression_attribute_values: Dict[str, Any] = {}
+        expression_attribute_names: Dict[str, str] = {
+            "#values": "values",
+            "#event_ts": "event_ts",
+        }
+
+        update_expr_parts.append("#event_ts = :event_ts")
+        expression_attribute_values[":event_ts"] = {
+            "S": str(utils.make_tzaware(timestamp))
+        }
+
+        for feature_name, value_proto in final_features.items():
+            feat_attr = f"#feat_{feature_name}"
+            val_name = f":val_{feature_name}"
+            expression_attribute_names[feat_attr] = feature_name
+            expression_attribute_values[val_name] = {
+                "B": value_proto.SerializeToString()
+            }
+            update_expr_parts.append(f"#values.{feat_attr} = {val_name}")
+
+        try:
+            await client.update_item(
+                TableName=table_name,
+                Key={"entity_id": {"S": entity_id}},
+                UpdateExpression="SET " + ", ".join(update_expr_parts),
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+        except ClientError as e:
+            logger.error(f"Failed to update item {entity_id}: {e}")
+            raise
 
 
 # Global async client functions removed - now using instance methods
@@ -730,9 +1255,74 @@ def _initialize_dynamodb_resource(
 def _get_table_name(
     online_config: DynamoDBOnlineStoreConfig, config: RepoConfig, table: FeatureView
 ) -> str:
-    return online_config.table_name_template.format(
-        project=config.project, table_name=table.name
+    table_name = compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
     )
+    return online_config.table_name_template.format(
+        project=config.project, table_name=table_name
+    )
+
+
+DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
+
+
+class DynamoDBTable(InfraObject):
+    """
+    A DynamoDB table managed by Feast, reported by DynamoDBOnlineStore.plan()
+    so `feast plan` can show DynamoDB table changes.
+
+    Uses the InfraObject proto's CustomInfra field rather than a dedicated
+    proto message, since that field exists precisely to let online stores
+    add InfraObject support without changing the core InfraObject proto.
+
+    Note: `feast apply` does not call update()/teardown() on this object --
+    DynamoDBOnlineStore.update()/teardown() perform the actual table
+    creation and deletion directly (see FeatureStore._should_use_plan(),
+    which gates the new diff-based apply path to the local/sqlite provider
+    only). update()/teardown() here are no-ops that satisfy InfraObject's
+    abstract interface.
+    """
+
+    def __init__(self, name: str, region: str, endpoint_url: Optional[str] = None):
+        super().__init__(name)
+        self.region = region
+        self.endpoint_url = endpoint_url
+
+    def to_infra_object_proto(self) -> InfraObjectProto:
+        return InfraObjectProto(
+            infra_object_class_type=DYNAMODB_INFRA_OBJECT_CLASS_TYPE,
+            custom_infra=InfraObjectProto.CustomInfra(field=self.to_proto()),
+        )
+
+    def to_proto(self) -> bytes:
+        return json.dumps(
+            {
+                "name": self.name,
+                "region": self.region,
+                "endpoint_url": self.endpoint_url,
+            }
+        ).encode("utf-8")
+
+    @staticmethod
+    def from_infra_object_proto(
+        infra_object_proto: InfraObjectProto,
+    ) -> "DynamoDBTable":
+        return DynamoDBTable.from_proto(infra_object_proto.custom_infra.field)
+
+    @staticmethod
+    def from_proto(serialized: bytes) -> "DynamoDBTable":
+        payload = json.loads(serialized.decode("utf-8"))
+        return DynamoDBTable(
+            name=payload["name"],
+            region=payload["region"],
+            endpoint_url=payload.get("endpoint_url"),
+        )
+
+    def update(self) -> None:
+        pass
+
+    def teardown(self) -> None:
+        pass
 
 
 def _delete_table_idempotent(

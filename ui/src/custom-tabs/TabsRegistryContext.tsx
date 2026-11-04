@@ -16,7 +16,6 @@ import FeatureCustomTabLoadingWrapper from "../utils/custom-tabs/FeatureCustomTa
 import DataSourceCustomTabLoadingWrapper from "../utils/custom-tabs/DataSourceCustomTabLoadingWrapper";
 import EntityCustomTabLoadingWrapper from "../utils/custom-tabs/EntityCustomTabLoadingWrapper";
 import DatasetCustomTabLoadingWrapper from "../utils/custom-tabs/DatasetCustomTabLoadingWrapper";
-import CurlGeneratorTab from "../pages/feature-views/CurlGeneratorTab";
 
 import {
   RegularFeatureViewCustomTabRegistrationInterface,

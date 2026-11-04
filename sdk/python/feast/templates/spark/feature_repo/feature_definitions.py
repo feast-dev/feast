@@ -54,6 +54,7 @@ driver_hourly_stats_view = FeatureView(
     online=True,
     source=driver_hourly_stats,
     tags={},
+    version="latest",
 )
 customer_daily_profile_view = FeatureView(
     name="customer_daily_profile",
@@ -67,6 +68,7 @@ customer_daily_profile_view = FeatureView(
     online=True,
     source=customer_daily_profile,
     tags={},
+    version="latest",
 )
 
 driver_stats_fs = FeatureService(

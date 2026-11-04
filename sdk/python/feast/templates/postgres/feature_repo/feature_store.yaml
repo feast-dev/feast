@@ -2,7 +2,7 @@ project: my_project
 provider: local
 registry:
     registry_type: sql
-    path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME
+    path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME?sslmode=DB_SSLMODE
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -15,6 +15,7 @@ online_store:
     db_schema: DB_SCHEMA
     user: DB_USERNAME
     password: DB_PASSWORD
+    sslmode: DB_SSLMODE
 offline_store:
     type: postgres
     host: DB_HOST
@@ -23,4 +24,5 @@ offline_store:
     db_schema: DB_SCHEMA
     user: DB_USERNAME
     password: DB_PASSWORD
+    sslmode: DB_SSLMODE
 entity_key_serialization_version: 3

@@ -17,8 +17,10 @@ from feast.infra.compute_engines.ray.nodes import (
     RayJoinNode,
     RayReadNode,
     RayTransformationNode,
+    RayValidationNode,
     RayWriteNode,
 )
+from feast.types import PrimitiveFeastType, from_feast_to_pyarrow_type
 
 if TYPE_CHECKING:
     from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
@@ -86,6 +88,9 @@ class RayFeatureBuilder(FeatureBuilder):
             config=self.config,
             enable_tiling=enable_tiling,
             hop_size=tiling_hop_size,
+            created_timestamp_col=getattr(
+                view.batch_source, "created_timestamp_column", None
+            ),
         )
         node.add_input(input_node)
 
@@ -134,6 +139,7 @@ class RayFeatureBuilder(FeatureBuilder):
             name="dedup",
             column_info=column_info,
             config=self.config,
+            is_materialization=self.is_materialization,
         )
         node.add_input(input_node)
 
@@ -174,11 +180,36 @@ class RayFeatureBuilder(FeatureBuilder):
 
     def build_validation_node(self, view, input_node):
         """Build the validation node for feature validation."""
-        # TODO: Implement validation logic
-        logger.warning(
-            "Feature validation is not yet implemented for Ray compute engine."
+        expected_columns = {}
+        json_columns: set = set()
+        if hasattr(view, "features"):
+            for feature in view.features:
+                try:
+                    expected_columns[feature.name] = from_feast_to_pyarrow_type(
+                        feature.dtype
+                    )
+                except (ValueError, KeyError):
+                    logger.debug(
+                        "Could not resolve PyArrow type for feature '%s' "
+                        "(dtype=%s), skipping type check for this column.",
+                        feature.name,
+                        feature.dtype,
+                    )
+                    expected_columns[feature.name] = None
+                if (
+                    isinstance(feature.dtype, PrimitiveFeastType)
+                    and feature.dtype.name == "JSON"
+                ):
+                    json_columns.add(feature.name)
+
+        node = RayValidationNode(
+            f"{view.name}:validate",
+            expected_columns=expected_columns,
+            json_columns=json_columns,
+            inputs=[input_node],
         )
-        return input_node
+        self.nodes.append(node)
+        return node
 
     def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
         has_physical_source = (hasattr(view, "batch_source") and view.batch_source) or (
@@ -305,18 +336,18 @@ class RayFeatureBuilder(FeatureBuilder):
         # 1. Read source data
         last_node = self.build_source_node(self.feature_view)
 
-        # 2. Apply filters (TTL, custom filters) BEFORE aggregation
-        last_node = self.build_filter_node(self.feature_view, last_node)
-
-        # 3. Aggregate across all historical records
-        last_node = self.build_aggregation_node(self.feature_view, last_node)
-
-        # 4. Join with entity_df to get aggregated features for each entity
-        last_node = self.build_join_node(self.feature_view, [last_node])
-
-        # 5. Apply transformations to aggregated features
+        # 2. Apply transformations to the raw source data, as materialization does
         if self._should_transform(self.feature_view):
             last_node = self.build_transformation_node(self.feature_view, [last_node])
+
+        # 3. Apply filters (TTL, custom filters) BEFORE aggregation
+        last_node = self.build_filter_node(self.feature_view, last_node)
+
+        # 4. Aggregate across all historical records
+        last_node = self.build_aggregation_node(self.feature_view, last_node)
+
+        # 5. Join with entity_df to get aggregated features for each entity
+        last_node = self.build_join_node(self.feature_view, [last_node])
 
         # 6. Output
         last_node = self.build_output_nodes(self.feature_view, last_node)

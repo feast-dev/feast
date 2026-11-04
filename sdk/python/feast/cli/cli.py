@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
@@ -26,6 +26,7 @@ from pygments import formatters, highlight, lexers
 
 from feast import utils
 from feast.cli.data_sources import data_sources_cmd
+from feast.cli.dbt_import import dbt_cmd
 from feast.cli.entities import entities_cmd
 from feast.cli.feature_services import feature_services_cmd
 from feast.cli.feature_views import feature_views_cmd
@@ -34,12 +35,17 @@ from feast.cli.features import (
     get_historical_features,
     get_online_features,
 )
+from feast.cli.label_views import label_views_cmd
+from feast.cli.mcpServer import mcp_command
+from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
+from feast.cli.registry import registry_cmd
 from feast.cli.saved_datasets import saved_datasets_cmd
 from feast.cli.serve import (
     serve_command,
+    serve_lineage_command,
     serve_offline_command,
     serve_registry_command,
     serve_transformations_command,
@@ -237,8 +243,15 @@ def endpoint(ctx: click.Context):
     is_flag=True,
     help="Don't validate the data sources by checking for that the tables exist.",
 )
+@click.option(
+    "--skip-feature-view-validation",
+    is_flag=True,
+    help="Don't validate feature views. Use with caution as this skips important checks.",
+)
 @click.pass_context
-def plan_command(ctx: click.Context, skip_source_validation: bool):
+def plan_command(
+    ctx: click.Context, skip_source_validation: bool, skip_feature_view_validation: bool
+):
     """
     Create or update a feature store deployment
     """
@@ -247,7 +260,7 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     cli_check_repo(repo, fs_yaml_file)
     repo_config = load_repo_config(repo, fs_yaml_file)
     try:
-        plan(repo_config, repo, skip_source_validation)
+        plan(repo_config, repo, skip_source_validation, skip_feature_view_validation)
     except FeastProviderLoginError as e:
         print(str(e))
 
@@ -258,8 +271,31 @@ def plan_command(ctx: click.Context, skip_source_validation: bool):
     is_flag=True,
     help="Don't validate the data sources by checking for that the tables exist.",
 )
+@click.option(
+    "--skip-feature-view-validation",
+    is_flag=True,
+    help="Don't validate feature views. Use with caution as this skips important checks.",
+)
+@click.option(
+    "--no-progress",
+    is_flag=True,
+    help="Disable progress bars during apply operation.",
+)
+@click.option(
+    "--no-promote",
+    is_flag=True,
+    default=False,
+    help="Save new versions without promoting them to active. "
+    "New versions are accessible via @v<N> reads and --version materialization.",
+)
 @click.pass_context
-def apply_total_command(ctx: click.Context, skip_source_validation: bool):
+def apply_total_command(
+    ctx: click.Context,
+    skip_source_validation: bool,
+    skip_feature_view_validation: bool,
+    no_progress: bool,
+    no_promote: bool,
+):
     """
     Create or update a feature store deployment
     """
@@ -268,8 +304,21 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     cli_check_repo(repo, fs_yaml_file)
 
     repo_config = load_repo_config(repo, fs_yaml_file)
+
+    # Set environment variable to disable progress if requested
+    if no_progress:
+        import os
+
+        os.environ["FEAST_NO_PROGRESS"] = "1"
+
     try:
-        apply_total(repo_config, repo, skip_source_validation)
+        apply_total(
+            repo_config,
+            repo,
+            skip_source_validation,
+            skip_feature_view_validation,
+            no_promote=no_promote,
+        )
     except FeastProviderLoginError as e:
         print(str(e))
 
@@ -314,7 +363,13 @@ def registry_dump_command(ctx: click.Context):
 @click.option(
     "--disable-event-timestamp",
     is_flag=True,
-    help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
+    help="Materialize all available data, from 1970-01-01 up to the current UTC time, without specifying START_TS and END_TS (rows keep their source event timestamps)",
+)
+@click.option(
+    "--version",
+    "feature_view_version",
+    default=None,
+    help="Version to materialize (e.g., 'v2'). Requires --views with exactly one feature view.",
 )
 @click.pass_context
 def materialize_command(
@@ -323,6 +378,7 @@ def materialize_command(
     end_ts: Optional[str],
     views: List[str],
     disable_event_timestamp: bool,
+    feature_view_version: Optional[str],
 ):
     """
     Run a (non-incremental) materialization job to ingest data into the online store. Feast
@@ -332,7 +388,7 @@ def materialize_command(
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
 
-    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized using the current datetime as the event timestamp.
+    If --disable-event-timestamp is used, timestamps are not required and all available data (from 1970-01-01 up to the current UTC time) will be materialized. Rows keep their source event timestamps.
     """
     store = create_feature_store(ctx)
 
@@ -341,12 +397,9 @@ def materialize_command(
             raise click.UsageError(
                 "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
             )
-        now = datetime.now()
-        # Query all available data and use current datetime as event timestamp
-        start_date = datetime(
-            1970, 1, 1
-        )  # Beginning of time to capture all historical data
-        end_date = now
+        # Query all available data, from the beginning of time up to now (UTC)
+        start_date = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        end_date = utils._utc_now()
     else:
         if not start_ts or not end_ts:
             raise click.UsageError(
@@ -360,6 +413,7 @@ def materialize_command(
         start_date=start_date,
         end_date=end_date,
         disable_event_timestamp=disable_event_timestamp,
+        version=feature_view_version,
     )
 
 
@@ -371,8 +425,19 @@ def materialize_command(
     help="Feature views to incrementally materialize",
     multiple=True,
 )
+@click.option(
+    "--version",
+    "feature_view_version",
+    default=None,
+    help="Version to materialize (e.g., 'v2'). Requires --views with exactly one feature view.",
+)
 @click.pass_context
-def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List[str]):
+def materialize_incremental_command(
+    ctx: click.Context,
+    end_ts: str,
+    views: List[str],
+    feature_view_version: Optional[str],
+):
     """
     Run an incremental materialization job to ingest new data into the online store. Feast will read
     all data from the previously ingested point to END_TS from the offline store and write it to the
@@ -385,6 +450,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
     store.materialize_incremental(
         feature_views=None if not views else views,
         end_date=utils.make_tzaware(datetime.fromisoformat(end_ts)),
+        version=feature_view_version,
     )
 
 
@@ -407,11 +473,11 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "hbase",
             "cassandra",
             "hazelcast",
-            "ikv",
             "couchbase",
             "milvus",
             "ray",
             "ray_rag",
+            "rag",
             "pytorch_nlp",
         ],
         case_sensitive=False,
@@ -535,6 +601,39 @@ def validate(
     exit(1)
 
 
+@cli.command("demo-notebooks")
+@click.option(
+    "--output-dir",
+    "-o",
+    default="./feast-demo-notebooks",
+    show_default=True,
+    help="Directory where the demo notebooks are written.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing notebooks if the output directory already exists.",
+)
+@click.pass_context
+def demo_notebooks_command(ctx: click.Context, output_dir: str, overwrite: bool):
+    """
+    Generate demo Jupyter notebooks tailored to the feature store configuration.
+
+    Searches for feature_store.yaml in the current directory and every file
+    inside feast-config/. Each file is treated as a separate project config.
+    For each project found, a sub-directory is created under OUTPUT_DIR.
+    """
+    from feast.demos import copy_demo_notebooks
+
+    repo = ctx.obj["CHDIR"]
+    copy_demo_notebooks(
+        output_dir=output_dir,
+        repo_path=str(repo),
+        overwrite=overwrite,
+    )
+
+
 cli.add_command(data_sources_cmd)
 cli.add_command(entities_cmd)
 cli.add_command(feature_services_cmd)
@@ -545,14 +644,27 @@ cli.add_command(get_online_features)
 cli.add_command(on_demand_feature_views_cmd)
 cli.add_command(feast_permissions_cmd)
 cli.add_command(projects_cmd)
+cli.add_command(registry_cmd)
 cli.add_command(saved_datasets_cmd)
 cli.add_command(stream_feature_views_cmd)
+cli.add_command(label_views_cmd)
 cli.add_command(validation_references_cmd)
 cli.add_command(ui)
 cli.add_command(serve_command)
 cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
+cli.add_command(serve_lineage_command)
 cli.add_command(serve_transformations_command)
+cli.add_command(mcp_command)
+cli.add_command(dbt_cmd)
+cli.add_command(monitor_cmd)
+
+try:
+    from feast.cli.mlflow_cmd import mlflow_cmd
+
+    cli.add_command(mlflow_cmd)
+except ImportError:
+    pass
 
 if __name__ == "__main__":
     cli()

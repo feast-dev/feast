@@ -28,6 +28,26 @@ import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
 import "feast/core/Transformation.proto";
 
+// Lifecycle state of a feature view.
+enum FeatureViewState {
+    // Default value for backward compatibility. Treated as AVAILABLE_ONLINE
+    // for existing feature views that predate the state machine.
+    STATE_UNSPECIFIED = 0;
+
+    // Feature view has been registered via feast apply but no data is available.
+    CREATED = 1;
+
+    // Feature engineering / offline data generation is complete.
+    // The feature view is ready to be materialized.
+    GENERATED = 2;
+
+    // Materialization is currently in progress.
+    MATERIALIZING = 3;
+
+    // Materialization completed. Features are available in the online store.
+    AVAILABLE_ONLINE = 4;
+}
+
 message FeatureView {
     // User-specified specifications of this feature view.
     FeatureViewSpec spec = 1;
@@ -36,7 +56,7 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 17
+// Next available id: 20
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -61,6 +81,7 @@ message FeatureViewSpec {
     google.protobuf.Duration ttl = 6;
 
     // Batch/Offline DataSource where this view can retrieve offline feature data.
+    // Optional: if not set, the feature view has no associated batch data source (e.g. purely derived views).
     DataSource batch_source = 7;
 
     // Whether these features should be served online or not
@@ -68,6 +89,7 @@ message FeatureViewSpec {
     bool online = 8;
 
     // Streaming DataSource from where this view can consume "online" feature data.
+    // Optional: only required for streaming feature views.
     DataSource stream_source = 9;
 
     // Description of the feature view.
@@ -89,6 +111,20 @@ message FeatureViewSpec {
 
     // The transformation mode (e.g., "python", "pandas", "spark", "sql", "ray")
     string mode = 16;
+
+    // Whether schema validation is enabled during materialization
+    bool enable_validation = 17;
+
+    // User-specified version pin (e.g. "latest", "v2", "version2")
+    string version = 18;
+
+    // Organizational unit that owns this feature view (e.g. "ads", "search").
+    string org = 19;
+
+    // Whether this feature view is disabled for serving and materialization.
+    // When true, the feature view will not serve online features or be materialized.
+    // Defaults to false (enabled) for backward compatibility.
+    bool disabled = 20;
 }
 
 message FeatureViewMeta {
@@ -100,6 +136,15 @@ message FeatureViewMeta {
 
     // List of pairs (start_time, end_time) for which this feature view has been materialized.
     repeated MaterializationInterval materialization_intervals = 3;
+
+    // The current version number of this feature view in the version history.
+    int32 current_version_number = 4;
+
+    // Auto-generated UUID identifying this specific version.
+    string version_id = 5;
+
+    // Lifecycle state of this feature view.
+    FeatureViewState state = 6;
 }
 
 message MaterializationInterval {

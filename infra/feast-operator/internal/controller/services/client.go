@@ -47,7 +47,7 @@ func (feast *FeastServices) createClientConfigMap() error {
 
 func (feast *FeastServices) setClientConfigMap(cm *corev1.ConfigMap) error {
 	cm.Labels = feast.getFeastTypeLabels(ClientFeastType)
-	clientYaml, err := feast.getClientFeatureStoreYaml(feast.extractConfigFromSecret)
+	clientYaml, err := feast.getClientFeatureStoreYaml()
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (feast *FeastServices) setCaConfigMap(cm *corev1.ConfigMap) error {
 	if len(cm.Annotations) == 0 {
 		cm.Annotations = map[string]string{}
 	}
-	cm.Annotations["service.beta.openshift.io/inject-cabundle"] = "true"
+	cm.Annotations[openshiftInjectCaBundleAnnotation] = stringTrue
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, cm, feast.Handler.Scheme)
 }
 

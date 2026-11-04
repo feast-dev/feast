@@ -6,8 +6,8 @@ from feast.errors import SpecifiedFeaturesNotPresentError
 from feast.infra.offline_stores.file_source import FileSource
 from feast.types import Float64
 from feast.utils import _utc_now
-from tests.integration.feature_repos.universal.entities import customer, driver, item
-from tests.integration.feature_repos.universal.feature_views import (
+from tests.universal.feature_repos.universal.entities import customer, driver, item
+from tests.universal.feature_repos.universal.feature_views import (
     conv_rate_plus_100_feature_view,
     create_conv_rate_request_source,
     create_driver_hourly_stats_batch_feature_view,
@@ -18,7 +18,6 @@ from tests.integration.feature_repos.universal.feature_views import (
 
 
 @pytest.mark.integration
-@pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("infer_features", [True, False], ids=lambda v: str(v))
 def test_infer_odfv_features(environment, universal_data_sources, infer_features):
     store = environment.feature_store

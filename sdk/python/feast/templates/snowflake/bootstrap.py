@@ -1,6 +1,6 @@
 import click
-import snowflake.connector
 
+import snowflake.connector
 from feast.file_utils import replace_str_in_file
 from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,

@@ -1,9 +1,11 @@
+import copy
 from datetime import timedelta
 
 import pandas as pd
 import pytest
 from typeguard import TypeCheckError
 
+from feast.aggregation import Aggregation
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
@@ -21,6 +23,18 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.protos.feast.types.Value_pb2 import ValueType
 from feast.types import Float32, Int64, String
 from feast.utils import _utc_now, make_tzaware
+
+
+def test_create_feature_view_without_source():
+    fv = FeatureView(name="test_no_source", ttl=timedelta(days=1))
+    assert fv.batch_source is None
+    assert fv.stream_source is None
+
+    proto = fv.to_proto()
+    assert not proto.spec.HasField("batch_source")
+
+    fv_roundtrip = FeatureView.from_proto(proto)
+    assert fv_roundtrip.batch_source is None
 
 
 def test_create_feature_view_with_conflicting_entities():
@@ -48,7 +62,7 @@ def test_create_batch_feature_view():
         udf=lambda x: x,
     )
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         BatchFeatureView(
             name="test batch feature view", entities=[], ttl=timedelta(days=30)
         )
@@ -392,6 +406,46 @@ def test_batch_feature_view_serialization_deserialization():
     assert second_deserialized.feature_transformation is not None
 
 
+def test_batch_feature_view_copy() -> None:
+    def transform_udf(df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+    bfv = BatchFeatureView(
+        name="test_batch_feature_view",
+        entities=[Entity(name="test_entity", join_keys=["entity_id"])],
+        schema=[
+            Field(name="entity_id", dtype=String),
+            Field(name="input_feature", dtype=Int64),
+        ],
+        source=FileSource(
+            name="test-source",
+            path="test_data.parquet",
+            timestamp_field="event_timestamp",
+        ),
+        udf=transform_udf,
+        mode="pandas",
+        batch_engine={"spark.sql.shuffle.partitions": "4"},
+        aggregations=[
+            Aggregation(
+                column="input_feature", function="sum", time_window=timedelta(days=1)
+            )
+        ],
+    )
+
+    bfv_copy = copy.copy(bfv)
+    assert isinstance(bfv_copy, BatchFeatureView)
+    assert bfv_copy == bfv
+    assert bfv_copy.mode == "pandas"
+    assert bfv_copy.udf is transform_udf
+    assert bfv_copy.feature_transformation is bfv.feature_transformation
+    assert bfv_copy.batch_engine == {"spark.sql.shuffle.partitions": "4"}
+    assert bfv_copy.aggregations == bfv.aggregations
+
+    projected = bfv[["input_feature"]]
+    assert isinstance(projected, BatchFeatureView)
+    assert projected.to_proto().spec.HasField("feature_transformation")
+
+
 def test_transformation_mode_serialization():
     """
     Test that transformation mode is properly serialized to proto and deserialized back.
@@ -530,3 +584,58 @@ def test_mode_serialization_without_transformation():
         assert deserialized.feature_transformation is not None, (
             "Expected transformation to be present"
         )
+
+
+def test_feature_view_org_field():
+    """Test that the optional `org` field is stored, serialized, and round-trips correctly."""
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+
+    # org is optional — defaults to empty string
+    fv_no_org = FeatureView(
+        name="fv-no-org",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+    )
+    assert fv_no_org.org == ""
+
+    # org can be set explicitly
+    fv_with_org = FeatureView(
+        name="fv-with-org",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="ads",
+    )
+    assert fv_with_org.org == "ads"
+
+    # org is serialized to proto
+    proto = fv_with_org.to_proto()
+    assert proto.spec.org == "ads"
+
+    # org survives a proto round-trip
+    roundtripped = FeatureView.from_proto(proto)
+    assert roundtripped.org == "ads"
+
+    # a view without org round-trips to empty string
+    proto_no_org = fv_no_org.to_proto()
+    assert proto_no_org.spec.org == ""
+    roundtripped_no_org = FeatureView.from_proto(proto_no_org)
+    assert roundtripped_no_org.org == ""
+
+    # equality respects org
+    fv_org_a = FeatureView(
+        name="fv-eq",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="ads",
+    )
+    fv_org_b = FeatureView(
+        name="fv-eq",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        org="search",
+    )
+    assert fv_org_a != fv_org_b

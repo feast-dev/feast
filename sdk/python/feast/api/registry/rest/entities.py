@@ -1,6 +1,9 @@
 import logging
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from feast.api.registry.rest.codegen_utils import render_entity_code
 from feast.api.registry.rest.rest_utils import (
@@ -13,9 +16,21 @@ from feast.api.registry.rest.rest_utils import (
     get_sorting_params,
     grpc_call,
 )
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
+
+
+class ApplyEntityRequestBody(BaseModel):
+    name: str
+    project: str
+    join_key: Optional[str] = None
+    value_type: Optional[int] = 2
+    description: Optional[str] = ""
+    tags: Optional[Dict[str, str]] = {}
+    owner: Optional[str] = ""
 
 
 def get_entity_router(grpc_handler) -> APIRouter:
@@ -135,5 +150,45 @@ def get_entity_router(grpc_handler) -> APIRouter:
             }
             result["featureDefinition"] = render_entity_code(context)
         return result
+
+    @router.post("/entities", status_code=201)
+    def apply_entity(body: ApplyEntityRequestBody):
+        join_key = body.join_key if body.join_key else body.name
+
+        spec = EntitySpecProto(
+            name=body.name,
+            value_type=body.value_type,
+            join_key=join_key,
+            description=body.description or "",
+            tags=body.tags or {},
+            owner=body.owner or "",
+        )
+        entity_proto = EntityProto(spec=spec)
+
+        req = RegistryServer_pb2.ApplyEntityRequest(
+            entity=entity_proto,
+            project=body.project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.ApplyEntity, req)
+
+        return JSONResponse(
+            status_code=201,
+            content={"name": body.name, "project": body.project, "status": "applied"},
+        )
+
+    @router.delete("/entities/{name}")
+    def delete_entity(
+        name: str,
+        project: str = Query(...),
+    ):
+        req = RegistryServer_pb2.DeleteEntityRequest(
+            name=name,
+            project=project,
+            commit=True,
+        )
+        grpc_call(grpc_handler.DeleteEntity, req)
+
+        return {"name": name, "project": project, "status": "deleted"}
 
     return router

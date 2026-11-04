@@ -8,7 +8,7 @@ functions (UDFs).
 
 A materialization task abstracts over specific technologies or frameworks that are used to materialize data. It allows
 users to use a pure local serialized approach (which is the default LocalComputeEngine), or delegates the
-materialization to seperate components (e.g. AWS Lambda, as implemented by the the LambdaComputeEngine).
+materialization to separate components (e.g. AWS Lambda, as implemented by the LambdaComputeEngine).
 
 If the built-in engines are not sufficient, you can create your own custom materialization engine. Please
 see [this guide](../../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) for more details.
@@ -22,9 +22,10 @@ engines.
 |-------------------------|-------------------------------------------------------------------------------------------------|------------|------|
 | LocalComputeEngine      | Runs on Arrow + Pandas/Polars/Dask etc., designed for light weight transformation.              | ✅         |      |
 | SparkComputeEngine      | Runs on Apache Spark, designed for large-scale distributed feature generation.                  | ✅         |      |
+| TrinoComputeEngine      | Runs on Trino, designed for scalable feature generation using Trino SQL.                         | ✅         | [docs](../../reference/compute-engine/trino.md) |
 | SnowflakeComputeEngine  | Runs on Snowflake, designed for scalable feature generation using Snowflake SQL.                | ✅         |      |
 | LambdaComputeEngine     | Runs on AWS Lambda, designed for serverless feature generation.                                 | ✅         |      |
-| FlinkComputeEngine      | Runs on Apache Flink, designed for stream processing and real-time feature generation.          | ❌         |      |
+| FlinkComputeEngine      | Runs on Apache Flink, designed for distributed feature generation through PyFlink Table API.    | ✅         |      |
 | RayComputeEngine        | Runs on Ray, designed for distributed feature generation and machine learning workloads.        | ✅         |      |
 ```
 

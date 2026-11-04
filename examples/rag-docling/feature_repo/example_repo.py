@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-import pandas as pd
 from feast import (
     FeatureView,
     Field,
@@ -12,7 +11,7 @@ from feast.data_format import ParquetFormat
 from feast.types import Float64, Array, String, ValueType, PdfBytes
 from feast.on_demand_feature_view import on_demand_feature_view
 from sentence_transformers import SentenceTransformer
-from typing import Dict, Any, List
+from typing import Any
 
 import hashlib
 from docling.datamodel.base_models import DocumentStream
@@ -20,7 +19,6 @@ from docling.datamodel.base_models import DocumentStream
 import io
 from docling.document_converter import DocumentConverter
 from transformers import AutoTokenizer
-from sentence_transformers import SentenceTransformer
 from docling.chunking import HybridChunker
 
 # Load tokenizer and embedding model
@@ -31,13 +29,19 @@ tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
 embedding_model = SentenceTransformer(EMBED_MODEL_ID)
 chunker = HybridChunker(tokenizer=tokenizer, max_tokens=MAX_TOKENS, merge_peers=True)
 
+
 def embed_text(text: str) -> list[float]:
     """Generate an embedding for a given text."""
     return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]
 
-def generate_chunk_id(file_name: str, raw_chunk_markdown: str="") -> str:
+
+def generate_chunk_id(file_name: str, raw_chunk_markdown: str = "") -> str:
     """Generate a unique chunk ID based on file_name and raw_chunk_markdown."""
-    unique_string = f"{file_name}-{raw_chunk_markdown}" if raw_chunk_markdown != "" else f"{file_name}"
+    unique_string = (
+        f"{file_name}-{raw_chunk_markdown}"
+        if raw_chunk_markdown != ""
+        else f"{file_name}"
+    )
     return hashlib.sha256(unique_string.encode()).hexdigest()
 
 
@@ -64,7 +68,7 @@ source = FileSource(
 input_request_pdf = RequestSource(
     name="pdf_request_source",
     schema=[
-        Field(name="document_id", dtype=String),        
+        Field(name="document_id", dtype=String),
         Field(name="pdf_bytes", dtype=PdfBytes),
         Field(name="file_name", dtype=String),
     ],
@@ -87,6 +91,7 @@ docling_example_feature_view = FeatureView(
     source=source,
     ttl=timedelta(hours=2),
 )
+
 
 @on_demand_feature_view(
     entities=[chunk, document],

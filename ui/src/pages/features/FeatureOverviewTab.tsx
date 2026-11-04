@@ -1,4 +1,5 @@
 import {
+  EuiBadge,
   EuiFlexGroup,
   EuiHorizontalRule,
   EuiLoadingSpinner,
@@ -63,7 +64,9 @@ const FeatureOverviewTab = () => {
 
                   <EuiDescriptionListTitle>Value Type</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {feast.types.ValueType.Enum[featureData?.valueType!]}
+                    {featureData?.valueType
+                      ? feast.types.ValueType.Enum[featureData.valueType]
+                      : featureData?.type || data?.type || "—"}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Description</EuiDescriptionListTitle>
@@ -71,13 +74,21 @@ const FeatureOverviewTab = () => {
                     {featureData?.description}
                   </EuiDescriptionListDescription>
 
-                  <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
+                  <EuiDescriptionListTitle>
+                    {data?.kind === "label" ? "Label View" : "Feature View"}
+                  </EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     <EuiCustomLink
-                      to={`/p/${projectName}/feature-view/${FeatureViewName}`}
+                      to={`/p/${projectName}/${data?.kind === "label" ? "label-view" : "feature-view"}/${FeatureViewName}`}
                     >
                       {FeatureViewName}
                     </EuiCustomLink>
+                    {data?.kind === "label" && (
+                      <>
+                        {" "}
+                        <EuiBadge color="#e6570e">label view</EuiBadge>
+                      </>
+                    )}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>

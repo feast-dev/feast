@@ -6,3 +6,6 @@ structure:
 redirects:
   reference/telemetry: ./reference/usage.md
   quickstart: ./getting-started/quickstart.md
+  reference/feature-store-yaml: ./reference/feature-repository/feature-store-yaml.md
+  reference/feast-ignore: ./reference/feature-repository/feast-ignore.md
+  reference/feature-repository: ./reference/feature-repository/README.md

@@ -3,12 +3,12 @@ from typing import List
 import pytest
 
 from feast.feature_store import FeastObject
-from tests.integration.feature_repos.repo_configuration import (
+from tests.universal.feature_repos.repo_configuration import (
     IntegrationTestRepoConfig,
     construct_test_environment,
     construct_universal_feature_views,
 )
-from tests.integration.feature_repos.universal.entities import customer, driver
+from tests.universal.feature_repos.universal.entities import customer, driver
 
 # TODO: Allow integration tests to run using different credentials.
 
@@ -21,7 +21,7 @@ def test_registration_and_retrieval_from_custom_s3_endpoint(
     universal_data_sources,
 ):
     config = IntegrationTestRepoConfig(
-        offline_store_creator="tests.integration.feature_repos.universal.data_sources.file.S3FileDataSourceCreator"
+        offline_store_creator="tests.universal.feature_repos.universal.data_sources.file.S3FileDataSourceCreator"
     )
     import os
 

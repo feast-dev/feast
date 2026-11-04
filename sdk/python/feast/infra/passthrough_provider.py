@@ -24,6 +24,7 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -142,8 +143,8 @@ class PassthroughProvider(Provider):
     def update_infra(
         self,
         project: str,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
+        tables_to_delete: Sequence[BaseFeatureView],
+        tables_to_keep: Sequence[BaseFeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -167,8 +168,8 @@ class PassthroughProvider(Provider):
         if self.batch_engine:
             self.batch_engine.update(
                 project,
-                tables_to_delete,
-                tables_to_keep,
+                tables_to_delete,  # type: ignore[arg-type]
+                tables_to_keep,  # type: ignore[arg-type]
                 entities_to_delete,
                 entities_to_keep,
             )
@@ -247,6 +248,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return self.online_store.get_online_features(
             config=config,
@@ -255,6 +257,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def get_online_features_async(
@@ -268,6 +271,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        include_feature_view_version_metadata: bool = False,
     ) -> OnlineResponse:
         return await self.online_store.get_online_features_async(
             config=config,
@@ -276,6 +280,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            include_feature_view_version_metadata=include_feature_view_version_metadata,
         )
 
     async def online_read_async(
@@ -318,21 +323,25 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: Optional[List[str]],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
+        include_feature_view_version_metadata: bool = False,
     ) -> List:
         result = []
         if self.online_store:
             result = self.online_store.retrieve_online_documents_v2(
-                config,
-                table,
-                requested_features,
-                query,
-                top_k,
-                distance_metric,
-                query_string,
+                config=config,
+                table=table,
+                requested_features=requested_features,
+                embedding=embedding,
+                top_k=top_k,
+                distance_metric=distance_metric,
+                query_string=query_string,
+                filters=filters,
+                include_feature_view_version_metadata=include_feature_view_version_metadata,
             )
         return result
 
@@ -364,7 +373,10 @@ class PassthroughProvider(Provider):
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature
             #   columns, not entity or timestamp columns.
-            if hasattr(feature_view, "batch_source"):
+            if (
+                hasattr(feature_view, "batch_source")
+                and feature_view.batch_source is not None
+            ):
                 if feature_view.batch_source.field_mapping is not None:
                     table = _run_pyarrow_field_mapping(
                         table, feature_view.batch_source.field_mapping
@@ -410,7 +422,10 @@ class PassthroughProvider(Provider):
         )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
-        if feature_view.batch_source.field_mapping is not None:
+        if (
+            feature_view.batch_source is not None
+            and feature_view.batch_source.field_mapping is not None
+        ):
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
             )
@@ -466,6 +481,8 @@ class PassthroughProvider(Provider):
         full_feature_names: bool,
         **kwargs,
     ) -> RetrievalJob:
+        if kwargs.get("filter_by_created_timestamp"):
+            self.offline_store.ensure_filter_by_created_timestamp_supported()
         job = self.offline_store.get_historical_features(
             config=config,
             feature_views=feature_views,
@@ -482,8 +499,12 @@ class PassthroughProvider(Provider):
     def retrieve_saved_dataset(
         self, config: RepoConfig, dataset: SavedDataset
     ) -> RetrievalJob:
+        from feast.utils import _strip_version_from_ref
+
         feature_name_columns = [
-            ref.replace(":", "__") if dataset.full_feature_names else ref.split(":")[1]
+            _strip_version_from_ref(ref).replace(":", "__")
+            if dataset.full_feature_names
+            else ref.split(":")[1]
             for ref in dataset.features
         ]
 

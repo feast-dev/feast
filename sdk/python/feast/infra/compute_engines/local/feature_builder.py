@@ -1,5 +1,7 @@
+import logging
 from typing import Union
 
+from feast.aggregation import aggregation_specs_to_agg_ops
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.backends.base import DataFrameBackend
@@ -15,6 +17,9 @@ from feast.infra.compute_engines.local.nodes import (
     LocalValidationNode,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.types import PrimitiveFeastType, from_feast_to_pyarrow_type
+
+logger = logging.getLogger(__name__)
 
 
 class LocalFeatureBuilder(FeatureBuilder):
@@ -54,7 +59,12 @@ class LocalFeatureBuilder(FeatureBuilder):
 
     def build_aggregation_node(self, view, input_node):
         agg_specs = view.aggregations
-        agg_ops = self._get_aggregate_operations(agg_specs)
+        agg_ops = aggregation_specs_to_agg_ops(
+            agg_specs,
+            time_window_unsupported_error_message=(
+                "Time window aggregation is not supported in the local compute engine."
+            ),
+        )
         group_by_keys = view.entities
         node = LocalAggregationNode(
             "agg", self.backend, group_by_keys, agg_ops, inputs=[input_node]
@@ -82,7 +92,36 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_validation_node(self, view, input_node):
-        validation_config = view.validation_config
+        validation_config = getattr(view, "validation_config", None) or {}
+
+        if not validation_config.get("columns") and hasattr(view, "features"):
+            columns = {}
+            json_columns = set()
+            for feature in view.features:
+                try:
+                    columns[feature.name] = from_feast_to_pyarrow_type(feature.dtype)
+                except (ValueError, KeyError):
+                    logger.debug(
+                        "Could not resolve PyArrow type for feature '%s' "
+                        "(dtype=%s), skipping type check for this column.",
+                        feature.name,
+                        feature.dtype,
+                    )
+                    columns[feature.name] = None
+                # Track which columns are Json type for content validation
+                if (
+                    isinstance(feature.dtype, PrimitiveFeastType)
+                    and feature.dtype.name == "JSON"
+                ):
+                    json_columns.add(feature.name)
+            if columns:
+                validation_config = {**validation_config, "columns": columns}
+            if json_columns:
+                validation_config = {
+                    **validation_config,
+                    "json_columns": json_columns,
+                }
+
         node = LocalValidationNode(
             "validate", validation_config, self.backend, inputs=[input_node]
         )
@@ -93,15 +132,3 @@ class LocalFeatureBuilder(FeatureBuilder):
         node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
         self.nodes.append(node)
         return node
-
-    @staticmethod
-    def _get_aggregate_operations(agg_specs):
-        agg_ops = {}
-        for agg in agg_specs:
-            if agg.time_window is not None:
-                raise ValueError(
-                    "Time window aggregation is not supported in the local compute engine."
-                )
-            alias = f"{agg.function}_{agg.column}"
-            agg_ops[alias] = (agg.function, agg.column)
-        return agg_ops
