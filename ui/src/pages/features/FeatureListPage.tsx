@@ -45,8 +45,7 @@ interface Feature {
 }
 
 type FeatureColumn =
-  | EuiTableFieldDataColumnType<Feature>
-  | EuiTableComputedColumnType<Feature>;
+  EuiTableFieldDataColumnType<Feature> | EuiTableComputedColumnType<Feature>;
 
 const FeatureListPage = () => {
   const { projectName } = useParams();

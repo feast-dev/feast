@@ -191,25 +191,82 @@ class TableFormat(google.protobuf.message.Message):
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["precombine_field", b"precombine_field", "properties", b"properties", "record_key", b"record_key", "table_type", b"table_type"]) -> None: ...
 
+    class LanceFormat(google.protobuf.message.Message):
+        """Defines options for the Lance table format"""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        class PropertiesEntry(google.protobuf.message.Message):
+            DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+            KEY_FIELD_NUMBER: builtins.int
+            VALUE_FIELD_NUMBER: builtins.int
+            key: builtins.str
+            value: builtins.str
+            def __init__(
+                self,
+                *,
+                key: builtins.str = ...,
+                value: builtins.str = ...,
+            ) -> None: ...
+            def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+        CATALOG_FIELD_NUMBER: builtins.int
+        NAMESPACE_FIELD_NUMBER: builtins.int
+        VERSION_FIELD_NUMBER: builtins.int
+        TAG_FIELD_NUMBER: builtins.int
+        PROPERTIES_FIELD_NUMBER: builtins.int
+        catalog: builtins.str
+        """Optional catalog name for the Lance table"""
+        namespace: builtins.str
+        """Optional namespace within the catalog"""
+        version: builtins.int
+        """Pin reads to a specific Lance dataset version. Zero means unset.
+        Mutually exclusive with tag.
+        """
+        tag: builtins.str
+        """Pin reads to a named Lance tag, which resolves to a version.
+        Mutually exclusive with version.
+        """
+        @property
+        def properties(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
+            """Additional properties for Lance configuration
+            Examples: storage options, index parameters, etc.
+            """
+        def __init__(
+            self,
+            *,
+            catalog: builtins.str = ...,
+            namespace: builtins.str = ...,
+            version: builtins.int = ...,
+            tag: builtins.str = ...,
+            properties: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["catalog", b"catalog", "namespace", b"namespace", "properties", b"properties", "tag", b"tag", "version", b"version"]) -> None: ...
+
     ICEBERG_FORMAT_FIELD_NUMBER: builtins.int
     DELTA_FORMAT_FIELD_NUMBER: builtins.int
     HUDI_FORMAT_FIELD_NUMBER: builtins.int
+    LANCE_FORMAT_FIELD_NUMBER: builtins.int
     @property
     def iceberg_format(self) -> global___TableFormat.IcebergFormat: ...
     @property
     def delta_format(self) -> global___TableFormat.DeltaFormat: ...
     @property
     def hudi_format(self) -> global___TableFormat.HudiFormat: ...
+    @property
+    def lance_format(self) -> global___TableFormat.LanceFormat: ...
     def __init__(
         self,
         *,
         iceberg_format: global___TableFormat.IcebergFormat | None = ...,
         delta_format: global___TableFormat.DeltaFormat | None = ...,
         hudi_format: global___TableFormat.HudiFormat | None = ...,
+        lance_format: global___TableFormat.LanceFormat | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["iceberg_format", "delta_format", "hudi_format"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format", "lance_format", b"lance_format"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["delta_format", b"delta_format", "format", b"format", "hudi_format", b"hudi_format", "iceberg_format", b"iceberg_format", "lance_format", b"lance_format"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["format", b"format"]) -> typing_extensions.Literal["iceberg_format", "delta_format", "hudi_format", "lance_format"] | None: ...
 
 global___TableFormat = TableFormat
 

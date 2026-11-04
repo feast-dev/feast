@@ -20,6 +20,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
 from feast.infra.compute_engines.ray.utils import (
+    _is_empty_batch,
     safe_batch_processor,
     write_to_online_store,
 )
@@ -329,11 +330,13 @@ class RayAggregationNode(DAGNode):
         config: RayComputeEngineConfig,
         enable_tiling: bool = False,
         hop_size: Optional[timedelta] = None,
+        created_timestamp_col: Optional[str] = None,
     ):
         super().__init__(name)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
+        self.created_timestamp_col = created_timestamp_col
         self.config = config
         self.enable_tiling = enable_tiling
         self.hop_size = hop_size
@@ -443,6 +446,21 @@ class RayAggregationNode(DAGNode):
                     final_pdf, self.group_by_keys, self.timestamp_col
                 )
 
+            # Tiling drops the created timestamp; add back the latest per group.
+            if (
+                self.created_timestamp_col
+                and self.created_timestamp_col in input_pdf.columns
+                and not final_pdf.empty
+            ):
+                latest_created = (
+                    input_pdf.groupby(self.group_by_keys)[self.created_timestamp_col]
+                    .max()
+                    .reset_index()
+                )
+                final_pdf = final_pdf.merge(
+                    latest_created, on=self.group_by_keys, how="left"
+                )
+
             aggregated_dataset = ray_wrapper.from_pandas(final_pdf)
 
         return DAGValue(
@@ -543,6 +561,10 @@ class RayAggregationNode(DAGNode):
 
         # Combine aggregation results
         if agg_results:
+            # Keep the latest timestamps per group; the online write needs them.
+            for ts_col in (self.timestamp_col, self.created_timestamp_col):
+                if ts_col and ts_col in df.columns:
+                    agg_results.append(grouped[ts_col].max())
             result_df = pd.concat(agg_results, axis=1)
 
             # Reset index to make group keys regular columns
@@ -708,11 +730,14 @@ class RayTransformationNode(DAGNode):
             elif callable(self.transformation):
                 transformation_serialized = dill.dumps(self.transformation)
 
-            @safe_batch_processor
+            # Not wrapped in safe_batch_processor: a failed UDF must fail the job.
             def apply_transformation_with_serialized_udf(
                 batch: pd.DataFrame,
             ) -> pd.DataFrame:
                 """Apply the transformation using pre-serialized UDF."""
+                if _is_empty_batch(batch):
+                    return batch
+
                 if transformation_serialized:
                     transformation_func = dill.loads(transformation_serialized)
                     transformed_batch = transformation_func(batch)
@@ -861,9 +886,12 @@ class RayWriteNode(DAGNode):
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        @safe_batch_processor
+        # Not wrapped in safe_batch_processor: a failed write must fail the job.
         def write_batch_with_serialized_artifacts(batch: pd.DataFrame) -> pd.DataFrame:
             """Write each batch using pre-serialized artifacts."""
+            if _is_empty_batch(batch):
+                return batch
+
             (
                 feature_view,
                 online_store,

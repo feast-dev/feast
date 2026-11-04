@@ -222,8 +222,17 @@ def test_stream_feature_view_copy():
         source=stream_source,
         aggregations=[],
         udf=lambda x: x,
+        offline=True,
+        enable_tiling=True,
+        tiling_hop_size=timedelta(minutes=1),
+        stream_engine={"spark.sql.shuffle.partitions": "4"},
     )
-    assert sfv == copy.copy(sfv)
+    sfv_copy = copy.copy(sfv)
+    assert sfv == sfv_copy
+    assert sfv_copy.offline
+    assert sfv_copy.enable_tiling
+    assert sfv_copy.tiling_hop_size == timedelta(minutes=1)
+    assert sfv_copy.stream_engine == {"spark.sql.shuffle.partitions": "4"}
 
 
 def test_update_materialization_intervals():

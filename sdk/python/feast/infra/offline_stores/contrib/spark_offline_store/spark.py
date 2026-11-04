@@ -1267,25 +1267,7 @@ def _load_pyiceberg_table(data_source: "DataSource"):
     )
 
     assert isinstance(data_source, IcebergSource)
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
-
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        return catalog_client.load_table(fqn)
-
-    from pyiceberg.catalog import load_catalog
-
-    catalog_config: Dict[str, str] = {
-        "type": "rest",
-        "uri": data_source.endpoint,
-        "warehouse": data_source.warehouse,
-    }
-    if data_source.token_env_var:
-        token = os.environ.get(data_source.token_env_var)
-        if token:
-            catalog_config["token"] = token
-    catalog = load_catalog(data_source.catalog_name, **catalog_config)
-    return catalog.load_table(fqn)
+    return data_source.load_pyiceberg_table()
 
 
 def _iceberg_offline_write_batch(

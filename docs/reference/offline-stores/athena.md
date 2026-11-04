@@ -26,10 +26,13 @@ offline_store:
   region: us-east-1
   database: my_database
   workgroup: primary
+  s3_staging_location: s3://my-bucket/athena-staging
 online_store:
     path: data/online_store.db
 ```
 {% endcode %}
+
+Set `s3_staging_location` to an S3 bucket or prefix that Feast can use to stage data for Athena. This is a required configuration field.
 
 The full set of configuration options is available in [AthenaOfflineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStoreConfig).
 

@@ -10,7 +10,7 @@ look for store-specific YAML options in the Feast SDK docs.
 |-------|--------|----------------|
 | **CR field reference** | [`api/markdown/ref.md`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md) | Every field, type, validation constraint — auto-generated from Go types |
 | **Operator guides** (this folder) | Narrative how-tos | CR→K8s behavior, Secret formats, PVC patterns, operator-specific trade-offs |
-| **Feast SDK reference** | [`feast/docs/reference/`](../reference/) | Store-specific `feature_store.yaml` options (online/offline store drivers, registry drivers, etc.) |
+| **Feast SDK reference** | [`feast/docs/reference/`](../../reference/) | Store-specific `feature_store.yaml` options (online/offline store drivers, registry drivers, etc.) |
 | **Sample CRs** | [`config/samples/`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/) | Copy-paste starting points for common configurations |
 
 > **Rule of thumb**: if you need to know *what to put in the CR and why*, read the operator

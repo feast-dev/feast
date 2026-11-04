@@ -12,7 +12,7 @@ import pandas as pd
 import pyarrow as pa
 import ray
 from ray.data import Dataset
-from ray.data.context import DatasetContext
+from ray.data.context import DatasetContext, ShuffleStrategy
 
 from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
@@ -460,7 +460,7 @@ class RayResourceManager:
             else 2
         )
         ctx.max_parallelism = self.available_cpus * multiplier
-        ctx.shuffle_strategy = "sort"  # type: ignore
+        ctx.shuffle_strategy = ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
         ctx.enable_tensor_extension_casting = False
 
         if not getattr(self.config, "enable_ray_logging", False):

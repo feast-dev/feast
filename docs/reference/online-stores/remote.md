@@ -104,27 +104,13 @@ This is especially beneficial for:
 
 The HTTP session is automatically managed with idle timeout, but you can also explicitly close it when your application is shutting down or when you want to release resources.
 
-#### Using FeatureStore context manager (recommended)
-
-The recommended way to ensure proper cleanup is to use the `FeatureStore` as a context manager:
-
-```python
-from feast import FeatureStore
-
-# Session is automatically closed when exiting the context
-with FeatureStore(repo_path=".") as store:
-    features = store.get_online_features(
-        features=["driver_hourly_stats:conv_rate"],
-        entity_rows=[{"driver_id": 1001}]
-    )
-```
-
 #### Explicit cleanup
 
-You can also explicitly close the session by calling `close()` on the `FeatureStore`:
+For synchronous applications, close the cached HTTP session with `HttpSessionManager.close_session()`:
 
 ```python
 from feast import FeatureStore
+from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
 
 store = FeatureStore(repo_path=".")
 try:
@@ -133,19 +119,12 @@ try:
         entity_rows=[{"driver_id": 1001}]
     )
 finally:
-    store.close()  # Closes HTTP session and releases resources
+    HttpSessionManager.close_session()
 ```
 
-#### Direct session management
+The HTTP session is shared by all remote online stores in the process. Close it during application shutdown or when no other requests are using it.
 
-For advanced use cases, you can directly manage the HTTP session via `HttpSessionManager`:
-
-```python
-from feast.permissions.client.http_auth_requests_wrapper import HttpSessionManager
-
-# Close the cached HTTP session
-HttpSessionManager.close_session()
-```
+In asynchronous applications, you can instead use `await store.close()` to release the store's long-lived resources, including the remote HTTP session. `FeatureStore.close()` is asynchronous, so calling it without awaiting it does not perform cleanup.
 
 ## How to configure Authentication and Authorization
 Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.

@@ -292,4 +292,4 @@ kubectl get configmap feast-testing-client -o jsonpath='{.data.feature_store\.ya
 - [Sample: all remote servers](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_all_remote_servers.yaml)
 - [Sample: DB persistence](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_db_persistence.yaml)
 - [Sample: MCP](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_mcp.yaml)
-- [Feast SDK — Registries](../reference/registries/)
+- [Feast SDK — Registries](../../reference/registries/)
