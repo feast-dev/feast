@@ -322,7 +322,7 @@ conflicts = [
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
-[tool.pixi.feature.py310.dependencies]
+[tool.pixi.feature.py311.dependencies]
 python = "~=3.11.0"
 
 [tool.pixi.feature.duckdb-tests.pypi-dependencies]
@@ -350,9 +350,9 @@ test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/pyth
 test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = "." } }
 
 [tool.pixi.environments]
-duckdb-tests = ["py310", "duckdb-tests"]
-ray-tests = ["py310", "ray-tests"]
-registration-tests = ["py310", "registration-tests"]
+duckdb-tests = ["py311", "duckdb-tests"]
+ray-tests = ["py311", "ray-tests"]
+registration-tests = ["py311", "registration-tests"]
 
 [tool.coverage.run]
 branch = true
