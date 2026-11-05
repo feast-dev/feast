@@ -89,6 +89,48 @@ def _extract_retrieval_metadata(job: "RetrievalJob") -> tuple:
     return [], 0
 
 
+def _emit_offline_store_request_metrics(
+    job: "RetrievalJob",
+    method: str,
+    status_label: str,
+    row_count: int,
+    elapsed: float,
+) -> None:
+    """Record offline-store request metrics and the audit log entry. Never raises."""
+    try:
+        from feast import metrics as feast_metrics
+
+        if feast_metrics._config.offline_features:
+            feast_metrics.offline_store_request_total.labels(
+                method=method, status=status_label
+            ).inc()
+            feast_metrics.offline_store_request_latency_seconds.labels(
+                method=method
+            ).observe(elapsed)
+            feast_metrics.offline_store_row_count.labels(method=method).observe(
+                row_count
+            )
+
+        if feast_metrics._config.audit_logging:
+            feature_views, feature_count = _extract_retrieval_metadata(job)
+            end_dt = datetime.now(tz=timezone.utc)
+            start_dt = end_dt - timedelta(seconds=elapsed)
+            feast_metrics.emit_offline_audit_log(
+                method=method,
+                feature_views=feature_views,
+                feature_count=feature_count,
+                row_count=row_count,
+                status=status_label,
+                start_time=start_dt.isoformat(),
+                end_time=end_dt.isoformat(),
+                duration_ms=elapsed * 1000,
+            )
+    except Exception:
+        logging.getLogger(__name__).debug(
+            "Failed to record offline store metrics", exc_info=True
+        )
+
+
 class RetrievalJob(ABC):
     """A RetrievalJob manages the execution of a query to retrieve data from the offline store."""
 
@@ -181,40 +223,13 @@ class RetrievalJob(ABC):
             status_label = "error"
             raise
         finally:
-            try:
-                from feast import metrics as feast_metrics
-
-                elapsed = time.monotonic() - start_wall
-
-                if feast_metrics._config.offline_features:
-                    feast_metrics.offline_store_request_total.labels(
-                        method="to_arrow", status=status_label
-                    ).inc()
-                    feast_metrics.offline_store_request_latency_seconds.labels(
-                        method="to_arrow"
-                    ).observe(elapsed)
-                    feast_metrics.offline_store_row_count.labels(
-                        method="to_arrow"
-                    ).observe(row_count)
-
-                if feast_metrics._config.audit_logging:
-                    feature_views, feature_count = _extract_retrieval_metadata(self)
-                    end_dt = datetime.now(tz=timezone.utc)
-                    start_dt = end_dt - timedelta(seconds=elapsed)
-                    feast_metrics.emit_offline_audit_log(
-                        method="to_arrow",
-                        feature_views=feature_views,
-                        feature_count=feature_count,
-                        row_count=row_count,
-                        status=status_label,
-                        start_time=start_dt.isoformat(),
-                        end_time=end_dt.isoformat(),
-                        duration_ms=elapsed * 1000,
-                    )
-            except Exception:
-                logging.getLogger(__name__).debug(
-                    "Failed to record offline store metrics", exc_info=True
-                )
+            _emit_offline_store_request_metrics(
+                job=self,
+                method="to_arrow",
+                status_label=status_label,
+                row_count=row_count,
+                elapsed=time.monotonic() - start_wall,
+            )
 
         if self.on_demand_feature_views:
             # Build a mapping of ODFV name to requested feature names
@@ -287,6 +302,18 @@ class RetrievalJob(ABC):
                 raise ValidationFailed(validation_result)
 
         return features_table
+
+    def to_arrow_reader(
+        self, timeout: Optional[int] = None
+    ) -> pyarrow.RecordBatchReader:
+        """
+        Returns the result as a stream of record batches.
+
+        The default materializes the full result via ``to_arrow()``; offline stores that
+        can page results natively override this to bound memory.
+        """
+        table = self.to_arrow(timeout=timeout)
+        return pyarrow.RecordBatchReader.from_batches(table.schema, table.to_batches())
 
     def to_tensor(
         self,

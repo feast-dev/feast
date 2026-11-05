@@ -230,7 +230,7 @@ def test_do_exchange_get_historical_features():
 
     result_table = pa.table({"col": [1, 2, 3]})
     mock_job = MagicMock()
-    mock_job.to_arrow.return_value = result_table
+    mock_job.to_arrow_reader.return_value = result_table
     mock_offline_store = MagicMock()
     mock_offline_store.get_historical_features.return_value = mock_job
 
@@ -289,7 +289,7 @@ def test_do_exchange_pull_all_from_table_or_query():
 
     result_table = pa.table({"feature": [10, 20]})
     mock_job = MagicMock()
-    mock_job.to_arrow.return_value = result_table
+    mock_job.to_arrow_reader.return_value = result_table
 
     server = MagicMock(spec=OfflineServer)
     server.flights = {}
@@ -558,3 +558,62 @@ def test_split_oversized_splits_one_byte_over_cap(monkeypatch):
     batches = list(offline_server_module._split_oversized(batch))
 
     assert [b.num_rows for b in batches] == [1, 1]
+
+
+# ---------------------------------------------------------------------------
+# _execute_read_api prefers to_arrow_reader() over to_arrow()
+# ---------------------------------------------------------------------------
+
+
+def test_execute_read_api_uses_to_arrow_reader_for_pull_all():
+    server = MagicMock(spec=OfflineServer)
+    job = MagicMock()
+    server.pull_all_from_table_or_query.return_value = job
+
+    result = OfflineServer._execute_read_api(
+        server, "pull_all_from_table_or_query", {}, key=None
+    )
+
+    assert result is job.to_arrow_reader.return_value
+    job.to_arrow.assert_not_called()
+
+
+def test_execute_read_api_uses_to_arrow_reader_for_pull_latest():
+    server = MagicMock(spec=OfflineServer)
+    job = MagicMock()
+    server.pull_latest_from_table_or_query.return_value = job
+
+    result = OfflineServer._execute_read_api(
+        server, "pull_latest_from_table_or_query", {}, key=None
+    )
+
+    assert result is job.to_arrow_reader.return_value
+    job.to_arrow.assert_not_called()
+
+
+def test_execute_read_api_uses_to_arrow_reader_for_get_historical_features():
+    server = MagicMock(spec=OfflineServer)
+    job = MagicMock()
+    server.get_historical_features.return_value = job
+
+    result = OfflineServer._execute_read_api(
+        server, "get_historical_features", {}, key="some-key"
+    )
+
+    assert result is job.to_arrow_reader.return_value
+    job.to_arrow.assert_not_called()
+    server.get_historical_features.assert_called_once_with({}, "some-key")
+
+
+def test_execute_read_api_get_table_column_names_unaffected():
+    """The metadata-only read API returns an already-materialized Table and
+    must not be touched by the to_arrow_reader() switch."""
+    server = MagicMock(spec=OfflineServer)
+    table = pa.table({"col": ["string"]})
+    server.get_table_column_names_and_types_from_data_source.return_value = table
+
+    result = OfflineServer._execute_read_api(
+        server, "get_table_column_names_and_types_from_data_source", {}, key=None
+    )
+
+    assert result is table

@@ -1,11 +1,13 @@
 import json
 import logging
+import time
 import uuid
 from datetime import date, datetime, timezone
 from datetime import time as dt_time
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -33,7 +35,10 @@ from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.trino_offline_store.connectors.upload import (
     upload_pandas_dataframe_to_trino,
 )
-from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import Trino
+from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import (
+    Results,
+    Trino,
+)
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_source import (
     SavedDatasetTrinoStorage,
     TrinoSource,
@@ -42,6 +47,7 @@ from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,
     RetrievalMetadata,
+    _emit_offline_store_request_metrics,
 )
 from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
@@ -61,6 +67,24 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
+
+
+def _complex_column_depth(trino_type: str) -> Optional[int]:
+    """Array nesting depth of a row(...)/map(...) column, or None for other types."""
+    t = trino_type.lower().strip()
+    depth = 0
+    while t.startswith("array(") and t.endswith(")"):
+        t = t[len("array(") : -1].strip()
+        depth += 1
+    return depth if t.startswith(("row(", "map(")) else None
+
+
+def _stringify_complex(value: Any, depth: int) -> Any:
+    if value is None or (isinstance(value, float) and value != value):
+        return None
+    if depth == 0:
+        return str(value)
+    return [_stringify_complex(v, depth - 1) for v in value]
 
 
 class BasicAuthModel(FeastConfigBaseModel):
@@ -202,6 +226,9 @@ class TrinoOfflineStoreConfig(FeastConfigBaseModel):
         - certificate
     """
 
+    streaming_batch_size: int = Field(default=200_000, gt=0)
+    """ Rows per cursor.fetchmany() page when streaming results via to_arrow_reader() """
+
 
 class TrinoRetrievalJob(RetrievalJob):
     def __init__(
@@ -258,6 +285,72 @@ class TrinoRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
         return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
+
+    def to_arrow_reader(
+        self, timeout: Optional[int] = None, batch_size: Optional[int] = None
+    ) -> pyarrow.RecordBatchReader:
+        """Stream results page-by-page instead of fetchall() -> pandas -> Arrow.
+
+        On-demand feature views need the full table, so jobs carrying them use the
+        materialized default.
+        """
+        if self.on_demand_feature_views:
+            return super().to_arrow_reader(timeout=timeout)
+        if batch_size is None:
+            batch_size = self._config.offline_store.streaming_batch_size
+        if batch_size <= 0:
+            raise ValueError(f"batch_size must be positive, got {batch_size}")
+
+        start_wall = time.monotonic()
+        query = self._client.create_query(self._query)
+        try:
+            columns = query.start()
+            schema = Results(data=[], columns=columns).pyarrow_schema
+        except Exception:
+            query.close()
+            self._drop_temp_table()
+            _emit_offline_store_request_metrics(
+                job=self,
+                method="to_arrow_reader",
+                status_label="error",
+                row_count=0,
+                elapsed=time.monotonic() - start_wall,
+            )
+            raise
+
+        # The type map declares row(...)/map(...) as strings; the cursor returns objects.
+        complex_depth = {
+            c["name"]: depth
+            for c in columns
+            if (depth := _complex_column_depth(c["type"])) is not None
+        }
+
+        def _batches() -> Iterator[pyarrow.RecordBatch]:
+            row_count = 0
+            completed = False
+            try:
+                for page in query.iterate_pages(batch_size):
+                    df = page.to_dataframe()
+                    for name, depth in complex_depth.items():
+                        df[name] = df[name].map(
+                            lambda v, depth=depth: _stringify_complex(v, depth)
+                        )
+                    page_table = pyarrow.Table.from_pandas(df, schema=schema)
+                    for batch in page_table.to_batches():
+                        row_count += batch.num_rows
+                        yield batch
+                completed = True
+            finally:
+                self._drop_temp_table()
+                _emit_offline_store_request_metrics(
+                    job=self,
+                    method="to_arrow_reader",
+                    status_label="success" if completed else "error",
+                    row_count=row_count,
+                    elapsed=time.monotonic() - start_wall,
+                )
+
+        return pyarrow.RecordBatchReader.from_batches(schema, _batches())
 
     def to_sql(self) -> str:
         """Returns the SQL query that will be executed in Trino to build the historical feature table"""
