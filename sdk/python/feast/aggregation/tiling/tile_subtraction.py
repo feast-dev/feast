@@ -190,6 +190,6 @@ def deduplicate_keep_latest(
 
     return (
         df.sort_values(by=timestamp_col, ascending=False)
-        .groupby(entity_keys, as_index=False)
-        .first()
+        .drop_duplicates(subset=entity_keys, keep="first")
+        .reset_index(drop=True)
     )
