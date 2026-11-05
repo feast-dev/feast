@@ -396,16 +396,25 @@ class SparkOfflineStore(OfflineStore):
                 df_batch = spark_session.read.parquet(tmp_file.name)
 
                 # load existing data to get spark table schema
-                df_existing = spark_session.read.format(
-                    feature_view.batch_source.file_format
-                ).load(feature_view.batch_source.path)
+                df_existing = feature_view.batch_source._load_dataframe_from_path(
+                    spark_session
+                )
 
                 # cast columns if applicable
                 df_batch = _cast_data_frame(df_batch, df_existing)
 
-                df_batch.write.format(feature_view.batch_source.file_format).mode(
-                    "append"
-                ).save(feature_view.batch_source.path)
+                # Write with the same format the source is read with: the table
+                # format (and its options) when set, otherwise the file format.
+                table_format = feature_view.batch_source.table_format
+                if table_format is None:
+                    writer = df_batch.write.format(
+                        feature_view.batch_source.file_format
+                    )
+                else:
+                    writer = df_batch.write.format(table_format.format_type.value)
+                    for key, value in table_format.properties.items():
+                        writer = writer.option(key, value)
+                writer.mode("append").save(feature_view.batch_source.path)
         elif feature_view.batch_source.query:
             raise NotImplementedError(
                 "offline_write_batch not implemented for batch sources specified by query"
