@@ -3379,6 +3379,7 @@ spec:
                                 - aerospike
                                 - scylladb
                                 - chronon
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -10728,6 +10729,7 @@ spec:
                                     - aerospike
                                     - scylladb
                                     - chronon
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
@@ -16347,6 +16349,7 @@ spec:
                                 - aerospike
                                 - scylladb
                                 - chronon
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -20925,6 +20928,7 @@ spec:
                                     - aerospike
                                     - scylladb
                                     - chronon
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
