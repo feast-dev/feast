@@ -175,6 +175,25 @@ def test_python_values_to_proto_values_binary(value_type):
     assert feast_value_type_to_python_type(protos[1]) is None
 
 
+@pytest.mark.parametrize(
+    "values, value_type, expected",
+    (
+        ([b"[1,2]", None, b"[3]"], ValueType.INT64_LIST, [[1, 2], None, [3]]),
+        ([b"[1,2]", None, b"[3]"], ValueType.INT32_LIST, [[1, 2], None, [3]]),
+        ([b"[1.5]", None], ValueType.DOUBLE_LIST, [[1.5], None]),
+        ([b"[1.5]", None], ValueType.FLOAT_LIST, [[1.5], None]),
+        ([b'["a"]', None], ValueType.STRING_LIST, [["a"], None]),
+        ([b"[true,false]", None], ValueType.BOOL_LIST, [[True, False], None]),
+    ),
+)
+def test_python_values_to_proto_values_bytes_to_list_with_null(
+    values, value_type, expected
+):
+    """A JSON-encoded array column keeps its nulls, as the set path already does."""
+    protos = python_values_to_proto_values(values, value_type)
+    assert [feast_value_type_to_python_type(proto) for proto in protos] == expected
+
+
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
