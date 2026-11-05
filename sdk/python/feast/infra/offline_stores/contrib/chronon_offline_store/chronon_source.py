@@ -20,11 +20,17 @@ class ChrononOptions:
         chronon_group_by: Optional[str] = None,
         chronon_join: Optional[str] = None,
         online_endpoint: Optional[str] = None,
+        output_version: Optional[str] = None,
+        pipeline_run_id: Optional[str] = None,
+        export_timestamp_column: Optional[str] = None,
     ):
         self.materialization_path = materialization_path
         self.chronon_group_by = chronon_group_by or ""
         self.chronon_join = chronon_join or ""
         self.online_endpoint = online_endpoint or ""
+        self.output_version = output_version or ""
+        self.pipeline_run_id = pipeline_run_id or ""
+        self.export_timestamp_column = export_timestamp_column or ""
 
     @classmethod
     def from_proto(cls, proto: DataSourceProto.CustomSourceOptions):
@@ -34,6 +40,9 @@ class ChrononOptions:
             chronon_group_by=config.get("chronon_group_by"),
             chronon_join=config.get("chronon_join"),
             online_endpoint=config.get("online_endpoint"),
+            output_version=config.get("output_version"),
+            pipeline_run_id=config.get("pipeline_run_id"),
+            export_timestamp_column=config.get("export_timestamp_column"),
         )
 
     def to_proto(self) -> DataSourceProto.CustomSourceOptions:
@@ -44,6 +53,9 @@ class ChrononOptions:
                     "chronon_group_by": self.chronon_group_by,
                     "chronon_join": self.chronon_join,
                     "online_endpoint": self.online_endpoint,
+                    "output_version": self.output_version,
+                    "pipeline_run_id": self.pipeline_run_id,
+                    "export_timestamp_column": self.export_timestamp_column,
                 }
             ).encode()
         )
@@ -67,6 +79,9 @@ class ChrononSource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        output_version: Optional[str] = None,
+        pipeline_run_id: Optional[str] = None,
+        export_timestamp_column: Optional[str] = None,
     ):
         if not materialization_path:
             raise ValueError("ChrononSource requires `materialization_path`.")
@@ -87,6 +102,9 @@ class ChrononSource(DataSource):
             chronon_group_by=chronon_group_by,
             chronon_join=chronon_join,
             online_endpoint=online_endpoint,
+            output_version=output_version,
+            pipeline_run_id=pipeline_run_id,
+            export_timestamp_column=export_timestamp_column,
         )
 
         super().__init__(
@@ -110,6 +128,9 @@ class ChrononSource(DataSource):
             and self.chronon_join == other.chronon_join
             and self.chronon_group_by == other.chronon_group_by
             and self.online_endpoint == other.online_endpoint
+            and self.output_version == other.output_version
+            and self.pipeline_run_id == other.pipeline_run_id
+            and self.export_timestamp_column == other.export_timestamp_column
         )
 
     @property
@@ -128,6 +149,18 @@ class ChrononSource(DataSource):
     def online_endpoint(self) -> str:
         return self._chronon_options.online_endpoint
 
+    @property
+    def output_version(self) -> str:
+        return self._chronon_options.output_version
+
+    @property
+    def pipeline_run_id(self) -> str:
+        return self._chronon_options.pipeline_run_id
+
+    @property
+    def export_timestamp_column(self) -> str:
+        return self._chronon_options.export_timestamp_column
+
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         assert data_source.HasField("custom_options")
@@ -138,6 +171,9 @@ class ChrononSource(DataSource):
             chronon_group_by=options.chronon_group_by,
             chronon_join=options.chronon_join,
             online_endpoint=options.online_endpoint,
+            output_version=options.output_version,
+            pipeline_run_id=options.pipeline_run_id,
+            export_timestamp_column=options.export_timestamp_column,
             field_mapping=dict(data_source.field_mapping),
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,

@@ -13,6 +13,12 @@ interface FeatureMetric {
   data_source_type: string;
   computed_at: string;
   max_event_timestamp: string | null;
+  feature_computation_timestamp?: string | null;
+  export_timestamp?: string | null;
+  chronon_object?: string | null;
+  chronon_object_type?: string | null;
+  output_version?: string | null;
+  pipeline_run_id?: string | null;
   is_baseline: boolean;
   feature_type: string;
   row_count: number;
@@ -50,6 +56,12 @@ interface FeatureViewMetric {
   data_source_type: string;
   computed_at: string;
   max_event_timestamp: string | null;
+  feature_computation_timestamp?: string | null;
+  export_timestamp?: string | null;
+  chronon_object?: string | null;
+  chronon_object_type?: string | null;
+  output_version?: string | null;
+  pipeline_run_id?: string | null;
   is_baseline: boolean;
   total_row_count: number;
   total_features: number;
@@ -66,6 +78,12 @@ interface FeatureServiceMetric {
   data_source_type: string;
   computed_at: string;
   max_event_timestamp: string | null;
+  feature_computation_timestamp?: string | null;
+  export_timestamp?: string | null;
+  chronon_object?: string | null;
+  chronon_object_type?: string | null;
+  output_version?: string | null;
+  pipeline_run_id?: string | null;
   is_baseline: boolean;
   total_feature_views: number;
   total_features: number;
@@ -304,6 +322,78 @@ const useComputeMetrics = () => {
   );
 };
 
+interface DateBucket {
+  metric_date: string;
+  granularity: string;
+  data_source_type: string;
+  max_event_timestamp: string | null;
+  feature_computation_timestamp: string | null;
+  export_timestamp: string | null;
+  computed_at: string;
+  is_baseline: boolean;
+}
+
+interface FeatureProfile {
+  project: string;
+  feature_view_name: string;
+  provenance: {
+    feature_view_name: string;
+    chronon_object: string | null;
+    chronon_object_type: string | null;
+    output_version: string | null;
+    pipeline_run_id: string | null;
+  };
+  source_freshness: {
+    max_event_timestamp: string | null;
+    freshness_seconds: number | null;
+  };
+  feature_metrics: FeatureMetric[];
+  baseline_metrics: FeatureMetric[];
+  feature_view_metrics: FeatureViewMetric[];
+}
+
+const useDateBuckets = (filters: MonitoringFilters) => {
+  const { apiBaseUrl } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
+  return useQuery<DateBucket[]>(
+    ["monitoring-date-buckets", filters],
+    () =>
+      fetchMonitoring<DateBucket[]>(
+        apiBaseUrl,
+        "/monitoring/date_buckets",
+        toQueryParams(filters),
+        fetchOptions,
+      ),
+    { staleTime: STALE_TIME, retry: 1 },
+  );
+};
+
+const useFeatureProfile = (
+  project: string,
+  featureViewName: string,
+  featureName?: string,
+  granularity?: string,
+) => {
+  const { apiBaseUrl } = useContext(MonitoringContext);
+  const { fetchOptions } = useDataMode();
+  return useQuery<FeatureProfile>(
+    ["monitoring-profile", project, featureViewName, featureName, granularity],
+    () =>
+      fetchMonitoring<FeatureProfile>(
+        apiBaseUrl,
+        "/monitoring/profiles",
+        {
+          project,
+          feature_view_name: featureViewName,
+          feature_name: featureName,
+          granularity,
+        },
+        fetchOptions,
+      ),
+    { staleTime: STALE_TIME, retry: 1 },
+  );
+};
+
 export {
   isServiceUnavailable,
   useFeatureMetrics,
@@ -311,6 +401,8 @@ export {
   useFeatureServiceMetrics,
   useBaselineMetrics,
   useComputeMetrics,
+  useDateBuckets,
+  useFeatureProfile,
 };
 export type {
   FeatureMetric,
@@ -319,4 +411,6 @@ export type {
   NumericHistogram,
   CategoricalHistogram,
   MonitoringFilters,
+  DateBucket,
+  FeatureProfile,
 };
