@@ -1,10 +1,28 @@
 """FeastDataFrame: A lightweight container for DataFrame-like objects in Feast."""
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
+
+if TYPE_CHECKING:
+    import dask.dataframe
+    import polars
+    import pyspark.sql
+    import ray.data
+
+
+# Type alias for entity DataFrame - supports various DataFrame types
+DataFrameType = Union[
+    "pd.DataFrame",
+    "pyspark.sql.DataFrame",
+    "dask.dataframe.DataFrame",
+    "polars.DataFrame",
+    "ray.data.Dataset",
+    "pa.Table",
+    str,
+]
 
 
 class DataFrameEngine(str, Enum):
