@@ -160,6 +160,69 @@ def test_scalar_feature_view_round_trip_with_placeholder(tmp_path: Path) -> None
     assert placeholder["params"]["dim"] == PLACEHOLDER_VECTOR_DIM
 
 
+@pytest.mark.parametrize(
+    "rows, expected_city",
+    [
+        # Equal event timestamps: the latest created timestamp wins, in any order.
+        ([("Oslo", 0, 1), ("Rome", 0, 2)], "Rome"),
+        ([("Rome", 0, 2), ("Oslo", 0, 1)], "Rome"),
+        # A newer event timestamp wins over a newer created timestamp.
+        ([("Oslo", 1, 1), ("Rome", 0, 2)], "Oslo"),
+        # Equal timestamps: the last row of the batch wins.
+        ([("Oslo", 0, 1), ("Rome", 0, 1)], "Rome"),
+    ],
+)
+def test_write_batch_keeps_the_newest_row_per_entity(
+    tmp_path: Path, rows: List[Tuple[str, int, int]], expected_city: str
+) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _entity_key(1),
+                {"city": ValueProto(string_val=city)},
+                base + timedelta(seconds=event_ts),
+                base + timedelta(seconds=created_ts),
+            )
+            for city, event_ts, created_ts in rows
+        ],
+        progress=None,
+    )
+
+    rows_read = _read(store, config, fv, [1], ["city"])
+    assert rows_read[0] is not None
+    assert rows_read[0]["city"].string_val == expected_city
+
+
+def test_write_batch_keeps_one_row_per_entity(tmp_path: Path) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (_entity_key(1), {"city": ValueProto(string_val="Oslo")}, now, now),
+            (_entity_key(2), {"city": ValueProto(string_val="Rome")}, now, now),
+        ],
+        progress=None,
+    )
+
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row is not None] == [
+        "Oslo",
+        "Rome",
+    ]
+
+
 @patch(f"{MILVUS_MODULE}.MilvusClient")
 def test_placeholder_vector_is_indexed_and_valid(mock_client_cls: MagicMock) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
@@ -746,6 +809,43 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_sent_only_for_partitioned_collections(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    config = _mock_config(
+        partition_key="brand_id", num_partitions=32, partition_key_isolation=True
+    )
+    store = MilvusOnlineStore()
+
+    store._get_or_create_collection(config, _catalog_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert kwargs["num_partitions"] == 32
+    assert kwargs["properties"] == {"partitionkey.isolation": "true"}
+
+    store._get_or_create_collection(config, _scalar_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_not_sent_when_unset(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+
+    MilvusOnlineStore()._get_or_create_collection(
+        _mock_config(partition_key="brand_id"), _catalog_feature_view()
+    )
+
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+def test_invalid_num_partitions_rejected() -> None:
+    with pytest.raises(ValidationError, match="num_partitions"):
+        MilvusOnlineStoreConfig(num_partitions=0)
 
 
 def test_online_delete_by_entity_key_and_by_filter(tmp_path: Path) -> None:
