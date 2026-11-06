@@ -14,6 +14,7 @@
 
 import asyncio
 import functools
+import gc
 import os
 import sys
 import threading
@@ -1306,6 +1307,21 @@ if sys.platform != "win32":
         feast_metrics.mark_process_dead(worker.pid)
 
 
+def _freeze_gc() -> None:
+    """Move the objects that exist now out of the cyclic garbage collector.
+
+    The registry, feature definitions and protobuf classes are built once and
+    live until the process exits, yet every full collection walks all of them.
+    In a worker that walk blocks the event loop, so the requests waiting on it
+    look like slow online store reads. gc.collect() runs first so no garbage is
+    frozen. Called in the gunicorn master before the workers are forked, so
+    every worker starts frozen, including one restarted by --max-requests.
+    """
+    gc.collect()
+    gc.freeze()
+    logger.info(f"gc.freeze(): {gc.get_freeze_count()} objects frozen")
+
+
 def start_server(
     store: "feast.FeatureStore",
     host: str,
@@ -1320,6 +1336,7 @@ def start_server(
     tls_key_path: str,
     tls_cert_path: str,
     metrics: bool,
+    gc_freeze: bool = False,
 ):
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise ValueError(
@@ -1331,6 +1348,7 @@ def start_server(
 
     metrics_from_config = getattr(metrics_cfg, "enabled", False)
     metrics_active = metrics or metrics_from_config
+    gc_freeze_active = gc_freeze or getattr(fs_cfg, "gc_freeze", False)
     uses_gunicorn = sys.platform != "win32"
     if metrics_active:
         flags = feast_metrics.build_metrics_flags(metrics_cfg)
@@ -1369,13 +1387,18 @@ def start_server(
         if tls_key_path and tls_cert_path:
             options["keyfile"] = tls_key_path
             options["certfile"] = tls_cert_path
-        FeastServeApplication(
+        application = FeastServeApplication(
             store=store, metrics_enabled=metrics_active, **options
-        ).run()
+        )
+        if gc_freeze_active:
+            _freeze_gc()
+        application.run()
     else:
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
+        if gc_freeze_active:
+            _freeze_gc()
         if tls_key_path and tls_cert_path:
             uvicorn.run(
                 app,
