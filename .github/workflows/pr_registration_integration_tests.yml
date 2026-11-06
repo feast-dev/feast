@@ -74,6 +74,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
+      # Hadoop 3.4.2 calls Subject.getSubject(), which throws on Java 24+.
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Cache Hadoop tarball
         uses: actions/cache@v4
         with:
