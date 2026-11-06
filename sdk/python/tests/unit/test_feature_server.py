@@ -16,7 +16,7 @@ import sys
 import time
 from collections import Counter
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -780,6 +780,47 @@ def test_gunicorn_post_worker_init_starts_resource_and_freshness_monitoring():
 
     mock_fm.init_worker_monitoring.assert_called_once()
     mock_fm.init_worker_freshness_monitoring.assert_called_once_with(mock_store)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Gunicorn is not used on Windows")
+@pytest.mark.parametrize("metrics_enabled", [True, False])
+def test_gunicorn_post_fork_hook_is_registered(metrics_enabled):
+    from feast.feature_server import FeastServeApplication, _gunicorn_post_fork
+
+    mock_store = MagicMock()
+    with patch("feast.feature_server.get_app"):
+        app = FeastServeApplication(
+            store=mock_store,
+            metrics_enabled=metrics_enabled,
+            registry_ttl_sec=5,
+            workers=2,
+        )
+
+    assert app.cfg.post_fork.func is _gunicorn_post_fork
+    assert app.cfg.post_fork.args == (mock_store,)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Gunicorn is not used on Windows")
+def test_gunicorn_post_fork_resets_registry():
+    from feast.feature_server import _gunicorn_post_fork
+
+    mock_store = MagicMock()
+    _gunicorn_post_fork(mock_store, server=MagicMock(), worker=MagicMock())
+
+    mock_store._registry.reset_after_fork.assert_called_once_with()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Gunicorn is not used on Windows")
+def test_gunicorn_post_fork_does_not_build_registry():
+    from feast.feature_server import _gunicorn_post_fork
+
+    mock_store = MagicMock()
+    mock_store._registry = None
+    registry = PropertyMock()
+    type(mock_store).registry = registry
+    _gunicorn_post_fork(mock_store, server=MagicMock(), worker=MagicMock())
+
+    registry.assert_not_called()
 
 
 def test_get_online_features_returns_feature_view_version_metadata(test_client):

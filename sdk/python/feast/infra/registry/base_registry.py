@@ -1016,6 +1016,13 @@ class BaseRegistry(ABC):
         """
         return False
 
+    def reset_after_fork(self) -> None:
+        """Drop resources inherited from the parent process after os.fork().
+
+        Called in a forked child (e.g. a Gunicorn worker) before it uses the
+        registry. Registries that hold no connection pools need not override it.
+        """
+
     # Lineage operations
     def get_registry_lineage(
         self,
