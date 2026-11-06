@@ -135,7 +135,7 @@ rag = [
 ]
 ray = [
 'ray>=2.47.0; python_version == "3.11"',
-'codeflare-sdk>=0.31.1; python_version > "3.11"',
+'codeflare-sdk>=0.31.1',
 "datasets>=3.6.0",
 ]
 redis = [
