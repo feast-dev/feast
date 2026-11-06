@@ -31,7 +31,7 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.75.0
+          pixi-version: v0.84.1
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (local)
@@ -90,7 +90,7 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.75.0
+          pixi-version: v0.84.1
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (CI)
