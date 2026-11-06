@@ -2,13 +2,13 @@
 name = "feast"
 description = "Python SDK for Feast"
 readme = "README.md"
-requires-python = ">=3.10.0"
+requires-python = ">=3.11.0"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10"
+    "Programming Language :: Python :: 3.11"
 ]
 dynamic = [
     "version",
@@ -134,8 +134,8 @@ rag = [
     "sentence-transformers>=3.0.0",
 ]
 ray = [
-'ray>=2.47.0; python_version == "3.10"',
-'codeflare-sdk>=0.31.1; python_version > "3.10"',
+'ray>=2.47.0; python_version == "3.11"',
+'codeflare-sdk>=0.31.1',
 "datasets>=3.6.0",
 ]
 redis = [
@@ -322,8 +322,8 @@ conflicts = [
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
-[tool.pixi.feature.py310.dependencies]
-python = "~=3.10.0"
+[tool.pixi.feature.py311.dependencies]
+python = "~=3.11.0"
 
 [tool.pixi.feature.duckdb-tests.pypi-dependencies]
 feast = { path = ".", editable = true, extras = ["duckdb", "delta", "grpcio", "test"] }
@@ -350,9 +350,9 @@ test = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/pyth
 test-ci = { cmd = "python -m pytest -n auto --dist loadgroup --integration sdk/python/tests/integration/registration", env = { PYTHONPATH = "." } }
 
 [tool.pixi.environments]
-duckdb-tests = ["py310", "duckdb-tests"]
-ray-tests = ["py310", "ray-tests"]
-registration-tests = ["py310", "registration-tests"]
+duckdb-tests = ["py311", "duckdb-tests"]
+ray-tests = ["py311", "ray-tests"]
+registration-tests = ["py311", "registration-tests"]
 
 [tool.coverage.run]
 branch = true
