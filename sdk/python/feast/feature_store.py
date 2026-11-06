@@ -2087,7 +2087,7 @@ class FeatureStore:
             )
 
         if entity_df is None and end_date is None:
-            end_date = datetime.now()
+            end_date = datetime.now(tz=_timezone.utc)
 
         _feature_refs = utils._get_features(
             self.registry, self.project, features, allow_cache=True

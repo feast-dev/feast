@@ -181,3 +181,49 @@ def test_write_to_offline_store_resolves_feature_view_with_single_lookup():
     registry.get_label_view.assert_not_called()
 
     provider.ingest_df_to_offline_store.assert_called_once()
+
+
+def test_get_historical_features_non_entity_default_end_date_is_utc(tmp_path):
+    """With entity_df=None and no end_date, the end bound handed to the provider
+    must be the current time in UTC. Offline stores read a naive datetime as UTC
+    (utils.make_tzaware), so a naive local value shifts the window by the host offset."""
+    from datetime import datetime, timedelta, timezone
+
+    from feast import Entity, FeatureView, Field, FileSource
+    from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
+    from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+    from feast.repo_config import RepoConfig
+    from feast.types import Int64
+
+    store = FeatureStore(
+        config=RepoConfig(
+            project="non_entity_default_end_date",
+            registry=str(tmp_path / "registry.db"),
+            provider="local",
+            entity_key_serialization_version=3,
+            offline_store=DaskOfflineStoreConfig(),
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+        )
+    )
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    driver_stats = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        ttl=timedelta(days=1),
+        schema=[Field(name="driver_id", dtype=Int64), Field(name="value", dtype=Int64)],
+        source=FileSource(
+            path=str(tmp_path / "driver_stats.parquet"),
+            timestamp_field="event_timestamp",
+        ),
+    )
+    store.apply([driver, driver_stats])
+
+    provider = MagicMock()
+    before = datetime.now(timezone.utc)
+    with patch.object(FeatureStore, "_get_provider", return_value=provider):
+        store.get_historical_features(entity_df=None, features=["driver_stats:value"])
+    after = datetime.now(timezone.utc)
+
+    end_date = provider.get_historical_features.call_args.kwargs["end_date"]
+    assert end_date.utcoffset() == timedelta(0)
+    assert before <= utils.make_tzaware(end_date) <= after
