@@ -29,7 +29,7 @@ from typing import (
 )
 
 from google.protobuf.timestamp_pb2 import Timestamp
-from pydantic import StrictStr
+from pydantic import StrictStr, model_validator
 
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.errors import FeastExtrasDependencyImportError
@@ -75,6 +75,19 @@ class RedisClient(str, Enum):
     glide = "glide"
 
 
+class GlideReadFrom(str, Enum):
+    primary = "primary"
+    prefer_replica = "prefer_replica"
+    az_affinity = "az_affinity"
+    az_affinity_replicas_and_primary = "az_affinity_replicas_and_primary"
+    all_nodes = "all_nodes"
+
+
+_GLIDE_AZ_READ_STRATEGIES = frozenset(
+    {GlideReadFrom.az_affinity, GlideReadFrom.az_affinity_replicas_and_primary}
+)
+
+
 class RedisOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for Redis store"""
 
@@ -93,6 +106,16 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     Writes and async reads always use redis-py. GLIDE has no Sentinel support, so
     ``client: glide`` cannot be combined with ``redis_type: redis_sentinel``."""
 
+    read_from: GlideReadFrom = GlideReadFrom.primary
+    """(Optional) Node selection for GLIDE reads: ``primary`` (default),
+    ``prefer_replica``, ``az_affinity``, ``az_affinity_replicas_and_primary``, or
+    ``all_nodes``. Only applies with ``client: glide`` and ``redis_type: redis_cluster``.
+    The ``az_affinity`` strategies require ``client_az``."""
+
+    client_az: Optional[StrictStr] = None
+    """(Optional) Availability zone of the client, used by the ``az_affinity`` read
+    strategies. Only applies with ``client: glide``."""
+
     sentinel_master: StrictStr = "mymaster"
     """Sentinel's master name"""
 
@@ -110,6 +133,28 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     """(Optional) Skip timestamp deduplication check on writes for higher throughput.
     When True, writes proceed in a single pipeline without reading existing timestamps first.
     This may cause older feature values to overwrite newer ones under concurrent writers."""
+
+    @model_validator(mode="after")
+    def _validate_glide_read_from(self):
+        if self.client != RedisClient.glide and (
+            self.read_from != GlideReadFrom.primary or self.client_az is not None
+        ):
+            raise ValueError(
+                "read_from and client_az only apply to client: glide. "
+                "Set client: glide to read from replicas."
+            )
+        if (
+            self.read_from != GlideReadFrom.primary
+            and self.redis_type != RedisType.redis_cluster
+        ):
+            # A standalone GLIDE client sends every batch to the primary, so the
+            # batched read would silently ignore the strategy.
+            raise ValueError(
+                f"read_from: {self.read_from.value} requires redis_type: redis_cluster."
+            )
+        if self.read_from in _GLIDE_AZ_READ_STRATEGIES and not self.client_az:
+            raise ValueError(f"read_from: {self.read_from.value} requires client_az.")
+        return self
 
 
 def _seconds_to_millis(value: Any) -> Optional[int]:
@@ -180,6 +225,8 @@ def _glide_client_config(glide_sync, online_store_config: RedisOnlineStoreConfig
         )
         if connection_timeout is not None
         else None,
+        "read_from": glide_sync.ReadFrom[online_store_config.read_from.name.upper()],
+        "client_az": online_store_config.client_az,
     }
 
     if online_store_config.redis_type == RedisType.redis_cluster:

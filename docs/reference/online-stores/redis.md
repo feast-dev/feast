@@ -140,6 +140,33 @@ Notes:
 
 If `client: glide` is set without the extra installed, Feast raises an import error naming the extra to install.
 
+#### Reading from replicas
+
+GLIDE reads from the primary by default. With `redis_type: redis_cluster`, set `read_from` to spread the batched read across replicas using one of GLIDE's [read strategies](https://glide.valkey.io/how-to/connections/read-strategy/):
+
+| `read_from` | Reads go to |
+| --- | --- |
+| `primary` | The primary only (default). |
+| `prefer_replica` | Replicas in round robin, falling back to the primary when none is available. |
+| `az_affinity` | Replicas in `client_az` in round robin, falling back to other replicas, then the primary. |
+| `az_affinity_replicas_and_primary` | Replicas in `client_az`, then the primary in `client_az`, then any other node. |
+| `all_nodes` | The primary and all replicas in round robin. |
+
+```yaml
+online_store:
+  type: redis
+  redis_type: redis_cluster
+  connection_string: "redis1:6379,redis2:6379"
+  client: glide
+  read_from: az_affinity
+  client_az: us-east-1a
+```
+
+* Replicas are updated asynchronously, so a read from a replica can briefly return older feature values than the primary holds.
+* `az_affinity` and `az_affinity_replicas_and_primary` require `client_az` and a server that reports its availability zone (Valkey 8.0 or later).
+* A standalone GLIDE client sends every batch to the primary, so a `read_from` other than `primary` requires `redis_type: redis_cluster`.
+* `read_from` and `client_az` only apply to `client: glide`. Setting either one with `client: redis` fails at config load.
+
 ### Write path: `skip_dedup` for bulk loads
 
 By default, `online_write_batch()` checks existing timestamps before writing (to avoid overwriting newer data with older data). This requires two pipeline round trips per batch: one to read existing timestamps, one to write new values.
@@ -173,6 +200,8 @@ The Redis online store implements `online_write_batch_async()` using the async R
 | `full_scan_for_deletion` | `true` | When `true`, deleting or renaming a feature view scans Redis to remove its hash fields. Set `false` to skip deletion scans (faster `feast apply`, but leaves orphaned data). |
 | `skip_dedup` | `false` | When `true`, skips the existing-timestamp read before each write, halving write round trips. Suitable for initial bulk loads; may cause older values to overwrite newer ones under concurrent writers. |
 | `client` | `redis` | Read client: `redis` for redis-py, or `glide` to run the synchronous batched read as one non-atomic GLIDE batch. Requires `pip install 'feast[glide]'`. |
+| `read_from` | `primary` | GLIDE read strategy: `primary`, `prefer_replica`, `az_affinity`, `az_affinity_replicas_and_primary`, or `all_nodes`. Only used with `client: glide` and `redis_type: redis_cluster`. |
+| `client_az` | `null` | Availability zone of the client. Required when `read_from` is `az_affinity` or `az_affinity_replicas_and_primary`. Only used with `client: glide`. |
 
 The full set of configuration options is available in [RedisOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.redis.RedisOnlineStoreConfig).
 
