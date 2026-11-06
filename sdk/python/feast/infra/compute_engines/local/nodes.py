@@ -95,7 +95,11 @@ class LocalJoinNode(LocalNode):
         if context.entity_df is not None:
             entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
 
-            entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+            # Infer from the pandas dtypes: the inference does not recognise
+            # the datetime dtypes of other backends (e.g. Polars).
+            entity_schema = dict(
+                zip(context.entity_df.columns, context.entity_df.dtypes)
+            )
             entity_ts_col = infer_entity_timestamp_column(entity_schema)
 
             if entity_ts_col != ENTITY_TS_ALIAS:
