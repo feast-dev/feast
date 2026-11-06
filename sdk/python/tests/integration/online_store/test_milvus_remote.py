@@ -166,6 +166,39 @@ def test_scalar_feature_view_round_trip(
     assert rows[0] is not None and rows[0]["city"].string_val == "Paris"
 
 
+def test_write_batch_tie_break(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    """Equal event timestamps: the row with the latest created timestamp wins."""
+    config = _repo_config(tmp_path, project, consistency_level="Strong")
+    fv = _scalar_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _entity_key(1),
+                {"city": ValueProto(string_val="Rome")},
+                base,
+                base + timedelta(seconds=2),
+            ),
+            (
+                _entity_key(1),
+                {"city": ValueProto(string_val="Oslo")},
+                base,
+                base + timedelta(seconds=1),
+            ),
+        ],
+        progress=None,
+    )
+
+    rows = _read(store, config, fv, [1], ["city"])
+    assert rows[0] is not None and rows[0]["city"].string_val == "Rome"
+
+
 def _vector_feature_view(name: str = "driver_embeddings") -> FeatureView:
     return FeatureView(
         name=name,

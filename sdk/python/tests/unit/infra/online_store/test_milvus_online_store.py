@@ -160,6 +160,69 @@ def test_scalar_feature_view_round_trip_with_placeholder(tmp_path: Path) -> None
     assert placeholder["params"]["dim"] == PLACEHOLDER_VECTOR_DIM
 
 
+@pytest.mark.parametrize(
+    "rows, expected_city",
+    [
+        # Equal event timestamps: the latest created timestamp wins, in any order.
+        ([("Oslo", 0, 1), ("Rome", 0, 2)], "Rome"),
+        ([("Rome", 0, 2), ("Oslo", 0, 1)], "Rome"),
+        # A newer event timestamp wins over a newer created timestamp.
+        ([("Oslo", 1, 1), ("Rome", 0, 2)], "Oslo"),
+        # Equal timestamps: the last row of the batch wins.
+        ([("Oslo", 0, 1), ("Rome", 0, 1)], "Rome"),
+    ],
+)
+def test_write_batch_keeps_the_newest_row_per_entity(
+    tmp_path: Path, rows: List[Tuple[str, int, int]], expected_city: str
+) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _entity_key(1),
+                {"city": ValueProto(string_val=city)},
+                base + timedelta(seconds=event_ts),
+                base + timedelta(seconds=created_ts),
+            )
+            for city, event_ts, created_ts in rows
+        ],
+        progress=None,
+    )
+
+    rows_read = _read(store, config, fv, [1], ["city"])
+    assert rows_read[0] is not None
+    assert rows_read[0]["city"].string_val == expected_city
+
+
+def test_write_batch_keeps_one_row_per_entity(tmp_path: Path) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (_entity_key(1), {"city": ValueProto(string_val="Oslo")}, now, now),
+            (_entity_key(2), {"city": ValueProto(string_val="Rome")}, now, now),
+        ],
+        progress=None,
+    )
+
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row is not None] == [
+        "Oslo",
+        "Rome",
+    ]
+
+
 @patch(f"{MILVUS_MODULE}.MilvusClient")
 def test_placeholder_vector_is_indexed_and_valid(mock_client_cls: MagicMock) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
