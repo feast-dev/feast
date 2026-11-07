@@ -176,7 +176,9 @@ class MsSqlServerSource(DataSource):
             return False
 
         return (
-            self.name == other.name
+            super().__eq__(other)
+            and self.mssqlserver_options.table_ref
+            == other.mssqlserver_options.table_ref
             and self.mssqlserver_options.connection_str
             == other.mssqlserver_options.connection_str
             and self.timestamp_field == other.timestamp_field
@@ -224,7 +226,9 @@ class MsSqlServerSource(DataSource):
             event_timestamp_column=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             date_partition_column=data_source.date_partition_column,
+            description=data_source.description,
             tags=tags,
+            owner=data_source.owner,
             connection_ref=ConnectionRef.from_tags(tags),
         )
 
@@ -234,6 +238,9 @@ class MsSqlServerSource(DataSource):
             data_source_class_type="feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source.MsSqlServerSource",
             field_mapping=self.field_mapping,
             custom_options=self.mssqlserver_options.to_proto(),
+            description=self.description,
+            tags=self.tags,
+            owner=self.owner,
         )
 
         data_source_proto.timestamp_field = self.timestamp_field
