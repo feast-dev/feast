@@ -431,3 +431,7 @@ Ensure your dbt model includes the entity column specified with `--entity-column
 ### "Missing timestamp column"
 
 By default, Feast looks for `event_timestamp`. Use `--timestamp-field` to specify a different column name.
+
+### "Timestamp field ... does not map to a timestamp type"
+
+The timestamp column exists but its `data_type` in schema.yml is not a timestamp type (for example `STRING` or `INT64`). The model is still imported, but point-in-time retrieval needs a real timestamp column. Declare the column as `TIMESTAMP`, `DATETIME` or `DATE` in schema.yml. Columns with no `data_type` are treated as `STRING` and also trigger this warning.

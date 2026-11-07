@@ -121,8 +121,9 @@ def import_command(
         # Generate Python file instead of applying to registry
         feast dbt import -m target/manifest.json -e driver_id --tag feast --output features.py
     """
-    from feast.dbt.mapper import DbtToFeastMapper
+    from feast.dbt.mapper import DbtToFeastMapper, map_dbt_type_to_feast_type
     from feast.dbt.parser import DbtManifestParser
+    from feast.types import UnixTimestamp, ZonedTimestamp
 
     # Parse manifest
     click.echo(f"{Fore.CYAN}Parsing dbt manifest: {manifest_path}{Style.RESET_ALL}")
@@ -208,6 +209,20 @@ def import_command(
                 f"field '{timestamp_field}'. Skipping.{Style.RESET_ALL}"
             )
             continue
+
+        # The parser reports STRING for columns with no declared data_type.
+        timestamp_column = next(c for c in model.columns if c.name == timestamp_field)
+        if map_dbt_type_to_feast_type(timestamp_column.data_type) not in (
+            UnixTimestamp,
+            ZonedTimestamp,
+        ):
+            click.echo(
+                f"{Fore.YELLOW}Warning: Model '{model.name}' timestamp field "
+                f"'{timestamp_field}' has type '{timestamp_column.data_type}', "
+                f"which does not map to a timestamp type. Importing anyway. "
+                f"Declare it as a timestamp type in schema.yml if this is wrong."
+                f"{Style.RESET_ALL}"
+            )
 
         # Validate ALL entity columns exist
         missing_entities = [e for e in entity_cols if e not in column_names]
