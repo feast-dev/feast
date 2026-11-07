@@ -1,8 +1,7 @@
 import logging
 import os
 
-import jwt
-
+from feast.permissions.auth.intra_comm import encode_intra_comm_token
 from feast.permissions.auth_model import KubernetesAuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 
@@ -22,7 +21,7 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
                 "sub": f":::{intra_communication_base64}",  # Subject claim
             }
 
-            return jwt.encode(payload, "", algorithm="none")
+            return encode_intra_comm_token(payload, intra_communication_base64)
 
         # Check if user token is provided in config (for external users)
         if hasattr(self.auth_config, "user_token") and self.auth_config.user_token:
