@@ -21,6 +21,7 @@ import {
   CategoricalHistogramChart,
 } from "../monitoring/components/HistogramChart";
 import StatsPanel from "../monitoring/components/StatsPanel";
+import { latestWindowMetric } from "../monitoring/metricSelection";
 
 const FeatureMonitoringTab = () => {
   const { projectName, FeatureViewName, FeatureName } = useParams();
@@ -45,15 +46,13 @@ const FeatureMonitoringTab = () => {
     return <EuiSkeletonText lines={6} />;
   }
 
-  const latestMetric = (() => {
-    if (!metrics || metrics.length === 0) return null;
-    const withData = metrics.filter((m) => m.row_count > 0);
-    const candidates = withData.length > 0 ? withData : metrics;
-    return candidates.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
-  })();
+  const latestMetric = latestWindowMetric(metrics);
+  const showingBaseline = latestMetric?.is_baseline ?? false;
 
   const baselineMetric =
-    baselineMetrics && baselineMetrics.length > 0 ? baselineMetrics[0] : null;
+    !showingBaseline && baselineMetrics && baselineMetrics.length > 0
+      ? baselineMetrics[0]
+      : null;
 
   if (isError || !latestMetric) {
     return (
@@ -85,13 +84,17 @@ const FeatureMonitoringTab = () => {
             <NumericHistogramChart
               histogram={latestMetric.histogram as NumericHistogram}
               baseline={baselineMetric?.histogram as NumericHistogram | null}
-              title="Distribution"
+              title={showingBaseline ? "Baseline Distribution" : "Distribution"}
             />
           )}
           {!isNumeric && latestMetric.histogram && (
             <CategoricalHistogramChart
               histogram={latestMetric.histogram as CategoricalHistogram}
-              title="Category Distribution"
+              title={
+                showingBaseline
+                  ? "Baseline Category Distribution"
+                  : "Category Distribution"
+              }
             />
           )}
           {!latestMetric.histogram && (

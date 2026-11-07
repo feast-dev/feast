@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   EuiPanel,
   EuiTitle,
@@ -17,6 +17,8 @@ import type {
   NumericHistogram,
   CategoricalHistogram,
 } from "../../../queries/useMonitoringApi";
+import { alignBaselineToBins } from "./histogramAlignment";
+import type { AlignedBaseline } from "./histogramAlignment";
 
 const BAR_COLOR = "#006BB4";
 const BAR_COLOR_BASELINE = "#BD271E55";
@@ -67,7 +69,7 @@ const formatNumber = (val: number, compact: boolean): string => {
 
 const renderNumericSvg = (
   histogram: NumericHistogram,
-  baseline: NumericHistogram | null | undefined,
+  baseline: AlignedBaseline | null,
   dim: ChartDimensions,
 ) => {
   const maxCount = Math.max(
@@ -142,10 +144,8 @@ const renderNumericSvg = (
           i < histogram.bins.length - 1
             ? histogram.bins[i + 1]
             : binStart + histogram.bin_width;
-        const baselineHeight =
-          baseline && baseline.counts[i]
-            ? (baseline.counts[i] / maxCount) * dim.chartHeight
-            : 0;
+        const expected = baseline ? baseline.counts[i] : 0;
+        const baselineHeight = (expected / maxCount) * dim.chartHeight;
 
         return (
           <g key={i}>
@@ -168,7 +168,12 @@ const renderNumericSvg = (
               rx={1}
               opacity={0.85}
             >
-              <title>{`${formatNumber(binStart, false)} – ${formatNumber(binEnd, false)}: ${count.toLocaleString()}`}</title>
+              <title>
+                {`${formatNumber(binStart, false)} – ${formatNumber(binEnd, false)}: ${count.toLocaleString()}` +
+                  (baseline
+                    ? ` (baseline ≈ ${formatNumber(expected, false)})`
+                    : "")}
+              </title>
             </rect>
           </g>
         );
@@ -197,6 +202,25 @@ const renderNumericSvg = (
   );
 };
 
+const BaselineLegend = ({ baseline }: { baseline: AlignedBaseline }) => {
+  const outside = Math.round(baseline.outsideShare * 100);
+  return (
+    <EuiText size="xs" color="subdued">
+      <span
+        style={{
+          display: "inline-block",
+          width: 10,
+          height: 10,
+          backgroundColor: BAR_COLOR_BASELINE,
+          marginRight: 4,
+        }}
+      />
+      Baseline, scaled to this window's row count
+      {outside > 0 && ` · ${outside}% of baseline outside this range`}
+    </EuiText>
+  );
+};
+
 const NumericHistogramChart = ({
   histogram,
   baseline,
@@ -207,6 +231,14 @@ const NumericHistogramChart = ({
   title?: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
+  // A baseline computed before the feature changed type has no numeric bins.
+  const aligned = useMemo(
+    () =>
+      baseline && Array.isArray(baseline.bins) && Array.isArray(baseline.counts)
+        ? alignBaselineToBins(histogram, baseline)
+        : null,
+    [histogram, baseline],
+  );
 
   return (
     <>
@@ -237,22 +269,9 @@ const NumericHistogramChart = ({
         </EuiFlexGroup>
         {title && <EuiSpacer size="s" />}
         <div style={{ overflowX: "auto" }}>
-          {renderNumericSvg(histogram, baseline, COMPACT)}
+          {renderNumericSvg(histogram, aligned, COMPACT)}
         </div>
-        {baseline && (
-          <EuiText size="xs" color="subdued">
-            <span
-              style={{
-                display: "inline-block",
-                width: 10,
-                height: 10,
-                backgroundColor: BAR_COLOR_BASELINE,
-                marginRight: 4,
-              }}
-            />
-            Baseline
-          </EuiText>
-        )}
+        {aligned && <BaselineLegend baseline={aligned} />}
       </EuiPanel>
 
       {expanded && (
@@ -262,23 +281,12 @@ const NumericHistogramChart = ({
           </EuiModalHeader>
           <EuiModalBody>
             <div style={{ overflowX: "auto" }}>
-              {renderNumericSvg(histogram, baseline, EXPANDED)}
+              {renderNumericSvg(histogram, aligned, EXPANDED)}
             </div>
-            {baseline && (
+            {aligned && (
               <>
                 <EuiSpacer size="s" />
-                <EuiText size="xs" color="subdued">
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 10,
-                      height: 10,
-                      backgroundColor: BAR_COLOR_BASELINE,
-                      marginRight: 4,
-                    }}
-                  />
-                  Baseline
-                </EuiText>
+                <BaselineLegend baseline={aligned} />
               </>
             )}
           </EuiModalBody>
