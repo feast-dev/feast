@@ -379,9 +379,12 @@ def track_online_store_read(duration_seconds: float):
 
 
 def track_feature_statuses(
-    feature_view_name: str, present_count: int, not_found_count: int
+    feature_view_name: str,
+    present_count: int,
+    not_found_count: int,
+    outside_max_age_count: int = 0,
 ):
-    """Record the number of PRESENT vs NOT_FOUND feature values for a feature view."""
+    """Record the number of PRESENT, NOT_FOUND and OUTSIDE_MAX_AGE feature values for a feature view."""
     if not _config.online_features:
         return
     if present_count > 0:
@@ -392,6 +395,10 @@ def track_feature_statuses(
         online_features_status_total.labels(
             feature_view=feature_view_name, status="not_found"
         ).inc(not_found_count)
+    if outside_max_age_count > 0:
+        online_features_status_total.labels(
+            feature_view=feature_view_name, status="outside_max_age"
+        ).inc(outside_max_age_count)
 
 
 def track_transformation(odfv_name: str, mode: str, duration_seconds: float):
