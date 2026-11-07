@@ -95,22 +95,38 @@ class MetricsCalculator:
             return result
 
         float_array = pc.cast(valid, pa.float64())
+
+        # Non-finite values (NaN/+-Inf) arise from ordinary feature engineering,
+        # e.g. a ratio whose denominator is zero. They make summary statistics
+        # meaningless and np.histogram raises on them, so exclude them from every
+        # statistic below. row_count/null_count above still describe the raw data.
+        np_array = float_array.to_numpy(zero_copy_only=False)
+        finite_mask = np.isfinite(np_array)
+        if not finite_mask.all():
+            logger.warning(
+                "Excluding %d non-finite value(s) (NaN/Inf) from numeric metrics",
+                int((~finite_mask).sum()),
+            )
+            np_array = np_array[finite_mask]
+            if len(np_array) == 0:
+                return result
+            float_array = pa.array(np_array, type=pa.float64())
+
         result["mean"] = _safe_float(pc.mean(float_array).as_py())  # type: ignore[attr-defined]
         result["stddev"] = _safe_float(pc.stddev(float_array, ddof=1).as_py())  # type: ignore[attr-defined]
 
         min_max = pc.min_max(float_array)  # type: ignore[attr-defined]
-        result["min_val"] = min_max["min"].as_py()
-        result["max_val"] = min_max["max"].as_py()
+        result["min_val"] = _safe_float(min_max["min"].as_py())
+        result["max_val"] = _safe_float(min_max["max"].as_py())
 
         quantiles = pc.quantile(float_array, q=[0.50, 0.75, 0.90, 0.95, 0.99])  # type: ignore[attr-defined]
         q_values = quantiles.to_pylist()
-        result["p50"] = q_values[0]
-        result["p75"] = q_values[1]
-        result["p90"] = q_values[2]
-        result["p95"] = q_values[3]
-        result["p99"] = q_values[4]
+        result["p50"] = _safe_float(q_values[0])
+        result["p75"] = _safe_float(q_values[1])
+        result["p90"] = _safe_float(q_values[2])
+        result["p95"] = _safe_float(q_values[3])
+        result["p99"] = _safe_float(q_values[4])
 
-        np_array = float_array.to_numpy()
         counts, bin_edges = np.histogram(np_array, bins=self.histogram_bins)
         result["histogram"] = {
             "bins": bin_edges.tolist(),
