@@ -186,8 +186,12 @@ class SqliteFilterTranslator(FilterTranslator):
         all_params: List[Any] = []
         for sub in f.filters:
             sub_clause, sub_params = self._dispatch(sub)
+            if not sub_clause:
+                continue
             parts.append(sub_clause)
             all_params.extend(sub_params)
+        if not parts:
+            return "", []
         joiner = " AND " if f.type == "and" else " OR "
         combined = "(" + joiner.join(parts) + ")"
         return combined, all_params
