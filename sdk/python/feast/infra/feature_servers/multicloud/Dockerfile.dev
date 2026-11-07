@@ -20,7 +20,7 @@ RUN npm install && \
 WORKDIR ${APP_ROOT}/src/sdk/python/feast/ui
 RUN yalc add @feast-dev/feast-ui && \
     git diff package.json && \
-    yarn install && \
+    yarn install --network-timeout 300000 && \
     npm run build --omit=dev && \
     rm -rf node_modules && \
     npm cache clean --force && \

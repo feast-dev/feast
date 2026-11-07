@@ -42,7 +42,7 @@ class MongoDBDataSourceCreator(DataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.container = MongoDbContainer(
-            "mongo:7.0",
+            "mirror.gcr.io/library/mongo:7.0",
             username="test",
             password="test",  # pragma: allowlist secret
         ).with_exposed_ports(27017)
