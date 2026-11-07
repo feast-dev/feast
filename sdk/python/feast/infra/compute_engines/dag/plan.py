@@ -1,5 +1,7 @@
-from typing import List
+import copy
+from typing import List, Mapping
 
+from feast.infra.compute_engines.dag.change import ChangeSet, KeyedRows
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -52,6 +54,80 @@ class ExecutionPlan:
             context.node_outputs[node.name] = output
 
         return context.node_outputs[self.nodes[-1].name]
+
+    def initialize_incremental(
+        self,
+        context: ExecutionContext,
+        primary_keys: Mapping[str, tuple[str, ...]],
+    ) -> DAGValue:
+        context.node_outputs = {}
+        context.node_states = {}
+        context.incremental_initialized = False
+        for node in self.nodes:
+            if node.name not in primary_keys:
+                raise ValueError(f"Missing primary keys for node '{node.name}'")
+            output = node.execute(context)
+            context.node_outputs[node.name] = output
+            node.initialize_incremental(context, primary_keys[node.name])
+        context.incremental_initialized = True
+        return context.node_outputs[self.nodes[-1].name]
+
+    def execute_incremental(
+        self,
+        context: ExecutionContext,
+        source_changes: Mapping[str, ChangeSet],
+    ) -> ChangeSet:
+        self._validate_incremental_request(context, source_changes)
+        snapshot = copy.deepcopy(context.node_states)
+        emitted = dict(source_changes)
+        try:
+            for node in self.nodes:
+                if node.name in source_changes:
+                    context.node_states[node.name].apply(source_changes[node.name])
+                    continue
+                input_changes = {
+                    input_node.name: emitted[input_node.name]
+                    for input_node in node.inputs
+                    if input_node.name in emitted and emitted[input_node.name].records
+                }
+                if input_changes:
+                    emitted[node.name] = node.execute_incremental(
+                        context, input_changes
+                    )
+            return emitted.get(self.nodes[-1].name, ChangeSet(self.nodes[-1].name))
+        except Exception:
+            context.node_states = snapshot
+            raise
+
+    def incremental_result(self, context: ExecutionContext) -> KeyedRows:
+        if not context.incremental_initialized:
+            raise RuntimeError("Incremental plan is not initialized")
+        state = context.node_states[self.nodes[-1].name]
+        if not isinstance(state, KeyedRows):
+            output = getattr(state, "output", None)
+            if isinstance(output, KeyedRows):
+                return output
+            raise TypeError("Terminal node state is not keyed row state")
+        return state
+
+    def _validate_incremental_request(
+        self,
+        context: ExecutionContext,
+        source_changes: Mapping[str, ChangeSet],
+    ) -> None:
+        if not context.incremental_initialized:
+            raise RuntimeError("Incremental plan is not initialized")
+        nodes = {node.name: node for node in self.nodes}
+        for node_name, changes in source_changes.items():
+            if node_name not in nodes:
+                raise ValueError(f"Unknown source node '{node_name}'")
+            if nodes[node_name].inputs:
+                raise ValueError(f"Node '{node_name}' is not a source node")
+            if changes.source != node_name:
+                raise ValueError(
+                    f"ChangeSet source '{changes.source}' does not match "
+                    f"target node '{node_name}'"
+                )
 
     def to_sql(self, context: ExecutionContext) -> str:
         """
