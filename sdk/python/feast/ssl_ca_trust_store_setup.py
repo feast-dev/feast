@@ -8,7 +8,6 @@ logger.setLevel(logging.INFO)
 def configure_ca_trust_store_env_variables():
     """
     configures the environment variable so that other libraries or servers refer to the TLS ca file path.
-    :param ca_file_path:
     :return:
     """
     if (
