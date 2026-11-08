@@ -2927,7 +2927,7 @@ packages:
   - psutil==5.9.0 ; extra == 'ci'
   - pytest-cov ; extra == 'ci'
   - sphinx>4.0.0,<7 ; extra == 'ci'
-  - sqlglot[rs]>=23.4 ; extra == 'ci'
+  - sqlglot>=23.4 ; extra == 'ci'
   - pre-commit<3.3.2 ; extra == 'ci'
   - assertpy==1.1 ; extra == 'ci'
   - pip-tools ; extra == 'ci'

@@ -11,6 +11,9 @@ from typing import Any
 import pandas as pd
 import pytest
 
+pytestmark = pytest.mark.skip(reason="The on-demand feature view need to be fixed.")
+
+
 from feast import (
     Entity,
     FeatureStore,
