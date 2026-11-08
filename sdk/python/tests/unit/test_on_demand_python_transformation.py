@@ -896,6 +896,10 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             def python_stored_writes_feature_view(
                 inputs: dict[str, Any],
             ) -> dict[str, Any]:
+                from datetime import datetime
+
+                ODFV_STRING_CONSTANT = "guaranteed constant"
+
                 output: dict[str, Any] = {
                     "conv_rate_plus_acc": [
                         conv_rate + acc_rate
@@ -1118,6 +1122,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             }
 
     def test_materialize_with_odfv_writes(self):
+        from datetime import datetime, timedelta
+
         with tempfile.TemporaryDirectory() as data_dir:
             self.store = FeatureStore(
                 config=RepoConfig(
@@ -1192,6 +1198,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             def python_stored_writes_feature_view(
                 inputs: dict[str, Any],
             ) -> dict[str, Any]:
+                from datetime import datetime
+
                 output: dict[str, Any] = {
                     "conv_rate_plus_acc": [
                         conv_rate + acc_rate
@@ -1632,6 +1640,24 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 singleton=True,
             )
             def docling_transform_docs(inputs: dict[str, Any]):
+                import io
+                from docling.chunking import HybridChunker
+                from docling.datamodel.base_models import DocumentStream
+                from docling.document_converter import DocumentConverter
+                from transformers import AutoTokenizer
+
+                def embed_chunk(input_string) -> dict[str, list[float]]:
+                    output = {"query_embedding": [0.5] * VECTOR_LENGTH}
+                    return output
+                    
+                EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+                VECTOR_LENGTH = 10
+                MAX_TOKENS = 5  # Small token limit for demonstration
+                tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
+                chunker = HybridChunker(
+                    tokenizer=tokenizer, max_tokens=MAX_TOKENS, merge_peers=True
+                )
+
                 document_ids, chunks, embeddings, chunk_ids = [], [], [], []
                 buf = io.BytesIO(
                     inputs["pdf_bytes"],
