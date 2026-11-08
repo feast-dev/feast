@@ -19,7 +19,7 @@ See the [Standalone MCP server](../../docs/reference/feature-servers/mcp-server.
 
 ## Prerequisites
 
-1. **Python 3.10+ environment**
+1. **Python 3.11+ environment**
 2. **Feast with the MCP server extra**: `pip install 'feast[mcp-server]'`.
 
 ## Setup

@@ -24,10 +24,10 @@ batch_engine:
   role: sysadmin
   warehouse: demo_wh
   database: FEAST
-  python_udf_runtime_version: "3.10"
+  python_udf_runtime_version: "3.11"
 ```
 {% endcode %}
 
 ## Configuration
 
-* `python_udf_runtime_version` *(optional, default: `"3.10"`)* -- The Snowflake Python UDF `RUNTIME_VERSION` used when Feast deploys its materialization UDFs. Snowflake periodically decommissions old Python UDF runtimes (for example, the 3.9 runtime was decommissioned, requiring Feast to bump its default to 3.10 -- see [#6606](https://github.com/feast-dev/feast/issues/6606)). If Snowflake decommissions the 3.10 runtime in the future, set this field to a still-supported version (e.g. `"3.11"`) instead of waiting for a new Feast release.
+* `python_udf_runtime_version` *(optional, default: `"3.11"`)* -- The Snowflake Python UDF `RUNTIME_VERSION` used when Feast deploys its materialization UDFs. Snowflake periodically decommissions old Python UDF runtimes (for example, the 3.9 runtime was decommissioned, requiring Feast to bump its default to 3.11 -- see [#6606](https://github.com/feast-dev/feast/issues/6606)). If Snowflake decommissions the 3.11 runtime in the future, set this field to a still-supported version (e.g. `"3.12"`) instead of waiting for a new Feast release.
