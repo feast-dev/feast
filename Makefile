@@ -39,7 +39,7 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
-PYTHON_VERSIONS := 3.10 3.11 3.12
+PYTHON_VERSIONS := 3.11 3.12
 
 define get_env_name
 $(subst .,,py$(1))
@@ -122,7 +122,11 @@ install-python-dependencies-ci: ## Install Python CI dependencies using uv pip s
 	# Must match the --torch-backend used to compile the CI lock, otherwise the
 	# recorded CPU-wheel hashes (from download.pytorch.org) fail to verify.
 	# The lock is universal, so one command serves both Linux and macOS.
-	uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	# --build-constraints pins build-time deps of source builds to the lock too
+	# (e.g. sqlglotc on Python 3.10 has no wheel and must compile the locked sqlglot).
+	uv pip sync --torch-backend cpu \
+		--build-constraints sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt \
+		sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
 
 # Used in github actions/ci
