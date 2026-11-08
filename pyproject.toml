@@ -202,7 +202,7 @@ ci = [
     "psutil==5.9.0",
     "pytest-cov",
     "Sphinx>4.0.0,<7",
-    "sqlglot>=23.4",
+    "sqlglot[rs]>=23.4",
     "pre-commit<3.3.2",
     "assertpy==1.1",
     "pip-tools",
