@@ -723,6 +723,22 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
 }
 
 
+_UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _datetime_to_unix_seconds(value: datetime) -> int:
+    """Whole seconds since the epoch, floored like numpy's datetime64[s] cast.
+
+    A naive datetime is UTC, as everywhere else in Feast; datetime.timestamp()
+    would read it in the machine's local timezone. int(value.timestamp()) would
+    also truncate toward zero, moving a pre-1970 datetime with a fractional
+    second one second later (23:59:59.5 becomes 00:00:00).
+    """
+    if value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return (value - _UNIX_EPOCH) // timedelta(seconds=1)
+
+
 def _python_datetime_to_int_timestamp(
     values: Sequence[Any],
 ) -> Sequence[Union[int, np.int_]]:
@@ -735,11 +751,7 @@ def _python_datetime_to_int_timestamp(
     int_timestamps = []
     for value in values:
         if isinstance(value, datetime):
-            # A naive datetime is UTC, as everywhere else in Feast. Without this,
-            # datetime.timestamp() would read it in the machine's local timezone.
-            if value.utcoffset() is None:
-                value = value.replace(tzinfo=timezone.utc)
-            int_timestamps.append(int(value.timestamp()))
+            int_timestamps.append(_datetime_to_unix_seconds(value))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
@@ -1156,7 +1168,7 @@ def _convert_scalar_values_to_proto(
                 out.append(
                     ProtoValue(
                         zoned_timestamp_val=ZonedTimestamp(
-                            unix_timestamp=int(dt.timestamp()),
+                            unix_timestamp=_datetime_to_unix_seconds(dt),
                             zone=_zone_name(value.tzinfo),
                         )
                     )  # type: ignore
@@ -1498,8 +1510,7 @@ def _python_value_to_map_key_proto(key: Any) -> MapKey:
     if isinstance(key, bytes):
         return MapKey(bytes_key=key)
     if isinstance(key, (datetime, pd.Timestamp)):
-        ts = int(pd.Timestamp(key).timestamp())
-        return MapKey(unix_timestamp_key=ts)
+        return MapKey(unix_timestamp_key=_datetime_to_unix_seconds(key))
     raise TypeError(
         f"Unsupported key type for SCALAR_MAP: {type(key).__name__}. "
         "Supported non-string key types: int, float, bool, uuid.UUID, "
