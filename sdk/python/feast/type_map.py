@@ -1926,8 +1926,9 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not a Redshift
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "super"
@@ -2311,6 +2312,9 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("decimal"):
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "array<string>"

@@ -738,6 +738,17 @@ class TestEnableValidationOnFeatureView:
         assert sig.parameters["enable_validation"].default is False
 
 
+class TestDecimalDdlTypes:
+    """Arrow decimals must map to ``decimal(p,s)`` in warehouse DDL."""
+
+    def test_pa_to_redshift_value_type_decimal(self):
+        assert pa_to_redshift_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+        assert pa_to_redshift_value_type(pyarrow.decimal128(38, 37)) == "decimal(38,37)"
+
+    def test_pa_to_athena_value_type_decimal(self):
+        assert pa_to_athena_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+
+
 class TestRedshiftDynamoDBMapSupport:
     """Test cases for DynamoDB + Redshift map type round-trips."""
 
