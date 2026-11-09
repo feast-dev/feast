@@ -225,6 +225,37 @@ with an empty group is rejected, so a mistake cannot delete more rows than it na
 leaves no tombstone: a later write creates it again, and Feast does not order a delete against
 writes from other processes. Deletion works on every collection that Feast created.
 
+## Field types
+
+Each feature is a column of the collection. A value comes back as it was written, whatever its
+type.
+
+| Feast type | Default | With `enable_openai_compatible_store: true` |
+|:-----------|:--------|:--------------------------------------------|
+| `String` | `VARCHAR` | `VARCHAR` |
+| `Bool`, `Int32`, `Int64`, `Float32`, `Float64` | `VARCHAR` holding the value as text | `BOOL`, `INT32`, `INT64`, `FLOAT`, `DOUBLE` |
+| `UnixTimestamp` | `VARCHAR` holding the seconds as text | `INT64` |
+| `Bytes` | `VARCHAR` holding base64 | `VARCHAR` holding base64 |
+| `Array` with `vector_index=True` | `FLOAT_VECTOR` with the field's `vector_length`, or `embedding_dim` when it is unset | the same |
+| Every other type, such as an array without `vector_index`, `Json`, `Map` or `Struct` | `VARCHAR` holding the serialized value | the same |
+
+Filters apply to `VARCHAR` and native columns. A column that holds a serialized value can be read
+but not filtered on.
+
+`Array(Bool)` cannot be a vector field: Milvus binary vectors are not supported.
+
+A missing or null value is written as the column's default: an empty string, `0` or `false`. Feast
+reads an empty string in a numeric or timestamp text column as null, but a missing `String` or
+`Bytes` value comes back empty and a `0` in a native numeric column comes back as `0`. Tag a field
+with `milvus.nullable: "true"` to store null as `NULL` instead:
+
+```python
+Field(name="rating", dtype=Float32, tags={"milvus.nullable": "true"})
+```
+
+The tag applies when Feast creates the collection, and it needs Milvus 2.5 or later. Entity,
+partition key and vector fields cannot be nullable.
+
 ## Feature views without vectors
 
 Milvus requires every collection to have a vector field. For feature views that have no vector

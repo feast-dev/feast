@@ -16,6 +16,7 @@ from pymilvus.client.types import LoadState
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.filter_models import (
     ComparisonFilter,
     CompoundFilter,
@@ -38,7 +39,6 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.type_map import (
     PROTO_VALUE_TO_VALUE_TYPE_MAP,
     VALUE_TYPE_TO_PROTO_VALUE_MAP,
-    feast_value_type_to_python_type,
 )
 from feast.types import (
     VALUE_TYPES_TO_FEAST_TYPES,
@@ -64,6 +64,7 @@ PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["double_val"]: DataType.DOUBLE,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int32_val"]: DataType.INT32,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_val"]: DataType.INT64,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["unix_timestamp_val"]: DataType.INT64,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int32_list_val"]: DataType.FLOAT_VECTOR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_list_val"]: DataType.FLOAT_VECTOR,
@@ -114,6 +115,7 @@ MILVUS_NATIVE_NUMERIC_TYPES = {
     DataType.DOUBLE,
     DataType.BOOL,
 }
+MILVUS_VECTOR_TYPES = {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}
 
 # Milvus requires every collection to have a vector field, so feature views
 # without one get a small placeholder vector. Milvus servers reject vectors
@@ -354,49 +356,61 @@ class MilvusOnlineStore(OnlineStore):
             ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
             use_typed = config.online_store.enable_openai_compatible_store
+            partition_key = _partition_key_name(config.online_store, table)
+            entity_columns = {column.name for column in table.entity_columns}
             for field in fields_to_add:
-                dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
-                if dtype is None and isinstance(field.dtype, ComplexFeastType):
-                    dtype = DataType.VARCHAR
-                if dtype:
-                    if dtype == DataType.FLOAT_VECTOR:
-                        fields.append(
-                            FieldSchema(
-                                name=field.name,
-                                dtype=dtype,
-                                dim=config.online_store.embedding_dim,
-                            )
+                dtype = _milvus_field_type(field)
+                if dtype == DataType.BINARY_VECTOR:
+                    raise ValueError(
+                        f"Field '{field.name}': Array(Bool) cannot be a vector field,"
+                        " Milvus binary vectors are not supported."
+                    )
+                nullable = _nullable_tag(field)
+                if nullable and (
+                    field.name in entity_columns
+                    or field.name == partition_key
+                    or dtype in MILVUS_VECTOR_TYPES
+                ):
+                    raise ValueError(
+                        f"Field '{field.name}' cannot be nullable: entity, partition"
+                        " key and vector fields must always have a value."
+                    )
+                options: Dict[str, Any] = {"nullable": True} if nullable else {}
+                if dtype in MILVUS_VECTOR_TYPES:
+                    fields.append(
+                        FieldSchema(
+                            name=field.name,
+                            dtype=dtype,
+                            dim=field.vector_length
+                            or config.online_store.embedding_dim,
                         )
-                    elif use_typed and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
-                        fields.append(
-                            FieldSchema(
-                                name=field.name,
-                                dtype=dtype,
+                    )
+                elif use_typed and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
+                    fields.append(FieldSchema(name=field.name, dtype=dtype, **options))
+                else:
+                    if "max_length" in field.tags:
+                        try:
+                            field_max_length = int(field.tags["max_length"])
+                        except (ValueError, TypeError):
+                            raise ValueError(
+                                f"Field '{field.name}' has invalid max_length tag"
+                                f" '{field.tags['max_length']}': must be an integer."
                             )
-                        )
+                        if not (1 <= field_max_length <= 65535):
+                            raise ValueError(
+                                f"Field '{field.name}' max_length tag must be"
+                                f" between 1 and 65535, got {field_max_length}"
+                            )
                     else:
-                        if "max_length" in field.tags:
-                            try:
-                                field_max_length = int(field.tags["max_length"])
-                            except (ValueError, TypeError):
-                                raise ValueError(
-                                    f"Field '{field.name}' has invalid max_length tag"
-                                    f" '{field.tags['max_length']}': must be an integer."
-                                )
-                            if not (1 <= field_max_length <= 65535):
-                                raise ValueError(
-                                    f"Field '{field.name}' max_length tag must be"
-                                    f" between 1 and 65535, got {field_max_length}"
-                                )
-                        else:
-                            field_max_length = varchar_max_length
-                        fields.append(
-                            FieldSchema(
-                                name=field.name,
-                                dtype=DataType.VARCHAR,
-                                max_length=field_max_length,
-                            )
+                        field_max_length = varchar_max_length
+                    fields.append(
+                        FieldSchema(
+                            name=field.name,
+                            dtype=DataType.VARCHAR,
+                            max_length=field_max_length,
+                            **options,
                         )
+                    )
             has_vector_field = any(
                 f.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR)
                 for f in fields
@@ -409,7 +423,6 @@ class MilvusOnlineStore(OnlineStore):
                         dim=PLACEHOLDER_VECTOR_DIM,
                     )
                 )
-            partition_key = _partition_key_name(config.online_store, table)
             if partition_key:
                 _mark_partition_key(fields, partition_key, table.name)
             schema = CollectionSchema(
@@ -512,6 +525,9 @@ class MilvusOnlineStore(OnlineStore):
             ),
             PLACEHOLDER_VECTOR_DIM,
         )
+        nullable_fields = {
+            field["name"] for field in collection["fields"] if field.get("nullable")
+        }
         schema_internal_fields = {"event_ts", "created_ts"}
         collection_has_native_numerics = any(
             collection_field_types.get(name) in MILVUS_NATIVE_NUMERIC_TYPES
@@ -528,17 +544,10 @@ class MilvusOnlineStore(OnlineStore):
             created_ts_int = (
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
             )
-            entity_dict = {
-                join_key: feast_value_type_to_python_type(value)
-                for join_key, value in zip(
-                    entity_key.join_keys, entity_key.entity_values
-                )
-            }
-            values_dict.update(entity_dict)
+            values_dict.update(zip(entity_key.join_keys, entity_key.entity_values))
             values_dict = _extract_proto_values_to_dict(
                 values_dict,
                 vector_cols=vector_cols,
-                serialize_to_string=True,
                 use_native_numeric_types=collection_has_native_numerics,
             )
 
@@ -563,6 +572,8 @@ class MilvusOnlineStore(OnlineStore):
                     field_type = collection_field_types.get(field, DataType.VARCHAR)
                     if field == PLACEHOLDER_VECTOR_FIELD:
                         single_entity_record[field] = [0.0] * placeholder_dim
+                    elif field in nullable_fields:
+                        single_entity_record[field] = None
                     else:
                         single_entity_record[field] = _default_for_milvus_type(
                             field_type
@@ -638,12 +649,8 @@ class MilvusOnlineStore(OnlineStore):
 
         # Map the features to their Feast types.
         feature_name_feast_primitive_type_map = {
-            f.name: f.dtype for f in table.features
+            f.name: f.dtype for f in list(table.schema) + list(table.features)
         }
-        if getattr(table, "write_to_online_store", False):
-            feature_name_feast_primitive_type_map.update(
-                {f.name: f.dtype for f in table.schema}
-            )
         # Build a dictionary mapping composite key -> (res_ts, res)
         results_dict: Dict[
             str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -657,7 +664,6 @@ class MilvusOnlineStore(OnlineStore):
                 res = {}
                 res_ts = None
                 for field in output_fields:
-                    val = ValueProto()
                     field_value = hit.get(field, None)
                     if field_value is None and ":" in field:
                         _, field_short = field.split(":", 1)
@@ -669,57 +675,13 @@ class MilvusOnlineStore(OnlineStore):
                         # We do not return the composite key value
                         pass
                     else:
-                        feature_feast_primitive_type = (
+                        key_to_use = field.split(":", 1)[-1] if ":" in field else field
+                        res[key_to_use] = _stored_value_to_proto(
+                            field_value,
                             feature_name_feast_primitive_type_map.get(
                                 field, PrimitiveFeastType.INVALID
-                            )
+                            ),
                         )
-                        feature_fv_dtype = from_feast_type(feature_feast_primitive_type)
-                        proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(feature_fv_dtype)
-                        if proto_attr:
-                            if proto_attr == "bytes_val":
-                                setattr(val, proto_attr, field_value.encode())
-                            elif proto_attr in [
-                                "int32_val",
-                                "int64_val",
-                                "float_val",
-                                "double_val",
-                                "string_val",
-                            ]:
-                                setattr(
-                                    val,
-                                    proto_attr,
-                                    type(getattr(val, proto_attr))(field_value),
-                                )
-                            elif proto_attr in [
-                                "int32_list_val",
-                                "int64_list_val",
-                                "float_list_val",
-                                "double_list_val",
-                            ]:
-                                getattr(val, proto_attr).val.extend(field_value)
-                            elif proto_attr in [
-                                "map_val",
-                                "map_list_val",
-                                "struct_val",
-                                "struct_list_val",
-                                "json_list_val",
-                            ]:
-                                if isinstance(field_value, str) and field_value:
-                                    try:
-                                        proto_bytes = base64.b64decode(field_value)
-                                        val.ParseFromString(proto_bytes)
-                                    except Exception:
-                                        setattr(val, "string_val", field_value)
-                            else:
-                                setattr(val, proto_attr, field_value)
-                        else:
-                            raise ValueError(
-                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value type {proto_attr}"
-                            )
-                        # res[field] = val
-                        key_to_use = field.split(":", 1)[-1] if ":" in field else field
-                        res[key_to_use] = val
                 results_dict[key] = (res_ts, res if res else None)
 
         # Map the results back into a list matching the original order of composite_keys.
@@ -843,9 +805,7 @@ class MilvusOnlineStore(OnlineStore):
             List of tuples containing the event timestamp, entity key, and feature values
         """
         entity_name_feast_primitive_type_map = {
-            k.name: k.dtype
-            for k in list(table.entity_columns) + list(table.features)
-            if isinstance(k.dtype, PrimitiveFeastType)
+            k.name: k.dtype for k in list(table.schema) + list(table.features)
         }
         self.client = self._connect(config)
         collection_name = _table_id(
@@ -1032,7 +992,6 @@ class MilvusOnlineStore(OnlineStore):
                     else None
                 )
                 for field in output_fields:
-                    val = ValueProto()
                     field_value = hit.get("entity", {}).get(field, None)
                     # entity_key_proto = None
                     if field in ["created_ts", "event_ts"]:
@@ -1042,57 +1001,15 @@ class MilvusOnlineStore(OnlineStore):
                             embedding
                         )
                         res[ann_search_field] = serialized_embedding
-                    elif (
-                        entity_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
-                        )
-                        == PrimitiveFeastType.STRING
-                    ):
-                        res[field] = ValueProto(string_val=str(field_value))
-                    elif (
-                        entity_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
-                        )
-                        == PrimitiveFeastType.BYTES
-                    ):
-                        try:
-                            decoded_bytes = base64.b64decode(field_value)
-                            res[field] = ValueProto(bytes_val=decoded_bytes)
-                        except Exception:
-                            res[field] = ValueProto(string_val=str(field_value))
-                    elif entity_name_feast_primitive_type_map.get(
-                        field, PrimitiveFeastType.INVALID
-                    ) in [
-                        PrimitiveFeastType.INT64,
-                        PrimitiveFeastType.INT32,
-                    ]:
-                        res[field] = ValueProto(int64_val=int(field_value))
-                    elif entity_name_feast_primitive_type_map.get(
-                        field, PrimitiveFeastType.INVALID
-                    ) in [
-                        PrimitiveFeastType.FLOAT64,
-                        PrimitiveFeastType.FLOAT32,
-                    ]:
-                        res[field] = ValueProto(double_val=float(field_value))
-                    elif (
-                        entity_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
-                        )
-                        == PrimitiveFeastType.BOOL
-                    ):
-                        res[field] = ValueProto(bool_val=bool(field_value))
                     elif field == composite_key_name:
                         pass
-                    elif isinstance(field_value, bytes):
-                        val.ParseFromString(field_value)
-                        res[field] = val
-                    elif isinstance(field_value, int):
-                        res[field] = ValueProto(int64_val=field_value)
-                    elif isinstance(field_value, float):
-                        res[field] = ValueProto(double_val=field_value)
                     else:
-                        val.string_val = str(field_value)
-                        res[field] = val
+                        res[field] = _stored_value_to_proto(
+                            field_value,
+                            entity_name_feast_primitive_type_map.get(
+                                field, PrimitiveFeastType.INVALID
+                            ),
+                        )
                 raw_distance = hit.get("distance", None)
                 res["distance"] = (
                     ValueProto(float_val=raw_distance)
@@ -1263,70 +1180,111 @@ def _default_for_milvus_type(dtype: DataType) -> Any:
     return _MILVUS_TYPE_DEFAULTS.get(dtype, "")
 
 
+_NUMERIC_SCALAR_PROTO_TYPES = (
+    "double_val",
+    "float_val",
+    "int32_val",
+    "int64_val",
+    "bool_val",
+    "unix_timestamp_val",
+)
+
+
 def _extract_proto_values_to_dict(
-    input_dict: Dict[str, Any],
+    input_dict: Dict[str, ValueProto],
     vector_cols: List[str],
-    serialize_to_string: bool = False,
     use_native_numeric_types: bool = False,
 ) -> Dict[str, Any]:
-    numeric_vector_list_types = [
-        k
-        for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
-        if k is not None and ("list" in k or "set" in k) and "string" not in k
-    ]
-    numeric_types = [
-        "double_val",
-        "float_val",
-        "int32_val",
-        "int64_val",
-        "bool_val",
-    ]
-    output_dict = {}
-    for feature_name, feature_values in input_dict.items():
-        for proto_val_type in PROTO_VALUE_TO_VALUE_TYPE_MAP:
-            if not isinstance(feature_values, (int, float, str)):
-                if feature_values.HasField(proto_val_type):
-                    if proto_val_type in numeric_vector_list_types:
-                        if serialize_to_string and feature_name not in vector_cols:
-                            vector_values = getattr(
-                                feature_values, proto_val_type
-                            ).SerializeToString()
-                        else:
-                            vector_values = getattr(feature_values, proto_val_type).val
-                    else:
-                        if (
-                            serialize_to_string
-                            and proto_val_type
-                            not in ["string_val", "bytes_val", "unix_timestamp_val"]
-                            + numeric_types
-                        ):
-                            vector_values = base64.b64encode(
-                                feature_values.SerializeToString()
-                            ).decode("utf-8")
-                        elif proto_val_type == "bytes_val":
-                            byte_data = getattr(feature_values, proto_val_type)
-                            vector_values = base64.b64encode(byte_data).decode("utf-8")
-                        elif (
-                            use_native_numeric_types and proto_val_type in numeric_types
-                        ):
-                            vector_values = getattr(feature_values, proto_val_type)
-                        else:
-                            if not isinstance(feature_values, str):
-                                vector_values = str(
-                                    getattr(feature_values, proto_val_type)
-                                )
-                            else:
-                                vector_values = getattr(feature_values, proto_val_type)
-                    output_dict[feature_name] = vector_values
-            else:
-                if serialize_to_string:
-                    if use_native_numeric_types and isinstance(
-                        feature_values, (int, float)
-                    ):
-                        output_dict[feature_name] = feature_values
-                    else:
-                        if not isinstance(feature_values, str):
-                            feature_values = str(feature_values)
-                        output_dict[feature_name] = feature_values
+    """Convert the values of one row to what the collection stores.
 
+    A vector column gets its list of numbers. A numeric is stored natively or as
+    text, a string as is, bytes as base64 text. Every other value, such as a
+    list, a map or JSON, is stored as the base64 of its serialized ValueProto so
+    it comes back as written. A null value is left out: the caller writes None
+    or the column's default for it.
+    """
+    output_dict: Dict[str, Any] = {}
+    for feature_name, value in input_dict.items():
+        proto_val_type = value.WhichOneof("val")
+        if proto_val_type is None:
+            continue
+        stored = getattr(value, proto_val_type)
+        if feature_name in vector_cols:
+            output_dict[feature_name] = list(stored.val)
+        elif proto_val_type == "string_val":
+            output_dict[feature_name] = stored
+        elif proto_val_type == "bytes_val":
+            output_dict[feature_name] = base64.b64encode(stored).decode("utf-8")
+        elif proto_val_type in _NUMERIC_SCALAR_PROTO_TYPES:
+            output_dict[feature_name] = (
+                stored if use_native_numeric_types else str(stored)
+            )
+        else:
+            output_dict[feature_name] = base64.b64encode(
+                value.SerializeToString()
+            ).decode("utf-8")
     return output_dict
+
+
+def _stored_value_to_proto(stored: Any, feast_type: Any) -> ValueProto:
+    """Rebuild the ValueProto of a feature from what the collection stores.
+
+    The inverse of ``_extract_proto_values_to_dict``. None, and the empty text
+    that a collection without nullable columns stores for a missing value, are
+    null.
+    """
+    val = ValueProto()
+    if stored is None:
+        return val
+    proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(from_feast_type(feast_type))
+    if proto_attr is None:
+        # A column the feature view does not declare, for example an entity key.
+        if isinstance(stored, bool):
+            val.bool_val = stored
+        elif isinstance(stored, int):
+            val.int64_val = stored
+        elif isinstance(stored, float):
+            val.double_val = stored
+        else:
+            val.string_val = str(stored)
+        return val
+    if isinstance(stored, list):
+        getattr(val, proto_attr).val.extend(stored)
+        return val
+    if proto_attr == "string_val":
+        val.string_val = str(stored)
+        return val
+    if proto_attr == "bytes_val":
+        val.bytes_val = base64.b64decode(stored)
+        return val
+    if stored == "":
+        return val
+    if proto_attr == "bool_val":
+        val.bool_val = (
+            stored if isinstance(stored, bool) else str(stored).lower() == "true"
+        )
+    elif proto_attr in ("int32_val", "int64_val", "unix_timestamp_val"):
+        setattr(val, proto_attr, int(stored))
+    elif proto_attr in ("float_val", "double_val"):
+        setattr(val, proto_attr, float(stored))
+    else:
+        val.ParseFromString(base64.b64decode(stored))
+    return val
+
+
+def _milvus_field_type(field: Field) -> DataType:
+    """The Milvus type of a feature: a vector only for ``vector_index`` fields,
+    a native scalar where the collection stores them, VARCHAR for the rest."""
+    if isinstance(field.dtype, Array) and not field.vector_index:
+        return DataType.VARCHAR
+    return FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype, DataType.VARCHAR)
+
+
+def _nullable_tag(field: Field) -> bool:
+    value = field.tags.get("milvus.nullable", "false").lower()
+    if value not in ("true", "false"):
+        raise ValueError(
+            f"Field '{field.name}' has invalid milvus.nullable tag"
+            f" '{field.tags['milvus.nullable']}': must be 'true' or 'false'."
+        )
+    return value == "true"

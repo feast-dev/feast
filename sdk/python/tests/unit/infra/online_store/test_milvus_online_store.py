@@ -20,9 +20,27 @@ from feast.infra.online_stores.milvus_online_store.milvus import (
     MilvusOnlineStoreConfig,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import (
+    FloatList,
+    Int64List,
+    StringList,
+)
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Array, Float32, Int64, String
+from feast.type_map import python_values_to_proto_values
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    Json,
+    Map,
+    String,
+    UnixTimestamp,
+)
 from feast.value_type import ValueType
 
 MILVUS_MODULE = "feast.infra.online_stores.milvus_online_store.milvus"
@@ -946,3 +964,274 @@ def test_online_delete_with_no_entity_keys_sends_nothing(
     )
 
     mock_client_cls.assert_not_called()
+
+
+def _typed_feature_view(name: str, dtype: Any, **field_kwargs: Any) -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="value", dtype=dtype, **field_kwargs),
+        ],
+    )
+
+
+_TYPED_VALUES: List[Tuple[Any, ValueProto]] = [
+    (Bool, ValueProto(bool_val=False)),
+    (Int32, ValueProto(int32_val=-7)),
+    (Int64, ValueProto(int64_val=1 << 40)),
+    (Float32, ValueProto(float_val=0.1)),
+    (Float64, ValueProto(double_val=2.5)),
+    (String, ValueProto(string_val="True")),
+    (Bytes, ValueProto(bytes_val=b"\x00\xff")),
+    (Bytes, ValueProto(bytes_val=b"")),
+    (UnixTimestamp, ValueProto(unix_timestamp_val=1_700_000_000)),
+    (Json, ValueProto(json_val='{"a": [1, 2]}')),
+    (Array(String), ValueProto(string_list_val=StringList(val=["a", "b"]))),
+    (Array(Int64), ValueProto(int64_list_val=Int64List(val=[1, 2, 3]))),
+    (Map, python_values_to_proto_values([{"a": "x", "n": 1}], ValueType.MAP)[0]),
+]
+
+
+@pytest.mark.parametrize(
+    "online_store",
+    [{}, {"enable_openai_compatible_store": True}],
+    ids=["varchar", "native_numerics"],
+)
+def test_every_feast_type_round_trips(
+    tmp_path: Path, online_store: Dict[str, Any]
+) -> None:
+    config = _lite_config(tmp_path, **online_store)
+    store = MilvusOnlineStore()
+
+    for index, (dtype, value) in enumerate(_TYPED_VALUES):
+        fv = _typed_feature_view(f"typed_{index}", dtype)
+        store.update(config, [], [fv], [], [], partial=False)
+        _write_rows(store, config, fv, {1: {"value": value}})
+        rows = _read(store, config, fv, [1], ["value"])
+        assert rows[0] is not None and rows[0]["value"] == value, dtype
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_column_types_follow_vector_index_and_vector_length(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="catalog",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_length=3,
+            ),
+            Field(name="history", dtype=Array(Float32)),
+            Field(name="seen_at", dtype=UnixTimestamp),
+        ],
+    )
+
+    for native, seen_at_type in [(False, DataType.VARCHAR), (True, DataType.INT64)]:
+        MilvusOnlineStore()._get_or_create_collection(
+            _mock_config(embedding_dim=2, enable_openai_compatible_store=native), fv
+        )
+        schema = mock_client.create_collection.call_args.kwargs["schema"]
+        fields = {field.name: field for field in schema.fields}
+        assert fields["embedding"].dtype == DataType.FLOAT_VECTOR
+        assert fields["embedding"].params["dim"] == 3
+        assert fields["history"].dtype == DataType.VARCHAR
+        assert fields["seen_at"].dtype == seen_at_type
+        assert PLACEHOLDER_VECTOR_FIELD not in fields
+
+
+def test_missing_value_in_a_text_column_reads_as_null(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(
+        store,
+        config,
+        fv,
+        {1: {"trips_today": ValueProto(), "city": ValueProto(string_val="Paris")}},
+    )
+    rows = _read(store, config, fv, [1], ["trips_today", "city"])
+
+    assert rows[0] is not None
+    assert rows[0]["trips_today"].WhichOneof("val") is None
+    assert rows[0]["city"].string_val == "Paris"
+
+
+def test_nullable_tag_stores_null_instead_of_the_column_default(
+    tmp_path: Path,
+) -> None:
+    config = _lite_config(tmp_path, enable_openai_compatible_store=True)
+    fv = FeatureView(
+        name="driver_stats",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips_today", dtype=Float32, tags={"milvus.nullable": "true"}),
+            Field(name="rating", dtype=Float32),
+        ],
+    )
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    assert store.client is not None
+    description = store.client.describe_collection("test_milvus_driver_stats")
+    nullable = {f["name"]: f.get("nullable", False) for f in description["fields"]}
+    assert nullable["trips_today"] and not nullable["rating"]
+
+    _write_rows(
+        store, config, fv, {1: {"trips_today": ValueProto(), "rating": ValueProto()}}
+    )
+    rows = _read(store, config, fv, [1], ["trips_today", "rating"])
+
+    assert rows[0] is not None
+    assert rows[0]["trips_today"].WhichOneof("val") is None
+    # A column that is not nullable keeps the type's default.
+    assert rows[0]["rating"].float_val == 0.0
+
+
+@pytest.mark.parametrize(
+    "field, match",
+    [
+        (
+            Field(name="driver_id", dtype=Int64, tags={"milvus.nullable": "true"}),
+            "cannot be nullable",
+        ),
+        (
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                tags={"milvus.nullable": "true"},
+            ),
+            "cannot be nullable",
+        ),
+        (
+            Field(name="city", dtype=String, tags={"milvus.nullable": "maybe"}),
+            "invalid milvus.nullable tag",
+        ),
+    ],
+    ids=["entity", "vector", "invalid"],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_nullable_tag_is_rejected_where_a_value_is_required(
+    mock_client_cls: MagicMock, field: Field, match: str
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    schema = [Field(name="driver_id", dtype=Int64)] if field.name != "driver_id" else []
+    fv = FeatureView(
+        name="driver_stats",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=schema + [field],
+    )
+
+    with pytest.raises(ValueError, match=match):
+        MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    mock_client.create_collection.assert_not_called()
+
+
+def test_search_hits_decode_values_like_reads(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = FeatureView(
+        name="documents",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="flag", dtype=Bool),
+            Field(name="blob", dtype=Bytes),
+            Field(name="doc", dtype=Json),
+            Field(name="tags", dtype=Array(String)),
+            Field(name="labels", dtype=Map),
+        ],
+    )
+    values = {
+        "embedding": ValueProto(float_list_val=FloatList(val=[1.0, 0.0])),
+        "flag": ValueProto(bool_val=False),
+        "blob": ValueProto(bytes_val=b"\x00\xff"),
+        "doc": ValueProto(json_val='{"a": 1}'),
+        "tags": ValueProto(string_list_val=StringList(val=["a", "b"])),
+        "labels": python_values_to_proto_values([{"a": "x"}], ValueType.MAP)[0],
+    }
+    features = ["flag", "blob", "doc", "tags", "labels"]
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, {1: values})
+
+    hits = store.retrieve_online_documents_v2(config, fv, features, [1.0, 0.0], top_k=1)
+
+    assert len(hits) == 1
+    _, _, hit = hits[0]
+    assert hit is not None
+    expected = {name: values[name] for name in features}
+    assert {name: hit[name] for name in features} == expected
+    assert _read(store, config, fv, [1], features) == [expected]
+
+
+def test_entity_columns_use_the_same_encoding_as_features(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = FeatureView(
+        name="devices",
+        entities=[
+            Entity(name="device", join_keys=["device"], value_type=ValueType.BYTES),
+            Entity(
+                name="seen", join_keys=["seen"], value_type=ValueType.UNIX_TIMESTAMP
+            ),
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="device", dtype=Bytes),
+            Field(name="seen", dtype=UnixTimestamp),
+            Field(name="city", dtype=String),
+        ],
+    )
+    key = EntityKeyProto(
+        join_keys=["device", "seen"],
+        entity_values=[
+            ValueProto(bytes_val=b"\x00\xff"),
+            ValueProto(unix_timestamp_val=1_700_000_000),
+        ],
+    )
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    now = datetime.now(timezone.utc)
+    store.online_write_batch(
+        config, fv, [(key, {"city": ValueProto(string_val="Oslo")}, now, now)], None
+    )
+
+    _, values = store.online_read(config, fv, [key], ["device", "seen", "city"])[0]
+
+    assert values == {
+        "device": ValueProto(bytes_val=b"\x00\xff"),
+        "seen": ValueProto(unix_timestamp_val=1_700_000_000),
+        "city": ValueProto(string_val="Oslo"),
+    }
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_bool_array_cannot_be_a_vector_field(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = _typed_feature_view("flags", Array(Bool), vector_index=True)
+
+    with pytest.raises(ValueError, match="binary vectors are not supported"):
+        MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    mock_client.create_collection.assert_not_called()

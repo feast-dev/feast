@@ -25,9 +25,20 @@ from feast.field import Field
 from feast.filter_models import ComparisonFilter
 from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import StringList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Array, Float32, Int64, String
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int64,
+    Json,
+    String,
+    UnixTimestamp,
+)
 from feast.value_type import ValueType
 
 T = TypeVar("T")
@@ -520,3 +531,49 @@ def test_online_delete(tmp_path: Path, project: str, store: MilvusOnlineStore) -
     _write_rows(store, config, fv, {1: _vector_rows()[1]})
     rows = _read(store, config, fv, [1], ["city"])
     assert rows[0] is not None and rows[0]["city"].string_val == "Paris"
+
+
+@pytest.mark.parametrize("native", [False, True], ids=["varchar", "native_numerics"])
+def test_every_type_round_trips_and_nullable_columns_store_null(
+    tmp_path: Path, project: str, store: MilvusOnlineStore, native: bool
+) -> None:
+    config = _repo_config(
+        tmp_path,
+        project,
+        enable_openai_compatible_store=native,
+        consistency_level="Strong",
+    )
+    fv = FeatureView(
+        name="typed",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="flag", dtype=Bool),
+            Field(name="blob", dtype=Bytes),
+            Field(name="seen_at", dtype=UnixTimestamp),
+            Field(name="doc", dtype=Json),
+            Field(name="tags", dtype=Array(String)),
+            Field(name="score", dtype=Float64, tags={"milvus.nullable": "true"}),
+        ],
+    )
+    values = {
+        "flag": ValueProto(bool_val=False),
+        "blob": ValueProto(bytes_val=b"\x00\xff"),
+        "seen_at": ValueProto(unix_timestamp_val=1_700_000_000),
+        "doc": ValueProto(json_val='{"a": [1, 2]}'),
+        "tags": ValueProto(string_list_val=StringList(val=["a", "b"])),
+        "score": ValueProto(double_val=2.5),
+    }
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(store, config, fv, {1: values, 2: {**values, "score": ValueProto()}})
+    rows = _read(store, config, fv, [1, 2], list(values))
+
+    assert rows[0] == values
+    assert rows[1] is not None and rows[1]["score"].WhichOneof("val") is None
+    assert rows[1]["tags"] == values["tags"]
