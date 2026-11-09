@@ -9,7 +9,7 @@ DECOMMISSIONED_RUNTIME_VERSION = "3.9"
 # that Snowflake still supports, and Feast should never request a runtime
 # below the minimum Python version Feast itself supports
 # (see `requires-python` in pyproject.toml).
-MIN_SUPPORTED_RUNTIME_VERSION = "3.10"
+MIN_SUPPORTED_RUNTIME_VERSION = "3.11"
 
 # Placeholder substituted into snowflake_python_udfs_creation.sql at deploy time by
 # SnowflakeComputeEngine.update(), using
@@ -135,9 +135,9 @@ def test_udf_module_docstrings_do_not_reference_decommissioned_runtime_version()
     )
 
 
-def test_python_udf_runtime_version_defaults_to_3_10():
+def test_python_udf_runtime_version_defaults_to_3_11():
     """The Snowflake compute engine config should default
-    `python_udf_runtime_version` to "3.10", matching Feast's own minimum
+    `python_udf_runtime_version` to "3.11", matching Feast's own minimum
     supported Python version, without requiring users to set it explicitly.
     """
     from feast.infra.compute_engines.snowflake.snowflake_engine import (
