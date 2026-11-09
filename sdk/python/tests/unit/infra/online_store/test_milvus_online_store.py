@@ -12,7 +12,7 @@ from pymilvus.client.types import LoadState
 
 from feast import Entity, FeatureView
 from feast.field import Field
-from feast.filter_models import ComparisonFilter
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.milvus_online_store.milvus import (
     PLACEHOLDER_VECTOR_DIM,
     PLACEHOLDER_VECTOR_FIELD,
@@ -158,6 +158,69 @@ def test_scalar_feature_view_round_trip_with_placeholder(tmp_path: Path) -> None
         f for f in collection["fields"] if f["name"] == PLACEHOLDER_VECTOR_FIELD
     )
     assert placeholder["params"]["dim"] == PLACEHOLDER_VECTOR_DIM
+
+
+@pytest.mark.parametrize(
+    "rows, expected_city",
+    [
+        # Equal event timestamps: the latest created timestamp wins, in any order.
+        ([("Oslo", 0, 1), ("Rome", 0, 2)], "Rome"),
+        ([("Rome", 0, 2), ("Oslo", 0, 1)], "Rome"),
+        # A newer event timestamp wins over a newer created timestamp.
+        ([("Oslo", 1, 1), ("Rome", 0, 2)], "Oslo"),
+        # Equal timestamps: the last row of the batch wins.
+        ([("Oslo", 0, 1), ("Rome", 0, 1)], "Rome"),
+    ],
+)
+def test_write_batch_keeps_the_newest_row_per_entity(
+    tmp_path: Path, rows: List[Tuple[str, int, int]], expected_city: str
+) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (
+                _entity_key(1),
+                {"city": ValueProto(string_val=city)},
+                base + timedelta(seconds=event_ts),
+                base + timedelta(seconds=created_ts),
+            )
+            for city, event_ts, created_ts in rows
+        ],
+        progress=None,
+    )
+
+    rows_read = _read(store, config, fv, [1], ["city"])
+    assert rows_read[0] is not None
+    assert rows_read[0]["city"].string_val == expected_city
+
+
+def test_write_batch_keeps_one_row_per_entity(tmp_path: Path) -> None:
+    store = MilvusOnlineStore()
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    store.online_write_batch(
+        config,
+        fv,
+        [
+            (_entity_key(1), {"city": ValueProto(string_val="Oslo")}, now, now),
+            (_entity_key(2), {"city": ValueProto(string_val="Rome")}, now, now),
+        ],
+        progress=None,
+    )
+
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row is not None] == [
+        "Oslo",
+        "Rome",
+    ]
 
 
 @patch(f"{MILVUS_MODULE}.MilvusClient")
@@ -746,3 +809,140 @@ def test_warns_when_existing_collection_lacks_partition_key(
 
     assert "created without partition key 'brand_id'" in caplog.text
     mock_client.create_collection.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_sent_only_for_partitioned_collections(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    config = _mock_config(
+        partition_key="brand_id", num_partitions=32, partition_key_isolation=True
+    )
+    store = MilvusOnlineStore()
+
+    store._get_or_create_collection(config, _catalog_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert kwargs["num_partitions"] == 32
+    assert kwargs["properties"] == {"partitionkey.isolation": "true"}
+
+    store._get_or_create_collection(config, _scalar_feature_view())
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_partition_options_not_sent_when_unset(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+
+    MilvusOnlineStore()._get_or_create_collection(
+        _mock_config(partition_key="brand_id"), _catalog_feature_view()
+    )
+
+    kwargs = mock_client.create_collection.call_args.kwargs
+    assert "num_partitions" not in kwargs and "properties" not in kwargs
+
+
+def test_invalid_num_partitions_rejected() -> None:
+    with pytest.raises(ValidationError, match="num_partitions"):
+        MilvusOnlineStoreConfig(num_partitions=0)
+
+
+def test_online_delete_by_entity_key_and_by_filter(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = _scalar_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(
+        store,
+        config,
+        fv,
+        {
+            driver_id: {
+                "trips_today": ValueProto(float_val=float(driver_id)),
+                "city": ValueProto(string_val=city),
+            }
+            for driver_id, city in [(1, "Paris"), (2, "Rome"), (3, "Rome")]
+        },
+    )
+
+    store.online_delete(config, fv, [_entity_key(1)])
+    rows = _read(store, config, fv, [1, 2, 3], ["city"])
+    assert [row is None for row in rows] == [True, False, False]
+
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="city", value="Rome")
+    )
+    assert _read(store, config, fv, [1, 2, 3], ["city"]) == [None, None, None]
+
+    # No tombstone is kept, so the row can be written again.
+    _write_rows(
+        store,
+        config,
+        fv,
+        {
+            1: {
+                "trips_today": ValueProto(float_val=4.0),
+                "city": ValueProto(string_val="Oslo"),
+            }
+        },
+    )
+    rows = _read(store, config, fv, [1], ["city"])
+    assert rows[0] is not None and rows[0]["city"].string_val == "Oslo"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {
+            "entity_keys": [_entity_key(1)],
+            "filters": ComparisonFilter(type="eq", key="city", value="Rome"),
+        },
+        {"filters": CompoundFilter(type="and", filters=[])},
+        {
+            "filters": CompoundFilter(
+                type="and",
+                filters=[
+                    ComparisonFilter(type="eq", key="brand_id", value="acme"),
+                    CompoundFilter(type="or", filters=[]),
+                ],
+            )
+        },
+    ],
+)
+def test_online_delete_rejects_ambiguous_and_unbounded_calls(
+    kwargs: Dict[str, Any],
+) -> None:
+    store = MilvusOnlineStore()
+    store.client = MagicMock()
+
+    with pytest.raises(ValueError):
+        store.online_delete(_mock_config(), _scalar_feature_view(), **kwargs)
+
+    store.client.delete.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_online_delete_does_not_create_a_missing_collection(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    store = MilvusOnlineStore()
+
+    store.online_delete(_mock_config(), _scalar_feature_view(), [_entity_key(1)])
+    store.online_delete(_mock_config(), _scalar_feature_view(), [])
+
+    mock_client.create_collection.assert_not_called()
+    mock_client.delete.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_online_delete_with_no_entity_keys_sends_nothing(
+    mock_client_cls: MagicMock,
+) -> None:
+    MilvusOnlineStore().online_delete(
+        _mock_config(), _scalar_feature_view(), entity_keys=[]
+    )
+
+    mock_client_cls.assert_not_called()
