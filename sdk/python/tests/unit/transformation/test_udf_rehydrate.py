@@ -16,6 +16,13 @@ def _sample_udf(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _rehydrate_fallback_udf(value):
+    return value + _rehydrate_fallback_constant
+
+
+_rehydrate_fallback_constant = 40
+
+
 _SAMPLE_SRC = """
 def _sample_udf(df):
     import pandas as pd
@@ -48,6 +55,43 @@ def test_resolve_udf_falls_back_to_dill_when_source_empty():
     udf = resolve_udf(udf_string="", body=body)
     result = udf(pd.DataFrame({"x": [4]}))
     assert result["doubled"].iloc[0] == 8
+
+
+def test_resolve_udf_falls_back_to_dill_for_missing_module_global():
+    source = """
+def _rehydrate_fallback_udf(value):
+    return value + _rehydrate_fallback_constant
+"""
+    body = dill.dumps(_rehydrate_fallback_udf, recurse=True)
+
+    udf = resolve_udf(
+        udf_string=source,
+        body=body,
+        preferred_name="_rehydrate_fallback_udf",
+    )
+
+    assert udf(2) == 42
+
+
+def test_rehydrate_udf_allows_attribute_names():
+    source = """
+def copy_frame(frame):
+    return frame.copy()
+"""
+
+    udf = rehydrate_udf_from_source(source, preferred_name="copy_frame")
+
+    assert udf is not None
+    assert udf(pd.DataFrame({"x": [1]})).equals(pd.DataFrame({"x": [1]}))
+
+
+def test_rehydrate_udf_checks_globals_in_nested_code():
+    source = """
+def make_callback(value):
+    return lambda: missing_module_global + value
+"""
+
+    assert rehydrate_udf_from_source(source, preferred_name="make_callback") is None
 
 
 def test_rehydrate_strips_on_demand_decorator():
