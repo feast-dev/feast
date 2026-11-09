@@ -11,9 +11,6 @@ from typing import Any
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.skip(reason="The on-demand feature view need to be fixed.")
-
-
 from feast import (
     Entity,
     FeatureStore,
@@ -43,6 +40,7 @@ from feast.types import (
     from_value_type,
 )
 
+pytestmark = pytest.mark.skip(reason="The on-demand feature view need to be fixed.")
 MAC_VER = platform.mac_ver()[0].split(".")[0] if platform.mac_ver() else ""
 
 
