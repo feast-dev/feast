@@ -2404,8 +2404,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            _logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -2432,20 +2433,27 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No join keys found in source views. "
+                "Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in "
+                "sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp "
+                "columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -2474,8 +2482,10 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            _logger.warning(
+                "No source data found for ODFV %s in the given time range. "
+                "Skipping materialization.",
+                feature_view.name,
             )
             return
 
