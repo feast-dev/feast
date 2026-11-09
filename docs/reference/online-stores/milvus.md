@@ -97,6 +97,8 @@ online_store:
 | `consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Sent with every read and search. When unset, Milvus uses the collection's level. |
 | `collection_consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Set when Feast creates a collection. When unset, Milvus uses its default (`Bounded`). |
 | `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
+| `num_partitions` | unset | Number of partitions of a new collection that has a partition key. When unset, Milvus uses its default. |
+| `partition_key_isolation` | unset | Enables partition key isolation on a new collection that has a partition key. When unset, Milvus uses its default. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
 | `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
@@ -168,6 +170,12 @@ store.retrieve_online_documents_v2(
 )
 ```
 
+`num_partitions` sets how many partitions a new collection with a partition key gets, and
+`partition_key_isolation` enables
+[partition key isolation](https://milvus.io/docs/use-partition-key.md#Use-Partition-Key-Isolation)
+for it, which Milvus supports with the HNSW index. Both settings are ignored for feature views
+without a partition key, and Milvus Lite ignores `num_partitions`.
+
 The partition key field must be stored as `VARCHAR` or `INT64`. String fields are always `VARCHAR`,
 and integer fields are `VARCHAR` unless native numeric types are enabled, in which case `Int64` works
 and `Int32` does not.
@@ -196,6 +204,26 @@ Feast creates collections together with their indexes, which makes Milvus load t
 When Feast finds an existing collection it checks its load state and loads it only if needed.
 Reads and searches never load collections, so a collection released outside Feast is only reloaded
 the next time a Feast process first accesses it.
+
+## Row deletion
+
+`MilvusOnlineStore.online_delete` removes rows of a feature view, by entity key or by filter:
+
+```python
+from feast.filter_models import ComparisonFilter
+
+online_store.online_delete(config, feature_view, entity_keys=[entity_key])
+online_store.online_delete(
+    config,
+    feature_view,
+    filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+)
+```
+
+Give exactly one of `entity_keys` and `filters`. An empty key list deletes nothing, and a filter
+with an empty group is rejected, so a mistake cannot delete more rows than it names. A deleted row
+leaves no tombstone: a later write creates it again, and Feast does not order a delete against
+writes from other processes. Deletion works on every collection that Feast created.
 
 ## Feature views without vectors
 
