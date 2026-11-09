@@ -25,9 +25,10 @@ from feast.field import Field
 from feast.filter_models import ComparisonFilter
 from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import StringList
+from feast.protos.feast.types.Value_pb2 import FloatList, Int64List, StringList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from feast.type_map import python_values_to_proto_values
 from feast.types import (
     Array,
     Bool,
@@ -36,6 +37,7 @@ from feast.types import (
     Float64,
     Int64,
     Json,
+    Map,
     String,
     UnixTimestamp,
 )
@@ -577,3 +579,97 @@ def test_every_type_round_trips_and_nullable_columns_store_null(
     assert rows[0] == values
     assert rows[1] is not None and rows[1]["score"].WhichOneof("val") is None
     assert rows[1]["tags"] == values["tags"]
+
+
+def test_native_complex_types_filters_and_tag_indexes(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path,
+        project,
+        enable_openai_compatible_store=True,
+        consistency_level="Strong",
+    )
+    fv = FeatureView(
+        name="products",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="brand", dtype=String, tags={"milvus.index": "INVERTED"}),
+            Field(
+                name="attributes",
+                dtype=Json,
+                tags={
+                    "milvus.json_indexes": (
+                        '[{"json_path": "attributes[\\"price\\"]",'
+                        ' "json_cast_type": "double"}]'
+                    )
+                },
+            ),
+            Field(name="labels", dtype=Map),
+            Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "8"}),
+            Field(name="counts", dtype=Array(Int64), tags={"milvus.nullable": "true"}),
+        ],
+    )
+    rows = {
+        1: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[1.0, 0.0])),
+            "brand": ValueProto(string_val="acme"),
+            "attributes": ValueProto(json_val='{"price": 10, "color": "red"}'),
+            "labels": python_values_to_proto_values(
+                [{"a": "x", "n": 1}], ValueType.MAP
+            )[0],
+            "tags": ValueProto(string_list_val=StringList(val=["red", "sale"])),
+            "counts": ValueProto(int64_list_val=Int64List(val=[1, 2, 3])),
+        },
+        2: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[0.0, 1.0])),
+            "brand": ValueProto(string_val="globex"),
+            "attributes": ValueProto(json_val='{"price": 50}'),
+            "labels": python_values_to_proto_values([{"a": "y"}], ValueType.MAP)[0],
+            "tags": ValueProto(string_list_val=StringList(val=[])),
+            "counts": ValueProto(),
+        },
+    }
+    store.update(config, [], [fv], [], [], partial=False)
+    assert store.client is not None
+    indexes = set(store.client.list_indexes(f"{project}_{fv.name}"))
+    assert {"scalar_index_brand", "json_index_attributes_0"} <= indexes
+
+    _write_rows(store, config, fv, rows)
+    read = _read(
+        store, config, fv, [1, 2], ["brand", "attributes", "labels", "tags", "counts"]
+    )
+    assert read[0] == {k: v for k, v in rows[1].items() if k != "embedding"}
+    assert read[1] is not None and read[1]["counts"].WhichOneof("val") is None
+
+    hits = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["brand", "attributes"],
+        embedding=[1.0, 0.0],
+        top_k=5,
+        distance_metric="COSINE",
+        filters=ComparisonFilter(type="gt", key='attributes["price"]', value=20),
+    )
+    assert [hit["brand"].string_val for _, _, hit in hits if hit] == ["globex"]
+
+    assert read[1]["tags"] == rows[2]["tags"]
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="tags[0]", value="red")
+    )
+    assert [row is None for row in _read(store, config, fv, [1, 2], ["brand"])] == [
+        True,
+        False,
+    ]

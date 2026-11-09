@@ -16,11 +16,13 @@ from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.online_stores.milvus_online_store.milvus import (
     PLACEHOLDER_VECTOR_DIM,
     PLACEHOLDER_VECTOR_FIELD,
+    MilvusFilterTranslator,
     MilvusOnlineStore,
     MilvusOnlineStoreConfig,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import (
+    BoolList,
     FloatList,
     Int64List,
     StringList,
@@ -39,6 +41,7 @@ from feast.types import (
     Json,
     Map,
     String,
+    Struct,
     UnixTimestamp,
 )
 from feast.value_type import ValueType
@@ -1036,7 +1039,10 @@ def test_column_types_follow_vector_index_and_vector_length(
         ],
     )
 
-    for native, seen_at_type in [(False, DataType.VARCHAR), (True, DataType.INT64)]:
+    for native, seen_at_type, history_type in [
+        (False, DataType.VARCHAR, DataType.VARCHAR),
+        (True, DataType.INT64, DataType.ARRAY),
+    ]:
         MilvusOnlineStore()._get_or_create_collection(
             _mock_config(embedding_dim=2, enable_openai_compatible_store=native), fv
         )
@@ -1044,7 +1050,7 @@ def test_column_types_follow_vector_index_and_vector_length(
         fields = {field.name: field for field in schema.fields}
         assert fields["embedding"].dtype == DataType.FLOAT_VECTOR
         assert fields["embedding"].params["dim"] == 3
-        assert fields["history"].dtype == DataType.VARCHAR
+        assert fields["history"].dtype == history_type
         assert fields["seen_at"].dtype == seen_at_type
         assert PLACEHOLDER_VECTOR_FIELD not in fields
 
@@ -1235,3 +1241,330 @@ def test_bool_array_cannot_be_a_vector_field(mock_client_cls: MagicMock) -> None
         MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
 
     mock_client.create_collection.assert_not_called()
+
+
+def _native_config(tmp_path: Path, **online_store: Any) -> RepoConfig:
+    return _lite_config(tmp_path, enable_openai_compatible_store=True, **online_store)
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_native_types_get_json_and_array_columns(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="catalog",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="attributes", dtype=Json),
+            Field(name="labels", dtype=Map),
+            Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "16"}),
+            Field(name="counts", dtype=Array(Int64)),
+            Field(name="blobs", dtype=Array(Bytes)),
+        ],
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(
+        _mock_config(enable_openai_compatible_store=True), fv
+    )
+
+    fields = {
+        field.name: field.to_dict()
+        for field in mock_client.create_collection.call_args.kwargs["schema"].fields
+    }
+    assert fields["attributes"]["type"] == DataType.JSON
+    assert fields["attributes"]["nullable"] is True
+    assert fields["labels"]["type"] == DataType.VARCHAR
+    assert fields["tags"]["type"] == DataType.ARRAY
+    assert fields["tags"]["nullable"] is True
+    assert fields["tags"]["element_type"] == DataType.VARCHAR
+    assert fields["tags"]["params"] == {"max_capacity": 16, "max_length": 65535}
+    assert fields["counts"]["element_type"] == DataType.INT64
+    assert fields["counts"]["params"] == {"max_capacity": 4096}
+    assert fields["blobs"]["type"] == DataType.VARCHAR
+
+
+_NATIVE_COMPLEX_VALUES: List[Tuple[Any, ValueProto]] = [
+    (Json, ValueProto(json_val='{"a": [1, 2], "b": "x"}')),
+    (Map, python_values_to_proto_values([{"a": "x", "n": 1}], ValueType.MAP)[0]),
+    (
+        Struct({"a": Int64}),
+        python_values_to_proto_values([{"a": 1}], ValueType.STRUCT)[0],
+    ),
+    (Json, ValueProto(json_val="[]")),
+    (Array(String), ValueProto(string_list_val=StringList(val=["a", "b"]))),
+    (Array(String), ValueProto(string_list_val=StringList(val=[]))),
+    (Array(Int64), ValueProto(int64_list_val=Int64List(val=[1, 2, 3]))),
+    (Array(Bool), ValueProto(bool_list_val=BoolList(val=[True, False]))),
+    (Array(Float32), ValueProto(float_list_val=FloatList(val=[0.5, 1.5]))),
+    (Array(Json), ValueProto(json_list_val=StringList(val=[]))),
+    (
+        Array(Json),
+        python_values_to_proto_values([['{"a": 1}', '{"b": 2}']], ValueType.JSON_LIST)[
+            0
+        ],
+    ),
+    (
+        Array(Map),
+        python_values_to_proto_values([[{"a": 1}, {"a": 2}]], ValueType.MAP_LIST)[0],
+    ),
+]
+
+
+def test_native_complex_values_round_trip(tmp_path: Path) -> None:
+    config = _native_config(tmp_path)
+    store = MilvusOnlineStore()
+
+    for index, (dtype, value) in enumerate(_NATIVE_COMPLEX_VALUES):
+        fv = _typed_feature_view(f"native_{index}", dtype)
+        store.update(config, [], [fv], [], [], partial=False)
+        _write_rows(
+            store, config, fv, {1: {"value": value}, 2: {"value": ValueProto()}}
+        )
+        rows = _read(store, config, fv, [1, 2], ["value"])
+        assert rows[0] is not None and rows[0]["value"] == value, dtype
+        assert rows[1] is not None and rows[1]["value"].WhichOneof("val") is None
+
+
+def _attributes_feature_view(tags: Optional[Dict[str, str]] = None) -> FeatureView:
+    return FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="brand", dtype=String, tags={"milvus.index": "INVERTED"}),
+            Field(name="attributes", dtype=Json, tags=tags),
+            Field(name="tags", dtype=Array(String)),
+        ],
+    )
+
+
+def _product_rows() -> Dict[int, Dict[str, ValueProto]]:
+    return {
+        1: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[1.0, 0.0])),
+            "brand": ValueProto(string_val="acme"),
+            "attributes": ValueProto(json_val='{"price": 10}'),
+            "tags": ValueProto(string_list_val=StringList(val=["red", "sale"])),
+        },
+        2: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[0.0, 1.0])),
+            "brand": ValueProto(string_val="globex"),
+            "attributes": ValueProto(json_val='{"price": 50}'),
+            "tags": ValueProto(string_list_val=StringList(val=["blue"])),
+        },
+    }
+
+
+def test_filters_address_json_paths_and_array_elements(tmp_path: Path) -> None:
+    config = _native_config(tmp_path)
+    fv = _attributes_feature_view()
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, _product_rows())
+
+    hits = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["brand", "attributes"],
+        [1.0, 0.0],
+        top_k=5,
+        filters=ComparisonFilter(type="gt", key='attributes["price"]', value=20),
+    )
+    assert [hit["brand"].string_val for _, _, hit in hits if hit] == ["globex"]
+
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="tags[0]", value="blue")
+    )
+    assert [row is None for row in _read(store, config, fv, [1, 2], ["brand"])] == [
+        False,
+        True,
+    ]
+
+
+@pytest.mark.parametrize(
+    "key, valid",
+    [
+        ("brand", True),
+        ('attributes["price"]', True),
+        ('attributes["a"]["b"]', True),
+        ("tags[0]", True),
+        ("brand-id", False),
+        ('attributes["price', False),
+        ("brand; drop", False),
+    ],
+)
+def test_filter_keys_allow_json_paths_and_array_elements(key: str, valid: bool) -> None:
+    translator = MilvusFilterTranslator()
+    comparison = ComparisonFilter(type="eq", key=key, value=1)
+
+    if valid:
+        assert translator.translate(comparison) == f"{key} == 1"
+    else:
+        with pytest.raises(ValueError, match="Invalid filter key"):
+            translator.translate(comparison)
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_index_tags_create_scalar_and_json_path_indexes(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = _attributes_feature_view(
+        tags={
+            "milvus.json_indexes": (
+                '[{"json_path": "attributes[\\"price\\"]", "json_cast_type": "double"}]'
+            )
+        }
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(
+        _mock_config(enable_openai_compatible_store=True), fv
+    )
+
+    created = _created_indexes(mock_client)
+    assert created["brand"]["index_type"] == "INVERTED"
+    assert created["brand"]["index_name"] == "scalar_index_brand"
+    assert created["attributes"]["index_name"] == "json_index_attributes_0"
+    assert created["attributes"]["index_type"] == "INVERTED"
+    assert created["attributes"]["json_path"] == 'attributes["price"]'
+    assert created["attributes"]["json_cast_type"] == "double"
+    assert created["embedding"]["index_type"] == "FLAT"
+
+
+@pytest.mark.parametrize(
+    "field, online_store, match",
+    [
+        (
+            Field(name="brand", dtype=String, tags={"milvus.index_params": "{}"}),
+            {},
+            "without milvus.index",
+        ),
+        (
+            Field(
+                name="brand",
+                dtype=String,
+                tags={"milvus.index": "INVERTED", "milvus.index_params": "nope"},
+            ),
+            {},
+            "must be a JSON dict",
+        ),
+        (
+            Field(
+                name="brand",
+                dtype=String,
+                tags={"milvus.json_indexes": '[{"json_path": "brand"}]'},
+            ),
+            {"enable_openai_compatible_store": True},
+            "not stored as JSON",
+        ),
+        (
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                tags={"milvus.index": "INVERTED"},
+            ),
+            {},
+            "is a vector",
+        ),
+        (
+            Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "0"}),
+            {"enable_openai_compatible_store": True},
+            "milvus.max_capacity tag must be",
+        ),
+    ],
+    ids=[
+        "params_without_index",
+        "bad_json",
+        "json_index_on_text",
+        "vector",
+        "capacity",
+    ],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_index_and_capacity_tags_are_validated(
+    mock_client_cls: MagicMock, field: Field, online_store: Dict[str, Any], match: str
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[Field(name="driver_id", dtype=Int64), field],
+    )
+
+    with pytest.raises(ValueError, match=match):
+        MilvusOnlineStore()._get_or_create_collection(_mock_config(**online_store), fv)
+
+    mock_client.create_collection.assert_not_called()
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_missing_tag_indexes_on_an_existing_collection_are_logged(
+    mock_client_cls: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=True)
+    mock_client.get_load_state.return_value = {"state": LoadState.Loaded}
+    mock_client.describe_collection.return_value = _existing_collection_description()
+    mock_client.list_indexes.return_value = ["vector_index__placeholder_vector"]
+    fv = FeatureView(
+        name="driver_stats",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips_today", dtype=Float32),
+            Field(name="city", dtype=String, tags={"milvus.index": "INVERTED"}),
+        ],
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    assert "scalar_index_city" in caplog.text
+    mock_client.create_index.assert_not_called()
+
+
+def test_json_null_reads_as_missing_and_json_scalars_are_rejected(
+    tmp_path: Path,
+) -> None:
+    config = _native_config(tmp_path)
+    fv = _typed_feature_view("documents", Json)
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(store, config, fv, {1: {"value": ValueProto(json_val="null")}})
+    rows = _read(store, config, fv, [1], ["value"])
+    assert rows[0] is not None and rows[0]["value"].WhichOneof("val") is None
+
+    for text, match in [
+        ('"text"', "not a top-level str"),
+        ("12", "not a top-level int"),
+        ("not json", "not valid JSON"),
+    ]:
+        with pytest.raises(ValueError, match=match):
+            _write_rows(store, config, fv, {2: {"value": ValueProto(json_val=text)}})
+
+
+def test_a_json_column_that_cannot_be_null_rejects_a_missing_value(
+    tmp_path: Path,
+) -> None:
+    config = _native_config(tmp_path)
+    fv = _typed_feature_view("documents", Json, tags={"milvus.nullable": "false"})
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    assert store.client is not None
+    description = store.client.describe_collection("test_milvus_documents")
+    assert not next(f for f in description["fields"] if f["name"] == "value").get(
+        "nullable", False
+    )
+
+    with pytest.raises(ValueError, match="cannot be null"):
+        _write_rows(store, config, fv, {1: {"value": ValueProto()}})
