@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -63,12 +63,6 @@ class RestRegistryServer:
             root_path="/api/v1",
             docs_url="/",
             redoc_url="/docs",
-            default_status_code=status.HTTP_200_OK,
-            default_headers={
-                "X-Content-Type-Options": "nosniff",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Frame-Options": "DENY",
-            },
         )
         self._add_exception_handlers()
         self._add_logging_middleware()
