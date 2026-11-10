@@ -3387,6 +3387,7 @@ spec:
                                 - aerospike
                                 - scylladb
                                 - chronon
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -10735,6 +10736,7 @@ spec:
                                     - aerospike
                                     - scylladb
                                     - chronon
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
@@ -16353,6 +16355,7 @@ spec:
                                 - aerospike
                                 - scylladb
                                 - chronon
+                                - pinecone
                                 type: string
                             required:
                             - secretRef
@@ -20931,6 +20934,7 @@ spec:
                                     - aerospike
                                     - scylladb
                                     - chronon
+                                    - pinecone
                                     type: string
                                 required:
                                 - secretRef
@@ -24422,6 +24426,7 @@ rules:
   - get
   - list
   - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -24430,6 +24435,7 @@ rules:
   - create
   - get
   - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resourceNames:
@@ -24607,14 +24613,14 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.66.0
+          value: quay.io/feastdev/feature-server:0.67.0
         - name: RELATED_IMAGE_CRON_JOB
-          value: quay.io/openshift/origin-cli:4.17
+          value: registry.k8s.io/kubectl:v1.35.9
         - name: GOMEMLIMIT
           value: 230MiB
         - name: OIDC_ISSUER_URL
           value: ""
-        image: quay.io/feastdev/feast-operator:0.66.0
+        image: quay.io/feastdev/feast-operator:0.67.0
         livenessProbe:
           httpGet:
             path: /healthz
