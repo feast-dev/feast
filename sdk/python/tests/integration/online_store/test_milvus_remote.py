@@ -587,7 +587,6 @@ def test_native_complex_types_filters_and_tag_indexes(
     config = _repo_config(
         tmp_path,
         project,
-        enable_openai_compatible_store=True,
         consistency_level="Strong",
     )
     fv = FeatureView(

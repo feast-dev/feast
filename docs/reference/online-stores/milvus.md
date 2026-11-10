@@ -101,7 +101,7 @@ online_store:
 | `partition_key_isolation` | unset | Enables partition key isolation on a new collection that has a partition key. When unset, Milvus uses its default. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
-| `enable_openai_compatible_store` | `false` | Store numeric, array, `Json`, `Map` and `Struct` features as native Milvus types. See [Field types](#field-types). |
+| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
 
@@ -237,8 +237,8 @@ type.
 | `UnixTimestamp` | `VARCHAR` holding the seconds as text | `INT64` |
 | `Bytes` | `VARCHAR` holding base64 | `VARCHAR` holding base64 |
 | `Array` with `vector_index=True` | `FLOAT_VECTOR` with the field's `vector_length`, or `embedding_dim` when it is unset | the same |
-| `Array` of `String`, `Bool`, `Int32`, `Int64`, `Float32`, `Float64` or `UnixTimestamp` without `vector_index` | `VARCHAR` holding the serialized value | `ARRAY` of the element type, with at most `milvus.max_capacity` elements. The default and the maximum are 4096 |
-| `Json` and `Array(Json)` | `VARCHAR` holding the serialized value | `JSON` |
+| `Array` of `String`, `Bool`, `Int32`, `Int64`, `Float32`, `Float64` or `UnixTimestamp` without `vector_index` | `ARRAY` of the element type, with at most `milvus.max_capacity` elements. The default and the maximum are 4096 | the same |
+| `Json` and `Array(Json)` | `JSON` | the same |
 | Every other type, including `Map` and `Struct` | `VARCHAR` holding the serialized value | the same |
 
 Filters apply to `VARCHAR` and native columns. A column that holds a serialized value can be read
@@ -256,9 +256,10 @@ value comes back as the JSON text of the stored document, so its formatting is n
 typed lists. `JSON` and `ARRAY` columns are nullable unless the field has `milvus.nullable: "false"`.
 
 {% hint style="warning" %}
-`enable_openai_compatible_store` only applies when Feast creates a collection. Feast detects the
-column types of an existing collection, so reads and writes keep working whichever way it was
-created. `feast teardown` drops the collections of every feature view in the project, online reads
+Column types only apply when Feast creates a collection. A collection that an older Feast version
+created keeps its `VARCHAR` columns, and Feast detects the column types of each collection, so
+reads and writes keep working whichever way it was created. To get the new columns for an existing
+feature view, recreate its collection: `feast teardown` drops the collections of every feature view in the project, online reads
 fail until materialization finishes, and rows that exist only in the online store are lost. To
 migrate without a teardown, add a copy of the feature view under a new name, materialize it, move
 readers to it, then remove the old view.
@@ -299,7 +300,7 @@ Field(
 `STL_SORT`, `Trie` or `AUTOINDEX`, and `milvus.index_params` passes a JSON object of parameters.
 `milvus.json_indexes` is a JSON list of index definitions for paths of a `JSON` column, each with a
 `json_path`, a `json_cast_type` and an optional `index_type` that defaults to `INVERTED`. It needs
-native types and a Milvus server with JSON path indexes. Vector indexes come from `index_type` and
+a Milvus server with JSON path indexes. Vector indexes come from `index_type` and
 `index_params` in the store config.
 
 Indexes only apply when Feast creates a collection. For an existing collection without them, Feast
