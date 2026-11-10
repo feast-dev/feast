@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 import ray
 
+from feast import Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.aggregation import Aggregation
 from feast.infra.compute_engines.dag.context import ColumnInfo
 from feast.infra.compute_engines.dag.model import DAGFormat
@@ -19,13 +20,16 @@ from feast.infra.compute_engines.ray.nodes import (
     RayJoinNode,
     RayReadNode,
     RayTransformationNode,
+    RayWriteNode,
 )
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.infra.ray_initializer import (
     RayConfigManager,
     RayExecutionMode,
     ensure_ray_initialized,
     get_ray_wrapper,
 )
+from feast.types import Float32
 
 
 class DummyInputNode(DAGNode):
@@ -193,6 +197,34 @@ def test_ray_aggregation_node(
     assert "driver_id" in result_df.columns
     assert "sum_conv_rate" in result_df.columns
     assert "avg_acc_rate" in result_df.columns
+
+
+def test_ray_tiled_aggregation_node_keeps_created_timestamp(
+    ray_session, ray_config, mock_context, sample_data
+):
+    """Tiled aggregation must keep the latest created timestamp per entity."""
+    input_value = DAGValue(data=ray.data.from_pandas(sample_data), format=DAGFormat.RAY)
+    node = RayAggregationNode(
+        name="aggregation",
+        aggregations=[
+            Aggregation(
+                column="conv_rate", function="sum", time_window=timedelta(days=1)
+            )
+        ],
+        group_by_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        config=ray_config,
+        enable_tiling=True,
+        hop_size=timedelta(hours=1),
+        created_timestamp_col="created",
+    )
+    node.add_input(DummyInputNode("input_node", input_value))
+    mock_context.node_outputs = {"input_node": input_value}
+
+    result_df = node.execute(mock_context).data.to_pandas().set_index("driver_id")
+
+    expected = sample_data.groupby("driver_id")["created"].max()
+    assert (result_df["created"] == expected.loc[result_df.index]).all()
 
 
 def test_ray_join_node(ray_session, ray_config, mock_context, sample_data, column_info):
@@ -437,6 +469,38 @@ def test_ray_dedup_node_materialization_no_join_keys(
     assert len(result_df) == len(sample_data), (
         "All rows should survive when there are no join keys to deduplicate on"
     )
+
+
+def test_ray_write_node_raises_when_online_write_fails(
+    ray_session, mock_context, sample_data, tmp_path
+):
+    """A failed online store write must fail the write node, not be swallowed."""
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        source=FileSource(
+            path=str(tmp_path / "source.parquet"), timestamp_field="event_timestamp"
+        ),
+        online=True,
+        offline=False,
+    )
+    # The online table was never created, so every write raises "no such table".
+    mock_context.repo_config = RepoConfig(
+        project="test_project",
+        registry=str(tmp_path / "registry.db"),
+        provider="local",
+        entity_key_serialization_version=3,
+        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+    )
+    input_value = DAGValue(data=ray.data.from_pandas(sample_data), format=DAGFormat.RAY)
+    node = RayWriteNode(name="write", feature_view=feature_view)
+    node.add_input(DummyInputNode("input_node", input_value))
+    mock_context.node_outputs = {"input_node": input_value}
+
+    with pytest.raises(Exception, match="no such table"):
+        node.execute(mock_context)
 
 
 def test_ray_config_validation():

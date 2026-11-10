@@ -1588,10 +1588,10 @@ VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
-    Returns Feast ValueType given Feast ValueType string.
+    Returns Feast ValueType given a Feast proto value.
 
     Args:
-        proto_str: str
+        proto_value: ProtoValue
 
     Returns:
         A variant of ValueType.
