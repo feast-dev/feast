@@ -16,6 +16,10 @@ export interface OpenLineageNode {
   description?: string;
   job_type?: string;
   source_type?: string;
+  owner?: string;
+  owner_type?: string;
+  lifecycle_state?: string;
+  current_version?: number;
   facets?: Record<string, any>;
 }
 

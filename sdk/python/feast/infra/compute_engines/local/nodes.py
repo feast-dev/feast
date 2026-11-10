@@ -138,14 +138,18 @@ class LocalFilterNode(LocalNode):
 
         if ENTITY_TS_ALIAS in self.backend.columns(df):
             # filter where feature.ts <= entity.event_timestamp
-            df = df[df[timestamp_column] <= df[ENTITY_TS_ALIAS]]
+            df = self.backend.filter_by_mask(
+                df, df[timestamp_column] <= df[ENTITY_TS_ALIAS]
+            )
 
             # TTL: feature.ts >= entity.event_timestamp - ttl
             if self.ttl:
                 lower_bound = df[ENTITY_TS_ALIAS] - self.backend.to_timedelta_value(
                     self.ttl
                 )
-                df = df[df[timestamp_column] >= lower_bound]
+                df = self.backend.filter_by_mask(
+                    df, df[timestamp_column] >= lower_bound
+                )
 
         # Optional user-defined filter expression (e.g., "value > 0")
         if self.filter_expr:

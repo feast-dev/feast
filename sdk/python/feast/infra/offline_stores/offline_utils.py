@@ -412,7 +412,8 @@ def get_timestamp_filter_sql(
             if tz:
                 val = val.astimezone(tz)
             return val.strftime("%Y-%m-%d")
-        return val
+        # Partition columns hold dates; drop any time-of-day from ISO strings.
+        return val[:10]
 
     ts_field = quote_column_if_needed(timestamp_field)
     dp_field = quote_column_if_needed(date_partition_column)
