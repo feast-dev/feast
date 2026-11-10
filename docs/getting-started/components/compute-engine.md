@@ -22,6 +22,7 @@ engines.
 |-------------------------|-------------------------------------------------------------------------------------------------|------------|------|
 | LocalComputeEngine      | Runs on Arrow + Pandas/Polars/Dask etc., designed for light weight transformation.              | ✅         |      |
 | SparkComputeEngine      | Runs on Apache Spark, designed for large-scale distributed feature generation.                  | ✅         |      |
+| TrinoComputeEngine      | Runs on Trino, designed for scalable feature generation using Trino SQL.                         | ✅         | [docs](../../reference/compute-engine/trino.md) |
 | SnowflakeComputeEngine  | Runs on Snowflake, designed for scalable feature generation using Snowflake SQL.                | ✅         |      |
 | LambdaComputeEngine     | Runs on AWS Lambda, designed for serverless feature generation.                                 | ✅         |      |
 | FlinkComputeEngine      | Runs on Apache Flink, designed for distributed feature generation through PyFlink Table API.    | ✅         |      |

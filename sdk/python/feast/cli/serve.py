@@ -116,6 +116,12 @@ logging.basicConfig(level=logging.INFO)
     show_default=True,
     help="Enable the Metrics Server",
 )
+@click.option(
+    "--gc-freeze",
+    is_flag=True,
+    show_default=True,
+    help="Run gc.freeze() after startup so full garbage collections skip the registry and other startup objects",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -132,6 +138,7 @@ def serve_command(
     tls_key_path: str,
     tls_cert_path: str,
     metrics: bool,
+    gc_freeze: bool,
 ):
     """Start a feature server locally on a given port."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
@@ -158,6 +165,7 @@ def serve_command(
         tls_key_path=tls_key_path,
         tls_cert_path=tls_cert_path,
         registry_ttl_sec=registry_ttl_sec,
+        gc_freeze=gc_freeze,
     )
 
 
@@ -225,6 +233,14 @@ def serve_transformations_command(ctx: click.Context, port: int):
     show_default=True,
     help="Start a REST API Registry Server",
 )
+@click.option(
+    "--host",
+    "-h",
+    type=click.STRING,
+    default="::",
+    show_default=True,
+    help="Bind address for the REST API Registry Server (ignored for gRPC).",
+)
 @click.pass_context
 def serve_registry_command(
     ctx: click.Context,
@@ -234,6 +250,7 @@ def serve_registry_command(
     grpc: bool,
     rest_api: bool,
     rest_port: int,
+    host: str,
 ):
     """Start Feast Registry server (gRPC by default, REST opt-in)."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
@@ -253,7 +270,7 @@ def serve_registry_command(
             ),
             multiprocessing.Process(
                 target=_serve_rest_registry,
-                args=(repo_path, rest_port, tls_key_path, tls_cert_path),
+                args=(repo_path, rest_port, tls_key_path, tls_cert_path, host),
                 name="rest_registry_server",
             ),
         ]
@@ -272,6 +289,7 @@ def serve_registry_command(
                 tls_key_path=tls_key_path,
                 tls_cert_path=tls_cert_path,
                 rest_api=rest_api,
+                host=host,
             )
 
 
@@ -289,7 +307,11 @@ def _serve_grpc_registry(
 
 
 def _serve_rest_registry(
-    repo_path: str, port: int, tls_key_path: str, tls_cert_path: str
+    repo_path: str,
+    port: int,
+    tls_key_path: str,
+    tls_cert_path: str,
+    host: str,
 ):
     from feast import FeatureStore
 
@@ -299,6 +321,7 @@ def _serve_rest_registry(
         tls_key_path=tls_key_path,
         tls_cert_path=tls_cert_path,
         rest_api=True,
+        host=host,
     )
 
 

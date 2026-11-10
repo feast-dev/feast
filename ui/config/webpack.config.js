@@ -32,9 +32,8 @@ const createEnvironmentHash = require("./webpack/persistentCache/createEnvironme
 const shouldUseSourceMap = process.env.GENERATE_SOURCEMAP !== "false";
 
 const reactRefreshRuntimeEntry = require.resolve("react-refresh/runtime");
-const reactRefreshWebpackPluginRuntimeEntry = require.resolve(
-  "@pmmmwh/react-refresh-webpack-plugin",
-);
+const reactRefreshWebpackPluginRuntimeEntry =
+  require.resolve("@pmmmwh/react-refresh-webpack-plugin");
 const babelRuntimeEntry = require.resolve("babel-preset-react-app");
 const babelRuntimeEntryHelpers = require.resolve(
   "@babel/runtime/helpers/esm/assertThisInitialized",
@@ -409,9 +408,8 @@ module.exports = function (webpackEnv) {
               include: paths.appSrc,
               loader: require.resolve("babel-loader"),
               options: {
-                customize: require.resolve(
-                  "babel-preset-react-app/webpack-overrides",
-                ),
+                customize:
+                  require.resolve("babel-preset-react-app/webpack-overrides"),
                 presets: [
                   [
                     require.resolve("babel-preset-react-app"),

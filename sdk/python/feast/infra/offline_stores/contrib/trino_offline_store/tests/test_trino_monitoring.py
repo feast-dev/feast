@@ -768,6 +768,48 @@ def test_query_monitoring_metrics_raises_on_connection_error(repo_config):
             )
 
 
+def test_query_monitoring_metrics_missing_schema_is_empty(repo_config):
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoQueryError(
+        {"errorName": "SCHEMA_NOT_FOUND", "message": "Schema does not exist"}
+    )
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        res = TrinoOfflineStore.query_monitoring_metrics(
+            config=repo_config,
+            project="test_project",
+            metric_type="feature",
+        )
+    assert res == []
+
+
+@pytest.mark.parametrize(
+    "error_name", ["ACCESS_DENIED", "SYNTAX_ERROR", "GENERIC_INTERNAL_ERROR"]
+)
+def test_query_monitoring_metrics_raises_on_other_query_errors(repo_config, error_name):
+    # Only a missing table or schema means "no metrics yet". Anything else must not
+    # reach the monitoring UI as an empty result.
+    mock_client = MagicMock()
+    mock_client.execute_query.side_effect = TrinoQueryError(
+        {"errorName": error_name, "message": "query failed"}
+    )
+
+    with patch(
+        "feast.infra.offline_stores.contrib.trino_offline_store.trino._get_trino_client",
+        return_value=mock_client,
+    ):
+        with pytest.raises(TrinoQueryError) as exc_info:
+            TrinoOfflineStore.query_monitoring_metrics(
+                config=repo_config,
+                project="test_project",
+                metric_type="feature",
+            )
+    assert exc_info.value.error_name == error_name
+
+
 def test_clear_monitoring_baseline_falls_back_on_query_error(repo_config):
     mock_client = MagicMock()
     executed_queries = []

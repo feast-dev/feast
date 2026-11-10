@@ -29,6 +29,11 @@ There are currently four core offline store implementations: `DaskOfflineStore`,
 There are several additional implementations contributed by the Feast community  (`PostgreSQLOfflineStore`, `SparkOfflineStore`, `TrinoOfflineStore`, and `RayOfflineStore`), which are not guaranteed to be stable or to match the functionality of the core implementations.
 Details for each specific offline store, such as how to configure it in a `feature_store.yaml`, can be found [here](README.md).
 
+The community [Chronon offline store](chronon.md) reads materialized Parquet with
+point-in-time joins and supports local on-demand transforms and Parquet saved
+datasets. Computation and materialization remain managed by Chronon; see its
+[functionality matrix](chronon.md#functionality-matrix) for supported operations.
+
 Below is a matrix indicating which offline stores support which methods.
 
 || | Dask | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | Couchbase | Ray |

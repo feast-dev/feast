@@ -30,6 +30,7 @@ Key performance options:
 - `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
 - `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
 - `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+- `--gc-freeze`: Run `gc.freeze()` after startup to shorten full garbage collection pauses. See [Garbage collection pauses](../../how-to-guides/online-server-performance-tuning.md#garbage-collection-pauses) (default: off)
 
 ### Performance Best Practices
 
@@ -286,7 +287,7 @@ curl -X POST "http://localhost:6566/materialize" -d '{
 }' | jq
 ```
 
-When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data is materialized using the current datetime as the event timestamp. This is useful when your source data lacks proper event timestamp columns.
+When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data (from 1970-01-01 up to the current UTC time) is materialized. Rows keep the event timestamps from the source.
 
 Or from Python:
 ```python
