@@ -135,7 +135,8 @@ jobs:
         run: make install-feast-locally
       - name: Run Go tests with coverage
         run: |
-          CGO_ENABLED=1 go test \
+          # The Go packages share a registry fixture and must run sequentially.
+          CGO_ENABLED=1 go test -p 1 \
             -coverprofile=go/coverage.out \
             -covermode=atomic \
             -skip "TestGetOnlineFeatures|TestSqliteOnlineRead" \
