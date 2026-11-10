@@ -300,6 +300,30 @@ class DaskOfflineStore(OfflineStore):
                     full_feature_names,
                 )
 
+                # Keep the source created timestamp separate from request data.
+                # Otherwise the merge suffixes the source column, so the cutoff
+                # and deduplication read the entity column instead.
+                if (
+                    created_timestamp_column
+                    and created_timestamp_column in entity_df_with_features.columns
+                ):
+                    source_created_timestamp_column = f"__{created_timestamp_column}"
+                    existing_columns = (
+                        set(entity_df_with_features.columns)
+                        | set(df_to_join.columns)
+                        | set(features)
+                    )
+                    while source_created_timestamp_column in existing_columns:
+                        source_created_timestamp_column = (
+                            f"_{source_created_timestamp_column}"
+                        )
+                    df_to_join = df_to_join.rename(
+                        columns={
+                            created_timestamp_column: source_created_timestamp_column
+                        }
+                    )
+                    created_timestamp_column = source_created_timestamp_column
+
                 # In non-entity mode, if the synthetic entity_df lacks join keys, cross join to build a snapshot
                 # of all entities as-of the requested timestamp, then rely on TTL and deduplication to select
                 # the appropriate latest rows per entity.
@@ -463,23 +487,19 @@ class DaskOfflineStore(OfflineStore):
 
         # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
         # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
-        try:
-            if created_timestamp_column:
-                source_df = source_df.sort_values(
-                    by=created_timestamp_column,
-                )
+        # Sort by both columns at once: sort_values is not stable, so a separate
+        # sort by created_timestamp_column would not reliably break ties.
+        sort_columns = [timestamp_field]
+        if created_timestamp_column:
+            sort_columns.append(created_timestamp_column)
 
-            source_df = source_df.sort_values(by=timestamp_field)
+        try:
+            source_df = source_df.sort_values(by=sort_columns)
 
         except ZeroDivisionError:
             # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
             # try to divide by zero.
-            if created_timestamp_column:
-                source_df = source_df.sort_values(
-                    by=created_timestamp_column, npartitions=1
-                )
-
-            source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
+            source_df = source_df.sort_values(by=sort_columns, npartitions=1)
 
         # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
         # Which is inconsistent with other offline stores.
@@ -1304,27 +1324,21 @@ def _drop_duplicates(
 
     # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
     # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
-    try:
-        if created_timestamp_column:
-            df_to_join = df_to_join.sort_values(
-                by=created_timestamp_column, na_position="first"
-            )
-            df_to_join = df_to_join.persist()
+    # Sort by both columns at once: sort_values is not stable, so a separate
+    # sort by created_timestamp_column would not reliably break ties.
+    sort_columns = [timestamp_field]
+    if created_timestamp_column:
+        sort_columns.append(created_timestamp_column)
 
-        df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
+    try:
+        df_to_join = df_to_join.sort_values(by=sort_columns, na_position="first")
         df_to_join = df_to_join.persist()
 
     except ZeroDivisionError:
         # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
         # try to divide by zero.
-        if created_timestamp_column:
-            df_to_join = df_to_join[column_order].sort_values(
-                by=created_timestamp_column, na_position="first", npartitions=1
-            )
-            df_to_join = df_to_join.persist()
-
         df_to_join = df_to_join[column_order].sort_values(
-            by=timestamp_field, na_position="first", npartitions=1
+            by=sort_columns, na_position="first", npartitions=1
         )
         df_to_join = df_to_join.persist()
 

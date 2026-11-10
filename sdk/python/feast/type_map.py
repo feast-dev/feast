@@ -235,7 +235,11 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_val", "time_uuid_val"):
         return uuid_module.UUID(val) if isinstance(val, str) else val
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
-        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+        # None elements are stored as "" (see _LIST_NONE_DEFAULTS)
+        return [
+            None if v == "" else uuid_module.UUID(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr in ("uuid_set_val", "time_uuid_set_val"):
         return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
 
@@ -243,7 +247,10 @@ def feast_value_type_to_python_type(
     if val_attr == "decimal_val":
         return decimal.Decimal(val) if isinstance(val, str) else val
     if val_attr == "decimal_list_val":
-        return [decimal.Decimal(v) if isinstance(v, str) else v for v in val]
+        return [
+            None if v == "" else decimal.Decimal(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr == "decimal_set_val":
         return {decimal.Decimal(v) if isinstance(v, str) else v for v in val}
 
