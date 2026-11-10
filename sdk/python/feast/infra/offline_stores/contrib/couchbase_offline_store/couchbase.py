@@ -554,7 +554,7 @@ WITH entity_dataframe AS (
             {% if featureview.entities -%}
             ,CONCAT(
                 {% for entity in featureview.entities -%}
-                    TOSTRING(e.`{{entity}}`),
+                    TOSTRING(LENGTH(TOSTRING(e.`{{entity}}`))), ':', TOSTRING(e.`{{entity}}`),
                 {% endfor -%}
                 TOSTRING(e.`{{entity_df_event_timestamp_col}}`)
             ) AS `{{featureview.name}}__entity_row_unique_id`
