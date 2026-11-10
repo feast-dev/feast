@@ -810,9 +810,9 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
     not (
         sys.version_info[0:2] in [(3, 10), (3, 11)]
         and platform.system() == "Darwin"
-        and MAC_VER != "14"
+        and int(MAC_VER) < 14
     ),
-    reason="Only works on Python 3.10 and 3.11 on macOS",
+    reason="Legacy write fixtures require Python 3.10/3.11 and macOS 13 or older",
 )
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def test_stored_writes(self):
