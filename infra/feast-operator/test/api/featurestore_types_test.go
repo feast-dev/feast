@@ -474,6 +474,37 @@ func cronJobWithoutAnnotations(featureStore *feastdevv1.FeatureStore) *feastdevv
 	return fsCopy
 }
 
+func mcpServerWithOmittedOnlineStore(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		McpServer: &feastdevv1.McpServerConfig{},
+	}
+	return fsCopy
+}
+
+func mcpServerWithDisabledOnlineStore(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1.FeatureStoreServices{
+		OnlineStore: &feastdevv1.OnlineStore{
+			Disabled: true,
+		},
+		McpServer: &feastdevv1.McpServerConfig{},
+	}
+	return fsCopy
+}
+
+func mcpServerWithOnlyRestRegistry(featureStore *feastdevv1.FeatureStore) *feastdevv1.FeatureStore {
+	fsCopy := mcpServerWithDisabledOnlineStore(featureStore)
+	fsCopy.Spec.Services.Registry = &feastdevv1.Registry{
+		Local: &feastdevv1.LocalRegistryConfig{
+			Server: &feastdevv1.RegistryServerConfigs{
+				RestAPI: boolPtr(true),
+			},
+		},
+	}
+	return fsCopy
+}
+
 func quotedSlice(stringSlice []string) string {
 	quotedSlice := make([]string, len(stringSlice))
 
@@ -692,6 +723,45 @@ var _ = Describe("FeatureStore API", func() {
 				resource := registryWithGRPCFalse(featurestore)
 				attemptInvalidCreationAndAsserts(ctx, resource, "At least one of restAPI or grpc must be true")
 			})
+		})
+	})
+
+	Context("When creating an MCP server", func() {
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			By("verifying the custom resource FeatureStore is not there")
+			resource := &feastdevv1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+		AfterEach(func() {
+			By("Cleaning up the test resource")
+			resource := &feastdevv1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("should succeed when onlineStore is omitted (defaults to an online feature server)", func() {
+			featurestore := createFeatureStore()
+			resource := mcpServerWithOmittedOnlineStore(featurestore)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		It("should succeed when onlineStore is disabled and the registry REST API is enabled", func() {
+			featurestore := createFeatureStore()
+			resource := mcpServerWithOnlyRestRegistry(featurestore)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		It("should fail when onlineStore is disabled and the registry REST API is not enabled", func() {
+			featurestore := createFeatureStore()
+			resource := mcpServerWithDisabledOnlineStore(featurestore)
+			attemptInvalidCreationAndAsserts(ctx, resource, "mcpServer requires at least one upstream")
 		})
 	})
 

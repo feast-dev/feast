@@ -5,7 +5,7 @@ import os
 import sys
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, Iterator, List, Optional, Union, cast
 
 _FIPS_CIPHER_SUITES = ":".join(
     [
@@ -78,6 +78,30 @@ logger.setLevel(logging.INFO)
 
 if _fips_configured:
     logger.info("FIPS mode detected, configured FIPS-compliant gRPC cipher suites.")
+
+
+# Arrow Flight/IPC refuses to send any single RecordBatch above 2GiB
+# ("Cannot send record batches exceeding 2GiB yet"); stay well under it.
+_MAX_BATCH_BYTES = 1_500_000_000
+
+
+def _split_oversized(batch: pa.RecordBatch) -> Iterator[pa.RecordBatch]:
+    if batch.num_rows <= 1 or pa.ipc.get_record_batch_size(batch) <= _MAX_BATCH_BYTES:
+        yield batch
+        return
+    half = batch.num_rows // 2
+    yield from _split_oversized(batch.slice(0, half))
+    yield from _split_oversized(batch.slice(half))
+
+
+def _bounded_reader(
+    data: Union[pa.Table, pa.RecordBatchReader],
+) -> pa.RecordBatchReader:
+    """Re-batch a result so no single RecordBatch exceeds _MAX_BATCH_BYTES."""
+    batches = data.to_batches() if isinstance(data, pa.Table) else data
+    return pa.RecordBatchReader.from_batches(
+        data.schema, (part for batch in batches for part in _split_oversized(batch))
+    )
 
 
 class OfflineServer(fl.FlightServerBase):
@@ -293,7 +317,7 @@ class OfflineServer(fl.FlightServerBase):
 
         # Get service is consumed, so we clear the corresponding flight and data
         del self.flights[key]
-        return fl.RecordBatchStream(table)
+        return fl.RecordBatchStream(_bounded_reader(table))
 
     @inject_user_details_decorator
     @arrow_server_error_handling_decorator
@@ -342,8 +366,10 @@ class OfflineServer(fl.FlightServerBase):
             traceback.print_exc()
             raise e
 
-        writer.begin(table.schema)
-        writer.write_table(table)
+        bounded = _bounded_reader(table)
+        writer.begin(bounded.schema)
+        for batch in bounded:
+            writer.write_batch(batch)
 
     def _execute_read_api(
         self, api: str, command: dict, key: Optional[str] = None

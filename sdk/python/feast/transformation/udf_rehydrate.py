@@ -9,8 +9,11 @@ Preferring source avoids:
 
 from __future__ import annotations
 
+import builtins
+import dis
 import logging
-from typing import Callable, Optional
+from types import CodeType
+from typing import Callable, Optional, Set
 
 import dill
 
@@ -119,6 +122,46 @@ def _exec_namespace() -> dict:
     return ns
 
 
+def _unresolved_global_names(func: Callable, namespace: dict) -> Set[str]:
+    """Global names *func* loads that neither *namespace* nor builtins provide.
+
+    ``exec``-ing a function definition only binds the function; the globals its
+    body reads are looked up when it is *called*. Source text alone therefore
+    cannot tell us whether the callable actually works — a UDF referencing a
+    helper or constant from its defining module execs cleanly and then raises
+    ``NameError`` mid-retrieval.
+
+    Only ``LOAD_GLOBAL`` operands count. ``co_names`` also holds attribute names
+    (``df.columns``), which would flag working UDFs and push them onto the dill
+    path for no reason. Nested code objects (inner functions, comprehensions)
+    are walked too.
+    """
+    missing: Set[str] = set()
+    code = getattr(func, "__code__", None)
+    if code is None:
+        return missing
+
+    seen: Set[int] = set()
+    pending = [code]
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        for instruction in dis.get_instructions(current):
+            if instruction.opname != "LOAD_GLOBAL":
+                continue
+            name = instruction.argval
+            if not isinstance(name, str):
+                continue
+            if name not in namespace and not hasattr(builtins, name):
+                missing.add(name)
+        for const in current.co_consts:
+            if isinstance(const, CodeType):
+                pending.append(const)
+    return missing
+
+
 def rehydrate_udf_from_source(
     udf_string: str,
     *,
@@ -141,7 +184,7 @@ def rehydrate_udf_from_source(
         return None
 
     if preferred_name and preferred_name in ns and callable(ns[preferred_name]):
-        return ns[preferred_name]
+        return _accept_if_self_contained(ns[preferred_name], ns)
 
     for value in ns.values():
         if not callable(value):
@@ -152,9 +195,27 @@ def rehydrate_udf_from_source(
         # Skip imported modules / classes we seeded
         if name in ("DataFrame",):
             continue
-        return value
+        return _accept_if_self_contained(value, ns)
 
     return None
+
+
+def _accept_if_self_contained(func: Callable, ns: dict) -> Optional[Callable]:
+    """Return *func* only if every global it reads is available, else ``None``.
+
+    Returning ``None`` lets :func:`resolve_udf` fall back to the dill body, which
+    carries the UDF's captured globals and can still run.
+    """
+    missing = _unresolved_global_names(func, ns)
+    if missing:
+        logger.debug(
+            "udf source rehydrate skipped for %s: unresolved global names %s; "
+            "falling back to the serialized body",
+            getattr(func, "__name__", func),
+            sorted(missing),
+        )
+        return None
+    return func
 
 
 def resolve_udf(

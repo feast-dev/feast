@@ -214,5 +214,5 @@ spec:
 - [API reference — `OpenLineageConfig`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#openlineageconfig)
 - [API reference — `MaterializationConfig`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#materializationconfig)
 - [Sample: materialization + openlineage](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_materialization_openlineage.yaml)
-- [Feast SDK — OpenLineage](../reference/openlineage.md)
+- [Feast SDK — OpenLineage](../../reference/openlineage.md)
 - [Guide 6 — Batch Engine & Scheduled Jobs](06-batch-and-jobs.md)

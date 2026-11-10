@@ -18,7 +18,7 @@ def _require_mlflow() -> None:
         import mlflow  # noqa: F401
     except ImportError as e:
         raise click.ClickException(
-            "The 'mlflow' package is required. Install it with: pip install 'feast[mlflow]'"
+            "The 'mlflow' package is required. Install the 'feast[mlflow]' extra in your environment."
         ) from e
 
 

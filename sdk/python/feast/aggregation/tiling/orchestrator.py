@@ -49,11 +49,12 @@ def apply_sawtooth_window_tiling(
     # Step 1: Add hop interval column
     hop_size_ms = int(hop_size.total_seconds() * 1000)
 
-    # Convert timestamp to milliseconds
-    if pd.api.types.is_datetime64_any_dtype(df[timestamp_col]):
-        timestamp_ms = df[timestamp_col].astype("int64") // 10**6
-    else:
-        timestamp_ms = pd.to_datetime(df[timestamp_col]).astype("int64") // 10**6
+    # Convert timestamp to milliseconds. Measure from the epoch instead of
+    # reading the raw integers, which are only nanoseconds for datetime64[ns]
+    # (Arrow-backed frames are often datetime64[us]).
+    timestamps = pd.to_datetime(df[timestamp_col])
+    epoch = pd.Timestamp(0, tz=timestamps.dt.tz)
+    timestamp_ms = (timestamps - epoch) // pd.Timedelta(milliseconds=1)
 
     # Compute hop interval (inclusive lower boundaries)
     df["_hop_interval"] = (timestamp_ms // hop_size_ms) * hop_size_ms

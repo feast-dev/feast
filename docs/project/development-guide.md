@@ -239,7 +239,7 @@ To test across clouds, on top of setting up Redis, you also need GCP / AWS / Sno
   ```
   Credentials saved to file: [$HOME/.config/gcloud/application_default_credentials.json]
   ```
-- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json”` to add the application credentials to your .zshrc or .bashrc.
+- You should run `export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"` to add the application credentials to your .zshrc or .bashrc.
 5. Run `export GCLOUD_PROJECT=[your project id from step 2]` to your .zshrc or .bashrc.
 6. Running `gcloud config list` should give you something like this:
   ```sh
@@ -307,7 +307,7 @@ export AWS_REGISTRY_PATH='[your aws registry path]'
   export SNOWFLAKE_CI_ROLE='[your CI role e.g. SYSADMIN]'
   export SNOWFLAKE_CI_WAREHOUSE='[your warehouse]'
   export BLOB_EXPORT_STORAGE_NAME='[your data unloading storage name]'
-  export BLOB_EXPORT_URI='[your data unloading blob uri]`
+  export BLOB_EXPORT_URI='[your data unloading blob uri]'
   ```
 7. Once everything is setup, running snowflake integration tests should pass without failures.
 
@@ -315,7 +315,7 @@ Note that for Snowflake / GCP / AWS, running `make test-python-integration`  wil
 
 #### (Advanced) Running specific provider tests or running your test against specific online or offline stores
 
-1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with specific providers or stores that you need(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
+1. To select offline stores, use `@pytest.mark.universal_offline_stores(only=["bigquery"])`. To select online stores, use `@pytest.mark.universal_online_stores(only=["sqlite"])`. These markers control separate dimensions of the integration-test matrix: the `only` values must be store names recognized by the corresponding marker. For example, to select the SQLite online store:
 
 ```python
 # Only parametrizes this test with the sqlite online store
@@ -394,7 +394,7 @@ It will:
 - install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
 
 ### Feast Python Feature Server Helm Chart
-See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
+See the Python demo example (it has development instructions too using minikube) [here](https://github.com/feast-dev/feast/blob/master/examples/python-helm-demo/README.md)
 
 It will:
 - run `make build-feature-server-dev` to build a local python feature server binary

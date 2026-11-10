@@ -58,6 +58,25 @@ online_store:
 ```
 {% endcode %}
 
+Connecting to [Zilliz Cloud](https://zilliz.com/cloud) (managed Milvus) with an API key.
+Read the token from an environment variable rather than committing it:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: milvus
+  uri: "https://<your-cluster-endpoint>"   # Public Endpoint from the Zilliz Cloud console
+  token: ${ZILLIZ_TOKEN}   # pragma: allowlist secret
+  db_name: "default"
+  embedding_dim: 768
+  index_type: "AUTOINDEX"
+  metric_type: "COSINE"
+```
+{% endcode %}
+
 ## Configuration options
 
 | Option | Default | Description |
@@ -65,16 +84,119 @@ online_store:
 | `path` | `""` | Path to a Milvus Lite database file. Used when `provider: local` and `path` is set. |
 | `host` | `http://localhost` | Milvus server host, including the scheme. |
 | `port` | `19530` | Milvus server port. |
+| `uri` | unset | Full endpoint, e.g. `https://<cluster>.zillizcloud.com:19530`. Takes precedence over `host`/`port`, and over `path`. |
 | `username` / `password` | `""` | Credentials, sent as the token `username:password`. |
+| `token` | unset | API key or `username:password`. Takes precedence over `username`/`password`. |
+| `db_name` | unset | Milvus database to use. The database must already exist. Defaults to the server's `default` database. |
 | `embedding_dim` | `128` | Dimension of vector fields. |
 | `index_type` | `FLAT` | Index type for vector fields with `vector_index=True`. |
 | `metric_type` | `COSINE` | Default metric when a field does not set `vector_search_metric`. |
-| `nlist` | `128` | `nlist` index parameter. |
+| `nlist` | `128` | `nlist` index parameter, used when `index_params` is unset. |
+| `index_params` | unset | Index build parameters passed to Milvus, e.g. `{M: 16, efConstruction: 200}` for HNSW. Defaults to `{nlist: <nlist>}`, or no parameters for `AUTOINDEX`. |
+| `search_params` | unset | Search parameters passed to Milvus, e.g. `{ef: 64}` for HNSW or `{level: 2}` for `AUTOINDEX`. Defaults to `{nprobe: 10}`, or no parameters for `AUTOINDEX`. |
+| `consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Sent with every read and search. When unset, Milvus uses the collection's level. |
+| `collection_consistency_level` | unset | `Strong`, `Bounded`, `Session` or `Eventually`. Set when Feast creates a collection. When unset, Milvus uses its default (`Bounded`). |
+| `partition_key` | unset | Field to use as the Milvus partition key in feature views that contain it. See [Partition key](#partition-key). |
+| `num_partitions` | unset | Number of partitions of a new collection that has a partition key. When unset, Milvus uses its default. |
+| `partition_key_isolation` | unset | Enables partition key isolation on a new collection that has a partition key. When unset, Milvus uses its default. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
-| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
+| `enable_openai_compatible_store` | `false` | Store numeric, array, `Json`, `Map` and `Struct` features as native Milvus types. See [Field types](#field-types). |
 
 The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
+
+## Index and search parameters
+
+`index_type`, `index_params` and `search_params` are passed through to Milvus, so any index type the
+server supports can be used. On Zilliz Cloud, `AUTOINDEX` is recommended; tune the recall/latency
+trade-off with the `level` search parameter:
+
+```yaml
+online_store:
+  type: milvus
+  index_type: "AUTOINDEX"
+  search_params:
+    level: 2
+```
+
+For HNSW:
+
+```yaml
+online_store:
+  type: milvus
+  index_type: "HNSW"
+  index_params:
+    M: 16
+    efConstruction: 200
+  search_params:
+    ef: 64
+```
+
+Index parameters only apply when Feast creates a collection. To change them for an existing
+collection, run `feast teardown` and `feast apply`, then materialize again.
+
+## Partition key
+
+A [partition key](https://milvus.io/docs/use-partition-key.md) makes Milvus group rows by the key's
+value, so searches filtered on it only scan the matching partitions. This suits multi-tenant data,
+such as a catalogue shared by many brands.
+
+Set the partition key per feature view with the `milvus.partition_key` tag:
+
+```python
+products = FeatureView(
+    name="products",
+    entities=[product],
+    schema=[
+        Field(name="product_id", dtype=Int64),
+        Field(name="brand_id", dtype=String),
+        Field(name="embedding", dtype=Array(Float32), vector_index=True),
+        Field(name="title", dtype=String),
+    ],
+    source=products_source,
+    tags={"milvus.partition_key": "brand_id"},
+)
+```
+
+or for every feature view that has the field, with `partition_key: brand_id` in the online store
+config. The tag takes precedence. Then filter on the key when retrieving:
+
+```python
+store.retrieve_online_documents_v2(
+    features=["products:embedding", "products:title"],
+    query=query_embedding,
+    top_k=10,
+    filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+)
+```
+
+`num_partitions` sets how many partitions a new collection with a partition key gets, and
+`partition_key_isolation` enables
+[partition key isolation](https://milvus.io/docs/use-partition-key.md#Use-Partition-Key-Isolation)
+for it, which Milvus supports with the HNSW index. Both settings are ignored for feature views
+without a partition key, and Milvus Lite ignores `num_partitions`.
+
+The partition key field must be stored as `VARCHAR` or `INT64`. String fields are always `VARCHAR`,
+and integer fields are `VARCHAR` unless native numeric types are enabled, in which case `Int64` works
+and `Int32` does not.
+
+{% hint style="warning" %}
+The partition key only applies when Feast creates a collection. Existing collections are not
+changed; Feast logs a warning for them. To add a partition key to an existing feature view, run
+`feast teardown` and `feast apply`, then materialize again.
+{% endhint %}
+
+## Consistency level
+
+By default Milvus uses `Bounded` consistency, so a read issued straight after materialization may
+not see the newest writes for a short time. Set `consistency_level: Strong` if reads must always see
+the latest writes, at the cost of higher read latency. See the
+[Milvus consistency documentation](https://milvus.io/docs/consistency.md).
+
+`consistency_level` applies to Feast's reads and searches and takes effect immediately.
+`collection_consistency_level` sets the collection's own default, which Milvus uses for requests
+that don't specify a level, such as those from other clients. It only applies when Feast creates a
+collection; to change it, run `feast teardown` and `feast apply`, then materialize again.
 
 ## Collection loading
 
@@ -82,6 +204,107 @@ Feast creates collections together with their indexes, which makes Milvus load t
 When Feast finds an existing collection it checks its load state and loads it only if needed.
 Reads and searches never load collections, so a collection released outside Feast is only reloaded
 the next time a Feast process first accesses it.
+
+## Row deletion
+
+`MilvusOnlineStore.online_delete` removes rows of a feature view, by entity key or by filter:
+
+```python
+from feast.filter_models import ComparisonFilter
+
+online_store.online_delete(config, feature_view, entity_keys=[entity_key])
+online_store.online_delete(
+    config,
+    feature_view,
+    filters=ComparisonFilter(type="eq", key="brand_id", value="acme"),
+)
+```
+
+Give exactly one of `entity_keys` and `filters`. An empty key list deletes nothing, and a filter
+with an empty group is rejected, so a mistake cannot delete more rows than it names. A deleted row
+leaves no tombstone: a later write creates it again, and Feast does not order a delete against
+writes from other processes. Deletion works on every collection that Feast created.
+
+## Field types
+
+Each feature is a column of the collection. A value comes back as it was written, whatever its
+type.
+
+| Feast type | Default | With `enable_openai_compatible_store: true` |
+|:-----------|:--------|:--------------------------------------------|
+| `String` | `VARCHAR` | `VARCHAR` |
+| `Bool`, `Int32`, `Int64`, `Float32`, `Float64` | `VARCHAR` holding the value as text | `BOOL`, `INT32`, `INT64`, `FLOAT`, `DOUBLE` |
+| `UnixTimestamp` | `VARCHAR` holding the seconds as text | `INT64` |
+| `Bytes` | `VARCHAR` holding base64 | `VARCHAR` holding base64 |
+| `Array` with `vector_index=True` | `FLOAT_VECTOR` with the field's `vector_length`, or `embedding_dim` when it is unset | the same |
+| `Array` of `String`, `Bool`, `Int32`, `Int64`, `Float32`, `Float64` or `UnixTimestamp` without `vector_index` | `VARCHAR` holding the serialized value | `ARRAY` of the element type, with at most `milvus.max_capacity` elements. The default and the maximum are 4096 |
+| `Json` and `Array(Json)` | `VARCHAR` holding the serialized value | `JSON` |
+| Every other type, including `Map` and `Struct` | `VARCHAR` holding the serialized value | the same |
+
+Filters apply to `VARCHAR` and native columns. A column that holds a serialized value can be read
+but not filtered on. A filter key can address a JSON path or an array element with Milvus syntax:
+
+```python
+ComparisonFilter(type="gt", key='attributes["price"]', value=100)
+ComparisonFilter(type="eq", key="tags[0]", value="sale")
+```
+
+A `Json` value in a `JSON` column must be an object or an array: a top-level string, number or
+boolean is rejected, and `null` is stored as a null column value and reads as a missing value. The
+value comes back as the JSON text of the stored document, so its formatting is normalized. `Map` and
+`Struct` values stay serialized, because JSON cannot hold their nested bytes, timestamps or empty
+typed lists. `JSON` and `ARRAY` columns are nullable unless the field has `milvus.nullable: "false"`.
+
+{% hint style="warning" %}
+`enable_openai_compatible_store` only applies when Feast creates a collection. Feast detects the
+column types of an existing collection, so reads and writes keep working whichever way it was
+created. `feast teardown` drops the collections of every feature view in the project, online reads
+fail until materialization finishes, and rows that exist only in the online store are lost. To
+migrate without a teardown, add a copy of the feature view under a new name, materialize it, move
+readers to it, then remove the old view.
+{% endhint %}
+
+`Array(Bool)` cannot be a vector field: Milvus binary vectors are not supported.
+
+A missing or null value is written as the column's default: an empty string, `0` or `false`. Feast
+reads an empty string in a numeric or timestamp text column as null, but a missing `String` or
+`Bytes` value comes back empty and a `0` in a native numeric column comes back as `0`. Tag a field
+with `milvus.nullable: "true"` to store null as `NULL` instead:
+
+```python
+Field(name="rating", dtype=Float32, tags={"milvus.nullable": "true"})
+```
+
+The tag applies when Feast creates the collection, and it needs Milvus 2.5 or later. Entity,
+partition key and vector fields cannot be nullable.
+
+## Scalar indexes
+
+A filter on a scalar column scans the collection unless the column has an index. Declare indexes
+with field tags, and Feast creates them with the collection:
+
+```python
+Field(name="brand_id", dtype=String, tags={"milvus.index": "INVERTED"}),
+Field(name="price", dtype=Float64, tags={"milvus.index": "STL_SORT"}),
+Field(
+    name="attributes",
+    dtype=Json,
+    tags={
+        "milvus.json_indexes": '[{"json_path": "attributes[\\"price\\"]", "json_cast_type": "double"}]'
+    },
+),
+```
+
+`milvus.index` names a scalar index type the server supports, such as `INVERTED`, `BITMAP`,
+`STL_SORT`, `Trie` or `AUTOINDEX`, and `milvus.index_params` passes a JSON object of parameters.
+`milvus.json_indexes` is a JSON list of index definitions for paths of a `JSON` column, each with a
+`json_path`, a `json_cast_type` and an optional `index_type` that defaults to `INVERTED`. It needs
+native types and a Milvus server with JSON path indexes. Vector indexes come from `index_type` and
+`index_params` in the store config.
+
+Indexes only apply when Feast creates a collection. For an existing collection without them, Feast
+logs a warning. To add them, run `feast teardown` and `feast apply`, then materialize again, or use
+the staged cutover described under [Field types](#field-types).
 
 ## Feature views without vectors
 

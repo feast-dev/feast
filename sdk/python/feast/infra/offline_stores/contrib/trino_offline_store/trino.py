@@ -719,12 +719,20 @@ class TrinoOfflineStore(OfflineStore):
                     df = df.sort_values(order_col_name)
             return [normalize_monitoring_row(row.to_dict()) for _, row in df.iterrows()]
         except TrinoQueryError as e:
+            if e.error_name in ("TABLE_NOT_FOUND", "SCHEMA_NOT_FOUND"):
+                # The monitoring table has not been created yet: no metrics so far.
+                logger.debug(
+                    "Monitoring metrics table %s does not exist yet: %s",
+                    full_table_name,
+                    e,
+                )
+                return []
             logger.debug(
                 "Failed to query monitoring metrics from %s: %s",
                 full_table_name,
                 e,
             )
-            return []
+            raise
 
     @staticmethod
     def clear_monitoring_baseline(

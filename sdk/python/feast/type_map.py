@@ -235,7 +235,11 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_val", "time_uuid_val"):
         return uuid_module.UUID(val) if isinstance(val, str) else val
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
-        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+        # None elements are stored as "" (see _LIST_NONE_DEFAULTS)
+        return [
+            None if v == "" else uuid_module.UUID(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr in ("uuid_set_val", "time_uuid_set_val"):
         return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
 
@@ -243,7 +247,10 @@ def feast_value_type_to_python_type(
     if val_attr == "decimal_val":
         return decimal.Decimal(val) if isinstance(val, str) else val
     if val_attr == "decimal_list_val":
-        return [decimal.Decimal(v) if isinstance(v, str) else v for v in val]
+        return [
+            None if v == "" else decimal.Decimal(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr == "decimal_set_val":
         return {decimal.Decimal(v) if isinstance(v, str) else v for v in val}
 
@@ -394,7 +401,7 @@ def python_type_to_feast_value_type(
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
+        "uint32": ValueType.INT64,
         "int16": ValueType.INT32,
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
@@ -416,6 +423,11 @@ def python_type_to_feast_value_type(
 
     if type_name in type_map:
         return type_map[type_name]
+
+    # datetimes in any other unit or timezone, e.g. "datetime64[us]" or
+    # "datetime64[ns, america/new_york]"
+    if type_name.startswith("datetime64"):
+        return ValueType.UNIX_TIMESTAMP
 
     # Handle pandas "object" dtype by inspecting the actual value
     if type_name == "object" and value is not None:
@@ -562,7 +574,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "BYTES_LIST": ValueType.BYTES_LIST,
         "STRING_LIST": ValueType.STRING_LIST,
-        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT32_LIST": ValueType.INT32_LIST,
         "INT64_LIST": ValueType.INT64_LIST,
         "DOUBLE_LIST": ValueType.DOUBLE_LIST,
         "FLOAT_LIST": ValueType.FLOAT_LIST,
@@ -595,6 +607,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL_SET": ValueType.DECIMAL_SET,
         "SCALAR_MAP": ValueType.SCALAR_MAP,
         "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
+        "PDF_BYTES": ValueType.PDF_BYTES,
+        "IMAGE_BYTES": ValueType.IMAGE_BYTES,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -700,6 +714,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
+    ValueType.PDF_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.IMAGE_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
     ValueType.UUID: ("uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
@@ -720,6 +735,10 @@ def _python_datetime_to_int_timestamp(
     int_timestamps = []
     for value in values:
         if isinstance(value, datetime):
+            # A naive datetime is UTC, as everywhere else in Feast. Without this,
+            # datetime.timestamp() would read it in the machine's local timezone.
+            if value.utcoffset() is None:
+                value = value.replace(tzinfo=timezone.utc)
             int_timestamps.append(int(value.timestamp()))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
@@ -1576,10 +1595,10 @@ VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
-    Returns Feast ValueType given Feast ValueType string.
+    Returns Feast ValueType given a Feast proto value.
 
     Args:
-        proto_str: str
+        proto_value: ProtoValue
 
     Returns:
         A variant of ValueType.
@@ -1590,8 +1609,22 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
+_FIXED_SIZE_LIST_PREFIX = "fixed_size_list<item: "
+
+
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
+    if pa_type_as_str.startswith(_FIXED_SIZE_LIST_PREFIX):
+        # A fixed-width vector is a list whose width happens to be fixed, and is
+        # how Arrow-native stores represent embeddings. Feast value types do not
+        # encode a width -- Field.vector_length carries it -- so this decodes to
+        # the same value type as the variable-width spelling, and is rewritten
+        # into that spelling so the list handling below stays single-sourced.
+        inner = pa_type_as_str[len(_FIXED_SIZE_LIST_PREFIX) :]
+        closing = inner.rfind(">")
+        if closing != -1:
+            pa_type_as_str = f"list<item: {inner[:closing]}>"
+
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
         inner_str = pa_type_as_str[len("list<item: ") : -1]
@@ -1610,8 +1643,14 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
         value_type = ValueType.STRUCT
     else:
         type_map = {
+            "int8": ValueType.INT32,
+            "int16": ValueType.INT32,
             "int32": ValueType.INT32,
             "int64": ValueType.INT64,
+            "uint8": ValueType.INT32,
+            "uint16": ValueType.INT32,
+            "uint32": ValueType.INT64,
+            "uint64": ValueType.INT64,
             "double": ValueType.DOUBLE,
             "float": ValueType.FLOAT,
             "string": ValueType.STRING,
@@ -1668,14 +1707,14 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
 def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     type_map = {
-        "bigint": ValueType.FLOAT,
+        "bigint": ValueType.INT64,
         "binary": ValueType.BYTES,
         "bit": ValueType.BOOL,
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
-        "float": ValueType.FLOAT,
+        "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
@@ -1945,6 +1984,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "string": ValueType.STRING,
         "int": ValueType.INT32,
         "short": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -1956,6 +1997,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<byte>": ValueType.BYTES_LIST,
         "array<string>": ValueType.STRING_LIST,
         "array<int>": ValueType.INT32_LIST,
+        "array<smallint>": ValueType.INT32_LIST,
+        "array<tinyint>": ValueType.INT32_LIST,
         "array<bigint>": ValueType.INT64_LIST,
         "array<double>": ValueType.DOUBLE_LIST,
         "array<decimal>": ValueType.DOUBLE_LIST,
