@@ -65,6 +65,23 @@ online_store:
 ```
 {% endcode %}
 
+Connecting as a named Redis ACL user (Redis 6+, e.g. AWS ElastiCache RBAC user groups where the `default` user is disabled):
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  connection_string: "redis1:6379,username=feast,password=my_password,ssl=true"
+```
+{% endcode %}
+
+{% hint style="info" %}
+The Go feature server's Redis online store supports `redis` and `redis_cluster` and accepts only the `password`, `username`, `ssl`, and `db` options in `connection_string` (`db` is ignored for clusters). Any other option causes an error.
+{% endhint %}
+
 ## TTL configuration
 
 The Redis online store supports two complementary TTL mechanisms:
@@ -195,7 +212,7 @@ The Redis online store implements `online_write_batch_async()` using the async R
 | --- | --- | --- |
 | `type` | `redis` | Online store type selector |
 | `redis_type` | `redis` | Connection type: `redis`, `redis_cluster`, or `redis_sentinel` |
-| `connection_string` | `localhost:6379` | Host:port and optional parameters. For cluster: `redis1:6379,redis2:6379,ssl=true,password=...` |
+| `connection_string` | `localhost:6379` | Host:port and optional parameters (e.g. `password`, `username`, `ssl`, `db`). For cluster: `redis1:6379,redis2:6379,ssl=true,username=...,password=...` |
 | `sentinel_master` | `mymaster` | Sentinel master name (only used when `redis_type: redis_sentinel`) |
 | `key_ttl_seconds` | `null` | Redis `EXPIRE` TTL in seconds applied to the entity hash key after each write. Expires all feature views for that entity together. |
 | `full_scan_for_deletion` | `true` | When `true`, deleting or renaming a feature view scans Redis to remove its hash fields. Set `false` to skip deletion scans (faster `feast apply`, but leaves orphaned data). |

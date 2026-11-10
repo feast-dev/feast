@@ -59,6 +59,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 
 	var address []string
 	var password string
+	var username string
 	var tlsConfig *tls.Config
 	var db int // Default to 0
 
@@ -69,7 +70,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	}
 	store.t = redisStoreType
 
-	// Parse connection_string and write it into conf.address, conf.password, and conf.ssl
+	// Parse connection_string and write it into conf.address, conf.username, conf.password, and conf.ssl
 	redisConnJson, ok := onlineStoreConfig["connection_string"]
 	if !ok {
 		// Default to "localhost:6379"
@@ -86,6 +87,8 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 				kv := strings.SplitN(part, "=", 2)
 				if kv[0] == "password" {
 					password = kv[1]
+				} else if kv[0] == "username" {
+					username = kv[1]
 				} else if kv[0] == "ssl" {
 					result, err := strconv.ParseBool(kv[1])
 					if err != nil {
@@ -99,7 +102,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 						return nil, err
 					}
 				} else {
-					return nil, fmt.Errorf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0])
+					return nil, fmt.Errorf("unrecognized option in connection_string: %s. Must be one of 'password', 'username', 'ssl', 'db'", kv[0])
 				}
 			} else {
 				return nil, fmt.Errorf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part)
@@ -117,6 +120,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		log.Info().Msgf("Using Redis: %s", address[0])
 		store.client = redis.NewClient(&redis.Options{
 			Addr:      address[0],
+			Username:  username,
 			Password:  password,
 			DB:        db,
 			TLSConfig: tlsConfig,
@@ -128,6 +132,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		log.Info().Msgf("Using Redis Cluster: %s", address)
 		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:     address,
+			Username:  username,
 			Password:  password,
 			TLSConfig: tlsConfig,
 			ReadOnly:  true,
