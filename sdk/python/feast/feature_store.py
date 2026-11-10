@@ -115,6 +115,7 @@ from feast.utils import (
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
+from feast.value_type import ValueType
 from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
@@ -1474,7 +1475,16 @@ class FeatureStore:
                 desired_repo_contents.stream_feature_views,
                 desired_repo_contents.label_views,
             )
-        _validate_data_sources(desired_repo_contents.data_sources)
+        all_fvs_for_validation = [
+            *desired_repo_contents.feature_views,
+            *desired_repo_contents.on_demand_feature_views,
+            *desired_repo_contents.stream_feature_views,
+            *desired_repo_contents.label_views,
+        ]
+        _validate_data_sources(
+            desired_repo_contents.data_sources,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
@@ -1749,7 +1759,7 @@ class FeatureStore:
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
-        # Validate all feature views and make inferences.
+        # Validate all feature views and data sources, then make inferences.
         if not skip_feature_view_validation:
             self._validate_all_feature_views(
                 views_to_update,
@@ -1757,6 +1767,16 @@ class FeatureStore:
                 sfvs_to_update,
                 lvs_to_update,
             )
+        all_fvs_for_validation = [
+            *views_to_update,
+            *odfvs_to_update,
+            *sfvs_to_update,
+            *(lvs_to_update or []),
+        ]
+        _validate_data_sources(
+            data_sources_to_update,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
@@ -2385,8 +2405,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            _logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -2413,20 +2434,27 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No join keys found in source views. "
+                "Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in "
+                "sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp "
+                "columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -2455,8 +2483,10 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            _logger.warning(
+                "No source data found for ODFV %s in the given time range. "
+                "Skipping materialization.",
+                feature_view.name,
             )
             return
 
@@ -3164,6 +3194,7 @@ class FeatureStore:
         self,
         feature_service_name: Optional[str] = None,
         batch_size: int = 1000,
+        entity_keys: Optional[List[EntityKey]] = None,
     ) -> int:
         """Pre-compute feature vectors for one or all FeatureServices.
 
@@ -3173,6 +3204,9 @@ class FeatureStore:
         blob per entity via :meth:`OnlineStore.write_precomputed_vector`.
 
         Works with **all** online store backends (Redis, DynamoDB, PostgreSQL, etc.).
+
+        When ``entity_keys`` is given, only those entities are rebuilt and the store
+        is not scanned, so a push can refresh exactly the rows it wrote.
 
         Returns the total number of entity vectors written.
         """
@@ -3221,53 +3255,56 @@ class FeatureStore:
             # For stores that support native scanning (like Redis), we try the
             # native scan; for others, we use the materialized entity list.
             entity_key_protos: List[EntityKey] = []
-            try:
-                from feast.infra.online_stores.redis import RedisOnlineStore
+            if entity_keys is not None:
+                entity_key_protos = list(entity_keys)
+            else:
+                try:
+                    from feast.infra.online_stores.redis import RedisOnlineStore
 
-                if isinstance(online_store, RedisOnlineStore):
-                    from feast.infra.key_encoding_utils import (
-                        deserialize_entity_key,
-                    )
-                    from feast.infra.online_stores.helpers import _redis_key_prefix
+                    if isinstance(online_store, RedisOnlineStore):
+                        from feast.infra.key_encoding_utils import (
+                            deserialize_entity_key,
+                        )
+                        from feast.infra.online_stores.helpers import _redis_key_prefix
 
-                    join_keys = (
-                        list(primary_fv.join_keys)
-                        if hasattr(primary_fv, "join_keys")
-                        else []
-                    )  # type: ignore[union-attr]
-                    client = online_store._get_client(  # type: ignore[attr-defined]
-                        self.config.online_store
+                        join_keys = (
+                            list(primary_fv.join_keys)
+                            if hasattr(primary_fv, "join_keys")
+                            else []
+                        )  # type: ignore[union-attr]
+                        client = online_store._get_client(  # type: ignore[attr-defined]
+                            self.config.online_store
+                        )
+                        scan_prefix = _redis_key_prefix(join_keys)
+                        project_bytes = self.config.project.encode("utf-8")
+                        seen_keys: set = set()
+                        raw_keys: List[bytes] = []
+                        for key in client.scan_iter(
+                            b"".join([scan_prefix, b"*", project_bytes])
+                        ):
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                raw_keys.append(key)
+                        proj_len = len(project_bytes)
+                        for rk in raw_keys:
+                            try:
+                                ek = deserialize_entity_key(
+                                    rk[:-proj_len],
+                                    self.config.entity_key_serialization_version,
+                                )
+                                if set(ek.join_keys) == set(join_keys):
+                                    entity_key_protos.append(ek)
+                            except (ValueError, Exception):
+                                continue
+                    else:
+                        raise NotImplementedError
+                except (ImportError, NotImplementedError):
+                    _logger.warning(
+                        "Entity scanning not supported for '%s' — "
+                        "precompute requires a store that supports entity scanning",
+                        type(online_store).__name__,
                     )
-                    scan_prefix = _redis_key_prefix(join_keys)
-                    project_bytes = self.config.project.encode("utf-8")
-                    seen_keys: set = set()
-                    raw_keys: List[bytes] = []
-                    for key in client.scan_iter(
-                        b"".join([scan_prefix, b"*", project_bytes])
-                    ):
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            raw_keys.append(key)
-                    proj_len = len(project_bytes)
-                    for rk in raw_keys:
-                        try:
-                            ek = deserialize_entity_key(
-                                rk[:-proj_len],
-                                self.config.entity_key_serialization_version,
-                            )
-                            if set(ek.join_keys) == set(join_keys):
-                                entity_key_protos.append(ek)
-                        except (ValueError, Exception):
-                            continue
-                else:
-                    raise NotImplementedError
-            except (ImportError, NotImplementedError):
-                _logger.warning(
-                    "Entity scanning not supported for '%s' — "
-                    "precompute requires a store that supports entity scanning",
-                    type(online_store).__name__,
-                )
-                continue
+                    continue
 
             if not entity_key_protos:
                 continue
@@ -3319,10 +3356,13 @@ class FeatureStore:
                     now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
 
                     vector = PrecomputedFeatureVector(
-                        feature_names=feature_names,
+                        feature_names=[]
+                        if svc.precompute_omit_names
+                        else feature_names,
                         values=values,
                         fv_timestamps=fv_timestamps,
                         precomputed_at=now_ts,
+                        schema_fingerprint=svc.precompute_schema_fingerprint(),
                     )
 
                     online_store.write_precomputed_vector(
@@ -3380,9 +3420,16 @@ class FeatureStore:
         if not affected:
             return
 
+        fv = self.registry.get_any_feature_view(
+            feature_view_name, self.project, allow_cache=True
+        )
+        entity_keys = _entity_keys_from_dataframe(fv, df)
+        if not entity_keys:
+            return
+
         for svc in affected:
             try:
-                self.precompute_feature_service(svc.name)
+                self.precompute_feature_service(svc.name, entity_keys=entity_keys)
             except Exception:
                 _logger.warning(
                     "Failed to precompute vectors for service '%s' after push",
@@ -4759,6 +4806,7 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         registry_ttl_sec: int = 60,
+        gc_freeze: bool = False,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -4781,6 +4829,7 @@ class FeatureStore:
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
+            gc_freeze=gc_freeze,
         )
 
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -5156,8 +5205,21 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             fv_by_name[case_insensitive_fv_name] = fv
 
 
-def _validate_data_sources(data_sources: List[DataSource]):
-    """Verify data sources have case-insensitively unique names."""
+def _validate_data_sources(
+    data_sources: List[DataSource],
+    all_feature_views: Optional[
+        Sequence[
+            Union[
+                BaseFeatureView,
+                FeatureView,
+                StreamFeatureView,
+                OnDemandFeatureView,
+                LabelView,
+            ]
+        ]
+    ] = None,
+):
+    """Verify data sources have case-insensitively unique names and validate PushSource upstream references."""
     ds_names = set()
     for ds in data_sources:
         case_insensitive_ds_name = ds.name.lower()
@@ -5165,3 +5227,40 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
+
+    if all_feature_views is not None:
+        known_fv_names = {fv.name for fv in all_feature_views if hasattr(fv, "name")}
+        for ds in data_sources:
+            if isinstance(ds, PushSource) and ds.upstream_feature_view_names:
+                for upstream_name in ds.upstream_feature_view_names:
+                    if upstream_name not in known_fv_names:
+                        warnings.warn(
+                            f"PushSource '{ds.name}' references upstream feature view '{upstream_name}' "
+                            "which was not found in the current feature repository.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+
+
+def _entity_keys_from_dataframe(feature_view: Any, df: pd.DataFrame) -> List[EntityKey]:
+    """Distinct entity keys present in ``df`` for ``feature_view``'s join keys."""
+    from feast.type_map import python_values_to_proto_values
+
+    join_keys = list(getattr(feature_view, "join_keys", []) or [])
+    if not join_keys or any(k not in df.columns for k in join_keys):
+        return []
+    value_types = {
+        field.name: field.dtype.to_value_type()
+        for field in getattr(feature_view, "entity_columns", [])
+    }
+    unique = df[join_keys].drop_duplicates()
+    columns = {
+        k: python_values_to_proto_values(
+            unique[k].tolist(), value_types.get(k, ValueType.UNKNOWN)
+        )
+        for k in join_keys
+    }
+    return [
+        EntityKey(join_keys=join_keys, entity_values=[columns[k][i] for k in join_keys])
+        for i in range(len(unique))
+    ]

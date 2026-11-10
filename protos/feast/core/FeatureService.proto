@@ -42,6 +42,10 @@ message FeatureServiceSpec {
   // When true, a pre-computed feature vector is maintained per entity for this
   // service, enabling single-read online retrieval instead of per-feature-view reads.
   bool precompute_online = 8;
+
+  // When true, pre-computed vectors store only values and a schema fingerprint,
+  // not the repeated feature name list.
+  bool precompute_omit_names = 9;
 }
 
 

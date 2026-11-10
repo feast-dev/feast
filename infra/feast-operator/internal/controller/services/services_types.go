@@ -186,7 +186,7 @@ const (
 
 var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
-	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"
+	DefaultCronJobImage   = "registry.k8s.io/kubectl:v1.35.9"
 	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	NameLabelKey          = feastdevv1.GroupVersion.Group + "/name"
 	ServiceTypeLabelKey   = feastdevv1.GroupVersion.Group + "/service-type"

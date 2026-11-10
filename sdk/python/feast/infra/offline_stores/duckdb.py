@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import date, datetime, timezone
@@ -140,25 +141,7 @@ def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -
     Loads the table through the configured catalog (REST, SQL, Hive, etc.)
     and scans it to Arrow.
     """
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
-
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        table = catalog_client.load_table(fqn)
-    else:
-        from pyiceberg.catalog import load_catalog
-
-        catalog_config: dict = {
-            "type": "rest",
-            "uri": data_source.endpoint,
-            "warehouse": data_source.warehouse,
-        }
-        if data_source.token_env_var:
-            token = os.environ.get(data_source.token_env_var)
-            if token:
-                catalog_config["token"] = token
-        catalog = load_catalog(data_source.catalog_name, **catalog_config)
-        table = catalog.load_table(fqn)
+    table = data_source.load_pyiceberg_table()
 
     return ibis.memtable(table.scan().to_arrow())
 
@@ -170,25 +153,7 @@ def _load_pyiceberg_table_for_write(data_source: "IcebergSource"):
     but returns the raw PyIceberg table instead of an ibis memtable, so the
     caller can use ``table.append()`` or ``table.overwrite()`` for writes.
     """
-    fqn = f"{data_source.namespace}.{data_source.iceberg_table}"
-
-    if data_source.catalog_type != "rest":
-        catalog_client = data_source.get_catalog_client()
-        return catalog_client.load_table(fqn)
-
-    from pyiceberg.catalog import load_catalog
-
-    catalog_config: dict = {
-        "type": "rest",
-        "uri": data_source.endpoint,
-        "warehouse": data_source.warehouse,
-    }
-    if data_source.token_env_var:
-        token = os.environ.get(data_source.token_env_var)
-        if token:
-            catalog_config["token"] = token
-    catalog = load_catalog(data_source.catalog_name, **catalog_config)
-    return catalog.load_table(fqn)
+    return data_source.load_pyiceberg_table()
 
 
 def _write_iceberg_data_source(
@@ -229,8 +194,24 @@ def _read_lance_source(data_source: "LanceSource") -> Table:
     is honoured before any data crosses into ibis. The declared-schema contract
     is enforced separately, by ``validate_lance_source_schema``, because the
     reader callback is handed a ``DataSource`` without its feature view.
+
+    The dataset is registered with DuckDB as a lazy scan rather than read into
+    memory. A ``LanceDataset`` is a ``pyarrow.dataset.Dataset``, so DuckDB pushes
+    the query's column projection into the Lance scanner: a retrieval that needs
+    a few scalar features never reads the embedding columns stored beside them.
+
+    The view is named after the dataset's location and resolved version. An
+    opened dataset is a snapshot, so the name always denotes the same data and
+    re-registering it is harmless, while a job built before a later write keeps
+    reading the version it was built against.
     """
-    return ibis.memtable(data_source.to_arrow())
+    dataset = data_source.get_dataset()
+    digest = hashlib.sha256(f"{dataset.uri}@{dataset.version}".encode()).hexdigest()
+    view_name = f"__feast_lance_{digest[:16]}"
+
+    backend = ibis.get_backend()
+    backend.con.register(view_name, dataset)
+    return backend.table(view_name)
 
 
 def _validate_lance_feature_views(feature_views: List[FeatureView]) -> None:

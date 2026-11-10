@@ -46,6 +46,7 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
     "chronon": "feast.infra.chronon_provider.ChrononProvider",
     "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
+    "polaris": "feast.infra.data_sources.contrib.iceberg_catalog.polaris_provider.PolarisProvider",
 }
 
 
@@ -490,7 +491,7 @@ class Provider(ABC):
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_features: the requested document feature names.
-            query: The query embedding to search for (optional).
+            embedding: The query embedding to search for (optional).
             top_k: The number of documents to return.
             query_string: The query string to search for using keyword search (bm25) (optional)
             filters: Optional metadata filters (ComparisonFilter or CompoundFilter)

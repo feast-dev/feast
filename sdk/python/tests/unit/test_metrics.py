@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import http.client
+import os
 import socket
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -640,6 +642,67 @@ class TestStartMetricsServerProcess:
             m._run_metrics_server(8000, "/tmp/fake_mp_dir", ready_event=mock_event)
 
             mock_event.set.assert_called_once()
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+@pytest.mark.filterwarnings(
+    "ignore:This process .* is multi-threaded:DeprecationWarning"
+)
+class TestMetricsProcessSurvivesForkedChildExit:
+    """A forked child (e.g. a Gunicorn worker) must not terminate the metrics server on exit."""
+
+    def test_forked_child_does_not_track_metrics_process(self):
+        import multiprocessing
+
+        import feast.metrics as m
+
+        # Stand-in for the metrics-server process: a real daemon process that
+        # starts instantly on every platform, registered by start_metrics_server.
+        proc = multiprocessing.get_context("fork").Process(
+            target=time.sleep, args=(60,), daemon=True
+        )
+        mock_event = MagicMock()
+        mock_event.wait.return_value = True
+
+        with (
+            patch("feast.metrics.multiprocessing.Process", return_value=proc),
+            patch("feast.metrics.multiprocessing.Event", return_value=mock_event),
+        ):
+            m.start_metrics_server(
+                MagicMock(),
+                start_resource_monitoring=False,
+                start_freshness_monitoring=False,
+            )
+        try:
+            pid = os.fork()
+            if pid == 0:
+                # A worker's interpreter exit terminates every daemon process in
+                # active_children(); report whether the metrics process is in it.
+                tracked = proc in multiprocessing.active_children()
+                os._exit(1 if tracked else 0)
+            _, status = os.waitpid(pid, 0)
+
+            assert os.waitstatus_to_exitcode(status) == 0
+            assert proc.is_alive()
+        finally:
+            proc.kill()
+            proc.join(timeout=5)
+            m._metrics_process = None
+
+
+def test_forget_metrics_process_in_child_removes_it_from_registry():
+    import multiprocessing
+
+    import feast.metrics as m
+
+    proc = MagicMock()
+    children = {proc}
+    with (
+        patch.object(multiprocessing.process, "_children", children),
+        patch.object(m, "_metrics_process", proc),
+    ):
+        m._forget_metrics_process_in_child()
+    assert proc not in children
 
 
 class TestMetricsYamlConfig:
