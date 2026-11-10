@@ -209,6 +209,8 @@ def test_materialize_odfv_reports_skips_through_the_logger(caplog, capsys):
 
     assert "No source feature views found" in caplog.text
     assert capsys.readouterr().out == ""
+
+
 def test_get_historical_features_non_entity_default_end_date_is_utc(tmp_path):
     """With entity_df=None and no end_date, the end bound handed to the provider
     must be the current time in UTC. Offline stores read a naive datetime as UTC
