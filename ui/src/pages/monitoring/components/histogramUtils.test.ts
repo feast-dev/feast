@@ -63,9 +63,9 @@ describe("selectLatestWindowMetric", () => {
 
 describe("isNumericHistogram", () => {
   it("distinguishes numeric and categorical payloads", () => {
-    expect(isNumericHistogram({ bins: [0, 1], counts: [5], bin_width: 1 })).toBe(
-      true,
-    );
+    expect(
+      isNumericHistogram({ bins: [0, 1], counts: [5], bin_width: 1 }),
+    ).toBe(true);
     expect(
       isNumericHistogram({
         values: [{ value: "a", count: 3 }],
@@ -102,7 +102,11 @@ describe("rebinNumericHistogram", () => {
   });
 
   it("keeps identical bins identical", () => {
-    const h: NumericHistogram = { bins: [0, 1, 2], counts: [3, 7], bin_width: 1 };
+    const h: NumericHistogram = {
+      bins: [0, 1, 2],
+      counts: [3, 7],
+      bin_width: 1,
+    };
     expect(rebinNumericHistogram(h, h)).toEqual([3, 7]);
   });
 });

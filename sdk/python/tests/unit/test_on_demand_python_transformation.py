@@ -573,7 +573,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "acc_rate",
             "avg_daily_trips",
             "conv_rate",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
         ]
@@ -632,7 +632,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate",
             "conv_rate_plus_val1",
             "conv_rate_plus_val2",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
             "val_to_add",
@@ -668,7 +668,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate_plus_val2",
             "driver_id",
             # It does not have the items below
-            # "created__",
+            # "created",
             # "event_timestamp",
             # "val_to_add",
             # "val_to_add_2",
