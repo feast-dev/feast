@@ -32,6 +32,7 @@ service RegistryServer{
   rpc GetDataSource (GetDataSourceRequest) returns (feast.core.DataSource) {}
   rpc ListDataSources (ListDataSourcesRequest) returns (ListDataSourcesResponse) {}
   rpc DeleteDataSource (DeleteDataSourceRequest) returns (google.protobuf.Empty) {}
+  rpc ValidateDataSource (ValidateDataSourceRequest) returns (ValidateDataSourceResponse) {}
 
   // FeatureView RPCs
   rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
@@ -222,6 +223,27 @@ message DeleteDataSourceRequest {
     string name = 1;
     string project = 2;
     bool commit = 3;
+}
+
+message ValidateDataSourceRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message ValidateDataSourceColumn {
+    string name = 1;
+    string type = 2;
+}
+
+message ValidateDataSourceResponse {
+    string name = 1;
+    string project = 2;
+    // One of: "success", "failed", "not_applicable", "unavailable".
+    string status = 3;
+    string message = 4;
+    string tested_at = 5;
+    repeated ValidateDataSourceColumn columns = 6;
 }
 
 // FeatureViews

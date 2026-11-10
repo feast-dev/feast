@@ -527,7 +527,9 @@ class DataSource(google.protobuf.message.Message):
         UPSTREAM_FEATURE_VIEW_NAMES_FIELD_NUMBER: builtins.int
         @property
         def upstream_feature_view_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
-            """Names of upstream FeatureViews consumed by the process feeding this PushSource"""
+            """Names of upstream FeatureViews/LabelViews consumed by the external process feeding this PushSource.
+            Represents external pipeline lineage metadata; does not trigger Feast-managed DAG execution.
+            """
         def __init__(
             self,
             *,
