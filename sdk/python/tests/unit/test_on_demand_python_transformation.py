@@ -569,6 +569,9 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             ],
         ).to_df()
         assert resp_base_fv is not None
+        # The source created timestamp is preserved as "created" (it is kept
+        # separate from the entity_df column internally rather than being
+        # suffixed on merge).
         assert sorted(resp_base_fv.columns) == [
             "acc_rate",
             "avg_daily_trips",
