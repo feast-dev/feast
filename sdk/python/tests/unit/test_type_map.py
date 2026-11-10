@@ -1341,6 +1341,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(String) == StringType()
 
+    def test_feast_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import Uuid
+
+        assert from_feast_to_spark_type(Uuid) == StringType()
+
+    def test_feast_time_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import TimeUuid
+
+        assert from_feast_to_spark_type(TimeUuid) == StringType()
+
     def test_feast_int32_to_spark_integer(self):
         from pyspark.sql.types import IntegerType
 
@@ -1389,6 +1405,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(Bytes) == BinaryType()
 
+    def test_feast_pdf_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import PdfBytes
+
+        assert from_feast_to_spark_type(PdfBytes) == BinaryType()
+
+    def test_feast_image_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ImageBytes
+
+        assert from_feast_to_spark_type(ImageBytes) == BinaryType()
+
     def test_feast_timestamp_to_spark_timestamp(self):
         from pyspark.sql.types import TimestampType
 
@@ -1396,6 +1428,14 @@ class TestSparkNativeTypeValidation:
         from feast.types import UnixTimestamp
 
         assert from_feast_to_spark_type(UnixTimestamp) == TimestampType()
+
+    def test_feast_zoned_timestamp_to_spark_timestamp(self):
+        from pyspark.sql.types import TimestampType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ZonedTimestamp
+
+        assert from_feast_to_spark_type(ZonedTimestamp) == TimestampType()
 
     def test_feast_map_to_spark_map(self):
         from pyspark.sql.types import MapType, StringType
@@ -1630,6 +1670,24 @@ class TestUuidTypes:
         assert all(isinstance(r, uuid.UUID) for r in result)
         assert result == test_uuids
 
+    def test_uuid_list_with_none_roundtrip(self):
+        """None elements in a UUID list are read back as None."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values(
+            [[None, test_uuid, None]], ValueType.UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, test_uuid, None]
+
+    def test_time_uuid_list_with_none_roundtrip(self):
+        """None elements in a TIME_UUID list are read back as None."""
+        test_uuid = uuid.uuid1()
+        protos = python_values_to_proto_values(
+            [[test_uuid, None]], ValueType.TIME_UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [test_uuid, None]
+
     def test_uuid_set_roundtrip(self):
         """UUID set -> proto -> set of uuid.UUID objects roundtrip."""
         test_uuids = {uuid.uuid4(), uuid.uuid4(), uuid.uuid4()}
@@ -1759,6 +1817,17 @@ class TestDecimalTypes:
         result = feast_value_type_to_python_type(protos[0])
         assert all(isinstance(r, decimal.Decimal) for r in result)
         assert result == vals
+
+    def test_decimal_list_with_none_roundtrip(self):
+        """None elements in a DECIMAL_LIST are read back as None."""
+        import decimal
+
+        val = decimal.Decimal("1.5")
+        protos = python_values_to_proto_values(
+            [[None, val, None]], ValueType.DECIMAL_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, val, None]
 
     def test_decimal_set_roundtrip(self):
         """DECIMAL_SET -> proto -> set of decimal.Decimal roundtrip."""

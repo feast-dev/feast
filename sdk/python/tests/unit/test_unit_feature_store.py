@@ -1,4 +1,6 @@
+import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -181,3 +183,29 @@ def test_write_to_offline_store_resolves_feature_view_with_single_lookup():
     registry.get_label_view.assert_not_called()
 
     provider.ingest_df_to_offline_store.assert_called_once()
+
+
+def test_materialize_odfv_reports_skips_through_the_logger(caplog, capsys):
+    """``_materialize_odfv`` must report a skipped materialization via the logger.
+
+    The method gives up on five different conditions and returns without materializing
+    anything. Those messages went to stdout with a hand-rolled ``[WARNING]`` prefix, so a
+    user's logging configuration could not silence, redirect or capture them, and nothing
+    about the skip reached the log.
+    """
+    store = FeatureStore.__new__(FeatureStore)
+
+    feature_view = MagicMock()
+    feature_view.name = "driver_hourly_stats_odfv"
+    feature_view.source_feature_view_projections = {}
+
+    with caplog.at_level(logging.WARNING, logger="feast.feature_store"):
+        store._materialize_odfv(
+            feature_view,
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 1, 2),
+            full_feature_names=False,
+        )
+
+    assert "No source feature views found" in caplog.text
+    assert capsys.readouterr().out == ""
