@@ -54,7 +54,7 @@ spec:
 
 For Bring Your Own Spark on Kubernetes, use `spark_application` instead of in-process Spark.
 The Feast Operator auto-creates RBAC for this type. See
-[SparkApplication](../reference/compute-engine/spark_application.md) for the full config reference.
+[SparkApplication](../../reference/compute-engine/spark_application.md) for the full config reference.
 Build an image from the reference
 [Dockerfile](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/spark_application/Dockerfile)
 (or equivalent):
@@ -102,7 +102,7 @@ spec:
 | `snowflake.engine` | Snowflake Snowpark compute |
 
 > For engine-specific YAML options (Spark conf, Ray address, etc.) see the
-> [Feast SDK — Compute Engine](../reference/compute-engine/) docs.
+> [Feast SDK — Compute Engine](../../reference/compute-engine/) docs.
 
 ---
 
@@ -304,4 +304,4 @@ spec:
 
 - [API reference — `BatchEngineConfig`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#batchengineconfig)
 - [API reference — `FeastCronJob`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#feastcronjob)
-- [Feast SDK — Compute Engine](../reference/compute-engine/)
+- [Feast SDK — Compute Engine](../../reference/compute-engine/)

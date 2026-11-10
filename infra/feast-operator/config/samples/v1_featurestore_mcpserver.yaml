@@ -1,0 +1,48 @@
+# Standalone Feast MCP (Model Context Protocol) server.
+#
+# Unlike v1_featurestore_mcp.yaml -- which switches the embedded feature/registry
+# servers into MCP mode -- this sample deploys a dedicated `feast mcp` proxy
+# container (spec.services.mcpServer) alongside the online and registry servers.
+# The proxy reads its own feast_mcp.yaml (mounted from the ConfigMap referenced
+# by spec.services.mcpServer.config) and forwards requests to the feature server
+# and registry REST API. The operator owns the container's host/port, so the
+# transport is the only server-level setting taken from feast_mcp.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-mcpserver-config
+data:
+  feast_mcp.yaml: |
+    server:
+      # host/port are set by the operator on the CLI and override this file;
+      # transport is honored from here.
+      transport: http
+    # The MCP server runs as a container in the same pod as the online and
+    # registry servers, so it reaches them over localhost.
+    features:
+      url: http://localhost:6566
+    registry:
+      url: http://localhost:6572
+    timeout: 30
+    observability:
+      level: INFO
+      format: json
+---
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-mcpserver
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server: {}
+    registry:
+      local:
+        server:
+          # The MCP proxy talks to the registry over its REST API.
+          restAPI: true
+    mcpServer:
+      config:
+        configMapRef:
+          name: sample-mcpserver-config

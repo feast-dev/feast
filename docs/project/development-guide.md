@@ -394,7 +394,7 @@ It will:
 - install the local chart with `helm install feast-release ../../../infra/charts/feast --values application-override.yaml`
 
 ### Feast Python Feature Server Helm Chart
-See the Python demo example (it has development instructions too using minikube) [here](examples/python-helm-demo/README.md)
+See the Python demo example (it has development instructions too using minikube) [here](https://github.com/feast-dev/feast/blob/master/examples/python-helm-demo/README.md)
 
 It will:
 - run `make build-feature-server-dev` to build a local python feature server binary

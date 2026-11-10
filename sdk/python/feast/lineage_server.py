@@ -26,7 +26,7 @@ Usage:
 import asyncio
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,37 @@ def _build_rbac_callback(store):
             return None
 
     return _get_allowed
+
+
+def _init_auth(store):
+    """Initialize auth/security managers if auth is configured."""
+    from feast.permissions.server.utils import (
+        ServerType,
+        init_auth_manager,
+        init_security_manager,
+        str_to_auth_manager_type,
+    )
+
+    auth_cfg = store.config.auth_config
+    dependencies: list = []
+    if auth_cfg and auth_cfg.type != "no_auth":
+        from feast.permissions.server.rest import inject_user_details
+
+        auth_type = str_to_auth_manager_type(auth_cfg.type)
+        init_security_manager(auth_type=auth_type, fs=store)
+        init_auth_manager(
+            auth_type=auth_type,
+            server_type=ServerType.REST,
+            auth_config=auth_cfg,
+        )
+        dependencies.append(Depends(inject_user_details))
+        logger.info("Lineage server auth initialized (type=%s)", auth_cfg.type)
+    else:
+        logger.warning(
+            "Lineage server running with auth_type=no_auth. "
+            "All endpoints are unauthenticated."
+        )
+    return dependencies
 
 
 def create_lineage_app(store) -> FastAPI:
@@ -191,12 +222,15 @@ def create_lineage_app(store) -> FastAPI:
         get_allowed_namespaces=get_allowed_namespaces,
     )
 
+    auth_dependencies = _init_auth(store)
+
     app = FastAPI(
         title="Feast OpenLineage Server",
         description="Standalone OpenLineage consumer for Feast lineage data",
         version="1.0.0",
         docs_url="/",
         redoc_url="/docs",
+        dependencies=auth_dependencies,
     )
     app.include_router(consumer_router, prefix="/api/v1")
 

@@ -127,7 +127,7 @@ feast materialize 2021-04-12T00:00:00 $CURRENT_TIME
 feast materialize --disable-event-timestamp
 ```
 
-The `--disable-event-timestamp` flag allows you to materialize all available feature data using the current datetime as the event timestamp, without needing to specify start and end timestamps. This is useful when your source data lacks proper event timestamp columns.
+The `--disable-event-timestamp` flag allows you to materialize all available data (from 1970-01-01 up to the current UTC time) without specifying start and end timestamps. Rows keep the event timestamps from the source.
 
 ```commandline
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!
