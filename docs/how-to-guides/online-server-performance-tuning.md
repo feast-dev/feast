@@ -185,6 +185,10 @@ feast serve \
 **Sizing rule of thumb:** Start with `workers = 2 × vCPU + 1` and allocate ~256–512 MB memory per worker. Monitor RSS per process and adjust. If p99 latency is high under load, add more workers or scale horizontally rather than increasing connections.
 {% endhint %}
 
+### Garbage collection pauses
+
+Every full Python garbage collection walks all live objects, including the registry and feature definitions that live for the whole process. In a worker this blocks the event loop, and while it runs every waiting request stalls. The stall shows up as a slow online store read. With `--gc-freeze` (or `feature_server.gc_freeze: true` in `feature_store.yaml`) the server runs `gc.freeze()` after it has loaded the registry and before the workers start, so full collections skip these objects and stay short. Try it if p99.9 latency has spikes that the online store does not explain.
+
 ---
 
 ## Registry cache tuning
