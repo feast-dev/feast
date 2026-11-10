@@ -101,7 +101,7 @@ online_store:
 | `partition_key_isolation` | unset | Enables partition key isolation on a new collection that has a partition key. When unset, Milvus uses its default. |
 | `vector_enabled` | `true` | Enables vector search. |
 | `varchar_max_length` | `65535` | Default `max_length` of VARCHAR fields. Override per field with the `max_length` tag. |
-| `enable_openai_compatible_store` | `false` | Store numeric features as native Milvus numeric types. |
+| `enable_openai_compatible_store` | `false` | Store numeric, array, `Json`, `Map` and `Struct` features as native Milvus types. See [Field types](#field-types). |
 | `mutation_timeout` | unset | Timeout in seconds that PyMilvus applies to each upsert and delete attempt, and after which it stops retrying. When unset, PyMilvus applies its default retry policy. See [Mutation timeout](#mutation-timeout). |
 | `fail_on_schema_mismatch` | `false` | Raise an error, instead of logging a warning, when an existing collection does not have the fields the feature view declares. See [Schema mismatch](#schema-mismatch). |
 
@@ -252,6 +252,87 @@ Set `fail_on_schema_mismatch: true` to raise an error instead, so that a changed
 caught at `feast apply` before any data is written. To apply the new schema, run `feast teardown`
 and `feast apply`, then materialize again. Field types are not compared: Feast reads and writes a
 collection with the types it has.
+
+## Field types
+
+Each feature is a column of the collection. A value comes back as it was written, whatever its
+type.
+
+| Feast type | Default | With `enable_openai_compatible_store: true` |
+|:-----------|:--------|:--------------------------------------------|
+| `String` | `VARCHAR` | `VARCHAR` |
+| `Bool`, `Int32`, `Int64`, `Float32`, `Float64` | `VARCHAR` holding the value as text | `BOOL`, `INT32`, `INT64`, `FLOAT`, `DOUBLE` |
+| `UnixTimestamp` | `VARCHAR` holding the seconds as text | `INT64` |
+| `Bytes` | `VARCHAR` holding base64 | `VARCHAR` holding base64 |
+| `Array` with `vector_index=True` | `FLOAT_VECTOR` with the field's `vector_length`, or `embedding_dim` when it is unset | the same |
+| `Array` of `String`, `Bool`, `Int32`, `Int64`, `Float32`, `Float64` or `UnixTimestamp` without `vector_index` | `VARCHAR` holding the serialized value | `ARRAY` of the element type, with at most `milvus.max_capacity` elements. The default and the maximum are 4096 |
+| `Json` and `Array(Json)` | `VARCHAR` holding the serialized value | `JSON` |
+| Every other type, including `Map` and `Struct` | `VARCHAR` holding the serialized value | the same |
+
+Filters apply to `VARCHAR` and native columns. A column that holds a serialized value can be read
+but not filtered on. A filter key can address a JSON path or an array element with Milvus syntax:
+
+```python
+ComparisonFilter(type="gt", key='attributes["price"]', value=100)
+ComparisonFilter(type="eq", key="tags[0]", value="sale")
+```
+
+A `Json` value in a `JSON` column must be an object or an array: a top-level string, number or
+boolean is rejected, and `null` is stored as a null column value and reads as a missing value. The
+value comes back as the JSON text of the stored document, so its formatting is normalized. `Map` and
+`Struct` values stay serialized, because JSON cannot hold their nested bytes, timestamps or empty
+typed lists. `JSON` and `ARRAY` columns are nullable unless the field has `milvus.nullable: "false"`.
+
+{% hint style="warning" %}
+`enable_openai_compatible_store` only applies when Feast creates a collection. Feast detects the
+column types of an existing collection, so reads and writes keep working whichever way it was
+created. `feast teardown` drops the collections of every feature view in the project, online reads
+fail until materialization finishes, and rows that exist only in the online store are lost. To
+migrate without a teardown, add a copy of the feature view under a new name, materialize it, move
+readers to it, then remove the old view.
+{% endhint %}
+
+`Array(Bool)` cannot be a vector field: Milvus binary vectors are not supported.
+
+A missing or null value is written as the column's default: an empty string, `0` or `false`. Feast
+reads an empty string in a numeric or timestamp text column as null, but a missing `String` or
+`Bytes` value comes back empty and a `0` in a native numeric column comes back as `0`. Tag a field
+with `milvus.nullable: "true"` to store null as `NULL` instead:
+
+```python
+Field(name="rating", dtype=Float32, tags={"milvus.nullable": "true"})
+```
+
+The tag applies when Feast creates the collection, and it needs Milvus 2.5 or later. Entity,
+partition key and vector fields cannot be nullable.
+
+## Scalar indexes
+
+A filter on a scalar column scans the collection unless the column has an index. Declare indexes
+with field tags, and Feast creates them with the collection:
+
+```python
+Field(name="brand_id", dtype=String, tags={"milvus.index": "INVERTED"}),
+Field(name="price", dtype=Float64, tags={"milvus.index": "STL_SORT"}),
+Field(
+    name="attributes",
+    dtype=Json,
+    tags={
+        "milvus.json_indexes": '[{"json_path": "attributes[\\"price\\"]", "json_cast_type": "double"}]'
+    },
+),
+```
+
+`milvus.index` names a scalar index type the server supports, such as `INVERTED`, `BITMAP`,
+`STL_SORT`, `Trie` or `AUTOINDEX`, and `milvus.index_params` passes a JSON object of parameters.
+`milvus.json_indexes` is a JSON list of index definitions for paths of a `JSON` column, each with a
+`json_path`, a `json_cast_type` and an optional `index_type` that defaults to `INVERTED`. It needs
+native types and a Milvus server with JSON path indexes. Vector indexes come from `index_type` and
+`index_params` in the store config.
+
+Indexes only apply when Feast creates a collection. For an existing collection without them, Feast
+logs a warning. To add them, run `feast teardown` and `feast apply`, then materialize again, or use
+the staged cutover described under [Field types](#field-types).
 
 ## Feature views without vectors
 

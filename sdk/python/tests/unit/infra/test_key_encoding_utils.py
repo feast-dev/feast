@@ -1,3 +1,5 @@
+import pytest
+
 from feast.infra.key_encoding_utils import (
     _deserialize_value,
     _serialize_val,
@@ -129,6 +131,44 @@ def test_serialize_deserialize_unix_timestamp_entity():
 
     assert deserialized_key == entity_key_proto
     assert deserialized_key.entity_values[0].unix_timestamp_val == 1758823656
+
+
+@pytest.mark.parametrize(
+    "value_field, value_type, value",
+    [
+        ("uuid_val", ValueType.UUID, "a8098c1a-f86e-41da-bd1a-00112444be1e"),
+        (
+            "time_uuid_val",
+            ValueType.TIME_UUID,
+            "c232ab00-9414-11ec-b3c8-9f6bdeced846",
+        ),
+    ],
+    ids=["uuid", "time_uuid"],
+)
+def test_serialize_deserialize_uuid_entity(value_field, value_type, value):
+    serialized_value, serialized_type = _serialize_val(
+        value_field, ValueProto(**{value_field: value})
+    )
+    assert serialized_type == value_type
+    assert serialized_value == value.encode("utf8")
+
+    entity_key_proto = EntityKeyProto(
+        join_keys=["session_id"],
+        entity_values=[ValueProto(**{value_field: value})],
+    )
+
+    serialized_key = serialize_entity_key(
+        entity_key_proto,
+        entity_key_serialization_version=3,
+    )
+
+    deserialized_key = deserialize_entity_key(
+        serialized_key,
+        entity_key_serialization_version=3,
+    )
+
+    assert deserialized_key == entity_key_proto
+    assert getattr(deserialized_key.entity_values[0], value_field) == value
 
 
 def test_reserialize_entity_v2_key_to_v3():
