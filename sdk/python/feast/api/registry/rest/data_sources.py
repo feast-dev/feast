@@ -357,4 +357,24 @@ def get_data_source_router(grpc_handler) -> APIRouter:
 
         return {"name": name, "project": project, "status": "deleted"}
 
+    @router.post("/data_sources/{name}/validate")
+    def validate_data_source(
+        name: str,
+        project: str = Query(...),
+        allow_cache: bool = Query(default=True),
+    ):
+        """Test connectivity to a data source's underlying storage.
+
+        Delegates to the ``ValidateDataSource`` gRPC method, which enforces the
+        same ``DESCRIBE`` permission check as ``GetDataSource`` before probing
+        the source. Returns ``status`` of success / failed / not_applicable /
+        unavailable along with the discovered column schema on success.
+        """
+        req = RegistryServer_pb2.ValidateDataSourceRequest(
+            name=name,
+            project=project,
+            allow_cache=allow_cache,
+        )
+        return grpc_call(grpc_handler.ValidateDataSource, req)
+
     return router

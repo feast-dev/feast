@@ -464,6 +464,41 @@ def test_data_sources_via_rest(fastapi_test_app):
         pytest.fail(f"featureDefinition is not valid Python: {e}")
 
 
+def test_data_source_validate_via_rest(fastapi_test_app):
+    valid_statuses = {"success", "failed", "not_applicable", "unavailable"}
+
+    # Request sources have no external connection to test.
+    response = fastapi_test_app.post(
+        "/data_sources/input_request_source/validate?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "input_request_source"
+    assert data["project"] == "demo_project"
+    assert data["status"] == "not_applicable"
+    assert "message" in data
+    assert "testedAt" in data
+
+    # A batch (file) source returns a concrete pass/fail result.
+    response = fastapi_test_app.post(
+        "/data_sources/user_profile_source/validate?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "user_profile_source"
+    assert data["status"] in valid_statuses
+    assert "message" in data
+    assert "testedAt" in data
+    if data["status"] == "success":
+        assert isinstance(data.get("columns"), list)
+
+    # Unknown data source -> 404.
+    response = fastapi_test_app.post(
+        "/data_sources/nonexistent_source/validate?project=demo_project"
+    )
+    assert response.status_code == 404
+
+
 def test_projects_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/projects")
     assert response.status_code == 200

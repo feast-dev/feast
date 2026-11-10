@@ -34,6 +34,21 @@ interface MutationResult {
   status: string;
 }
 
+interface ValidateDataSourcePayload {
+  name: string;
+  project: string;
+}
+
+interface ValidateDataSourceResult {
+  name: string;
+  project: string;
+  status: "success" | "failed" | "not_applicable" | "unavailable";
+  message: string;
+  // camelCase: the REST layer returns MessageToDict(proto) output.
+  testedAt: string;
+  columns?: { name: string; type: string }[];
+}
+
 const API_BASE = "/api/v1";
 
 const applyDataSource = async (
@@ -77,6 +92,26 @@ const deleteDataSource = async (
   return response.json();
 };
 
+const validateDataSource = async (
+  payload: ValidateDataSourcePayload,
+): Promise<ValidateDataSourceResult> => {
+  const response = await fetch(
+    `${API_BASE}/data_sources/${encodeURIComponent(payload.name)}/validate?project=${encodeURIComponent(payload.project)}`,
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
+    throw new Error(
+      error.detail || `Failed to test connection: ${response.status}`,
+    );
+  }
+
+  return response.json();
+};
+
 const useApplyDataSource = () => {
   const queryClient = useQueryClient();
 
@@ -101,5 +136,13 @@ const useDeleteDataSource = () => {
   });
 };
 
-export { useApplyDataSource, useDeleteDataSource };
-export type { ApplyDataSourcePayload, DeleteDataSourcePayload };
+const useValidateDataSource = () => {
+  return useMutation(validateDataSource);
+};
+
+export { useApplyDataSource, useDeleteDataSource, useValidateDataSource };
+export type {
+  ApplyDataSourcePayload,
+  DeleteDataSourcePayload,
+  ValidateDataSourceResult,
+};
