@@ -185,6 +185,10 @@ feast serve \
 **Sizing rule of thumb:** Start with `workers = 2 × vCPU + 1` and allocate ~256–512 MB memory per worker. Monitor RSS per process and adjust. If p99 latency is high under load, add more workers or scale horizontally rather than increasing connections.
 {% endhint %}
 
+### Garbage collection pauses
+
+Every full Python garbage collection walks all live objects, including the registry and feature definitions that live for the whole process. In a worker this blocks the event loop, and while it runs every waiting request stalls. The stall shows up as a slow online store read. With `--gc-freeze` (or `feature_server.gc_freeze: true` in `feature_store.yaml`) the server runs `gc.freeze()` after it has loaded the registry and before the workers start, so full collections skip these objects and stay short. Try it if p99.9 latency has spikes that the online store does not explain.
+
 ---
 
 ## Registry cache tuning
@@ -340,7 +344,7 @@ Key knobs:
 - **`batch_size`**: DynamoDB's `BatchGetItem` accepts up to 100 items per request. For 500 entities, this means 5 batches. Keep at 100 unless hitting the 16 MB response limit.
 - **`max_read_workers`**: Controls parallelism for batch reads. With 10 workers, those 5 batches run concurrently (~10 ms) instead of sequentially (~50 ms).
 - **`consistent_reads: false`**: Eventually consistent reads are faster and cheaper. Use `true` only if you need read-after-write consistency.
-- **`warmup_connections: true`**: Pre-warms the DynamoDB connection pool on server startup by making a lightweight call (`describe_limits`). This avoids a cold-start latency penalty (~20ms) on the very first feature request.
+- **`warmup_connections: true`**: Pre-warms the DynamoDB connection pool on server startup by making `max_pool_connections` concurrent lightweight calls (`describe_endpoints`). This avoids a cold-start latency penalty (~20ms) on the first feature requests, including concurrent ones.
 - **`max_pool_connections`**: Increase for high-throughput deployments to improve HTTP connection reuse to the DynamoDB endpoint.
 - **`keepalive_timeout`**: Longer keep-alive reduces TLS handshake overhead on reused connections.
 - **`connect_timeout` / `read_timeout`**: Lower values fail fast, improving p99. Set aggressively if your retry strategy covers transient failures.

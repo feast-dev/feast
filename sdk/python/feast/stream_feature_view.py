@@ -311,7 +311,7 @@ class StreamFeatureView(FeatureView):
             name=self.name,
             entities=self.entities,
             entity_columns=[field.to_proto() for field in self.entity_columns],
-            features=[field.to_proto() for field in self.schema],
+            features=[field.to_proto() for field in self.features],
             user_defined_function=udf_proto,
             feature_transformation=feature_transformation,
             description=self.description,

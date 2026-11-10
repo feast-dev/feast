@@ -51,18 +51,25 @@ class ApplyFeatureViewRequestBody(BaseModel):
     owner: Optional[str] = ""
 
 
-def _extract_feature_view_from_any(any_feature_view: dict) -> dict:
+def _extract_feature_view_from_any(
+    any_feature_view: dict, project: Optional[str] = None
+) -> dict:
     """Extract the specific feature view type and data from an AnyFeatureView object.
 
     Args:
         any_feature_view: Dictionary containing the AnyFeatureView data
+        project: Project the feature view was read from, filled into an unset spec.project
 
     Returns:
         Dictionary with 'type' and feature view data, or empty dict if no valid type found
     """
     for key, value in any_feature_view.items():
         if value:
-            return {"type": key, **value}
+            result = {"type": key, **value}
+            spec = result.get("spec")
+            if project and isinstance(spec, dict) and not spec.get("project"):
+                result["spec"] = {**spec, "project": project}
+            return result
 
     return {}
 
@@ -110,7 +117,9 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             response = grpc_call(grpc_handler.ListAllFeatureViews, req)
             any_feature_views = response.get("featureViews", [])
             for any_feature_view in any_feature_views:
-                feature_view = _extract_feature_view_from_any(any_feature_view)
+                feature_view = _extract_feature_view_from_any(
+                    any_feature_view, project_name
+                )
                 if feature_view:
                     feature_view["project"] = project_name
                     all_feature_views.append(feature_view)
@@ -157,7 +166,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         response = grpc_call(grpc_handler.GetAnyFeatureView, req)
         any_feature_view = response.get("anyFeatureView", {})
 
-        result = _extract_feature_view_from_any(any_feature_view)
+        result = _extract_feature_view_from_any(any_feature_view, project)
 
         if include_relationships:
             relationships = get_object_relationships(
@@ -315,7 +324,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         # Extract the specific type of feature view from each AnyFeatureView
         feature_views = []
         for any_feature_view in any_feature_views:
-            feature_view = _extract_feature_view_from_any(any_feature_view)
+            feature_view = _extract_feature_view_from_any(any_feature_view, project)
             if feature_view:
                 feature_views.append(feature_view)
 
