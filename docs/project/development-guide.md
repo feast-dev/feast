@@ -315,7 +315,7 @@ Note that for Snowflake / GCP / AWS, running `make test-python-integration`  wil
 
 #### (Advanced) Running specific provider tests or running your test against specific online or offline stores
 
-1. If you don't need to have your test run against all of the providers(`gcp`, `aws`, and `snowflake`) or don't need to run against all of the online stores, you can tag your test with specific providers or stores that you need(`@pytest.mark.universal_online_stores` or `@pytest.mark.universal_online_stores` with the `only` parameter). The `only` parameter selects specific offline providers and online stores that your test will test against. Example:
+1. To select offline stores, use `@pytest.mark.universal_offline_stores(only=["bigquery"])`. To select online stores, use `@pytest.mark.universal_online_stores(only=["sqlite"])`. These markers control separate dimensions of the integration-test matrix: the `only` values must be store names recognized by the corresponding marker. For example, to select the SQLite online store:
 
 ```python
 # Only parametrizes this test with the sqlite online store
