@@ -21,6 +21,16 @@ TOOL_DIR := $(ROOT_DIR)/tools
 export GOBIN=$(TOOL_DIR)/bin
 export PATH := $(TOOL_DIR)/bin:$(PATH)
 
+# CI installs the exact, mutually compatible dependency set via
+# `uv pip sync` from the pinned sdk/python/requirements/pyXX-ci-requirements.txt
+# (install-python-dependencies-ci). uv.lock is not committed, so a plain
+# `uv run` would auto-sync and re-resolve the uncapped pyproject dependencies,
+# which can install an inconsistent set -- e.g. protobuf older than the gencode
+# baked into grpcio's health_pb2, which then fails the protobuf gencode/runtime
+# check at import time. Run every `uv run` target against the already-installed
+# environment instead of re-resolving. (pixi-based targets are unaffected.)
+export UV_NO_SYNC := 1
+
 MVN := mvn -f java/pom.xml ${MAVEN_EXTRA_OPTS}
 OS := linux
 ifeq ($(shell uname -s), Darwin)
@@ -29,7 +39,7 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
-PYTHON_VERSIONS := 3.10 3.11 3.12
+PYTHON_VERSIONS := 3.11 3.12
 
 define get_env_name
 $(subst .,,py$(1))
@@ -112,7 +122,11 @@ install-python-dependencies-ci: ## Install Python CI dependencies using uv pip s
 	# Must match the --torch-backend used to compile the CI lock, otherwise the
 	# recorded CPU-wheel hashes (from download.pytorch.org) fail to verify.
 	# The lock is universal, so one command serves both Linux and macOS.
-	uv pip sync --torch-backend cpu sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	# --build-constraints pins build-time deps of source builds to the lock too
+	# (e.g. sqlglotc on Python 3.10 has no wheel and must compile the locked sqlglot).
+	uv pip sync --torch-backend cpu \
+		--build-constraints sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt \
+		sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
 
 # Used in github actions/ci
@@ -145,17 +159,6 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-requirements.txt" && \
-		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --no-strip-extras pyproject.toml --extra minimal-sdist-build \
-			--no-emit-package milvus-lite \
-			--no-emit-package pymilvus \
-			--no-emit-package faiss-cpu \
-			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
-		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 typing_extensions && \
-			pybuild-deps compile --generate-hashes \
-			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
-			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 	) true
 
 compile-protos-python: ## Compile Python protobuf files
@@ -170,11 +173,20 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests (use pattern=<pattern> to filter tests, e.g., pattern=milvus, pattern=test_online_retrieval.py, pattern=test_online_retrieval.py::test_get_online_features_milvus)
-	uv run python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
+	# --no-sync: CI installs via hashed uv pip sync first; re-sync can downgrade protobuf.
+	uv run --no-sync python -m pytest -n 8 --color=yes $(if $(pattern),-k "$(pattern)") \
 		--cov=feast \
 		--cov-report=xml \
 		--cov-report=term-missing \
 		sdk/python/tests/unit
+
+# Standalone `feast mcp` server (feast[mcp-server] extra). Already covered by
+# test-python-unit; this target is for iterating on the MCP server alone.
+test-python-unit-mcp: ## Run unit tests for the standalone `feast mcp` server
+	uv run python -m pytest -n 4 --color=yes $(if $(pattern),-k "$(pattern)") \
+		--cov=sdk/python/feast/mcp \
+		--cov-report=term-missing \
+		sdk/python/tests/unit/mcp
 
 # Fast unit tests only
 test-python-unit-fast: ## Run fast unit tests only (no external dependencies)
@@ -192,7 +204,7 @@ test-python-smoke: ## Quick smoke test for development
 		-n 4 --tb=short
 
 test-python-integration: ## Run Python integration tests (CI)
-	uv run python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not snowflake" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/integration/registration \
@@ -210,7 +222,7 @@ test-python-integration-parallel: ## Run integration tests with enhanced paralle
 test-python-integration-local: ## Run Python integration tests (local dev mode)
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	uv run python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n auto --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test and not ray_offline_stores_only" \
 		--ignore=sdk/python/tests/component/ray \
@@ -221,7 +233,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	uv run python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --no-sync python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test and not ray_offline_stores_only" \
 		--log-cli-level=INFO -s \
@@ -754,6 +766,20 @@ build-go-feature-server-docker: ## Build Go Feature Server Docker iamge
 
 push-go-feature-server-docker: ## Push Go Feature Server Docker image
 	docker push $(REGISTRY)/go-feature-server:$(VERSION)
+
+push-feast-mcp-docker: ## Push Feast MCP Server Docker image
+	docker push $(REGISTRY)/feast-mcp:$(VERSION)
+
+# Wraps an already-published feature-server image, so that image must exist
+# before this builds. BASE_TAG defaults to VERSION; override it to wrap an
+# older feature-server release.
+build-feast-mcp-docker: ## Build Feast MCP Server Docker image
+	docker buildx build $(if $(DOCKER_PLATFORMS),--platform $(DOCKER_PLATFORMS),) \
+		--build-arg BASE_IMAGE=$(REGISTRY)/feature-server \
+		--build-arg BASE_TAG=$(if $(BASE_TAG),$(BASE_TAG),$(VERSION)) \
+		-t $(REGISTRY)/feast-mcp:$(VERSION) \
+		-f sdk/python/feast/mcp/docker/Dockerfile \
+		$(if $(filter true,$(DOCKER_PUSH)),--push,--load) sdk/python/feast/mcp/docker
 
 ##@ Dev images
 

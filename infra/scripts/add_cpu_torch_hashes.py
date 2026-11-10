@@ -22,9 +22,13 @@ def add_cpu_hashes(requirements: str, cpu_requirements: str) -> str:
 
     def add_hashes(match: re.Match[str]) -> str:
         name, version = match[1], match[2]
+        # Universal torch-backend locks already emit dedicated +cpu lines; leave
+        # those alone and only augment the plain/PyPI pin with CPU wheel hashes.
+        if version.endswith("+cpu"):
+            return match[0]
         hashes = cpu_hashes.get((name, f"{version}+cpu"))
         if not hashes:
-            raise ValueError(f"Missing CPU hashes for {name}=={version}")
+            raise ValueError(f"Missing CPU hashes for {name}=={version}+cpu")
         hashes = hashes | set(re.findall(r"sha256:[0-9a-f]{64}", match[0]))
         header = match[0].splitlines()[0]
         return (
@@ -43,7 +47,13 @@ def main() -> None:
     parser.add_argument("--python-version", required=True)
     args = parser.parse_args()
     contents = args.requirements.read_text()
-    pins = [f"{match[1]}=={match[2]}" for match in TORCH_REQUIREMENT.finditer(contents)]
+    pins = sorted(
+        {
+            f"{match[1]}=={match[2].removesuffix('+cpu')}"
+            for match in TORCH_REQUIREMENT.finditer(contents)
+            if not match[2].endswith("+cpu")
+        }
+    )
     if not pins:
         raise ValueError("No hashed PyTorch requirements found")
     with tempfile.TemporaryDirectory() as tmp:

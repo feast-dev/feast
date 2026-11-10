@@ -88,6 +88,9 @@ class RayFeatureBuilder(FeatureBuilder):
             config=self.config,
             enable_tiling=enable_tiling,
             hop_size=tiling_hop_size,
+            created_timestamp_col=getattr(
+                view.batch_source, "created_timestamp_column", None
+            ),
         )
         node.add_input(input_node)
 
@@ -333,18 +336,18 @@ class RayFeatureBuilder(FeatureBuilder):
         # 1. Read source data
         last_node = self.build_source_node(self.feature_view)
 
-        # 2. Apply filters (TTL, custom filters) BEFORE aggregation
-        last_node = self.build_filter_node(self.feature_view, last_node)
-
-        # 3. Aggregate across all historical records
-        last_node = self.build_aggregation_node(self.feature_view, last_node)
-
-        # 4. Join with entity_df to get aggregated features for each entity
-        last_node = self.build_join_node(self.feature_view, [last_node])
-
-        # 5. Apply transformations to aggregated features
+        # 2. Apply transformations to the raw source data, as materialization does
         if self._should_transform(self.feature_view):
             last_node = self.build_transformation_node(self.feature_view, [last_node])
+
+        # 3. Apply filters (TTL, custom filters) BEFORE aggregation
+        last_node = self.build_filter_node(self.feature_view, last_node)
+
+        # 4. Aggregate across all historical records
+        last_node = self.build_aggregation_node(self.feature_view, last_node)
+
+        # 5. Join with entity_df to get aggregated features for each entity
+        last_node = self.build_join_node(self.feature_view, [last_node])
 
         # 6. Output
         last_node = self.build_output_nodes(self.feature_view, last_node)

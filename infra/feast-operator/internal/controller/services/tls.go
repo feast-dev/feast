@@ -136,6 +136,11 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 }
 
 func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) *feastdevv1.TlsConfigs {
+	// Operator-managed TLS is not supported for the standalone MCP server yet; always
+	// treat it as non-TLS so the container, Service, and probe agree on the HTTP port.
+	if feastType == McpServerFeastType {
+		return nil
+	}
 	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
 		return serviceConfigs.TLS
 	}

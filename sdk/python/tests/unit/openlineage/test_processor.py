@@ -692,3 +692,388 @@ class TestEndToEndLineage:
         assert "a" in names
         assert "j1" in names
         assert "c" in names
+
+
+# ── Parent hierarchy extraction ──
+
+
+class TestParentHierarchy:
+    def test_parent_run_id_extracted(self, processor, store):
+        event = _run_event(
+            run_id="child-run",
+            run_facets={
+                "parent": {
+                    "run": {"runId": "parent-run"},
+                    "job": {"namespace": "ns", "name": "parent-job"},
+                }
+            },
+        )
+        processor.process_event(event)
+        runs = store.get_runs()
+        assert len(runs) == 1
+        assert runs[0]["parent_run_id"] == "parent-run"
+        assert runs[0]["root_run_id"] == "parent-run"
+
+    def test_root_run_id_from_nested_root(self, processor, store):
+        event = _run_event(
+            run_id="grandchild",
+            run_facets={
+                "parent": {
+                    "run": {"runId": "child-run"},
+                    "job": {"namespace": "ns", "name": "child-job"},
+                    "root": {
+                        "run": {"runId": "root-run"},
+                        "job": {"namespace": "ns", "name": "root-job"},
+                    },
+                }
+            },
+        )
+        processor.process_event(event)
+        runs = store.get_runs()
+        assert runs[0]["parent_run_id"] == "child-run"
+        assert runs[0]["root_run_id"] == "root-run"
+
+    def test_no_parent_facet(self, processor, store):
+        event = _run_event(run_id="standalone")
+        processor.process_event(event)
+        runs = store.get_runs()
+        assert runs[0]["parent_run_id"] is None
+        assert runs[0]["root_run_id"] is None
+
+    def test_child_runs_query(self, processor, store):
+        processor.process_event(
+            _run_event(
+                job_name="parent-j",
+                run_id="parent-run",
+            )
+        )
+        processor.process_event(
+            _run_event(
+                job_name="child-j",
+                run_id="child-1",
+                run_facets={
+                    "parent": {
+                        "run": {"runId": "parent-run"},
+                        "job": {"namespace": "test-ns", "name": "parent-j"},
+                    }
+                },
+            )
+        )
+        processor.process_event(
+            _run_event(
+                job_name="child-j2",
+                run_id="child-2",
+                run_facets={
+                    "parent": {
+                        "run": {"runId": "parent-run"},
+                        "job": {"namespace": "test-ns", "name": "parent-j"},
+                    }
+                },
+            )
+        )
+        children = store.get_child_runs("parent-run")
+        assert len(children) == 2
+        child_ids = {c["run_id"] for c in children}
+        assert "child-1" in child_ids
+        assert "child-2" in child_ids
+
+    def test_run_tree_query(self, processor, store):
+        processor.process_event(_run_event(run_id="root"))
+        for i in range(3):
+            processor.process_event(
+                _run_event(
+                    job_name=f"child-{i}",
+                    run_id=f"child-{i}",
+                    run_facets={
+                        "parent": {
+                            "run": {"runId": "root"},
+                            "job": {"namespace": "test-ns", "name": "etl-job"},
+                            "root": {
+                                "run": {"runId": "root"},
+                                "job": {"namespace": "test-ns", "name": "etl-job"},
+                            },
+                        }
+                    },
+                )
+            )
+        tree = store.get_run_tree("root")
+        assert len(tree) == 4
+        run_ids = {r["run_id"] for r in tree}
+        assert "root" in run_ids
+
+
+# ── Column-level lineage ──
+
+
+class TestColumnLineage:
+    def test_column_lineage_extracted(self, processor, store):
+        event = _run_event(
+            outputs=[
+                {
+                    "namespace": "ns",
+                    "name": "output_table",
+                    "facets": {
+                        "columnLineage": {
+                            "fields": {
+                                "full_name": {
+                                    "inputFields": [
+                                        {
+                                            "namespace": "ns",
+                                            "name": "input_table",
+                                            "field": "first_name",
+                                            "transformations": [
+                                                {
+                                                    "type": "DIRECT",
+                                                    "description": "concatenation",
+                                                }
+                                            ],
+                                        },
+                                        {
+                                            "namespace": "ns",
+                                            "name": "input_table",
+                                            "field": "last_name",
+                                        },
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                }
+            ],
+        )
+        processor.process_event(event)
+        cl = store.get_column_lineage("ns", "output_table", direction="upstream")
+        assert len(cl) == 2
+        fields = {(c["input_field"], c["output_field"]) for c in cl}
+        assert ("first_name", "full_name") in fields
+        assert ("last_name", "full_name") in fields
+
+        xform = next(c for c in cl if c["input_field"] == "first_name")
+        assert xform["transformation_type"] == "DIRECT"
+
+    def test_column_lineage_downstream_query(self, processor, store):
+        event = _run_event(
+            outputs=[
+                {
+                    "namespace": "ns",
+                    "name": "derived",
+                    "facets": {
+                        "columnLineage": {
+                            "fields": {
+                                "score": {
+                                    "inputFields": [
+                                        {
+                                            "namespace": "ns",
+                                            "name": "source",
+                                            "field": "raw_score",
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                }
+            ],
+        )
+        processor.process_event(event)
+        downstream = store.get_column_lineage("ns", "source", direction="downstream")
+        assert len(downstream) == 1
+        assert downstream[0]["output_field"] == "score"
+        assert downstream[0]["dataset_name"] == "derived"
+
+    def test_no_column_lineage_when_absent(self, processor, store):
+        event = _run_event(
+            outputs=[{"namespace": "ns", "name": "tbl", "facets": {}}],
+        )
+        processor.process_event(event)
+        cl = store.get_column_lineage("ns", "tbl")
+        assert len(cl) == 0
+
+
+# ── Dataset versioning ──
+
+
+class TestDatasetVersioning:
+    def test_version_created_on_complete(self, processor, store):
+        event = _run_event(
+            event_type="COMPLETE",
+            run_id="ver-run-1",
+            outputs=[
+                {
+                    "namespace": "ns",
+                    "name": "versioned_ds",
+                    "facets": {"schema": {"fields": [{"name": "id", "type": "INT"}]}},
+                }
+            ],
+        )
+        processor.process_event(event)
+        versions = store.get_dataset_versions("ns", "versioned_ds")
+        assert len(versions) == 1
+        assert versions[0]["version"] == 1
+        assert versions[0]["created_by_run_id"] == "ver-run-1"
+
+        datasets = store.get_datasets(namespaces=["ns"])
+        ds = next(d for d in datasets if d["dataset_name"] == "versioned_ds")
+        assert ds["current_version"] == 1
+
+    def test_multiple_versions(self, processor, store):
+        for i in range(3):
+            event = _run_event(
+                event_type="COMPLETE",
+                run_id=f"run-{i}",
+                job_name=f"job-{i}",
+                outputs=[{"namespace": "ns", "name": "multi_ver", "facets": {}}],
+            )
+            processor.process_event(event)
+
+        versions = store.get_dataset_versions("ns", "multi_ver")
+        assert len(versions) == 3
+        assert versions[0]["version"] == 3
+        assert versions[2]["version"] == 1
+
+    def test_no_version_on_start(self, processor, store):
+        event = _run_event(
+            event_type="START",
+            outputs=[{"namespace": "ns", "name": "ds", "facets": {}}],
+        )
+        processor.process_event(event)
+        versions = store.get_dataset_versions("ns", "ds")
+        assert len(versions) == 0
+
+    def test_get_specific_version(self, processor, store):
+        for i in range(2):
+            processor.process_event(
+                _run_event(
+                    event_type="COMPLETE",
+                    run_id=f"r{i}",
+                    job_name=f"j{i}",
+                    outputs=[{"namespace": "ns", "name": "ds", "facets": {}}],
+                )
+            )
+        v1 = store.get_dataset_version("ns", "ds", 1)
+        assert v1 is not None
+        assert v1["version"] == 1
+        assert store.get_dataset_version("ns", "ds", 99) is None
+
+
+# ── Ownership extraction ──
+
+
+class TestOwnershipExtraction:
+    def test_ownership_facet_indexed(self, processor, store):
+        event = _run_event(
+            outputs=[
+                {
+                    "namespace": "ns",
+                    "name": "owned_ds",
+                    "facets": {
+                        "ownership": {
+                            "owners": [
+                                {"name": "team-ml", "type": "TEAM"},
+                                {"name": "alice@example.com", "type": "PERSON"},
+                            ]
+                        }
+                    },
+                }
+            ],
+        )
+        processor.process_event(event)
+
+        datasets = store.get_datasets(namespaces=["ns"])
+        ds = next(d for d in datasets if d["dataset_name"] == "owned_ds")
+        assert ds["owner_name"] == "team-ml"
+        assert ds["owner_type"] == "TEAM"
+
+        owners = store.get_dataset_owners("ns", "owned_ds")
+        assert len(owners) == 2
+        names = {o["name"] for o in owners}
+        assert "team-ml" in names
+        assert "alice@example.com" in names
+
+    def test_no_ownership_when_absent(self, processor, store):
+        event = _run_event(
+            outputs=[{"namespace": "ns", "name": "no_owner", "facets": {}}],
+        )
+        processor.process_event(event)
+        owners = store.get_dataset_owners("ns", "no_owner")
+        assert len(owners) == 0
+        datasets = store.get_datasets(namespaces=["ns"])
+        ds = next(d for d in datasets if d["dataset_name"] == "no_owner")
+        assert ds["owner_name"] is None
+
+
+# ── Lifecycle tracking ──
+
+
+class TestLifecycleTracking:
+    def test_lifecycle_state_indexed(self, processor, store):
+        event = _dataset_event(
+            ds_facets={"lifecycleStateChange": {"lifecycleStateChange": "CREATE"}},
+        )
+        processor.process_event(event)
+        datasets = store.get_datasets()
+        assert datasets[0]["lifecycle_state"] == "CREATE"
+
+    def test_lifecycle_update(self, processor, store):
+        processor.process_event(
+            _dataset_event(
+                ds_facets={"lifecycleStateChange": {"lifecycleStateChange": "CREATE"}},
+            )
+        )
+        processor.process_event(
+            _dataset_event(
+                ds_facets={"lifecycleStateChange": {"lifecycleStateChange": "ALTER"}},
+            )
+        )
+        datasets = store.get_datasets()
+        assert len(datasets) == 1
+        assert datasets[0]["lifecycle_state"] == "ALTER"
+
+
+# ── Assurance level computation ──
+
+
+class TestAssuranceLevel:
+    def test_none_for_unknown_dataset(self, store):
+        result = store.compute_assurance_level("ns", "nonexistent")
+        assert result["level"] == "none"
+
+    def test_none_when_no_edges(self, store):
+        store.upsert_dataset("ns", "isolated")
+        result = store.compute_assurance_level("ns", "isolated")
+        assert result["level"] == "none"
+
+    def test_linked_with_edges(self, store):
+        store.upsert_dataset("ns", "ds1")
+        store.upsert_lineage_edge("dataset", "ns", "ds1", "job", "ns", "j1")
+        result = store.compute_assurance_level("ns", "ds1")
+        assert result["level"] == "linked"
+        assert result["details"]["edge_count"] >= 1
+
+    def test_observed_with_source_evidence(self, store):
+        store.upsert_dataset(
+            "ns",
+            "ds2",
+            facets={"dataSource": {"uri": "s3://bucket/path"}},
+        )
+        store.upsert_lineage_edge("dataset", "ns", "ds2", "job", "ns", "j1")
+        result = store.compute_assurance_level("ns", "ds2")
+        assert result["level"] == "observed"
+        assert "dataSource.uri" in result["details"]["evidence"]
+
+    def test_reproducible_with_versions(self, store):
+        store.upsert_dataset(
+            "ns",
+            "ds3",
+            facets={
+                "dataSource": {"uri": "s3://bucket/path"},
+                "schema": {"fields": [{"name": "id", "type": "INT"}]},
+            },
+        )
+        store.upsert_lineage_edge("dataset", "ns", "ds3", "job", "ns", "j1")
+        store.create_dataset_version(
+            "ns", "ds3", run_id="r1", schema_json='{"fields": []}'
+        )
+        result = store.compute_assurance_level("ns", "ds3")
+        assert result["level"] == "reproducible"
+        assert result["details"]["version_count"] == 1

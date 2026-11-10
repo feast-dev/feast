@@ -81,6 +81,7 @@ def write_to_online_store(
 
     except Exception as e:
         logger.error(f"Failed to write to online store for {feature_view.name}: {e}")
+        raise
 
 
 # Ray Data batch type: pandas DataFrame, numpy dict, or pyarrow Table
@@ -178,6 +179,7 @@ def write_to_online_store_from_ray_ds(
         logger.error(
             f"Distributed write to online store failed for {feature_view.name}: {e}"
         )
+        raise
 
 
 def safe_batch_processor(

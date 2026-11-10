@@ -20,6 +20,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 import ray
+from ray.data.context import DatasetContext, ShuffleStrategy
 
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
@@ -31,7 +32,7 @@ from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
     RayOfflineStoreConfig,
     RayResourceManager,
 )
-from feast.infra.ray_initializer import CodeFlareRayWrapper
+from feast.infra.ray_initializer import CodeFlareRayWrapper, ensure_ray_initialized
 from feast.infra.ray_shared_utils import RemoteDatasetProxy
 
 # ---------------------------------------------------------------------------
@@ -490,6 +491,43 @@ class TestRayResourceManagerGPU:
         with patch("ray.is_initialized", return_value=False):
             mgr = RayResourceManager()
             assert mgr.available_gpus == 0
+
+
+# ---------------------------------------------------------------------------
+# DatasetContext shuffle strategy — must be a valid ShuffleStrategy member
+# (Ray >= 2.59 rejects unknown values such as "sort")
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def restore_shuffle_strategy():
+    ctx = DatasetContext.get_current()
+    original = ctx.shuffle_strategy
+    yield
+    ctx.shuffle_strategy = original
+
+
+class TestShuffleStrategy:
+    def test_configure_ray_context_sets_sort_shuffle(self, restore_shuffle_strategy):
+        with patch("ray.is_initialized", return_value=False):
+            mgr = RayResourceManager()
+        mgr.configure_ray_context()
+        assert (
+            DatasetContext.get_current().shuffle_strategy
+            == ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
+        )
+
+    def test_ensure_ray_initialized_sets_sort_shuffle(self, restore_shuffle_strategy):
+        with (
+            patch("feast.infra.ray_initializer._ray_initialized", False),
+            patch("feast.infra.ray_initializer.ray") as mock_ray,
+        ):
+            mock_ray.is_initialized.return_value = True
+            ensure_ray_initialized(RayComputeEngineConfig())
+        assert (
+            DatasetContext.get_current().shuffle_strategy
+            == ShuffleStrategy.SORT_SHUFFLE_PULL_BASED
+        )
 
 
 # ---------------------------------------------------------------------------

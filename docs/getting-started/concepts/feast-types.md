@@ -19,7 +19,7 @@ Feast supports the following categories of data types:
 
 For a complete reference with examples, see [Type System](../../reference/type-system.md).
 
-Each feature or schema field in Feast is associated with a data type, which is stored in Feast's [registry](registry.md). These types are also used to ensure that Feast operates on values correctly (e.g. making sure that timestamp columns used for [point-in-time correct joins](point-in-time-joins.md) actually have the timestamp type).
+Each feature or schema field in Feast is associated with a data type, which is stored in Feast's [registry](../components/registry.md). These types are also used to ensure that Feast operates on values correctly (e.g. making sure that timestamp columns used for [point-in-time correct joins](point-in-time-joins.md) actually have the timestamp type).
 
 As a result, each system that Feast interacts with needs a way to translate data types from the native platform into a Feast type. E.g., Snowflake SQL types are converted to Feast types [here](https://rtd.feast.dev/en/master/feast.html#feast.type_map.snowflake_python_type_to_feast_value_type). The onus is therefore on authors of offline or online store connectors to make sure that this type mapping happens correctly.
 

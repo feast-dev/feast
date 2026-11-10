@@ -874,16 +874,37 @@ def get_app(
     store: "feast.FeatureStore",
     project_id: str,
     root_path: str = "",
+    cors_origins: Optional[List[str]] = None,
 ):
     app = FastAPI()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS is only required for cross-origin browsers calling the API. The UI is
+    # served from this same app (same origin), so it keeps working without any
+    # permissive CORS policy. Allowing every origin together with credentials
+    # (``allow_origins=["*"]`` + ``allow_credentials=True``) lets any website a
+    # user visits issue authenticated cross-origin requests to this server
+    # (CVE-2024-11602 / CWE-346), so it is disabled by default. Operators who
+    # need cross-origin access must opt in with an explicit list of trusted
+    # origins via ``feast ui --cors-allowed-origins``.
+    if cors_origins:
+        if "*" in cors_origins:
+            # Honor an explicit wildcard (an informed, opt-in operator choice,
+            # like Feast's own ``auth_type=no_auth``), but make the risk loud:
+            # with credentials, Starlette reflects the caller's origin for any
+            # site, which is the CVE-2024-11602 pattern. Not a safe default.
+            logger.warning(
+                "CORS is configured to allow all origins ('*'). This permits "
+                "credentialed cross-origin requests from any site and is "
+                "intended for development only. Configure an explicit list of "
+                "trusted origins for production deployments."
+            )
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     _setup_rest_mode(app, store)
 
@@ -1207,11 +1228,13 @@ def start_server(
     root_path: str = "",
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    cors_origins: Optional[List[str]] = None,
 ):
     app = get_app(
         store,
         project_id,
         root_path,
+        cors_origins=cors_origins,
     )
 
     logger.info(f"Starting Feast UI server on {host}:{port}")
