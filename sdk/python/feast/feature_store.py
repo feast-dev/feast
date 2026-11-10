@@ -1146,6 +1146,71 @@ class FeatureStore:
         """
         return self.registry.delete_feature_service(name, self.project)
 
+    def delete_saved_dataset(self, name: str):
+        """
+        Deletes a saved dataset from the registry.
+
+        Args:
+            name: Name of the saved dataset.
+
+        Raises:
+            SavedDatasetNotFound: The saved dataset could not be found.
+        """
+        return self.registry.delete_saved_dataset(name, self.project)
+
+    def delete_object(self, name: str):
+        """Delete a Feast object by name, searching across all object types.
+
+        This method attempts to find an object with the given name across all
+        registered object types (Entity, FeatureView, OnDemandFeatureView,
+        StreamFeatureView, FeatureService, DataSource, SavedDataset,
+        ValidationReference, Permission, LabelView) and deletes the first match.
+
+        Args:
+            name: Name of the object to delete.
+
+        Raises:
+            ValueError: If no object with the given name is found.
+        """
+        object_getters = [
+            (self.get_entity, "Entity"),
+            (self.get_feature_view, "FeatureView"),
+            (self.get_feature_service, "FeatureService"),
+            (self.get_data_source, "DataSource"),
+            (self.get_saved_dataset, "SavedDataset"),
+            (self.get_validation_reference, "ValidationReference"),
+            (self.get_stream_feature_view, "StreamFeatureView"),
+            (self.get_on_demand_feature_view, "OnDemandFeatureView"),
+        ]
+
+        for getter, obj_type in object_getters:
+            try:
+                obj = getter(name)
+                if obj:
+                    if isinstance(obj, list):
+                        obj = obj[0]
+                    self.apply([], objects_to_delete=[obj], partial=False)
+                    return
+            except Exception:
+                continue
+
+        raise ValueError(
+            f"Object '{name}' not found in project '{self.project}'. "
+            f"Cannot delete."
+        )
+
+    def list_saved_datasets(self, allow_cache: bool = False) -> List[SavedDataset]:
+        """
+        Returns all saved datasets in the current project.
+
+        Args:
+            allow_cache: Whether to allow returning data from a cached registry.
+
+        Returns:
+            A list of SavedDataset objects registered in the current project.
+        """
+        return self.registry.list_saved_datasets(allow_cache=allow_cache, project=self.project)
+
     def _should_use_plan(self):
         """Returns True if plan and _apply_diffs should be used, False otherwise."""
         # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
@@ -1851,6 +1916,31 @@ class FeatureStore:
             lvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, LabelView)
             ]
+            saved_datasets_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SavedDataset)
+            ]
+
+            # Validate that all objects_to_delete are recognized Feast objects.
+            # Previously, unrecognized types were silently ignored, which could
+            # lead to objects remaining in the registry after deletion.
+            recognized_types = (
+                Entity, FeatureView, BatchFeatureView, OnDemandFeatureView,
+                StreamFeatureView, FeatureService, DataSource,
+                ValidationReference, Permission, LabelView, SavedDataset,
+            )
+            unrecognized = [
+                ob for ob in objects_to_delete
+                if not isinstance(ob, recognized_types)
+            ]
+            if unrecognized:
+                type_names = ", ".join(type(ob).__name__ for ob in unrecognized)
+                raise ValueError(
+                    f"apply() objects_to_delete contains unrecognized object type(s): "
+                    f"{type_names}. Supported types are: Entity, FeatureView, "
+                    f"BatchFeatureView, OnDemandFeatureView, StreamFeatureView, "
+                    f"FeatureService, DataSource, ValidationReference, Permission, "
+                    f"LabelView, SavedDataset."
+                )
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1887,6 +1977,10 @@ class FeatureStore:
             for permission in permissions_to_delete:
                 self.registry.delete_permission(
                     permission.name, project=self.project, commit=False
+                )
+            for saved_dataset in saved_datasets_to_delete:
+                self.registry.delete_saved_dataset(
+                    saved_dataset.name, project=self.project, commit=False
                 )
 
         tables_to_delete: List[FeatureView] = (

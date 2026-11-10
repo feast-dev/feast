@@ -199,7 +199,8 @@ def delete(ctx: click.Context, object_id: str):
         )
     else:
         print(
-            f"{Style.BRIGHT + Fore.GREEN}Object not found. Deletion skipped.{Style.RESET_ALL}"
+            f"{Style.BRIGHT + Fore.YELLOW}Object '{object_id}' not found in project '{store.project}'. "
+            f"No deletion performed.{Style.RESET_ALL}"
         )
 
 
