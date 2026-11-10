@@ -117,11 +117,11 @@ MILVUS_NATIVE_NUMERIC_TYPES = {
     DataType.BOOL,
 }
 MILVUS_VECTOR_TYPES = {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}
-# Feast types stored as a JSON column when native types are enabled. Map and
+# Feast types stored as a JSON column. Map and
 # Struct stay serialized: JSON cannot hold their nested bytes, timestamps or
 # empty typed lists.
 _JSON_VALUE_TYPES = {ValueType.JSON, ValueType.JSON_LIST}
-# Element types of an ARRAY column when native types are enabled.
+# Element types of an ARRAY column.
 _ARRAY_ELEMENT_TYPES: Dict[Any, DataType] = {
     PrimitiveFeastType.STRING: DataType.VARCHAR,
     PrimitiveFeastType.BOOL: DataType.BOOL,
@@ -1318,36 +1318,37 @@ def _milvus_field_type(field: Field) -> DataType:
 
 
 def _column_spec(
-    field: Field, native: bool, varchar_max_length: int, embedding_dim: Optional[int]
+    field: Field,
+    native_numerics: bool,
+    varchar_max_length: int,
+    embedding_dim: Optional[int],
 ) -> Dict[str, Any]:
     """The FieldSchema arguments of a feature's column.
 
-    A ``vector_index`` field is a vector. With native types, scalars get their
-    own type, arrays of scalars become ARRAY and Json, Map and Struct values
-    become JSON. Everything else is VARCHAR: text, base64 bytes or a
-    serialized value.
+    A ``vector_index`` field is a vector, an array of scalars is an ARRAY and a
+    Json value is JSON. A numeric is native when ``native_numerics`` is set.
+    Everything else is VARCHAR: text, base64 bytes or a serialized value.
     """
     dtype = _milvus_field_type(field)
     if dtype in MILVUS_VECTOR_TYPES:
         return {"dtype": dtype, "dim": field.vector_length or embedding_dim}
     max_length = _max_length_tag(field, varchar_max_length)
-    if native:
-        if from_feast_type(field.dtype) in _JSON_VALUE_TYPES:
-            return {"dtype": DataType.JSON, "nullable": True}
-        if isinstance(field.dtype, Array):
-            element = _ARRAY_ELEMENT_TYPES.get(field.dtype.base_type)
-            if element is not None:
-                spec: Dict[str, Any] = {
-                    "dtype": DataType.ARRAY,
-                    "element_type": element,
-                    "max_capacity": _max_capacity_tag(field),
-                    "nullable": True,
-                }
-                if element == DataType.VARCHAR:
-                    spec["max_length"] = max_length
-                return spec
-        elif dtype in MILVUS_NATIVE_NUMERIC_TYPES:
-            return {"dtype": dtype}
+    if from_feast_type(field.dtype) in _JSON_VALUE_TYPES:
+        return {"dtype": DataType.JSON, "nullable": True}
+    if isinstance(field.dtype, Array):
+        element = _ARRAY_ELEMENT_TYPES.get(field.dtype.base_type)
+        if element is not None:
+            spec: Dict[str, Any] = {
+                "dtype": DataType.ARRAY,
+                "element_type": element,
+                "max_capacity": _max_capacity_tag(field),
+                "nullable": True,
+            }
+            if element == DataType.VARCHAR:
+                spec["max_length"] = max_length
+            return spec
+    elif native_numerics and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
+        return {"dtype": dtype}
     return {"dtype": DataType.VARCHAR, "max_length": max_length}
 
 
