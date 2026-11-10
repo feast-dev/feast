@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import date, datetime, timezone
@@ -193,8 +194,24 @@ def _read_lance_source(data_source: "LanceSource") -> Table:
     is honoured before any data crosses into ibis. The declared-schema contract
     is enforced separately, by ``validate_lance_source_schema``, because the
     reader callback is handed a ``DataSource`` without its feature view.
+
+    The dataset is registered with DuckDB as a lazy scan rather than read into
+    memory. A ``LanceDataset`` is a ``pyarrow.dataset.Dataset``, so DuckDB pushes
+    the query's column projection into the Lance scanner: a retrieval that needs
+    a few scalar features never reads the embedding columns stored beside them.
+
+    The view is named after the dataset's location and resolved version. An
+    opened dataset is a snapshot, so the name always denotes the same data and
+    re-registering it is harmless, while a job built before a later write keeps
+    reading the version it was built against.
     """
-    return ibis.memtable(data_source.to_arrow())
+    dataset = data_source.get_dataset()
+    digest = hashlib.sha256(f"{dataset.uri}@{dataset.version}".encode()).hexdigest()
+    view_name = f"__feast_lance_{digest[:16]}"
+
+    backend = ibis.get_backend()
+    backend.con.register(view_name, dataset)
+    return backend.table(view_name)
 
 
 def _validate_lance_feature_views(feature_views: List[FeatureView]) -> None:

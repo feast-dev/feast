@@ -14,7 +14,7 @@ Using a table reference:
 from feast import BigQuerySource
 
 my_bigquery_source = BigQuerySource(
-    table_ref="gcp_project:bq_dataset.bq_table",
+    table="gcp_project:bq_dataset.bq_table",
 )
 ```
 

@@ -123,13 +123,13 @@ class Project:
     @classmethod
     def from_proto(cls, project_proto: ProjectProto):
         """
-        Creates a project from a protobuf representation of an project.
+        Creates a project from a protobuf representation of a project.
 
         Args:
-            entity_proto: A protobuf representation of an project.
+            project_proto: A protobuf representation of a project.
 
         Returns:
-            An Entity object based on the entity protobuf.
+            A Project object based on the project protobuf.
         """
         project = cls(
             name=project_proto.spec.name,

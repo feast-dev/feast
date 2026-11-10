@@ -121,8 +121,9 @@ def import_command(
         # Generate Python file instead of applying to registry
         feast dbt import -m target/manifest.json -e driver_id --tag feast --output features.py
     """
-    from feast.dbt.mapper import DbtToFeastMapper
-    from feast.dbt.parser import DbtManifestParser
+    from feast.dbt.mapper import DbtToFeastMapper, map_dbt_type_to_feast_type
+    from feast.dbt.parser import DbtManifestParser, DbtModel
+    from feast.types import Array, Int32, Int64, String
 
     # Parse manifest
     click.echo(f"{Fore.CYAN}Parsing dbt manifest: {manifest_path}{Style.RESET_ALL}")
@@ -198,6 +199,7 @@ def import_command(
 
     all_objects: List[Any] = []
     entities_created: Dict[str, Any] = {}
+    valid_models: List[DbtModel] = []
 
     for model in models:
         # Validate timestamp field exists
@@ -217,6 +219,32 @@ def import_command(
                 f"column(s): {', '.join(missing_entities)}. Skipping.{Style.RESET_ALL}"
             )
             continue
+
+        # Validate entity column types: arrays cannot be entity keys, and
+        # types other than strings and integers make poor join keys
+        columns_by_name = {c.name: c for c in model.columns}
+        entity_types = {
+            e: map_dbt_type_to_feast_type(columns_by_name[e].data_type)
+            for e in entity_cols
+        }
+        array_entities = [e for e, t in entity_types.items() if isinstance(t, Array)]
+        if array_entities:
+            click.echo(
+                f"{Fore.YELLOW}Warning: Model '{model.name}' has array entity "
+                f"column(s): {', '.join(array_entities)}. Skipping.{Style.RESET_ALL}"
+            )
+            continue
+
+        for entity_col, feast_type in entity_types.items():
+            if feast_type not in (String, Int32, Int64):
+                click.echo(
+                    f"{Fore.YELLOW}Warning: Model '{model.name}' entity column "
+                    f"'{entity_col}' has type "
+                    f"'{columns_by_name[entity_col].data_type}' (Feast type "
+                    f"{feast_type}), which may not be suitable as an entity key. "
+                    f"Recommended types: STRING, INT64. Importing anyway."
+                    f"{Style.RESET_ALL}"
+                )
 
         # Create or reuse entities (one per entity column)
         model_entities: List[Any] = []
@@ -253,6 +281,7 @@ def import_command(
             exclude_columns=excluded,
         )
         all_objects.append(feature_view)
+        valid_models.append(model)
 
         click.echo(
             f"  {Fore.GREEN}✓{Style.RESET_ALL} {model.name}: "
@@ -264,14 +293,6 @@ def import_command(
             f"{Fore.YELLOW}No valid models to import (check warnings above).{Style.RESET_ALL}"
         )
         raise SystemExit(0)
-
-    # Filter models that were actually processed (have valid columns)
-    valid_models = [
-        m
-        for m in models
-        if timestamp_field in [c.name for c in m.columns]
-        and all(e in [c.name for c in m.columns] for e in entity_cols)
-    ]
 
     # Summary
     click.echo(f"\n{Fore.CYAN}Summary:{Style.RESET_ALL}")
