@@ -29,6 +29,7 @@ class PrecomputedFeatureVector(google.protobuf.message.Message):
     VALUES_FIELD_NUMBER: builtins.int
     FV_TIMESTAMPS_FIELD_NUMBER: builtins.int
     PRECOMPUTED_AT_FIELD_NUMBER: builtins.int
+    SCHEMA_FINGERPRINT_FIELD_NUMBER: builtins.int
     @property
     def feature_names(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]:
         """Fully-qualified feature names in deterministic order, e.g. "fv1__feat1"."""
@@ -41,6 +42,10 @@ class PrecomputedFeatureVector(google.protobuf.message.Message):
     @property
     def precomputed_at(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Wall-clock time when this vector was assembled."""
+    schema_fingerprint: builtins.str
+    """Fingerprint of the FeatureService's ordered "<fv>__<feature>" names. Lets a
+    vector omit feature_names and still be validated against the service.
+    """
     def __init__(
         self,
         *,
@@ -48,9 +53,10 @@ class PrecomputedFeatureVector(google.protobuf.message.Message):
         values: collections.abc.Iterable[feast.types.Value_pb2.Value] | None = ...,
         fv_timestamps: collections.abc.Iterable[global___FeatureViewTimestamp] | None = ...,
         precomputed_at: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        schema_fingerprint: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["precomputed_at", b"precomputed_at"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names", "fv_timestamps", b"fv_timestamps", "precomputed_at", b"precomputed_at", "values", b"values"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names", "fv_timestamps", b"fv_timestamps", "precomputed_at", b"precomputed_at", "schema_fingerprint", b"schema_fingerprint", "values", b"values"]) -> None: ...
 
 global___PrecomputedFeatureVector = PrecomputedFeatureVector
 

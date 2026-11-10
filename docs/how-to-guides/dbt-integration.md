@@ -215,6 +215,8 @@ feast dbt import -m target/manifest.json -e driver_id --tag feast
 
 All specified entity columns must exist in each dbt model being imported. Models missing any entity column will be skipped with a warning.
 
+Entity columns should be string or integer columns. Feast prints a warning for entity columns whose type maps to another Feast type, such as `FLOAT64`, `BOOLEAN`, `BYTES` or `TIMESTAMP`, and still imports the model. Models with an array entity column are skipped with a warning.
+
 ### Generated Code
 
 The `--output` flag generates code like:
@@ -431,3 +433,11 @@ Ensure your dbt model includes the entity column specified with `--entity-column
 ### "Missing timestamp column"
 
 By default, Feast looks for `event_timestamp`. Use `--timestamp-field` to specify a different column name.
+
+### "Entity column ... may not be suitable as an entity key"
+
+The entity column's `data_type` in schema.yml maps to a Feast type other than a string or integer type. Floating point values are unreliable join keys, and boolean, binary and timestamp columns rarely identify an entity. The model is still imported. Use a `STRING` or `INT64` column as the entity, or declare the column's type in schema.yml if it is wrong. `NUMBER` types with a precision above 18, such as Snowflake's `NUMBER(38,0)`, map to `Float64`; declare integer IDs as `INTEGER` or `NUMBER(18,0)` instead.
+
+### "Model ... has array entity column(s)"
+
+Array columns cannot be used as entity keys, so the model is skipped. Choose a scalar column with `--entity-column`.

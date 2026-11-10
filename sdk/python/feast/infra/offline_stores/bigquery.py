@@ -1,5 +1,6 @@
 import contextlib
 import json
+import os
 import tempfile
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -1600,6 +1601,18 @@ def _get_bigquery_client(
     data_source=None,
 ) -> bigquery.Client:
     override = get_connection_config_override(data_source) if data_source else None
+    emulator_host = os.getenv("BIGQUERY_EMULATOR_HOST")
+    if emulator_host:
+        from google.api_core.client_options import ClientOptions
+        from google.auth.credentials import AnonymousCredentials
+
+        return bigquery.Client(
+            project=(override or {}).get("project", project),
+            location=location,
+            credentials=AnonymousCredentials(),
+            client_options=ClientOptions(api_endpoint=emulator_host),
+            client_info=get_http_client_info(),
+        )
     if override and "service_account_json" in override:
         from google.oauth2 import service_account
 
