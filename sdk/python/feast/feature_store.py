@@ -115,7 +115,6 @@ from feast.utils import (
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
-from feast.value_type import ValueType
 from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
@@ -1147,6 +1146,59 @@ class FeatureStore:
         """
         return self.registry.delete_feature_service(name, self.project)
 
+    def delete_saved_dataset(self, name: str):
+        """
+        Deletes a saved dataset from the registry.
+
+        Args:
+            name: Name of the saved dataset.
+
+        Raises:
+            SavedDatasetNotFound: The saved dataset could not be found.
+        """
+        return self.registry.delete_saved_dataset(name, self.project)
+
+    def delete_object(self, name: str):
+        """Delete a Feast object by name, searching across all object types.
+
+        This method attempts to find an object with the given name across all
+        registered object types (Entity, FeatureView, OnDemandFeatureView,
+        StreamFeatureView, FeatureService, DataSource, SavedDataset,
+        ValidationReference, Permission, LabelView) and deletes the first match.
+
+        Args:
+            name: Name of the object to delete.
+
+        Raises:
+            ValueError: If no object with the given name is found.
+        """
+        object_getters = [
+            (self.get_entity, "Entity"),
+            (self.get_feature_view, "FeatureView"),
+            (self.get_feature_service, "FeatureService"),
+            (self.get_data_source, "DataSource"),
+            (self.get_saved_dataset, "SavedDataset"),
+            (self.get_validation_reference, "ValidationReference"),
+            (self.get_stream_feature_view, "StreamFeatureView"),
+            (self.get_on_demand_feature_view, "OnDemandFeatureView"),
+        ]
+
+        for getter, obj_type in object_getters:
+            try:
+                obj = getter(name)
+                if obj:
+                    if isinstance(obj, list):
+                        obj = obj[0]
+                    self.apply([], objects_to_delete=[obj], partial=False)
+                    return
+            except Exception:
+                continue
+
+        raise ValueError(
+            f"Object '{name}' not found in project '{self.project}'. "
+            f"Cannot delete."
+        )
+
     def _should_use_plan(self):
         """Returns True if plan and _apply_diffs should be used, False otherwise."""
         # Currently only the local provider with sqlite online store supports plan and _apply_diffs.
@@ -1852,6 +1904,31 @@ class FeatureStore:
             lvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, LabelView)
             ]
+            saved_datasets_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SavedDataset)
+            ]
+
+            # Validate that all objects_to_delete are recognized Feast objects.
+            # Previously, unrecognized types were silently ignored, which could
+            # lead to objects remaining in the registry after deletion.
+            recognized_types = (
+                Entity, FeatureView, BatchFeatureView, OnDemandFeatureView,
+                StreamFeatureView, FeatureService, DataSource,
+                ValidationReference, Permission, LabelView, SavedDataset,
+            )
+            unrecognized = [
+                ob for ob in objects_to_delete
+                if not isinstance(ob, recognized_types)
+            ]
+            if unrecognized:
+                type_names = ", ".join(type(ob).__name__ for ob in unrecognized)
+                raise ValueError(
+                    f"apply() objects_to_delete contains unrecognized object type(s): "
+                    f"{type_names}. Supported types are: Entity, FeatureView, "
+                    f"BatchFeatureView, OnDemandFeatureView, StreamFeatureView, "
+                    f"FeatureService, DataSource, ValidationReference, Permission, "
+                    f"LabelView, SavedDataset."
+                )
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1888,6 +1965,10 @@ class FeatureStore:
             for permission in permissions_to_delete:
                 self.registry.delete_permission(
                     permission.name, project=self.project, commit=False
+                )
+            for saved_dataset in saved_datasets_to_delete:
+                self.registry.delete_saved_dataset(
+                    saved_dataset.name, project=self.project, commit=False
                 )
 
         tables_to_delete: List[FeatureView] = (
@@ -2405,9 +2486,8 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            _logger.warning(
-                "ODFV %s materialization: No source feature views found.",
-                feature_view.name,
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -2434,27 +2514,20 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            _logger.warning(
-                "ODFV %s materialization: No join keys found in source views. "
-                "Cannot create entity_df. Skipping.",
-                feature_view.name,
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            _logger.warning(
-                "ODFV %s materialization: Found multiple timestamp columns in "
-                "sources (%s). This is not supported. Skipping.",
-                feature_view.name,
-                entity_timestamp_col_names,
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
             )
             return
 
         if not entity_timestamp_col_names:
-            _logger.warning(
-                "ODFV %s materialization: No batch sources with timestamp "
-                "columns found for sources. Skipping.",
-                feature_view.name,
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
             )
             return
 
@@ -2483,10 +2556,8 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            _logger.warning(
-                "No source data found for ODFV %s in the given time range. "
-                "Skipping materialization.",
-                feature_view.name,
+            print(
+                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
             )
             return
 
@@ -3194,7 +3265,6 @@ class FeatureStore:
         self,
         feature_service_name: Optional[str] = None,
         batch_size: int = 1000,
-        entity_keys: Optional[List[EntityKey]] = None,
     ) -> int:
         """Pre-compute feature vectors for one or all FeatureServices.
 
@@ -3204,9 +3274,6 @@ class FeatureStore:
         blob per entity via :meth:`OnlineStore.write_precomputed_vector`.
 
         Works with **all** online store backends (Redis, DynamoDB, PostgreSQL, etc.).
-
-        When ``entity_keys`` is given, only those entities are rebuilt and the store
-        is not scanned, so a push can refresh exactly the rows it wrote.
 
         Returns the total number of entity vectors written.
         """
@@ -3255,56 +3322,53 @@ class FeatureStore:
             # For stores that support native scanning (like Redis), we try the
             # native scan; for others, we use the materialized entity list.
             entity_key_protos: List[EntityKey] = []
-            if entity_keys is not None:
-                entity_key_protos = list(entity_keys)
-            else:
-                try:
-                    from feast.infra.online_stores.redis import RedisOnlineStore
+            try:
+                from feast.infra.online_stores.redis import RedisOnlineStore
 
-                    if isinstance(online_store, RedisOnlineStore):
-                        from feast.infra.key_encoding_utils import (
-                            deserialize_entity_key,
-                        )
-                        from feast.infra.online_stores.helpers import _redis_key_prefix
-
-                        join_keys = (
-                            list(primary_fv.join_keys)
-                            if hasattr(primary_fv, "join_keys")
-                            else []
-                        )  # type: ignore[union-attr]
-                        client = online_store._get_client(  # type: ignore[attr-defined]
-                            self.config.online_store
-                        )
-                        scan_prefix = _redis_key_prefix(join_keys)
-                        project_bytes = self.config.project.encode("utf-8")
-                        seen_keys: set = set()
-                        raw_keys: List[bytes] = []
-                        for key in client.scan_iter(
-                            b"".join([scan_prefix, b"*", project_bytes])
-                        ):
-                            if key not in seen_keys:
-                                seen_keys.add(key)
-                                raw_keys.append(key)
-                        proj_len = len(project_bytes)
-                        for rk in raw_keys:
-                            try:
-                                ek = deserialize_entity_key(
-                                    rk[:-proj_len],
-                                    self.config.entity_key_serialization_version,
-                                )
-                                if set(ek.join_keys) == set(join_keys):
-                                    entity_key_protos.append(ek)
-                            except (ValueError, Exception):
-                                continue
-                    else:
-                        raise NotImplementedError
-                except (ImportError, NotImplementedError):
-                    _logger.warning(
-                        "Entity scanning not supported for '%s' — "
-                        "precompute requires a store that supports entity scanning",
-                        type(online_store).__name__,
+                if isinstance(online_store, RedisOnlineStore):
+                    from feast.infra.key_encoding_utils import (
+                        deserialize_entity_key,
                     )
-                    continue
+                    from feast.infra.online_stores.helpers import _redis_key_prefix
+
+                    join_keys = (
+                        list(primary_fv.join_keys)
+                        if hasattr(primary_fv, "join_keys")
+                        else []
+                    )  # type: ignore[union-attr]
+                    client = online_store._get_client(  # type: ignore[attr-defined]
+                        self.config.online_store
+                    )
+                    scan_prefix = _redis_key_prefix(join_keys)
+                    project_bytes = self.config.project.encode("utf-8")
+                    seen_keys: set = set()
+                    raw_keys: List[bytes] = []
+                    for key in client.scan_iter(
+                        b"".join([scan_prefix, b"*", project_bytes])
+                    ):
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            raw_keys.append(key)
+                    proj_len = len(project_bytes)
+                    for rk in raw_keys:
+                        try:
+                            ek = deserialize_entity_key(
+                                rk[:-proj_len],
+                                self.config.entity_key_serialization_version,
+                            )
+                            if set(ek.join_keys) == set(join_keys):
+                                entity_key_protos.append(ek)
+                        except (ValueError, Exception):
+                            continue
+                else:
+                    raise NotImplementedError
+            except (ImportError, NotImplementedError):
+                _logger.warning(
+                    "Entity scanning not supported for '%s' — "
+                    "precompute requires a store that supports entity scanning",
+                    type(online_store).__name__,
+                )
+                continue
 
             if not entity_key_protos:
                 continue
@@ -3356,13 +3420,10 @@ class FeatureStore:
                     now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
 
                     vector = PrecomputedFeatureVector(
-                        feature_names=[]
-                        if svc.precompute_omit_names
-                        else feature_names,
+                        feature_names=feature_names,
                         values=values,
                         fv_timestamps=fv_timestamps,
                         precomputed_at=now_ts,
-                        schema_fingerprint=svc.precompute_schema_fingerprint(),
                     )
 
                     online_store.write_precomputed_vector(
@@ -3420,16 +3481,9 @@ class FeatureStore:
         if not affected:
             return
 
-        fv = self.registry.get_any_feature_view(
-            feature_view_name, self.project, allow_cache=True
-        )
-        entity_keys = _entity_keys_from_dataframe(fv, df)
-        if not entity_keys:
-            return
-
         for svc in affected:
             try:
-                self.precompute_feature_service(svc.name, entity_keys=entity_keys)
+                self.precompute_feature_service(svc.name)
             except Exception:
                 _logger.warning(
                     "Failed to precompute vectors for service '%s' after push",
@@ -4806,7 +4860,6 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         registry_ttl_sec: int = 60,
-        gc_freeze: bool = False,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -4829,7 +4882,6 @@ class FeatureStore:
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
-            gc_freeze=gc_freeze,
         )
 
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -5240,27 +5292,3 @@ def _validate_data_sources(
                             UserWarning,
                             stacklevel=2,
                         )
-
-
-def _entity_keys_from_dataframe(feature_view: Any, df: pd.DataFrame) -> List[EntityKey]:
-    """Distinct entity keys present in ``df`` for ``feature_view``'s join keys."""
-    from feast.type_map import python_values_to_proto_values
-
-    join_keys = list(getattr(feature_view, "join_keys", []) or [])
-    if not join_keys or any(k not in df.columns for k in join_keys):
-        return []
-    value_types = {
-        field.name: field.dtype.to_value_type()
-        for field in getattr(feature_view, "entity_columns", [])
-    }
-    unique = df[join_keys].drop_duplicates()
-    columns = {
-        k: python_values_to_proto_values(
-            unique[k].tolist(), value_types.get(k, ValueType.UNKNOWN)
-        )
-        for k in join_keys
-    }
-    return [
-        EntityKey(join_keys=join_keys, entity_values=[columns[k][i] for k in join_keys])
-        for i in range(len(unique))
-    ]
