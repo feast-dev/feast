@@ -250,7 +250,19 @@ class PostgreSQLOnlineStore(OnlineStore):
             if not self._conn_async:
                 self._conn_async = await _get_conn_async(config.online_store)
             await self._conn_async.set_autocommit(autocommit)
-            yield self._conn_async
+            try:
+                yield self._conn_async
+            except BaseException:
+                # Same as the sync singleton branch: roll back so a failed
+                # statement does not leave the shared connection in INERROR.
+                if not self._conn_async.closed:
+                    try:
+                        await self._conn_async.rollback()
+                    except Exception:
+                        logging.warning(
+                            "Could not roll back the failed transaction", exc_info=True
+                        )
+                raise
 
     def _check_table_has_value_num(
         self, cur, table_name: str, config: RepoConfig

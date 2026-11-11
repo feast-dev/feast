@@ -72,3 +72,26 @@ async def test_pooled_async_connection_is_returned_when_the_query_fails():
             raise RuntimeError("query failed")
 
     store._conn_pool_async.putconn.assert_awaited_once_with(conn)
+
+
+async def test_singleton_async_connection_is_rolled_back_when_the_query_fails():
+    store = PostgreSQLOnlineStore()
+    store._conn_async = AsyncMock()
+    store._conn_async.closed = False
+
+    with pytest.raises(RuntimeError):
+        async with store._get_conn_async(_config("singleton"), autocommit=False):
+            raise RuntimeError("query failed")
+
+    store._conn_async.rollback.assert_awaited_once_with()
+
+
+async def test_failed_async_rollback_does_not_hide_the_query_error():
+    store = PostgreSQLOnlineStore()
+    store._conn_async = AsyncMock()
+    store._conn_async.closed = False
+    store._conn_async.rollback.side_effect = psycopg.OperationalError("connection lost")
+
+    with pytest.raises(RuntimeError, match="query failed"):
+        async with store._get_conn_async(_config("singleton")):
+            raise RuntimeError("query failed")
