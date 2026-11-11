@@ -19,7 +19,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 ROOT = Path(__file__).resolve().parents[1]
 TEST_SPEC_JSON = r"""
 {
-  "image": "agentcloud/localcloud@sha256:88e85b86b294e1e4f71b8c63ec43de79d170946ff39556f0e2709f66aa0d368c",
+  "image": "agentcloud/localcloud:ci",
   "services": [
     "bigquery",
     "bigtable",
@@ -258,6 +258,7 @@ def main() -> int:
     try:
         if gateway is None:
             docker("info", "--format", "{{.ServerVersion}}")
+            docker("pull", manifest["image"])
             docker(
                 "volume", "create", "--label", "localcloud.test-owner=" + ident, ident
             )
@@ -270,6 +271,8 @@ def main() -> int:
                 "localcloud.test-owner=" + ident,
                 "--memory",
                 "4g",
+                "-e",
+                "LOCALCLOUD_CONSOLE=false",
                 "-v",
                 ident + ":/var/lib/localcloud",
             ]
