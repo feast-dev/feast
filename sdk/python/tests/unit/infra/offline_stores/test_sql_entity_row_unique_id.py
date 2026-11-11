@@ -39,7 +39,7 @@ def _render(query_template: str) -> str:
         field_mapping={},
         timestamp_field="event_timestamp",
         created_timestamp_column=None,
-        table_subquery="feature_table",
+        table_subquery="(SELECT * FROM feature_table)",
         entity_selections=["driver_id AS driver_id", "customer_id AS customer_id"],
         min_event_timestamp=None,
         max_event_timestamp="2025-01-03T00:00:00",
