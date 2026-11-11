@@ -133,8 +133,29 @@ def _load_glide_sync():
 
 
 _GLIDE_SUPPORTED_CONNECTION_PARAMS = frozenset(
-    {"ssl", "db", "password", "username", "socket_timeout", "socket_connect_timeout"}
+    {
+        "ssl",
+        "db",
+        "password",
+        "username",
+        "socket_timeout",
+        "socket_connect_timeout",
+        "read_from",
+        "client_az",
+    }
 )
+
+
+def _glide_read_from(glide_sync, value: Any):
+    """Map a ``read_from`` connection_string value to a GLIDE ``ReadFrom`` member."""
+    try:
+        return glide_sync.ReadFrom[str(value).upper()]
+    except KeyError:
+        allowed = ", ".join(member.name.lower() for member in glide_sync.ReadFrom)
+        raise ValueError(
+            f"Unknown read_from {value!r} in the Redis connection_string. "
+            f"Expected one of: {allowed}."
+        ) from None
 
 
 def _glide_client_config(glide_sync, online_store_config: RedisOnlineStoreConfig):
@@ -181,6 +202,10 @@ def _glide_client_config(glide_sync, online_store_config: RedisOnlineStoreConfig
         if connection_timeout is not None
         else None,
     }
+    if "read_from" in params:
+        kwargs["read_from"] = _glide_read_from(glide_sync, params["read_from"])
+    if "client_az" in params:
+        kwargs["client_az"] = str(params["client_az"])
 
     if online_store_config.redis_type == RedisType.redis_cluster:
         # Cluster nodes do not support SELECT, so `db` is not passed along.

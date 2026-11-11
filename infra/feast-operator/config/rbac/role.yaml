@@ -171,6 +171,8 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  - rolebindings
+  - roles
   verbs:
   - create
   - delete
@@ -198,18 +200,6 @@ rules:
   verbs:
   - delete
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
 - apiGroups:
   - route.openshift.io
   resources:
