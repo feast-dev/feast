@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -1570,6 +1571,7 @@ class SqlRegistry(CachingRegistry):
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
 
+        r.version_id = hashlib.sha1(r.SerializeToString(deterministic=True)).hexdigest()
         return r
 
     def commit(self):

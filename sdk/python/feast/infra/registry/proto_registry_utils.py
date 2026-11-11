@@ -33,6 +33,11 @@ from feast.stream_feature_view import StreamFeatureView
 # that leave version_id empty (SqlRegistry) then read another registry's objects.
 
 
+def _registry_proto_key(registry_proto: RegistryProto):
+    """Return the registry's version_id, or the object identity when it has none."""
+    return registry_proto.version_id or id(registry_proto)
+
+
 def registry_proto_cache(func):
     cache_proto = None
     cache_key = None
@@ -42,7 +47,7 @@ def registry_proto_cache(func):
     def wrapper(registry_proto: RegistryProto, project: str):
         nonlocal cache_proto, cache_key, cache_value
 
-        key = (registry_proto.version_id, project)
+        key = (_registry_proto_key(registry_proto), project)
 
         if registry_proto is cache_proto and key == cache_key:
             return cache_value
@@ -72,7 +77,7 @@ def registry_proto_cache_with_tags(func):
         # Snapshot the filter so caller mutations cannot change a cached key.
         tags_key = frozenset(tags.items()) if tags is not None else None
         key = (
-            registry_proto.version_id,
+            _registry_proto_key(registry_proto),
             project,
             tags_key,
             kwargs_key,
@@ -95,7 +100,9 @@ def registry_proto_cache_name(func):
 
     @wraps(func)
     def wrapper(registry_proto: RegistryProto, name: str, project: str):
-        nonlocal cache_proto, cache_version, cache
+        nonlocal cache_proto_key, cache
+
+        proto_key = _registry_proto_key(registry_proto)
 
         if (
             registry_proto is not cache_proto
@@ -126,6 +133,7 @@ def get_project_metadata(
     return None
 
 
+@registry_proto_cache_name
 def get_feature_service(
     registry_proto: RegistryProto, name: str, project: str
 ) -> FeatureService:
