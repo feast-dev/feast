@@ -135,7 +135,8 @@ Notes:
 
 * GLIDE reads the same keys and hash fields Feast already writes, so an existing store needs no migration and no rewrite of data.
 * The default stays `client: redis`. Writes and `get_online_features_async` keep using redis-py, so only the synchronous read path changes.
-* GLIDE supports `host:port`, `db`, `password`, `username`, `ssl`, `socket_timeout`, and `socket_connect_timeout` from `connection_string`. Other parameters are logged and ignored.
+* GLIDE supports `host:port`, `db`, `password`, `username`, `ssl`, `socket_timeout`, `socket_connect_timeout`, `read_from`, and `client_az` from `connection_string`. Other parameters are logged and ignored.
+* `read_from` sets GLIDE's read strategy: `primary` (the default), `prefer_replica`, `az_affinity`, `az_affinity_replicas_and_primary`, or `all_nodes`. To spread reads across a standalone primary and its replicas, list every node and set the strategy: `connection_string: "primary:6379,replica:6379,read_from=all_nodes"`. With `redis_type: redis`, writes go through redis-py to the first host only, so list the primary first. The AZ strategies also need `client_az`, the client's availability zone (for example `client_az=us-east-2a`).
 * GLIDE has no Sentinel support, so `client: glide` cannot be combined with `redis_type: redis_sentinel`. Use `client: redis` for Sentinel deployments.
 
 If `client: glide` is set without the extra installed, Feast raises an import error naming the extra to install.
