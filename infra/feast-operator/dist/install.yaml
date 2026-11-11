@@ -24420,6 +24420,8 @@ rules:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
+  - rolebindings
+  - roles
   verbs:
   - create
   - delete
@@ -24447,18 +24449,6 @@ rules:
   verbs:
   - delete
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
 - apiGroups:
   - route.openshift.io
   resources:
@@ -24613,14 +24603,14 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.67.0
+          value: quay.io/feastdev/feature-server:0.68.0
         - name: RELATED_IMAGE_CRON_JOB
           value: registry.k8s.io/kubectl:v1.35.9
         - name: GOMEMLIMIT
           value: 230MiB
         - name: OIDC_ISSUER_URL
           value: ""
-        image: quay.io/feastdev/feast-operator:0.67.0
+        image: quay.io/feastdev/feast-operator:0.68.0
         livenessProbe:
           httpGet:
             path: /healthz

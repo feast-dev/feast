@@ -134,7 +134,7 @@ jobs:
     needs: [ build-python-wheel ]
     strategy:
       matrix:
-        os: [ ubuntu-latest,  macos-14 ]
+        os: [ ubuntu-latest,  macos-15 ]
         python-version: ["3.11", "3.12"]
         from-source: [ True, False ]
     env:
@@ -153,14 +153,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install OS X dependencies
-        if: matrix.os == 'macos-14'
+        if: runner.os == 'macOS'
         run: brew install coreutils gettext
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
+          architecture: ${{ runner.os == 'macOS' && 'arm64' || 'x64' }}
       - uses: actions/download-artifact@v4.1.7
         with:
           name: python-wheels

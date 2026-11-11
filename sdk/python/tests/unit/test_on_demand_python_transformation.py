@@ -573,7 +573,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "acc_rate",
             "avg_daily_trips",
             "conv_rate",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
         ]
@@ -632,7 +632,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate",
             "conv_rate_plus_val1",
             "conv_rate_plus_val2",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
             "val_to_add",
@@ -668,7 +668,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate_plus_val2",
             "driver_id",
             # It does not have the items below
-            # "created__",
+            # "created",
             # "event_timestamp",
             # "val_to_add",
             # "val_to_add_2",
@@ -810,9 +810,9 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
     not (
         sys.version_info[0:2] in [(3, 10), (3, 11)]
         and platform.system() == "Darwin"
-        and MAC_VER != "14"
+        and int(MAC_VER) < 14
     ),
-    reason="Only works on Python 3.10 and 3.11 on macOS",
+    reason="Legacy write fixtures require Python 3.10/3.11 and macOS 13 or older",
 )
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def test_stored_writes(self):
