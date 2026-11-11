@@ -92,7 +92,7 @@ func TestNewRedisOnlineStoreWithUsername(t *testing.T) {
 
 func TestNewRedisOnlineStoreWithUsernameAfterPassword(t *testing.T) {
 	var config = map[string]interface{}{
-		"connection_string": "redis://localhost:6379,password=secret,username=feast",
+		"connection_string": "redis://localhost:6379,password=secret,username=feast", // pragma: allowlist secret
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
@@ -108,7 +108,7 @@ func TestNewRedisOnlineStoreWithUsernameAfterPassword(t *testing.T) {
 func TestNewRedisOnlineStoreClusterWithUsername(t *testing.T) {
 	var config = map[string]interface{}{
 		"redis_type":        "redis_cluster",
-		"connection_string": "node1:6379,node2:6379,username=feast,password=secret,ssl=true",
+		"connection_string": "node1:6379,node2:6379,username=feast,password=secret,ssl=true", // pragma: allowlist secret
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
@@ -125,7 +125,7 @@ func TestNewRedisOnlineStoreClusterWithUsername(t *testing.T) {
 
 func TestNewRedisOnlineStoreWithEqualsInValue(t *testing.T) {
 	var config = map[string]interface{}{
-		"connection_string": "redis://localhost:6379,username=feast,password=a=b",
+		"connection_string": "redis://localhost:6379,username=feast,password=a=b", // pragma: allowlist secret
 	}
 	rc := &registry.RepoConfig{
 		OnlineStore:                   config,
