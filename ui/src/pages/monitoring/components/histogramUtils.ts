@@ -24,12 +24,14 @@ const isNumericHistogram = (
  * The newest real monitoring window, preferring rows with data. Baseline rows
  * never win: they are dated by computation day, not by window start.
  */
-const selectLatestWindowMetric = <T extends {
-  granularity: string;
-  is_baseline?: boolean;
-  metric_date: string;
-  row_count: number;
-}>(
+const selectLatestWindowMetric = <
+  T extends {
+    granularity: string;
+    is_baseline?: boolean;
+    metric_date: string;
+    row_count: number;
+  },
+>(
   metrics: T[] | null | undefined,
 ): T | null => {
   if (!metrics || metrics.length === 0) return null;
