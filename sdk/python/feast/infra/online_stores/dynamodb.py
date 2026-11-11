@@ -19,10 +19,21 @@ import logging
 from collections import OrderedDict, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from aiobotocore.config import AioConfig
-from pydantic import StrictBool, StrictStr
+from pydantic import NonNegativeInt, StrictBool, StrictStr
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import InfraObject
@@ -51,6 +62,27 @@ except ImportError as e:
 
 
 logger = logging.getLogger(__name__)
+
+# Default for ``max_batched_result_rows``: the largest request, measured as entity
+# rows x feature views, whose feature views are read through shared BatchGetItem
+# requests. Below it, packing the keys of every feature view into the same requests
+# replaces one or more requests per view with as few as one in total. Past it, each
+# view already fills several requests of its own, so packing saves at most one
+# partially filled request per view, while holding every view's items at once makes
+# peak memory grow with the number of views. Past the limit the generic path is used
+# instead, which reads and releases a single view at a time.
+MAX_BATCHED_RESULT_ROWS = 2048
+
+
+class _BatchedRead(NamedTuple):
+    """One feature view's share of a batched online read."""
+
+    table: FeatureView
+    requested_features: List[str]
+    table_name: str
+    entity_ids: List[str]
+    idxs: Tuple[List[int], ...]
+    output_len: int
 
 
 class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
@@ -89,6 +121,11 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     max_read_workers: int = 10
     """Maximum number of parallel threads for batch read operations.
     Higher values improve throughput for large batch reads but increase resource usage."""
+
+    max_batched_result_rows: NonNegativeInt = MAX_BATCHED_RESULT_ROWS
+    """Largest request, as entity rows x feature views, whose feature views are read
+    through shared BatchGetItem requests. Set to 0 to always read one feature view
+    at a time."""
 
     max_pool_connections: int = 50
     """Max number of connections for async Dynamodb operations.
@@ -715,6 +752,271 @@ class DynamoDBOnlineStore(OnlineStore):
 
         return list(itertools.chain(*result_batches))
 
+    def _read_features_per_fv(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Read every requested feature view through shared BatchGetItem requests.
+
+        The generic path reads one feature view after another, with at least one
+        BatchGetItem request each. Each feature view lives in its own table here, and
+        a BatchGetItem request can read from several tables at once, so the keys of
+        every view are packed into the same requests, which are sent in parallel.
+        """
+        if not self._should_batch(config, grouped_refs, join_key_values):
+            return super()._read_features_per_fv(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
+                include_feature_view_version_metadata,
+            )
+
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        reads = self._prepare_batched_reads(
+            config, grouped_refs, join_key_values, entity_name_to_join_key_map
+        )
+        request_items = self._to_batched_request_items(online_config, reads)
+
+        # boto3 clients are thread-safe, so the requests can share one client.
+        dynamodb_client = self._get_dynamodb_client(
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
+        )
+
+        def fetch_batch(batch_request_items: Dict[str, Any]) -> Dict[str, Any]:
+            return dynamodb_client.batch_get_item(RequestItems=batch_request_items)
+
+        if len(request_items) <= 1:
+            responses = [fetch_batch(items) for items in request_items]
+        else:
+            max_workers = min(len(request_items), online_config.max_read_workers)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                responses = list(executor.map(fetch_batch, request_items))
+
+        self._populate_from_batched_responses(
+            reads,
+            responses,
+            online_features_response,
+            full_feature_names,
+            include_feature_view_version_metadata,
+        )
+
+    async def _read_features_per_fv_async(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Async version of :meth:`_read_features_per_fv`.
+
+        The generic async path already sends the per-view requests concurrently.
+        Packing them still replaces at least one request per view with as few as one
+        in total.
+        """
+        if not self._should_batch(config, grouped_refs, join_key_values):
+            return await super()._read_features_per_fv_async(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
+                include_feature_view_version_metadata,
+            )
+
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        reads = self._prepare_batched_reads(
+            config, grouped_refs, join_key_values, entity_name_to_join_key_map
+        )
+        request_items = self._to_batched_request_items(online_config, reads)
+
+        client = await self._get_aiodynamodb_client(
+            online_config.region,
+            online_config.max_pool_connections,
+            online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
+            online_config.endpoint_url,
+        )
+        responses = await asyncio.gather(
+            *[
+                client.batch_get_item(RequestItems=batch_request_items)
+                for batch_request_items in request_items
+            ]
+        )
+
+        self._populate_from_batched_responses(
+            reads,
+            responses,
+            online_features_response,
+            full_feature_names,
+            include_feature_view_version_metadata,
+        )
+
+    @staticmethod
+    def _should_batch(
+        config: RepoConfig, grouped_refs: List, join_key_values: Dict
+    ) -> bool:
+        """Whether to read this request's feature views through shared requests.
+
+        A single view has nothing to share requests with, so it keeps the generic
+        path. The size check is estimated from the request shape rather than from the
+        resolved keys, so that deciding against batching costs nothing. The number of
+        entity rows in the request is an upper bound on the unique keys any one view
+        will read. See :data:`MAX_BATCHED_RESULT_ROWS`.
+        """
+        if len(grouped_refs) < 2:
+            return False
+        entity_rows = max(
+            (len(values) for values in join_key_values.values()), default=0
+        )
+        return (
+            entity_rows * len(grouped_refs)
+            <= config.online_store.max_batched_result_rows
+        )
+
+    def _prepare_batched_reads(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+    ) -> List[_BatchedRead]:
+        """Resolve the table and entity ids each feature view needs before reading.
+
+        Feature views can be keyed on different entities, so the entity ids are
+        computed per view rather than shared.
+        """
+        online_config = config.online_store
+        reads = []
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map
+            )
+            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            reads.append(
+                _BatchedRead(
+                    table=table,
+                    requested_features=requested_features,
+                    table_name=_get_table_name(online_config, config, table),
+                    entity_ids=self._to_entity_ids(config, entity_key_protos),
+                    idxs=idxs,
+                    output_len=output_len,
+                )
+            )
+        return reads
+
+    @staticmethod
+    def _to_batched_request_items(
+        online_config: DynamoDBOnlineStoreConfig, reads: List[_BatchedRead]
+    ) -> List[Dict[str, Any]]:
+        """Pack the keys of every feature view into as few requests as possible.
+
+        ``batch_size`` caps the keys of one BatchGetItem request across all of its
+        tables. A request must not repeat a key within a table, so views that share a
+        table, such as one feature view requested under two aliases, are read once,
+        projecting the union of their requested features.
+        """
+        features_by_table: Dict[str, Optional[List[str]]] = {}
+        entity_ids_by_table: Dict[str, Dict[str, None]] = {}
+        for read in reads:
+            if read.table_name not in features_by_table:
+                features_by_table[read.table_name] = read.requested_features or None
+                entity_ids_by_table[read.table_name] = {}
+            else:
+                features = features_by_table[read.table_name]
+                features_by_table[read.table_name] = (
+                    list(dict.fromkeys(features + read.requested_features))
+                    if features and read.requested_features
+                    else None
+                )
+            entity_ids_by_table[read.table_name].update(dict.fromkeys(read.entity_ids))
+
+        keys = [
+            (table_name, entity_id)
+            for table_name, entity_ids in entity_ids_by_table.items()
+            for entity_id in entity_ids
+        ]
+        batch_size = online_config.batch_size
+        request_items: List[Dict[str, Any]] = []
+        for start in range(0, len(keys), batch_size):
+            batch_by_table: Dict[str, List[str]] = defaultdict(list)
+            for table_name, entity_id in keys[start : start + batch_size]:
+                batch_by_table[table_name].append(entity_id)
+            batch_request_items: Dict[str, Any] = {}
+            for table_name, batch in batch_by_table.items():
+                batch_request_items.update(
+                    DynamoDBOnlineStore._to_client_batch_get_payload(
+                        online_config, table_name, batch, features_by_table[table_name]
+                    )
+                )
+            request_items.append(batch_request_items)
+        return request_items
+
+    def _populate_from_batched_responses(
+        self,
+        reads: List[_BatchedRead],
+        responses: Sequence[Dict[str, Any]],
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Split the responses by table and hand each view its rows in key order.
+
+        BatchGetItem returns items in no particular order, and a request can mix
+        tables, so the items are indexed by table and entity id first.
+        """
+        if self._type_deserializer is None:
+            self._type_deserializer = TypeDeserializer()
+        deserialize = self._type_deserializer.deserialize
+
+        rows_by_table: Dict[
+            str, Dict[str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]
+        ] = defaultdict(dict)
+        for response in responses:
+            for table_name, items in response.get("Responses", {}).items():
+                table_rows = rows_by_table[table_name]
+                for item in items:
+                    table_rows[deserialize(item["entity_id"])] = self._to_read_row(
+                        deserialize(item["event_ts"]), deserialize(item["values"])
+                    )
+
+        for read in reads:
+            table_rows = rows_by_table.get(read.table_name, {})
+            utils._populate_response_from_feature_data(
+                read.requested_features,
+                [
+                    table_rows.get(entity_id, (None, None))
+                    for entity_id in read.entity_ids
+                ],
+                read.idxs,
+                online_features_response,
+                full_feature_names,
+                read.table,
+                read.output_len,
+                include_feature_view_version_metadata,
+            )
+
     def _get_dynamodb_client(
         self,
         region: str,
@@ -812,21 +1114,21 @@ class DynamoDBOnlineStore(OnlineStore):
         for idx, entity_id in enumerate(batch):
             tbl_res = response_dict.get(entity_id)
             if tbl_res is not None:
-                # Parse feature values
-                features: Dict[str, ValueProto] = {}
-                values_data = tbl_res["values"]
-                for feature_name, value_bin in values_data.items():
-                    val = ValueProto()
-                    val.ParseFromString(value_bin.value)
-                    features[feature_name] = val
-
-                # Parse timestamp and set result
-                result[idx] = (
-                    datetime.fromisoformat(tbl_res["event_ts"]),
-                    features,
-                )
+                result[idx] = self._to_read_row(tbl_res["event_ts"], tbl_res["values"])
 
         return result
+
+    @staticmethod
+    def _to_read_row(
+        event_ts: str, values: Dict[str, Any]
+    ) -> Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]:
+        """Parse one stored item's timestamp and serialized feature values."""
+        features: Dict[str, ValueProto] = {}
+        for feature_name, value_bin in values.items():
+            val = ValueProto()
+            val.ParseFromString(value_bin.value)
+            features[feature_name] = val
+        return datetime.fromisoformat(event_ts), features
 
     @staticmethod
     def _to_entity_ids(config: RepoConfig, entity_keys: List[EntityKeyProto]):
