@@ -1029,13 +1029,20 @@ def _convert_list_values_to_proto(
 
         json_sample = json.loads(sample)
         if isinstance(json_sample, list):
-            json_values = [json.loads(value) for value in values]
+            json_values = [
+                json.loads(value) if value is not None else None for value in values
+            ]
             if feast_value_type == ValueType.BOOL_LIST:
                 json_values = [
-                    [bool(item) for item in list_item] for list_item in json_values
+                    [bool(item) for item in list_item]
+                    if list_item is not None
+                    else None
+                    for list_item in json_values
                 ]
             return [
                 ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore[arg-type]
+                if v is not None
+                else ProtoValue()
                 for v in json_values
             ]
         raise _type_err(sample, valid_types[0])
