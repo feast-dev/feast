@@ -358,18 +358,42 @@ Both tags apply only to `String` features and need Milvus 2.5 or later. Milvus L
 tags but does not apply them: its `TEXT_MATCH` works on any `String` column and always uses the
 standard analyzer.
 
-Feast itself does not query the tokens: `retrieve_online_documents_v2` filters a `query_string`
-with `LIKE`, and Feast filters have no `TEXT_MATCH` operator. Query the collection with a Milvus
-client to use them.
+`milvus.bm25: "true"` on a `String` feature makes Milvus score it with BM25, using its analyzer
+(`milvus.analyzer_params`, or the standard one). It needs Milvus 2.5 or later. Feast adds a
+`SPARSE_FLOAT_VECTOR` field `<field>_bm25`, a BM25 function `<field>_bm25_fn` that fills it from
+the field's tokens, and a `SPARSE_INVERTED_INDEX` named `bm25_index_<field>`.
+`milvus.bm25_index_params` passes a JSON object of build parameters to that index, and requires
+`milvus.bm25: "true"`:
 
-The settings only apply when Feast creates a collection, and Feast does not compare them with an
-existing collection. To change them, run `feast teardown` and `feast apply`, then materialize
-again.
+```python
+Field(
+    name="title",
+    dtype=String,
+    tags={
+        "milvus.bm25": "true",
+        "milvus.bm25_index_params": '{"inverted_index_algo": "TAAT_NAIVE", "bm25_b": 0.3}',
+    },
+),
+```
+
+Milvus computes the `<field>_bm25` values on every write, so Feast never writes them, and they are
+not features to request. No feature may be named `<field>_bm25`. With `milvus.bm25`, Milvus Lite
+accepts only the `standard` and `jieba` tokenizers.
+
+Feast itself does not query the tokens or the BM25 field: `retrieve_online_documents_v2` filters a
+`query_string` with `LIKE`, and Feast filters have no `TEXT_MATCH` operator. Query the collection
+with a Milvus client to use them.
+
+The settings only apply when Feast creates a collection. Feast does not compare analyzer or match
+settings with an existing collection. A missing `<field>_bm25` field is reported as a
+[schema mismatch](#schema-mismatch), and a missing BM25 index as a missing index. To change any of
+them, run `feast teardown` and `feast apply`, then materialize again.
 
 ## Feature views without vectors
 
 Milvus requires every collection to have a vector field. For feature views that have no vector
-feature, Feast adds a 2-dimensional `_placeholder_vector` field with a FLAT index and fills it with zeros.
+feature and no `milvus.bm25` field, Feast adds a 2-dimensional `_placeholder_vector` field with a
+FLAT index and fills it with zeros.
 It is never returned or searched.
 
 ## Functionality Matrix
