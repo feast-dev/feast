@@ -335,6 +335,37 @@ Indexes only apply when Feast creates a collection. For an existing collection w
 logs a warning. To add them, run `feast teardown` and `feast apply`, then materialize again, or use
 the staged cutover described under [Field types](#field-types).
 
+## Text analysis
+
+Milvus can split a `String` feature into tokens when it stores it, so that a `TEXT_MATCH` filter
+finds rows by token. Declare it with field tags, and Feast sets it up when it creates the
+collection:
+
+```python
+Field(
+    name="title",
+    dtype=String,
+    tags={
+        "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
+        "milvus.enable_match": "true",
+    },
+),
+```
+
+`milvus.analyzer_params` is a JSON object with the field's analyzer. Without it, Milvus uses its
+standard analyzer. `milvus.enable_match: "true"` builds the token index that `TEXT_MATCH` needs.
+Both tags apply only to `String` features and need Milvus 2.5 or later. Milvus Lite accepts both
+tags but does not apply them: its `TEXT_MATCH` works on any `String` column and always uses the
+standard analyzer.
+
+Feast itself does not query the tokens: `retrieve_online_documents_v2` filters a `query_string`
+with `LIKE`, and Feast filters have no `TEXT_MATCH` operator. Query the collection with a Milvus
+client to use them.
+
+The settings only apply when Feast creates a collection, and Feast does not compare them with an
+existing collection. To change them, run `feast teardown` and `feast apply`, then materialize
+again.
+
 ## Feature views without vectors
 
 Milvus requires every collection to have a vector field. For feature views that have no vector

@@ -619,11 +619,20 @@ def test_native_complex_types_filters_and_tag_indexes(
             Field(name="labels", dtype=Map),
             Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "8"}),
             Field(name="counts", dtype=Array(Int64), tags={"milvus.nullable": "true"}),
+            Field(
+                name="title",
+                dtype=String,
+                tags={
+                    "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
+                    "milvus.enable_match": "true",
+                },
+            ),
         ],
     )
     rows = {
         1: {
             "embedding": ValueProto(float_list_val=FloatList(val=[1.0, 0.0])),
+            "title": ValueProto(string_val="wool-blend sweater"),
             "brand": ValueProto(string_val="acme"),
             "attributes": ValueProto(json_val='{"price": 10, "color": "red"}'),
             "labels": python_values_to_proto_values(
@@ -648,10 +657,28 @@ def test_native_complex_types_filters_and_tag_indexes(
 
     _write_rows(store, config, fv, rows)
     read = _read(
-        store, config, fv, [1, 2], ["brand", "attributes", "labels", "tags", "counts"]
+        store,
+        config,
+        fv,
+        [1, 2],
+        ["brand", "attributes", "labels", "tags", "counts", "title"],
     )
     assert read[0] == {k: v for k, v in rows[1].items() if k != "embedding"}
     assert read[1] is not None and read[1]["counts"].WhichOneof("val") is None
+
+    # The whitespace analyzer keeps "wool-blend" as one token. Milvus 2.6 indexes
+    # new rows for TEXT_MATCH a moment after the write, even with Strong consistency.
+    def text_match(token: str) -> List[str]:
+        assert store.client is not None
+        hits = store.client.query(
+            f"{project}_{fv.name}",
+            filter=f"TEXT_MATCH(title, '{token}')",
+            output_fields=["brand"],
+        )
+        return [hit["brand"] for hit in hits]
+
+    assert _eventually(lambda: text_match("wool-blend"), bool) == ["acme"]
+    assert text_match("wool") == []
 
     hits = store.retrieve_online_documents_v2(
         config,
