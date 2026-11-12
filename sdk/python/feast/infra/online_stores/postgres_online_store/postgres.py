@@ -207,14 +207,28 @@ class PostgreSQLOnlineStore(OnlineStore):
                 self._conn_pool = _get_connection_pool(config.online_store)
                 self._conn_pool.open()
             connection = self._conn_pool.getconn()
-            connection.set_autocommit(autocommit)
-            yield connection
-            self._conn_pool.putconn(connection)
+            try:
+                connection.set_autocommit(autocommit)
+                yield connection
+            finally:
+                self._conn_pool.putconn(connection)
         else:
             if not self._conn:
                 self._conn = _get_conn(config.online_store)
             self._conn.set_autocommit(autocommit)
-            yield self._conn
+            try:
+                yield self._conn
+            except BaseException:
+                # A failed statement leaves the transaction open, and the next
+                # set_autocommit() on this shared connection would then raise.
+                if not self._conn.closed:
+                    try:
+                        self._conn.rollback()
+                    except Exception:
+                        logging.warning(
+                            "Could not roll back the failed transaction", exc_info=True
+                        )
+                raise
 
     @contextlib.asynccontextmanager
     async def _get_conn_async(
@@ -227,14 +241,28 @@ class PostgreSQLOnlineStore(OnlineStore):
                 )
                 await self._conn_pool_async.open()
             connection = await self._conn_pool_async.getconn()
-            await connection.set_autocommit(autocommit)
-            yield connection
-            await self._conn_pool_async.putconn(connection)
+            try:
+                await connection.set_autocommit(autocommit)
+                yield connection
+            finally:
+                await self._conn_pool_async.putconn(connection)
         else:
             if not self._conn_async:
                 self._conn_async = await _get_conn_async(config.online_store)
             await self._conn_async.set_autocommit(autocommit)
-            yield self._conn_async
+            try:
+                yield self._conn_async
+            except BaseException:
+                # Same as the sync singleton branch: roll back so a failed
+                # statement does not leave the shared connection in INERROR.
+                if not self._conn_async.closed:
+                    try:
+                        await self._conn_async.rollback()
+                    except Exception:
+                        logging.warning(
+                            "Could not roll back the failed transaction", exc_info=True
+                        )
+                raise
 
     def _check_table_has_value_num(
         self, cur, table_name: str, config: RepoConfig
