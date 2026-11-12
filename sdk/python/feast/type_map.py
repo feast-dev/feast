@@ -2076,10 +2076,16 @@ def arrow_to_pg_type(t_str: str) -> str:
             return "jsonb"
         if t_str.startswith("struct<") or t_str.startswith("struct{"):
             return "jsonb"
+        if t_str.startswith("decimal"):
+            return "numeric"
+        if t_str.startswith("date"):
+            return "date"
         return {
-            "null": "null",
+            # Postgres has no "null" type; an all-null column still needs one.
+            "null": "text",
             "bool": "boolean",
-            "int8": "tinyint",
+            # Postgres has no 1-byte integer type.
+            "int8": "smallint",
             "int16": "smallint",
             "int32": "int",
             "int64": "bigint",
@@ -2094,7 +2100,8 @@ def arrow_to_pg_type(t_str: str) -> str:
             "uint64": "bigint",
             "float": "float",
             "double": "double precision",
-            "binary": "binary",
+            "binary": "bytea",
+            "large_binary": "bytea",
             "string": "text",
         }[t_str]
     except KeyError:

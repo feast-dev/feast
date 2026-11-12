@@ -676,6 +676,23 @@ class TestMapArrowTypeSupport:
         """Every ValueType name converts back to that ValueType."""
         assert _convert_value_type_str_to_value_type(value_type.name) == value_type
 
+    @pytest.mark.parametrize(
+        "arrow_type, expected",
+        [
+            (pyarrow.int8(), "smallint"),
+            (pyarrow.binary(), "bytea"),
+            (pyarrow.large_binary(), "bytea"),
+            (pyarrow.null(), "text"),
+            (pyarrow.date32(), "date"),
+            (pyarrow.date64(), "date"),
+            (pyarrow.decimal128(10, 2), "numeric"),
+        ],
+    )
+    def test_arrow_to_pg_type_uses_postgres_type_names(self, arrow_type, expected):
+        """Postgres has no tinyint, binary or null type; the entity dataframe
+        upload builds CREATE TABLE from these names."""
+        assert arrow_to_pg_type(str(arrow_type)) == expected
+
     def test_arrow_to_pg_type_map(self):
         """Test that Arrow map type converts to Postgres jsonb."""
         assert arrow_to_pg_type("map<string, string>") == "jsonb"
