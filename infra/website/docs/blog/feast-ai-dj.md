@@ -282,7 +282,7 @@ features:
 feast mcp --config feast_mcp.yaml
 ```
 
-With the additions developed for this demo, it exposes ten `features_*` tools:
+With the [MCP additions developed separately for this demo](https://github.com/patelchaitany/feast/tree/codex/mcp-feature-tools), it exposes ten `features_*` tools:
 
 | Tool | What it does |
 |---|---|
@@ -297,7 +297,7 @@ With the additions developed for this demo, it exposes ten `features_*` tools:
 
 Add `registry.url` and you also get `registry_*` tools to browse projects, feature views and lineage.
 
-Building this DJ exposed gaps between the feature server's API and its MCP tools. The code changes accompanying this post pass metadata filters through both search tools, let text search choose which features to return, expose direct online writes, and forward feature view version and materialization options. These additions require a Feast build that includes those changes.
+Building this DJ exposed gaps between the feature server's API and its MCP tools. The separate MCP changes pass metadata filters through both search tools, let text search choose which features to return, expose direct online writes, and forward feature view version and materialization options. These additions require a Feast build that includes those changes.
 
 The DJ gives the LLM only two of them, `features_get_online_features` and `features_vector_store_search`. The fewer the tools, the better a 3B model does. The other calls run in plain code over the same MCP session.
 
@@ -369,7 +369,7 @@ You could glue a vector database, a key-value store and a few scripts together. 
 
 ## Limits and next steps
 
-- **Playlist constraints.** The MCP search tools now accept metadata filters. The demo shown here searches by mood; a next step is to pass genre or year constraints through `filters`.
+- **Playlist constraints.** The separate MCP additions let the search tools accept metadata filters. The demo shown here searches by mood; a next step is to pass genre or year constraints through `filters`.
 - **FMA small clips are 30 seconds.** CLaMP 3 can read up to 640 seconds, so full songs would help it more.
 - **Cold start.** A new listener has no history. Start with a mood question.
 - **Two searches.** One vector per feature view means one search per vector, merged in code.
