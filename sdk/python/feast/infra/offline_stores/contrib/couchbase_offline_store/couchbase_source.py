@@ -101,6 +101,10 @@ class CouchbaseColumnarSource(DataSource):
         return (
             super().__eq__(other)
             and self._couchbase_options._query == other._couchbase_options._query
+            and self._couchbase_options._database == other._couchbase_options._database
+            and self._couchbase_options._scope == other._couchbase_options._scope
+            and self._couchbase_options._collection
+            == other._couchbase_options._collection
             and self.timestamp_field == other.timestamp_field
             and self.created_timestamp_column == other.created_timestamp_column
             and self.field_mapping == other.field_mapping

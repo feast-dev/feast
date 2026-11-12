@@ -16,6 +16,8 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.infra.registry.registry import Registry
+from feast.repo_config import RegistryConfig
 from feast.types import Bool, Float32, Int64
 
 
@@ -533,3 +535,103 @@ def test_stream_source_without_batch_source_round_trips(stream_source):
     assert isinstance(restored, type(stream_source))
     assert restored.batch_source is None
     assert restored.name == stream_source.name
+
+
+@pytest.mark.parametrize(
+    "module_path, class_name, location, moved_location",
+    [
+        (
+            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source",
+            "PostgreSQLSource",
+            {"table": "orders", "timestamp_field": "ts"},
+            {"table": "orders_v2", "timestamp_field": "ts"},
+        ),
+        (
+            "feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source",
+            "MsSqlServerSource",
+            {"table_ref": "orders", "event_timestamp_column": "ts"},
+            {"table_ref": "orders_v2", "event_timestamp_column": "ts"},
+        ),
+        (
+            "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase_source",
+            "CouchbaseColumnarSource",
+            {
+                "database": "db",
+                "scope": "sc",
+                "collection": "orders",
+                "timestamp_field": "ts",
+            },
+            {
+                "database": "db",
+                "scope": "sc",
+                "collection": "orders_v2",
+                "timestamp_field": "ts",
+            },
+        ),
+        (
+            "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source",
+            "ClickhouseSource",
+            {"table": "orders", "timestamp_field": "ts"},
+            {"table": "orders_v2", "timestamp_field": "ts"},
+        ),
+    ],
+    ids=["postgres", "mssql", "couchbase", "clickhouse"],
+)
+def test_data_source_eq_compares_the_source_table(
+    module_path, class_name, location, moved_location, tmp_path
+):
+    """Pointing a source at another table makes it unequal to the old one.
+
+    ``__eq__`` compared only the query (or, for SQL Server, the connection
+    string, and for ClickHouse, none of its options) of these sources, so a
+    source moved to another table compared equal to the registered one. The
+    registry skips ``apply_data_source`` for an equal source, so ``feast
+    apply`` kept the old table on the registered data source while feature
+    views built on it moved to the new one.
+    """
+    source_class = getattr(pytest.importorskip(module_path), class_name)
+    source = source_class(name="src", **location)
+    moved_source = source_class(name="src", **moved_location)
+
+    assert source != moved_source
+
+    # A source read back from its proto still equals itself, so the extra
+    # comparison does not make every apply look like a change.
+    assert source_class.from_proto(source.to_proto()) == source
+
+    registry = Registry(
+        "project", RegistryConfig(path=str(tmp_path / "registry.db")), None
+    )
+    try:
+        registry.apply_data_source(source, "project")
+        registry.apply_data_source(moved_source, "project")
+        stored = registry.get_data_source("src", "project")
+        assert stored.get_table_query_string() == moved_source.get_table_query_string()
+    finally:
+        registry.teardown()
+
+
+def test_mssqlserver_source_eq_compares_base_fields():
+    """SQL Server sources compare and round-trip tags, description and owner."""
+    mssqlserver_source = pytest.importorskip(
+        "feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source"
+    )
+    source = mssqlserver_source.MsSqlServerSource(
+        name="src",
+        table_ref="orders",
+        event_timestamp_column="ts",
+        description="orders table",
+        tags={"team": "a"},
+        owner="owner@example.com",
+    )
+    retagged_source = mssqlserver_source.MsSqlServerSource(
+        name="src",
+        table_ref="orders",
+        event_timestamp_column="ts",
+        description="orders table",
+        tags={"team": "b"},
+        owner="owner@example.com",
+    )
+
+    assert source != retagged_source
+    assert mssqlserver_source.MsSqlServerSource.from_proto(source.to_proto()) == source
