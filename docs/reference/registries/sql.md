@@ -112,6 +112,39 @@ There are some things to note about how the SQL registry works:
 - Upon tearing down the feast project, the registry deletes all rows from the registry tables (it does not drop the tables themselves). This runs regardless of `schema_mode` and requires only DML (`DELETE`) privileges, not DDL.
 - The schema for how data is laid out in tables can be found in the table definitions in [`sdk/python/feast/infra/registry/sql.py`](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/registry/sql.py). It is intentionally simple, storing the serialized protobuf versions of each Feast object keyed by its name.
 
+## Registry cache (`cache_mode`)
+
+By default (`cache_mode: sync`), the SQL registry loads every object in the
+registry into memory when it starts, and serves reads that allow the cache
+(such as the lookups made by `get_online_features`) from that copy, refreshing
+it every `cache_ttl_seconds`. `cache_mode: thread` does the same refresh in a
+background thread.
+
+For very large registries the initial load can take a long time, and it runs
+even with `cache_ttl_seconds: 0`. Set `cache_mode: none` to turn the
+in-memory cache off entirely:
+
+```yaml
+registry:
+    registry_type: sql
+    path: postgresql://db:5432/feast
+    cache_mode: none
+```
+
+With `cache_mode: none`:
+
+- Nothing is loaded at startup, and `refresh_registry()` no longer reloads
+  the registry.
+- Every read queries the database, including reads that pass
+  `allow_cache=True`, so changes made by `feast apply` are visible right away.
+- Each read is a database round trip, so serving latency depends on the
+  database. Prefer `sync` or `thread` for latency-sensitive online serving,
+  and use `none` for tools and jobs where the startup load costs more than
+  the reads.
+
+`cache_mode: none` is only supported by the SQL registry. Other registries log
+a warning and keep their in-memory cache.
+
 ## MySQL: serialized-proto columns use `LONGBLOB`
 
 The registry stores each Feast object as a serialized protobuf in a binary

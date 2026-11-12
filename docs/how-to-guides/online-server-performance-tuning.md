@@ -274,6 +274,8 @@ The `registryTTLSeconds` field on the Operator CR (or `--registry_ttl_sec` CLI f
 | Production (low-latency) | `thread` | 300 |
 | Production (frequent schema changes) | `thread` | 60 |
 
+For SQL registries that are too large to load at startup, `cache_mode: none` turns the cache off and sends every registry read to the database. See [SQL Registry](../reference/registries/sql.md).
+
 ---
 
 ## Online store selection
