@@ -2,12 +2,21 @@
 # Laptop: python3 scripts/localcloud-test.py (add --full-suite for regression tests).
 name: pr-local-cloud-integration-tests
 'on':
-  workflow_dispatch: null
-  pull_request: null
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - labeled
 permissions:
   contents: read
 jobs:
   localcloud:
+    # Match Feast's approval-label policy and never run this job in fork repositories.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
