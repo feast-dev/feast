@@ -5,8 +5,8 @@ Run with: pytest --integration sdk/python/tests/integration/online_store/test_dy
 Uses moto to mock the DynamoDB service (no Docker required).
 """
 
-import os
 from datetime import datetime, timedelta, timezone
+from typing import Iterator
 
 import pytest
 
@@ -82,18 +82,18 @@ class TestDynamoDBVersioningIntegration:
     """Integration tests for DynamoDB versioning using moto mock."""
 
     @pytest.fixture(autouse=True)
-    def setup_dynamodb(self):
+    def setup_dynamodb(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         try:
             from moto import mock_dynamodb
         except ImportError:
             pytest.skip("moto not installed")
 
-        # Set dummy AWS credentials for moto
-        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # noqa: S105  # pragma: allowlist secret
-        os.environ["AWS_SECURITY_TOKEN"] = "testing"  # noqa: S105  # pragma: allowlist secret
-        os.environ["AWS_SESSION_TOKEN"] = "testing"  # noqa: S105  # pragma: allowlist secret
-        os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+        # Restore the worker's real AWS credentials before later cloud tests run.
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")  # noqa: S105  # pragma: allowlist secret
+        monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")  # noqa: S105  # pragma: allowlist secret
+        monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")  # noqa: S105  # pragma: allowlist secret
+        monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
         with mock_dynamodb():
             yield
