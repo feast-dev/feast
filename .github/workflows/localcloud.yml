@@ -1,6 +1,6 @@
 # Setup and SDK reference: https://local.cloud/docs/github-actions/
 # Laptop: python3 scripts/localcloud-test.py (add --full-suite for regression tests).
-name: LocalCloud tests
+name: pr-local-cloud-integration-tests
 'on':
   workflow_dispatch: null
   pull_request: null
