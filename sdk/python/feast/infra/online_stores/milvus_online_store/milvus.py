@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -280,6 +281,24 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
     varchar_max_length: Optional[int] = 65535
+    # Timeout in seconds that PyMilvus applies to each upsert and delete attempt.
+    # PyMilvus stops retrying once the elapsed time exceeds it, so a call can
+    # overrun by up to one attempt. When unset, PyMilvus applies its default
+    # retry policy.
+    mutation_timeout: Optional[float] = None
+
+    @field_validator("mutation_timeout")
+    @classmethod
+    def validate_mutation_timeout(cls, v):
+        if v is not None and not (math.isfinite(v) and v > 0):
+            raise ValueError(
+                f"mutation_timeout must be a positive number of seconds, got {v}"
+            )
+        return v
+
+    # Raise an error, instead of logging a warning, when an existing collection
+    # does not have the fields the feature view declares.
+    fail_on_schema_mismatch: Optional[bool] = False
 
     @field_validator("num_partitions")
     @classmethod
@@ -477,15 +496,14 @@ class MilvusOnlineStore(OnlineStore):
                     collection_name,
                     [index["index_name"] for index in scalar_indexes],
                 )
-            # Collections are only cached once loaded, so reads and searches
-            # don't need to load them again.
-            self._collections[collection_name] = self.client.describe_collection(
-                collection_name
-            )
-            if collection_exists and partition_key:
-                _warn_if_partition_key_missing(
-                    self._collections[collection_name], partition_key
-                )
+            description = self.client.describe_collection(collection_name)
+            if collection_exists:
+                _check_schema(config.online_store, schema, description)
+                if partition_key:
+                    _warn_if_partition_key_missing(description, partition_key)
+            # Collections are only cached once loaded and checked, so reads and
+            # searches don't need to load or check them again.
+            self._collections[collection_name] = description
         return self._collections[collection_name]
 
     def _ensure_loaded(self, collection_name: str) -> None:
@@ -588,6 +606,7 @@ class MilvusOnlineStore(OnlineStore):
         self.client.upsert(
             collection_name=collection["collection_name"],
             data=entity_batch_to_insert,
+            **_mutation_kwargs(config.online_store),
         )
 
     def online_read(
@@ -731,7 +750,11 @@ class MilvusOnlineStore(OnlineStore):
             if not self.client.has_collection(collection_name):
                 return
             self._ensure_loaded(collection_name)
-        self.client.delete(collection_name=collection_name, **selector)
+        self.client.delete(
+            collection_name=collection_name,
+            **selector,
+            **_mutation_kwargs(config.online_store),
+        )
 
     def update(
         self,
@@ -744,6 +767,16 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
+            # Check the schema again: the feature view may have changed since this
+            # process cached the collection.
+            self._collections.pop(
+                _table_id(
+                    config.project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                ),
+                None,
+            )
             self._get_or_create_collection(config, table)
 
         # Always drop the base collection plus any "_v{N}" siblings, regardless of
@@ -1041,6 +1074,13 @@ def _table_id(project: str, table: FeatureView, enable_versioning: bool = False)
     return compute_table_id(project, table, enable_versioning)
 
 
+def _mutation_kwargs(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """PyMilvus applies ``timeout`` to each attempt and stops retrying after it."""
+    if online_config.mutation_timeout is None:
+        return {}
+    return {"timeout": online_config.mutation_timeout}
+
+
 def _is_autoindex(online_config: MilvusOnlineStoreConfig) -> bool:
     return (online_config.index_type or "").upper() == "AUTOINDEX"
 
@@ -1100,6 +1140,61 @@ def _mark_partition_key(
             "INT64 or VARCHAR."
         )
     field.is_partition_key = True
+
+
+def _schema_mismatches(
+    schema: CollectionSchema, collection: Dict[str, Any]
+) -> List[str]:
+    """Fields that differ between a feature view's schema and an existing collection.
+
+    Field types are not compared: reads and writes adapt to the types a collection
+    has, for example numeric fields stored as VARCHAR.
+    """
+    declared = {field.name: field for field in schema.fields}
+    existing = {field["name"]: field for field in collection["fields"]}
+    mismatches = [
+        f"field '{name}' is not in the collection"
+        for name in declared
+        if name not in existing
+    ] + [
+        f"field '{name}' is not in the feature view"
+        for name in existing
+        if name not in declared
+    ]
+    for name in declared:
+        # Older Feast versions created a 1-dim placeholder; writes adapt to it.
+        if name not in existing or name == PLACEHOLDER_VECTOR_FIELD:
+            continue
+        declared_dim = declared[name].params.get("dim")
+        existing_dim = existing[name].get("params", {}).get("dim")
+        if declared_dim is None or existing_dim is None:
+            continue
+        if int(declared_dim) != int(existing_dim):
+            mismatches.append(
+                f"field '{name}' has dim {existing_dim}, "
+                f"the feature view declares dim {declared_dim}"
+            )
+    return mismatches
+
+
+def _check_schema(
+    online_config: MilvusOnlineStoreConfig,
+    schema: CollectionSchema,
+    collection: Dict[str, Any],
+) -> None:
+    """Log, or raise with ``fail_on_schema_mismatch``, the schema differences."""
+    mismatches = _schema_mismatches(schema, collection)
+    if not mismatches:
+        return
+    message = (
+        f"Collection '{collection['collection_name']}' does not match the feature "
+        f"view schema: {'; '.join(mismatches)}. A collection's schema only applies "
+        "when it is created: run `feast teardown` and `feast apply`, then "
+        "materialize again to use the new schema."
+    )
+    if online_config.fail_on_schema_mismatch:
+        raise ValueError(message)
+    logger.warning(message)
 
 
 def _warn_if_partition_key_missing(

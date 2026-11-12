@@ -672,3 +672,46 @@ def test_native_complex_types_filters_and_tag_indexes(
         True,
         False,
     ]
+
+
+def test_mutation_timeout(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path, project, mutation_timeout=5, consistency_level="Strong"
+    )
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(store, config, fv, _vector_rows())
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row] == ["Paris", "Rome"]
+
+    store.online_delete(config, fv, [_entity_key(1), _entity_key(2)])
+    assert _read(store, config, fv, [1, 2], ["city"]) == [None, None]
+
+
+def test_schema_mismatch(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(tmp_path, project)
+    store.update(config, [], [_scalar_feature_view()], [], [], partial=False)
+    changed = FeatureView(
+        name="driver_stats",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips_today", dtype=Float32),
+            Field(name="city", dtype=String),
+            Field(name="country", dtype=String),
+        ],
+    )
+
+    strict = _repo_config(tmp_path, project, fail_on_schema_mismatch=True)
+    with pytest.raises(ValueError, match="field 'country' is not in the collection"):
+        MilvusOnlineStore().update(strict, [], [changed], [], [], partial=False)
