@@ -1732,11 +1732,13 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
+        "decimal": ValueType.DECIMAL,
         "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,
+        "numeric": ValueType.DECIMAL,
         "json": ValueType.JSON,
         "real": ValueType.FLOAT,
         "smallint": ValueType.INT32,
@@ -1820,7 +1822,9 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not an MSSQL
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("map<"):
         return "nvarchar(max)"
@@ -1839,9 +1843,14 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         "int16": "smallint",
         "int32": "int",
         "int64": "bigint",
+        # MSSQL integer types are signed, except tinyint (unsigned 0..255),
+        # so uint16/uint32 must widen to the next larger signed type to avoid
+        # overflow in the generated DDL. This mirrors the widening already done
+        # in the Athena and Postgres mappers; uint64 uses bigint, the largest
+        # MSSQL integer type.
         "uint8": "tinyint",
-        "uint16": "smallint",
-        "uint32": "int",
+        "uint16": "int",
+        "uint32": "bigint",
         "uint64": "bigint",
         "float": "float",
         "double": "real",

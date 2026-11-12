@@ -22,6 +22,7 @@ from feast.type_map import (
     mssql_to_feast_value_type,
     pa_to_athena_value_type,
     pa_to_feast_value_type,
+    pa_to_mssql_type,
     pa_to_redshift_value_type,
     pg_type_to_feast_value_type,
     python_type_to_feast_value_type,
@@ -740,6 +741,22 @@ class TestMapArrowTypeSupport:
         assert mssql_to_feast_value_type("real") == ValueType.FLOAT
         assert mssql_to_feast_value_type("int") == ValueType.INT32
 
+    def test_mssql_to_feast_value_type_decimal_numeric(self):
+        """SQL Server DECIMAL/NUMERIC are exact numeric types, so schema
+        inference must map them to ValueType.DECIMAL instead of rejecting any
+        table that contains such a column."""
+        assert mssql_to_feast_value_type("decimal") == ValueType.DECIMAL
+        assert mssql_to_feast_value_type("numeric") == ValueType.DECIMAL
+
+    def test_pa_to_mssql_type_unsigned_ints_widen(self):
+        """MSSQL integer types are signed, except tinyint (unsigned 0..255),
+        which already covers the full uint8 range. uint16/uint32 must widen to
+        the next larger signed type to avoid overflow in the generated DDL."""
+        assert pa_to_mssql_type(pyarrow.uint8()) == "tinyint"
+        assert pa_to_mssql_type(pyarrow.uint16()) == "int"
+        assert pa_to_mssql_type(pyarrow.uint32()) == "bigint"
+        assert pa_to_mssql_type(pyarrow.uint64()) == "bigint"
+
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""
         assert snowflake_type_to_feast_value_type("VARIANT") == ValueType.MAP
@@ -820,6 +837,10 @@ class TestDecimalDdlTypes:
 
     def test_pa_to_athena_value_type_decimal(self):
         assert pa_to_athena_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+
+    def test_pa_to_mssql_type_decimal(self):
+        assert pa_to_mssql_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+        assert pa_to_mssql_type(pyarrow.decimal128(38, 37)) == "decimal(38,37)"
 
 
 class TestRedshiftDynamoDBMapSupport:
