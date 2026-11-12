@@ -11,6 +11,7 @@ import pytest
 pytest.importorskip("qdrant_client")
 
 from feast import Entity, FeatureView, Field, FileSource, RepoConfig  # noqa: E402
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.qdrant_online_store.qdrant import (  # noqa: E402
     QdrantOnlineStore,
@@ -205,6 +206,7 @@ def test_retrieve_online_documents_v2_dense_search_joins_features():
             requested_features=["text_field", "embedding"],
             embedding=[0.1, 0.2, 0.3],
             top_k=1,
+            filters=None,
         )
 
     assert len(results) == 1
@@ -218,6 +220,33 @@ def test_retrieve_online_documents_v2_dense_search_joins_features():
     query_kwargs = mock_client.query_points.call_args.kwargs
     assert query_kwargs["limit"] == 1
     assert query_kwargs["query"] == [0.1, 0.2, 0.3]
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        ComparisonFilter(type="eq", key="text_field", value="hello"),
+        CompoundFilter(
+            type="and",
+            filters=[ComparisonFilter(type="eq", key="text_field", value="hello")],
+        ),
+    ],
+)
+def test_retrieve_online_documents_v2_rejects_metadata_filters(
+    filters: ComparisonFilter | CompoundFilter,
+) -> None:
+    store = QdrantOnlineStore()
+    with patch.object(store, "_get_client") as get_client:
+        with pytest.raises(NotImplementedError, match="Metadata filtering.*Qdrant"):
+            store.retrieve_online_documents_v2(
+                config=_make_repo_config(),
+                table=_make_document_fv(),
+                requested_features=["text_field"],
+                embedding=[0.1, 0.2, 0.3],
+                top_k=1,
+                filters=filters,
+            )
+    get_client.assert_not_called()
 
 
 def test_retrieve_online_documents_v2_requires_text_search_for_query_string():

@@ -5,11 +5,12 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from qdrant_client import QdrantClient, models
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
     get_list_val_str,
@@ -463,6 +464,7 @@ class QdrantOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -501,6 +503,7 @@ class QdrantOnlineStore(OnlineStore):
                 creation time (``online_store.similarity``).
             query_string: Text query for sparse / hybrid search (requires
                 ``text_search_enabled: true`` in the online store config).
+            filters: Metadata filtering is not yet supported by this store.
             include_feature_view_version_metadata: Reserved for future use.
 
         Returns:
@@ -511,6 +514,11 @@ class QdrantOnlineStore(OnlineStore):
         """
         online_store_config = config.online_store
         assert isinstance(online_store_config, QdrantOnlineStoreConfig)
+
+        if filters is not None:
+            raise NotImplementedError(
+                "Metadata filtering is not supported by the Qdrant online store."
+            )
 
         if embedding is None and query_string is None:
             raise ValueError("Either embedding or query_string must be provided")

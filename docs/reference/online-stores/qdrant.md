@@ -56,6 +56,8 @@ To compare this set of functionality against other online stores, please see the
 
 Qdrant stores one point per feature. `retrieve_online_documents_v2` runs dense vector search on the embedding feature, then joins sibling feature points by `entity_key` so the response includes every requested feature in a single `Dict[str, ValueProto]`.
 
+Metadata filtering through the `filters` argument is not yet supported by Feast's Qdrant online store. Leave it unset or pass `None`; supplying a filter raises `NotImplementedError`.
+
 {% code title="python" %}
 
 ```python
