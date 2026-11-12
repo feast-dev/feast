@@ -648,6 +648,45 @@ def test_list_feature_views_updated_since_naive_treated_as_utc(sqlite_registry):
     assert len(result) == len(result_aware)
 
 
+def test_cache_mode_none_reads_registry_directly(tmp_path):
+    """With cache_mode='none' the SQL registry never builds an in-memory copy and
+    reads that allow the cache see writes immediately."""
+    from unittest.mock import patch
+
+    config = SqlRegistryConfig(
+        registry_type="sql",
+        path=f"sqlite:///{tmp_path / 'registry.db'}",
+        cache_mode="none",
+    )
+    with patch.object(SqlRegistry, "proto") as mock_proto:
+        registry = SqlRegistry(config, "test_project", None)
+
+        registry.apply_entity(Entity(name="driver"), "test_project")
+        assert [
+            e.name for e in registry.list_entities("test_project", allow_cache=True)
+        ] == ["driver"]
+        assert (
+            registry.get_entity("driver", "test_project", allow_cache=True).name
+            == "driver"
+        )
+
+        registry.apply_entity(Entity(name="customer"), "test_project")
+        assert sorted(
+            e.name for e in registry.list_entities("test_project", allow_cache=True)
+        ) == ["customer", "driver"]
+
+        registry.delete_entity("driver", "test_project")
+        assert [
+            e.name for e in registry.list_entities("test_project", allow_cache=True)
+        ] == ["customer"]
+
+        registry.refresh()
+        mock_proto.assert_not_called()
+
+    assert registry.cached_registry_proto_created is None
+    registry.teardown()
+
+
 class TestSchemaMode:
     def test_schema_mode_auto_creates_tables(self, tmp_path):
         """Default schema_mode='auto' creates tables on init (existing behavior)."""
