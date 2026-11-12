@@ -58,6 +58,15 @@ class FeastError(Exception):
                 module_name = m["module"]
                 class_name = m["class"]
                 message = m["message"]
+
+                # Security: Only allow imports from feast.* modules to prevent
+                # arbitrary code execution via malicious error responses.
+                if not module_name.startswith("feast."):
+                    logger.warning(
+                        f"Rejected error detail with non-feast module: {module_name}"
+                    )
+                    return None
+
                 module = importlib.import_module(module_name)
                 class_reference = getattr(module, class_name)
 
