@@ -1,15 +1,32 @@
+import base64
 import inspect
 import json
+import os
+import pickle
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
 import pytest
+from typeguard import TypeCheckError
 
-from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast import BatchFeatureView, Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.feature_service import FeatureService
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.remote import RemoteOnlineStore, RemoteOnlineStoreConfig
+from feast.infra.online_stores.remote import (
+    RemoteOnlineStore,
+    RemoteOnlineStoreConfig,
+    decode_infra_object,
+    encode_infra_object,
+    post_remote_infra,
+)
 from feast.online_response import OnlineResponse
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Float32, Int64, String, UnixTimestamp
@@ -803,3 +820,155 @@ class TestRemoteOnlineStoreWriteBatch:
 
         # Event timestamps should be ISO strings as before
         assert df["event_timestamp"] == ["2023-11-15T00:00:00"]
+
+
+class TestRemoteOnlineStoreUpdateInfra:
+    @pytest.fixture
+    def config(self):
+        return RepoConfig(
+            project="test_project",
+            registry="dummy_registry",
+            online_store=RemoteOnlineStoreConfig(path="http://localhost:6566"),
+        )
+
+    @pytest.fixture
+    def entity(self):
+        return Entity(name="user_id", value_type=ValueType.INT64)
+
+    @pytest.fixture
+    def feature_view(self, entity):
+        return FeatureView(
+            name="test_feature_view",
+            entities=[entity],
+            schema=[
+                Field(name="user_id", dtype=Int64),
+                Field(name="feature1", dtype=String),
+            ],
+            source=FileSource(path="test.parquet", timestamp_field="event_timestamp"),
+        )
+
+    def test_infra_object_round_trip(self, feature_view, entity):
+        batch = BatchFeatureView(
+            name="batch",
+            entities=[entity],
+            source=feature_view.batch_source,
+            schema=feature_view.schema,
+            online=True,
+            udf=lambda df: df,
+        )
+        for original in (feature_view, entity, batch):
+            decoded = decode_infra_object(encode_infra_object(original))
+            assert type(decoded) is type(original)
+            assert decoded.name == original.name
+            if isinstance(original, FeatureView):
+                assert decoded.schema == original.schema
+                assert decoded.online == original.online
+        assert decode_infra_object(encode_infra_object(batch)).udf is None
+
+    def test_rejects_unsupported_types(self):
+        with pytest.raises(ValueError, match="Cannot send"):
+            encode_infra_object(object())
+        with pytest.raises(ValueError, match="Unknown object type"):
+            decode_infra_object({"type": "NotAFeastObject", "proto": ""})
+
+    @pytest.mark.parametrize("type_name", ["FeatureView", "BatchFeatureView"])
+    @pytest.mark.parametrize("transformed", [False, True])
+    def test_authorization_uses_reconstructed_view_type(self, type_name, transformed):
+        proto = FeatureViewProto()
+        proto.spec.name = "new_view"
+        proto.spec.tags["team"] = "features"
+        if transformed:
+            proto.spec.feature_transformation.SetInParent()
+        authorize = Mock(side_effect=lambda identity: identity)
+        identity = decode_infra_object(
+            {
+                "type": type_name,
+                "proto": base64.b64encode(proto.SerializeToString()).decode("ascii"),
+            },
+            authorize=authorize,
+        )
+        assert type(identity) is (BatchFeatureView if transformed else FeatureView)
+        assert identity.name == "new_view"
+        assert identity.tags == identity.required_tags == {"team": "features"}
+        authorize.assert_called_once_with(identity)
+
+    @pytest.mark.parametrize("kind", ["StreamFeatureView", "OnDemandFeatureView"])
+    def test_decode_never_executes_untrusted_udf(self, kind, tmp_path):
+        marker = tmp_path / "must_not_exist"
+
+        class Payload:
+            def __reduce__(self):
+                return os.mkdir, (str(marker),)
+
+        if kind == "StreamFeatureView":
+            proto = StreamFeatureViewProto()
+            proto.spec.user_defined_function.body = pickle.dumps(Payload())
+        else:
+            proto = OnDemandFeatureViewProto()
+            proto.spec.mode = "pandas"
+            proto.spec.feature_transformation.user_defined_function.body_text = (
+                f"import os\nos.mkdir(r'{marker}')\ndef fn(df):\n    return df\n"
+            )
+        proto.spec.name = "untrusted"
+        try:
+            decode_infra_object(
+                {
+                    "type": kind,
+                    "proto": base64.b64encode(proto.SerializeToString()).decode(
+                        "ascii"
+                    ),
+                }
+            )
+        except (ValueError, TypeError, TypeCheckError):
+            pass  # Minimal protos may fail source validation after UDF decoding.
+        assert not marker.exists(), "Client-supplied UDF executed during decode"
+
+    @pytest.mark.parametrize("operation", ["update", "teardown"])
+    def test_forwards_infra_objects(self, operation, config, feature_view, entity):
+        args = (
+            {"tables": [feature_view], "entities": [entity]}
+            if operation == "teardown"
+            else {
+                "tables_to_keep": [feature_view],
+                "tables_to_delete": [feature_view],
+                "entities_to_keep": [entity],
+                "entities_to_delete": [entity],
+                "partial": True,
+            }
+        )
+        with patch("feast.infra.online_stores.remote.post_remote_infra") as post:
+            getattr(RemoteOnlineStore(), operation)(config=config, **args)
+        post.assert_called_once()
+        assert post.call_args.kwargs["endpoint"] == f"{operation}-infra"
+        body = post.call_args.kwargs["req_body"]
+        for key, objects in args.items():
+            if key == "partial":
+                assert body[key] is True
+            else:
+                assert [decode_infra_object(p).name for p in body[key]] == [
+                    o.name for o in objects
+                ]
+
+    @pytest.mark.parametrize("operation", ["update", "teardown"])
+    @pytest.mark.parametrize("cert", ["", "/path/to/cert.pem"])
+    @pytest.mark.parametrize("status", [200, 503])
+    def test_infra_http_request(self, operation, cert, status, config):
+        config.online_store.cert = cert
+        session = Mock()
+        session.post.return_value = Mock(status_code=status, text="unavailable")
+        kwargs = dict(
+            session=session, config=config, endpoint=f"{operation}-infra", req_body={}
+        )
+        if status == 200:
+            post_remote_infra.__wrapped__(**kwargs)
+        else:
+            with pytest.raises(
+                RuntimeError, match=f"Unable to {operation} online store"
+            ):
+                post_remote_infra.__wrapped__(**kwargs)
+        session.post.assert_called_once_with(
+            f"http://localhost:6566/{operation}-infra",
+            params={"project": config.project},
+            json={},
+            verify=cert or True,
+        )
