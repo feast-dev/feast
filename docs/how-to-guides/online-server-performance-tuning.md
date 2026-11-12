@@ -35,6 +35,8 @@ When the server processes a `get_online_features()` call, it groups the requeste
 **Redis exception:** The Redis online store overrides `_read_features_per_fv()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
 
 **PostgreSQL exception:** PostgreSQL stores each feature view in its own table and overrides `_read_features_per_fv()` to combine the per-view reads into a **single `UNION ALL` statement**, so a request touching any number of feature views costs **1** query on both the sync and async paths. This helps most where round trips dominate — a handful of entities against a remote database. Requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) fall back to one query per view, because at that size the saved round trips no longer offset holding every view's rows at once. A single-view request is never batched, since there is nothing to combine. Set `max_batched_result_rows: 0` in the online store config to turn batching off. As with Redis, consolidating feature views still reduces application-layer overhead.
+
+**DynamoDB exception:** DynamoDB stores each feature view in its own table and overrides `_read_features_per_fv()` to pack the keys of every feature view into **shared `BatchGetItem` requests**, since one request can read from several tables. A request touching any number of feature views costs as few as **1** request (up to `batch_size` keys per request, sent in parallel) on both the sync and async paths. As with PostgreSQL, requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) read one view at a time, single-view requests are never batched, and `max_batched_result_rows: 0` turns batching off.
 {% endhint %}
 
 ### Feature services are free (and can be faster)
@@ -89,7 +91,7 @@ Requesting just `combined_score` triggers reads from **both** `driver_stats_fv` 
 
 ## Pre-computed feature vectors
 
-When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even where the store batches its reads (Redis, PostgreSQL), the protobuf deserialization and response-building overhead grows linearly with the number of views.
+When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even where the store batches its reads (Redis, PostgreSQL, DynamoDB), the protobuf deserialization and response-building overhead grows linearly with the number of views.
 
 **Pre-computed feature vectors** solve this by storing all of a feature service's features for each entity as a single serialized blob. At read time, the server fetches one blob per entity instead of N reads per feature view, reducing the operation to O(1).
 
@@ -281,7 +283,7 @@ The online store is the single largest factor in `get_online_features()` latency
 | Store | Typical p50 latency | Async read | Best for | Key trade-off |
 | ----- | ------------------- | ---------- | -------- | ------------- |
 | **Redis / Dragonfly** | < 1 ms | No (threadpool) | Ultra-low latency, high throughput; all FV reads batched into 1 pipeline | Requires in-memory capacity for your dataset |
-| **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS | Pay-per-request cost; batch API limits (100 items) |
+| **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS; FV reads packed into shared batch requests | Pay-per-request cost; batch API limits (100 items) |
 | **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra; all FV reads batched into 1 query | Connection pooling needed at scale |
 | **MongoDB** | 2–5 ms | Yes | Flexible schema, async-native | Requires index tuning for large datasets |
 | **Aerospike** | < 1 ms | No (threadpool) | Ultra-low latency, hybrid memory (RAM + SSD), large datasets | Namespace must be pre-configured on the cluster |
@@ -308,7 +310,7 @@ The feature server can read from the online store using either an **async** or *
 
 | Store | Async read | Async write | Notes |
 | ----- | ---------- | ----------- | ----- |
-| **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O |
+| **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O. `_read_features_per_fv` is overridden to pack all feature view reads into shared `BatchGetItem` requests |
 | **MongoDB** | Yes | Yes | Uses `motor` (async MongoDB driver) |
 | **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path. `_read_features_per_fv` is overridden to batch all feature view reads into a single `UNION ALL` query |
 | **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (`_read_features_per_fv` overridden with batched single pipeline) |
@@ -343,6 +345,7 @@ Key knobs:
 
 - **`batch_size`**: DynamoDB's `BatchGetItem` accepts up to 100 items per request. For 500 entities, this means 5 batches. Keep at 100 unless hitting the 16 MB response limit.
 - **`max_read_workers`**: Controls parallelism for batch reads. With 10 workers, those 5 batches run concurrently (~10 ms) instead of sequentially (~50 ms).
+- **`max_batched_result_rows`**: Requests spanning several feature views pack every view's keys into shared `BatchGetItem` requests, up to this many entity rows × feature views (default 2048). Set to `0` to read one feature view at a time.
 - **`consistent_reads: false`**: Eventually consistent reads are faster and cheaper. Use `true` only if you need read-after-write consistency.
 - **`warmup_connections: true`**: Pre-warms the DynamoDB connection pool on server startup by making `max_pool_connections` concurrent lightweight calls (`describe_endpoints`). This avoids a cold-start latency penalty (~20ms) on the first feature requests, including concurrent ones.
 - **`max_pool_connections`**: Increase for high-throughput deployments to improve HTTP connection reuse to the DynamoDB endpoint.

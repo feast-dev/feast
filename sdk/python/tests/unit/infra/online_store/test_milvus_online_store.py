@@ -1040,7 +1040,7 @@ def test_column_types_follow_vector_index_and_vector_length(
     )
 
     for native, seen_at_type, history_type in [
-        (False, DataType.VARCHAR, DataType.VARCHAR),
+        (False, DataType.VARCHAR, DataType.ARRAY),
         (True, DataType.INT64, DataType.ARRAY),
     ]:
         MilvusOnlineStore()._get_or_create_collection(
@@ -1243,10 +1243,6 @@ def test_bool_array_cannot_be_a_vector_field(mock_client_cls: MagicMock) -> None
     mock_client.create_collection.assert_not_called()
 
 
-def _native_config(tmp_path: Path, **online_store: Any) -> RepoConfig:
-    return _lite_config(tmp_path, enable_openai_compatible_store=True, **online_store)
-
-
 @patch(f"{MILVUS_MODULE}.MilvusClient")
 def test_native_types_get_json_and_array_columns(mock_client_cls: MagicMock) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
@@ -1264,9 +1260,7 @@ def test_native_types_get_json_and_array_columns(mock_client_cls: MagicMock) -> 
         ],
     )
 
-    MilvusOnlineStore()._get_or_create_collection(
-        _mock_config(enable_openai_compatible_store=True), fv
-    )
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
 
     fields = {
         field.name: field.to_dict()
@@ -1312,7 +1306,7 @@ _NATIVE_COMPLEX_VALUES: List[Tuple[Any, ValueProto]] = [
 
 
 def test_native_complex_values_round_trip(tmp_path: Path) -> None:
-    config = _native_config(tmp_path)
+    config = _lite_config(tmp_path)
     store = MilvusOnlineStore()
 
     for index, (dtype, value) in enumerate(_NATIVE_COMPLEX_VALUES):
@@ -1364,7 +1358,7 @@ def _product_rows() -> Dict[int, Dict[str, ValueProto]]:
 
 
 def test_filters_address_json_paths_and_array_elements(tmp_path: Path) -> None:
-    config = _native_config(tmp_path)
+    config = _lite_config(tmp_path)
     fv = _attributes_feature_view()
     store = MilvusOnlineStore()
     store.update(config, [], [fv], [], [], partial=False)
@@ -1425,9 +1419,7 @@ def test_index_tags_create_scalar_and_json_path_indexes(
         }
     )
 
-    MilvusOnlineStore()._get_or_create_collection(
-        _mock_config(enable_openai_compatible_store=True), fv
-    )
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
 
     created = _created_indexes(mock_client)
     assert created["brand"]["index_type"] == "INVERTED"
@@ -1462,7 +1454,7 @@ def test_index_tags_create_scalar_and_json_path_indexes(
                 dtype=String,
                 tags={"milvus.json_indexes": '[{"json_path": "brand"}]'},
             ),
-            {"enable_openai_compatible_store": True},
+            {},
             "not stored as JSON",
         ),
         (
@@ -1477,7 +1469,7 @@ def test_index_tags_create_scalar_and_json_path_indexes(
         ),
         (
             Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "0"}),
-            {"enable_openai_compatible_store": True},
+            {},
             "milvus.max_capacity tag must be",
         ),
     ],
@@ -1535,7 +1527,7 @@ def test_missing_tag_indexes_on_an_existing_collection_are_logged(
 def test_json_null_reads_as_missing_and_json_scalars_are_rejected(
     tmp_path: Path,
 ) -> None:
-    config = _native_config(tmp_path)
+    config = _lite_config(tmp_path)
     fv = _typed_feature_view("documents", Json)
     store = MilvusOnlineStore()
     store.update(config, [], [fv], [], [], partial=False)
@@ -1556,7 +1548,7 @@ def test_json_null_reads_as_missing_and_json_scalars_are_rejected(
 def test_a_json_column_that_cannot_be_null_rejects_a_missing_value(
     tmp_path: Path,
 ) -> None:
-    config = _native_config(tmp_path)
+    config = _lite_config(tmp_path)
     fv = _typed_feature_view("documents", Json, tags={"milvus.nullable": "false"})
     store = MilvusOnlineStore()
     store.update(config, [], [fv], [], [], partial=False)

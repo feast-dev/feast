@@ -262,14 +262,16 @@ write_transformation_duration_seconds = Histogram(
 )
 
 # ---------------------------------------------------------------------------
-# Feature freshness metrics — "max" shows the worst-case staleness across
-# processes (freshness is identical regardless of which process computes it).
+# Feature freshness metrics — "livemax" shows the worst-case staleness across
+# the workers that are running. A plain "max" also reads the files of workers
+# that exited, and mark_process_dead does not delete those, so one leftover
+# file pins the gauge for the life of the process group.
 # ---------------------------------------------------------------------------
 feature_freshness_seconds = Gauge(
     "feast_feature_freshness_seconds",
     "Seconds since the most recent materialization end time per feature view",
     ["feature_view", "project"],
-    multiprocess_mode="max",
+    multiprocess_mode="livemax",
 )
 
 # ---------------------------------------------------------------------------
@@ -379,9 +381,12 @@ def track_online_store_read(duration_seconds: float):
 
 
 def track_feature_statuses(
-    feature_view_name: str, present_count: int, not_found_count: int
+    feature_view_name: str,
+    present_count: int,
+    not_found_count: int,
+    outside_max_age_count: int = 0,
 ):
-    """Record the number of PRESENT vs NOT_FOUND feature values for a feature view."""
+    """Record the number of PRESENT, NOT_FOUND and OUTSIDE_MAX_AGE feature values for a feature view."""
     if not _config.online_features:
         return
     if present_count > 0:
@@ -392,6 +397,10 @@ def track_feature_statuses(
         online_features_status_total.labels(
             feature_view=feature_view_name, status="not_found"
         ).inc(not_found_count)
+    if outside_max_age_count > 0:
+        online_features_status_total.labels(
+            feature_view=feature_view_name, status="outside_max_age"
+        ).inc(outside_max_age_count)
 
 
 def track_transformation(odfv_name: str, mode: str, duration_seconds: float):
