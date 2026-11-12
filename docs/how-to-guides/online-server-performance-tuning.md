@@ -829,7 +829,7 @@ This exposes a `/metrics` endpoint on port 8000. If the Prometheus Operator's `S
 | `feast_feature_server_transformation_duration_seconds` | ODFV execution time (requires `track_metrics=True` on the ODFV). |
 | `feast_feature_server_cpu_usage` | Per-worker CPU. Sustained > 80% means you need more workers or replicas. |
 | `feast_feature_server_memory_usage` | Per-worker memory. Growing over time may indicate a memory leak — use `maxRequests` to recycle. |
-| `feast_feature_server_request_total` | Request throughput and error rates by endpoint and status. |
+| `feast_feature_server_request_total` | Request throughput and error rates by endpoint and status. Filter on `status_class="5xx"` to alert on server errors only. |
 | `feast_feature_freshness_seconds` | Seconds since last materialization per feature view. Alerts you to stale data. |
 
 #### Example Prometheus alert rules
