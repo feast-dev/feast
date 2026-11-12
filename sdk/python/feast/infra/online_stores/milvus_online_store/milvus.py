@@ -408,7 +408,7 @@ class MilvusOnlineStore(OnlineStore):
                         f"Field '{field.name}': Array(Bool) cannot be a vector field,"
                         " Milvus binary vectors are not supported."
                     )
-                nullable = _nullable_tag(field)
+                nullable = _boolean_tag(field, "milvus.nullable")
                 if nullable is None:
                     nullable = spec.get("nullable", False)
                 if nullable and (
@@ -423,6 +423,7 @@ class MilvusOnlineStore(OnlineStore):
                 spec.pop("nullable", None)
                 if nullable:
                     spec["nullable"] = True
+                spec.update(_text_analysis_params(field))
                 scalar_indexes.extend(_scalar_index_specs(field, spec["dtype"]))
                 fields.append(FieldSchema(name=field.name, **spec))
             has_vector_field = any(
@@ -1545,6 +1546,26 @@ def _scalar_index_specs(field: Field, dtype: DataType) -> List[Dict[str, Any]]:
     return specs
 
 
+def _text_analysis_params(field: Field) -> Dict[str, Any]:
+    """The analyzer settings that the ``milvus.analyzer_params`` and
+    ``milvus.enable_match`` tags declare."""
+    analyzer_params = _json_tag(field, "milvus.analyzer_params", dict)
+    enable_match = _boolean_tag(field, "milvus.enable_match")
+    if analyzer_params is None and not enable_match:
+        return {}
+    # Other types are stored as VARCHAR too, but their text is not meant to be analyzed.
+    if from_feast_type(field.dtype) != ValueType.STRING:
+        raise ValueError(
+            f"Field '{field.name}' has text analysis tags but is not a String feature"
+        )
+    params: Dict[str, Any] = {"enable_analyzer": True}
+    if analyzer_params is not None:
+        params["analyzer_params"] = analyzer_params
+    if enable_match:
+        params["enable_match"] = True
+    return params
+
+
 def _warn_if_scalar_indexes_missing(
     client: MilvusClient, collection_name: str, index_names: List[str]
 ) -> None:
@@ -1561,13 +1582,13 @@ def _warn_if_scalar_indexes_missing(
         )
 
 
-def _nullable_tag(field: Field) -> Optional[bool]:
-    if "milvus.nullable" not in field.tags:
+def _boolean_tag(field: Field, tag: str) -> Optional[bool]:
+    if tag not in field.tags:
         return None
-    value = field.tags["milvus.nullable"].lower()
+    value = field.tags[tag].lower()
     if value not in ("true", "false"):
         raise ValueError(
-            f"Field '{field.name}' has invalid milvus.nullable tag"
-            f" '{field.tags['milvus.nullable']}': must be 'true' or 'false'."
+            f"Field '{field.name}' has invalid {tag} tag"
+            f" '{field.tags[tag]}': must be 'true' or 'false'."
         )
     return value == "true"

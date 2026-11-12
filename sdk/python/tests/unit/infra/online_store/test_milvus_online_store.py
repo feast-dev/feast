@@ -1,5 +1,6 @@
 """Unit tests for the Milvus online store, run against Milvus Lite or a mocked client."""
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -1472,6 +1473,21 @@ def test_index_tags_create_scalar_and_json_path_indexes(
             {},
             "milvus.max_capacity tag must be",
         ),
+        (
+            Field(name="price", dtype=Float64, tags={"milvus.enable_match": "true"}),
+            {},
+            "not a String feature",
+        ),
+        (
+            Field(name="title", dtype=String, tags={"milvus.enable_match": "yes"}),
+            {},
+            "must be 'true' or 'false'",
+        ),
+        (
+            Field(name="title", dtype=String, tags={"milvus.analyzer_params": "[]"}),
+            {},
+            "milvus.analyzer_params must be a JSON dict",
+        ),
     ],
     ids=[
         "params_without_index",
@@ -1479,10 +1495,13 @@ def test_index_tags_create_scalar_and_json_path_indexes(
         "json_index_on_text",
         "vector",
         "capacity",
+        "analysis_on_non_string",
+        "match_not_boolean",
+        "analyzer_not_object",
     ],
 )
 @patch(f"{MILVUS_MODULE}.MilvusClient")
-def test_index_and_capacity_tags_are_validated(
+def test_field_tags_are_validated(
     mock_client_cls: MagicMock, field: Field, online_store: Dict[str, Any], match: str
 ) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
@@ -1497,6 +1516,61 @@ def test_index_and_capacity_tags_are_validated(
         MilvusOnlineStore()._get_or_create_collection(_mock_config(**online_store), fv)
 
     mock_client.create_collection.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "tags, expected",
+    [
+        (
+            {"milvus.analyzer_params": '{"tokenizer": "whitespace"}'},
+            {"enable_analyzer": True, "analyzer_params": {"tokenizer": "whitespace"}},
+        ),
+        (
+            {"milvus.enable_match": "true"},
+            {"enable_analyzer": True, "enable_match": True},
+        ),
+        (
+            {
+                "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
+                "milvus.enable_match": "true",
+            },
+            {
+                "enable_analyzer": True,
+                "analyzer_params": {"tokenizer": "whitespace"},
+                "enable_match": True,
+            },
+        ),
+        ({"milvus.enable_match": "false"}, {}),
+    ],
+    ids=["analyzer", "match", "both", "match_false"],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_text_analysis_tags_set_field_params(
+    mock_client_cls: MagicMock, tags: Dict[str, str], expected: Dict[str, Any]
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="title", dtype=String, tags=tags),
+        ],
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    schema = mock_client.create_collection.call_args.kwargs["schema"]
+    params = next(field for field in schema.fields if field.name == "title").params
+    text_params = {
+        name: params[name]
+        for name in ("enable_analyzer", "analyzer_params", "enable_match")
+        if name in params
+    }
+    if "analyzer_params" in text_params:
+        text_params["analyzer_params"] = json.loads(text_params["analyzer_params"])
+    assert text_params == expected
 
 
 @patch(f"{MILVUS_MODULE}.MilvusClient")
