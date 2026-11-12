@@ -138,6 +138,38 @@ func TestNewRedisOnlineStoreWithEqualsInValue(t *testing.T) {
 	assert.Equal(t, "a=b", opts.Password)
 }
 
+func TestNewRedisOnlineStoreWithColonInOptionValues(t *testing.T) {
+	var config = map[string]interface{}{
+		"connection_string": "localhost:6379,username=team:feast,password=p:w", // pragma: allowlist secret
+	}
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 3,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
+	require.NoError(t, err)
+	var opts = store.client.Options()
+	assert.Equal(t, "localhost:6379", opts.Addr)
+	assert.Equal(t, "team:feast", opts.Username)
+	assert.Equal(t, "p:w", opts.Password)
+}
+
+func TestNewRedisOnlineStoreClusterWithColonInUsername(t *testing.T) {
+	var config = map[string]interface{}{
+		"redis_type":        "redis_cluster",
+		"connection_string": "node1:6379,node2:6379,username=team:feast,password=secret", // pragma: allowlist secret
+	}
+	rc := &registry.RepoConfig{
+		OnlineStore:                   config,
+		EntityKeySerializationVersion: 3,
+	}
+	store, err := NewRedisOnlineStore("test", rc, config)
+	require.NoError(t, err)
+	var opts = store.clusterClient.Options()
+	assert.Equal(t, []string{"node1:6379", "node2:6379"}, opts.Addrs)
+	assert.Equal(t, "team:feast", opts.Username)
+}
+
 func TestNewRedisOnlineStoreUnrecognizedOption(t *testing.T) {
 	var config = map[string]interface{}{
 		"connection_string": "redis://localhost:6379,foo=bar",

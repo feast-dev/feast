@@ -81,9 +81,9 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	} else {
 		parts := strings.Split(redisConnStr, ",")
 		for _, part := range parts {
-			if strings.Contains(part, ":") {
-				address = append(address, part)
-			} else if strings.Contains(part, "=") {
+			// Check for options before addresses so that option values containing ':'
+			// (e.g. username=team:feast) are not mistaken for host:port addresses.
+			if strings.Contains(part, "=") {
 				kv := strings.SplitN(part, "=", 2)
 				if kv[0] == "password" {
 					password = kv[1]
@@ -104,6 +104,8 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 				} else {
 					return nil, fmt.Errorf("unrecognized option in connection_string: %s. Must be one of 'password', 'username', 'ssl', 'db'", kv[0])
 				}
+			} else if strings.Contains(part, ":") {
+				address = append(address, part)
 			} else {
 				return nil, fmt.Errorf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part)
 			}
