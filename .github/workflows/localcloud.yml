@@ -1,6 +1,5 @@
 # Setup and SDK reference: https://local.cloud/docs/github-actions/
 # Laptop: python3 scripts/localcloud-test.py (add --full-suite for regression tests).
-# Enable pull-request runs with repository variable LOCALCLOUD_CI_ENABLED=true.
 name: LocalCloud tests
 'on':
   workflow_dispatch: null
@@ -9,8 +8,6 @@ permissions:
   contents: read
 jobs:
   localcloud:
-    if: github.event_name == 'workflow_dispatch' || vars.LOCALCLOUD_CI_ENABLED ==
-      'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
