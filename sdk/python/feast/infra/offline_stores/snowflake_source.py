@@ -252,7 +252,7 @@ class SnowflakeSource(DataSource):
         high_precision_number_columns = [
             col["column_name"]
             for col in metadata
-            if col["type_code"] == 0 and col["scale"] == 0 and col["precision"] > 19
+            if col["type_code"] == 0 and col["scale"] == 0 and col["precision"] > 18
         ]
 
         if high_precision_number_columns:
