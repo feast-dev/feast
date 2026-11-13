@@ -282,7 +282,7 @@ features:
 feast mcp --config feast_mcp.yaml
 ```
 
-With the [MCP additions developed separately for this demo](https://github.com/patelchaitany/feast/tree/codex/mcp-feature-tools), it exposes ten `features_*` tools:
+With the [MCP additions developed separately for this demo](https://github.com/patelchaitany/feast/tree/feat/mcp-feature-tools), it exposes ten `features_*` tools:
 
 | Tool | What it does |
 |---|---|
