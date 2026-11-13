@@ -434,6 +434,10 @@ Ensure your dbt model includes the entity column specified with `--entity-column
 
 By default, Feast looks for `event_timestamp`. Use `--timestamp-field` to specify a different column name.
 
+### "Timestamp field ... does not map to a timestamp type"
+
+The timestamp column exists but its `data_type` in schema.yml is not a timestamp type (for example `STRING` or `INT64`). The model is still imported, but point-in-time retrieval needs a real timestamp column. Declare the column as `TIMESTAMP`, `DATETIME` or `DATE` in schema.yml. Columns with no `data_type` are treated as `STRING` and also trigger this warning.
+
 ### "Entity column ... may not be suitable as an entity key"
 
 The entity column's `data_type` in schema.yml maps to a Feast type other than a string or integer type. Floating point values are unreliable join keys, and boolean, binary and timestamp columns rarely identify an entity. The model is still imported. Use a `STRING` or `INT64` column as the entity, or declare the column's type in schema.yml if it is wrong. `NUMBER` types with a precision above 18, such as Snowflake's `NUMBER(38,0)`, map to `Float64`; declare integer IDs as `INTEGER` or `NUMBER(18,0)` instead.
