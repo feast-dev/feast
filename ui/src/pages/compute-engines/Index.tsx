@@ -50,12 +50,25 @@ function formatRange(iso: string | undefined): string {
   }
 }
 
-function buildJobsFromFeatureViews(
+export function buildJobsFromFeatureViews(
   featureViewInfos: FeatureViewEngineInfo[],
 ): MaterializationJobRow[] {
   const jobs: MaterializationJobRow[] = [];
 
   featureViewInfos.forEach((fv) => {
+    // A run in progress has no saved interval yet; the registry only knows
+    // the view is MATERIALIZING, not the date range being written.
+    if (fv.state === "MATERIALIZING") {
+      jobs.push({
+        id: `${fv.name}-running`,
+        featureView: fv.name,
+        status: "RUNNING",
+        rangeStart: "—",
+        rangeEnd: "—",
+        sortKey: Number.MAX_SAFE_INTEGER,
+      });
+    }
+
     if (fv.materializationIntervals && fv.materializationIntervals.length > 0) {
       fv.materializationIntervals.forEach((interval, idx) => {
         const startTime =

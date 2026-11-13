@@ -23,6 +23,8 @@ export interface FeatureViewEngineInfo {
   lastMaterialized?: string;
   hasOverride: boolean;
   overrides?: Record<string, any>;
+  // Feature view lifecycle state, e.g. "MATERIALIZING" while a run is in progress.
+  state?: string;
   materializationIntervals: Array<{
     startTime?: string;
     endTime?: string;
@@ -49,6 +51,7 @@ function extractFeatureViewInfos(featureViews: any[]): FeatureViewEngineInfo[] {
     lastMaterialized: fv.lastMaterialized,
     hasOverride: fv.hasOverride ?? false,
     overrides: fv.overrides,
+    state: fv.state ?? undefined,
     materializationIntervals: fv.materializationIntervals || [],
   }));
 }
