@@ -12,6 +12,7 @@ from feast import Entity, FeatureView, Field, FileSource, RepoConfig
 from feast.errors import FeastExtrasDependencyImportError
 from feast.infra.online_stores.helpers import _mmh3
 from feast.infra.online_stores.redis import (
+    GlideReadFrom,
     RedisClient,
     RedisOnlineStore,
     RedisOnlineStoreConfig,
@@ -885,6 +886,8 @@ def test_glide_client_config_defaults_tls_and_timeouts_off():
     assert config.database_id is None
     assert config.request_timeout is None
     assert config.advanced_config is None
+    assert config.read_from == glide_sync.ReadFrom.PRIMARY
+    assert config.client_az is None
 
 
 def test_glide_client_config_parses_cluster_connection_string():
@@ -906,6 +909,60 @@ def test_glide_client_config_parses_cluster_connection_string():
     assert config.credentials.password == "hunter2"  # pragma: allowlist secret
     # Cluster nodes do not support SELECT, so db is not forwarded.
     assert config.database_id is None
+
+
+def test_read_from_defaults_to_primary():
+    config = RedisOnlineStoreConfig(client=RedisClient.glide)
+
+    assert config.read_from == GlideReadFrom.primary
+    assert config.client_az is None
+
+
+@pytest.mark.parametrize(
+    "options",
+    [{"read_from": "prefer_replica"}, {"client_az": "us-east-1a"}],
+)
+def test_read_from_options_require_glide_client(options):
+    """redis-py ignores these options, so setting them without GLIDE must fail."""
+    with pytest.raises(ValueError, match="client: glide"):
+        RedisOnlineStoreConfig(**options)
+
+
+def test_replica_read_from_requires_redis_cluster():
+    """A standalone GLIDE client sends batches to the primary whatever read_from is."""
+    with pytest.raises(ValueError, match="redis_cluster"):
+        RedisOnlineStoreConfig(client=RedisClient.glide, read_from="prefer_replica")
+
+
+@pytest.mark.parametrize(
+    "read_from", ["az_affinity", "az_affinity_replicas_and_primary"]
+)
+def test_az_affinity_read_from_requires_client_az(read_from):
+    with pytest.raises(ValueError, match="requires client_az"):
+        RedisOnlineStoreConfig(
+            client=RedisClient.glide,
+            redis_type=RedisType.redis_cluster,
+            read_from=read_from,
+        )
+
+
+@pytest.mark.parametrize("read_from", list(GlideReadFrom))
+def test_glide_client_config_passes_read_from(read_from):
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            client=RedisClient.glide,
+            redis_type=RedisType.redis_cluster,
+            connection_string="redis1:6379,redis2:6379",
+            read_from=read_from,
+            client_az="us-east-1a",
+        ),
+    )
+
+    assert config.read_from == glide_sync.ReadFrom[read_from.name.upper()]
+    assert config.client_az == "us-east-1a"
 
 
 def test_glide_client_config_rejects_sentinel():
@@ -934,6 +991,63 @@ def test_glide_client_config_warns_about_ignored_params(caplog):
         )
 
     assert "skip_full_coverage_check" in caplog.text
+
+
+def test_glide_client_config_defaults_to_reading_from_the_primary():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync, RedisOnlineStoreConfig(connection_string="localhost:6379")
+    )
+
+    assert config.read_from == glide_sync.ReadFrom.PRIMARY
+    assert config.client_az is None
+
+
+def test_glide_client_config_reads_from_every_listed_node():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            connection_string="primary:6379,replica:6379,read_from=all_nodes"
+        ),
+    )
+
+    assert [(address.host, address.port) for address in config.addresses] == [
+        ("primary", 6379),
+        ("replica", 6379),
+    ]
+    assert config.read_from == glide_sync.ReadFrom.ALL_NODES
+
+
+def test_glide_client_config_forwards_az_affinity():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    config = _glide_client_config(
+        glide_sync,
+        RedisOnlineStoreConfig(
+            redis_type=RedisType.redis_cluster,
+            connection_string=(
+                "redis1:6379,read_from=AZ_AFFINITY,client_az=us-east-2a"
+            ),
+        ),
+    )
+
+    assert config.read_from == glide_sync.ReadFrom.AZ_AFFINITY
+    assert config.client_az == "us-east-2a"
+
+
+def test_glide_client_config_rejects_unknown_read_from():
+    glide_sync = pytest.importorskip("glide_sync")
+
+    with pytest.raises(ValueError, match="read_from 'nearest'"):
+        _glide_client_config(
+            glide_sync,
+            RedisOnlineStoreConfig(
+                connection_string="localhost:6379,read_from=nearest"
+            ),
+        )
 
 
 def test_glide_module_is_imported_once_per_store(

@@ -276,6 +276,30 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
         )
 
+    def test_python_singleton_view_multiple_entity_rows(self):
+        entity_rows = [
+            {"driver_id": 1001},
+            {"driver_id": 1002},
+            {"driver_id": 1003},
+        ]
+
+        online_python_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "python_singleton_view:conv_rate_plus_acc_python_singleton",
+            ],
+        ).to_dict()
+
+        # one transformed value per entity row, each from that row's own inputs
+        assert len(online_python_response["conv_rate_plus_acc_python_singleton"]) == 3
+        for i in range(3):
+            assert online_python_response["conv_rate_plus_acc_python_singleton"][i] == (
+                online_python_response["conv_rate"][i]
+                + online_python_response["acc_rate"][i]
+            )
+
     def test_python_pandas_parity(self):
         entity_rows = [
             {
@@ -573,7 +597,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "acc_rate",
             "avg_daily_trips",
             "conv_rate",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
         ]
@@ -632,7 +656,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate",
             "conv_rate_plus_val1",
             "conv_rate_plus_val2",
-            "created__",
+            "created",
             "driver_id",
             "event_timestamp",
             "val_to_add",
@@ -668,7 +692,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             "conv_rate_plus_val2",
             "driver_id",
             # It does not have the items below
-            # "created__",
+            # "created",
             # "event_timestamp",
             # "val_to_add",
             # "val_to_add_2",
@@ -810,9 +834,9 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
     not (
         sys.version_info[0:2] in [(3, 10), (3, 11)]
         and platform.system() == "Darwin"
-        and MAC_VER != "14"
+        and int(MAC_VER) < 14
     ),
-    reason="Only works on Python 3.10 and 3.11 on macOS",
+    reason="Legacy write fixtures require Python 3.10/3.11 and macOS 13 or older",
 )
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def test_stored_writes(self):

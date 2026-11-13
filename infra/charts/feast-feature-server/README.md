@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.67.0`
+Current chart version is `0.68.0`
 
 ## Installation
 
@@ -42,8 +42,10 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"quay.io/feastdev/feature-server"` | Docker image for Feature Server repository |
-| image.tag | string | `"0.67.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
+| image.tag | string | `"0.68.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
+| intraCommunicationSecret.key | string | `"INTRA_COMMUNICATION_BASE64"` | Key in the Secret that holds the value |
+| intraCommunicationSecret.name | string | `""` | Name of an existing Secret holding the shared value. Leave empty to turn off server-to-server calls. |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |
 | logLevel | string | `"WARNING"` |  |

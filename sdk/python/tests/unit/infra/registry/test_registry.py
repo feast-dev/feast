@@ -272,3 +272,60 @@ def test_skip_refresh_if_lock_held(registry):
         # Since the lock was already held, refresh should NOT be called
         mock_refresh.assert_not_called()
     registry._refresh_lock.release()
+
+
+def test_cache_mode_none_skips_initial_load():
+    """cache_mode='none' does not load the full registry at startup"""
+    with patch.object(TestCachingRegistry, "proto") as mock_proto:
+        registry = TestCachingRegistry(
+            project="test_example", cache_ttl_seconds=0, cache_mode="none"
+        )
+        mock_proto.assert_not_called()
+
+    assert registry.cached_registry_proto == RegistryProto()
+    assert registry.cached_registry_proto_created is None
+
+
+def test_cache_mode_none_refresh_is_noop():
+    """refresh() never loads the registry when caching is disabled"""
+    registry = TestCachingRegistry(
+        project="test_example", cache_ttl_seconds=0, cache_mode="none"
+    )
+    with patch.object(TestCachingRegistry, "proto") as mock_proto:
+        registry.refresh()
+        mock_proto.assert_not_called()
+
+    assert registry.cached_registry_proto_created is None
+
+
+@pytest.mark.parametrize(
+    "method_name,backend_method_name,args",
+    [
+        ("get_entity", "_get_entity", ("driver", "test_example")),
+        ("list_entities", "_list_entities", ("test_example",)),
+        ("get_feature_view", "_get_feature_view", ("fv", "test_example")),
+        ("list_feature_views", "_list_feature_views", ("test_example",)),
+        ("get_feature_service", "_get_feature_service", ("fs", "test_example")),
+        ("list_permissions", "_list_permissions", ("test_example",)),
+        ("get_project", "_get_project", ("test_example",)),
+        ("list_projects", "_list_projects", ()),
+    ],
+)
+def test_cache_mode_none_reads_backend_with_allow_cache(
+    method_name, backend_method_name, args
+):
+    """Reads that allow the cache still go to the backend when caching is disabled"""
+    registry = TestCachingRegistry(
+        project="test_example", cache_ttl_seconds=0, cache_mode="none"
+    )
+    with (
+        patch.object(registry, backend_method_name) as mock_backend,
+        patch.object(
+            registry, "_refresh_cached_registry_if_necessary"
+        ) as mock_refresh_check,
+    ):
+        result = getattr(registry, method_name)(*args, allow_cache=True)
+
+    mock_backend.assert_called_once()
+    mock_refresh_check.assert_not_called()
+    assert result is mock_backend.return_value
