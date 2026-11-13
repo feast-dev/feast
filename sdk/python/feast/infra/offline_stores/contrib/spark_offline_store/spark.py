@@ -11,6 +11,8 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
+    Iterator,
     KeysView,
     List,
     Optional,
@@ -40,6 +42,8 @@ from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
+from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
@@ -63,9 +67,16 @@ from feast.monitoring.monitoring_utils import (
     normalize_monitoring_row,
     opt_float,
 )
+from feast.protos.feast.core.FeatureViewProjection_pb2 import (
+    FeatureViewProjection as FeatureViewProjectionProto,
+)
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
+from feast.types import from_feast_to_pyarrow_type
 from feast.utils import _get_fields_with_aliases, compute_non_entity_date_range
 
 # Make sure spark warning doesn't raise more than once.
@@ -1030,13 +1041,29 @@ class SparkRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
+        """
+        Return the result as a Spark DataFrame.
+
+        On demand transformations will be executed on the Spark executors.
+        """
+        spark_df = self._to_spark_df_internal()
+        if self.on_demand_feature_views:
+            return SparkOnDemandFeatureViewProcessor(
+                on_demand_feature_views=self.on_demand_feature_views,
+                full_feature_names=self.full_feature_names,
+                odfv_feature_refs=self._get_odfv_feature_refs(),
+            ).transform(spark_df)
+        return spark_df
+
+    def _to_spark_df_internal(self) -> pyspark.sql.DataFrame:
+        """Return dataset as Spark DataFrame, without on demand transformations"""
         statements = self.query.split("---EOS---")
         *_, last = map(self.spark_session.sql, statements)
         return last
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
-        return self.to_spark_df().toPandas()
+        return self._to_spark_df_internal().toPandas()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
@@ -1183,7 +1210,7 @@ class SparkRetrievalJob(RetrievalJob):
         if not self.supports_remote_storage_export():
             raise NotImplementedError()
 
-        sdf: pyspark.sql.DataFrame = self.to_spark_df()
+        sdf: pyspark.sql.DataFrame = self._to_spark_df_internal()
         staging_location = self._config.offline_store.staging_location
 
         if staging_location.startswith("/"):
@@ -1235,6 +1262,138 @@ class SparkRetrievalJob(RetrievalJob):
         Should be available even before materializing the dataset itself.
         """
         return self._metadata
+
+
+class SparkOnDemandFeatureViewProcessor:
+    """
+    Appends the requested on demand features to a Spark DataFrame on the executors.
+
+    The requested ODFV features are added under the names ``RetrievalJob.to_arrow``
+    gives them, or every declared feature of an ODFV when none of its features is
+    listed. Each executor rebuilds the ODFVs from their protos and applies them to
+    every Arrow batch, casting the results to the declared feature types where Feast
+    has an Arrow type for them.
+    """
+
+    def __init__(
+        self,
+        on_demand_feature_views: List[OnDemandFeatureView],
+        full_feature_names: bool,
+        odfv_feature_refs: Dict[str, set[str]],
+    ):
+        self.on_demand_feature_views = on_demand_feature_views
+        self.full_feature_names = full_feature_names
+        self.odfv_feature_refs = odfv_feature_refs
+
+    def transform(self, spark_df: pyspark.sql.DataFrame) -> pyspark.sql.DataFrame:
+        from pyspark.sql.types import StructField, StructType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+
+        output_features = self._get_requested_features()
+
+        spark_fields = list(spark_df.schema.fields)
+        # Feast-declared Arrow types to cast the ODFV outputs to. Types without one
+        # (e.g. Bytes) keep the type Arrow inferred.
+        output_pa_types: Dict[str, pyarrow.DataType] = {}
+        for name, feature in output_features.items():
+            spark_type = from_feast_to_spark_type(feature.dtype)
+            if spark_type is None:
+                raise ValueError(
+                    f"Could not resolve Spark type for on demand feature '{name}' "
+                    f"(dtype={feature.dtype})."
+                )
+            spark_fields.append(StructField(name, spark_type, nullable=True))
+            try:
+                pa_type = from_feast_to_pyarrow_type(feature.dtype)
+            except (ValueError, KeyError, TypeError):
+                continue
+            output_pa_types[name] = pa_type
+
+        # The ODFV proto does not carry its projection (alias, version tag), so ship
+        # the projection proto alongside and re-apply it with with_projection on the
+        # executors.
+        odfv_protos = [
+            (
+                odfv.to_proto().SerializeToString(),
+                odfv.projection.to_proto().SerializeToString(),
+            )
+            for odfv in self.on_demand_feature_views
+        ]
+        # Keep self out of the closure, so the ODFVs reach the executors only as protos.
+        full_feature_names = self.full_feature_names
+        output_columns = list(output_features)
+        return spark_df.mapInArrow(
+            lambda x: SparkOnDemandFeatureViewProcessor._map_in_arrow(
+                x,
+                odfv_protos,
+                full_feature_names=full_feature_names,
+                output_columns=output_columns,
+                output_pa_types=output_pa_types,
+            ),
+            StructType(spark_fields),
+        )
+
+    def _get_requested_features(self) -> Dict[str, Field]:
+        output_features: Dict[str, Field] = {}
+        for odfv in self.on_demand_feature_views:
+            requested_features_for_odfv = (
+                self.odfv_feature_refs.get(odfv.name)
+                if odfv.name in self.odfv_feature_refs
+                else self.odfv_feature_refs.get(odfv.projection.name_to_use())
+            )
+            for feature in odfv.features:
+                col = (
+                    f"{odfv.projection.name_to_use()}__{feature.name}"
+                    if self.full_feature_names
+                    else feature.name
+                )
+                if (
+                    requested_features_for_odfv is None
+                    or col in requested_features_for_odfv
+                ):
+                    output_features[col] = feature
+        return output_features
+
+    @staticmethod
+    def _map_in_arrow(
+        iterator: Iterable[pyarrow.RecordBatch],
+        odfv_protos: List[Tuple[bytes, bytes]],
+        full_feature_names: bool,
+        output_columns: List[str],
+        output_pa_types: Dict[str, pyarrow.DataType],
+    ) -> Iterator[pyarrow.RecordBatch]:
+        for batch in iterator:
+            features_table = pyarrow.Table.from_batches([batch])
+
+            odfvs = []
+            for serialized_odfv, serialized_projection in odfv_protos:
+                odfv_proto = OnDemandFeatureViewProto.FromString(serialized_odfv)
+                projection_proto = FeatureViewProjectionProto.FromString(
+                    serialized_projection
+                )
+                odfvs.append(
+                    OnDemandFeatureView.from_proto(odfv_proto).with_projection(
+                        FeatureViewProjection.from_proto(projection_proto)
+                    )
+                )
+
+            for odfv in odfvs:
+                transformed_arrow = odfv.transform_arrow(
+                    features_table, full_feature_names
+                )
+
+                for col in transformed_arrow.column_names:
+                    if col in output_columns:
+                        column = transformed_arrow[col]
+                        if col in output_pa_types:
+                            column = column.cast(output_pa_types[col])
+                        features_table = features_table.append_column(col, column)
+
+            # mapInArrow requires the declared column order.
+            yield from features_table.select(
+                batch.schema.names + output_columns
+            ).to_batches()
 
 
 def _register_iceberg_source_as_temp_view(

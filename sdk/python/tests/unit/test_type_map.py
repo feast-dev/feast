@@ -175,6 +175,25 @@ def test_python_values_to_proto_values_binary(value_type):
     assert feast_value_type_to_python_type(protos[1]) is None
 
 
+@pytest.mark.parametrize(
+    "values, value_type, expected",
+    (
+        ([b"[1,2]", None, b"[3]"], ValueType.INT64_LIST, [[1, 2], None, [3]]),
+        ([b"[1,2]", None, b"[3]"], ValueType.INT32_LIST, [[1, 2], None, [3]]),
+        ([b"[1.5]", None], ValueType.DOUBLE_LIST, [[1.5], None]),
+        ([b"[1.5]", None], ValueType.FLOAT_LIST, [[1.5], None]),
+        ([b'["a"]', None], ValueType.STRING_LIST, [["a"], None]),
+        ([b"[true,false]", None], ValueType.BOOL_LIST, [[True, False], None]),
+    ),
+)
+def test_python_values_to_proto_values_bytes_to_list_with_null(
+    values, value_type, expected
+):
+    """A JSON-encoded array column keeps its nulls, as the set path already does."""
+    protos = python_values_to_proto_values(values, value_type)
+    assert [feast_value_type_to_python_type(proto) for proto in protos] == expected
+
+
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
@@ -736,6 +755,17 @@ class TestEnableValidationOnFeatureView:
         sig = inspect.signature(StreamFeatureView.__init__)
         assert "enable_validation" in sig.parameters
         assert sig.parameters["enable_validation"].default is False
+
+
+class TestDecimalDdlTypes:
+    """Arrow decimals must map to ``decimal(p,s)`` in warehouse DDL."""
+
+    def test_pa_to_redshift_value_type_decimal(self):
+        assert pa_to_redshift_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+        assert pa_to_redshift_value_type(pyarrow.decimal128(38, 37)) == "decimal(38,37)"
+
+    def test_pa_to_athena_value_type_decimal(self):
+        assert pa_to_athena_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
 
 
 class TestRedshiftDynamoDBMapSupport:
@@ -1341,6 +1371,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(String) == StringType()
 
+    def test_feast_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import Uuid
+
+        assert from_feast_to_spark_type(Uuid) == StringType()
+
+    def test_feast_time_uuid_to_spark_string(self):
+        from pyspark.sql.types import StringType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import TimeUuid
+
+        assert from_feast_to_spark_type(TimeUuid) == StringType()
+
     def test_feast_int32_to_spark_integer(self):
         from pyspark.sql.types import IntegerType
 
@@ -1389,6 +1435,22 @@ class TestSparkNativeTypeValidation:
 
         assert from_feast_to_spark_type(Bytes) == BinaryType()
 
+    def test_feast_pdf_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import PdfBytes
+
+        assert from_feast_to_spark_type(PdfBytes) == BinaryType()
+
+    def test_feast_image_bytes_to_spark_binary(self):
+        from pyspark.sql.types import BinaryType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ImageBytes
+
+        assert from_feast_to_spark_type(ImageBytes) == BinaryType()
+
     def test_feast_timestamp_to_spark_timestamp(self):
         from pyspark.sql.types import TimestampType
 
@@ -1396,6 +1458,14 @@ class TestSparkNativeTypeValidation:
         from feast.types import UnixTimestamp
 
         assert from_feast_to_spark_type(UnixTimestamp) == TimestampType()
+
+    def test_feast_zoned_timestamp_to_spark_timestamp(self):
+        from pyspark.sql.types import TimestampType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+        from feast.types import ZonedTimestamp
+
+        assert from_feast_to_spark_type(ZonedTimestamp) == TimestampType()
 
     def test_feast_map_to_spark_map(self):
         from pyspark.sql.types import MapType, StringType
@@ -1630,6 +1700,24 @@ class TestUuidTypes:
         assert all(isinstance(r, uuid.UUID) for r in result)
         assert result == test_uuids
 
+    def test_uuid_list_with_none_roundtrip(self):
+        """None elements in a UUID list are read back as None."""
+        test_uuid = uuid.uuid4()
+        protos = python_values_to_proto_values(
+            [[None, test_uuid, None]], ValueType.UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, test_uuid, None]
+
+    def test_time_uuid_list_with_none_roundtrip(self):
+        """None elements in a TIME_UUID list are read back as None."""
+        test_uuid = uuid.uuid1()
+        protos = python_values_to_proto_values(
+            [[test_uuid, None]], ValueType.TIME_UUID_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [test_uuid, None]
+
     def test_uuid_set_roundtrip(self):
         """UUID set -> proto -> set of uuid.UUID objects roundtrip."""
         test_uuids = {uuid.uuid4(), uuid.uuid4(), uuid.uuid4()}
@@ -1759,6 +1847,17 @@ class TestDecimalTypes:
         result = feast_value_type_to_python_type(protos[0])
         assert all(isinstance(r, decimal.Decimal) for r in result)
         assert result == vals
+
+    def test_decimal_list_with_none_roundtrip(self):
+        """None elements in a DECIMAL_LIST are read back as None."""
+        import decimal
+
+        val = decimal.Decimal("1.5")
+        protos = python_values_to_proto_values(
+            [[None, val, None]], ValueType.DECIMAL_LIST
+        )
+        result = feast_value_type_to_python_type(protos[0])
+        assert result == [None, val, None]
 
     def test_decimal_set_roundtrip(self):
         """DECIMAL_SET -> proto -> set of decimal.Decimal roundtrip."""

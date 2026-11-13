@@ -1,3 +1,4 @@
+import difflib
 from functools import wraps
 from typing import List, Optional
 
@@ -28,28 +29,34 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
+# The caches hold the registry proto itself and compare by identity. An id() key
+# is unsafe: once a proto is freed, a new proto can reuse its id, and registries
+# that leave version_id empty (SqlRegistry) then read another registry's objects.
+
 
 def registry_proto_cache(func):
+    cache_proto = None
     cache_key = None
     cache_value = None
 
     @wraps(func)
     def wrapper(registry_proto: RegistryProto, project: str):
-        nonlocal cache_key, cache_value
+        nonlocal cache_proto, cache_key, cache_value
 
-        key = tuple([id(registry_proto), registry_proto.version_id, project])
+        key = (registry_proto.version_id, project)
 
-        if key == cache_key:
+        if registry_proto is cache_proto and key == cache_key:
             return cache_value
         else:
             cache_value = func(registry_proto, project)
-            cache_key = key
+            cache_proto, cache_key = registry_proto, key
             return cache_value
 
     return wrapper
 
 
 def registry_proto_cache_with_tags(func):
+    cache_proto = None
     cache_key = None
     cache_value = None
 
@@ -60,42 +67,43 @@ def registry_proto_cache_with_tags(func):
         tags: Optional[dict[str, str]],
         **kwargs,
     ):
-        nonlocal cache_key, cache_value
+        nonlocal cache_proto, cache_key, cache_value
 
         kwargs_key = tuple(sorted(kwargs.items())) if kwargs else ()
         # Snapshot the filter so caller mutations cannot change a cached key.
         tags_key = frozenset(tags.items()) if tags is not None else None
         key = (
-            id(registry_proto),
             registry_proto.version_id,
             project,
             tags_key,
             kwargs_key,
         )
 
-        if key == cache_key:
+        if registry_proto is cache_proto and key == cache_key:
             return cache_value
         else:
             cache_value = func(registry_proto, project, tags, **kwargs)
-            cache_key = key
+            cache_proto, cache_key = registry_proto, key
             return cache_value
 
     return wrapper
 
 
 def registry_proto_cache_name(func):
-    cache_proto_key = None
+    cache_proto = None
+    cache_version = None
     cache = {}
 
     @wraps(func)
     def wrapper(registry_proto: RegistryProto, name: str, project: str):
-        nonlocal cache_proto_key, cache
+        nonlocal cache_proto, cache_version, cache
 
-        proto_key = (id(registry_proto), registry_proto.version_id)
-
-        if proto_key != cache_proto_key:
+        if (
+            registry_proto is not cache_proto
+            or registry_proto.version_id != cache_version
+        ):
             cache = {}
-            cache_proto_key = proto_key
+            cache_proto, cache_version = registry_proto, registry_proto.version_id
 
         key = (project, name)
         if key in cache:
@@ -163,7 +171,18 @@ def get_any_feature_view(
         ):
             return LabelView.from_proto(label_view_proto)
 
-    raise FeatureViewNotFoundException(name, project)
+    available_names = [
+        fv.spec.name
+        for fv in (
+            list(registry_proto.feature_views)
+            + list(registry_proto.stream_feature_views)
+            + list(registry_proto.on_demand_feature_views)
+            + list(registry_proto.label_views)
+        )
+        if fv.spec.project == project
+    ]
+    suggestions = difflib.get_close_matches(name, available_names, n=3, cutoff=0.6)
+    raise FeatureViewNotFoundException(name, project, suggestions=suggestions)
 
 
 def get_feature_view_by_version(

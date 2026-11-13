@@ -235,7 +235,11 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_val", "time_uuid_val"):
         return uuid_module.UUID(val) if isinstance(val, str) else val
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
-        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+        # None elements are stored as "" (see _LIST_NONE_DEFAULTS)
+        return [
+            None if v == "" else uuid_module.UUID(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr in ("uuid_set_val", "time_uuid_set_val"):
         return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
 
@@ -243,7 +247,10 @@ def feast_value_type_to_python_type(
     if val_attr == "decimal_val":
         return decimal.Decimal(val) if isinstance(val, str) else val
     if val_attr == "decimal_list_val":
-        return [decimal.Decimal(v) if isinstance(v, str) else v for v in val]
+        return [
+            None if v == "" else decimal.Decimal(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr == "decimal_set_val":
         return {decimal.Decimal(v) if isinstance(v, str) else v for v in val}
 
@@ -1022,13 +1029,20 @@ def _convert_list_values_to_proto(
 
         json_sample = json.loads(sample)
         if isinstance(json_sample, list):
-            json_values = [json.loads(value) for value in values]
+            json_values = [
+                json.loads(value) if value is not None else None for value in values
+            ]
             if feast_value_type == ValueType.BOOL_LIST:
                 json_values = [
-                    [bool(item) for item in list_item] for list_item in json_values
+                    [bool(item) for item in list_item]
+                    if list_item is not None
+                    else None
+                    for list_item in json_values
                 ]
             return [
                 ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore[arg-type]
+                if v is not None
+                else ProtoValue()
                 for v in json_values
             ]
         raise _type_err(sample, valid_types[0])
@@ -1588,10 +1602,10 @@ VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
-    Returns Feast ValueType given Feast ValueType string.
+    Returns Feast ValueType given a Feast proto value.
 
     Args:
-        proto_str: str
+        proto_value: ProtoValue
 
     Returns:
         A variant of ValueType.
@@ -1919,8 +1933,9 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not a Redshift
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "super"
@@ -2304,6 +2319,9 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("decimal"):
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "array<string>"

@@ -93,8 +93,8 @@ def pull_latest_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date),
-            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date),
+            _comparable_timestamp(table[timestamp_field]) >= ibis.literal(start_date),
+            _comparable_timestamp(table[timestamp_field]) <= ibis.literal(end_date),
         )
     )
 
@@ -115,6 +115,19 @@ def pull_latest_from_table_or_query_ibis(
         staging_location_endpoint_override=staging_location_endpoint_override,
         repo_path=str(config.repo_path),
     )
+
+
+def _comparable_timestamp(column):
+    """Cast a timestamp column for comparison with a window bound, keeping any zone.
+
+    DuckDB 2 refuses to cast TIMESTAMPTZ_NS, which is what pandas writes by default, to a
+    TIMESTAMP without a zone, and ibis reports that column's type as unknown.
+    """
+    column_type = column.type()
+    if column_type.is_unknown():
+        return column.cast(dt.Timestamp(timezone="UTC"))
+    timezone = getattr(column_type, "timezone", None)
+    return column.cast(dt.Timestamp(timezone=timezone) if timezone else "timestamp")
 
 
 def _get_entity_df_event_timestamp_range(
@@ -345,10 +358,10 @@ def pull_all_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date)
+            _comparable_timestamp(table[timestamp_field]) >= ibis.literal(start_date)
             if start_date
             else ibis.literal(True),
-            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date)
+            _comparable_timestamp(table[timestamp_field]) <= ibis.literal(end_date)
             if end_date
             else ibis.literal(True),
         )

@@ -15,6 +15,9 @@
 import http.client
 import os
 import socket
+import subprocess
+import sys
+import textwrap
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -835,8 +838,13 @@ class TestTrackFeatureStatuses:
         before_not_found = online_features_status_total.labels(
             feature_view="fv_status", status="not_found"
         )._value.get()
+        before_outside_max_age = online_features_status_total.labels(
+            feature_view="fv_status", status="outside_max_age"
+        )._value.get()
 
-        track_feature_statuses("fv_status", present_count=3, not_found_count=2)
+        track_feature_statuses(
+            "fv_status", present_count=3, not_found_count=2, outside_max_age_count=1
+        )
 
         assert (
             online_features_status_total.labels(
@@ -850,16 +858,23 @@ class TestTrackFeatureStatuses:
             )._value.get()
             == before_not_found + 2
         )
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="outside_max_age"
+            )._value.get()
+            == before_outside_max_age + 1
+        )
 
     @patch("feast.metrics.track_feature_statuses")
     def test_populate_response_passes_correct_counts(self, mock_track):
         """Integration: _populate_response_from_feature_data computes and
-        forwards the right present/not_found counts.
+        forwards the right present/not_found/outside_max_age counts.
 
-        3 entities, 2 features each:
+        4 entities, 2 features each, ttl of 1 hour:
           Entity 0 — both present (2 PRESENT)
           Entity 1 — missing       (2 NOT_FOUND)
           Entity 2 — partial       (1 PRESENT, 1 NOT_FOUND)
+          Entity 3 — 2 hours old   (2 OUTSIDE_MAX_AGE)
         """
         from feast.protos.feast.serving.ServingService_pb2 import (
             GetOnlineFeaturesResponse,
@@ -874,6 +889,7 @@ class TestTrackFeatureStatuses:
         table.projection.name_to_use.return_value = "driver_fv"
         table.projection.name_alias = None
         table.projection.name = "driver_fv"
+        table.ttl = timedelta(hours=1)
 
         _populate_response_from_feature_data(
             requested_features=["feat_a", "feat_b"],
@@ -881,15 +897,16 @@ class TestTrackFeatureStatuses:
                 (now, {"feat_a": val, "feat_b": val}),
                 (None, None),
                 (now, {"feat_a": val}),
+                (now - timedelta(hours=2), {"feat_a": val, "feat_b": val}),
             ],
-            indexes=([0], [1], [2]),
+            indexes=([0], [1], [2], [3]),
             online_features_response=GetOnlineFeaturesResponse(),
             full_feature_names=False,
             table=table,
-            output_len=3,
+            output_len=4,
         )
 
-        mock_track.assert_called_once_with("driver_fv", 3, 3)
+        mock_track.assert_called_once_with("driver_fv", 3, 3, 2)
 
 
 class TestTrackPush:
@@ -2413,3 +2430,57 @@ class TestMetricsHttpdDoesNotLog:
             httpd.server_close()
 
         assert "GET /metrics" not in capsys.readouterr().err
+
+
+class TestFeatureFreshnessMultiprocessMode:
+    """A worker that exits must not hold the freshness gauge up.
+
+    mark_process_dead only deletes the files of the "live" gauge modes, so any
+    other mode keeps the value of every worker that ever ran in the group.
+    """
+
+    def test_mark_process_dead_drops_the_value_of_the_gauge(self, tmp_path):
+        # Run in a subprocess: prometheus_client binds the directory of a gauge
+        # file prefix on first use, and another test in this file binds it first.
+        probe = textwrap.dedent(
+            """
+            import os
+            import sys
+
+            from prometheus_client import CollectorRegistry, Gauge, multiprocess
+
+            path = os.environ["PROMETHEUS_MULTIPROC_DIR"]
+            gauge = Gauge(
+                "freshness_probe",
+                "Copies the multiprocess mode of the freshness gauge",
+                ["feature_view"],
+                registry=None,
+                multiprocess_mode=sys.argv[1],
+            )
+            gauge.labels(feature_view="fv").set(86400)
+
+            def collected():
+                registry = CollectorRegistry()
+                multiprocess.MultiProcessCollector(registry, path=path)
+                return registry.get_sample_value(
+                    "freshness_probe", {"feature_view": "fv"}
+                )
+
+            before = collected()
+            multiprocess.mark_process_dead(os.getpid(), path=path)
+            print(before, collected())
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe, feature_freshness_seconds._multiprocess_mode],
+            env={
+                **os.environ,
+                "PROMETHEUS_MULTIPROC_DIR": str(tmp_path),
+                "PROMETHEUS_MULTIPROCESS_DIR": str(tmp_path),
+            },
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.split() == ["86400.0", "None"]

@@ -858,16 +858,7 @@ class OnDemandFeatureView(BaseFeatureView):
     @classmethod
     def _parse_features_from_proto(cls, proto: OnDemandFeatureViewProto) -> List[Field]:
         """Parse features from the protobuf representation."""
-        return [
-            Field(
-                name=feature.name,
-                dtype=from_value_type(ValueType(feature.value_type)),
-                vector_index=feature.vector_index,
-                vector_length=feature.vector_length,
-                vector_search_metric=feature.vector_search_metric,
-            )
-            for feature in proto.spec.features
-        ]
+        return [Field.from_proto(feature) for feature in proto.spec.features]
 
     @classmethod
     def _parse_optional_fields_from_proto(cls, proto: OnDemandFeatureViewProto) -> dict:
@@ -1207,8 +1198,12 @@ class OnDemandFeatureView(BaseFeatureView):
         Returns:
             True if the feature exists in the inferred features, False otherwise
         """
-        # Check for exact feature match first
-        if specified_feature in inferred_features:
+        # Inferred features carry only a name and a type, so ignore the
+        # description, tags and vector settings of the specified feature
+        if any(
+            f.name == specified_feature.name and f.dtype == specified_feature.dtype
+            for f in inferred_features
+        ):
             return True
 
         # For array types, we need to check by name since array types

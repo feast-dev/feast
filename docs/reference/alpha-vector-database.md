@@ -14,8 +14,9 @@ Below are supported vector databases and implemented features:
 | Milvus          | [x]       | [x]      | [x]         | [x]         |
 | Faiss           | [ ]       | [ ]      | []          | []          |
 | SQLite          | [x]       | [ ]      | [x]         | [x]         |
-| Qdrant          | [x]       | [x]      | []          | []          |
 | ScyllaDB        | [x]       | [x]      | [x]         | [x]         |
+| Qdrant          | [x]       | [x]      | [x]         | [x]         |
+| Pinecone        | [x]       | [x]      | [x]         | [x]         |
 
 *Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
@@ -31,7 +32,7 @@ Beyond that, we will then have `retrieve_online_documents` and `retrieve_online_
 backwards compatibility and the adopt industry standard naming conventions.
 {% endhint %}
 
-**Note**: Milvus, SQLite, and ScyllaDB implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
+**Note**: Milvus, SQLite, PostgreSQL, Elasticsearch, MongoDB, ScyllaDB and Qdrant implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
 
 ## Feature server search endpoints
 
@@ -424,7 +425,7 @@ print('\n'.join([c.message.content for c in response.choices]))
 
 ### Configuration and Installation
 
-We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
+We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co), [Qdrant](https://qdrant.tech/) and [Pinecone](https://www.pinecone.io/) as Online Store options for Vector Databases.
 
 Milvus offers a convenient local implementation for vector similarity search. To use Milvus, you can install the Feast package with the Milvus extra.
 
@@ -444,6 +445,12 @@ pip install feast[elasticsearch]
 ```bash
 pip install feast[qdrant]
 ```
+#### Installation with Pinecone
+
+```bash
+pip install feast[pinecone]
+```
+
 #### Installation with SQLite
 
 If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
@@ -451,7 +458,7 @@ If you are using `pyenv` to manage your Python versions, you can install the SQL
 PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
     LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
     CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
-    pyenv install 3.10.14
+    pyenv install 3.11
 ```
 
 And you can the Feast install package via:
