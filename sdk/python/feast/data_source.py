@@ -197,6 +197,8 @@ class DataSource(ABC):
             When set, OfflineStores resolve connection type and credentials at runtime
             via the registered CredentialProvider instead of using ambient env vars or
             the global offline_store config. All fields except provider and name are optional.
+
+    Attributes:
         created_timestamp: The time when the data source was created.
         last_updated_timestamp: The time when the data source was last updated.
     """

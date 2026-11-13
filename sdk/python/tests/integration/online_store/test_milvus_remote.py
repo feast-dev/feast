@@ -625,6 +625,10 @@ def test_native_complex_types_filters_and_tag_indexes(
                 tags={
                     "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
                     "milvus.enable_match": "true",
+                    "milvus.bm25": "true",
+                    "milvus.bm25_index_params": (
+                        '{"inverted_index_algo": "TAAT_NAIVE", "bm25_b": 0.3}'
+                    ),
                 },
             ),
         ],
@@ -654,6 +658,11 @@ def test_native_complex_types_filters_and_tag_indexes(
     assert store.client is not None
     indexes = set(store.client.list_indexes(f"{project}_{fv.name}"))
     assert {"scalar_index_brand", "json_index_attributes_0"} <= indexes
+    bm25_index = store.client.describe_index(f"{project}_{fv.name}", "bm25_index_title")
+    assert (bm25_index["inverted_index_algo"], bm25_index["bm25_b"]) == (
+        "TAAT_NAIVE",
+        "0.3",
+    )
 
     _write_rows(store, config, fv, rows)
     read = _read(
@@ -679,6 +688,20 @@ def test_native_complex_types_filters_and_tag_indexes(
 
     assert _eventually(lambda: text_match("wool-blend"), bool) == ["acme"]
     assert text_match("wool") == []
+
+    # Milvus fills title_bm25 from the analyzed title on every write.
+    def bm25_search(text: str) -> List[str]:
+        assert store.client is not None
+        hits = store.client.search(
+            f"{project}_{fv.name}",
+            data=[text],
+            anns_field="title_bm25",
+            limit=2,
+            output_fields=["brand"],
+        )
+        return [hit["brand"] for hit in hits[0]]
+
+    assert _eventually(lambda: bm25_search("wool-blend"), bool) == ["acme"]
 
     hits = store.retrieve_online_documents_v2(
         config,

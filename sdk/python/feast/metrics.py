@@ -189,7 +189,7 @@ memory_usage_gauge = Gauge(
 request_count = Counter(
     "feast_feature_server_request_total",
     "Total number of requests to the Feast feature server",
-    ["endpoint", "status"],
+    ["endpoint", "status", "status_class"],
 )
 request_latency = Histogram(
     "feast_feature_server_request_latency_seconds",
@@ -313,13 +313,47 @@ class RequestMetricsContext:
     (e.g. ``/get-online-features`` where the feature count is only
     known after ``_get_features`` succeeds) can set the attributes
     on the yielded object and they will be picked up in ``finally``.
+
+    ``status_code`` is the HTTP status code of the response.  It defaults
+    to ``200`` and is derived from the exception when the block raises,
+    so handlers only need to set it when they *return* a non-2xx
+    response (e.g. a 404 or 409 ``JSONResponse``).
     """
 
-    __slots__ = ("feature_count", "feature_view_count")
+    __slots__ = ("feature_count", "feature_view_count", "status_code")
 
-    def __init__(self, feature_count: str = "", feature_view_count: str = ""):
+    def __init__(
+        self,
+        feature_count: str = "",
+        feature_view_count: str = "",
+        status_code: int = 200,
+    ):
         self.feature_count = feature_count
         self.feature_view_count = feature_view_count
+        self.status_code = status_code
+
+
+def _status_code_for_exception(exc: Exception) -> int:
+    """Return the HTTP status code the feature server responds with for *exc*.
+
+    Mirrors the REST exception handling: ``FeastError`` subclasses carry
+    their own status code, ``HTTPException`` is answered with its status
+    code, and anything else becomes a 500.
+    """
+    from starlette.exceptions import HTTPException
+
+    from feast.errors import FeastError
+
+    if isinstance(exc, FeastError):
+        return exc.http_status_code()
+    if isinstance(exc, HTTPException):
+        return exc.status_code
+    return 500
+
+
+def _status_class(status_code: int) -> str:
+    """Map an HTTP status code to its class label, e.g. ``404`` -> ``"4xx"``."""
+    return f"{status_code // 100}xx"
 
 
 @contextmanager
@@ -328,11 +362,16 @@ def track_request_latency(
 ):
     """Context manager that records endpoint latency and increments request count.
 
-    Yields a :class:`RequestMetricsContext` whose ``feature_count`` and
-    ``feature_view_count`` attributes can be updated inside the block.
-    The final values are used when recording the histogram and counter
-    in ``finally``, so labels are accurate even when they depend on
-    work done inside the block.
+    Yields a :class:`RequestMetricsContext` whose ``feature_count``,
+    ``feature_view_count`` and ``status_code`` attributes can be updated
+    inside the block.  The final values are used when recording the
+    histogram and counter in ``finally``, so labels are accurate even
+    when they depend on work done inside the block.
+
+    The request counter is labelled with ``status`` (``success`` for
+    status codes below 400, ``error`` otherwise) and ``status_class``
+    (``2xx``, ``4xx``, ``5xx``, ...), so client errors can be told
+    apart from server errors.
 
     Gated by the ``request`` category flag.
     """
@@ -342,11 +381,10 @@ def track_request_latency(
         return
 
     start = time.monotonic()
-    status_label = "success"
     try:
         yield ctx
-    except Exception:
-        status_label = "error"
+    except Exception as exc:
+        ctx.status_code = _status_code_for_exception(exc)
         raise
     finally:
         elapsed = time.monotonic() - start
@@ -355,7 +393,11 @@ def track_request_latency(
             feature_count=ctx.feature_count,
             feature_view_count=ctx.feature_view_count,
         ).observe(elapsed)
-        request_count.labels(endpoint=endpoint, status=status_label).inc()
+        request_count.labels(
+            endpoint=endpoint,
+            status="success" if ctx.status_code < 400 else "error",
+            status_class=_status_class(ctx.status_code),
+        ).inc()
 
 
 def track_online_features_entities(entity_count: int):
