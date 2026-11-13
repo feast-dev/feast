@@ -1908,7 +1908,7 @@ CREATE OR REPLACE TEMPORARY VIEW entity_dataframe AS (
         {% for featureview in featureviews %}
             ,CONCAT(
                 {% for entity in featureview.entities %}
-                    CAST({{entity}} AS STRING),
+                    CAST(LENGTH(CAST({{entity}} AS STRING)) AS STRING), ':', CAST({{entity}} AS STRING),
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS STRING)
             ) AS {{featureview.name}}__entity_row_unique_id
