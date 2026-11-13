@@ -99,8 +99,72 @@ class FeatureView(google.protobuf.message.Message):
 
 global___FeatureView = FeatureView
 
+class OnlineConfig(google.protobuf.message.Message):
+    """Configuration for how feature values are retained in an online store.
+    This message is currently a declarative contract; online store implementations
+    opt into sequence behavior separately.
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class _Mode:
+        ValueType = typing.NewType("ValueType", builtins.int)
+        V: typing_extensions.TypeAlias = ValueType
+
+    class _ModeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[OnlineConfig._Mode.ValueType], builtins.type):  # noqa: F821
+        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+        LATEST: OnlineConfig._Mode.ValueType  # 0
+        """Preserve the current behavior: one latest value per entity."""
+        SEQUENCE: OnlineConfig._Mode.ValueType  # 1
+        """Retain an ordered sequence of values per entity."""
+
+    class Mode(_Mode, metaclass=_ModeEnumTypeWrapper): ...
+    LATEST: OnlineConfig.Mode.ValueType  # 0
+    """Preserve the current behavior: one latest value per entity."""
+    SEQUENCE: OnlineConfig.Mode.ValueType  # 1
+    """Retain an ordered sequence of values per entity."""
+
+    class _WriteMode:
+        ValueType = typing.NewType("ValueType", builtins.int)
+        V: typing_extensions.TypeAlias = ValueType
+
+    class _WriteModeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[OnlineConfig._WriteMode.ValueType], builtins.type):  # noqa: F821
+        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+        OVERWRITE: OnlineConfig._WriteMode.ValueType  # 0
+        """Preserve the current upsert behavior."""
+        APPEND: OnlineConfig._WriteMode.ValueType  # 1
+        """Append a new event without overwriting earlier events."""
+
+    class WriteMode(_WriteMode, metaclass=_WriteModeEnumTypeWrapper): ...
+    OVERWRITE: OnlineConfig.WriteMode.ValueType  # 0
+    """Preserve the current upsert behavior."""
+    APPEND: OnlineConfig.WriteMode.ValueType  # 1
+    """Append a new event without overwriting earlier events."""
+
+    MODE_FIELD_NUMBER: builtins.int
+    MAX_LENGTH_FIELD_NUMBER: builtins.int
+    MAX_AGE_SECONDS_FIELD_NUMBER: builtins.int
+    WRITE_MODE_FIELD_NUMBER: builtins.int
+    mode: global___OnlineConfig.Mode.ValueType
+    max_length: builtins.int
+    """Maximum number of events retained per entity. 0 means unset."""
+    max_age_seconds: builtins.int
+    """Maximum event age in whole seconds. 0 means unset."""
+    write_mode: global___OnlineConfig.WriteMode.ValueType
+    def __init__(
+        self,
+        *,
+        mode: global___OnlineConfig.Mode.ValueType = ...,
+        max_length: builtins.int = ...,
+        max_age_seconds: builtins.int = ...,
+        write_mode: global___OnlineConfig.WriteMode.ValueType = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["max_age_seconds", b"max_age_seconds", "max_length", b"max_length", "mode", b"mode", "write_mode", b"write_mode"]) -> None: ...
+
+global___OnlineConfig = OnlineConfig
+
 class FeatureViewSpec(google.protobuf.message.Message):
-    """Next available id: 20
+    """Next available id: 22
     TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
     """
 
@@ -141,6 +205,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     VERSION_FIELD_NUMBER: builtins.int
     ORG_FIELD_NUMBER: builtins.int
     DISABLED_FIELD_NUMBER: builtins.int
+    ONLINE_CONFIG_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -202,6 +267,9 @@ class FeatureViewSpec(google.protobuf.message.Message):
     When true, the feature view will not serve online features or be materialized.
     Defaults to false (enabled) for backward compatibility.
     """
+    @property
+    def online_config(self) -> global___OnlineConfig:
+        """Online retention and write semantics for this feature view."""
     def __init__(
         self,
         *,
@@ -225,9 +293,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         version: builtins.str = ...,
         org: builtins.str = ...,
         disabled: builtins.bool = ...,
+        online_config: global___OnlineConfig | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "disabled", b"disabled", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "org", b"org", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "feature_transformation", b"feature_transformation", "online_config", b"online_config", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "disabled", b"disabled", "enable_validation", b"enable_validation", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "offline", b"offline", "online", b"online", "online_config", b"online_config", "org", b"org", "owner", b"owner", "project", b"project", "source_views", b"source_views", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "version", b"version"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 
