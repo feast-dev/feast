@@ -1,5 +1,6 @@
 """Unit tests for the Milvus online store, run against Milvus Lite or a mocked client."""
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -658,6 +659,40 @@ def test_collection_and_read_consistency_levels_independent() -> None:
 
     assert create_calls[0]["consistency_level"] == "Session"
     assert all(kwargs["consistency_level"] == "Strong" for kwargs in read_calls)
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_search_names_the_vector_field_next_to_a_bm25_output(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    mock_client.describe_collection.return_value = {
+        "collection_name": "test_milvus_driver_embeddings",
+        "fields": [
+            {"name": "driver_id_pk", "type": DataType.VARCHAR, "params": {}},
+            {"name": "event_ts", "type": DataType.INT64, "params": {}},
+            {"name": "created_ts", "type": DataType.INT64, "params": {}},
+            {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+            {"name": "city", "type": DataType.VARCHAR, "params": {}},
+            {
+                "name": "city_bm25",
+                "type": DataType.SPARSE_FLOAT_VECTOR,
+                "params": {},
+                "is_function_output": True,
+            },
+        ],
+    }
+    mock_client.search.return_value = [[]]
+
+    MilvusOnlineStore().retrieve_online_documents_v2(
+        _mock_config(embedding_dim=2),
+        _vector_feature_view(),
+        ["city"],
+        embedding=[1.0, 0.0],
+        top_k=1,
+    )
+
+    assert mock_client.search.call_args.kwargs["anns_field"] == "embedding"
 
 
 @pytest.mark.parametrize("field", ["consistency_level", "collection_consistency_level"])
@@ -1472,6 +1507,35 @@ def test_index_tags_create_scalar_and_json_path_indexes(
             {},
             "milvus.max_capacity tag must be",
         ),
+        (
+            Field(name="price", dtype=Float64, tags={"milvus.enable_match": "true"}),
+            {},
+            "not a String feature",
+        ),
+        (
+            Field(name="title", dtype=String, tags={"milvus.enable_match": "yes"}),
+            {},
+            "must be 'true' or 'false'",
+        ),
+        (
+            Field(name="title", dtype=String, tags={"milvus.analyzer_params": "[]"}),
+            {},
+            "milvus.analyzer_params must be a JSON dict",
+        ),
+        (
+            Field(name="price", dtype=Float64, tags={"milvus.bm25": "true"}),
+            {},
+            "not a String feature",
+        ),
+        (
+            Field(
+                name="title",
+                dtype=String,
+                tags={"milvus.bm25_index_params": '{"bm25_b": 0.3}'},
+            ),
+            {},
+            "without milvus.bm25",
+        ),
     ],
     ids=[
         "params_without_index",
@@ -1479,10 +1543,15 @@ def test_index_tags_create_scalar_and_json_path_indexes(
         "json_index_on_text",
         "vector",
         "capacity",
+        "analysis_on_non_string",
+        "match_not_boolean",
+        "analyzer_not_object",
+        "bm25_on_non_string",
+        "bm25_params_without_bm25",
     ],
 )
 @patch(f"{MILVUS_MODULE}.MilvusClient")
-def test_index_and_capacity_tags_are_validated(
+def test_field_tags_are_validated(
     mock_client_cls: MagicMock, field: Field, online_store: Dict[str, Any], match: str
 ) -> None:
     mock_client = _mock_client(mock_client_cls, has_collection=False)
@@ -1497,6 +1566,154 @@ def test_index_and_capacity_tags_are_validated(
         MilvusOnlineStore()._get_or_create_collection(_mock_config(**online_store), fv)
 
     mock_client.create_collection.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "tags, expected",
+    [
+        (
+            {"milvus.analyzer_params": '{"tokenizer": "whitespace"}'},
+            {"enable_analyzer": True, "analyzer_params": {"tokenizer": "whitespace"}},
+        ),
+        (
+            {"milvus.enable_match": "true"},
+            {"enable_analyzer": True, "enable_match": True},
+        ),
+        (
+            {
+                "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
+                "milvus.enable_match": "true",
+            },
+            {
+                "enable_analyzer": True,
+                "analyzer_params": {"tokenizer": "whitespace"},
+                "enable_match": True,
+            },
+        ),
+        ({"milvus.enable_match": "false"}, {}),
+    ],
+    ids=["analyzer", "match", "both", "match_false"],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_text_analysis_tags_set_field_params(
+    mock_client_cls: MagicMock, tags: Dict[str, str], expected: Dict[str, Any]
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="title", dtype=String, tags=tags),
+        ],
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    schema = mock_client.create_collection.call_args.kwargs["schema"]
+    params = next(field for field in schema.fields if field.name == "title").params
+    text_params = {
+        name: params[name]
+        for name in ("enable_analyzer", "analyzer_params", "enable_match")
+        if name in params
+    }
+    if "analyzer_params" in text_params:
+        text_params["analyzer_params"] = json.loads(text_params["analyzer_params"])
+    assert text_params == expected
+
+
+@pytest.mark.parametrize(
+    "tags, index_params",
+    [
+        ({}, {}),
+        (
+            {"milvus.bm25_index_params": '{"inverted_index_algo": "TAAT_NAIVE"}'},
+            {"inverted_index_algo": "TAAT_NAIVE"},
+        ),
+    ],
+    ids=["default_params", "index_params"],
+)
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_bm25_tag_creates_output_function_and_index(
+    mock_client_cls: MagicMock, tags: Dict[str, str], index_params: Dict[str, Any]
+) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="title", dtype=String, tags={"milvus.bm25": "true", **tags}),
+        ],
+    )
+
+    MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    schema = mock_client.create_collection.call_args.kwargs["schema"]
+    fields = {field.name: field for field in schema.fields}
+    assert fields["title"].params["enable_analyzer"] is True
+    assert fields["title_bm25"].dtype == DataType.SPARSE_FLOAT_VECTOR
+    # The sparse output is the collection's vector field, so no placeholder.
+    assert PLACEHOLDER_VECTOR_FIELD not in fields
+    [function] = schema.functions
+    assert (function.name, function.input_field_names, function.output_field_names) == (
+        "title_bm25_fn",
+        ["title"],
+        ["title_bm25"],
+    )
+    assert _created_indexes(mock_client)["title_bm25"] == {
+        "field_name": "title_bm25",
+        "index_type": "SPARSE_INVERTED_INDEX",
+        "index_name": "bm25_index_title",
+        "metric_type": "BM25",
+        **index_params,
+    }
+
+
+@patch(f"{MILVUS_MODULE}.MilvusClient")
+def test_bm25_output_name_clash_is_rejected(mock_client_cls: MagicMock) -> None:
+    mock_client = _mock_client(mock_client_cls, has_collection=False)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="title", dtype=String, tags={"milvus.bm25": "true"}),
+            Field(name="title_bm25", dtype=String),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="name of a milvus.bm25 output"):
+        MilvusOnlineStore()._get_or_create_collection(_mock_config(), fv)
+
+    mock_client.create_collection.assert_not_called()
+
+
+def test_writes_leave_the_bm25_output_to_milvus(tmp_path: Path) -> None:
+    config = _lite_config(tmp_path)
+    fv = FeatureView(
+        name="products",
+        entities=[_driver_entity()],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="title", dtype=String, tags={"milvus.bm25": "true"}),
+        ],
+    )
+    store = MilvusOnlineStore()
+    store.update(config, [], [fv], [], [], partial=False)
+    _write_rows(store, config, fv, {1: {"title": ValueProto(string_val="red wool")}})
+
+    # A new store reads the collection's schema from Milvus, as another process would.
+    store = MilvusOnlineStore()
+    _write_rows(store, config, fv, {1: {"title": ValueProto(string_val="blue cotton")}})
+    rows = _read(store, config, fv, [1], ["title"])
+
+    assert rows[0] is not None
+    assert rows[0]["title"].string_val == "blue cotton"
 
 
 @patch(f"{MILVUS_MODULE}.MilvusClient")
