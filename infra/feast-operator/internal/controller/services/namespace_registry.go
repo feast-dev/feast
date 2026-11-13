@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -52,7 +53,7 @@ func (feast *FeastServices) deployNamespaceRegistry() error {
 		return nil
 	}
 
-	// Check if we can determine the target namespace before creating any resources
+	// Do not fail deployment if the operator namespace cannot be determined.
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
 		logger := log.FromContext(feast.Handler.Context)
@@ -222,23 +223,37 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 	return nil
 }
 
-// getNamespaceRegistryNamespace determines the target namespace for the namespace registry ConfigMap
+// getNamespaceRegistryNamespace determines the target namespace for the namespace registry ConfigMap.
 func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
-	// Check if we're running on OpenShift
 	logger := log.FromContext(feast.Handler.Context)
-	if isOpenShift {
-		// TODO: Add support for reading DSCi configuration
-		if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			if ns := string(data); len(ns) > 0 {
-				logger.V(1).Info("Using OpenShift namespace", "namespace", ns)
-				return ns, nil
-			}
+
+	// 1) Explicit override via environment variable (useful in tests or custom setups)
+	if envNs := os.Getenv("FEAST_OPERATOR_NAMESPACE"); envNs != "" {
+		logger.V(1).Info("Using operator namespace from FEAST_OPERATOR_NAMESPACE env var", "namespace", envNs)
+		return envNs, nil
+	}
+
+	// 2) Namespace from ServiceAccount token file (standard in Kubernetes/OpenShift)
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); ns != "" {
+			logger.V(1).Info("Using operator namespace from serviceaccount namespace file", "namespace", ns)
+			return ns, nil
 		}
-		// This is what notebook controller team is doing, we are following them
-		// They are not defaulting to redhat-ods-applications namespace
+	}
+
+	// 3) Common Downward API env var, if configured
+	if podNs := os.Getenv("POD_NAMESPACE"); podNs != "" {
+		logger.V(1).Info("Using operator namespace from POD_NAMESPACE env var", "namespace", podNs)
+		return podNs, nil
+	}
+
+	// OpenShift requires the namespace from the service account; Kubernetes has a known default.
+	if isOpenShift {
 		return "", fmt.Errorf("unable to determine the namespace")
 	}
 
+	// 4) Fallback for Kubernetes environments without a service account mount (e.g., unit tests).
+	logger.V(1).Info("Falling back to DefaultKubernetesNamespace", "namespace", DefaultKubernetesNamespace)
 	return DefaultKubernetesNamespace, nil
 }
 
@@ -253,7 +268,7 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
 		logger.V(1).Info("Skipping namespace registry addition: unable to determine target namespace", "error", err)
-		return nil // Return nil to avoid failing the entire operation
+		return nil
 	}
 
 	// Get the existing ConfigMap
@@ -341,7 +356,7 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
 		logger.V(1).Info("Skipping namespace registry removal: unable to determine target namespace", "error", err)
-		return nil // Return nil to avoid failing the entire operation
+		return nil
 	}
 
 	// Get the existing ConfigMap
