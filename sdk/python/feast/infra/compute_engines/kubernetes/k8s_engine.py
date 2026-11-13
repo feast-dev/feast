@@ -1,7 +1,7 @@
 import logging
 import uuid
 from time import sleep
-from typing import List, Literal
+from typing import List, Literal, Sequence, Union
 
 import pyarrow as pa
 import yaml
@@ -12,6 +12,9 @@ from kubernetes.utils import FailToCreateError
 from pydantic import StrictStr
 
 from feast import RepoConfig
+from feast.batch_feature_view import BatchFeatureView
+from feast.entity import Entity
+from feast.feature_view import FeatureView
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -21,7 +24,9 @@ from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel
+from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 
 from .k8s_materialization_job import KubernetesMaterializationJob
@@ -69,7 +74,10 @@ class KubernetesComputeEngineConfig(FeastConfigBaseModel):
     """ (optional) Maximum number of pods allowed to run in parallel within a single job"""
 
     synchronous: bool = False
-    """ (optional) If true, wait for materialization for one feature to complete before moving to the next """
+    """ (optional) If true, run the pods in jobs of job_batch_size and wait for each job before starting the next.
+    If false, run all pods in a single job. Either way, materialization waits for the work to finish
+    before the feature view is marked as materialized.
+    """
 
     retry_limit: int = 2
     """ (optional) Maximum number of times to retry a materialization worker pod"""
@@ -84,7 +92,7 @@ class KubernetesComputeEngineConfig(FeastConfigBaseModel):
     """ (optional) Maximum number of pods to process per job.  Only applies to synchronous materialization"""
 
     print_pod_logs_on_failure: bool = True
-    """(optional) Print pod logs on job failure.  Only applies to synchronous materialization"""
+    """(optional) Print pod logs on job failure."""
 
 
 class KubernetesComputeEngine(ComputeEngine):
@@ -120,6 +128,30 @@ class KubernetesComputeEngine(ComputeEngine):
         self.batch_v1 = client.BatchV1Api(self.k8s_client)
         self.batch_engine_config = repo_config.batch_engine
         self.namespace = self.batch_engine_config.namespace
+
+    # Each materialize run creates its own Job and ConfigMap and cleans them up,
+    # so there is no long-lived infrastructure to create or delete here.
+    def update(
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
+        pass
+
+    def teardown_infra(
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
+    ):
+        pass
 
     def _materialize_one(
         self,
@@ -183,8 +215,13 @@ class KubernetesComputeEngine(ComputeEngine):
                 ):
                     break
         else:
-            job_id = str(uuid.uuid4())
-            job = self._create_kubernetes_job(job_id, paths, feature_view)
+            # Run every pod in one job, but still wait for it. Returning while
+            # the job is WAITING lets the caller record the interval and set the
+            # feature view to AVAILABLE_ONLINE before any data is written.
+            total_pods = len(paths)
+            job = self._await_path_materialization(
+                paths, feature_view, 0, total_pods, total_pods
+            )
 
         return job
 
