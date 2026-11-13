@@ -225,7 +225,9 @@ class TrinoSource(DataSource):
 
     def get_table_query_string(self) -> str:
         """Returns a string that can directly be used to reference this table in SQL"""
-        return self.table or self.query
+        if self.table:
+            return self.table
+        return f"({self.query})"
 
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
