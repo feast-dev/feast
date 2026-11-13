@@ -989,7 +989,7 @@ def _augment_response_with_on_demand_transforms(
                     if k not in undeclared_columns
                 }
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    odfv_input_dict
+                    odfv_input_dict, full_feature_names
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
@@ -1032,6 +1032,13 @@ def _augment_response_with_on_demand_transforms(
 
             proto_values = []
             schema_dict = {k.name: k.dtype for k in odfv.schema}
+            if full_feature_names:
+                schema_dict.update(
+                    {
+                        odfv._get_projected_feature_name(k.name): k.dtype
+                        for k in odfv.schema
+                    }
+                )
             for selected_feature in selected_subset:
                 feature_vector = transformed_features[selected_feature]
                 selected_feature_type = schema_dict.get(selected_feature, None)
