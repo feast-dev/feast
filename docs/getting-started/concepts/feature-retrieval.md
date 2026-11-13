@@ -175,7 +175,7 @@ training_df = store.get_historical_features(
 If `start_date` is omitted, it defaults to `end_date` minus the feature view TTL. If `end_date` is omitted, it defaults to the current time. Point-in-time correctness is still preserved.
 
 {% hint style="warning" %}
-Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
+Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, **Ray**, and **Trino** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
 {% endhint %}
 
 For more details, see the [FAQ](../faq.md#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe) and [this blog post on entity-less historical feature retrieval](https://feast.dev/blog/entity-less-historical-features-retrieval/).
