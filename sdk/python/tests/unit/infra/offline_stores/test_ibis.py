@@ -8,11 +8,15 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pytest
 
+from feast import Entity, FeatureView, Field, FileSource
 from feast.infra.offline_stores.ibis import (
+    get_historical_features_ibis,
     point_in_time_join,
     pull_all_from_table_or_query_ibis,
     pull_latest_from_table_or_query_ibis,
 )
+from feast.types import Int64
+from feast.value_type import ValueType
 
 
 def pa_datetime(year, month, day):
@@ -278,3 +282,50 @@ def test_pull_filters_parquet_timestamps_of_any_precision(tmp_path, dtype, pull)
     ).to_arrow()
 
     assert sorted(table["driver_id"].to_pylist()) == [2, 3]
+
+
+def test_get_historical_features_keeps_join_keys_left_out_of_join_key_map():
+    """A join_key_map that renames only some join keys still joins on the others."""
+    user = Entity(name="user", join_keys=["user_id"], value_type=ValueType.INT64)
+    merchant = Entity(
+        name="merchant", join_keys=["merchant_id"], value_type=ValueType.INT64
+    )
+    user_merchant = FeatureView(
+        name="user_merchant",
+        entities=[user, merchant],
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="merchant_id", dtype=Int64),
+            Field(name="spend", dtype=Int64),
+        ],
+        source=FileSource(path="unused.parquet", timestamp_field="event_timestamp"),
+    ).with_join_key_map({"user_id": "sender_id"})
+    features = pa.table(
+        {
+            "user_id": [1, 1],
+            "merchant_id": [100, 200],
+            "event_timestamp": [pa_datetime(2024, 1, 1), pa_datetime(2024, 1, 2)],
+            "spend": [10, 99],
+        }
+    )
+    entity_df = pd.DataFrame(
+        {
+            "sender_id": [1, 1],
+            "merchant_id": [100, 200],
+            "event_timestamp": [datetime(2024, 1, 3, tzinfo=timezone.utc)] * 2,
+        }
+    )
+
+    actual = get_historical_features_ibis(
+        config=MagicMock(),
+        feature_views=[user_merchant],
+        feature_refs=["user_merchant:spend"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project="test",
+        data_source_reader=lambda *_: ibis.memtable(features),
+        data_source_writer=MagicMock(),
+    ).to_df()
+
+    spend = dict(zip(actual["merchant_id"], actual["spend"]))
+    assert spend == {100: 10, 200: 99}

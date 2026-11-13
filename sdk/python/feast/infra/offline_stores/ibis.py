@@ -181,15 +181,24 @@ def _entity_row_id(entity_table: Table, columns: Iterable[str]):
     return r
 
 
+def _join_key_map(feature_view: FeatureView) -> Dict[str, str]:
+    """Map each join key of the feature data to its column in the entity data.
+
+    A projection's join_key_map may rename only some of the join keys; the
+    others keep their own name.
+    """
+    return {
+        column.name: feature_view.projection.join_key_map.get(column.name, column.name)
+        for column in feature_view.entity_columns
+    }
+
+
 def _generate_row_id(
     entity_table: Table, feature_views: List[FeatureView], event_timestamp_col
 ) -> Table:
     all_entities = [event_timestamp_col]
     for fv in feature_views:
-        if fv.projection.join_key_map:
-            all_entities.extend(fv.projection.join_key_map.values())
-        else:
-            all_entities.extend([e.name for e in fv.entity_columns])
+        all_entities.extend(_join_key_map(fv).values())
 
     entity_table = entity_table.mutate(
         entity_row_id=_entity_row_id(entity_table, set(all_entities))
@@ -285,8 +294,7 @@ def get_historical_features_ibis(
             fv_table,
             timestamp_field,
             created_timestamp_column,
-            feature_view.projection.join_key_map
-            or {e.name: e.name for e in feature_view.entity_columns},
+            _join_key_map(feature_view),
             feature_refs,
             feature_view.ttl,
         )
