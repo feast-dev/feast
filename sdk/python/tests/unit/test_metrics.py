@@ -15,13 +15,18 @@
 import http.client
 import os
 import socket
+import subprocess
+import sys
+import textwrap
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 
+from feast.errors import FeastPermissionError, FeatureViewNotFoundException
 from feast.metrics import (
     _make_metrics_httpd,
     emit_offline_audit_log,
@@ -84,20 +89,20 @@ def _enable_metrics():
 class TestTrackRequestLatency:
     def test_success_increments_counter_and_records_latency(self):
         before_count = request_count.labels(
-            endpoint="/test", status="success"
+            endpoint="/test", status="success", status_class="2xx"
         )._value.get()
 
         with track_request_latency("/test"):
             pass
 
         after_count = request_count.labels(
-            endpoint="/test", status="success"
+            endpoint="/test", status="success", status_class="2xx"
         )._value.get()
         assert after_count == before_count + 1
 
     def test_error_increments_error_counter(self):
         before_count = request_count.labels(
-            endpoint="/test-err", status="error"
+            endpoint="/test-err", status="error", status_class="5xx"
         )._value.get()
 
         with pytest.raises(ValueError):
@@ -105,7 +110,7 @@ class TestTrackRequestLatency:
                 raise ValueError("boom")
 
         after_count = request_count.labels(
-            endpoint="/test-err", status="error"
+            endpoint="/test-err", status="error", status_class="5xx"
         )._value.get()
         assert after_count == before_count + 1
 
@@ -171,7 +176,7 @@ class TestTrackRequestLatency:
     def test_error_before_labels_set_still_records(self):
         """Errors before labels are updated still record with default labels."""
         before_count = request_count.labels(
-            endpoint="/early-fail", status="error"
+            endpoint="/early-fail", status="error", status_class="5xx"
         )._value.get()
 
         with pytest.raises(RuntimeError):
@@ -179,7 +184,7 @@ class TestTrackRequestLatency:
                 raise RuntimeError("auth failed")
 
         after_count = request_count.labels(
-            endpoint="/early-fail", status="error"
+            endpoint="/early-fail", status="error", status_class="5xx"
         )._value.get()
         assert after_count == before_count + 1
 
@@ -187,6 +192,69 @@ class TestTrackRequestLatency:
             endpoint="/early-fail", feature_count="", feature_view_count=""
         )._sum.get()
         assert recorded_sum > 0
+
+    @pytest.mark.parametrize(
+        "exc,expected_status_class",
+        [
+            (ValueError("boom"), "5xx"),
+            (FeatureViewNotFoundException("missing_fv", "project"), "4xx"),
+            (FeastPermissionError("denied"), "4xx"),
+            (HTTPException(status_code=404), "4xx"),
+            (HTTPException(status_code=503), "5xx"),
+        ],
+        ids=[
+            "unhandled_error",
+            "feast_not_found",
+            "feast_permission_denied",
+            "http_404",
+            "http_503",
+        ],
+    )
+    def test_status_class_derived_from_exception(self, exc, expected_status_class):
+        """The status class matches the response the REST exception handling sends."""
+        endpoint = f"/status-class-{expected_status_class}-{type(exc).__name__}"
+        before_count = request_count.labels(
+            endpoint=endpoint, status="error", status_class=expected_status_class
+        )._value.get()
+
+        with pytest.raises(type(exc)):
+            with track_request_latency(endpoint):
+                raise exc
+
+        after_count = request_count.labels(
+            endpoint=endpoint, status="error", status_class=expected_status_class
+        )._value.get()
+        assert after_count == before_count + 1
+
+    @pytest.mark.parametrize(
+        "status_code,expected_status,expected_status_class",
+        [
+            (202, "success", "2xx"),
+            (404, "error", "4xx"),
+            (409, "error", "4xx"),
+            (503, "error", "5xx"),
+        ],
+    )
+    def test_status_code_set_via_yielded_context(
+        self, status_code, expected_status, expected_status_class
+    ):
+        """Handlers that return a response without raising set its status code on the context."""
+        endpoint = f"/returned-{status_code}"
+        before_count = request_count.labels(
+            endpoint=endpoint,
+            status=expected_status,
+            status_class=expected_status_class,
+        )._value.get()
+
+        with track_request_latency(endpoint) as ctx:
+            ctx.status_code = status_code
+
+        after_count = request_count.labels(
+            endpoint=endpoint,
+            status=expected_status,
+            status_class=expected_status_class,
+        )._value.get()
+        assert after_count == before_count + 1
 
 
 class TestMetricsOptIn:
@@ -835,8 +903,13 @@ class TestTrackFeatureStatuses:
         before_not_found = online_features_status_total.labels(
             feature_view="fv_status", status="not_found"
         )._value.get()
+        before_outside_max_age = online_features_status_total.labels(
+            feature_view="fv_status", status="outside_max_age"
+        )._value.get()
 
-        track_feature_statuses("fv_status", present_count=3, not_found_count=2)
+        track_feature_statuses(
+            "fv_status", present_count=3, not_found_count=2, outside_max_age_count=1
+        )
 
         assert (
             online_features_status_total.labels(
@@ -850,16 +923,23 @@ class TestTrackFeatureStatuses:
             )._value.get()
             == before_not_found + 2
         )
+        assert (
+            online_features_status_total.labels(
+                feature_view="fv_status", status="outside_max_age"
+            )._value.get()
+            == before_outside_max_age + 1
+        )
 
     @patch("feast.metrics.track_feature_statuses")
     def test_populate_response_passes_correct_counts(self, mock_track):
         """Integration: _populate_response_from_feature_data computes and
-        forwards the right present/not_found counts.
+        forwards the right present/not_found/outside_max_age counts.
 
-        3 entities, 2 features each:
+        4 entities, 2 features each, ttl of 1 hour:
           Entity 0 — both present (2 PRESENT)
           Entity 1 — missing       (2 NOT_FOUND)
           Entity 2 — partial       (1 PRESENT, 1 NOT_FOUND)
+          Entity 3 — 2 hours old   (2 OUTSIDE_MAX_AGE)
         """
         from feast.protos.feast.serving.ServingService_pb2 import (
             GetOnlineFeaturesResponse,
@@ -874,6 +954,7 @@ class TestTrackFeatureStatuses:
         table.projection.name_to_use.return_value = "driver_fv"
         table.projection.name_alias = None
         table.projection.name = "driver_fv"
+        table.ttl = timedelta(hours=1)
 
         _populate_response_from_feature_data(
             requested_features=["feat_a", "feat_b"],
@@ -881,15 +962,16 @@ class TestTrackFeatureStatuses:
                 (now, {"feat_a": val, "feat_b": val}),
                 (None, None),
                 (now, {"feat_a": val}),
+                (now - timedelta(hours=2), {"feat_a": val, "feat_b": val}),
             ],
-            indexes=([0], [1], [2]),
+            indexes=([0], [1], [2], [3]),
             online_features_response=GetOnlineFeaturesResponse(),
             full_feature_names=False,
             table=table,
-            output_len=3,
+            output_len=4,
         )
 
-        mock_track.assert_called_once_with("driver_fv", 3, 3)
+        mock_track.assert_called_once_with("driver_fv", 3, 3, 2)
 
 
 class TestTrackPush:
@@ -1172,7 +1254,7 @@ class TestFeatureServerMetricsIntegration:
         client = TestClient(get_app(fs))
 
         before_req = request_count.labels(
-            endpoint="/get-online-features", status="success"
+            endpoint="/get-online-features", status="success", status_class="2xx"
         )._value.get()
         before_entity = online_features_request_count._value.get()
 
@@ -1186,7 +1268,7 @@ class TestFeatureServerMetricsIntegration:
 
         assert (
             request_count.labels(
-                endpoint="/get-online-features", status="success"
+                endpoint="/get-online-features", status="success", status_class="2xx"
             )._value.get()
             == before_req + 1
         )
@@ -1272,6 +1354,71 @@ class TestFeatureServerMetricsIntegration:
 
         after_sum = request_latency.labels(**label_set)._sum.get()
         assert after_sum > before_sum
+
+    @pytest.mark.parametrize(
+        "exc,expected_http_status,expected_status_class",
+        [
+            (FeatureViewNotFoundException("fv", "project"), 404, "4xx"),
+            (RuntimeError("online store unavailable"), 500, "5xx"),
+        ],
+        ids=["not_found", "server_error"],
+    )
+    def test_get_online_features_error_records_status_class(
+        self, mock_fs_factory, exc, expected_http_status, expected_status_class
+    ):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+
+        fs = mock_fs_factory(online_read=False)
+        fs.get_online_features = MagicMock(side_effect=exc)
+        client = TestClient(get_app(fs), raise_server_exceptions=False)
+
+        labels = dict(
+            endpoint="/get-online-features",
+            status="error",
+            status_class=expected_status_class,
+        )
+        before = request_count.labels(**labels)._value.get()
+
+        response = client.post(
+            "/get-online-features",
+            json={"features": ["fv:feat1"], "entities": {"id": [1]}},
+        )
+
+        assert response.status_code == expected_http_status
+        assert request_count.labels(**labels)._value.get() == before + 1
+
+    def test_materialize_conflict_records_4xx(self, mock_fs_factory):
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.feature_view import FeatureViewState
+
+        fs = mock_fs_factory()
+        fv = MagicMock()
+        fv.name = "fv1"
+        fv.state = FeatureViewState.MATERIALIZING
+        fs._validate_materialize_version.return_value = None
+        fs._get_feature_views_to_materialize.return_value = [fv]
+        fs.registry.get_feature_view.return_value = fv
+        client = TestClient(get_app(fs))
+
+        labels = dict(endpoint="/materialize", status="error", status_class="4xx")
+        before = request_count.labels(**labels)._value.get()
+
+        response = client.post(
+            "/materialize?async=true",
+            json={
+                "feature_views": ["fv1"],
+                "start_ts": "2021-01-01T00:00:00",
+                "end_ts": "2021-01-02T00:00:00",
+            },
+        )
+
+        assert response.status_code == 409
+        assert request_count.labels(**labels)._value.get() == before + 1
+        fs.materialize.assert_not_called()
 
     def test_push_records_metrics(self, mock_fs_factory):
         from fastapi.testclient import TestClient
@@ -2413,3 +2560,57 @@ class TestMetricsHttpdDoesNotLog:
             httpd.server_close()
 
         assert "GET /metrics" not in capsys.readouterr().err
+
+
+class TestFeatureFreshnessMultiprocessMode:
+    """A worker that exits must not hold the freshness gauge up.
+
+    mark_process_dead only deletes the files of the "live" gauge modes, so any
+    other mode keeps the value of every worker that ever ran in the group.
+    """
+
+    def test_mark_process_dead_drops_the_value_of_the_gauge(self, tmp_path):
+        # Run in a subprocess: prometheus_client binds the directory of a gauge
+        # file prefix on first use, and another test in this file binds it first.
+        probe = textwrap.dedent(
+            """
+            import os
+            import sys
+
+            from prometheus_client import CollectorRegistry, Gauge, multiprocess
+
+            path = os.environ["PROMETHEUS_MULTIPROC_DIR"]
+            gauge = Gauge(
+                "freshness_probe",
+                "Copies the multiprocess mode of the freshness gauge",
+                ["feature_view"],
+                registry=None,
+                multiprocess_mode=sys.argv[1],
+            )
+            gauge.labels(feature_view="fv").set(86400)
+
+            def collected():
+                registry = CollectorRegistry()
+                multiprocess.MultiProcessCollector(registry, path=path)
+                return registry.get_sample_value(
+                    "freshness_probe", {"feature_view": "fv"}
+                )
+
+            before = collected()
+            multiprocess.mark_process_dead(os.getpid(), path=path)
+            print(before, collected())
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe, feature_freshness_seconds._multiprocess_mode],
+            env={
+                **os.environ,
+                "PROMETHEUS_MULTIPROC_DIR": str(tmp_path),
+                "PROMETHEUS_MULTIPROCESS_DIR": str(tmp_path),
+            },
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.split() == ["86400.0", "None"]

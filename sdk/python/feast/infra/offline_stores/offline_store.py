@@ -217,33 +217,7 @@ class RetrievalJob(ABC):
                 )
 
         if self.on_demand_feature_views:
-            # Build a mapping of ODFV name to requested feature names
-            # This ensures we only return the features that were explicitly requested
-            odfv_feature_refs: Dict[str, set[str]] = {}
-            try:
-                metadata = self.metadata
-            except NotImplementedError:
-                metadata = None
-
-            if metadata and metadata.features:
-                for feature_ref in metadata.features:
-                    if ":" in feature_ref:
-                        view_name, feature_name = feature_ref.split(":", 1)
-                        # Check if this view_name matches any of the ODFVs
-                        for odfv in self.on_demand_feature_views:
-                            if (
-                                odfv.name == view_name
-                                or odfv.projection.name_to_use() == view_name
-                            ):
-                                if view_name not in odfv_feature_refs:
-                                    odfv_feature_refs[view_name] = set()
-                                # Store the feature name in the format that will appear in transformed_arrow
-                                expected_col_name = (
-                                    f"{odfv.projection.name_to_use()}__{feature_name}"
-                                    if self.full_feature_names
-                                    else feature_name
-                                )
-                                odfv_feature_refs[view_name].add(expected_col_name)
+            odfv_feature_refs = self._get_odfv_feature_refs()
 
             for odfv in self.on_demand_feature_views:
                 transformed_arrow = odfv.transform_arrow(
@@ -392,6 +366,38 @@ class RetrievalJob(ABC):
         `to_arrow` should be used.
         """
         raise NotImplementedError
+
+    def _get_odfv_feature_refs(self) -> Dict[str, set[str]]:
+        """
+        Returns a mapping of ODFV name to requested feature names, so that only the
+        features that were explicitly requested are returned.
+        """
+        odfv_feature_refs: Dict[str, set[str]] = {}
+        try:
+            metadata = self.metadata
+        except NotImplementedError:
+            metadata = None
+
+        if metadata and metadata.features:
+            for feature_ref in metadata.features:
+                if ":" in feature_ref:
+                    view_name, feature_name = feature_ref.split(":", 1)
+                    # Check if this view_name matches any of the ODFVs
+                    for odfv in self.on_demand_feature_views:
+                        if (
+                            odfv.name == view_name
+                            or odfv.projection.name_to_use() == view_name
+                        ):
+                            if view_name not in odfv_feature_refs:
+                                odfv_feature_refs[view_name] = set()
+                            # Store the feature name in the format that will appear in transformed_arrow
+                            expected_col_name = (
+                                f"{odfv.projection.name_to_use()}__{feature_name}"
+                                if self.full_feature_names
+                                else feature_name
+                            )
+                            odfv_feature_refs[view_name].add(expected_col_name)
+        return odfv_feature_refs
 
     @property
     def full_feature_names(self) -> bool:

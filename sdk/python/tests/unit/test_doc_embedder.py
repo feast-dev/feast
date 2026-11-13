@@ -73,6 +73,21 @@ class TestTextChunker:
 
         assert words_0[-3:] == words_1[:3]
 
+    def test_no_trailing_chunk_contained_in_previous(self):
+        """Once a chunk reaches the end of the text, no further chunk is emitted."""
+        config = ChunkingConfig(
+            chunk_size=100, chunk_overlap=20, min_chunk_size=20, max_chunk_chars=None
+        )
+        chunker = TextChunker(config=config)
+        text = " ".join([f"w{i}" for i in range(180)])
+
+        chunks = chunker.load_parse_and_chunk(
+            source=text, source_id="doc1", source_column="text"
+        )
+
+        assert [c["text"].split()[-1] for c in chunks] == ["w99", "w179"]
+        assert [len(c["text"].split()) for c in chunks] == [100, 100]
+
     def test_min_chunk_size_filters_small_trailing(self):
         """Trailing chunk smaller than min_chunk_size is dropped."""
         config = ChunkingConfig(

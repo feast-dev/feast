@@ -25,9 +25,22 @@ from feast.field import Field
 from feast.filter_models import ComparisonFilter
 from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList, Int64List, StringList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
-from feast.types import Array, Float32, Int64, String
+from feast.type_map import python_values_to_proto_values
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int64,
+    Json,
+    Map,
+    String,
+    UnixTimestamp,
+)
 from feast.value_type import ValueType
 
 T = TypeVar("T")
@@ -520,3 +533,235 @@ def test_online_delete(tmp_path: Path, project: str, store: MilvusOnlineStore) -
     _write_rows(store, config, fv, {1: _vector_rows()[1]})
     rows = _read(store, config, fv, [1], ["city"])
     assert rows[0] is not None and rows[0]["city"].string_val == "Paris"
+
+
+@pytest.mark.parametrize("native", [False, True], ids=["varchar", "native_numerics"])
+def test_every_type_round_trips_and_nullable_columns_store_null(
+    tmp_path: Path, project: str, store: MilvusOnlineStore, native: bool
+) -> None:
+    config = _repo_config(
+        tmp_path,
+        project,
+        enable_openai_compatible_store=native,
+        consistency_level="Strong",
+    )
+    fv = FeatureView(
+        name="typed",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="flag", dtype=Bool),
+            Field(name="blob", dtype=Bytes),
+            Field(name="seen_at", dtype=UnixTimestamp),
+            Field(name="doc", dtype=Json),
+            Field(name="tags", dtype=Array(String)),
+            Field(name="score", dtype=Float64, tags={"milvus.nullable": "true"}),
+        ],
+    )
+    values = {
+        "flag": ValueProto(bool_val=False),
+        "blob": ValueProto(bytes_val=b"\x00\xff"),
+        "seen_at": ValueProto(unix_timestamp_val=1_700_000_000),
+        "doc": ValueProto(json_val='{"a": [1, 2]}'),
+        "tags": ValueProto(string_list_val=StringList(val=["a", "b"])),
+        "score": ValueProto(double_val=2.5),
+    }
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(store, config, fv, {1: values, 2: {**values, "score": ValueProto()}})
+    rows = _read(store, config, fv, [1, 2], list(values))
+
+    assert rows[0] == values
+    assert rows[1] is not None and rows[1]["score"].WhichOneof("val") is None
+    assert rows[1]["tags"] == values["tags"]
+
+
+def test_native_complex_types_filters_and_tag_indexes(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path,
+        project,
+        consistency_level="Strong",
+    )
+    fv = FeatureView(
+        name="products",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(
+                name="embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="COSINE",
+            ),
+            Field(name="brand", dtype=String, tags={"milvus.index": "INVERTED"}),
+            Field(
+                name="attributes",
+                dtype=Json,
+                tags={
+                    "milvus.json_indexes": (
+                        '[{"json_path": "attributes[\\"price\\"]",'
+                        ' "json_cast_type": "double"}]'
+                    )
+                },
+            ),
+            Field(name="labels", dtype=Map),
+            Field(name="tags", dtype=Array(String), tags={"milvus.max_capacity": "8"}),
+            Field(name="counts", dtype=Array(Int64), tags={"milvus.nullable": "true"}),
+            Field(
+                name="title",
+                dtype=String,
+                tags={
+                    "milvus.analyzer_params": '{"tokenizer": "whitespace"}',
+                    "milvus.enable_match": "true",
+                    "milvus.bm25": "true",
+                    "milvus.bm25_index_params": (
+                        '{"inverted_index_algo": "TAAT_NAIVE", "bm25_b": 0.3}'
+                    ),
+                },
+            ),
+        ],
+    )
+    rows = {
+        1: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[1.0, 0.0])),
+            "title": ValueProto(string_val="wool-blend sweater"),
+            "brand": ValueProto(string_val="acme"),
+            "attributes": ValueProto(json_val='{"price": 10, "color": "red"}'),
+            "labels": python_values_to_proto_values(
+                [{"a": "x", "n": 1}], ValueType.MAP
+            )[0],
+            "tags": ValueProto(string_list_val=StringList(val=["red", "sale"])),
+            "counts": ValueProto(int64_list_val=Int64List(val=[1, 2, 3])),
+        },
+        2: {
+            "embedding": ValueProto(float_list_val=FloatList(val=[0.0, 1.0])),
+            "brand": ValueProto(string_val="globex"),
+            "attributes": ValueProto(json_val='{"price": 50}'),
+            "labels": python_values_to_proto_values([{"a": "y"}], ValueType.MAP)[0],
+            "tags": ValueProto(string_list_val=StringList(val=[])),
+            "counts": ValueProto(),
+        },
+    }
+    store.update(config, [], [fv], [], [], partial=False)
+    assert store.client is not None
+    indexes = set(store.client.list_indexes(f"{project}_{fv.name}"))
+    assert {"scalar_index_brand", "json_index_attributes_0"} <= indexes
+    bm25_index = store.client.describe_index(f"{project}_{fv.name}", "bm25_index_title")
+    assert (bm25_index["inverted_index_algo"], bm25_index["bm25_b"]) == (
+        "TAAT_NAIVE",
+        "0.3",
+    )
+
+    _write_rows(store, config, fv, rows)
+    read = _read(
+        store,
+        config,
+        fv,
+        [1, 2],
+        ["brand", "attributes", "labels", "tags", "counts", "title"],
+    )
+    assert read[0] == {k: v for k, v in rows[1].items() if k != "embedding"}
+    assert read[1] is not None and read[1]["counts"].WhichOneof("val") is None
+
+    # The whitespace analyzer keeps "wool-blend" as one token. Milvus 2.6 indexes
+    # new rows for TEXT_MATCH a moment after the write, even with Strong consistency.
+    def text_match(token: str) -> List[str]:
+        assert store.client is not None
+        hits = store.client.query(
+            f"{project}_{fv.name}",
+            filter=f"TEXT_MATCH(title, '{token}')",
+            output_fields=["brand"],
+        )
+        return [hit["brand"] for hit in hits]
+
+    assert _eventually(lambda: text_match("wool-blend"), bool) == ["acme"]
+    assert text_match("wool") == []
+
+    # Milvus fills title_bm25 from the analyzed title on every write.
+    def bm25_search(text: str) -> List[str]:
+        assert store.client is not None
+        hits = store.client.search(
+            f"{project}_{fv.name}",
+            data=[text],
+            anns_field="title_bm25",
+            limit=2,
+            output_fields=["brand"],
+        )
+        return [hit["brand"] for hit in hits[0]]
+
+    assert _eventually(lambda: bm25_search("wool-blend"), bool) == ["acme"]
+
+    hits = store.retrieve_online_documents_v2(
+        config,
+        fv,
+        ["brand", "attributes"],
+        embedding=[1.0, 0.0],
+        top_k=5,
+        distance_metric="COSINE",
+        filters=ComparisonFilter(type="gt", key='attributes["price"]', value=20),
+    )
+    assert [hit["brand"].string_val for _, _, hit in hits if hit] == ["globex"]
+
+    assert read[1]["tags"] == rows[2]["tags"]
+    store.online_delete(
+        config, fv, filters=ComparisonFilter(type="eq", key="tags[0]", value="red")
+    )
+    assert [row is None for row in _read(store, config, fv, [1, 2], ["brand"])] == [
+        True,
+        False,
+    ]
+
+
+def test_mutation_timeout(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(
+        tmp_path, project, mutation_timeout=5, consistency_level="Strong"
+    )
+    fv = _vector_feature_view()
+    store.update(config, [], [fv], [], [], partial=False)
+
+    _write_rows(store, config, fv, _vector_rows())
+    rows = _read(store, config, fv, [1, 2], ["city"])
+    assert [row["city"].string_val for row in rows if row] == ["Paris", "Rome"]
+
+    store.online_delete(config, fv, [_entity_key(1), _entity_key(2)])
+    assert _read(store, config, fv, [1, 2], ["city"]) == [None, None]
+
+
+def test_schema_mismatch(
+    tmp_path: Path, project: str, store: MilvusOnlineStore
+) -> None:
+    config = _repo_config(tmp_path, project)
+    store.update(config, [], [_scalar_feature_view()], [], [], partial=False)
+    changed = FeatureView(
+        name="driver_stats",
+        entities=[
+            Entity(
+                name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
+        ],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips_today", dtype=Float32),
+            Field(name="city", dtype=String),
+            Field(name="country", dtype=String),
+        ],
+    )
+
+    strict = _repo_config(tmp_path, project, fail_on_schema_mismatch=True)
+    with pytest.raises(ValueError, match="field 'country' is not in the collection"):
+        MilvusOnlineStore().update(strict, [], [changed], [], [], partial=False)
