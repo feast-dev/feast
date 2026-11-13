@@ -88,6 +88,19 @@ class PythonTransformation(Transformation):
         return {**input_dict, **output_dict}
 
     def transform_singleton(self, input_dict: dict) -> dict:
+        # Each value in input_dict is a list with one entry per entity row.
+        # A singleton UDF takes a single row, so with more than one row it is
+        # called once per row and the results are collected back into lists.
+        if any(len(v) > 1 for v in input_dict.values()):
+            num_rows = max(len(v) for v in input_dict.values())
+            results = []
+            for i in range(num_rows):
+                row = {k: v[i] for k, v in input_dict.items()}
+                output_row = self.udf.__call__(row)
+                results.append({**row, **output_row})
+            columns = dict.fromkeys(k for result in results for k in result)
+            return {k: [result.get(k) for result in results] for k in columns}
+
         # This flattens the list of elements to extract the first one
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
