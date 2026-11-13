@@ -13,7 +13,7 @@ class MongoDBOnlineStoreCreator(OnlineStoreCreator):
         # MongoDbContainer from testcontainers sets up authentication by default
         # with username and password from the constructor
         self.container = MongoDbContainer(
-            "mongo:latest",
+            "mirror.gcr.io/library/mongo:7.0",
             username="test",
             password="test",  # pragma: allowlist secret
         ).with_exposed_ports(27017)
