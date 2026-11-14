@@ -2616,6 +2616,92 @@ class TestZonedTimestamp:
         with pytest.raises(ValueError):
             Set(ZonedTimestamp)
 
+    def test_pytz_fixed_offset_round_trips(self):
+        # pyarrow hands back pytz.FixedOffset for an offset-zoned column; its str()
+        # is "pytz.FixedOffset(330)", which used to be stored and decoded as UTC.
+        pytz = pytest.importorskip("pytz")
+        dt = datetime(2026, 6, 17, 9, tzinfo=pytz.FixedOffset(330))
+        protos = python_values_to_proto_values([dt], ValueType.ZONED_TIMESTAMP)
+        assert protos[0].zoned_timestamp_val.zone == "UTC+05:30"
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == dt
+        assert converted.utcoffset() == timedelta(hours=5, minutes=30)
+        assert converted.hour == 9
+
+    @staticmethod
+    def _arrow_rows(event_time: pyarrow.Array) -> list:
+        # The conversion materialize and write_to_online_store run on each batch.
+        from feast import Entity, FeatureView, Field, FileSource
+        from feast.types import Int64, ZonedTimestamp
+        from feast.utils import _convert_arrow_to_proto
+
+        driver = Entity(name="driver_id", join_keys=["driver_id"])
+        feature_view = FeatureView(
+            name="driver_events",
+            entities=[driver],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="event_time", dtype=ZonedTimestamp),
+            ],
+            source=FileSource(path="unused.parquet", timestamp_field="ts"),
+        )
+        table = pyarrow.table(
+            {
+                "driver_id": pyarrow.array(range(len(event_time)), pyarrow.int64()),
+                "event_time": event_time,
+                "ts": pyarrow.array(
+                    [datetime(2026, 6, 17, tzinfo=timezone.utc)] * len(event_time)
+                ),
+            }
+        )
+        rows = _convert_arrow_to_proto(
+            table, feature_view, {"driver_id": ValueType.INT64}
+        )
+        return [features["event_time"] for _, features, _, _ in rows]
+
+    def test_arrow_column_keeps_its_zone(self):
+        from zoneinfo import ZoneInfo
+
+        la = ZoneInfo("America/Los_Angeles")
+        nine, ten = (
+            datetime(2026, 6, 17, 9, tzinfo=la),
+            datetime(2026, 6, 17, 10, tzinfo=la),
+        )
+        values = self._arrow_rows(
+            pyarrow.array(
+                [nine, None, ten],
+                type=pyarrow.timestamp("us", tz="America/Los_Angeles"),
+            )
+        )
+        assert [v.zoned_timestamp_val.zone for v in values] == [
+            "America/Los_Angeles",
+            "",
+            "America/Los_Angeles",
+        ]
+        assert values[1] == ProtoValue()
+        decoded = [feast_value_type_to_python_type(v) for v in values]
+        assert decoded == [nine, None, ten]
+        assert decoded[0].hour == 9 and str(decoded[0].tzinfo) == "America/Los_Angeles"
+
+    def test_arrow_column_from_dataframe(self):
+        # A pandas column of datetimes in one zone, as a FileSource or
+        # write_to_online_store DataFrame carries it.
+        ist = timezone(timedelta(hours=5, minutes=30))
+        column = pd.Series([datetime(2026, 6, 17, 9, tzinfo=ist)] * 2)
+        values = self._arrow_rows(pyarrow.Array.from_pandas(column))
+        decoded = [feast_value_type_to_python_type(v) for v in values]
+        assert decoded == list(column)
+        assert decoded[0].utcoffset() == timedelta(hours=5, minutes=30)
+
+    def test_arrow_column_without_zone_is_utc(self):
+        values = self._arrow_rows(
+            pyarrow.array([datetime(2026, 6, 17, 12)], type=pyarrow.timestamp("ns"))
+        )
+        assert values[0].zoned_timestamp_val.zone == ""
+        assert feast_value_type_to_python_type(values[0]) == datetime(
+            2026, 6, 17, 12, tzinfo=timezone.utc
+        )
+
 
 def test_import_does_not_emit_numpy_deprecation_warning():
     # A unit-less np.datetime64("NaT") uses NumPy's deprecated "generic" unit,
