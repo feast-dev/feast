@@ -4010,7 +4010,7 @@ class FeatureStore:
         if reorder_columns:
             df = df.reindex(columns=source_columns)
 
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df, preserve_index=False)
         provider.ingest_df_to_offline_store(feature_view, table)
 
     def get_online_features(

@@ -185,6 +185,42 @@ def test_write_to_offline_store_resolves_feature_view_with_single_lookup():
     provider.ingest_df_to_offline_store.assert_called_once()
 
 
+def test_write_to_offline_store_does_not_write_the_dataframe_index() -> None:
+    """A dataframe with a non-default index, such as one left by filtering rows,
+    must reach the offline store with only the batch source columns, not an
+    extra ``__index_level_0__`` column for its index."""
+    store = FeatureStore.__new__(FeatureStore)
+
+    feature_view = MagicMock()
+    feature_view.name = "driver_hourly_stats"
+    feature_view.batch_source = MagicMock()
+
+    registry = MagicMock()
+    registry.get_any_feature_view.return_value = feature_view
+    store._registry = registry
+
+    current_project = MagicMock()
+    current_project.get.return_value = "test_project"
+    store._current_project = current_project
+    store.config = MagicMock()
+
+    provider = MagicMock()
+    provider.get_table_column_names_and_types_from_data_source.return_value = [
+        ("driver_id", "INT64"),
+        ("conv_rate", "DOUBLE"),
+    ]
+
+    df = pd.DataFrame({"driver_id": [1, 2, 3], "conv_rate": [0.1, 0.2, 0.3]})
+    df = df[df["driver_id"] > 1]
+
+    with patch.object(FeatureStore, "_get_provider", return_value=provider):
+        store.write_to_offline_store("driver_hourly_stats", df)
+
+    _, table = provider.ingest_df_to_offline_store.call_args.args
+    assert table.column_names == ["driver_id", "conv_rate"]
+    assert table.column("driver_id").to_pylist() == [2, 3]
+
+
 def test_materialize_odfv_reports_skips_through_the_logger(caplog, capsys):
     """``_materialize_odfv`` must report a skipped materialization via the logger.
 
