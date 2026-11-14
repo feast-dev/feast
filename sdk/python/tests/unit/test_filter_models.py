@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 from pydantic import ValidationError
 
@@ -6,6 +8,10 @@ from feast.filter_models import (
     CompoundFilter,
     convert_dict_to_filter,
 )
+from feast.infra.online_stores.postgres_online_store.postgres import (
+    PostgresFilterTranslator,
+)
+from feast.infra.online_stores.sqlite import SqliteFilterTranslator
 
 
 class TestComparisonFilter:
@@ -158,3 +164,57 @@ class TestConvertDictToFilter:
         assert isinstance(result, ComparisonFilter)
         assert result.type == "in"
         assert result.value == ["active", "pending"]
+
+
+class TestSqlFilterTranslatorEmptyCompound:
+    def _filter_with_empty_group(self):
+        return CompoundFilter(
+            type="and",
+            filters=[
+                ComparisonFilter(type="eq", key="title", value="Title 1"),
+                CompoundFilter(type="or", filters=[]),
+            ],
+        )
+
+    def test_sqlite_skips_empty_nested_group(self):
+        clause, params = SqliteFilterTranslator("t", alias="fv").translate(
+            self._filter_with_empty_group()
+        )
+        assert params == ["title", "Title 1"]
+        assert clause == (
+            '(fv.entity_key IN (SELECT entity_key FROM "t" '
+            "WHERE feature_name = ? AND value_text = ?))"
+        )
+
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE t (entity_key, feature_name, value_text, value_num)")
+        conn.execute(f"SELECT * FROM t fv WHERE {clause}", params).fetchall()
+
+    def test_sqlite_only_empty_groups(self):
+        f = CompoundFilter(
+            type="and",
+            filters=[
+                CompoundFilter(type="or", filters=[]),
+                CompoundFilter(type="and", filters=[]),
+            ],
+        )
+        assert SqliteFilterTranslator("t").translate(f) == ("", [])
+
+    def test_postgres_skips_empty_nested_group(self):
+        clause, params = PostgresFilterTranslator("t", alias="t1").translate(
+            self._filter_with_empty_group()
+        )
+        assert params == ["title", "Title 1"]
+        assert clause.as_string(None) == (
+            '(t1.entity_key IN (SELECT entity_key FROM "t" '
+            'WHERE feature_name = %s AND "value_text" = %s))'
+        )
+
+    def test_postgres_only_empty_groups(self):
+        f = CompoundFilter(
+            type="or",
+            filters=[CompoundFilter(type="and", filters=[])],
+        )
+        clause, params = PostgresFilterTranslator("t").translate(f)
+        assert clause.as_string(None) == ""
+        assert params == []
