@@ -1,7 +1,7 @@
 import logging
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Any, Callable, List, Optional, cast
+from typing import Any, Callable, List, Optional, Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -488,6 +488,94 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         self._delete_openlineage_for_object(request.name, request.project, "dataSource")
         return Empty()
+
+    def ValidateDataSource(
+        self, request: RegistryServer_pb2.ValidateDataSourceRequest, context
+    ):
+        from datetime import datetime, timezone
+
+        # Authorization mirrors GetDataSource: DESCRIBE on the data source.
+        data_source = cast(
+            DataSource,
+            assert_permissions(
+                resource=self.proxied_registry.get_data_source(
+                    name=request.name,
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+        )
+
+        tested_at = datetime.now(timezone.utc).isoformat()
+
+        def _response(status: str, message: str, columns=None):
+            return RegistryServer_pb2.ValidateDataSourceResponse(
+                name=request.name,
+                project=request.project,
+                status=status,
+                message=message,
+                tested_at=tested_at,
+                columns=[
+                    RegistryServer_pb2.ValidateDataSourceColumn(
+                        name=col_name, type=col_type
+                    )
+                    for col_name, col_type in (columns or [])
+                ],
+            )
+
+        if self.store is None or getattr(self.store, "config", None) is None:
+            return _response(
+                "unavailable",
+                "Connection testing is not available on this registry server "
+                "(no offline store configuration).",
+            )
+
+        config = self.store.config
+
+        # Prefer a real column probe (which connects to the source); fall back
+        # to validate(); treat unimplemented probes as "not applicable".
+        try:
+            columns = [
+                (col_name, col_type)
+                for col_name, col_type in data_source.get_table_column_names_and_types(
+                    config
+                )
+            ]
+            return _response(
+                "success",
+                f"Connection succeeded. Retrieved schema with {len(columns)} "
+                f"column{'' if len(columns) == 1 else 's'}.",
+                columns=columns,
+            )
+        except NotImplementedError:
+            pass
+        except Exception as e:
+            logger.warning(
+                "Connection test failed for data source '%s' in project '%s': %s",
+                request.name,
+                request.project,
+                e,
+            )
+            return _response("failed", str(e))
+
+        try:
+            data_source.validate(config)
+            return _response("success", "Data source validated successfully.")
+        except NotImplementedError:
+            return _response(
+                "not_applicable",
+                "This source type has no external connection to test "
+                "(for example request or push sources).",
+            )
+        except Exception as e:
+            logger.warning(
+                "Validation failed for data source '%s' in project '%s': %s",
+                request.name,
+                request.project,
+                e,
+            )
+            return _response("failed", str(e))
 
     def GetFeatureView(
         self, request: RegistryServer_pb2.GetFeatureViewRequest, context
@@ -1114,6 +1202,86 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 pass
         return features, list(join_keys)
 
+    def _validate_saved_dataset_destination(
+        self, storage_type: str, storage_path: str, project: str
+    ) -> str:
+        import os
+        from urllib.parse import urlparse
+
+        from feast.dataset_utils import build_saved_dataset_storage
+        from feast.infra.offline_stores.file_source import (
+            FileSource,
+            SavedDatasetFileStorage,
+        )
+
+        path = (storage_path or "").strip()
+        if not path:
+            raise ValueError("storage_path must be provided.")
+
+        if not is_auth_necessary(get_security_manager()):
+            return path
+
+        repo_path = (
+            getattr(self.store.config, "repo_path", None) if self.store else None
+        )
+
+        def _norm_fs(uri: str) -> str:
+            parsed = urlparse(uri)
+            if parsed.scheme and parsed.netloc:
+                return uri
+            return os.path.realpath(
+                FileSource.get_uri_for_file_path(repo_path=repo_path, uri=uri)
+            )
+
+        registered_paths: set = set()
+        registered_tables: set = set()
+        for ds in self.proxied_registry.list_data_sources(
+            project=project, allow_cache=True
+        ):
+            ds_path = getattr(ds, "path", None) or getattr(
+                getattr(ds, "file_options", None), "uri", None
+            )
+            if ds_path:
+                registered_paths.add(_norm_fs(ds_path))
+            ds_table = getattr(ds, "table", None)
+            if ds_table:
+                registered_tables.add(str(ds_table))
+
+        storage = build_saved_dataset_storage(storage_type, path)
+        if isinstance(storage, SavedDatasetFileStorage):
+            parsed = urlparse(path)
+            if parsed.scheme and parsed.netloc:
+                if path in registered_paths or _norm_fs(path) in registered_paths:
+                    raise ValueError(
+                        "storage_path must not overwrite a registered data source."
+                    )
+                return path
+            resolved = os.path.realpath(
+                FileSource.get_uri_for_file_path(repo_path=repo_path, uri=path)
+            )
+            if repo_path is not None:
+                repo_real = os.path.realpath(str(repo_path))
+                try:
+                    inside = os.path.commonpath([resolved, repo_real]) == repo_real
+                except ValueError:
+                    inside = False
+                if not inside:
+                    raise ValueError(
+                        "storage_path must resolve to a location inside the "
+                        "feature repository directory."
+                    )
+            if resolved in registered_paths:
+                raise ValueError(
+                    "storage_path must not overwrite a registered data source."
+                )
+            return resolved
+
+        if path in registered_tables:
+            raise ValueError(
+                "storage_path must not overwrite a registered data source table."
+            )
+        return path
+
     def CreateDatasetFromRetrieval(
         self,
         request: RegistryServer_pb2.CreateDatasetFromRetrievalRequest,
@@ -1121,6 +1289,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     ):
         import pandas as pd
 
+        from feast import utils
         from feast.dataset_job_manager import DatasetJob, get_dataset_job_manager
         from feast.dataset_utils import (
             build_entity_df_from_inline,
@@ -1137,7 +1306,11 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             join_keys=[],
             storage=SavedDatasetFileStorage(path=""),
         )
-        assert_permissions(resource=dummy_dataset, actions=[AuthzedAction.CREATE])
+        assert_permissions_to_update(
+            resource=dummy_dataset,
+            getter=self.proxied_registry.get_saved_dataset,
+            project=request.project,
+        )
 
         store = self.store
         job_manager = get_dataset_job_manager()
@@ -1157,6 +1330,35 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         storage_path = request.storage_path
         tags = dict(request.tags) if request.tags else {}
         allow_overwrite = request.allow_overwrite
+
+        requested_features: Union[List[str], FeatureService] = (
+            self.proxied_registry.get_feature_service(
+                feature_service_name, project, allow_cache=True
+            )
+            if feature_service_name
+            else (features_list or [])
+        )
+        fvs_to_read, odfvs_to_read = utils._get_feature_views_to_use(
+            self.proxied_registry,
+            project,
+            requested_features,
+            allow_cache=True,
+            hide_dummy_entity=False,
+        )
+        for fv_to_read in fvs_to_read:
+            assert_permissions(
+                resource=fv_to_read, actions=[AuthzedAction.READ_OFFLINE]
+            )
+        for odfv_to_read in odfvs_to_read:
+            assert_permissions(
+                resource=odfv_to_read, actions=[AuthzedAction.READ_OFFLINE]
+            )
+
+        safe_storage_path = self._validate_saved_dataset_destination(
+            storage_type=storage_type,
+            storage_path=storage_path,
+            project=project,
+        )
 
         def _execute_create(job: DatasetJob):
             token = store.set_current_project(project)
@@ -1190,9 +1392,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     if feature_service_name
                     else features_list
                 )
-                storage = build_saved_dataset_storage(
-                    storage_type, storage_path.strip()
-                )
+                storage = build_saved_dataset_storage(storage_type, safe_storage_path)
 
                 store.create_dataset_from_retrieval(
                     name=dataset_name,
