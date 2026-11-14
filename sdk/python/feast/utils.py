@@ -507,9 +507,16 @@ def _columns_to_proto_values(
     result: Dict[str, List[ValueProto]] = {}
     for column, value_type in columns:
         if column in table.column_names:
-            result[column] = python_values_to_proto_values(
-                table.column(column).to_numpy(zero_copy_only=False), value_type
+            array = table.column(column)
+            # to_numpy() turns a timestamp column into numpy.datetime64 and drops the
+            # column's time zone, which ZONED_TIMESTAMP stores; to_pylist() keeps
+            # tz-aware datetime values.
+            values = (
+                array.to_pylist()
+                if value_type == ValueType.ZONED_TIMESTAMP
+                else array.to_numpy(zero_copy_only=False)
             )
+            result[column] = python_values_to_proto_values(values, value_type)
         elif not allow_missing:
             raise ValueError(f"Column {column} not found in table")
     return result
