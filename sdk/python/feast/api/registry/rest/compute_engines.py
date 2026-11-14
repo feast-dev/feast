@@ -122,6 +122,9 @@ def get_compute_engine_router(grpc_handler, store=None) -> APIRouter:
             "hasOverride": batch_engine is not None,
             "overrides": batch_engine,
             "materializationIntervals": intervals,
+            # Lifecycle state name, e.g. "MATERIALIZING" while a run is in
+            # progress. None when unset (STATE_UNSPECIFIED is omitted).
+            "state": meta.get("state"),
         }
 
     @router.get("/compute_engines")
