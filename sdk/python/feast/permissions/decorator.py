@@ -27,7 +27,7 @@ def require_permissions(actions: Union[list[AuthzedAction], AuthzedAction]):
                     f"The first argument is not of a managed type but {type(resource)}"
                 )
 
-            return assert_permissions(
+            assert_permissions(
                 resource=resource,
                 actions=actions,
             )
