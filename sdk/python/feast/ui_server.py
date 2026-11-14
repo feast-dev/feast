@@ -117,7 +117,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     auth_cfg = store.config.auth_config
     dependencies = []
     if auth_cfg and auth_cfg.type != "no_auth":
-        from feast.permissions.server.rest import inject_user_details
+        from feast.permissions.server.rest import build_auth_dependency
 
         auth_type = str_to_auth_manager_type(auth_cfg.type)
         init_security_manager(auth_type=auth_type, fs=store)
@@ -126,7 +126,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
             server_type=ServerType.REST,
             auth_config=auth_cfg,
         )
-        dependencies.append(Depends(inject_user_details))
+        dependencies.append(Depends(build_auth_dependency(scope_to_query_project=True)))
 
     rest_app = FastAPI(root_path="/api/v1", dependencies=dependencies)
 

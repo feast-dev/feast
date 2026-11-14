@@ -15,7 +15,7 @@ from feast.errors import (
     PushSourceNotFoundException,
 )
 from feast.permissions.auth.auth_manager import get_auth_manager
-from feast.permissions.server.rest import inject_user_details
+from feast.permissions.server.rest import build_auth_dependency
 from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
@@ -57,7 +57,7 @@ class RestRegistryServer:
         self.app = FastAPI(
             title="Feast REST Registry Server",
             description="Feast REST Registry Server",
-            dependencies=[Depends(inject_user_details)],
+            dependencies=[Depends(build_auth_dependency(scope_to_query_project=True))],
             version="1.0.0",
             openapi_url="/openapi.json",
             root_path="/api/v1",
