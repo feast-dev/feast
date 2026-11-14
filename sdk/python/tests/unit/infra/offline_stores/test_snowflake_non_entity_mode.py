@@ -92,7 +92,7 @@ def repo_config():
             type="snowflake.offline",
             account="snow",
             user="snow",
-            password="snow",
+            password="snow",  # pragma: allowlist secret
             role="snow",
             warehouse="snow",
             database="FEAST",
