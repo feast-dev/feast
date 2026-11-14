@@ -393,18 +393,25 @@ class SqliteOnlineStore(OnlineStore):
             )
             for entity_key in entity_keys
         ]
-        # Fetch all entities in one go
-        cur.execute(
-            f"SELECT entity_key, feature_name, value, event_ts "
-            f"FROM {_quote_id(_table_id(config.project, table, config.registry.enable_online_feature_view_versioning))} "
-            f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
-            f"ORDER BY entity_key",
-            serialized_entity_keys,
+        table_name = _table_id(
+            config.project, table, config.registry.enable_online_feature_view_versioning
         )
-        rows = cur.fetchall()
-        rows = {
-            k: list(group) for k, group in itertools.groupby(rows, key=lambda r: r[0])
-        }
+        # Every key is a bound variable, and SQLite rejects a statement with more
+        # than SQLITE_LIMIT_VARIABLE_NUMBER of them, so look keys up in batches.
+        batch_size = max(1, conn.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER))
+        unique_keys = list(dict.fromkeys(serialized_entity_keys))
+        rows: Dict[bytes, List[Any]] = {}
+        for start in range(0, len(unique_keys), batch_size):
+            batch = unique_keys[start : start + batch_size]
+            cur.execute(
+                f"SELECT entity_key, feature_name, value, event_ts "
+                f"FROM {_quote_id(table_name)} "
+                f"WHERE entity_key IN ({','.join('?' * len(batch))}) "
+                f"ORDER BY entity_key",
+                batch,
+            )
+            for k, group in itertools.groupby(cur.fetchall(), key=lambda r: r[0]):
+                rows[k] = list(group)
         for entity_key_bin in serialized_entity_keys:
             res = {}
             res_ts = None
