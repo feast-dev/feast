@@ -185,7 +185,7 @@ def test_write_to_offline_store_resolves_feature_view_with_single_lookup():
     provider.ingest_df_to_offline_store.assert_called_once()
 
 
-def test_write_to_offline_store_does_not_write_the_dataframe_index():
+def test_write_to_offline_store_does_not_write_the_dataframe_index() -> None:
     """A dataframe with a non-default index, such as one left by filtering rows,
     must reach the offline store with only the batch source columns, not an
     extra ``__index_level_0__`` column for its index."""
