@@ -1699,12 +1699,13 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
             "list<element: bytes>": ValueType.BYTES_LIST,
             "list<element: float>": ValueType.FLOAT_LIST,
         }
-        value_type = type_map.get(pa_type_as_str)
-        if value_type is None:
+        mapped_value_type = type_map.get(pa_type_as_str)
+        if mapped_value_type is None:
             raise ValueError(
                 f"Feast cannot infer a value type for the Arrow type '{pa_type_as_str}'. "
                 "Declare the feature view schema explicitly, or extend the Arrow type mapping."
             )
+        value_type = mapped_value_type
 
     if is_list:
         value_type = ValueType[value_type.name + "_LIST"]
