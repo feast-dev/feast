@@ -30,6 +30,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.utils import make_tzaware
 
 
 def read_mlflow_data_source(data_source: DataSource) -> Optional[Table]:
@@ -196,6 +197,95 @@ def _generate_row_id(
     )
 
     return entity_table
+
+
+def build_entity_df_for_date_range_ibis(
+    config: RepoConfig,
+    feature_views: List[FeatureView],
+    start_date: datetime,
+    end_date: datetime,
+    data_source_reader: Callable[[DataSource, str], Table],
+    event_timestamp_col: str = offline_utils.DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+) -> pd.DataFrame:
+    """Build the entity dataframe that stands in for entity_df in non-entity mode.
+
+    It holds the distinct join keys of every feature view with entities whose source
+    has events between start_date and end_date, with NULL for the join keys a feature
+    view does not have, and end_date as the event timestamp of every row, so each
+    entity gets its latest feature values within the TTL. Feature views without
+    entities join on the timestamp alone, so they do not contribute rows. When no
+    feature view has entities, the dataframe is a single row holding end_date.
+
+    The keys are collected in one query, so data_source_reader must read every
+    source from the same backend.
+    """
+    start_date = make_tzaware(start_date).astimezone(tz=timezone.utc)
+    end_date = make_tzaware(end_date).astimezone(tz=timezone.utc)
+    start_literal = ibis.literal(start_date.replace(tzinfo=None))
+    end_literal = ibis.literal(end_date.replace(tzinfo=None))
+
+    key_tables: List[Table] = []
+    for feature_view in feature_views:
+        join_key_map = {
+            column.name: feature_view.projection.join_key_map.get(
+                column.name, column.name
+            )
+            for column in feature_view.entity_columns
+        }
+        if not join_key_map:
+            continue
+        if feature_view.batch_source is None:
+            raise ValueError(
+                f"Feature view '{feature_view.name}' has no batch_source and cannot be queried."
+            )
+
+        table = data_source_reader(feature_view.batch_source, str(config.repo_path))
+        for old_name, new_name in feature_view.batch_source.field_mapping.items():
+            if old_name in table.columns:
+                table = table.rename({new_name: old_name})
+
+        timestamp = _comparable_timestamp(
+            table[feature_view.batch_source.timestamp_field]
+        )
+        table = table.filter(timestamp >= start_literal, timestamp <= end_literal)
+        key_tables.append(
+            table.select(
+                **{
+                    entity_column: table[join_key]
+                    for join_key, entity_column in join_key_map.items()
+                }
+            )
+        )
+
+    if not key_tables:
+        return pd.DataFrame({event_timestamp_col: [pd.Timestamp(end_date)]})
+
+    # A union needs the same columns and types in every table, so each key table
+    # gets every join key, cast to the type of its first occurrence or NULL.
+    join_key_types: Dict[str, dt.DataType] = {}
+    for key_table in key_tables:
+        for column, column_type in key_table.schema().items():
+            join_key_types.setdefault(column, column_type)
+
+    entity_table = ibis.union(
+        *[
+            key_table.select(
+                **{
+                    column: key_table[column].cast(column_type)
+                    if column in key_table.columns
+                    else ibis.null(column_type)
+                    for column, column_type in join_key_types.items()
+                }
+            )
+            for key_table in key_tables
+        ]
+    ).distinct()
+
+    entity_df = entity_table.execute()
+    entity_df[event_timestamp_col] = pd.Series(
+        pd.Timestamp(end_date), index=entity_df.index, dtype="datetime64[ns, UTC]"
+    )
+    return entity_df
 
 
 def get_historical_features_ibis(

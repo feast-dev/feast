@@ -16,6 +16,7 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source i
     MsSqlServerSource,
 )
 from feast.infra.offline_stores.ibis import (
+    build_entity_df_for_date_range_ibis,
     get_historical_features_ibis,
     offline_write_batch_ibis,
     pull_all_from_table_or_query_ibis,
@@ -25,6 +26,7 @@ from feast.infra.offline_stores.ibis import (
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.utils import compute_non_entity_date_range
 
 
 def get_ibis_connection(config: RepoConfig):
@@ -79,7 +81,7 @@ def get_table_column_names_and_types(
 def _build_data_source_reader(config: RepoConfig):
     con = get_ibis_connection(config)
 
-    def _read_data_source(data_source: DataSource) -> Table:
+    def _read_data_source(data_source: DataSource, repo_path: str = "") -> Table:
         assert isinstance(data_source, MsSqlServerSource)
         return con.table(data_source.table_ref)
 
@@ -92,6 +94,7 @@ def _build_data_source_writer(config: RepoConfig):
     def _write_data_source(
         table: Table,
         data_source: DataSource,
+        repo_path: str = "",
         mode: str = "append",
         allow_overwrite: bool = False,
     ):
@@ -149,14 +152,30 @@ class MsSqlServerOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
         filter_by_created_timestamp: bool = False,
+        **kwargs: Any,
     ) -> RetrievalJob:
+        if entity_df is None:
+            # Non-entity mode: join every entity key with an event in the time
+            # range as of end_date, so it gets its latest values within the TTL.
+            start_date, end_date = compute_non_entity_date_range(
+                feature_views,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
+            entity_df = build_entity_df_for_date_range_ibis(
+                config=config,
+                feature_views=feature_views,
+                start_date=start_date,
+                end_date=end_date,
+                data_source_reader=_build_data_source_reader(config),
+            )
         # TODO avoid this conversion
-        if type(entity_df) == str:
+        elif type(entity_df) == str:
             con = get_ibis_connection(config)
             entity_df = con.sql(entity_df).execute()
 
