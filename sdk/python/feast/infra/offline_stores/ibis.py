@@ -261,11 +261,16 @@ def build_entity_df_for_date_range_ibis(
         return pd.DataFrame({event_timestamp_col: [pd.Timestamp(end_date)]})
 
     # A union needs the same columns and types in every table, so each key table
-    # gets every join key, cast to the type of its first occurrence or NULL.
-    join_key_types: Dict[str, dt.DataType] = {}
+    # gets every join key, cast to the common type of all its occurrences or NULL,
+    # so the result does not depend on the order of the feature views.
+    key_types: Dict[str, List[dt.DataType]] = {}
     for key_table in key_tables:
         for column, column_type in key_table.schema().items():
-            join_key_types.setdefault(column, column_type)
+            key_types.setdefault(column, []).append(column_type)
+    join_key_types: Dict[str, dt.DataType] = {
+        column: dt.highest_precedence(column_types)
+        for column, column_types in key_types.items()
+    }
 
     entity_table = ibis.union(
         *[

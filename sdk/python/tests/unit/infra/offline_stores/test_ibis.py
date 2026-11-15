@@ -442,6 +442,40 @@ def test_build_entity_df_for_date_range_unions_join_keys_of_different_types():
     assert sorted(entity_df["driver_id"]) == [1, 2, 3]
 
 
+def test_build_entity_df_for_date_range_widens_join_key_types_regardless_of_order():
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    driver_fv = _date_range_feature_view(
+        "driver_stats", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    trips_fv = _date_range_feature_view(
+        "driver_trips", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    timestamps = pd.to_datetime(["2024-01-02", "2024-01-03"], utc=True)
+    tables = {
+        "driver_stats": pd.DataFrame(
+            {
+                "driver_id": pd.Series([1, 2], dtype="int32"),
+                "event_timestamp": timestamps,
+            }
+        ),
+        "driver_trips": pd.DataFrame(
+            {
+                "driver_id": pd.Series([2, 3_000_000_000], dtype="int64"),
+                "event_timestamp": timestamps,
+            }
+        ),
+    }
+
+    entity_df = _build_entity_df_for_date_range(
+        [driver_fv, trips_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+    )
+
+    assert sorted(entity_df["driver_id"]) == [1, 2, 3_000_000_000]
+
+
 def test_build_entity_df_for_date_range_without_entities_is_one_row_at_end_date():
     """Feature views without entities join on the timestamp alone and add no rows."""
     global_fv = _date_range_feature_view(
