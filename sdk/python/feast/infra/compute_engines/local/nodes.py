@@ -82,17 +82,21 @@ class LocalJoinNode(LocalNode):
 
         # Convert all upstream ArrowTables to backend DataFrames
         joined_df = self.backend.from_arrow(input_values[0].data)
+        # Upstream views that were already joined with entity_df carry one
+        # row per entity row; keep those rows apart and do not join again.
+        already_joined = ENTITY_TS_ALIAS in self.backend.columns(joined_df)
+        input_join_keys = [*join_keys, ENTITY_TS_ALIAS] if already_joined else join_keys
         for val in input_values[1:]:
             next_df = self.backend.from_arrow(val.data)
             joined_df = self.backend.join(
                 joined_df,
                 next_df,
-                on=join_keys,
+                on=input_join_keys,
                 how=self.how,
             )
 
         # If entity_df is provided, join it in last
-        if context.entity_df is not None:
+        if context.entity_df is not None and not already_joined:
             entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
 
             entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
@@ -178,7 +182,11 @@ class LocalAggregationNode(LocalNode):
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
-        grouped_df = self.backend.groupby_agg(df, self.group_keys, self.agg_ops)
+        group_keys = list(self.group_keys)
+        # Aggregate per entity row after the entity_df join.
+        if ENTITY_TS_ALIAS in self.backend.columns(df):
+            group_keys.append(ENTITY_TS_ALIAS)
+        grouped_df = self.backend.groupby_agg(df, group_keys, self.agg_ops)
         result = self.backend.to_arrow(grouped_df)
         output = ArrowTableValue(result)
         return output
@@ -201,8 +209,12 @@ class LocalDedupNode(LocalNode):
         # Dedup strategy: sort and drop_duplicates. Use the mapped join key
         # names so we look up the columns that the source-read node has
         # already renamed (see issue #5942).
-        dedup_keys = self.column_info.join_keys_columns
+        dedup_keys = list(self.column_info.join_keys_columns)
         if dedup_keys:
+            # Keep one row per entity row, not per entity key, after the
+            # entity_df join.
+            if ENTITY_TS_ALIAS in self.backend.columns(df):
+                dedup_keys.append(ENTITY_TS_ALIAS)
             sort_keys = [self.column_info.timestamp_column]
             if (
                 self.column_info.created_timestamp_column
