@@ -510,10 +510,14 @@ def _columns_to_proto_values(
             array = table.column(column)
             # to_numpy() turns a timestamp column into numpy.datetime64 and drops the
             # column's time zone, which ZONED_TIMESTAMP stores; to_pylist() keeps
-            # tz-aware datetime values.
+            # tz-aware datetime values. It also turns an integer column that has nulls
+            # into float64, which rounds values above 2**53; to_pylist() keeps them exact.
+            keep_python_values = value_type == ValueType.ZONED_TIMESTAMP or (
+                array.null_count > 0 and pyarrow.types.is_integer(array.type)
+            )
             values = (
                 array.to_pylist()
-                if value_type == ValueType.ZONED_TIMESTAMP
+                if keep_python_values
                 else array.to_numpy(zero_copy_only=False)
             )
             result[column] = python_values_to_proto_values(values, value_type)
