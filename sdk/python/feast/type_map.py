@@ -88,7 +88,28 @@ def _zone_name(tzinfo: Optional[Any]) -> str:
         return key
     name = str(tzinfo)
     # zoneinfo prints as the key; pytz prints the name; offsets print as "UTC-07:00"
+    if not _is_readable_zone_name(name):
+        # pytz and dateutil fixed offsets print as "pytz.FixedOffset(330)" or
+        # "tzoffset(None, 19800)", which _zone_from_name can't read back. pyarrow
+        # returns pytz offsets for an offset-zoned timestamp column, so store the
+        # offset the way datetime.timezone prints it ("UTC+05:30").
+        offset = tzinfo.utcoffset(None)
+        if offset is not None:
+            return str(timezone(offset))
     return name
+
+
+def _is_readable_zone_name(zone: str) -> bool:
+    """Whether ``_zone_from_name`` resolves ``zone`` instead of falling back to UTC."""
+    if _fixed_offset_from_name(zone) is not None:
+        return True
+    try:
+        from zoneinfo import ZoneInfo
+
+        ZoneInfo(zone)
+        return True
+    except Exception:
+        return False
 
 
 def _zone_from_name(zone: str):

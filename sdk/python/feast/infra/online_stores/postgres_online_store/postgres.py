@@ -164,8 +164,12 @@ class PostgresFilterTranslator(FilterTranslator):
         all_params: List[Any] = []
         for sub in f.filters:
             sub_clause, sub_params = self._dispatch(sub)
+            if sub_clause == sql.SQL(""):
+                continue
             parts.append(sub_clause)
             all_params.extend(sub_params)
+        if not parts:
+            return sql.SQL(""), []
         joiner = sql.SQL(" AND " if f.type == "and" else " OR ")
         combined = sql.SQL("(") + joiner.join(parts) + sql.SQL(")")
         return combined, all_params
