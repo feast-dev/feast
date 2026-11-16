@@ -118,6 +118,7 @@ The operator enforces the following rules:
 - `spec.replicas > 1` and `services.scaling.autoscaling` are **mutually exclusive** -- you cannot set both.
 - Scaling with `replicas > 1` or any `autoscaling` config is **rejected** if any enabled service uses file-based persistence.
 - S3 (`s3://`) and GCS (`gs://`) backed registry file persistence is allowed with scaling, since these object stores support concurrent readers.
+- The online store is deployed with file-based defaults when `services.onlineStore` is omitted, so it counts as an enabled service. Set `services.onlineStore.disabled: true` to scale a FeatureStore that runs only the registry, offline store, or UI.
 
 #### High Availability
 
