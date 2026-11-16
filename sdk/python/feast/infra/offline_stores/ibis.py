@@ -235,12 +235,7 @@ def build_entity_df_for_date_range_ibis(
 
     key_tables: List[Table] = []
     for feature_view in feature_views:
-        join_key_map = {
-            column.name: feature_view.projection.join_key_map.get(
-                column.name, column.name
-            )
-            for column in feature_view.entity_columns
-        }
+        join_key_map = _join_key_map(feature_view)
         if not join_key_map:
             continue
         if feature_view.batch_source is None:

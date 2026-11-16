@@ -69,6 +69,22 @@ global_fv = FeatureView(
     ),
 )
 
+pair_fv = FeatureView(
+    name="pair_stats",
+    entities=[driver, customer],
+    ttl=timedelta(days=5),
+    schema=[
+        Field(name="driver_id", dtype=Int64),
+        Field(name="customer_id", dtype=Int64),
+        Field(name="rating", dtype=Float32),
+    ],
+    source=MsSqlServerSource(
+        name="pair_source",
+        table_ref="pair_stats",
+        event_timestamp_column="event_timestamp",
+    ),
+)
+
 
 def _utc(*timestamps):
     return pd.to_datetime(list(timestamps), utc=True)
@@ -109,6 +125,14 @@ def connection():
                 "cust": [10, 20],
                 "event_timestamp": _utc("2025-07-08", "2025-07-11"),
                 "spend": [100.0, 200.0],
+            }
+        ),
+        "pair_stats": pd.DataFrame(
+            {
+                "driver_id": [1, 1],
+                "customer_id": [10, 20],
+                "event_timestamp": _utc("2025-07-08", "2025-07-09"),
+                "rating": [1.0, 2.0],
             }
         ),
         "global_stats": pd.DataFrame(
@@ -258,3 +282,18 @@ def test_entity_df_mode_is_unchanged(repo_config, connection):
     ).to_df()
 
     assert _rows(df, ["driver_id", "conv_rate"]) == [(3, 0.4)]
+
+
+def test_partial_join_key_map_keeps_unmapped_keys(repo_config, connection):
+    df = _get_historical_features(
+        repo_config,
+        [pair_fv.with_join_key_map({"driver_id": "origin_id"})],
+        ["pair_stats:rating"],
+        start_date=START,
+        end_date=END,
+    ).to_df()
+
+    assert _rows(df, ["origin_id", "customer_id", "rating"]) == [
+        (1, 10, 1.0),
+        (1, 20, 2.0),
+    ]
