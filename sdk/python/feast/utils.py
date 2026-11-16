@@ -576,9 +576,15 @@ def _convert_arrow_fv_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_fv_to_proto(batch, feature_view, join_keys)
+        ]
 
     if feature_view.batch_source is None:
         raise ValueError(
@@ -634,9 +640,15 @@ def _convert_arrow_odfv_to_proto(
     feature_view: "OnDemandFeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_odfv_to_proto(batch, feature_view, join_keys)
+        ]
 
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
