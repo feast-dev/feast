@@ -239,6 +239,91 @@ def test_point_in_time_join_keeps_entity_rows_apart():
     assert rows == {"1": (1.0, 110.0), "11": (11.0, 10.0), "7": (7.0, None)}
 
 
+def test_point_in_time_join_keeps_features_whose_name_ends_in_y():
+    """A feature named like "pos_y" is returned, not dropped with the "_y"
+    copies of the entity columns that the join renames."""
+    entity_table = pa.table(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [pa_datetime(2024, 1, 3)] * 2,
+        }
+    )
+    positions = pa.table(
+        {
+            "driver_id": [1, 1, 2],
+            "event_timestamp": [
+                pa_datetime(2024, 1, 1),
+                pa_datetime(2024, 1, 2),
+                pa_datetime(2024, 1, 1),
+            ],
+            "created": [
+                pa_datetime(2024, 1, 1),
+                pa_datetime(2024, 1, 2),
+                pa_datetime(2024, 1, 1),
+            ],
+            "pos_x": [1.0, 2.0, 3.0],
+            "pos_y": [10.0, 20.0, 30.0],
+        }
+    )
+
+    actual = point_in_time_join(
+        ibis.memtable(entity_table),
+        feature_tables=[
+            (
+                ibis.memtable(positions),
+                "event_timestamp",
+                "created",
+                {"driver_id": "driver_id"},
+                ["pos_x", "pos_y"],
+                timedelta(days=10),
+            )
+        ],
+    ).to_pyarrow()
+
+    rows = {
+        row["driver_id"]: (row["pos_x"], row["pos_y"]) for row in actual.to_pylist()
+    }
+    assert rows == {1: (2.0, 20.0), 2: (3.0, 30.0)}
+
+
+def test_point_in_time_join_allows_columns_named_like_the_y_copies():
+    """Feature-table columns named like the "_y" copies the join makes of
+    clashing entity columns ("driver_id_y", "event_timestamp_y") do not clash
+    with them, whether they are requested or not."""
+    entity_table = pa.table(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [pa_datetime(2024, 1, 3)] * 2,
+        }
+    )
+    features = pa.table(
+        {
+            "driver_id": [1, 2],
+            "event_timestamp": [pa_datetime(2024, 1, 1)] * 2,
+            "created": [pa_datetime(2024, 1, 1)] * 2,
+            "driver_id_y": [10.0, 20.0],
+            "event_timestamp_y": [pa_datetime(2023, 1, 1)] * 2,
+        }
+    )
+
+    actual = point_in_time_join(
+        ibis.memtable(entity_table),
+        feature_tables=[
+            (
+                ibis.memtable(features),
+                "event_timestamp",
+                "created",
+                {"driver_id": "driver_id"},
+                ["driver_id_y"],
+                timedelta(days=10),
+            )
+        ],
+    ).to_pyarrow()
+
+    rows = {row["driver_id"]: row["driver_id_y"] for row in actual.to_pylist()}
+    assert rows == {1: 10.0, 2: 20.0}
+
+
 @pytest.mark.parametrize(
     "dtype",
     ["datetime64[ns, UTC]", "datetime64[us, UTC]", "datetime64[ns]", "datetime64[us]"],
