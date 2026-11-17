@@ -71,9 +71,21 @@ jobs:
           kubectl config use-context kind-$KIND_CLUSTER
           echo "kind context is switched to cluster kind-$KIND_CLUSTER"
 
+      - name: Configure AWS credentials for S3 registry e2e
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
       - name: Run E2E tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
-          # Run the e2e tests
+          # Run the e2e tests (includes S3 registry FeatureStore when AWS_* env is set)
           cd infra/feast-operator/
           make test-e2e
 

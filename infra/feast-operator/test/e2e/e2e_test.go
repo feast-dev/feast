@@ -35,9 +35,11 @@ var _ = Describe("controller", Ordered, func() {
 		feastResourceName + "-ui",
 	}
 	namespace := "test-ns-feast"
+	s3Namespace := "test-ns-feast-s3"
 	defaultFeatureStoreCRTest := "TesDefaultFeastCR"
 	remoteRegistryFeatureStoreCRTest := "TestRemoteRegistryFeastCR"
 	applyAndMaterializeTest := "TestApplyAndMaterializeFeastDefinitions"
+	s3RegistryTest := "TestS3RegistryFeatureStore"
 
 	runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/e2e",
 		"test/testdata/feast_integration_test_crs/v1_default_featurestore.yaml",
@@ -50,6 +52,13 @@ var _ = Describe("controller", Ordered, func() {
 
 	runTestApplyAndMaterializeFunc := utils.RunTestApplyAndMaterializeFunc("/test/e2e", namespace, "credit-scoring", utils.FeastPrefix+"credit-scoring")
 
+	runTestS3RegistryFunc := utils.RunTestS3RegistryFunc(
+		"/test/e2e",
+		s3Namespace,
+		"test-s3",
+		"test/testdata/feast_integration_test_crs/feast_s3.yaml",
+	)
+
 	BeforeAll(func() {
 		if !isRunOnOpenShiftCI {
 			utils.DeployOperatorFromCode("/test/e2e", false)
@@ -57,6 +66,10 @@ var _ = Describe("controller", Ordered, func() {
 		By(fmt.Sprintf("Creating test namespace: %s", namespace))
 		err := utils.CreateNamespace(namespace, "/test/e2e")
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create namespace %s", namespace))
+
+		By(fmt.Sprintf("Creating S3 registry test namespace: %s", s3Namespace))
+		err = utils.CreateNamespace(s3Namespace, "/test/e2e")
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create namespace %s", s3Namespace))
 	})
 
 	AfterAll(func() {
@@ -66,11 +79,16 @@ var _ = Describe("controller", Ordered, func() {
 		By(fmt.Sprintf("Deleting test namespace: %s", namespace))
 		err := utils.DeleteNamespace(namespace, "/test/e2e")
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to delete namespace %s", namespace))
+
+		By(fmt.Sprintf("Deleting S3 registry test namespace: %s", s3Namespace))
+		err = utils.DeleteNamespace(s3Namespace, "/test/e2e")
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to delete namespace %s", s3Namespace))
 	})
 
 	Context("Operator E2E Tests", func() {
 		It("Should be able to deploy and run a "+defaultFeatureStoreCRTest+" successfully", runTestDeploySimpleCRFunc)
 		It("Should be able to deploy and run a "+remoteRegistryFeatureStoreCRTest+"  successfully", runTestWithRemoteRegistryFunction)
 		It("Should be able to apply and run a "+applyAndMaterializeTest+" materialize feature store definitions using CronJob successfully", runTestApplyAndMaterializeFunc)
+		It("Should be able to deploy and run a "+s3RegistryTest+" with S3-backed registry apply/materialize successfully", runTestS3RegistryFunc)
 	})
 })

@@ -771,3 +771,151 @@ func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentNa
 	By("Verifying client feature_store.yaml for expected store types")
 	validateFeatureStoreYaml(namespace, feastDeploymentName)
 }
+
+// RequireFeastS3Env fails the current Ginkgo spec with a clear message when any
+// AWS env var required by feast_s3.yaml is unset or whitespace-only.
+func RequireFeastS3Env() {
+	missing := missingFeastS3EnvVars()
+	Expect(missing).To(BeEmpty(),
+		fmt.Sprintf("feast S3 e2e requires non-empty environment variables: %s\n"+
+			"See infra/feast-operator/README.md (S3 registry e2e)",
+			strings.Join(missing, ", ")))
+}
+
+func missingFeastS3EnvVars() []string {
+	required := []string{
+		"AWS_ACCESS_KEY_ID",
+		"AWS_SECRET_ACCESS_KEY",
+		"AWS_DEFAULT_REGION",
+		"AWS_S3_BUCKET",
+	}
+	var missing []string
+	for _, env := range required {
+		if strings.TrimSpace(os.Getenv(env)) == "" {
+			missing = append(missing, env)
+		}
+	}
+	return missing
+}
+
+// substituteFeastS3Credentials replaces ${AWS_ACCESS_KEY_ID}, ${AWS_S3_BUCKET}, etc.
+// from process environment variables. Returns an error if any required variable is
+// unset or whitespace-only so the test fails before kubectl apply.
+func substituteFeastS3Credentials(content string) (string, error) {
+	required := []struct {
+		env, placeholder string
+	}{
+		{"AWS_ACCESS_KEY_ID", "${AWS_ACCESS_KEY_ID}"},
+		{"AWS_SECRET_ACCESS_KEY", "${AWS_SECRET_ACCESS_KEY}"},
+		{"AWS_DEFAULT_REGION", "${AWS_DEFAULT_REGION}"},
+		{"AWS_S3_BUCKET", "${AWS_S3_BUCKET}"},
+	}
+	repl := make(map[string]string, len(required))
+	var missing []string
+	for _, r := range required {
+		v := strings.TrimSpace(os.Getenv(r.env))
+		if v == "" {
+			missing = append(missing, r.env)
+			continue
+		}
+		repl[r.placeholder] = v
+	}
+	if len(missing) > 0 {
+		return "", fmt.Errorf(
+			"feast S3 e2e requires non-empty environment variables: %s",
+			strings.Join(missing, ", "),
+		)
+	}
+	out := content
+	for ph, v := range repl {
+		out = strings.ReplaceAll(out, ph, v)
+	}
+	return out, nil
+}
+
+// ApplyFeastS3YamlAndVerify applies the S3-based FeatureStore manifest (no postgres/redis),
+// waits for deployment FeastPrefix+feastCRName, validates CR Ready and feature_store.yaml
+// for S3 driver_ranking. feastCRName must match FeatureStore metadata.name (e.g. "test-s3").
+func ApplyFeastS3YamlAndVerify(namespace string, testDir string, feastS3YamlPath string, feastCRName string) {
+	By("Applying Feast S3 manifest (secrets + FeatureStore CR)")
+	data, err := os.ReadFile(feastS3YamlPath)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	rendered, err := substituteFeastS3Credentials(string(data))
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	tmp, err := os.CreateTemp("", "feast-s3-rendered-*.yaml")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	tmpPath := tmp.Name()
+	defer func() {
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove temp file %s: %v\n", tmpPath, rmErr)
+		}
+	}()
+	_, err = tmp.WriteString(rendered)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	ExpectWithOffset(1, tmp.Close()).To(Succeed())
+
+	cmd := exec.Command("kubectl", "apply", "-n", namespace, "-f", tmpPath)
+	_, err = Run(cmd, testDir)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	fmt.Printf("Applied rendered Feast S3 manifest to namespace %q\n", namespace)
+
+	feastDeploymentName := FeastPrefix + feastCRName
+	checkDeployment(namespace, feastDeploymentName)
+	ValidateFeatureStoreCRStatus(namespace, feastCRName)
+
+	By("Verifying client feature_store.yaml for S3-backed registry and driver_ranking project")
+	validateFeatureStoreYamlS3(namespace, feastDeploymentName)
+}
+
+func validateFeatureStoreYamlS3(namespace, deployment string) {
+	cmd := exec.Command("kubectl", "exec", "deploy/"+deployment, "-n", namespace, "-c", "online", "--", "cat", "feature_store.yaml")
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), "Failed to read feature_store.yaml")
+
+	content := string(output)
+	Expect(content).To(ContainSubstring("project: driver_ranking"))
+	Expect(content).To(ContainSubstring("s3://"))
+	fmt.Printf("feature_store.yaml in online pod: contains project driver_ranking and s3:// registry path\n")
+}
+
+// VerifyApplyFeatureStoreDefinitionsS3 validates the apply/materialize CronJob for the
+// S3 + driver_ranking FeatureStore.
+func VerifyApplyFeatureStoreDefinitionsS3(namespace string, feastCRName string, feastDeploymentName string) {
+	By("Verify CronJob commands in FeatureStore CR")
+	cmd := exec.Command("kubectl", "get", "-n", namespace, "feast/"+feastCRName, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to fetch CronJob commands:\n%s", output))
+	commands := string(output)
+	fmt.Println("CronJob commands:", commands)
+	Expect(commands).To(ContainSubstring(`feast apply`))
+	Expect(commands).To(ContainSubstring(`feast materialize-incremental $(date -u +'%Y-%m-%dT%H:%M:%S')`))
+
+	CreateAndVerifyJobFromCron(namespace, feastDeploymentName, "feast-test-apply-s3", "", []string{
+		"Applying changes for project driver_ranking",
+		"Materializing",
+	})
+}
+
+// VerifyFeastMethodsForDriverRanking confirms the driver_ranking project is listed after apply.
+func VerifyFeastMethodsForDriverRanking(namespace string, feastDeploymentName string, testDir string) {
+	cmd := exec.Command("kubectl", "exec", "deploy/"+feastDeploymentName, "-n", namespace, "-c", "online", "--",
+		feastCommand, "projects", listCommand)
+	output, err := Run(cmd, testDir)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	fmt.Printf("Command: feast projects list\nOutput:\n%s\n", string(output))
+	VerifyOutputContains(output, []string{"driver_ranking"})
+}
+
+// RunTestS3RegistryFunc returns an e2e function that deploys FeatureStore with an S3
+// registry, runs feast apply + materialize-incremental, and validates driver_ranking.
+func RunTestS3RegistryFunc(testDir string, namespace string, feastCRName string, feastS3YamlPath string) func() {
+	return func() {
+		RequireFeastS3Env()
+		feastDeploymentName := FeastPrefix + feastCRName
+		ApplyFeastS3YamlAndVerify(namespace, testDir, feastS3YamlPath, feastCRName)
+		VerifyApplyFeatureStoreDefinitionsS3(namespace, feastCRName, feastDeploymentName)
+		VerifyFeastMethodsForDriverRanking(namespace, feastDeploymentName, testDir)
+	}
+}

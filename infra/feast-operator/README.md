@@ -176,3 +176,21 @@ make test-e2e
 # delete cluster once you are done.
 kind delete cluster
 ```
+
+### S3 registry e2e (`TestS3RegistryFeatureStore`)
+
+One e2e case applies `test/testdata/feast_integration_test_crs/feast_s3.yaml` (Secret +
+FeatureStore `test-s3`) with an S3 file registry and DynamoDB online store. It fails
+before `kubectl apply` if any of these environment variables are missing or empty:
+
+| Variable | Purpose |
+|----------|---------|
+| `AWS_ACCESS_KEY_ID` | AWS access key injected into `s3-credentials-secret` |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key injected into `s3-credentials-secret` |
+| `AWS_DEFAULT_REGION` | Region for DynamoDB / AWS SDK (e.g. `us-west-2`) |
+| `AWS_S3_BUCKET` | Bucket name used as `s3://${AWS_S3_BUCKET}/feast-test/driver_ranking/registry.pb` |
+
+Export them before `make test-e2e`, or set the matching GitHub Actions secrets
+(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`) for the Operator e2e
+workflow. The IAM principal needs read/write on the registry object prefix and
+DynamoDB access for the `driver_ranking` online store.
