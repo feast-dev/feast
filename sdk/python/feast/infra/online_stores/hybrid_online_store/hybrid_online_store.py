@@ -160,6 +160,14 @@ class HybridOnlineStore(OnlineStore):
         tag_name = getattr(config.online_store, "routing_tag", "tribe")
         return table.tags.get(tag_name)
 
+    def _check_versioned_read_support(self, grouped_refs: List) -> None:
+        """
+        Versioned read support depends on the backend each FeatureView is routed to,
+        which is only known once the repo config is available. The check is
+        therefore delegated to the routed backend in ``online_read``.
+        """
+        return
+
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -234,6 +242,8 @@ class HybridOnlineStore(OnlineStore):
             )
         online_store = self._get_online_store(tribe, config)
         if online_store:
+            if getattr(table.projection, "version_tag", None) is not None:
+                online_store._check_versioned_read_support([(table, None)])
             config = RepoConfig(**self._prepare_repo_conf(config, tribe))
             return online_store.online_read(
                 config, table, entity_keys, requested_features
