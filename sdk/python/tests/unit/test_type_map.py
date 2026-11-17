@@ -748,6 +748,14 @@ class TestMapArrowTypeSupport:
         assert mssql_to_feast_value_type("decimal") == ValueType.DECIMAL
         assert mssql_to_feast_value_type("numeric") == ValueType.DECIMAL
 
+    @pytest.mark.parametrize(
+        "sql_type", ["datetime2", "smalldatetime", "datetime", "date", "datetimeoffset"]
+    )
+    @pytest.mark.parametrize("spelling", [str.lower, str.upper, str.title])
+    def test_mssql_to_feast_value_type_temporal_types(self, sql_type, spelling):
+        """Temporal feature columns must resolve during SQL Server schema inference."""
+        assert mssql_to_feast_value_type(spelling(sql_type)) == ValueType.UNIX_TIMESTAMP
+
     def test_pa_to_mssql_type_unsigned_ints_widen(self):
         """MSSQL integer types are signed, except tinyint (unsigned 0..255),
         which already covers the full uint8 range. uint16/uint32 must widen to
