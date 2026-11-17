@@ -1852,6 +1852,9 @@ class FeatureStore:
             lvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, LabelView)
             ]
+            saved_datasets_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SavedDataset)
+            ]
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1884,6 +1887,10 @@ class FeatureStore:
             for validation_references in validation_references_to_delete:
                 self.registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
+                )
+            for saved_dataset in saved_datasets_to_delete:
+                self.registry.delete_saved_dataset(
+                    saved_dataset.name, project=self.project, commit=False
                 )
             for permission in permissions_to_delete:
                 self.registry.delete_permission(
@@ -2088,7 +2095,7 @@ class FeatureStore:
             )
 
         if entity_df is None and end_date is None:
-            end_date = datetime.now()
+            end_date = datetime.now(tz=_timezone.utc)
 
         _feature_refs = utils._get_features(
             self.registry, self.project, features, allow_cache=True
@@ -2405,8 +2412,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            _logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -2433,20 +2441,27 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No join keys found in source views. "
+                "Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in "
+                "sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp "
+                "columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -2475,8 +2490,10 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            _logger.warning(
+                "No source data found for ODFV %s in the given time range. "
+                "Skipping materialization.",
+                feature_view.name,
             )
             return
 
@@ -3346,10 +3363,13 @@ class FeatureStore:
                     now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
 
                     vector = PrecomputedFeatureVector(
-                        feature_names=feature_names,
+                        feature_names=[]
+                        if svc.precompute_omit_names
+                        else feature_names,
                         values=values,
                         fv_timestamps=fv_timestamps,
                         precomputed_at=now_ts,
+                        schema_fingerprint=svc.precompute_schema_fingerprint(),
                     )
 
                     online_store.write_precomputed_vector(
@@ -3990,7 +4010,7 @@ class FeatureStore:
         if reorder_columns:
             df = df.reindex(columns=source_columns)
 
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df, preserve_index=False)
         provider.ingest_df_to_offline_store(feature_view, table)
 
     def get_online_features(
@@ -4793,6 +4813,7 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         registry_ttl_sec: int = 60,
+        gc_freeze: bool = False,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -4815,6 +4836,7 @@ class FeatureStore:
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
+            gc_freeze=gc_freeze,
         )
 
     def get_feature_server_endpoint(self) -> Optional[str]:

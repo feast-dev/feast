@@ -30,6 +30,7 @@ Key performance options:
 - `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
 - `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
 - `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+- `--gc-freeze`: Run `gc.freeze()` after startup to shorten full garbage collection pauses. See [Garbage collection pauses](../../how-to-guides/online-server-performance-tuning.md#garbage-collection-pauses) (default: off)
 
 ### Performance Best Practices
 
@@ -367,7 +368,7 @@ thread from starting). All categories default to `true` except
 |--------|------|--------|----------|-------------|
 | `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
 | `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
-| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status`, `status_class` | `request` | Total requests per endpoint and response status (see below) |
 | `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
 | `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
 | `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
@@ -403,6 +404,25 @@ feature_server:
 This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
 affects the Prometheus label; the `feature_count` field in audit logs (see
 below) always reports the exact count.
+
+### Request status labels
+
+`feast_feature_server_request_total` carries two status labels derived from
+the HTTP status code the server responds with:
+
+- `status_class` is the status code class: `2xx`, `4xx` or `5xx`. Use it to
+  tell client errors (an unknown feature view or feature service, a denied
+  permission, a materialization that is already running) apart from server
+  errors.
+- `status` is `success` for status codes below 400 and `error` otherwise.
+
+For example, the server-side error rate per endpoint, excluding client
+errors:
+
+```
+sum by (endpoint) (rate(feast_feature_server_request_total{status_class="5xx"}[5m]))
+  / sum by (endpoint) (rate(feast_feature_server_request_total[5m]))
+```
 
 ### Per-ODFV transformation metrics
 

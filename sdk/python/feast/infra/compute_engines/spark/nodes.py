@@ -75,13 +75,18 @@ def from_feast_to_spark_type(feast_type) -> Optional[SparkDataType]:
     if isinstance(feast_type, PrimitiveFeastType):
         mapping = {
             PrimitiveFeastType.BYTES: BinaryType(),
+            PrimitiveFeastType.PDF_BYTES: BinaryType(),
+            PrimitiveFeastType.IMAGE_BYTES: BinaryType(),
             PrimitiveFeastType.STRING: StringType(),
+            PrimitiveFeastType.UUID: StringType(),
+            PrimitiveFeastType.TIME_UUID: StringType(),
             PrimitiveFeastType.INT32: IntegerType(),
             PrimitiveFeastType.INT64: LongType(),
             PrimitiveFeastType.FLOAT64: DoubleType(),
             PrimitiveFeastType.FLOAT32: FloatType(),
             PrimitiveFeastType.BOOL: BooleanType(),
             PrimitiveFeastType.UNIX_TIMESTAMP: TimestampType(),
+            PrimitiveFeastType.ZONED_TIMESTAMP: TimestampType(),
             PrimitiveFeastType.MAP: MapType(StringType(), StringType()),
             PrimitiveFeastType.JSON: StringType(),
         }

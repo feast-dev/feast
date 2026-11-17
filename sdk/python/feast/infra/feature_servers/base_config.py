@@ -143,6 +143,12 @@ class BaseFeatureServerConfig(FeastConfigBaseModel):
     """Prometheus metrics configuration.  Set ``metrics.enabled: true`` or
     pass the ``feast serve --metrics`` CLI flag to activate."""
 
+    gc_freeze: StrictBool = False
+    """Run ``gc.freeze()`` after the server has loaded the registry and before
+    the workers start. Full garbage collections then skip these long-lived
+    objects, which keeps the event loop pauses they cause short. Same as
+    ``feast serve --gc-freeze``."""
+
     feature_logging: Optional[FeatureLoggingConfig] = None
     """ Feature logging configuration """
 

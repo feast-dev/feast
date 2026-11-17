@@ -93,8 +93,8 @@ def pull_latest_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date),
-            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date),
+            _comparable_timestamp(table[timestamp_field]) >= ibis.literal(start_date),
+            _comparable_timestamp(table[timestamp_field]) <= ibis.literal(end_date),
         )
     )
 
@@ -115,6 +115,19 @@ def pull_latest_from_table_or_query_ibis(
         staging_location_endpoint_override=staging_location_endpoint_override,
         repo_path=str(config.repo_path),
     )
+
+
+def _comparable_timestamp(column):
+    """Cast a timestamp column for comparison with a window bound, keeping any zone.
+
+    DuckDB 2 refuses to cast TIMESTAMPTZ_NS, which is what pandas writes by default, to a
+    TIMESTAMP without a zone, and ibis reports that column's type as unknown.
+    """
+    column_type = column.type()
+    if column_type.is_unknown():
+        return column.cast(dt.Timestamp(timezone="UTC"))
+    timezone = getattr(column_type, "timezone", None)
+    return column.cast(dt.Timestamp(timezone=timezone) if timezone else "timestamp")
 
 
 def _get_entity_df_event_timestamp_range(
@@ -168,15 +181,24 @@ def _entity_row_id(entity_table: Table, columns: Iterable[str]):
     return r
 
 
+def _join_key_map(feature_view: FeatureView) -> Dict[str, str]:
+    """Map each join key of the feature data to its column in the entity data.
+
+    A projection's join_key_map may rename only some of the join keys; the
+    others keep their own name.
+    """
+    return {
+        column.name: feature_view.projection.join_key_map.get(column.name, column.name)
+        for column in feature_view.entity_columns
+    }
+
+
 def _generate_row_id(
     entity_table: Table, feature_views: List[FeatureView], event_timestamp_col
 ) -> Table:
     all_entities = [event_timestamp_col]
     for fv in feature_views:
-        if fv.projection.join_key_map:
-            all_entities.extend(fv.projection.join_key_map.values())
-        else:
-            all_entities.extend([e.name for e in fv.entity_columns])
+        all_entities.extend(_join_key_map(fv).values())
 
     entity_table = entity_table.mutate(
         entity_row_id=_entity_row_id(entity_table, set(all_entities))
@@ -272,8 +294,7 @@ def get_historical_features_ibis(
             fv_table,
             timestamp_field,
             created_timestamp_column,
-            feature_view.projection.join_key_map
-            or {e.name: e.name for e in feature_view.entity_columns},
+            _join_key_map(feature_view),
             feature_refs,
             feature_view.ttl,
         )
@@ -345,10 +366,10 @@ def pull_all_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field].cast("timestamp") >= ibis.literal(start_date)
+            _comparable_timestamp(table[timestamp_field]) >= ibis.literal(start_date)
             if start_date
             else ibis.literal(True),
-            table[timestamp_field].cast("timestamp") <= ibis.literal(end_date)
+            _comparable_timestamp(table[timestamp_field]) <= ibis.literal(end_date)
             if end_date
             else ibis.literal(True),
         )

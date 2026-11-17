@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytest
 
+from feast.credentials import ConnectionRef
 from feast.data_format import ProtoFormat
 from feast.data_source import (
     DataSource,
@@ -533,3 +534,40 @@ def test_stream_source_without_batch_source_round_trips(stream_source):
     assert isinstance(restored, type(stream_source))
     assert restored.batch_source is None
     assert restored.name == stream_source.name
+
+
+def test_connection_ref_tags_do_not_leak_into_tags_on_round_trip():
+    source = FileSource(
+        name="driver_source",
+        path="driver.parquet",
+        timestamp_field="event_timestamp",
+        tags={"team": "ml"},
+        connection_ref=ConnectionRef(
+            provider="env", name="DRIVER", params={"region": "us-east-1"}
+        ),
+    )
+
+    restored = DataSource.from_proto(source.to_proto())
+
+    assert restored.tags == {"team": "ml"}
+    assert restored.connection_ref == source.connection_ref
+    assert restored == source
+
+
+def test_connection_ref_can_be_cleared_on_a_loaded_source():
+    source = FileSource(
+        name="driver_source",
+        path="driver.parquet",
+        timestamp_field="event_timestamp",
+        connection_ref=ConnectionRef(
+            provider="env", name="DRIVER", params={"region": "us-east-1"}
+        ),
+    )
+    loaded = DataSource.from_proto(source.to_proto())
+
+    loaded.connection_ref = None
+    assert DataSource.from_proto(loaded.to_proto()).connection_ref is None
+
+    loaded.connection_ref = ConnectionRef(provider="env", name="OTHER")
+    reloaded = DataSource.from_proto(loaded.to_proto())
+    assert reloaded.connection_ref == ConnectionRef(provider="env", name="OTHER")

@@ -241,6 +241,7 @@ class OnlineStore(ABC):
                 grouped_refs,
                 registry,
                 project,
+                feature_service=features,
             )
             if not precomputed_ok:
                 raise RuntimeError(
@@ -527,6 +528,7 @@ class OnlineStore(ABC):
                 grouped_refs,
                 registry,
                 project,
+                feature_service=features,
             )
             if not precomputed_ok:
                 raise RuntimeError(
@@ -612,6 +614,7 @@ class OnlineStore(ABC):
         grouped_refs: List,
         registry: BaseRegistry,
         project: str,
+        feature_service: Optional[Any] = None,
     ) -> bool:
         """Build the response from pre-computed vectors.
 
@@ -662,13 +665,38 @@ class OnlineStore(ABC):
         reorder_map: Optional[List[int]] = None
         vectors: List[PrecomputedFeatureVector] = []
 
+        # A nameless vector is validated by fingerprint and takes its names, in
+        # stored order, from the FeatureService it was built for.
+        service_names: Optional[List[str]] = None
+        service_fingerprint: Optional[str] = None
+        if feature_service is not None and hasattr(
+            feature_service, "precompute_schema_fingerprint"
+        ):
+            service_names = feature_service.precompute_feature_names()
+            service_fingerprint = feature_service.precompute_schema_fingerprint()
+
         for blob in blobs:
             vec = PrecomputedFeatureVector()
             vec.ParseFromString(blob)  # type: ignore[arg-type]
             vectors.append(vec)
 
+            stored_names = list(vec.feature_names)
+            if not stored_names:
+                if (
+                    service_names is None
+                    or vec.schema_fingerprint != service_fingerprint
+                ):
+                    logger.warning(
+                        "Pre-computed vector fingerprint mismatch at index %d: stored=%s, expected=%s",
+                        len(vectors) - 1,
+                        vec.schema_fingerprint,
+                        service_fingerprint,
+                    )
+                    return False
+                stored_names = service_names
+
             if first_stored_names is None:
-                first_stored_names = list(vec.feature_names)
+                first_stored_names = stored_names
                 # Vectors always store "<fv>__<feature>"; the caller's expected
                 # names are bare unless full_feature_names was requested.
                 comparable_names = (
@@ -694,8 +722,8 @@ class OnlineStore(ABC):
                 ]
             else:
                 if (
-                    len(vec.feature_names) != n_features
-                    or list(vec.feature_names) != first_stored_names
+                    len(stored_names) != n_features
+                    or stored_names != first_stored_names
                 ):
                     logger.warning(
                         "Pre-computed vector schema varies across entities at index %d",

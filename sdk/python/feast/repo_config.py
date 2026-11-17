@@ -88,6 +88,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
+    "pinecone": "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore",
     "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
     "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
@@ -188,10 +189,12 @@ class RegistryConfig(FeastBaseModel):
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
     cache_mode: StrictStr = "sync"
-    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation) and
-     'thread' (asynchronous background refresh at cache_ttl_seconds intervals). In 'sync' mode, registry changes
-     are immediately visible. In 'thread' mode, changes may take up to
-     cache_ttl_seconds to be visible."""
+    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation),
+     'thread' (asynchronous background refresh at cache_ttl_seconds intervals) and 'none' (no in-memory cache).
+     In 'sync' mode, registry changes are immediately visible. In 'thread' mode, changes may take up to
+     cache_ttl_seconds to be visible. In 'none' mode, the registry is not loaded into memory at startup and every
+     read, including reads that allow the cache, queries the registry backend directly; this is only supported by
+     the 'sql' registry."""
 
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
@@ -273,6 +276,22 @@ class RegistryConfig(FeastBaseModel):
                     "by up to `cache_ttl_seconds`, so feature-view state transitions "
                     "(including the exit from `MATERIALIZING`) may be observed stale."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _warn_on_unsupported_cache_mode_none(self) -> "RegistryConfig":
+        """Warn when ``cache_mode='none'`` is set on a registry that ignores it.
+
+        Only the ``sql`` registry can serve every read from its backend; other
+        registries keep their in-memory cache. This is an advisory warning only.
+        """
+        if self.cache_mode == "none" and self.registry_type != "sql":
+            _logger.warning(
+                "`cache_mode='none'` is set but `registry_type` is "
+                f"'{self.registry_type}'. Only the `sql` registry supports "
+                "disabling the registry cache, so this registry keeps its "
+                "in-memory cache."
+            )
         return self
 
 

@@ -341,6 +341,62 @@ class TestSchemaMismatchFallback:
         assert response.results[0].values[0].float_val == pytest.approx(2.0)
         assert response.results[1].values[0].float_val == pytest.approx(1.0)
 
+    def _nameless_service(self):
+        service = MagicMock()
+        service.precompute_feature_names.return_value = ["fv1__f1", "fv1__f2"]
+        service.precompute_schema_fingerprint.return_value = "abc123"
+        return service
+
+    def test_nameless_vector_matches_on_fingerprint(self):
+        from feast.infra.online_stores.online_store import OnlineStore
+
+        vector = _make_vector(
+            feature_names=[],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        vector.schema_fingerprint = "abc123"
+        response = GetOnlineFeaturesResponse(results=[])
+        ok = OnlineStore._try_precomputed_fast_path(
+            blobs=[vector.SerializeToString()],
+            expected_feature_names=["f2", "f1"],
+            online_features_response=response,
+            full_feature_names=False,
+            num_rows=1,
+            entity_row_indices=([0],),
+            grouped_refs=[],
+            registry=MagicMock(),
+            project="test",
+            feature_service=self._nameless_service(),
+        )
+        assert ok is True
+        assert response.results[0].values[0].float_val == pytest.approx(2.0)
+        assert response.results[1].values[0].float_val == pytest.approx(1.0)
+
+    def test_nameless_vector_with_stale_fingerprint_returns_false(self):
+        from feast.infra.online_stores.online_store import OnlineStore
+
+        vector = _make_vector(feature_names=[], values=[ValueProto(float_val=1.0)])
+        vector.schema_fingerprint = "stale"
+        ok = OnlineStore._try_precomputed_fast_path(
+            blobs=[vector.SerializeToString()],
+            expected_feature_names=["f1"],
+            online_features_response=GetOnlineFeaturesResponse(results=[]),
+            full_feature_names=False,
+            num_rows=1,
+            entity_row_indices=([0],),
+            grouped_refs=[],
+            registry=MagicMock(),
+            project="test",
+            feature_service=self._nameless_service(),
+        )
+        assert ok is False
+
+    def test_nameless_vector_without_service_returns_false(self):
+        vector = _make_vector(feature_names=[], values=[ValueProto(float_val=1.0)])
+        vector.schema_fingerprint = "abc123"
+        ok, _ = self._fast_path([vector.SerializeToString()], ["fv1__f1"])
+        assert ok is False
+
     def test_extra_feature_in_expected_returns_false(self):
         vector = _make_vector(
             feature_names=["fv1__f1"],
@@ -1132,3 +1188,46 @@ class TestPrecomputeForPush:
         from feast.feature_store import FeatureStore
 
         FeatureStore._precompute_for_push(store, "fv", MagicMock())
+
+
+class TestPrecomputeOmitNames:
+    def _service(self, omit):
+        fv = _make_fv(
+            "fv1", [Field(name="f1", dtype=Float32), Field(name="f2", dtype=Float32)]
+        )
+        return FeatureService(
+            name="svc",
+            features=[fv],
+            precompute_online=True,
+            precompute_omit_names=omit,
+        )
+
+    def test_flag_round_trips_through_proto(self):
+        service = self._service(True)
+        assert FeatureService.from_proto(service.to_proto()).precompute_omit_names
+        assert not FeatureService.from_proto(
+            self._service(False).to_proto()
+        ).precompute_omit_names
+
+    def test_fingerprint_follows_ordered_names(self):
+        service = self._service(True)
+        assert service.precompute_feature_names() == ["fv1__f1", "fv1__f2"]
+        reordered = FeatureService(
+            name="svc2",
+            features=[
+                _make_fv(
+                    "fv1",
+                    [Field(name="f2", dtype=Float32), Field(name="f1", dtype=Float32)],
+                )
+            ],
+            precompute_online=True,
+            precompute_omit_names=True,
+        )
+        assert (
+            service.precompute_schema_fingerprint()
+            != reordered.precompute_schema_fingerprint()
+        )
+        assert (
+            service.precompute_schema_fingerprint()
+            == self._service(True).precompute_schema_fingerprint()
+        )

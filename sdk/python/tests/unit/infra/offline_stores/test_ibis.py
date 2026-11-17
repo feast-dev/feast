@@ -1,11 +1,22 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple
+from unittest.mock import MagicMock
 
 import ibis
+import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
+import pytest
 
-from feast.infra.offline_stores.ibis import point_in_time_join
+from feast import Entity, FeatureView, Field, FileSource
+from feast.infra.offline_stores.ibis import (
+    get_historical_features_ibis,
+    point_in_time_join,
+    pull_all_from_table_or_query_ibis,
+    pull_latest_from_table_or_query_ibis,
+)
+from feast.types import Int64
+from feast.value_type import ValueType
 
 
 def pa_datetime(year, month, day):
@@ -226,3 +237,95 @@ def test_point_in_time_join_keeps_entity_rows_apart():
         for row in actual.to_pylist()
     }
     assert rows == {"1": (1.0, 110.0), "11": (11.0, 10.0), "7": (7.0, None)}
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    ["datetime64[ns, UTC]", "datetime64[us, UTC]", "datetime64[ns]", "datetime64[us]"],
+)
+@pytest.mark.parametrize(
+    "pull", [pull_latest_from_table_or_query_ibis, pull_all_from_table_or_query_ibis]
+)
+def test_pull_filters_parquet_timestamps_of_any_precision(tmp_path, dtype, pull):
+    """Materialize pulls read what pandas writes: nanosecond and zone-aware included."""
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    path = tmp_path / "source.parquet"
+    pd.DataFrame(
+        {
+            "driver_id": [1, 2, 3, 4],
+            "event_timestamp": [start + timedelta(hours=h) for h in range(4)],
+            "trips": [10, 20, 30, 40],
+        }
+    ).astype(
+        {"event_timestamp": dtype if "UTC" in dtype else "datetime64[ns, UTC]"}
+    ).pipe(
+        lambda df: (
+            df
+            if "UTC" in dtype
+            else df.assign(
+                event_timestamp=df.event_timestamp.dt.tz_localize(None).astype(dtype)
+            )
+        )
+    ).to_parquet(path)
+
+    table = pull(
+        config=MagicMock(),
+        data_source=MagicMock(),
+        join_key_columns=["driver_id"],
+        feature_name_columns=["trips"],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=start + timedelta(hours=1),
+        end_date=start + timedelta(hours=2),
+        data_source_reader=lambda *_: ibis.read_parquet(path),
+        data_source_writer=MagicMock(),
+    ).to_arrow()
+
+    assert sorted(table["driver_id"].to_pylist()) == [2, 3]
+
+
+def test_get_historical_features_keeps_join_keys_left_out_of_join_key_map():
+    """A join_key_map that renames only some join keys still joins on the others."""
+    user = Entity(name="user", join_keys=["user_id"], value_type=ValueType.INT64)
+    merchant = Entity(
+        name="merchant", join_keys=["merchant_id"], value_type=ValueType.INT64
+    )
+    user_merchant = FeatureView(
+        name="user_merchant",
+        entities=[user, merchant],
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="merchant_id", dtype=Int64),
+            Field(name="spend", dtype=Int64),
+        ],
+        source=FileSource(path="unused.parquet", timestamp_field="event_timestamp"),
+    ).with_join_key_map({"user_id": "sender_id"})
+    features = pa.table(
+        {
+            "user_id": [1, 1],
+            "merchant_id": [100, 200],
+            "event_timestamp": [pa_datetime(2024, 1, 1), pa_datetime(2024, 1, 2)],
+            "spend": [10, 99],
+        }
+    )
+    entity_df = pd.DataFrame(
+        {
+            "sender_id": [1, 1],
+            "merchant_id": [100, 200],
+            "event_timestamp": [datetime(2024, 1, 3, tzinfo=timezone.utc)] * 2,
+        }
+    )
+
+    actual = get_historical_features_ibis(
+        config=MagicMock(),
+        feature_views=[user_merchant],
+        feature_refs=["user_merchant:spend"],
+        entity_df=entity_df,
+        registry=MagicMock(),
+        project="test",
+        data_source_reader=lambda *_: ibis.memtable(features),
+        data_source_writer=MagicMock(),
+    ).to_df()
+
+    spend = dict(zip(actual["merchant_id"], actual["spend"]))
+    assert spend == {100: 10, 200: 99}

@@ -31,7 +31,7 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.75.0
+          pixi-version: v0.84.1
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (local)
@@ -74,6 +74,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
+      # Hadoop 3.4.2 calls Subject.getSubject(), which throws on Java 24+.
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Cache Hadoop tarball
         uses: actions/cache@v4
         with:
@@ -84,7 +90,7 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.10.0
         with:
-          pixi-version: v0.75.0
+          pixi-version: v0.84.1
           environments: registration-tests
           cache: true
       - name: Run registration integration tests (CI)

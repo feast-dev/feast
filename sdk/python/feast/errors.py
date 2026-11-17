@@ -121,11 +121,14 @@ class FeatureServiceNotFoundException(FeastObjectNotFoundException):
 
 
 class FeatureViewNotFoundException(FeastObjectNotFoundException):
-    def __init__(self, name, project=None):
+    def __init__(self, name, project=None, suggestions: Optional[List[str]] = None):
         if project:
-            super().__init__(f"Feature view {name} does not exist in project {project}")
+            message = f"Feature view {name} does not exist in project {project}"
         else:
-            super().__init__(f"Feature view {name} does not exist")
+            message = f"Feature view {name} does not exist"
+        if suggestions:
+            message += f". Did you mean: {', '.join(suggestions)}?"
+        super().__init__(message)
 
 
 class FeatureViewVersionNotFound(FeastObjectNotFoundException):

@@ -232,7 +232,7 @@ type MlflowConfig struct {
 
 // FeatureStoreSpec defines the desired state of FeatureStore
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 || !has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)",message="replicas > 1 and services.scaling.autoscaling are mutually exclusive."
-// +kubebuilder:validation:XValidation:rule="self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)) || (has(self.services) && has(self.services.onlineStore) && has(self.services.onlineStore.persistence) && has(self.services.onlineStore.persistence.store))",message="Scaling requires DB-backed persistence for the online store. Configure services.onlineStore.persistence.store when using replicas > 1 or autoscaling."
+// +kubebuilder:validation:XValidation:rule="self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)) || (has(self.services) && has(self.services.onlineStore) && ((has(self.services.onlineStore.disabled) && self.services.onlineStore.disabled) || (has(self.services.onlineStore.persistence) && has(self.services.onlineStore.persistence.store))))",message="Scaling requires DB-backed persistence for the online store. Configure services.onlineStore.persistence.store, or set services.onlineStore.disabled, when using replicas > 1 or autoscaling."
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)) || (!has(self.services) || !has(self.services.offlineStore) || (has(self.services.offlineStore.persistence) && has(self.services.offlineStore.persistence.store)))",message="Scaling requires DB-backed persistence for the offline store. Configure services.offlineStore.persistence.store when using replicas > 1 or autoscaling."
 // +kubebuilder:validation:XValidation:rule="self.replicas <= 1 && (!has(self.services) || !has(self.services.scaling) || !has(self.services.scaling.autoscaling)) || (has(self.services) && has(self.services.registry) && (has(self.services.registry.remote) || (has(self.services.registry.local) && has(self.services.registry.local.persistence) && (has(self.services.registry.local.persistence.store) || (has(self.services.registry.local.persistence.file) && has(self.services.registry.local.persistence.file.path) && (self.services.registry.local.persistence.file.path.startsWith('s3://') || self.services.registry.local.persistence.file.path.startsWith('gs://')))))))",message="Scaling requires DB-backed or remote registry. Configure registry.local.persistence.store or use a remote registry when using replicas > 1 or autoscaling. S3/GCS-backed registry is also allowed."
 type FeatureStoreSpec struct {
@@ -785,7 +785,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb;aerospike;scylladb;chronon
+	// +kubebuilder:validation:Enum=snowflake.online;redis;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus;hybrid;mongodb;aerospike;scylladb;chronon;pinecone
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -814,6 +814,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"aerospike",
 	"scylladb",
 	"chronon",
+	"pinecone",
 }
 
 // LocalRegistryConfig configures the registry service

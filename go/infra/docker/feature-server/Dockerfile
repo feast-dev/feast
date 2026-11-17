@@ -30,8 +30,10 @@ RUN go build -o feast ./go/main.go
 # finds a matching glibc.
 FROM debian:trixie-slim
 
-# Update the package list and install the ca-certificates package
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+# Update the package list, install ca-certificates and libbrotli1 (patched
+# version addressing DSA-6582-1).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates libbrotli1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the current working directory inside the container

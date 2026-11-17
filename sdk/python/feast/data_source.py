@@ -22,7 +22,7 @@ from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
 
 from feast import type_map
-from feast.credentials import ConnectionRef
+from feast.credentials import TAG_PREFIX, ConnectionRef
 from feast.data_format import StreamFormat
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
@@ -197,6 +197,8 @@ class DataSource(ABC):
             When set, OfflineStores resolve connection type and credentials at runtime
             via the registered CredentialProvider instead of using ambient env vars or
             the global offline_store config. All fields except provider and name are optional.
+
+    Attributes:
         created_timestamp: The time when the data source was created.
         last_updated_timestamp: The time when the data source was last updated.
     """
@@ -353,6 +355,11 @@ class DataSource(ABC):
         data_source_instance.connection_ref = ConnectionRef.from_tags(
             dict(data_source.tags)
         )
+        data_source_instance.tags = {
+            key: value
+            for key, value in data_source_instance.tags.items()
+            if not key.startswith(TAG_PREFIX)
+        }
 
         return data_source_instance
 

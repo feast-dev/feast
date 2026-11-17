@@ -14,6 +14,7 @@ import pyarrow.compute as pc
 import pyarrow.dataset
 import pyarrow.parquet as pq
 import pytz
+from pandas.api.types import is_integer_dtype, is_unsigned_integer_dtype
 
 from feast.data_source import DataSource
 from feast.errors import (
@@ -299,6 +300,30 @@ class DaskOfflineStore(OfflineStore):
                     full_feature_names,
                 )
 
+                # Keep the source created timestamp separate from request data.
+                # Otherwise the merge suffixes the source column, so the cutoff
+                # and deduplication read the entity column instead.
+                if (
+                    created_timestamp_column
+                    and created_timestamp_column in entity_df_with_features.columns
+                ):
+                    source_created_timestamp_column = f"__{created_timestamp_column}"
+                    existing_columns = (
+                        set(entity_df_with_features.columns)
+                        | set(df_to_join.columns)
+                        | set(features)
+                    )
+                    while source_created_timestamp_column in existing_columns:
+                        source_created_timestamp_column = (
+                            f"_{source_created_timestamp_column}"
+                        )
+                    df_to_join = df_to_join.rename(
+                        columns={
+                            created_timestamp_column: source_created_timestamp_column
+                        }
+                    )
+                    created_timestamp_column = source_created_timestamp_column
+
                 # In non-entity mode, if the synthetic entity_df lacks join keys, cross join to build a snapshot
                 # of all entities as-of the requested timestamp, then rely on TTL and deduplication to select
                 # the appropriate latest rows per entity.
@@ -322,6 +347,16 @@ class DaskOfflineStore(OfflineStore):
                     feature_view,
                     entity_df_event_timestamp_col,
                     timestamp_field,
+                    preserved_columns=(
+                        set(entity_df_columns) | set(join_keys)
+                        if not non_entity_mode
+                        else None
+                    ),
+                    request_columns=(
+                        list(dict.fromkeys([*join_keys, entity_df_event_timestamp_col]))
+                        if not non_entity_mode
+                        else None
+                    ),
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
@@ -452,23 +487,19 @@ class DaskOfflineStore(OfflineStore):
 
         # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
         # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
-        try:
-            if created_timestamp_column:
-                source_df = source_df.sort_values(
-                    by=created_timestamp_column,
-                )
+        # Sort by both columns at once: sort_values is not stable, so a separate
+        # sort by created_timestamp_column would not reliably break ties.
+        sort_columns = [timestamp_field]
+        if created_timestamp_column:
+            sort_columns.append(created_timestamp_column)
 
-            source_df = source_df.sort_values(by=timestamp_field)
+        try:
+            source_df = source_df.sort_values(by=sort_columns)
 
         except ZeroDivisionError:
             # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
             # try to divide by zero.
-            if created_timestamp_column:
-                source_df = source_df.sort_values(
-                    by=created_timestamp_column, npartitions=1
-                )
-
-            source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
+            source_df = source_df.sort_values(by=sort_columns, npartitions=1)
 
         # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
         # Which is inconsistent with other offline stores.
@@ -1189,35 +1220,71 @@ def _filter_ttl(
     feature_view: FeatureView,
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
+    preserved_columns: Optional[Set[str]] = None,
+    request_columns: Optional[List[str]] = None,
 ) -> dd.DataFrame:
-    # Filter rows by defined timestamp tolerance
+    # A missing source row is already a valid left-join result.
+    within_time_range = (
+        df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col]
+    )
     if feature_view.ttl and feature_view.ttl.total_seconds() != 0:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (
-                (
-                    df_to_join[timestamp_field]
-                    >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+        within_time_range = within_time_range & (
+            df_to_join[timestamp_field]
+            >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
+        )
+    valid = df_to_join[timestamp_field].isna() | within_time_range
+
+    if preserved_columns is None:
+        # Non-entity snapshots only contain entities with an eligible source row.
+        return df_to_join[valid].persist()
+
+    # Keep eligible candidates as-is.  Besides avoiding unnecessary work, this
+    # preserves plain integer dtypes when every request has a match.
+    eligible = df_to_join[valid]
+    request_columns = request_columns or [entity_df_event_timestamp_col]
+    requests = df_to_join[request_columns].drop_duplicates()
+    matched_requests = eligible[request_columns].drop_duplicates()
+    missing_requests = requests.merge(
+        matched_requests, on=request_columns, how="left", indicator=True
+    )
+    missing_requests = missing_requests[missing_requests["_merge"] == "left_only"]
+    missing_requests = missing_requests.drop(columns=["_merge"])
+
+    # If every request has an eligible candidate, return the filtered frame
+    # unchanged so plain integer feature columns keep their original dtype.
+    if missing_requests.head(1, npartitions=-1).empty:
+        return eligible.persist()
+
+    # Re-add one null-feature row only for requests that lost every candidate.
+    # Keep this in the original frame so Dask's timestamp dtypes and divisions
+    # remain intact while the later deduplication sorts candidates.
+    marked = df_to_join.assign(__ttl_valid=valid).merge(
+        missing_requests.assign(__ttl_missing=True),
+        on=request_columns,
+        how="left",
+    )
+    ttl_missing = marked["__ttl_missing"].fillna(False)
+    marked = marked[marked["__ttl_valid"] | ttl_missing]
+    return (
+        marked.assign(
+            **{
+                column: marked[column]
+                .astype(
+                    "UInt64"
+                    if is_unsigned_integer_dtype(marked[column].dtype)
+                    else "Int64"
                 )
-                & (
-                    df_to_join[timestamp_field]
-                    <= df_to_join[entity_df_event_timestamp_col]
-                )
-            )
-        ]
-
-        df_to_join = df_to_join.persist()
-    else:
-        df_to_join = df_to_join[
-            # do not drop entity rows if one of the sources returns NaNs
-            df_to_join[timestamp_field].isna()
-            | (df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col])
-        ]
-
-        df_to_join = df_to_join.persist()
-
-    return df_to_join
+                .mask(ttl_missing, other=pd.NA)
+                if is_integer_dtype(marked[column].dtype)
+                else marked[column].mask(ttl_missing, other=pd.NA)
+                for column in marked.columns
+                if column not in preserved_columns
+                and column not in {"__ttl_valid", "__ttl_missing"}
+            }
+        )
+        .drop(columns=["__ttl_valid", "__ttl_missing"])
+        .persist()
+    )
 
 
 def _apply_created_timestamp_cutoff(
@@ -1257,27 +1324,21 @@ def _drop_duplicates(
 
     # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
     # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
-    try:
-        if created_timestamp_column:
-            df_to_join = df_to_join.sort_values(
-                by=created_timestamp_column, na_position="first"
-            )
-            df_to_join = df_to_join.persist()
+    # Sort by both columns at once: sort_values is not stable, so a separate
+    # sort by created_timestamp_column would not reliably break ties.
+    sort_columns = [timestamp_field]
+    if created_timestamp_column:
+        sort_columns.append(created_timestamp_column)
 
-        df_to_join = df_to_join.sort_values(by=timestamp_field, na_position="first")
+    try:
+        df_to_join = df_to_join.sort_values(by=sort_columns, na_position="first")
         df_to_join = df_to_join.persist()
 
     except ZeroDivisionError:
         # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
         # try to divide by zero.
-        if created_timestamp_column:
-            df_to_join = df_to_join[column_order].sort_values(
-                by=created_timestamp_column, na_position="first", npartitions=1
-            )
-            df_to_join = df_to_join.persist()
-
         df_to_join = df_to_join[column_order].sort_values(
-            by=timestamp_field, na_position="first", npartitions=1
+            by=sort_columns, na_position="first", npartitions=1
         )
         df_to_join = df_to_join.persist()
 

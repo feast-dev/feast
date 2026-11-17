@@ -507,9 +507,20 @@ def _columns_to_proto_values(
     result: Dict[str, List[ValueProto]] = {}
     for column, value_type in columns:
         if column in table.column_names:
-            result[column] = python_values_to_proto_values(
-                table.column(column).to_numpy(zero_copy_only=False), value_type
+            array = table.column(column)
+            # to_numpy() turns a timestamp column into numpy.datetime64 and drops the
+            # column's time zone, which ZONED_TIMESTAMP stores; to_pylist() keeps
+            # tz-aware datetime values. It also turns an integer column that has nulls
+            # into float64, which rounds values above 2**53; to_pylist() keeps them exact.
+            keep_python_values = value_type == ValueType.ZONED_TIMESTAMP or (
+                array.null_count > 0 and pyarrow.types.is_integer(array.type)
             )
+            values = (
+                array.to_pylist()
+                if keep_python_values
+                else array.to_numpy(zero_copy_only=False)
+            )
+            result[column] = python_values_to_proto_values(values, value_type)
         elif not allow_missing:
             raise ValueError(f"Column {column} not found in table")
     return result
@@ -565,9 +576,15 @@ def _convert_arrow_fv_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_fv_to_proto(batch, feature_view, join_keys)
+        ]
 
     if feature_view.batch_source is None:
         raise ValueError(
@@ -623,9 +640,15 @@ def _convert_arrow_odfv_to_proto(
     feature_view: "OnDemandFeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_odfv_to_proto(batch, feature_view, join_keys)
+        ]
 
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
@@ -1875,6 +1898,13 @@ def _populate_response_from_feature_data(
     null_ts = Timestamp()
     PRESENT = FieldStatus.PRESENT
     NOT_FOUND = FieldStatus.NOT_FOUND
+    OUTSIDE_MAX_AGE = FieldStatus.OUTSIDE_MAX_AGE
+
+    # A ttl of None or zero means values never expire, matching the Go server.
+    # Stored on-demand feature views have no ttl attribute.
+    ttl = getattr(table, "ttl", None)
+    ttl_secs = int(ttl.total_seconds()) if ttl else 0
+    now_secs = int(datetime.now(timezone.utc).timestamp()) if ttl_secs else 0
 
     row_ts_protos = []
     for row_ts, _ in read_rows:
@@ -1895,23 +1925,38 @@ def _populate_response_from_feature_data(
 
     feat_idx_map = {name: i for i, name in enumerate(requested_features)}
     _present_count = 0
+    _outside_max_age_count = 0
     for row_idx, destinations in enumerate(indexes_tuple):
-        _, feature_data = read_rows[row_idx]
+        row_ts, feature_data = read_rows[row_idx]
         if feature_data is None:
             continue
+        # Expired values are still returned; only the status changes.
+        expired = (
+            ttl_secs > 0
+            and row_ts is not None
+            and now_secs - row_ts_protos[row_idx].seconds > ttl_secs
+        )
+        status = OUTSIDE_MAX_AGE if expired else PRESENT
+        _row_count = 0
         for feat_name, feat_val in feature_data.items():
             f_idx = feat_idx_map.get(feat_name)
             if f_idx is not None:
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
-                    feat_statuses[f_idx][out_idx] = PRESENT
-                    _present_count += 1
+                    feat_statuses[f_idx][out_idx] = status
+                    _row_count += 1
+        if expired:
+            _outside_max_age_count += _row_count
+        else:
+            _present_count += _row_count
 
     try:
         from feast.metrics import track_feature_statuses
 
-        _not_found = (n_features * output_len) - _present_count
-        track_feature_statuses(table.name, _present_count, _not_found)
+        _not_found = (n_features * output_len) - _present_count - _outside_max_age_count
+        track_feature_statuses(
+            table.name, _present_count, _not_found, _outside_max_age_count
+        )
     except Exception:
         pass
 

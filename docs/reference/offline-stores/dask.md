@@ -4,6 +4,15 @@
 
 The Dask offline store provides support for reading [FileSources](../data-sources/file.md).
 
+When an entity dataframe is supplied to `get_historical_features`, entity rows and
+their additional columns (such as training labels) are retained even if all matching
+feature records are outside the feature view's TTL window or after the entity
+timestamp. Features from that view are returned as null; valid values from other
+views are retained. The TTL boundary is inclusive.
+
+Retrieval without an entity dataframe continues to return only entities with
+eligible feature records for the requested snapshot.
+
 {% hint style="warning" %}
 All data is downloaded and joined using Python and therefore may not scale to production workloads.
 {% endhint %}

@@ -16,7 +16,6 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import get_user_agent
 from feast.value_type import ValueType
 
 
@@ -157,9 +156,10 @@ class BigQuerySource(DataSource):
     def validate(self, config: RepoConfig):
         if not self.query:
             from google.api_core.exceptions import NotFound
-            from google.cloud import bigquery
 
-            client = bigquery.Client()
+            from feast.infra.offline_stores.bigquery import _get_bigquery_client
+
+            client = _get_bigquery_client()
             try:
                 client.get_table(self.table)
             except NotFound:
@@ -179,22 +179,16 @@ class BigQuerySource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        try:
-            from google.api_core import client_info as http_client_info
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("gcp", str(e))
-
         from google.cloud import bigquery
+
+        from feast.infra.offline_stores.bigquery import _get_bigquery_client
 
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
-        client = bigquery.Client(
+        client = _get_bigquery_client(
             project=project_id,
             location=config.offline_store.location,
-            client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
         )
         if self.query:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"

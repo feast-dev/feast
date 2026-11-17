@@ -150,6 +150,56 @@ class GitBookPublisherTests(unittest.TestCase):
             api.calls,
         )
 
+    def test_default_filter_applied_when_api_returns_all_spaces(self):
+        # GitBook can ignore ?default=true and return every linked site space.
+        # The publisher must still identify the single default space client-side.
+        noise_a = site_space("na", "v0.60-branch")
+        noise_b = site_space("nb", "v0.61-branch")
+        old_default = site_space("old", "v0.64-branch", default=True)
+        new_space = site_space("new", "v0.64-branch", draft=True)
+        new_default = site_space("new", "v0.66-branch", default=True)
+        gitbook, api = self._publisher(
+            [
+                {"items": [noise_a, noise_b, old_default]},
+                {"items": [noise_a, old_default, noise_b]},
+                new_space,
+                {},
+                None,
+                successful_import("v0.66-branch"),
+                {},
+                {},
+                {},
+                {"items": [noise_a, new_default, noise_b]},
+            ]
+        )
+
+        gitbook.publish_version("v0.66-branch")
+
+        self.assertIn(
+            (
+                "POST",
+                "/orgs/org/sites/site/site-spaces/old/duplicate",
+                {"draft": True},
+                (201,),
+            ),
+            api.calls,
+        )
+
+    def test_fails_clearly_on_sectioned_site(self):
+        # Multiple default spaces => the site is split into sections, which the
+        # single-default publish model does not support.
+        section_a = site_space("a", "section-a", default=True)
+        section_b = site_space("b", "section-b", default=True)
+        gitbook, _api = self._publisher(
+            [
+                {"items": []},
+                {"items": [section_a, section_b]},
+            ]
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "section"):
+            gitbook.publish_version("v0.66-branch")
+
     def test_reuses_existing_version_space(self):
         target = site_space("new", "v0.66-branch")
         new_default = site_space("new", "v0.66-branch", default=True)

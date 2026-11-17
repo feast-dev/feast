@@ -89,7 +89,7 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
 
-    python_udf_runtime_version: StrictStr = "3.10"
+    python_udf_runtime_version: StrictStr = "3.11"
     """
     Snowflake Python UDF RUNTIME_VERSION used when Feast deploys its materialization
     UDFs (see `snowflake_python_udfs_creation.sql`).
@@ -101,14 +101,14 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
     user-configurable so you are not blocked on a new Feast release the next time
     Snowflake deprecates a runtime.
 
-    Defaults to "3.10", matching Feast's own minimum supported Python version
-    (`requires-python` in `pyproject.toml`). If Snowflake decommissions the 3.10
+    Defaults to "3.11", matching Feast's own minimum supported Python version
+    (`requires-python` in `pyproject.toml`). If Snowflake decommissions the 3.11
     runtime in the future, override it in your `feature_store.yaml`, e.g.:
 
         batch_engine:
           type: snowflake.engine
           ...
-          python_udf_runtime_version: "3.11"
+          python_udf_runtime_version: "3.12"
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="allow")
