@@ -162,10 +162,24 @@ class GitBookPublisher:
         query = {"limit": "1000"}
         if default is not None:
             query["default"] = str(default).lower()
-        result = self.api.request(
-            "GET", f"{self._site_path}/site-spaces?{urllib.parse.urlencode(query)}"
-        )
-        return result["items"]
+        items: list[dict[str, Any]] = []
+        page: str | None = None
+        while True:
+            if page:
+                query["page"] = page
+            result = self.api.request(
+                "GET", f"{self._site_path}/site-spaces?{urllib.parse.urlencode(query)}"
+            )
+            items.extend(result.get("items", []))
+            page = (result.get("next") or {}).get("page")
+            if not page:
+                break
+        # GitBook's `default` query filter is not always honored (the site can
+        # return every linked site space regardless of it), so filter again
+        # client-side on the `default` flag to be safe.
+        if default is not None:
+            items = [space for space in items if bool(space.get("default")) == default]
+        return items
 
     @staticmethod
     def _space_title(site_space: dict[str, Any]) -> str | None:
@@ -185,7 +199,13 @@ class GitBookPublisher:
         defaults = self._list_site_spaces(default=True)
         if len(defaults) != 1:
             raise RuntimeError(
-                f"expected one default GitBook site space, found {len(defaults)}"
+                f"expected exactly one default GitBook site space, found {len(defaults)}. "
+                "More than one default space means the site is organized into sections "
+                "(each section has its own default space), which this script does not "
+                "support: it sets a single site-wide default, and GitBook's API does not "
+                "expose promoting a section to the site default. Publish this version "
+                "manually (see docs/project/release-process.md) or extend the script to "
+                "be section-aware."
             )
         source_id = urllib.parse.quote(defaults[0]["id"], safe="")
         site_space = self.api.request(

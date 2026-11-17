@@ -3,6 +3,7 @@ import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone, tzinfo
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -15,12 +16,14 @@ from feast.type_map import (
     _convert_value_type_str_to_value_type,
     _python_dict_to_map_proto,
     _python_list_to_map_list_proto,
+    _python_value_to_map_key_proto,
     arrow_to_pg_type,
     feast_value_type_to_pa,
     feast_value_type_to_python_type,
     mssql_to_feast_value_type,
     pa_to_athena_value_type,
     pa_to_feast_value_type,
+    pa_to_mssql_type,
     pa_to_redshift_value_type,
     pg_type_to_feast_value_type,
     python_type_to_feast_value_type,
@@ -109,6 +112,42 @@ def test_naive_datetime_unix_timestamp_is_utc(
         assert list(converted) == [expected]
 
 
+_PRE_EPOCH_DATETIME = datetime(1969, 12, 31, 23, 59, 59, 500000, tzinfo=timezone.utc)
+_PRE_EPOCH_DATETIME64 = np.datetime64("1969-12-31T23:59:59.5")
+
+
+@pytest.mark.parametrize(
+    "value_type, value",
+    [
+        (ValueType.UNIX_TIMESTAMP, _PRE_EPOCH_DATETIME),
+        (ValueType.UNIX_TIMESTAMP, pd.Timestamp(_PRE_EPOCH_DATETIME)),
+        (ValueType.UNIX_TIMESTAMP, _PRE_EPOCH_DATETIME64),
+        (ValueType.UNIX_TIMESTAMP_LIST, [_PRE_EPOCH_DATETIME]),
+        (ValueType.UNIX_TIMESTAMP_LIST, [_PRE_EPOCH_DATETIME64]),
+        (ValueType.UNIX_TIMESTAMP_SET, [_PRE_EPOCH_DATETIME]),
+        (ValueType.ZONED_TIMESTAMP, _PRE_EPOCH_DATETIME),
+        (ValueType.ZONED_TIMESTAMP, pd.Timestamp(_PRE_EPOCH_DATETIME)),
+    ],
+)
+def test_pre_epoch_fractional_second_floors(value_type, value):
+    """A pre-1970 instant with a fractional second floors to the earlier second,
+    as numpy's datetime64[s] cast does, instead of rounding up to the epoch."""
+    proto = python_values_to_proto_values([value], value_type)[0]
+    converted = feast_value_type_to_python_type(proto)
+
+    expected = datetime(1969, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    if isinstance(value, list):
+        assert list(converted) == [expected]
+    else:
+        assert converted == expected
+
+
+def test_pre_epoch_fractional_second_map_key_floors():
+    """A pre-1970 SCALAR_MAP datetime key floors like a UNIX_TIMESTAMP value."""
+    key = _python_value_to_map_key_proto(_PRE_EPOCH_DATETIME)
+    assert key.unix_timestamp_key == -1
+
+
 @pytest.mark.parametrize(
     "values",
     (
@@ -173,6 +212,25 @@ def test_python_values_to_proto_values_binary(value_type):
     protos = python_values_to_proto_values([b"%PDF-1.3", None], value_type)
     assert feast_value_type_to_python_type(protos[0]) == b"%PDF-1.3"
     assert feast_value_type_to_python_type(protos[1]) is None
+
+
+@pytest.mark.parametrize(
+    "values, value_type, expected",
+    (
+        ([b"[1,2]", None, b"[3]"], ValueType.INT64_LIST, [[1, 2], None, [3]]),
+        ([b"[1,2]", None, b"[3]"], ValueType.INT32_LIST, [[1, 2], None, [3]]),
+        ([b"[1.5]", None], ValueType.DOUBLE_LIST, [[1.5], None]),
+        ([b"[1.5]", None], ValueType.FLOAT_LIST, [[1.5], None]),
+        ([b'["a"]', None], ValueType.STRING_LIST, [["a"], None]),
+        ([b"[true,false]", None], ValueType.BOOL_LIST, [[True, False], None]),
+    ),
+)
+def test_python_values_to_proto_values_bytes_to_list_with_null(
+    values, value_type, expected
+):
+    """A JSON-encoded array column keeps its nulls, as the set path already does."""
+    protos = python_values_to_proto_values(values, value_type)
+    assert [feast_value_type_to_python_type(proto) for proto in protos] == expected
 
 
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
@@ -620,6 +678,23 @@ class TestMapArrowTypeSupport:
         """Every ValueType name converts back to that ValueType."""
         assert _convert_value_type_str_to_value_type(value_type.name) == value_type
 
+    @pytest.mark.parametrize(
+        "arrow_type, expected",
+        [
+            (pyarrow.int8(), "smallint"),
+            (pyarrow.binary(), "bytea"),
+            (pyarrow.large_binary(), "bytea"),
+            (pyarrow.null(), "text"),
+            (pyarrow.date32(), "date"),
+            (pyarrow.date64(), "date"),
+            (pyarrow.decimal128(10, 2), "numeric"),
+        ],
+    )
+    def test_arrow_to_pg_type_uses_postgres_type_names(self, arrow_type, expected):
+        """Postgres has no tinyint, binary or null type; the entity dataframe
+        upload builds CREATE TABLE from these names."""
+        assert arrow_to_pg_type(str(arrow_type)) == expected
+
     def test_arrow_to_pg_type_map(self):
         """Test that Arrow map type converts to Postgres jsonb."""
         assert arrow_to_pg_type("map<string, string>") == "jsonb"
@@ -666,6 +741,32 @@ class TestMapArrowTypeSupport:
         assert mssql_to_feast_value_type("float") == ValueType.DOUBLE
         assert mssql_to_feast_value_type("real") == ValueType.FLOAT
         assert mssql_to_feast_value_type("int") == ValueType.INT32
+
+    def test_mssql_to_feast_value_type_decimal_numeric(self):
+        """SQL Server DECIMAL/NUMERIC are exact numeric types, so schema
+        inference must map them to ValueType.DECIMAL instead of rejecting any
+        table that contains such a column."""
+        assert mssql_to_feast_value_type("decimal") == ValueType.DECIMAL
+        assert mssql_to_feast_value_type("numeric") == ValueType.DECIMAL
+
+    @pytest.mark.parametrize(
+        "sql_type", ["datetime2", "smalldatetime", "datetime", "date", "datetimeoffset"]
+    )
+    @pytest.mark.parametrize("spelling", [str.lower, str.upper, str.title])
+    def test_mssql_to_feast_value_type_temporal_types(
+        self, sql_type: str, spelling: Callable[[str], str]
+    ) -> None:
+        """Temporal feature columns must resolve during SQL Server schema inference."""
+        assert mssql_to_feast_value_type(spelling(sql_type)) == ValueType.UNIX_TIMESTAMP
+
+    def test_pa_to_mssql_type_unsigned_ints_widen(self):
+        """MSSQL integer types are signed, except tinyint (unsigned 0..255),
+        which already covers the full uint8 range. uint16/uint32 must widen to
+        the next larger signed type to avoid overflow in the generated DDL."""
+        assert pa_to_mssql_type(pyarrow.uint8()) == "tinyint"
+        assert pa_to_mssql_type(pyarrow.uint16()) == "int"
+        assert pa_to_mssql_type(pyarrow.uint32()) == "bigint"
+        assert pa_to_mssql_type(pyarrow.uint64()) == "bigint"
 
     def test_snowflake_variant_to_map(self):
         """Test that Snowflake VARIANT/OBJECT types convert to ValueType.MAP."""
@@ -736,6 +837,21 @@ class TestEnableValidationOnFeatureView:
         sig = inspect.signature(StreamFeatureView.__init__)
         assert "enable_validation" in sig.parameters
         assert sig.parameters["enable_validation"].default is False
+
+
+class TestDecimalDdlTypes:
+    """Arrow decimals must map to ``decimal(p,s)`` in warehouse DDL."""
+
+    def test_pa_to_redshift_value_type_decimal(self):
+        assert pa_to_redshift_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+        assert pa_to_redshift_value_type(pyarrow.decimal128(38, 37)) == "decimal(38,37)"
+
+    def test_pa_to_athena_value_type_decimal(self):
+        assert pa_to_athena_value_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+
+    def test_pa_to_mssql_type_decimal(self):
+        assert pa_to_mssql_type(pyarrow.decimal128(10, 2)) == "decimal(10,2)"
+        assert pa_to_mssql_type(pyarrow.decimal128(38, 37)) == "decimal(38,37)"
 
 
 class TestRedshiftDynamoDBMapSupport:
@@ -2510,6 +2626,92 @@ class TestZonedTimestamp:
             Array(ZonedTimestamp)
         with pytest.raises(ValueError):
             Set(ZonedTimestamp)
+
+    def test_pytz_fixed_offset_round_trips(self):
+        # pyarrow hands back pytz.FixedOffset for an offset-zoned column; its str()
+        # is "pytz.FixedOffset(330)", which used to be stored and decoded as UTC.
+        pytz = pytest.importorskip("pytz")
+        dt = datetime(2026, 6, 17, 9, tzinfo=pytz.FixedOffset(330))
+        protos = python_values_to_proto_values([dt], ValueType.ZONED_TIMESTAMP)
+        assert protos[0].zoned_timestamp_val.zone == "UTC+05:30"
+        converted = feast_value_type_to_python_type(protos[0])
+        assert converted == dt
+        assert converted.utcoffset() == timedelta(hours=5, minutes=30)
+        assert converted.hour == 9
+
+    @staticmethod
+    def _arrow_rows(event_time: pyarrow.Array) -> list:
+        # The conversion materialize and write_to_online_store run on each batch.
+        from feast import Entity, FeatureView, Field, FileSource
+        from feast.types import Int64, ZonedTimestamp
+        from feast.utils import _convert_arrow_to_proto
+
+        driver = Entity(name="driver_id", join_keys=["driver_id"])
+        feature_view = FeatureView(
+            name="driver_events",
+            entities=[driver],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="event_time", dtype=ZonedTimestamp),
+            ],
+            source=FileSource(path="unused.parquet", timestamp_field="ts"),
+        )
+        table = pyarrow.table(
+            {
+                "driver_id": pyarrow.array(range(len(event_time)), pyarrow.int64()),
+                "event_time": event_time,
+                "ts": pyarrow.array(
+                    [datetime(2026, 6, 17, tzinfo=timezone.utc)] * len(event_time)
+                ),
+            }
+        )
+        rows = _convert_arrow_to_proto(
+            table, feature_view, {"driver_id": ValueType.INT64}
+        )
+        return [features["event_time"] for _, features, _, _ in rows]
+
+    def test_arrow_column_keeps_its_zone(self):
+        from zoneinfo import ZoneInfo
+
+        la = ZoneInfo("America/Los_Angeles")
+        nine, ten = (
+            datetime(2026, 6, 17, 9, tzinfo=la),
+            datetime(2026, 6, 17, 10, tzinfo=la),
+        )
+        values = self._arrow_rows(
+            pyarrow.array(
+                [nine, None, ten],
+                type=pyarrow.timestamp("us", tz="America/Los_Angeles"),
+            )
+        )
+        assert [v.zoned_timestamp_val.zone for v in values] == [
+            "America/Los_Angeles",
+            "",
+            "America/Los_Angeles",
+        ]
+        assert values[1] == ProtoValue()
+        decoded = [feast_value_type_to_python_type(v) for v in values]
+        assert decoded == [nine, None, ten]
+        assert decoded[0].hour == 9 and str(decoded[0].tzinfo) == "America/Los_Angeles"
+
+    def test_arrow_column_from_dataframe(self):
+        # A pandas column of datetimes in one zone, as a FileSource or
+        # write_to_online_store DataFrame carries it.
+        ist = timezone(timedelta(hours=5, minutes=30))
+        column = pd.Series([datetime(2026, 6, 17, 9, tzinfo=ist)] * 2)
+        values = self._arrow_rows(pyarrow.Array.from_pandas(column))
+        decoded = [feast_value_type_to_python_type(v) for v in values]
+        assert decoded == list(column)
+        assert decoded[0].utcoffset() == timedelta(hours=5, minutes=30)
+
+    def test_arrow_column_without_zone_is_utc(self):
+        values = self._arrow_rows(
+            pyarrow.array([datetime(2026, 6, 17, 12)], type=pyarrow.timestamp("ns"))
+        )
+        assert values[0].zoned_timestamp_val.zone == ""
+        assert feast_value_type_to_python_type(values[0]) == datetime(
+            2026, 6, 17, 12, tzinfo=timezone.utc
+        )
 
 
 def test_import_does_not_emit_numpy_deprecation_warning():

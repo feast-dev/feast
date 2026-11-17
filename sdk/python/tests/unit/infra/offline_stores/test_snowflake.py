@@ -1,4 +1,5 @@
 import re
+from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import pandas as pd
@@ -10,6 +11,7 @@ from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
     SnowflakeRetrievalJob,
 )
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.repo_config import RepoConfig
 from feast.types import Array, String
@@ -85,3 +87,53 @@ def test_snowflake_to_df_internal(
     )
     retrieval_job._feature_views = [feature_view]
     retrieval_job._to_df_internal()
+
+
+@pytest.mark.parametrize(
+    "precision, max_value, expected",
+    [
+        (18, None, "NUMBER64"),
+        (19, 42, "NUMBER32"),
+        (19, 1234567890123, "NUMBER64"),
+        (38, 1234567890123, "NUMBER64"),
+    ],
+)
+def test_snowflake_source_integer_column_types(
+    mocker: MockFixture, precision, max_value, expected
+):
+    config = RepoConfig(
+        registry="s3://ml-test/repo/registry.db",
+        project="test",
+        provider="local",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=SnowflakeOfflineStoreConfig(
+            type="snowflake.offline",
+            account="snow",
+            user="snow",
+            password="snow",
+            role="snow",
+            warehouse="snow",
+            database="FEAST",
+            schema="PUBLIC",
+        ),
+        entity_key_serialization_version=3,
+    )
+    sample = MagicMock()
+    sample.description = [
+        SimpleNamespace(
+            name="ID", type_code=0, precision=precision, scale=0, is_nullable=True
+        )
+    ]
+    sample.fetch_pandas_all.return_value = pd.DataFrame({"ID": [1]})
+    maximum = MagicMock()
+    maximum.fetch_pandas_all.return_value = pd.DataFrame({"ID": [max_value]})
+    mocker.patch("feast.infra.utils.snowflake.snowflake_utils.GetSnowflakeConnection")
+    mocker.patch(
+        "feast.infra.utils.snowflake.snowflake_utils.execute_snowflake_statement",
+        side_effect=[sample, maximum],
+    )
+    source = SnowflakeSource(
+        name="source", database="FEAST", schema="PUBLIC", table="T"
+    )
+
+    assert list(source.get_table_column_names_and_types(config)) == [("ID", expected)]

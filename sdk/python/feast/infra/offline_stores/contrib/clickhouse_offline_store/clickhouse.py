@@ -469,7 +469,7 @@ WITH entity_dataframe AS (
             {% if featureview.entities %}
             ,(
                 {% for entity in featureview.entities %}
-                    CAST("{{entity}}" as VARCHAR) ||
+                    CAST(LENGTH(CAST("{{entity}}" AS VARCHAR)) AS VARCHAR) || ':' || CAST("{{entity}}" AS VARCHAR) ||
                 {% endfor %}
                 CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR)
             ) AS "{{featureview.name}}__entity_row_unique_id"
@@ -532,11 +532,15 @@ WITH entity_dataframe AS (
         entity_dataframe.entity_timestamp,
         entity_dataframe."{{featureview.name}}__entity_row_unique_id"
     FROM "{{ featureview.name }}__subquery" AS subquery
+    {% if featureview.entities %}
     INNER JOIN "{{ featureview.name }}__entity_dataframe" AS entity_dataframe
-    ON TRUE
+    ON
         {% for entity in featureview.entities %}
-        AND subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
+        {% if not loop.first %}AND {% endif %}subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
         {% endfor %}
+    {% else %}
+    CROSS JOIN "{{ featureview.name }}__entity_dataframe" AS entity_dataframe
+    {% endif %}
     WHERE TRUE
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
 
@@ -625,6 +629,7 @@ LEFT JOIN (
             ,"{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"
         {% endfor %}
     FROM "{{ featureview.name }}__cleaned"
-) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
+) AS "{{featureview.name}}"
+ON "{{featureview.name}}"."{{featureview.name}}__entity_row_unique_id" = entity_dataframe."{{featureview.name}}__entity_row_unique_id"
 {% endfor %}
 """

@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ from pymilvus import (
     CollectionSchema,
     DataType,
     FieldSchema,
+    Function,
+    FunctionType,
     MilvusClient,
 )
 from pymilvus.client.types import LoadState
@@ -117,11 +120,11 @@ MILVUS_NATIVE_NUMERIC_TYPES = {
     DataType.BOOL,
 }
 MILVUS_VECTOR_TYPES = {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}
-# Feast types stored as a JSON column when native types are enabled. Map and
+# Feast types stored as a JSON column. Map and
 # Struct stay serialized: JSON cannot hold their nested bytes, timestamps or
 # empty typed lists.
 _JSON_VALUE_TYPES = {ValueType.JSON, ValueType.JSON_LIST}
-# Element types of an ARRAY column when native types are enabled.
+# Element types of an ARRAY column.
 _ARRAY_ELEMENT_TYPES: Dict[Any, DataType] = {
     PrimitiveFeastType.STRING: DataType.VARCHAR,
     PrimitiveFeastType.BOOL: DataType.BOOL,
@@ -280,6 +283,24 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     password: Optional[StrictStr] = ""
     enable_openai_compatible_store: Optional[bool] = False
     varchar_max_length: Optional[int] = 65535
+    # Timeout in seconds that PyMilvus applies to each upsert and delete attempt.
+    # PyMilvus stops retrying once the elapsed time exceeds it, so a call can
+    # overrun by up to one attempt. When unset, PyMilvus applies its default
+    # retry policy.
+    mutation_timeout: Optional[float] = None
+
+    @field_validator("mutation_timeout")
+    @classmethod
+    def validate_mutation_timeout(cls, v):
+        if v is not None and not (math.isfinite(v) and v > 0):
+            raise ValueError(
+                f"mutation_timeout must be a positive number of seconds, got {v}"
+            )
+        return v
+
+    # Raise an error, instead of logging a warning, when an existing collection
+    # does not have the fields the feature view declares.
+    fail_on_schema_mismatch: Optional[bool] = False
 
     @field_validator("num_partitions")
     @classmethod
@@ -376,7 +397,9 @@ class MilvusOnlineStore(OnlineStore):
             use_typed = config.online_store.enable_openai_compatible_store
             partition_key = _partition_key_name(config.online_store, table)
             entity_columns = {column.name for column in table.entity_columns}
-            scalar_indexes: List[Dict[str, Any]] = []
+            tag_indexes: List[Dict[str, Any]] = []
+            bm25_outputs: List[FieldSchema] = []
+            functions: List[Function] = []
             for field in fields_to_add:
                 spec = _column_spec(
                     field,
@@ -389,7 +412,7 @@ class MilvusOnlineStore(OnlineStore):
                         f"Field '{field.name}': Array(Bool) cannot be a vector field,"
                         " Milvus binary vectors are not supported."
                     )
-                nullable = _nullable_tag(field)
+                nullable = _boolean_tag(field, "milvus.nullable")
                 if nullable is None:
                     nullable = spec.get("nullable", False)
                 if nullable and (
@@ -404,10 +427,31 @@ class MilvusOnlineStore(OnlineStore):
                 spec.pop("nullable", None)
                 if nullable:
                     spec["nullable"] = True
-                scalar_indexes.extend(_scalar_index_specs(field, spec["dtype"]))
+                spec.update(_text_analysis_params(field))
+                tag_indexes.extend(_scalar_index_specs(field, spec["dtype"]))
                 fields.append(FieldSchema(name=field.name, **spec))
+                bm25 = _bm25_specs(field)
+                if bm25 is not None:
+                    output, function, index = bm25
+                    bm25_outputs.append(output)
+                    functions.append(function)
+                    tag_indexes.append(index)
+            # PyMilvus accepts duplicate field names, so a clash would go unnoticed.
+            names = {f.name for f in fields}
+            for output in bm25_outputs:
+                if output.name in names:
+                    raise ValueError(
+                        f"Field '{output.name}' has the name of a milvus.bm25 output:"
+                        " rename it."
+                    )
+            fields.extend(bm25_outputs)
             has_vector_field = any(
-                f.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR)
+                f.dtype
+                in (
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.SPARSE_FLOAT_VECTOR,
+                )
                 for f in fields
             )
             if not has_vector_field:
@@ -421,7 +465,9 @@ class MilvusOnlineStore(OnlineStore):
             if partition_key:
                 _mark_partition_key(fields, partition_key, table.name)
             schema = CollectionSchema(
-                fields=fields, description="Feast feature view data"
+                fields=fields,
+                functions=functions,
+                description="Feast feature view data",
             )
             collection_exists = self.client.has_collection(
                 collection_name=collection_name
@@ -457,8 +503,8 @@ class MilvusOnlineStore(OnlineStore):
                             index_type="FLAT",
                             index_name=f"vector_index_{vector_field.name}",
                         )
-                for scalar_index in scalar_indexes:
-                    index_params.add_index(**scalar_index)
+                for tag_index in tag_indexes:
+                    index_params.add_index(**tag_index)
                 # Every collection has at least one vector field, and every
                 # vector field is indexed, so passing the index params here
                 # makes Milvus create the indexes and load the collection.
@@ -472,20 +518,19 @@ class MilvusOnlineStore(OnlineStore):
                 )
             else:
                 self._ensure_loaded(collection_name)
-                _warn_if_scalar_indexes_missing(
+                _warn_if_tag_indexes_missing(
                     self.client,
                     collection_name,
-                    [index["index_name"] for index in scalar_indexes],
+                    [index["index_name"] for index in tag_indexes],
                 )
-            # Collections are only cached once loaded, so reads and searches
-            # don't need to load them again.
-            self._collections[collection_name] = self.client.describe_collection(
-                collection_name
-            )
-            if collection_exists and partition_key:
-                _warn_if_partition_key_missing(
-                    self._collections[collection_name], partition_key
-                )
+            description = self.client.describe_collection(collection_name)
+            if collection_exists:
+                _check_schema(config.online_store, schema, description)
+                if partition_key:
+                    _warn_if_partition_key_missing(description, partition_key)
+            # Collections are only cached once loaded and checked, so reads and
+            # searches don't need to load or check them again.
+            self._collections[collection_name] = description
         return self._collections[collection_name]
 
     def _ensure_loaded(self, collection_name: str) -> None:
@@ -513,7 +558,13 @@ class MilvusOnlineStore(OnlineStore):
         collection = self._get_or_create_collection(config, table)
         entity_batch_to_insert = []
         unique_entities: dict[str, dict[str, Any]] = {}
-        required_fields = {field["name"] for field in collection["fields"]}
+        # Milvus computes function outputs, such as BM25 vectors, and PyMilvus
+        # rejects rows that carry them.
+        required_fields = {
+            field["name"]
+            for field in collection["fields"]
+            if not field.get("is_function_output")
+        }
         collection_field_types = {
             field["name"]: field["type"] for field in collection["fields"]
         }
@@ -588,6 +639,7 @@ class MilvusOnlineStore(OnlineStore):
         self.client.upsert(
             collection_name=collection["collection_name"],
             data=entity_batch_to_insert,
+            **_mutation_kwargs(config.online_store),
         )
 
     def online_read(
@@ -731,7 +783,11 @@ class MilvusOnlineStore(OnlineStore):
             if not self.client.has_collection(collection_name):
                 return
             self._ensure_loaded(collection_name)
-        self.client.delete(collection_name=collection_name, **selector)
+        self.client.delete(
+            collection_name=collection_name,
+            **selector,
+            **_mutation_kwargs(config.online_store),
+        )
 
     def update(
         self,
@@ -744,6 +800,16 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
+            # Check the schema again: the feature view may have changed since this
+            # process cached the collection.
+            self._collections.pop(
+                _table_id(
+                    config.project,
+                    table,
+                    config.registry.enable_online_feature_view_versioning,
+                ),
+                None,
+            )
             self._get_or_create_collection(config, table)
 
         # Always drop the base collection plus any "_v{N}" siblings, regardless of
@@ -831,13 +897,16 @@ class MilvusOnlineStore(OnlineStore):
         # Find the vector search field if we need it
         ann_search_field = None
         if embedding is not None:
-            for field in collection["fields"]:
-                if (
-                    field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
-                    and field["name"] in output_fields
-                ):
-                    ann_search_field = field["name"]
-                    break
+            vector_fields = [
+                field["name"]
+                for field in collection["fields"]
+                if field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+            ]
+            requested = [name for name in vector_fields if name in output_fields]
+            # Name the only vector field even when it isn't requested: Milvus
+            # cannot infer it once the collection also has a BM25 output.
+            if requested or len(vector_fields) == 1:
+                ann_search_field = (requested or vector_fields)[0]
 
         if filters and filters_contain_numeric_comparison(filters):
             collection_field_types = {
@@ -1041,6 +1110,13 @@ def _table_id(project: str, table: FeatureView, enable_versioning: bool = False)
     return compute_table_id(project, table, enable_versioning)
 
 
+def _mutation_kwargs(online_config: MilvusOnlineStoreConfig) -> Dict[str, Any]:
+    """PyMilvus applies ``timeout`` to each attempt and stops retrying after it."""
+    if online_config.mutation_timeout is None:
+        return {}
+    return {"timeout": online_config.mutation_timeout}
+
+
 def _is_autoindex(online_config: MilvusOnlineStoreConfig) -> bool:
     return (online_config.index_type or "").upper() == "AUTOINDEX"
 
@@ -1100,6 +1176,61 @@ def _mark_partition_key(
             "INT64 or VARCHAR."
         )
     field.is_partition_key = True
+
+
+def _schema_mismatches(
+    schema: CollectionSchema, collection: Dict[str, Any]
+) -> List[str]:
+    """Fields that differ between a feature view's schema and an existing collection.
+
+    Field types are not compared: reads and writes adapt to the types a collection
+    has, for example numeric fields stored as VARCHAR.
+    """
+    declared = {field.name: field for field in schema.fields}
+    existing = {field["name"]: field for field in collection["fields"]}
+    mismatches = [
+        f"field '{name}' is not in the collection"
+        for name in declared
+        if name not in existing
+    ] + [
+        f"field '{name}' is not in the feature view"
+        for name in existing
+        if name not in declared
+    ]
+    for name in declared:
+        # Older Feast versions created a 1-dim placeholder; writes adapt to it.
+        if name not in existing or name == PLACEHOLDER_VECTOR_FIELD:
+            continue
+        declared_dim = declared[name].params.get("dim")
+        existing_dim = existing[name].get("params", {}).get("dim")
+        if declared_dim is None or existing_dim is None:
+            continue
+        if int(declared_dim) != int(existing_dim):
+            mismatches.append(
+                f"field '{name}' has dim {existing_dim}, "
+                f"the feature view declares dim {declared_dim}"
+            )
+    return mismatches
+
+
+def _check_schema(
+    online_config: MilvusOnlineStoreConfig,
+    schema: CollectionSchema,
+    collection: Dict[str, Any],
+) -> None:
+    """Log, or raise with ``fail_on_schema_mismatch``, the schema differences."""
+    mismatches = _schema_mismatches(schema, collection)
+    if not mismatches:
+        return
+    message = (
+        f"Collection '{collection['collection_name']}' does not match the feature "
+        f"view schema: {'; '.join(mismatches)}. A collection's schema only applies "
+        "when it is created: run `feast teardown` and `feast apply`, then "
+        "materialize again to use the new schema."
+    )
+    if online_config.fail_on_schema_mismatch:
+        raise ValueError(message)
+    logger.warning(message)
 
 
 def _warn_if_partition_key_missing(
@@ -1318,36 +1449,37 @@ def _milvus_field_type(field: Field) -> DataType:
 
 
 def _column_spec(
-    field: Field, native: bool, varchar_max_length: int, embedding_dim: Optional[int]
+    field: Field,
+    native_numerics: bool,
+    varchar_max_length: int,
+    embedding_dim: Optional[int],
 ) -> Dict[str, Any]:
     """The FieldSchema arguments of a feature's column.
 
-    A ``vector_index`` field is a vector. With native types, scalars get their
-    own type, arrays of scalars become ARRAY and Json, Map and Struct values
-    become JSON. Everything else is VARCHAR: text, base64 bytes or a
-    serialized value.
+    A ``vector_index`` field is a vector, an array of scalars is an ARRAY and a
+    Json value is JSON. A numeric is native when ``native_numerics`` is set.
+    Everything else is VARCHAR: text, base64 bytes or a serialized value.
     """
     dtype = _milvus_field_type(field)
     if dtype in MILVUS_VECTOR_TYPES:
         return {"dtype": dtype, "dim": field.vector_length or embedding_dim}
     max_length = _max_length_tag(field, varchar_max_length)
-    if native:
-        if from_feast_type(field.dtype) in _JSON_VALUE_TYPES:
-            return {"dtype": DataType.JSON, "nullable": True}
-        if isinstance(field.dtype, Array):
-            element = _ARRAY_ELEMENT_TYPES.get(field.dtype.base_type)
-            if element is not None:
-                spec: Dict[str, Any] = {
-                    "dtype": DataType.ARRAY,
-                    "element_type": element,
-                    "max_capacity": _max_capacity_tag(field),
-                    "nullable": True,
-                }
-                if element == DataType.VARCHAR:
-                    spec["max_length"] = max_length
-                return spec
-        elif dtype in MILVUS_NATIVE_NUMERIC_TYPES:
-            return {"dtype": dtype}
+    if from_feast_type(field.dtype) in _JSON_VALUE_TYPES:
+        return {"dtype": DataType.JSON, "nullable": True}
+    if isinstance(field.dtype, Array):
+        element = _ARRAY_ELEMENT_TYPES.get(field.dtype.base_type)
+        if element is not None:
+            spec: Dict[str, Any] = {
+                "dtype": DataType.ARRAY,
+                "element_type": element,
+                "max_capacity": _max_capacity_tag(field),
+                "nullable": True,
+            }
+            if element == DataType.VARCHAR:
+                spec["max_length"] = max_length
+            return spec
+    elif native_numerics and dtype in MILVUS_NATIVE_NUMERIC_TYPES:
+        return {"dtype": dtype}
     return {"dtype": DataType.VARCHAR, "max_length": max_length}
 
 
@@ -1449,7 +1581,59 @@ def _scalar_index_specs(field: Field, dtype: DataType) -> List[Dict[str, Any]]:
     return specs
 
 
-def _warn_if_scalar_indexes_missing(
+def _text_analysis_params(field: Field) -> Dict[str, Any]:
+    """The analyzer settings that the ``milvus.analyzer_params``,
+    ``milvus.enable_match`` and ``milvus.bm25`` tags declare."""
+    analyzer_params = _json_tag(field, "milvus.analyzer_params", dict)
+    enable_match = _boolean_tag(field, "milvus.enable_match")
+    bm25 = _boolean_tag(field, "milvus.bm25")
+    if analyzer_params is None and not enable_match and not bm25:
+        return {}
+    # Other types are stored as VARCHAR too, but their text is not meant to be analyzed.
+    if from_feast_type(field.dtype) != ValueType.STRING:
+        raise ValueError(
+            f"Field '{field.name}' has text analysis tags but is not a String feature"
+        )
+    params: Dict[str, Any] = {"enable_analyzer": True}
+    if analyzer_params is not None:
+        params["analyzer_params"] = analyzer_params
+    if enable_match:
+        params["enable_match"] = True
+    return params
+
+
+def _bm25_specs(
+    field: Field,
+) -> Optional[Tuple[FieldSchema, Function, Dict[str, Any]]]:
+    """The sparse output, BM25 function and index that the ``milvus.bm25`` tag declares."""
+    params = _json_tag(field, "milvus.bm25_index_params", dict)
+    if not _boolean_tag(field, "milvus.bm25"):
+        if params is not None:
+            raise ValueError(
+                f"Field '{field.name}' has a milvus.bm25_index_params tag"
+                " without milvus.bm25"
+            )
+        return None
+    output = f"{field.name}_bm25"
+    return (
+        FieldSchema(name=output, dtype=DataType.SPARSE_FLOAT_VECTOR),
+        Function(
+            name=f"{output}_fn",
+            input_field_names=[field.name],
+            output_field_names=[output],
+            function_type=FunctionType.BM25,
+        ),
+        {
+            "field_name": output,
+            "index_type": "SPARSE_INVERTED_INDEX",
+            "index_name": f"bm25_index_{field.name}",
+            "metric_type": "BM25",
+            "params": params or {},
+        },
+    )
+
+
+def _warn_if_tag_indexes_missing(
     client: MilvusClient, collection_name: str, index_names: List[str]
 ) -> None:
     if not index_names:
@@ -1465,13 +1649,13 @@ def _warn_if_scalar_indexes_missing(
         )
 
 
-def _nullable_tag(field: Field) -> Optional[bool]:
-    if "milvus.nullable" not in field.tags:
+def _boolean_tag(field: Field, tag: str) -> Optional[bool]:
+    if tag not in field.tags:
         return None
-    value = field.tags["milvus.nullable"].lower()
+    value = field.tags[tag].lower()
     if value not in ("true", "false"):
         raise ValueError(
-            f"Field '{field.name}' has invalid milvus.nullable tag"
-            f" '{field.tags['milvus.nullable']}': must be 'true' or 'false'."
+            f"Field '{field.name}' has invalid {tag} tag"
+            f" '{field.tags[tag]}': must be 'true' or 'false'."
         )
     return value == "true"

@@ -79,3 +79,7 @@ def mock_kubernetes(request, monkeypatch):
         "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
         lambda self: my_namespace,
     )
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+        lambda self, token: (subject, [], []),
+    )

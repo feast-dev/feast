@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   EuiPanel,
   EuiTitle,
@@ -6,11 +6,23 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiSuperSelect,
+  EuiButtonIcon,
+  EuiButtonEmpty,
 } from "@elastic/eui";
 import type {
   FeatureMetric,
   CategoricalHistogram,
 } from "../../../queries/useMonitoringApi";
+import {
+  ChartTooltip,
+  PlotOverlay,
+  ZoomScroller,
+  inDomain,
+  useClipId,
+  usePlotPointer,
+  useZoom,
+} from "./chartZoom";
+import type { PlotBox, XDomain } from "./chartZoom";
 
 const COLORS = [
   "#006BB4",
@@ -57,7 +69,25 @@ const DIMS: ChartDims = {
   padBottom: 30,
 };
 
+const DAY_MS = 86400_000;
+// Point markers are hidden when a series shows more points than this.
+const MAX_MARKERS = 45;
+interface ChartInteraction {
+  // Visible window, and the full range of the data.
+  domain: XDomain;
+  fullDomain: XDomain;
+  hoverX: number | null;
+  setHoverX: (x: number | null) => void;
+  zoomTo: (domain: XDomain) => void;
+  // Move the window so it starts at `start`, keeping its width.
+  panTo: (start: number) => void;
+  resetZoom: () => void;
+}
+
 const formatDate = (d: string): string => {
+  // Metric dates are calendar days. Show them as they are, so the browser's
+  // time zone does not shift them to another day or add a time.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d.slice(5);
   const dt = new Date(d);
   const mm = String(dt.getMonth() + 1).padStart(2, "0");
   const dd = String(dt.getDate()).padStart(2, "0");
@@ -65,6 +95,8 @@ const formatDate = (d: string): string => {
   const mi = String(dt.getMinutes()).padStart(2, "0");
   return `${mm}-${dd} ${hh}:${mi}`;
 };
+
+const formatDay = (x: number): string => new Date(x).toISOString().slice(0, 10);
 
 const formatAxisVal = (v: number): string => {
   if (v === 0) return "0";
@@ -75,57 +107,64 @@ const formatAxisVal = (v: number): string => {
   return (v * 100).toFixed(1) + "%";
 };
 
+const formatValue = (v: number): string =>
+  Math.abs(v) >= 1000
+    ? v.toLocaleString(undefined, { maximumFractionDigits: 1 })
+    : String(Number(v.toPrecision(4)));
+
+const formatRate = (v: number): string => `${(v * 100).toFixed(1)}%`;
+
 const niceYTicks = (min: number, max: number, count = 5): number[] => {
   if (max === min) return [min];
   const step = (max - min) / (count - 1);
   return Array.from({ length: count }, (_, i) => min + step * i);
 };
 
-interface LineSeriesData {
+const plotWidth = (dims: ChartDims) =>
+  dims.width - dims.padLeft - dims.padRight;
+const plotHeight = (dims: ChartDims) =>
+  dims.height - dims.padTop - dims.padBottom;
+
+const boxOf = (dims: ChartDims): PlotBox => ({
+  width: dims.width,
+  height: dims.height,
+  left: dims.padLeft,
+  top: dims.padTop,
+  plotWidth: plotWidth(dims),
+  plotHeight: plotHeight(dims),
+});
+
+const makeScaleX =
+  ([x0, x1]: XDomain, dims: ChartDims) =>
+  (x: number) =>
+    x1 === x0
+      ? dims.padLeft + plotWidth(dims) / 2
+      : dims.padLeft + ((x - x0) / (x1 - x0)) * plotWidth(dims);
+
+const nearestX = (xs: number[], x: number): number | null =>
+  xs.reduce<number | null>(
+    (best, v) =>
+      best === null || Math.abs(v - x) < Math.abs(best - x) ? v : best,
+    null,
+  );
+
+const YAxis = ({
+  dims,
+  ticks,
+  scaleY,
+  format,
+  label,
+}: {
+  dims: ChartDims;
+  ticks: number[];
+  scaleY: (v: number) => number;
+  format: (v: number) => string;
   label: string;
-  color: string;
-  dashArray?: string;
-  points: { x: number; y: number; date: string; value: number }[];
-}
-
-const renderMultiLineChart = (
-  series: LineSeriesData[],
-  dims: ChartDims,
-  yLabel: string,
-  yFormatter: (v: number) => string = formatAxisVal,
-) => {
-  const allPoints = series.flatMap((s) => s.points);
-  if (allPoints.length === 0) return null;
-
-  const xMin = Math.min(...allPoints.map((p) => p.x));
-  const xMax = Math.max(...allPoints.map((p) => p.x));
-  const yMin = Math.min(...allPoints.map((p) => p.value), 0);
-  const yMax = Math.max(...allPoints.map((p) => p.value), 0.01);
-
-  const plotW = dims.width - dims.padLeft - dims.padRight;
-  const plotH = dims.height - dims.padTop - dims.padBottom;
-
-  const scaleX = (x: number) =>
-    xMax === xMin
-      ? dims.padLeft + plotW / 2
-      : dims.padLeft + ((x - xMin) / (xMax - xMin)) * plotW;
-  const scaleY = (v: number) =>
-    dims.padTop + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
-
-  const yTicks = niceYTicks(yMin, yMax);
-  const xDates = allPoints
-    .map((p) => ({ x: p.x, date: p.date }))
-    .filter((v, i, arr) => arr.findIndex((a) => a.date === v.date) === i)
-    .sort((a, b) => a.x - b.x);
-
-  const maxXLabels = Math.floor(plotW / 80);
-  const xStep = Math.max(1, Math.ceil(xDates.length / maxXLabels));
-  const xLabels = xDates.filter((_, i) => i % xStep === 0);
-
+}) => {
+  const midY = dims.padTop + plotHeight(dims) / 2;
   return (
-    <svg width={dims.width} height={dims.height} style={{ display: "block" }}>
-      {/* Y axis grid + labels */}
-      {yTicks.map((v, i) => {
+    <>
+      {ticks.map((v, i) => {
         const y = scaleY(v);
         return (
           <g key={`y-${i}`}>
@@ -144,102 +183,281 @@ const renderMultiLineChart = (
               fontSize={10}
               fill="#69707D"
             >
-              {yFormatter(v)}
+              {format(v)}
             </text>
           </g>
         );
       })}
-
-      {/* Y axis label */}
       <text
         x={14}
-        y={dims.padTop + plotH / 2}
+        y={midY}
         textAnchor="middle"
         fontSize={11}
         fill="#E7664C"
         fontWeight={600}
-        transform={`rotate(-90, 14, ${dims.padTop + plotH / 2})`}
+        transform={`rotate(-90, 14, ${midY})`}
       >
-        {yLabel}
+        {label}
       </text>
-
-      {/* X axis labels */}
-      {xLabels.map((xl, i) => (
-        <text
-          key={`x-${i}`}
-          x={scaleX(xl.x)}
-          y={dims.height - 4}
-          textAnchor="middle"
-          fontSize={10}
-          fill="#69707D"
-        >
-          {formatDate(xl.date)}
-        </text>
-      ))}
-
-      {/* Lines */}
-      {series.map((s, si) => {
-        if (s.points.length === 0) return null;
-        const sorted = [...s.points].sort((a, b) => a.x - b.x);
-        const pathD = sorted
-          .map(
-            (p, i) =>
-              `${i === 0 ? "M" : "L"} ${scaleX(p.x)} ${scaleY(p.value)}`,
-          )
-          .join(" ");
-        return (
-          <g key={si}>
-            <path
-              d={pathD}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={2}
-              strokeDasharray={s.dashArray}
-            />
-            {sorted.map((p, i) => (
-              <circle
-                key={i}
-                cx={scaleX(p.x)}
-                cy={scaleY(p.value)}
-                r={s.dashArray ? 4 : 3}
-                fill={s.color}
-                stroke={s.dashArray ? "#fff" : undefined}
-                strokeWidth={s.dashArray ? 1 : undefined}
-              />
-            ))}
-          </g>
-        );
-      })}
-    </svg>
+    </>
   );
 };
 
-const renderAreaChart = (
-  points: { x: number; value: number; date: string }[],
-  dims: ChartDims,
-  yLabel: string,
-  lineColor: string,
-  fillColor: string,
-) => {
-  if (points.length === 0) return null;
+const XAxisLabels = ({
+  dims,
+  points,
+  scaleX,
+}: {
+  dims: ChartDims;
+  points: { x: number; date: string }[];
+  scaleX: (x: number) => number;
+}) => {
+  const dates = points
+    .filter((v, i, arr) => arr.findIndex((a) => a.date === v.date) === i)
+    .sort((a, b) => a.x - b.x);
+  const maxLabels = Math.floor(plotWidth(dims) / 80);
+  const step = Math.max(1, Math.ceil(dates.length / maxLabels));
+  return (
+    <>
+      {dates
+        .filter((_, i) => i % step === 0)
+        .map((d, i) => (
+          <text
+            key={`x-${i}`}
+            x={scaleX(d.x)}
+            y={dims.height - 4}
+            textAnchor="middle"
+            fontSize={10}
+            fill="#69707D"
+          >
+            {formatDate(d.date)}
+          </text>
+        ))}
+    </>
+  );
+};
 
-  const sorted = [...points].sort((a, b) => a.x - b.x);
-  const xMin = Math.min(...sorted.map((p) => p.x));
-  const xMax = Math.max(...sorted.map((p) => p.x));
-  const yMin = 0;
-  const yMax = Math.max(...sorted.map((p) => p.value), 0.01);
+interface ChartPoint {
+  x: number;
+  value: number;
+  date: string;
+}
 
-  const plotW = dims.width - dims.padLeft - dims.padRight;
-  const plotH = dims.height - dims.padTop - dims.padBottom;
+interface LineSeriesData {
+  label: string;
+  color: string;
+  dashArray?: string;
+  points: (ChartPoint & { y: number })[];
+}
 
-  const scaleX = (x: number) =>
-    xMax === xMin
-      ? dims.padLeft + plotW / 2
-      : dims.padLeft + ((x - xMin) / (xMax - xMin)) * plotW;
+const MultiLineChart = ({
+  series,
+  dims,
+  yLabel,
+  yFormatter = formatAxisVal,
+  valueFormatter = formatValue,
+  interaction,
+}: {
+  series: LineSeriesData[];
+  dims: ChartDims;
+  yLabel: string;
+  yFormatter?: (v: number) => string;
+  valueFormatter?: (v: number) => string;
+  interaction: ChartInteraction;
+}) => {
+  const { domain, hoverX } = interaction;
+  const clipId = useClipId();
+  const allPoints = useMemo(() => series.flatMap((s) => s.points), [series]);
+  const visiblePoints = useMemo(
+    () => allPoints.filter((p) => inDomain(p.x, domain)),
+    [allPoints, domain],
+  );
+  const visibleXs = useMemo(
+    () => Array.from(new Set(visiblePoints.map((p) => p.x))),
+    [visiblePoints],
+  );
+  const box = boxOf(dims);
+  const { svgRef, handlers, brush, isHovered } = usePlotPointer(box, domain, {
+    onHover: (x) =>
+      interaction.setHoverX(x === null ? null : nearestX(visibleXs, x)),
+    onZoom: interaction.zoomTo,
+    onReset: interaction.resetZoom,
+  });
+
+  if (allPoints.length === 0) return null;
+
+  const yMin = Math.min(...visiblePoints.map((p) => p.value), 0);
+  const yMax = Math.max(...visiblePoints.map((p) => p.value), 0.01);
+  const plotH = plotHeight(dims);
+  const scaleX = makeScaleX(domain, dims);
   const scaleY = (v: number) =>
     dims.padTop + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
 
-  const yTicks = niceYTicks(yMin, yMax);
+  const hoverDate =
+    hoverX === null ? null : allPoints.find((p) => p.x === hoverX)?.date;
+
+  return (
+    <ZoomScroller
+      box={box}
+      domain={domain}
+      fullDomain={interaction.fullDomain}
+      onPan={interaction.panTo}
+      testId="time-series-scroll"
+    >
+      <svg
+        ref={svgRef}
+        width={dims.width}
+        height={dims.height}
+        style={{ display: "block", cursor: "crosshair", userSelect: "none" }}
+        data-testid="time-series-chart"
+        {...handlers}
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={dims.padLeft - 5}
+              y={0}
+              width={plotWidth(dims) + 10}
+              height={dims.height - dims.padBottom + 5}
+            />
+          </clipPath>
+        </defs>
+        <rect
+          x={dims.padLeft}
+          y={dims.padTop}
+          width={plotWidth(dims)}
+          height={plotH}
+          fill="transparent"
+        />
+        <YAxis
+          dims={dims}
+          ticks={niceYTicks(yMin, yMax)}
+          scaleY={scaleY}
+          format={yFormatter}
+          label={yLabel}
+        />
+        <XAxisLabels dims={dims} points={visiblePoints} scaleX={scaleX} />
+
+        <g clipPath={`url(#${clipId})`}>
+          {series.map((s, si) => {
+            if (s.points.length === 0) return null;
+            const sorted = [...s.points].sort((a, b) => a.x - b.x);
+            const pathD = sorted
+              .map(
+                (p, i) =>
+                  `${i === 0 ? "M" : "L"} ${scaleX(p.x)} ${scaleY(p.value)}`,
+              )
+              .join(" ");
+            const shown = sorted.filter((p) => inDomain(p.x, domain));
+            return (
+              <g key={si}>
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={2}
+                  strokeDasharray={s.dashArray}
+                />
+                {shown.length <= MAX_MARKERS &&
+                  shown.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={scaleX(p.x)}
+                      cy={scaleY(p.value)}
+                      r={s.dashArray ? 4 : 3}
+                      fill={s.color}
+                      stroke={s.dashArray ? "#fff" : undefined}
+                      strokeWidth={s.dashArray ? 1 : undefined}
+                    />
+                  ))}
+                {shown
+                  .filter((p) => p.x === hoverX)
+                  .map((p, i) => (
+                    <circle
+                      key={`hover-${i}`}
+                      cx={scaleX(p.x)}
+                      cy={scaleY(p.value)}
+                      r={5}
+                      fill={s.color}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    />
+                  ))}
+              </g>
+            );
+          })}
+        </g>
+
+        <PlotOverlay
+          box={box}
+          hoverPx={hoverX === null ? null : scaleX(hoverX)}
+          brush={brush}
+        />
+      </svg>
+      {isHovered && hoverX !== null && hoverDate && (
+        <ChartTooltip
+          left={scaleX(hoverX)}
+          box={box}
+          title={hoverDate}
+          rows={series
+            .map((s) => ({
+              label: s.label,
+              color: s.color,
+              values: s.points
+                .filter((p) => p.x === hoverX)
+                .map((p) => valueFormatter(p.value)),
+            }))
+            .filter((r) => r.values.length > 0)}
+        />
+      )}
+    </ZoomScroller>
+  );
+};
+
+const AreaChart = ({
+  points,
+  dims,
+  yLabel,
+  seriesLabel,
+  lineColor,
+  fillColor,
+  interaction,
+}: {
+  points: ChartPoint[];
+  dims: ChartDims;
+  yLabel: string;
+  seriesLabel: string;
+  lineColor: string;
+  fillColor: string;
+  interaction: ChartInteraction;
+}) => {
+  const { domain, hoverX } = interaction;
+  const clipId = useClipId();
+  const sorted = useMemo(() => [...points].sort((a, b) => a.x - b.x), [points]);
+  const visiblePoints = useMemo(
+    () => sorted.filter((p) => inDomain(p.x, domain)),
+    [sorted, domain],
+  );
+  const visibleXs = useMemo(
+    () => Array.from(new Set(visiblePoints.map((p) => p.x))),
+    [visiblePoints],
+  );
+  const box = boxOf(dims);
+  const { svgRef, handlers, brush, isHovered } = usePlotPointer(box, domain, {
+    onHover: (x) =>
+      interaction.setHoverX(x === null ? null : nearestX(visibleXs, x)),
+    onZoom: interaction.zoomTo,
+    onReset: interaction.resetZoom,
+  });
+
+  if (sorted.length === 0) return null;
+
+  const yMin = 0;
+  const yMax = Math.max(...visiblePoints.map((p) => p.value), 0.01);
+  const plotH = plotHeight(dims);
+  const scaleX = makeScaleX(domain, dims);
+  const scaleY = (v: number) =>
+    dims.padTop + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
   const baseline = scaleY(0);
 
   const areaPath =
@@ -251,65 +469,87 @@ const renderAreaChart = (
     .map((p, i) => `${i === 0 ? "M" : "L"} ${scaleX(p.x)} ${scaleY(p.value)}`)
     .join(" ");
 
-  const maxXLabels = Math.floor(plotW / 80);
-  const xStep = Math.max(1, Math.ceil(sorted.length / maxXLabels));
-  const xLabels = sorted.filter((_, i) => i % xStep === 0);
+  const hovered = hoverX === null ? [] : sorted.filter((p) => p.x === hoverX);
 
   return (
-    <svg width={dims.width} height={dims.height} style={{ display: "block" }}>
-      {yTicks.map((v, i) => {
-        const y = scaleY(v);
-        return (
-          <g key={`y-${i}`}>
-            <line
-              x1={dims.padLeft}
-              y1={y}
-              x2={dims.width - dims.padRight}
-              y2={y}
-              stroke="#E0E5EE"
-              strokeDasharray="3,3"
-            />
-            <text
-              x={dims.padLeft - 6}
-              y={y + 4}
-              textAnchor="end"
-              fontSize={10}
-              fill="#69707D"
-            >
-              {(v * 100).toFixed(0)}%
-            </text>
-          </g>
-        );
-      })}
-
-      <text
-        x={14}
-        y={dims.padTop + plotH / 2}
-        textAnchor="middle"
-        fontSize={11}
-        fill="#E7664C"
-        fontWeight={600}
-        transform={`rotate(-90, 14, ${dims.padTop + plotH / 2})`}
+    <ZoomScroller
+      box={box}
+      domain={domain}
+      fullDomain={interaction.fullDomain}
+      onPan={interaction.panTo}
+      testId="time-series-scroll"
+    >
+      <svg
+        ref={svgRef}
+        width={dims.width}
+        height={dims.height}
+        style={{ display: "block", cursor: "crosshair", userSelect: "none" }}
+        data-testid="time-series-chart"
+        {...handlers}
       >
-        {yLabel}
-      </text>
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={dims.padLeft}
+              y={0}
+              width={plotWidth(dims)}
+              height={dims.height - dims.padBottom}
+            />
+          </clipPath>
+        </defs>
+        <rect
+          x={dims.padLeft}
+          y={dims.padTop}
+          width={plotWidth(dims)}
+          height={plotH}
+          fill="transparent"
+        />
+        <YAxis
+          dims={dims}
+          ticks={niceYTicks(yMin, yMax)}
+          scaleY={scaleY}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          label={yLabel}
+        />
+        <XAxisLabels dims={dims} points={visiblePoints} scaleX={scaleX} />
 
-      {xLabels.map((xl, i) => (
-        <text
-          key={`x-${i}`}
-          x={scaleX(xl.x)}
-          y={dims.height - 4}
-          textAnchor="middle"
-          fontSize={10}
-          fill="#69707D"
-        >
-          {formatDate(xl.date)}
-        </text>
-      ))}
+        <g clipPath={`url(#${clipId})`}>
+          <path d={areaPath} fill={fillColor} />
+          <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} />
+          {hovered.map((p, i) => (
+            <circle
+              key={i}
+              cx={scaleX(p.x)}
+              cy={scaleY(p.value)}
+              r={4}
+              fill={lineColor}
+              stroke="#fff"
+              strokeWidth={2}
+            />
+          ))}
+        </g>
 
-      <path d={areaPath} fill={fillColor} />
-      <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} />
-    </svg>
+        <PlotOverlay
+          box={box}
+          hoverPx={hoverX === null ? null : scaleX(hoverX)}
+          brush={brush}
+        />
+      </svg>
+      {isHovered && hoverX !== null && hovered.length > 0 && (
+        <ChartTooltip
+          left={scaleX(hoverX)}
+          box={box}
+          title={hovered[0].date}
+          rows={[
+            {
+              label: seriesLabel,
+              color: lineColor,
+              values: hovered.map((p) => formatRate(p.value)),
+            },
+          ]}
+        />
+      )}
+    </ZoomScroller>
   );
 };
 
@@ -360,13 +600,19 @@ const Legend = ({
 interface TimeSeriesAnalysisProps {
   metrics: FeatureMetric[];
   featureType: string;
+  // Name of the window length being plotted, e.g. "Daily".
+  granularityLabel?: string;
 }
+
+const toX = (m: FeatureMetric) => new Date(m.metric_date).getTime();
 
 const TimeSeriesAnalysis = ({
   metrics,
   featureType,
+  granularityLabel,
 }: TimeSeriesAnalysisProps) => {
   const [range, setRange] = useState("all");
+  const [hoverX, setHoverX] = useState<number | null>(null);
 
   const filteredMetrics = useMemo(() => {
     if (range === "all") return metrics;
@@ -382,9 +628,38 @@ const TimeSeriesAnalysis = ({
     [filteredMetrics],
   );
 
-  const toX = (m: FeatureMetric) => new Date(m.metric_date).getTime();
+  const fullDomain = useMemo<XDomain | null>(() => {
+    if (sorted.length === 0) return null;
+    const xs = sorted.map(toX);
+    return [Math.min(...xs), Math.max(...xs)];
+  }, [sorted]);
+
+  const zoom = useZoom(fullDomain, DAY_MS);
+  const { domain, reset } = zoom;
+
+  // A new time range or new data starts zoomed out.
+  useEffect(() => {
+    reset();
+  }, [range, metrics, reset]);
+
+  const interaction: ChartInteraction | null =
+    domain && fullDomain
+      ? {
+          domain,
+          fullDomain,
+          // After a zoom the last hovered point can sit outside the window.
+          hoverX: hoverX !== null && inDomain(hoverX, domain) ? hoverX : null,
+          setHoverX,
+          zoomTo: zoom.zoomTo,
+          panTo: zoom.panTo,
+          resetZoom: reset,
+        }
+      : null;
+
   const isNumeric = featureType === "numeric";
-  const hasData = sorted.length >= 1;
+  const windows = granularityLabel
+    ? `${granularityLabel.toLowerCase()} windows `
+    : "";
 
   return (
     <EuiPanel hasBorder>
@@ -397,19 +672,56 @@ const TimeSeriesAnalysis = ({
             Historical trends for central aggregates and quality signals.
           </p>
         </EuiFlexItem>
-        <EuiFlexItem grow={false} style={{ minWidth: 160 }}>
-          <EuiSuperSelect
-            options={RANGE_OPTIONS}
-            valueOfSelected={range}
-            onChange={setRange}
-            compressed
-          />
+        <EuiFlexItem grow={false}>
+          <EuiFlexGroup gutterSize="xs" alignItems="center" responsive={false}>
+            <EuiFlexItem grow={false}>
+              <EuiButtonIcon
+                iconType="magnifyWithPlus"
+                aria-label="Zoom in"
+                title="Zoom in"
+                isDisabled={!zoom.canZoomIn}
+                onClick={zoom.zoomIn}
+              />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiButtonIcon
+                iconType="magnifyWithMinus"
+                aria-label="Zoom out"
+                title="Zoom out"
+                isDisabled={!zoom.isZoomed}
+                onClick={zoom.zoomOut}
+              />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                size="xs"
+                isDisabled={!zoom.isZoomed}
+                onClick={reset}
+              >
+                Reset zoom
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false} style={{ minWidth: 160 }}>
+              <EuiSuperSelect
+                options={RANGE_OPTIONS}
+                valueOfSelected={range}
+                onChange={setRange}
+                compressed
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
         </EuiFlexItem>
       </EuiFlexGroup>
 
+      {domain && (
+        <p style={{ color: "#69707D", fontSize: 12, marginTop: 8 }}>
+          {`Showing ${windows}${formatDay(domain[0])} – ${formatDay(domain[1])}. Drag across a chart to zoom in, scroll sideways to move, double-click to reset.`}
+        </p>
+      )}
+
       <EuiSpacer size="m" />
 
-      {!hasData ? (
+      {!interaction ? (
         <p
           style={{
             color: "#69707D",
@@ -422,9 +734,17 @@ const TimeSeriesAnalysis = ({
           range.
         </p>
       ) : isNumeric ? (
-        <NumericTimeSeries metrics={sorted} toX={toX} />
+        <NumericTimeSeries
+          metrics={sorted}
+          toX={toX}
+          interaction={interaction}
+        />
       ) : (
-        <CategoricalTimeSeries metrics={sorted} toX={toX} />
+        <CategoricalTimeSeries
+          metrics={sorted}
+          toX={toX}
+          interaction={interaction}
+        />
       )}
     </EuiPanel>
   );
@@ -433,9 +753,11 @@ const TimeSeriesAnalysis = ({
 const NumericTimeSeries = ({
   metrics,
   toX,
+  interaction,
 }: {
   metrics: FeatureMetric[];
   toX: (m: FeatureMetric) => number;
+  interaction: ChartInteraction;
 }) => {
   const driftSeries: LineSeriesData[] = useMemo(() => {
     const build = (
@@ -479,7 +801,12 @@ const NumericTimeSeries = ({
         Aggregate Metrics Drift (Mean/P50/P95)
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderMultiLineChart(driftSeries, DIMS, "Metric Value")}
+        <MultiLineChart
+          series={driftSeries}
+          dims={DIMS}
+          yLabel="Metric Value"
+          interaction={interaction}
+        />
       </div>
       <Legend
         items={[
@@ -495,13 +822,15 @@ const NumericTimeSeries = ({
         Null Rate Evolution (%)
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderAreaChart(
-          nullPoints,
-          { ...DIMS, height: 160 },
-          "Percentage (%)",
-          "#BD271E",
-          "rgba(189, 39, 30, 0.15)",
-        )}
+        <AreaChart
+          points={nullPoints}
+          dims={{ ...DIMS, height: 160 }}
+          yLabel="Percentage (%)"
+          seriesLabel="Null rate"
+          lineColor="#BD271E"
+          fillColor="rgba(189, 39, 30, 0.15)"
+          interaction={interaction}
+        />
       </div>
     </>
   );
@@ -510,9 +839,11 @@ const NumericTimeSeries = ({
 const CategoricalTimeSeries = ({
   metrics,
   toX,
+  interaction,
 }: {
   metrics: FeatureMetric[];
   toX: (m: FeatureMetric) => number;
+  interaction: ChartInteraction;
 }) => {
   const { cardinalitySeries, shareSeries, topCategories } = useMemo(() => {
     const catCounts = new Map<string, number>();
@@ -601,7 +932,12 @@ const CategoricalTimeSeries = ({
         Cardinality over time
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderMultiLineChart(cardinalitySeries, DIMS, "Count")}
+        <MultiLineChart
+          series={cardinalitySeries}
+          dims={DIMS}
+          yLabel="Count"
+          interaction={interaction}
+        />
       </div>
       <Legend
         items={cardinalitySeries.map((s) => ({
@@ -616,12 +952,14 @@ const CategoricalTimeSeries = ({
         Top category share over time (%)
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderMultiLineChart(
-          shareSeries,
-          DIMS,
-          "Percentage (%)",
-          shareYFormatter,
-        )}
+        <MultiLineChart
+          series={shareSeries}
+          dims={DIMS}
+          yLabel="Percentage (%)"
+          yFormatter={shareYFormatter}
+          valueFormatter={(v) => `${v.toFixed(1)}%`}
+          interaction={interaction}
+        />
       </div>
       <Legend
         items={topCategories.map((cat, i) => ({
@@ -636,13 +974,15 @@ const CategoricalTimeSeries = ({
         Null Rate Evolution (%)
       </h4>
       <div style={{ overflowX: "auto" }}>
-        {renderAreaChart(
-          nullPoints,
-          { ...DIMS, height: 160 },
-          "Percentage (%)",
-          "#BD271E",
-          "rgba(189, 39, 30, 0.15)",
-        )}
+        <AreaChart
+          points={nullPoints}
+          dims={{ ...DIMS, height: 160 }}
+          yLabel="Percentage (%)"
+          seriesLabel="Null rate"
+          lineColor="#BD271E"
+          fillColor="rgba(189, 39, 30, 0.15)"
+          interaction={interaction}
+        />
       </div>
     </>
   );

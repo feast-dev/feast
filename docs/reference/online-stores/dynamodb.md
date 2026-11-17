@@ -49,6 +49,7 @@ online_store:
 | `table_name_template` | string | `{project}.{table_name}` | Template for table names |
 | `batch_size` | int | `100` | Number of items per BatchGetItem/BatchWriteItem request (max 100) |
 | `max_read_workers` | int | `10` | Maximum parallel threads for batch read operations. Higher values improve throughput for large batch reads but increase resource usage |
+| `max_batched_result_rows` | int | `2048` | Largest request, in entity rows × feature views, whose feature views are read through shared BatchGetItem requests. Set to `0` to always read one feature view at a time |
 | `consistent_reads` | bool | `false` | Whether to use strongly consistent reads (higher latency, guaranteed latest data) |
 | `warmup_connections` | bool | `false` | Whether to pre-warm the async connection pool on startup with `max_pool_connections` concurrent lightweight calls (`describe_endpoints`) |
 | `tags` | dict | `null` | AWS resource tags added to each table |
@@ -62,6 +63,8 @@ online_store:
 - **Parallel (with `max_read_workers: 10`)**: 5 batches in parallel ≈ 10ms total
 
 For high-throughput workloads with large entity counts, increase `max_read_workers` (up to 20-30) based on your DynamoDB capacity and network conditions.
+
+**Batched Multi-Feature-View Reads**: Each feature view is stored in its own table, and a single BatchGetItem request can read from several tables. When a request spans several feature views, the keys of every view are packed into the same BatchGetItem requests (up to `batch_size` keys each), which are sent in parallel. A request for 10 feature views and 5 entities therefore costs **1** BatchGetItem call instead of 10, on both the sync and async read paths. Requests larger than `max_batched_result_rows` (entity rows × feature views) read one feature view at a time instead, because at that size each view already fills requests of its own and holding every view's items at once only raises peak memory. A single-view request is never batched. Set `max_batched_result_rows: 0` to turn batching off.
 
 **Batch Size**: Increase `batch_size` up to 100 to reduce the number of API calls. However, larger batches may hit DynamoDB's 16MB response limit for tables with large feature values.
 

@@ -1,6 +1,7 @@
 import pandas as pd
 
 from feast import Field, PushSource
+from feast.batch_feature_view import batch_feature_view
 from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
@@ -150,6 +151,55 @@ def test_diff_odfv(simple_dataset_1):
             feast_object_diffs.feast_object_property_diffs[2].property_name
             == "feature_transformation.body_text"
         )
+
+
+def test_diff_batch_feature_view_with_transformation(simple_dataset_1):
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="id", join_keys=["id"])
+        args = dict(
+            name="bfv",
+            entities=[entity],
+            schema=[Field(name="first_char", dtype=String)],
+            source=file_source,
+            mode="pandas",
+        )
+
+        def make_bfv(tags):
+            @batch_feature_view(tags=tags, **args)
+            def bfv(inputs: pd.DataFrame) -> pd.DataFrame:
+                inputs["first_char"] = inputs["string_col"].str[:1]
+                return inputs
+
+            return bfv
+
+        def make_changed_bfv(tags):
+            @batch_feature_view(tags=tags, **args)
+            def bfv(inputs: pd.DataFrame) -> pd.DataFrame:
+                inputs["first_char"] = inputs["string_col"].str[:1] + "hi"
+                return inputs
+
+            return bfv
+
+        # The registry hands back a view rebuilt from its proto
+        pre_changed = FeatureView.from_proto(make_bfv({"when": "before"}).to_proto())
+
+        # Note that feature_transformation.body is excluded because it always changes (dill is non-deterministic), even
+        # if no code is changed
+        feast_object_diffs = diff_registry_objects(
+            pre_changed, make_bfv({"when": "after"}), "feature view"
+        )
+        assert [
+            diff.property_name
+            for diff in feast_object_diffs.feast_object_property_diffs
+        ] == ["tags"]
+
+        feast_object_diffs = diff_registry_objects(
+            pre_changed, make_changed_bfv({"when": "after"}), "feature view"
+        )
+        assert [
+            diff.property_name
+            for diff in feast_object_diffs.feast_object_property_diffs
+        ] == ["tags", "feature_transformation.body_text"]
 
 
 def test_diff_registry_objects_batch_to_push_source(simple_dataset_1):

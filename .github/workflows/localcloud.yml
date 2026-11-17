@@ -1,26 +1,33 @@
 # Setup and SDK reference: https://local.cloud/docs/github-actions/
 # Laptop: python3 scripts/localcloud-test.py (add --full-suite for regression tests).
-# Enable pull-request runs with repository variable LOCALCLOUD_CI_ENABLED=true.
-name: LocalCloud tests
+name: pr-local-cloud-integration-tests
 'on':
-  workflow_dispatch: null
-  pull_request: null
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - labeled
 permissions:
   contents: read
 jobs:
   localcloud:
-    if: github.event_name == 'workflow_dispatch' || vars.LOCALCLOUD_CI_ENABLED ==
-      'true'
+    # Match Feast's approval-label policy and never run this job in fork repositories.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
       localcloud:
-        image: agentcloud/localcloud@sha256:88e85b86b294e1e4f71b8c63ec43de79d170946ff39556f0e2709f66aa0d368c
+        image: agentcloud/localcloud:ci
         env:
           LOCALCLOUD_SERVICES: bigquery,bigtable,gcs
           LOCALCLOUD_PROJECT: localcloud-ci
           LOCALCLOUD_DOCKER_ACCESS: 'false'
           LOCALCLOUD_TELEMETRY: 'false'
+          LOCALCLOUD_CONSOLE: 'false'
         ports:
         - 5380:5380
         - 5382:5382
@@ -43,10 +50,12 @@ jobs:
       with:
         go-version-file: go.mod
     - uses: astral-sh/setup-uv@v5
-    - name: Set up LocalCloud (v0.1.0)
+    - name: Set up LocalCloud
       id: localcloud
-      uses: cloud-orbitor/setup-localcloud@de6d236db036be4c8b96879392d22a1feb5047c6
+      uses: agent-local-cloud/setup-localcloud@3f8bd6df58cfd3cf4cd29c46f3449c7e6465f64a
       with:
+        image: agentcloud/localcloud:ci
+        console: 'false'
         services: bigquery,bigtable,gcs
         project-id: localcloud-ci
         runtime-url: http://127.0.0.1:5380

@@ -827,7 +827,7 @@ def get_app(
     ) -> JSONResponse:
         with feast_metrics.track_request_latency(
             "/v1/vector_stores/{vector_store_id}/search"
-        ):
+        ) as metrics_ctx:
             try:
                 feature_view = vs_registry.resolve(vector_store_id)
                 assert_permissions(
@@ -854,6 +854,7 @@ def get_app(
                     ),
                 )
             except FeatureViewNotFoundException:
+                metrics_ctx.status_code = 404
                 return JSONResponse(
                     status_code=404,
                     content={
@@ -864,6 +865,7 @@ def get_app(
                     },
                 )
             except ValueError as e:
+                metrics_ctx.status_code = 422
                 return JSONResponse(
                     status_code=422,
                     content={
@@ -1027,7 +1029,7 @@ def get_app(
         async_mode: bool = Query(False, alias="async"),
         force: bool = Query(False),
     ):
-        with feast_metrics.track_request_latency("/materialize"):
+        with feast_metrics.track_request_latency("/materialize") as metrics_ctx:
             fv_names = _authorize_materialize_views(
                 store, request.feature_views, version=request.version
             )
@@ -1039,6 +1041,7 @@ def get_app(
                 else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
+                        metrics_ctx.status_code = conflict.status_code
                         return conflict
 
                 # Reserve MATERIALIZING before 202 so concurrent requests hit 409.
@@ -1086,7 +1089,9 @@ def get_app(
         async_mode: bool = Query(False, alias="async"),
         force: bool = Query(False),
     ):
-        with feast_metrics.track_request_latency("/materialize-incremental"):
+        with feast_metrics.track_request_latency(
+            "/materialize-incremental"
+        ) as metrics_ctx:
             fv_names = _authorize_materialize_views(
                 store, request.feature_views, version=request.version
             )
@@ -1098,6 +1103,7 @@ def get_app(
                 else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
+                        metrics_ctx.status_code = conflict.status_code
                         return conflict
 
                 _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)

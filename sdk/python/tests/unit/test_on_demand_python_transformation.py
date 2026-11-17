@@ -276,6 +276,30 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
         )
 
+    def test_python_singleton_view_multiple_entity_rows(self):
+        entity_rows = [
+            {"driver_id": 1001},
+            {"driver_id": 1002},
+            {"driver_id": 1003},
+        ]
+
+        online_python_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "python_singleton_view:conv_rate_plus_acc_python_singleton",
+            ],
+        ).to_dict()
+
+        # one transformed value per entity row, each from that row's own inputs
+        assert len(online_python_response["conv_rate_plus_acc_python_singleton"]) == 3
+        for i in range(3):
+            assert online_python_response["conv_rate_plus_acc_python_singleton"][i] == (
+                online_python_response["conv_rate"][i]
+                + online_python_response["acc_rate"][i]
+            )
+
     def test_python_pandas_parity(self):
         entity_rows = [
             {

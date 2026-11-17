@@ -240,3 +240,105 @@ class TestNonEntityRetrieval:
         fv = self._make_feature_view("test_fv")
         job = self._call_get_historical_features([fv])
         assert isinstance(job, RetrievalJob)
+
+
+class TestPointInTimeJoinTemplate:
+    """Render the ClickHouse point-in-time join template and check the JOIN syntax.
+
+    ClickHouse's old analyzer (the default before 24.3) rejects ``ON TRUE AND ...``
+    (INVALID_JOIN_ON_EXPRESSION) and more than one ``USING`` join in the same
+    SELECT (Code: 48).
+    """
+
+    @staticmethod
+    def _context(name, entities, created_timestamp_column=None):
+        from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+
+        return FeatureViewQueryContext(
+            name=name,
+            ttl=86400,
+            entities=entities,
+            features=[f"{name}_value"],
+            field_mapping={},
+            timestamp_field="event_timestamp",
+            created_timestamp_column=created_timestamp_column,
+            table_subquery=f"{name}_table",
+            entity_selections=[f'"{entity}" AS "{entity}"' for entity in entities],
+            min_event_timestamp="2025-01-01T00:00:00",
+            max_event_timestamp="2025-01-02T00:00:00",
+            date_partition_column=None,
+            timestamp_field_type=None,
+        )
+
+    @staticmethod
+    def _render(contexts):
+        from feast.infra.offline_stores import offline_utils
+        from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+        )
+
+        entity_columns = {
+            "driver_id": None,
+            "customer_id": None,
+            "event_timestamp": None,
+        }
+        query = offline_utils.build_point_in_time_query(
+            contexts,
+            left_table_query_string="entity_df_table",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns=entity_columns.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+        )
+        return " ".join(query.split())
+
+    @staticmethod
+    def _final_select(query):
+        # The last statement, after the per-feature-view CTEs.
+        return query[query.index("Joins the outputs of multiple time travel joins") :]
+
+    def test_entity_join_has_no_on_true(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"], "created"),
+                self._context("order_stats", ["driver_id", "customer_id"]),
+            ]
+        )
+        assert "ON TRUE" not in query
+        assert (
+            'AS entity_dataframe ON subquery."driver_id" = entity_dataframe."driver_id" '
+            "WHERE TRUE"
+        ) in query
+        assert (
+            'AS entity_dataframe ON subquery."driver_id" = entity_dataframe."driver_id" '
+            'AND subquery."customer_id" = entity_dataframe."customer_id" WHERE TRUE'
+        ) in query
+
+    def test_feature_views_are_joined_back_with_on_not_using(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"], "created"),
+                self._context("customer_stats", ["customer_id"]),
+            ]
+        )
+        final_select = self._final_select(query)
+        assert "USING" not in final_select
+        assert final_select.count("LEFT JOIN") == 2
+        for name in ("driver_stats", "customer_stats"):
+            assert (
+                f'AS "{name}" ON "{name}"."{name}__entity_row_unique_id" = '
+                f'entity_dataframe."{name}__entity_row_unique_id"'
+            ) in final_select
+
+    def test_feature_view_without_entities_uses_cross_join(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"]),
+                self._context("global_stats", []),
+            ]
+        )
+        assert "ON TRUE" not in query
+        assert (
+            'FROM "global_stats__subquery" AS subquery CROSS JOIN '
+            '"global_stats__entity_dataframe" AS entity_dataframe WHERE TRUE'
+        ) in query

@@ -10,7 +10,7 @@ import http.client
 import socket
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,9 +34,10 @@ def _can_bind_ipv6_loopback() -> bool:
         return False
 
 
-def _make_table(name="test_fv"):
+def _make_table(name="test_fv", ttl=None):
     """Create a minimal mock FeatureView for testing."""
     table = MagicMock()
+    table.ttl = ttl
     table.projection.name_to_use.return_value = name
     table.projection.name_alias = None
     table.projection.name = name
@@ -283,6 +284,35 @@ class TestPopulateResponseFromFeatureData:
                 assert ts.seconds == expected_ts
             for status in fv.statuses:
                 assert status == FieldStatus.PRESENT
+
+    def test_ttl_marks_stale_values_outside_max_age(self):
+        """Values older than the feature view ttl are still returned but
+        marked OUTSIDE_MAX_AGE; rows without a timestamp are never expired."""
+        now = datetime.now(timezone.utc)
+        stale_val = ValueProto(float_val=2.0)
+        read_rows = [
+            (now - timedelta(minutes=10), {"feature_1": ValueProto(float_val=1.0)}),
+            (now - timedelta(hours=2), {"feature_1": stale_val}),
+            (None, {"feature_1": ValueProto(float_val=3.0)}),
+        ]
+        response = GetOnlineFeaturesResponse(results=[])
+
+        _populate_response_from_feature_data(
+            requested_features=["feature_1"],
+            read_rows=read_rows,
+            indexes=([0], [1], [2]),
+            online_features_response=response,
+            full_feature_names=False,
+            table=_make_table(ttl=timedelta(hours=1)),
+            output_len=3,
+        )
+
+        assert list(response.results[0].statuses) == [
+            FieldStatus.PRESENT,
+            FieldStatus.OUTSIDE_MAX_AGE,
+            FieldStatus.PRESENT,
+        ]
+        assert response.results[0].values[1] == stale_val
 
 
 class TestGetFeatureViewsToUseSharedSource:

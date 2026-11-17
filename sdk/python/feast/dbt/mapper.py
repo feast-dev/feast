@@ -5,6 +5,7 @@ This module provides functionality to map dbt model metadata to Feast objects
 including DataSource, Entity, and FeatureView.
 """
 
+import re
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Union
 
@@ -167,6 +168,33 @@ def map_dbt_type_to_feast_type(dbt_type: str) -> FeastType:
     return String
 
 
+def _validate_file_path_template(
+    file_path_template: Optional[str], data_source_type: str
+) -> None:
+    if file_path_template is None:
+        return
+    if data_source_type.lower() != "file":
+        raise ValueError("file_path_template is only supported for file data sources")
+    if not file_path_template:
+        raise ValueError("file_path_template must not be empty")
+
+    # Remove the supported tokens; any remaining brace is invalid template syntax.
+    literal = re.sub(r"\{\{|\}\}|\{model\}", "", file_path_template)
+    if "{" in literal or "}" in literal:
+        raise ValueError(
+            f"Invalid file_path_template {file_path_template!r}. "
+            "Use only {model}, with {{ and }} for literal braces; "
+            "other fields and formatting are not supported."
+        )
+
+
+def _resolve_file_path(file_path_template: Optional[str], model_name: str) -> str:
+    template = (
+        "/data/{model}.parquet" if file_path_template is None else file_path_template
+    )
+    return template.format(model=model_name)
+
+
 class DbtToFeastMapper:
     """
     Maps dbt models to Feast objects.
@@ -186,6 +214,7 @@ class DbtToFeastMapper:
         data_source_type: Type of data source ('bigquery', 'snowflake', 'file')
         timestamp_field: Default timestamp field name
         ttl_days: Default TTL in days for feature views
+        file_path_template: Optional file source path, with {model} replaced by the model name
     """
 
     def __init__(
@@ -193,10 +222,13 @@ class DbtToFeastMapper:
         data_source_type: str = "bigquery",
         timestamp_field: str = "event_timestamp",
         ttl_days: int = 1,
+        file_path_template: Optional[str] = None,
     ):
         self.data_source_type = data_source_type.lower()
         self.timestamp_field = timestamp_field
         self.ttl_days = ttl_days
+        _validate_file_path_template(file_path_template, self.data_source_type)
+        self.file_path_template = file_path_template
 
     def _infer_entity_value_type(self, model: DbtModel, entity_col: str) -> ValueType:
         """Infer entity ValueType from dbt model column type."""
@@ -262,10 +294,9 @@ class DbtToFeastMapper:
         elif self.data_source_type == "file":
             from feast.infra.offline_stores.file_source import FileSource
 
-            # For file sources, use the model name as a placeholder path
             return FileSource(
                 name=f"{model.name}_source",
-                path=f"/data/{model.name}.parquet",
+                path=_resolve_file_path(self.file_path_template, model.name),
                 timestamp_field=ts_field,
                 created_timestamp_column=created_timestamp_column or "",
                 description=model.description,

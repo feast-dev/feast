@@ -1,8 +1,7 @@
 import logging
 
-import jwt
-
 from feast.permissions.auth.auth_type import AuthType
+from feast.permissions.auth.intra_comm import encode_intra_comm_token
 from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 
@@ -29,4 +28,4 @@ class IntraCommAuthClientManager(AuthenticationClientManager):
                 f"No Auth client manager implemented for the auth type:{self.auth_config.type}"
             )
 
-        return jwt.encode(payload, "", algorithm="none")
+        return encode_intra_comm_token(payload, self.intra_communication_base64)

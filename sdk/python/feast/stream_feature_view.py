@@ -253,17 +253,18 @@ class StreamFeatureView(FeatureView):
         if not super().__eq__(other):
             return False
 
-        if not self.udf:
-            return not other.udf
-        if not other.udf:
+        if bool(self.udf) != bool(other.udf):
+            return False
+        if self.udf and self.udf.__code__.co_code != other.udf.__code__.co_code:
             return False
 
         if (
-            self.mode != other.mode
+            mode_to_string(self.mode) != mode_to_string(other.mode)
             or self.timestamp_field != other.timestamp_field
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-            or self.udf_string != other.udf_string
+            or (self.udf_string or "") != (other.udf_string or "")
             or self.aggregations != other.aggregations
+            or self.enable_tiling != other.enable_tiling
+            or self.tiling_hop_size != other.tiling_hop_size
         ):
             return False
 
