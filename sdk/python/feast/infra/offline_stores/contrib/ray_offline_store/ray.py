@@ -2447,6 +2447,8 @@ class RayOfflineStore(OfflineStore):
 
                 def apply_transformation_with_serialized_func(
                     batch: pd.DataFrame,
+                    transformation_serialized: bytes = transformation_serialized,
+                    fv_name: str = fv.name,
                 ) -> pd.DataFrame:
                     if batch.empty:
                         return batch
@@ -2461,7 +2463,7 @@ class RayOfflineStore(OfflineStore):
                         )
                         return result
                     except Exception as e:
-                        logger.error(f"Transformation failed for {fv.name}: {e}")
+                        logger.error(f"Transformation failed for {fv_name}: {e}")
                         return batch
 
                 feature_ds = feature_ds.map_batches(
@@ -2502,7 +2504,10 @@ class RayOfflineStore(OfflineStore):
                 and "event_timestamp" in entity_df_sample.columns
             ):
 
-                def add_timestamp_field(batch: pd.DataFrame) -> pd.DataFrame:
+                def add_timestamp_field(
+                    batch: pd.DataFrame,
+                    timestamp_field: str = timestamp_field,
+                ) -> pd.DataFrame:
                     batch = batch.copy()
                     batch[timestamp_field] = batch["event_timestamp"]
                     return batch
