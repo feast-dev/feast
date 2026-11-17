@@ -3,6 +3,7 @@ import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone, tzinfo
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -752,7 +753,9 @@ class TestMapArrowTypeSupport:
         "sql_type", ["datetime2", "smalldatetime", "datetime", "date", "datetimeoffset"]
     )
     @pytest.mark.parametrize("spelling", [str.lower, str.upper, str.title])
-    def test_mssql_to_feast_value_type_temporal_types(self, sql_type, spelling):
+    def test_mssql_to_feast_value_type_temporal_types(
+        self, sql_type: str, spelling: Callable[[str], str]
+    ) -> None:
         """Temporal feature columns must resolve during SQL Server schema inference."""
         assert mssql_to_feast_value_type(spelling(sql_type)) == ValueType.UNIX_TIMESTAMP
 
