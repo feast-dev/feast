@@ -7,10 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.data_source import PushSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.PrecomputedFeatureVector_pb2 import (
     FeatureViewTimestamp,
@@ -657,6 +659,128 @@ def test_precomputed_retrieval_preserves_entity_order_and_duplicates(use_async):
     assert result["driver_stats__score"] == [30.0, 10.0, 30.0, 20.0]
 
 
+class _InMemoryOnlineStore(OnlineStore):
+    """Minimal key-value store so push -> precompute -> read runs end to end."""
+
+    def __init__(self):
+        self._rows: dict = {}
+
+    @staticmethod
+    def _key(table: FeatureView, entity_key) -> tuple:
+        return table.name, entity_key.SerializeToString()
+
+    def online_write_batch(self, config, table, data, progress):
+        for entity_key, values, _timestamp, _created_ts in data:
+            self._rows.setdefault(self._key(table, entity_key), {}).update(values)
+
+    def online_read(self, config, table, entity_keys, requested_features=None):
+        rows = []
+        for entity_key in entity_keys:
+            values = dict(self._rows.get(self._key(table, entity_key), {}))
+            if requested_features is not None:
+                values = {
+                    name: value
+                    for name, value in values.items()
+                    if name in requested_features
+                }
+            rows.append((None, values or None))
+        return rows
+
+    def update(
+        self,
+        config,
+        tables_to_delete,
+        tables_to_keep,
+        entities_to_delete,
+        entities_to_keep,
+        partial,
+    ):
+        pass
+
+    def teardown(self, config, tables, entities):
+        pass
+
+
+def _pushable_store(tmp_path):
+    from feast.entity import Entity
+    from feast.feature_store import FeatureStore
+    from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+    from feast.repo_config import RepoConfig
+    from feast.value_type import ValueType
+
+    store = FeatureStore(
+        config=RepoConfig(
+            registry=str(tmp_path / "registry.db"),
+            project="test",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+            entity_key_serialization_version=3,
+        )
+    )
+
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    push_source = PushSource(
+        name="driver_stats_push",
+        batch_source=FileSource(
+            name="driver_stats_batch",
+            path=str(tmp_path / "driver_stats.parquet"),
+            timestamp_field="event_timestamp",
+            # Columns arrive from the pushing job under the source names.
+            field_mapping={"raw_driver_id": "driver_id"},
+        ),
+    )
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="score", dtype=Float32),
+        ],
+        source=push_source,
+    )
+    feature_service = FeatureService(
+        name="driver_service",
+        features=[feature_view],
+        precompute_online=True,
+    )
+    store.apply([driver, feature_view, feature_service])
+    store.provider._online_store = _InMemoryOnlineStore()
+    return store, feature_service
+
+
+def _push_score(store, score, event_timestamp):
+    import pandas as pd
+
+    store.push(
+        "driver_stats_push",
+        pd.DataFrame(
+            {
+                "raw_driver_id": [1001],
+                "score": [score],
+                "event_timestamp": [event_timestamp],
+            }
+        ),
+    )
+
+
+def test_push_with_field_mapping_refreshes_precomputed_vector(tmp_path):
+    """A push names its columns by source name; the vector must still refresh."""
+    store, feature_service = _pushable_store(tmp_path)
+    first_ts = datetime.now(tz=timezone.utc)
+
+    _push_score(store, 0.5, first_ts)
+    response = store.get_online_features(
+        features=feature_service, entity_rows=[{"driver_id": 1001}]
+    )
+    assert response.to_dict()["score"] == [pytest.approx(0.5)]
+
+    _push_score(store, 0.9, first_ts + timedelta(seconds=1))
+    response = store.get_online_features(
+        features=feature_service, entity_rows=[{"driver_id": 1001}]
+    )
+    assert response.to_dict()["score"] == [pytest.approx(0.9)]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TTL enforcement in fast path
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1102,6 +1226,7 @@ class TestPrecomputeForPush:
         fv = MagicMock()
         fv.join_keys = ["driver_id"]
         fv.entity_columns = [Field(name="driver_id", dtype=Int64)]
+        fv.batch_source = None
         return fv
 
     def test_triggers_for_matching_fv(self):
@@ -1127,6 +1252,29 @@ class TestPrecomputeForPush:
         entity_keys = kwargs["entity_keys"]
         assert [ek.entity_values[0].int64_val for ek in entity_keys] == [1001, 1002]
         assert all(list(ek.join_keys) == ["driver_id"] for ek in entity_keys)
+
+    def test_maps_source_columns_before_building_entity_keys(self):
+        import pandas as pd
+
+        proj = MagicMock()
+        proj.name = "pushed_fv"
+        svc = MagicMock()
+        svc.precompute_online = True
+        svc.feature_view_projections = [proj]
+        svc.name = "svc"
+
+        fv = self._make_pushed_fv()
+        fv.batch_source = MagicMock(field_mapping={"raw_driver_id": "driver_id"})
+        store = self._make_mock_store([svc])
+        store.registry.get_any_feature_view.return_value = fv
+        df = pd.DataFrame(
+            {"raw_driver_id": [1001, 1002, 1001], "conv_rate": [0.1, 0.2, 0.3]}
+        )
+        store._precompute_for_push("pushed_fv", df)
+
+        store.precompute_feature_service.assert_called_once()
+        entity_keys = store.precompute_feature_service.call_args.kwargs["entity_keys"]
+        assert [ek.entity_values[0].int64_val for ek in entity_keys] == [1001, 1002]
 
     def test_skips_when_pushed_rows_have_no_entity_keys(self):
         import pandas as pd
