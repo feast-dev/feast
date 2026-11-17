@@ -99,8 +99,10 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
 
     resolved_creds = data_source.resolve_credentials()
 
-    if isinstance(data_source.file_format, ParquetFormat) or (
-        data_source.file_format is None and data_source.path.endswith(".parquet")
+    # A FileSource without a file_format is Parquet, as in the write path below,
+    # whether its path is a single file or a directory of Parquet files.
+    if data_source.file_format is None or isinstance(
+        data_source.file_format, ParquetFormat
     ):
         if resolved_creds and data_source.path.startswith("s3://"):
             storage_options = {
@@ -133,6 +135,11 @@ def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
         if storage_options:
             return ibis.read_delta(data_source.path, storage_options=storage_options)
         return ibis.read_delta(data_source.path)
+    raise NotImplementedError(
+        f"The DuckDB offline store cannot read file source '{data_source.name}' "
+        f"with file format {type(data_source.file_format).__name__}; only Parquet "
+        "and Delta are supported."
+    )
 
 
 def _read_iceberg_catalog_source(data_source: "IcebergSource", repo_path: str) -> Table:
@@ -673,7 +680,9 @@ def _duckdb_parquet_query(
 
 def _duckdb_sql_from_expression(config: RepoConfig, data_source: FileSource) -> str:
     p = _duckdb_parquet_from_expression(config, data_source)
-    if isinstance(data_source.file_format, ParquetFormat):
+    if data_source.file_format is None or isinstance(
+        data_source.file_format, ParquetFormat
+    ):
         return f"read_parquet('{p}')"
     if isinstance(data_source.file_format, DeltaFormat):
         return f"delta_scan('{p}')"
