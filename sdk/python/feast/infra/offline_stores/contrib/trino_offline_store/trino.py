@@ -1418,9 +1418,14 @@ def _build_non_entity_left_table_query(
         columns = ", ".join(
             selections.get(join_key, f"NULL AS {join_key}") for join_key in join_keys
         )
+        # ``table_subquery`` is a raw table reference for table-backed sources and
+        # an already-parenthesized ``(SELECT ...)`` for query-backed sources. Wrap
+        # it in parentheses only when it isn't already, to avoid doubling them.
+        subquery = context.table_subquery.strip()
+        from_expression = subquery if subquery.startswith("(") else f"({subquery})"
         entity_selects.append(
             f"SELECT DISTINCT {columns} "
-            f"FROM ({context.table_subquery}) "
+            f"FROM {from_expression} "
             f"WHERE {context.timestamp_field} "
             f"BETWEEN {start_timestamp} AND {end_timestamp}"
         )
