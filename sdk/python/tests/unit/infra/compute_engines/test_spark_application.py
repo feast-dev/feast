@@ -510,3 +510,26 @@ def test_poll_403_fails_fast_with_hint():
     assert status == MaterializationJobStatus.ERROR
     assert "Role/RoleBinding" in str(job.error())
     mock_api.get_namespaced_custom_object.assert_called_once()
+
+
+# ── Test 19: _build_cr() error does not orphan the ConfigMap ──
+
+
+def test_build_cr_error_does_not_create_configmap():
+    """A local (non-ApiException) error while building the CR must not leave a
+    ConfigMap behind. The CR is built before any cluster object is created, so a
+    build failure propagates without creating — and therefore without leaking —
+    the ConfigMap.
+    """
+    engine = _make_engine()
+    engine._build_cr = MagicMock(side_effect=ValueError("boom"))
+
+    task = MagicMock()
+    task.feature_view.name = "fv_1"
+    task.project = "test"
+
+    with pytest.raises(ValueError, match="boom"):
+        engine.materialize(MagicMock(), [task])
+
+    engine.core_v1.create_namespaced_config_map.assert_not_called()
+    engine.custom_api.create_namespaced_custom_object.assert_not_called()
