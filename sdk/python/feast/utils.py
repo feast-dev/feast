@@ -510,10 +510,14 @@ def _columns_to_proto_values(
             array = table.column(column)
             # to_numpy() turns a timestamp column into numpy.datetime64 and drops the
             # column's time zone, which ZONED_TIMESTAMP stores; to_pylist() keeps
-            # tz-aware datetime values.
+            # tz-aware datetime values. It also turns an integer column that has nulls
+            # into float64, which rounds values above 2**53; to_pylist() keeps them exact.
+            keep_python_values = value_type == ValueType.ZONED_TIMESTAMP or (
+                array.null_count > 0 and pyarrow.types.is_integer(array.type)
+            )
             values = (
                 array.to_pylist()
-                if value_type == ValueType.ZONED_TIMESTAMP
+                if keep_python_values
                 else array.to_numpy(zero_copy_only=False)
             )
             result[column] = python_values_to_proto_values(values, value_type)
@@ -572,9 +576,15 @@ def _convert_arrow_fv_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_fv_to_proto(batch, feature_view, join_keys)
+        ]
 
     if feature_view.batch_source is None:
         raise ValueError(
@@ -630,9 +640,15 @@ def _convert_arrow_odfv_to_proto(
     feature_view: "OnDemandFeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_odfv_to_proto(batch, feature_view, join_keys)
+        ]
 
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
