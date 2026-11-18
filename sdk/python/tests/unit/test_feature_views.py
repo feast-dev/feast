@@ -483,6 +483,23 @@ def test_batch_feature_view_copy() -> None:
     assert projected.to_proto().spec.HasField("feature_transformation")
 
 
+def test_batch_feature_view_copy_keeps_online_config() -> None:
+    online_config = OnlineConfig(mode="sequence", max_length=50, write_mode="append")
+    bfv = BatchFeatureView(
+        name="events",
+        entities=[],
+        schema=[Field(name="value", dtype=Float32)],
+        source=FileSource(
+            name="events-source",
+            path="events.parquet",
+            timestamp_field="event_timestamp",
+        ),
+        online_config=online_config,
+    )
+
+    assert copy.copy(bfv).online_config == online_config
+
+
 def test_transformation_mode_serialization():
     """
     Test that transformation mode is properly serialized to proto and deserialized back.

@@ -190,6 +190,7 @@ class BatchFeatureView(FeatureView):
             aggregations=self.aggregations,
             enable_validation=self.enable_validation,
             version=self.version,
+            online_config=self.online_config,
         )
         fv.enabled = self.enabled
         fv.state = self.state
