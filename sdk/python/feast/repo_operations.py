@@ -21,6 +21,7 @@ from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
+from feast.errors import ConflictingFeatureViewNames, DataSourceRepeatNamesException
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
@@ -236,6 +237,33 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 res.permissions.append(obj)
             elif isinstance(obj, Project) and not any((obj is p) for p in res.projects):
                 res.projects.append(obj)
+
+    # Early duplicate detection: validate feature view names are case-insensitively unique
+    # This runs before FeatureStore initialization to avoid slow cleanup on error
+    fv_names_seen = {}
+    all_feature_views = (
+        res.feature_views + res.stream_feature_views + res.on_demand_feature_views
+    )
+    for fv in all_feature_views:
+        lower_name = fv.name.lower()
+        if lower_name in fv_names_seen:
+            existing_fv = fv_names_seen[lower_name]
+            raise ConflictingFeatureViewNames(
+                fv.name,
+                existing_type=type(existing_fv).__name__,
+                new_type=type(fv).__name__,
+            )
+        fv_names_seen[lower_name] = fv
+
+    # Early duplicate detection: validate data source names are case-insensitively unique
+    ds_names_seen = {}
+    for ds in res.data_sources:
+        if ds.name is None:
+            continue
+        lower_name = ds.name.lower()
+        if lower_name in ds_names_seen:
+            raise DataSourceRepeatNamesException(ds.name)
+        ds_names_seen[lower_name] = ds
 
     res.entities.append(DUMMY_ENTITY)
     return res
