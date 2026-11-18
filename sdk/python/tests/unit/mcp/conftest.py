@@ -40,6 +40,7 @@ def feast_backend(monkeypatch) -> FakeFeastBackend:
             if "transport" not in kwargs:
                 kwargs["transport"] = httpx.MockTransport(fake.handler)
                 fake.client_timeouts.append(kwargs.get("timeout"))
+                fake.client_verifies.append(kwargs.get("verify"))
             super().__init__(*args, **kwargs)
 
     monkeypatch.setattr(httpx, "AsyncClient", _FakedAsyncClient)

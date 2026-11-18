@@ -72,6 +72,8 @@ class FakeFeastBackend:
         #: Injecting a timeout exception proves the error path; only this
         #: proves a timeout was ever configured in the first place.
         self.client_timeouts: list[Any] = []
+        #: The ``verify=`` each faked ``httpx.AsyncClient`` was built with.
+        self.client_verifies: list[Any] = []
 
     # -- programming the fake -------------------------------------------
     def queue(
