@@ -53,8 +53,8 @@ def _make_repo_config(
     return config
 
 
-@patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
-@patch("feast.infra.compute_engines.spark_application.compute.client")
+@patch("feast.infra.compute_engines.operator.compute.k8s_config")
+@patch("feast.infra.compute_engines.operator.compute.client")
 def _make_engine(mock_client, mock_k8s_config, **kwargs):
     """Create engine with mocked K8s client.
 
@@ -132,8 +132,8 @@ def test_accepts_snowflake_registry():
     assert engine is not None
 
 
-@patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
-@patch("feast.infra.compute_engines.spark_application.compute.client")
+@patch("feast.infra.compute_engines.operator.compute.k8s_config")
+@patch("feast.infra.compute_engines.operator.compute.client")
 def test_init_does_not_load_kubeconfig(mock_client, mock_k8s_config):
     """feast apply constructs the engine but never materializes — no kubeconfig needed."""
     from feast.infra.compute_engines.spark_application.compute import (
@@ -248,8 +248,8 @@ def test_state_map_coverage():
 # ── Test 10: Cleanup swallows 404 ──
 
 
-@patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
-@patch("feast.infra.compute_engines.spark_application.compute.client")
+@patch("feast.infra.compute_engines.operator.compute.k8s_config")
+@patch("feast.infra.compute_engines.operator.compute.client")
 def test_cleanup_swallows_404(mock_client, mock_k8s_config):
     from kubernetes.client.exceptions import ApiException
 
@@ -273,9 +273,9 @@ def test_cleanup_swallows_404(mock_client, mock_k8s_config):
 # ── Test 11: Timeout sets error on job (does not raise) ──
 
 
-@patch("feast.infra.compute_engines.spark_application.compute.k8s_config")
-@patch("feast.infra.compute_engines.spark_application.compute.client")
-@patch("feast.infra.compute_engines.spark_application.compute.time")
+@patch("feast.infra.compute_engines.operator.compute.k8s_config")
+@patch("feast.infra.compute_engines.operator.compute.client")
+@patch("feast.infra.compute_engines.operator.compute.time")
 def test_timeout_sets_error(mock_time, mock_client, mock_k8s_config):
     from feast.infra.compute_engines.spark_application.compute import (
         SparkApplicationComputeEngine,
