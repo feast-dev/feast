@@ -37,6 +37,8 @@ A `feast-mcp` console script is also installed. It is equivalent to `feast mcp`,
 * `--config`: Path to the `feast_mcp.yaml` config file
 * `--feast-url`: URL of the feature server to proxy. Mounts the `features` tools
 * `--registry-url`: URL of the REST registry server to proxy. Mounts the `registry` tools
+* `--feast-cert`: CA certificate used to verify the feature server's TLS certificate, for example when it is self-signed. Without it, the default trust store is used
+* `--registry-cert`: CA certificate used to verify the registry server's TLS certificate
 * `--timeout`: HTTP timeout in seconds for calls to Feast (default: 30)
 
 **Server options:**
@@ -44,6 +46,8 @@ A `feast-mcp` console script is also installed. It is equivalent to `feast mcp`,
 * `--host`: Bind address for HTTP transports (default: `0.0.0.0`). Use `::` to serve both IPv6 and IPv4 clients; it falls back to `0.0.0.0` where IPv6 is unavailable.
 * `--port`: Bind port for HTTP transports (default: 8000)
 * `--workers`: Run under gunicorn with this many workers. Not supported by the `sse` transport
+* `--tls-cert`: TLS certificate for serving the HTTP transports over HTTPS. Must be set together with `--tls-key`
+* `--tls-key`: TLS private key for `--tls-cert`
 
 **Authentication options:**
 * `--auth-mode`: `passthrough`, `kubernetes` or `oidc` (default: `passthrough`)
@@ -51,7 +55,7 @@ A `feast-mcp` console script is also installed. It is equivalent to `feast mcp`,
 * `--oidc-client-id`: OIDC client id. Required with `--auth-mode oidc`
 * `--oidc-client-secret`: OIDC client secret
 * `--oidc-audience`: Expected OIDC token audience
-* `--base-url`: Public base URL of this server, used to build OAuth redirect URIs (default: `http://localhost:<port>`)
+* `--base-url`: Public base URL of this server, used to build OAuth redirect URIs (default: `http://localhost:<port>`, or `https://localhost:<port>` when `--tls-cert` is set)
 
 **Logging options:**
 * `--log-level`: Log level (default: `INFO`)
@@ -78,12 +82,16 @@ server:
   host: 0.0.0.0
   port: 8000
   # workers: 4              # gunicorn; not supported with sse
+  # tls_cert: /certs/tls.crt  # serve HTTPS; set together with tls_key
+  # tls_key: /certs/tls.key
 
 # At least one of features.url / registry.url is required.
 features:
   url: http://localhost:6566
+  # cert: /certs/ca.crt     # CA to verify an https:// feature server
 registry:
   url: http://localhost:6572
+  # cert: /certs/ca.crt
 
 timeout: 30
 
@@ -107,8 +115,12 @@ observability:
 | -------- | ------- |
 | `FEAST_MCP_FEATURE_SERVER_URL` | `features.url` |
 | `FEAST_MCP_REGISTRY_URL` | `registry.url` |
+| `FEAST_MCP_FEATURE_SERVER_CERT` | `features.cert` |
+| `FEAST_MCP_REGISTRY_CERT` | `registry.cert` |
 | `FEAST_MCP_TRANSPORT` | `server.transport` |
 | `FEAST_MCP_WORKERS` | `server.workers` |
+| `FEAST_MCP_TLS_CERT` | `server.tls_cert` |
+| `FEAST_MCP_TLS_KEY` | `server.tls_key` |
 | `FEAST_MCP_TIMEOUT` | `timeout` |
 | `FEAST_MCP_AUTH_MODE` | `auth.mode` |
 | `FEAST_MCP_OIDC_DISCOVERY_URL` | `auth.discovery_url` |

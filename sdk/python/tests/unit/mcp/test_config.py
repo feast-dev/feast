@@ -19,6 +19,10 @@ ENV_VARS = [
     "FEAST_MCP_WORKERS",
     "FEAST_MCP_FEATURE_SERVER_URL",
     "FEAST_MCP_REGISTRY_URL",
+    "FEAST_MCP_FEATURE_SERVER_CERT",
+    "FEAST_MCP_REGISTRY_CERT",
+    "FEAST_MCP_TLS_CERT",
+    "FEAST_MCP_TLS_KEY",
     "FEAST_MCP_AUTH_MODE",
     "FEAST_MCP_OIDC_DISCOVERY_URL",
     "FEAST_MCP_OIDC_CLIENT_ID",
@@ -70,10 +74,14 @@ class TestYamlFile:
               host: 127.0.0.1
               port: 9000
               workers: 4
+              tls_cert: /certs/tls.crt
+              tls_key: /certs/tls.key
             features:
               url: http://features:6566
+              cert: /certs/features-ca.crt
             registry:
               url: http://registry:8080
+              cert: /certs/registry-ca.crt
             timeout: 12.5
             """,
         )
@@ -82,8 +90,12 @@ class TestYamlFile:
         assert cfg.server.host == "127.0.0.1"
         assert cfg.server.port == 9000
         assert cfg.server.workers == 4
+        assert cfg.server.tls_cert == "/certs/tls.crt"
+        assert cfg.server.tls_key == "/certs/tls.key"
         assert cfg.features.url == "http://features:6566"
+        assert cfg.features.cert == "/certs/features-ca.crt"
         assert cfg.registry.url == "http://registry:8080"
+        assert cfg.registry.cert == "/certs/registry-ca.crt"
         assert cfg.timeout == 12.5
 
     def test_feast_mcp_yaml_is_discovered_in_the_cwd(self, isolated_env):
@@ -127,6 +139,10 @@ class TestPrecedence:
         [
             ("FEAST_MCP_TRANSPORT", "transport", ("server", "transport")),
             ("FEAST_MCP_REGISTRY_URL", "registry_url", ("registry", "url")),
+            ("FEAST_MCP_FEATURE_SERVER_CERT", "feast_cert", ("features", "cert")),
+            ("FEAST_MCP_REGISTRY_CERT", "registry_cert", ("registry", "cert")),
+            ("FEAST_MCP_TLS_CERT", "tls_cert", ("server", "tls_cert")),
+            ("FEAST_MCP_TLS_KEY", "tls_key", ("server", "tls_key")),
             ("FEAST_MCP_AUTH_MODE", "auth_mode", ("auth", "mode")),
             ("FEAST_MCP_OIDC_CLIENT_ID", "oidc_client_id", ("auth", "client_id")),
             ("FEAST_MCP_BASE_URL", "base_url", ("auth", "base_url")),
