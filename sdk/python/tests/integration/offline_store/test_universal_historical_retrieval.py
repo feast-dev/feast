@@ -1140,3 +1140,110 @@ def test_historical_features_filter_by_created_timestamp(environment):
         ]
     )
     validate_dataframes(expected_df, actual_df, sort_by=["driver_id"])
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features_with_request_column_named_like_timestamp_field(
+    environment, full_feature_names
+):
+    store = environment.feature_store
+
+    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    yesterday = now - timedelta(days=1)
+    tomorrow = now + timedelta(days=1)
+
+    # The source's timestamp field is "feature_timestamp". The entity
+    # dataframe has its own column with that name, which is request data and
+    # not its event timestamp.
+    trips_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "trips": 10,
+                "feature_timestamp": now - timedelta(days=2),
+            },
+            {"driver_id": 1001, "trips": 20, "feature_timestamp": yesterday},
+            {"driver_id": 1001, "trips": 30, "feature_timestamp": tomorrow},
+            {"driver_id": 1002, "trips": 40, "feature_timestamp": yesterday},
+        ]
+    )
+    trips_df["created"] = trips_df["feature_timestamp"]
+    entity_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "event_timestamp": now,
+                # Later than every source row.
+                "feature_timestamp": now + timedelta(days=3),
+                "request_id": 1,
+            },
+            {
+                "driver_id": 1001,
+                "event_timestamp": now - timedelta(hours=1),
+                # Earlier than every source row.
+                "feature_timestamp": now - timedelta(days=5),
+                "request_id": 2,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": now,
+                # Between the source rows.
+                "feature_timestamp": now - timedelta(hours=12),
+                "request_id": 3,
+            },
+        ]
+    )
+
+    trips_source = environment.data_source_creator.create_data_source(
+        df=trips_df,
+        destination_name=f"test_driver_trips_{int(time.time_ns())}_{random.randint(1000, 9999)}",
+        timestamp_field="feature_timestamp",
+        created_timestamp_column="created",
+    )
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    trips_fv = FeatureView(
+        name="driver_trips",
+        entities=[driver],
+        schema=[Field(name="trips", dtype=Int32)],
+        source=trips_source,
+    )
+    store.apply([driver, trips_fv])
+
+    actual_df = store.get_historical_features(
+        entity_df=entity_df,
+        features=["driver_trips:trips"],
+        full_feature_names=full_feature_names,
+    ).to_df()
+
+    feature_name = "driver_trips__trips" if full_feature_names else "trips"
+    # The request column comes back unchanged and nothing else is added.
+    assert set(actual_df.columns) == set(entity_df.columns) | {feature_name}
+    actual_df["feature_timestamp"] = pd.to_datetime(
+        actual_df["feature_timestamp"], utc=True
+    )
+    expected_df = pd.DataFrame(
+        data=[
+            {
+                "request_id": 1,
+                "feature_timestamp": now + timedelta(days=3),
+                feature_name: 20,
+            },
+            {
+                "request_id": 2,
+                "feature_timestamp": now - timedelta(days=5),
+                feature_name: 20,
+            },
+            {
+                "request_id": 3,
+                "feature_timestamp": now - timedelta(hours=12),
+                feature_name: 40,
+            },
+        ]
+    )
+    expected_df["feature_timestamp"] = pd.to_datetime(
+        expected_df["feature_timestamp"], utc=True
+    )
+
+    validate_dataframes(expected_df, actual_df, sort_by=["request_id"])
