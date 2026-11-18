@@ -35,14 +35,13 @@ datasets. Computation and materialization remain managed by Chronon; see its
 [functionality matrix](chronon.md#functionality-matrix) for supported operations.
 
 Below is a matrix indicating which offline stores support which methods.
-
-|| | Dask | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | Couchbase | Ray |
-|| :-------------------------------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-|| `get_historical_features`         | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-|| `pull_latest_from_table_or_query` | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-|| `pull_all_from_table_or_query`    | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-|| `offline_write_batch`             | yes | yes | yes | yes | no  | no  | no  | no  | yes |
-|| `write_logged_features`           | yes | yes | yes | yes | no  | no  | no  | no  | yes |
+| | Dask | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | Couchbase | Ray |
+| :-------------------------------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| `get_historical_features`         | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `pull_latest_from_table_or_query` | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `pull_all_from_table_or_query`    | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| `offline_write_batch`             | yes | yes | yes | yes | no  | no  | no  | no  | yes |
+| `write_logged_features`           | yes | yes | yes | yes | no  | no  | no  | no  | yes |
 
 
 Below is a matrix indicating which `RetrievalJob`s support what functionality.
