@@ -69,6 +69,26 @@ def test_repo_init_with_underscore_in_project_name() -> None:
         assert result.returncode != 0
 
 
+def test_repo_init_with_path_argument() -> None:
+    """
+    `feast init <path>` should accept a path as PROJECT_DIRECTORY, create the
+    repository at that path, and derive the project name from the final path
+    component (regression test for #6134).
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        runner = CliRunner()
+
+        target = temp_path / "nested" / "my_repo"
+        result = runner.run(["init", str(target)], cwd=temp_path)
+        assert result.returncode == 0
+
+        feature_store_yaml = target / "feature_repo" / "feature_store.yaml"
+        assert feature_store_yaml.exists()
+        # project name is derived from the final path component, not the path
+        assert "project: my_repo" in feature_store_yaml.read_text()
+
+
 def test_postgres_template_registry_path_is_parameterized() -> None:
     template_fs_yaml = (
         Path(__file__).resolve().parents[3]
