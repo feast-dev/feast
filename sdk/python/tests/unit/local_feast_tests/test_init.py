@@ -81,3 +81,15 @@ def test_postgres_template_registry_path_is_parameterized() -> None:
     contents = template_fs_yaml.read_text(encoding="utf-8")
     expected = "path: postgresql://DB_USERNAME:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME"
     assert expected in contents
+
+
+def test_repo_init_rejects_hyphenated_sqlite_project_name() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        runner = CliRunner()
+
+        result = runner.run(["init", "hyphen-name"], cwd=temp_path)
+
+        assert result.returncode != 0
+        assert "SQLite online stores cannot contain hyphens" in result.stderr.decode()
+        assert not (temp_path / "hyphen-name").exists()
