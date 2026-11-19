@@ -17,7 +17,7 @@
 In this doc, we describe how to contribute both to the Feast Web UI NPM package as well as the embedded Feast UI in the Python SDK (i.e. what's run when you run `feast ui`)
 
 ## `feast ui` command
-You can see the logic in [../sdk/python/feast/ui](../sdk/python/feast/ui/). This instance is loaded in [../sdk/python/feast/ui_server.py](../sdk/python/feast/ui_server.py). 
+`feast ui` serves a production build of this folder. `make build-ui` builds it and copies `ui/build` into [../sdk/python/feast/ui/build](../sdk/python/feast/ui/), which ships in the Python package. This instance is loaded in [../sdk/python/feast/ui_server.py](../sdk/python/feast/ui_server.py). 
 
 Under the hood, what happens is that the Feast SDK spins up a server which exposes an endpoint to the registry. It then mounts the UI on the server and points it to fetch data from that registry.
 
