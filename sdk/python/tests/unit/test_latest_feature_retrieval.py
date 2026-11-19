@@ -154,3 +154,56 @@ def test_get_latest_features_respects_end_date(tmp_path):
 
     assert result["driver_id"].tolist() == [1, 2]
     assert result["value"].tolist() == [10.0, 20.0]
+
+
+def test_get_latest_features_rejects_unknown_feature(tmp_path):
+    """Reject requests for features absent from a registered feature view."""
+    from datetime import timedelta
+
+    import pandas as pd
+    import pytest
+
+    from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+    from feast.types import Float64, ValueType
+
+    source_path = tmp_path / "driver_stats.parquet"
+    pd.DataFrame(
+        {
+            "driver_id": [1],
+            "event_timestamp": pd.to_datetime(["2025-01-01T00:00:00Z"]),
+            "value": [10.0],
+        }
+    ).to_parquet(source_path)
+
+    store = FeatureStore(
+        config=RepoConfig(
+            project="latest_features_test",
+            registry=str(tmp_path / "registry.db"),
+            provider="local",
+            offline_store={"type": "file"},
+            online_store={
+                "type": "sqlite",
+                "path": str(tmp_path / "online.db"),
+            },
+        )
+    )
+
+    driver = Entity(
+        name="driver",
+        join_keys=["driver_id"],
+        value_type=ValueType.INT64,
+    )
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[Field(name="value", dtype=Float64)],
+        source=FileSource(
+            path=str(source_path),
+            timestamp_field="event_timestamp",
+        ),
+        ttl=timedelta(days=7),
+    )
+    store.apply([driver, feature_view])
+
+    with pytest.raises(ValueError, match="Unknown features requested"):
+        store.get_latest_features(features=["driver_stats:unknown_value"])
