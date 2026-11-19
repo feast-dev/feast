@@ -13,14 +13,16 @@
 # limitations under the License.
 
 import logging
+import os
 import sys
 import tempfile
 import types
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import dill
 import pytest
+from sqlalchemy.pool import QueuePool
 
 from feast import Field
 from feast.data_source import PushSource
@@ -329,6 +331,60 @@ def test_warn_if_narrow_blob_columns_swallows_query_errors(caplog):
 
     # The failure is demoted to a debug note, never an error/exception.
     assert "still typed BLOB" not in caplog.text
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+@pytest.mark.filterwarnings(
+    "ignore:This process .* is multi-threaded:DeprecationWarning"
+)
+def test_forked_child_does_not_reuse_parent_pooled_connection(sqlite_registry):
+    """A forked child (e.g. a Gunicorn worker) must not share the parent's pooled connections."""
+    assert isinstance(sqlite_registry.write_engine.pool, QueuePool)
+    with sqlite_registry.write_engine.connect() as conn:
+        parent_conn = conn.connection.dbapi_connection
+
+    pid = os.fork()
+    if pid == 0:
+        try:
+            sqlite_registry.reset_after_fork()
+            with sqlite_registry.write_engine.connect() as conn:
+                child_conn = conn.connection.dbapi_connection
+            os._exit(1 if child_conn is parent_conn else 0)
+        except BaseException:
+            os._exit(2)
+    _, status = os.waitpid(pid, 0)
+
+    assert os.waitstatus_to_exitcode(status) == 0
+    # The parent's pooled connection is still usable.
+    assert parent_conn.execute("SELECT 1").fetchone() == (1,)
+
+
+def test_reset_after_fork_disposes_pool_without_closing(sqlite_registry):
+    with patch.object(sqlite_registry.write_engine, "dispose") as dispose:
+        sqlite_registry.reset_after_fork()
+
+    dispose.assert_called_once_with(close=False)
+
+
+def test_reset_after_fork_disposes_read_and_write_engines(tmp_path):
+    config = SqlRegistryConfig(
+        registry_type="sql",
+        path=f"sqlite:///{tmp_path / 'registry.db'}",
+        read_path=f"sqlite:///{tmp_path / 'registry.db'}",
+        purge_feast_metadata=False,
+    )
+    registry = SqlRegistry(config, "test_project", None)
+    try:
+        with (
+            patch.object(registry.write_engine, "dispose") as write_dispose,
+            patch.object(registry.read_engine, "dispose") as read_dispose,
+        ):
+            registry.reset_after_fork()
+
+        write_dispose.assert_called_once_with(close=False)
+        read_dispose.assert_called_once_with(close=False)
+    finally:
+        registry.teardown()
 
 
 def test_sql_registry(sqlite_registry):
