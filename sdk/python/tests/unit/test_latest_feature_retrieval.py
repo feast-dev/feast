@@ -207,3 +207,71 @@ def test_get_latest_features_rejects_unknown_feature(tmp_path):
 
     with pytest.raises(ValueError, match="Unknown features requested"):
         store.get_latest_features(features=["driver_stats:unknown_value"])
+
+
+def test_get_latest_features_rejects_multiple_feature_views(tmp_path):
+    """Reject multiple feature views until multi-view retrieval is supported."""
+    from datetime import timedelta
+
+    import pandas as pd
+    import pytest
+
+    from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+    from feast.types import Float64, ValueType
+
+    source_path = tmp_path / "driver_stats.parquet"
+    pd.DataFrame(
+        {
+            "driver_id": [1],
+            "event_timestamp": pd.to_datetime(["2025-01-01T00:00:00Z"]),
+            "value": [10.0],
+            "extra_value": [20.0],
+        }
+    ).to_parquet(source_path)
+
+    store = FeatureStore(
+        config=RepoConfig(
+            project="latest_features_test",
+            registry=str(tmp_path / "registry.db"),
+            provider="local",
+            offline_store={"type": "file"},
+            online_store={"type": "sqlite", "path": str(tmp_path / "online.db")},
+        )
+    )
+
+    driver = Entity(
+        name="driver",
+        join_keys=["driver_id"],
+        value_type=ValueType.INT64,
+    )
+
+    source = FileSource(
+        path=str(source_path),
+        timestamp_field="event_timestamp",
+    )
+
+    first_view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[Field(name="value", dtype=Float64)],
+        source=source,
+        ttl=timedelta(days=7),
+    )
+
+    second_view = FeatureView(
+        name="driver_stats_extra",
+        entities=[driver],
+        schema=[Field(name="extra_value", dtype=Float64)],
+        source=source,
+        ttl=timedelta(days=7),
+    )
+
+    store.apply([driver, first_view, second_view])
+
+    with pytest.raises(ValueError, match="exactly one regular feature view"):
+        store.get_latest_features(
+            features=[
+                "driver_stats:value",
+                "driver_stats_extra:extra_value",
+            ]
+        )
