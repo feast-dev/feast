@@ -317,6 +317,7 @@ class OnlineStore(ABC):
                 "feast.infra.online_stores.milvus_online_store.milvus",
                 "MilvusOnlineStore",
             ),
+            ("feast.infra.online_stores.datastore", "DatastoreOnlineStore"),
         ):
             try:
                 import importlib
