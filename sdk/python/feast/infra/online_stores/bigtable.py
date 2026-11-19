@@ -11,7 +11,10 @@ from pydantic import PositiveInt, StrictStr
 
 from feast import Entity, FeatureView, utils
 from feast.feature_view import DUMMY_ENTITY_NAME
-from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.online_stores.helpers import (
+    compute_entity_id,
+    compute_versioned_name,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -27,6 +30,13 @@ MUTATIONS_PER_OP = 50_000
 # library limits the connection pool size to 10, which bounds the useful concurrency.
 # Overridable via ``BigtableOnlineStoreConfig.write_concurrency``.
 BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
+
+
+def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
+    """Return the version-qualified feature view name when versioning is enabled."""
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
 
 
 class BigtableOnlineStoreConfig(FeastConfigBaseModel):
@@ -70,6 +80,7 @@ class BigtableOnlineStore(OnlineStore):
         # Potential performance improvement opportunity described in
         # https://github.com/feast-dev/feast/issues/3259
         feature_view = table
+        fv_name = _versioned_fv_name(feature_view, config)
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
         client = self._get_client(online_config=config.online_store)
@@ -78,7 +89,7 @@ class BigtableOnlineStore(OnlineStore):
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
-                feature_view_name=feature_view.name,
+                feature_view_name=fv_name,
                 config=config,
             )
             for entity_key in entity_keys
@@ -136,6 +147,7 @@ class BigtableOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         feature_view = table
+        fv_name = _versioned_fv_name(feature_view, config)
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
 
         client = self._get_client(online_config=config.online_store)
@@ -161,7 +173,7 @@ class BigtableOnlineStore(OnlineStore):
                         self._write_rows_to_bt,
                         rows_to_write=rows_to_write,
                         bt_table=bt_table,
-                        feature_view_name=feature_view.name,
+                        feature_view_name=fv_name,
                         config=config,
                         progress=progress,
                     )
