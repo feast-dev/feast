@@ -31,6 +31,8 @@ jobs:
 
     env:
       KIND_CLUSTER: "registry-rest-api-cluster"
+      # Preserve the dependency set installed from the CI requirements lock.
+      UV_NO_SYNC: "1"
 
     steps:
       - name: Checkout code
