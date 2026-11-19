@@ -2214,6 +2214,64 @@ class FeatureStore:
 
         return job
 
+
+    def get_latest_features(
+        self,
+        features: List[str],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        """Retrieve the latest feature values per entity from one feature view.
+
+        This initial implementation supports one regular feature view with
+        a batch source. The entity keys come from the feature view.
+        """
+        feature_refs = utils._get_features(
+            self.registry, self.project, features, allow_cache=True
+        )
+        utils._validate_feature_refs(feature_refs)
+
+        feature_views, on_demand_views = utils._get_feature_views_to_use(
+            self.registry, self.project, features, allow_cache=True
+        )
+
+        if len(feature_views) != 1 or on_demand_views:
+            raise ValueError(
+                "Latest feature retrieval currently supports exactly "
+                "one regular feature view."
+            )
+
+        feature_view = feature_views[0]
+
+        if feature_view.batch_source is None:
+            raise ValueError("The feature view must have a batch source.")
+
+        requested_features = [ref.split(":", 1)[1] for ref in feature_refs]
+
+        available_features = {field.name for field in feature_view.features}
+        unknown_features = set(requested_features) - available_features
+        if unknown_features:
+            raise ValueError(
+                f"Unknown features requested: {sorted(unknown_features)}"
+            )
+
+        source = feature_view.batch_source
+        provider = self._get_provider()
+
+        return provider.offline_store.pull_latest_from_table_or_query(
+            config=self.config,
+            data_source=source,
+            join_key_columns=feature_view.join_keys,
+            feature_name_columns=requested_features,
+            timestamp_field=source.timestamp_field,
+            created_timestamp_column=getattr(
+                source, "created_timestamp_column", None
+            ),
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+
     def create_saved_dataset(
         self,
         from_: RetrievalJob,
