@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -9,9 +10,16 @@ from feast.infra.offline_stores.bigquery import (
     BigQueryOfflineStore,
     BigQueryOfflineStoreConfig,
     BigQueryRetrievalJob,
+    _bq_ensure_monitoring_tables,
 )
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.monitoring.monitoring_utils import (
+    MON_TABLE_FEATURE,
+    MON_TABLE_FEATURE_SERVICE,
+    MON_TABLE_FEATURE_VIEW,
+    MON_TABLE_JOB,
+)
 from feast.repo_config import RepoConfig
 
 
@@ -372,3 +380,52 @@ class TestOfflineWriteBatch:
         job_config = call_kwargs[1]["job_config"]
         assert job_config.parquet_options is not None
         assert job_config.parquet_options.enable_list_inference is True
+
+
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_ensure_monitoring_tables_primary_key_inside_column_list(
+    mock_get_bigquery_client,
+):
+    """BigQuery only accepts table constraints inside the table element list.
+
+    ``CREATE TABLE t (...) PRIMARY KEY (...) NOT ENFORCED`` is rejected at parse
+    time, so each PRIMARY KEY clause must come before the closing parenthesis.
+    """
+    mock_client = Mock()
+    mock_get_bigquery_client.return_value = mock_client
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(
+            type="bigquery", project_id="my-project", dataset="my_dataset"
+        ),
+    )
+
+    _bq_ensure_monitoring_tables(test_repo_config)
+
+    create_ddls = [
+        call.args[0]
+        for call in mock_client.query.call_args_list
+        if "CREATE TABLE" in call.args[0]
+    ]
+    created_tables = {
+        re.search(r"`my-project\.my_dataset\.(\w+)`", ddl).group(1)
+        for ddl in create_ddls
+    }
+    assert created_tables == {
+        MON_TABLE_FEATURE,
+        MON_TABLE_FEATURE_VIEW,
+        MON_TABLE_FEATURE_SERVICE,
+        MON_TABLE_JOB,
+    }
+    for ddl in create_ddls:
+        statement = ddl.strip()
+        assert statement.endswith(")"), (
+            f"Nothing may follow the table element list:\n{ddl}"
+        )
+        element_list = statement[statement.index("(") + 1 : -1]
+        assert re.search(r"PRIMARY KEY \([^)]*\) NOT ENFORCED\s*$", element_list), (
+            f"PRIMARY KEY ... NOT ENFORCED must be inside the element list:\n{ddl}"
+        )
