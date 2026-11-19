@@ -2214,7 +2214,6 @@ class FeatureStore:
 
         return job
 
-
     def get_latest_features(
         self,
         features: List[str],
@@ -2251,9 +2250,7 @@ class FeatureStore:
         available_features = {field.name for field in feature_view.features}
         unknown_features = set(requested_features) - available_features
         if unknown_features:
-            raise ValueError(
-                f"Unknown features requested: {sorted(unknown_features)}"
-            )
+            raise ValueError(f"Unknown features requested: {sorted(unknown_features)}")
 
         source = feature_view.batch_source
         provider = self._get_provider()
@@ -2264,13 +2261,10 @@ class FeatureStore:
             join_key_columns=feature_view.join_keys,
             feature_name_columns=requested_features,
             timestamp_field=source.timestamp_field,
-            created_timestamp_column=getattr(
-                source, "created_timestamp_column", None
-            ),
+            created_timestamp_column=getattr(source, "created_timestamp_column", None),
             start_date=start_date,
             end_date=end_date,
         )
-
 
     def create_saved_dataset(
         self,
