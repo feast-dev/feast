@@ -292,6 +292,12 @@ def test_remote_online_store_read_write(auth_config, tls_mode):
     ):
         permissions_list = [
             Permission(
+                name="online_provision_perm",
+                types=[FeatureView, Entity],
+                policy=RoleBasedPolicy(roles=["writer"]),
+                actions=[AuthzedAction.CREATE],
+            ),
+            Permission(
                 name="online_list_fv_perm",
                 types=FeatureView,
                 policy=RoleBasedPolicy(roles=["reader"]),
