@@ -96,7 +96,7 @@ def repo_config():
         offline_store=CouchbaseColumnarOfflineStoreConfig(
             connection_string="couchbases://localhost",
             user="feast",
-            password="feast",
+            password="feast",  # pragma: allowlist secret
         ),
         entity_key_serialization_version=3,
     )
