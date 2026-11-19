@@ -37,7 +37,9 @@ class Field:
         description: A human-readable description.
         tags: User-defined metadata in dictionary form.
         vector_index: If set to True the field will be indexed for vector similarity search.
-        vector_length: The length of the vector if the vector index is set to True.
+        vector_length: The length of the vector if the vector index is set to True. On a
+            non-vector ``Array`` field it declares a fixed list length, enforced on write
+            and materialization.
         vector_search_metric: The metric used for vector similarity search.
     """
 

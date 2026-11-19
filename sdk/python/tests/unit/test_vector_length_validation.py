@@ -326,3 +326,87 @@ class TestUndeclaredVectorLength:
             ),
         )
         _validate_vector_field_lengths(_table(_variable_list([4, 9, 2])), fv)
+
+
+def _list_feature_view(fixed_length: int = VECTOR_LENGTH) -> FeatureView:
+    """A feature view with a plain (non-vector) list feature that declares a length."""
+    return FeatureView(
+        name="fv",
+        entities=[
+            Entity(name="item_id", join_keys=["item_id"], value_type=ValueType.INT64)
+        ],
+        schema=[
+            Field(name="embedding", dtype=Array(Float32), vector_length=fixed_length),
+            Field(name="label", dtype=String),
+        ],
+        source=FileSource(
+            path="/tmp/unused.parquet", timestamp_field="event_timestamp"
+        ),
+    )
+
+
+class TestFixedLengthListValidation:
+    """A declared ``vector_length`` applies to non-vector ``Array`` fields too."""
+
+    def test_arrow_matching_length_passes(self):
+        _validate_vector_field_lengths(
+            _table(_variable_list([4, 4, 4])), _list_feature_view()
+        )
+
+    def test_arrow_mismatched_length_is_rejected(self):
+        with pytest.raises(ValueError, match=r"Row 1: List length 9 .* expected 4"):
+            _validate_vector_field_lengths(
+                _table(_variable_list([4, 9, 4])), _list_feature_view()
+            )
+
+    def test_arrow_fixed_size_list_type_must_match(self):
+        with pytest.raises(ValueError, match=r"List length 8 .* expected 4"):
+            _validate_vector_field_lengths(
+                _table(_fixed_size_list(8)), _list_feature_view()
+            )
+
+    def test_arrow_nulls_are_tolerated(self):
+        _validate_vector_field_lengths(
+            _table(_variable_list([4, None, 4])), _list_feature_view()
+        )
+
+    def test_arrow_undeclared_length_is_not_inferred(self):
+        """Without a declaration a plain list is free-form, as before."""
+        _validate_vector_field_lengths(
+            _table(_variable_list([4, 9, 2])), _list_feature_view(fixed_length=0)
+        )
+
+    def test_arrow_non_list_column_is_rejected(self):
+        table = pyarrow.table(
+            {
+                "embedding": pyarrow.array([1.0, 2.0]),
+                "label": pyarrow.array(["a", "b"]),
+                "item_id": pyarrow.array([0, 1]),
+            }
+        )
+        with pytest.raises(ValueError, match="declares vector_length=4 but"):
+            _validate_vector_field_lengths(table, _list_feature_view())
+
+    def test_dataframe_matching_length_passes(self):
+        df = pd.DataFrame({"embedding": [[0.0] * 4, [1.0] * 4], "label": list("ab")})
+        _validate_df(_list_feature_view(), df)
+
+    def test_dataframe_mismatched_length_is_rejected(self):
+        df = pd.DataFrame({"embedding": [[0.0] * 4, [1.0] * 9], "label": list("ab")})
+        with pytest.raises(ValueError, match=r"Row 1: List length 9 .* expected 4"):
+            _validate_df(_list_feature_view(), df)
+
+    def test_dataframe_undeclared_length_is_not_checked(self):
+        df = pd.DataFrame({"embedding": [[0.0] * 4, [1.0] * 9], "label": list("ab")})
+        _validate_df(_list_feature_view(fixed_length=0), df)
+
+    def test_length_round_trips_without_vector_index(self):
+        field = Field(name="v", dtype=Array(Float32), vector_length=4)
+        restored = Field.from_proto(field.to_proto())
+        assert restored.vector_length == 4
+        assert not restored.vector_index
+
+    def test_vector_field_messages_are_unchanged(self):
+        """The vector path keeps its original wording."""
+        with pytest.raises(ValueError, match=r"Vector length 8 .* expected 4"):
+            _validate_vector_field_lengths(_table(_fixed_size_list(8)), _feature_view())
