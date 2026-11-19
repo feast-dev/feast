@@ -1045,6 +1045,122 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         assert result["distance"] == [-1.8458267450332642, -1.8458267450332642]
 
 
+def test_sqlite_get_online_documents_v2_search_is_repeatable() -> None:
+    """Every keyword search ranks each stored document once, as last written."""
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        store.config.online_store.text_search_enabled = True
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+        provider = store._get_provider()
+
+        def write_document(item_id: int, content: str) -> None:
+            provider.online_write_batch(
+                config=store.config,
+                table=document_embeddings_fv,
+                data=[
+                    (
+                        EntityKeyProto(
+                            join_keys=["item_id"],
+                            entity_values=[ValueProto(int64_val=item_id)],
+                        ),
+                        {
+                            "content": ValueProto(string_val=content),
+                            "title": ValueProto(string_val=f"Title {item_id}"),
+                        },
+                        _utc_now(),
+                        _utc_now(),
+                    )
+                ],
+                progress=None,
+            )
+
+        def search(query_string: str) -> list[str]:
+            result = store.retrieve_online_documents_v2(
+                features=["document_embeddings:content", "document_embeddings:title"],
+                query_string=query_string,
+                top_k=3,
+            ).to_dict()
+            return sorted(result["title"])
+
+        # The more often a document repeats the word, the better it ranks.
+        write_document(0, "sentence sentence sentence")
+        write_document(1, "sentence sentence")
+        write_document(2, "sentence")
+        write_document(3, "some other text")
+
+        for _ in range(3):
+            assert search("sentence") == ["Title 0", "Title 1", "Title 2"]
+
+        write_document(0, "a rewritten document")
+        assert search("sentence") == ["Title 1", "Title 2"]
+        assert search("rewritten") == ["Title 0"]
+
+
+@pytest.mark.skipif(
+    sys.version_info[0:2] != (3, 10),
+    reason="Only works on Python 3.10",
+)
+def test_sqlite_get_online_documents_is_repeatable() -> None:
+    """Vector searches keep working after the first one."""
+    vector_length = 8
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        store.config.online_store.vector_enabled = True
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+        provider = store._get_provider()
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=[
+                (
+                    EntityKeyProto(
+                        join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+                    ),
+                    {
+                        "Embeddings": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=[float(i)] * vector_length
+                            )
+                        ),
+                        "content": ValueProto(string_val=f"the {i}th sentence"),
+                        "title": ValueProto(string_val=f"Title {i}"),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+                for i in range(5)
+            ],
+            progress=None,
+        )
+        query = [0.0] * vector_length
+
+        for _ in range(2):
+            result = store.retrieve_online_documents_v2(
+                features=[
+                    "document_embeddings:Embeddings",
+                    "document_embeddings:title",
+                ],
+                query=query,
+                top_k=3,
+            ).to_dict()
+            assert sorted(result["title"]) == ["Title 0", "Title 1", "Title 2"]
+
+        for _ in range(2):
+            result = store.retrieve_online_documents(
+                features=[
+                    "document_embeddings:Embeddings",
+                    "document_embeddings:distance",
+                ],
+                query=query,
+                top_k=3,
+            ).to_dict()
+            assert len(result["distance"]) == 3
+
+
 @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
 def test_local_milvus() -> None:
     import random
