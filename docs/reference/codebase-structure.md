@@ -34,7 +34,7 @@ There are also several important submodules:
 * `ui/` contains the embedded Web UI, to be launched on the `feast ui` command.
 
 Of these submodules, `infra/` is the most important.
-It contains the interfaces for the [provider](getting-started/components/provider.md), [offline store](getting-started/components/offline-store.md), [online store](getting-started/components/online-store.md), [compute engine](getting-started/components/compute-engine.md), and [registry](getting-started/components/registry.md), as well as all of their individual implementations.
+It contains the interfaces for the [provider](../getting-started/components/provider.md), [offline store](../getting-started/components/offline-store.md), [online store](../getting-started/components/online-store.md), [compute engine](../getting-started/components/compute-engine.md), and [registry](../getting-started/components/registry.md), as well as all of their individual implementations.
 
 ```
 $ tree --dirsfirst -L 1 infra   
@@ -125,7 +125,7 @@ Within `go/`, the `internal/feast/` directory contains most of the core logic:
 Feast uses [protobuf](https://github.com/protocolbuffers/protobuf) to store serialized versions of the core Feast objects.
 The protobuf definitions are stored in `protos/feast`.
 
-The [registry](../getting-started/concepts/registry.md) consists of the serialized representations of the Feast objects.
+The [registry](../getting-started/components/registry.md) consists of the serialized representations of the Feast objects.
 
 Typically, changes being made to the Feast objects require changes to their corresponding protobuf representations. 
 The usual best practices for making changes to protobufs should be followed ensure backwards and forwards compatibility.
