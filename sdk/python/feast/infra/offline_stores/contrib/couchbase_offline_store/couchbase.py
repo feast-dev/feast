@@ -40,6 +40,7 @@ from feast.infra.utils.couchbase.couchbase_utils import normalize_timestamp
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.utils import compute_non_entity_date_range
 
 from ... import offline_utils
 from ...offline_utils import get_timestamp_filter_sql
@@ -134,11 +135,12 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
         filter_by_created_timestamp: bool = False,
+        **kwargs: Any,
     ) -> RetrievalJob:
         """
         Retrieve historical features using point-in-time joins.
@@ -151,6 +153,19 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, CouchbaseColumnarOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, CouchbaseColumnarSource)
+
+        if entity_df is None:
+            return _get_historical_features_without_entity_df(
+                config=config,
+                feature_views=feature_views,
+                feature_refs=feature_refs,
+                registry=registry,
+                project=project,
+                full_feature_names=full_feature_names,
+                filter_by_created_timestamp=filter_by_created_timestamp,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -466,6 +481,125 @@ def _get_entity_df_event_timestamp_range(
     else:
         raise InvalidEntityType(type(entity_df))
     return entity_df_event_timestamp_range
+
+
+def _get_historical_features_without_entity_df(
+    config: RepoConfig,
+    feature_views: List[FeatureView],
+    feature_refs: List[str],
+    registry: BaseRegistry,
+    project: str,
+    full_feature_names: bool,
+    filter_by_created_timestamp: bool,
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+) -> RetrievalJob:
+    """
+    Retrieves historical features for a time range instead of an entity dataframe.
+
+    The left side of the point-in-time join is built from the entity keys observed
+    in the feature view sources between start_date and end_date, each joined as of
+    end_date, so every entity gets its latest feature values within the TTL.
+    """
+    start_date, end_date = compute_non_entity_date_range(
+        feature_views,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    query_context = offline_utils.get_feature_view_query_context(
+        feature_refs,
+        feature_views,
+        registry,
+        project,
+        (start_date, end_date),
+    )
+
+    entity_df_event_timestamp_col = offline_utils.DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    join_keys = offline_utils.gather_all_entities(query_context)
+    entity_df_columns = {
+        column: None for column in join_keys + [entity_df_event_timestamp_col]
+    }.keys()
+
+    query = build_point_in_time_query(
+        [asdict(context) for context in query_context],
+        left_table_query_string=_build_non_entity_left_table_query(
+            query_context=query_context,
+            join_keys=join_keys,
+            start_date=start_date,
+            end_date=end_date,
+            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+        ),
+        entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+        entity_df_columns=entity_df_columns,
+        query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+        full_feature_names=full_feature_names,
+        filter_by_created_timestamp=filter_by_created_timestamp,
+    )
+
+    return CouchbaseColumnarRetrievalJob(
+        query=query,
+        config=config,
+        full_feature_names=full_feature_names,
+        on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+            feature_refs, project, registry
+        ),
+        metadata=RetrievalMetadata(
+            features=feature_refs,
+            keys=join_keys,
+            min_event_timestamp=start_date,
+            max_event_timestamp=end_date,
+        ),
+        timestamp_field=entity_df_event_timestamp_col,
+    )
+
+
+def _build_non_entity_left_table_query(
+    query_context: List[offline_utils.FeatureViewQueryContext],
+    join_keys: List[str],
+    start_date: datetime,
+    end_date: datetime,
+    entity_df_event_timestamp_col: str,
+) -> str:
+    """
+    Builds a subquery that stands in for the entity dataframe in non-entity mode.
+
+    It selects the distinct join keys of every feature view with entities whose
+    source has events between start_date and end_date, fills the join keys a
+    feature view does not have with null, and sets the event timestamp of every
+    row to end_date. Feature views without entities join on the timestamp alone,
+    so they do not contribute rows. When no feature view has entities, the
+    subquery is a single row holding end_date.
+    """
+    start_timestamp = normalize_timestamp(start_date)
+    end_timestamp = normalize_timestamp(end_date)
+    event_timestamp_col = _escape_column(entity_df_event_timestamp_col)
+
+    entity_selects = []
+    for context in query_context:
+        if not context.entities:
+            continue
+        selections = dict(zip(context.entities, context.entity_selections))
+        columns = ", ".join(
+            selections.get(join_key, f"null AS {join_key}") for join_key in join_keys
+        )
+        entity_selects.append(
+            f"SELECT {columns} "
+            f"FROM {context.table_subquery} AS sub "
+            f"WHERE sub.{_escape_column(context.timestamp_field)} "
+            f"BETWEEN '{start_timestamp}' AND '{end_timestamp}'"
+        )
+
+    if not entity_selects:
+        return f"(SELECT '{end_timestamp}' AS {event_timestamp_col})"
+
+    entity_union = "\n        UNION ALL\n        ".join(entity_selects)
+    return f"""(
+    SELECT DISTINCT entity_keys.*, '{end_timestamp}' AS {event_timestamp_col}
+    FROM (
+        {entity_union}
+    ) AS entity_keys
+)"""
 
 
 def _escape_column(column: str) -> str:
