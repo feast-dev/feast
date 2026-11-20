@@ -513,7 +513,8 @@ def get_consumer_router(
             try:
                 return ns_callable()
             except Exception:
-                return None
+                # Fail closed: a broken RBAC check must not expose every namespace.
+                return []
         return None
 
     return router
