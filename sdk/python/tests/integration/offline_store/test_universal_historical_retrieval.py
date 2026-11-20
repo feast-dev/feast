@@ -17,6 +17,7 @@ from feast.infra.offline_stores.offline_utils import (
 from feast.types import Float32, Int32, String
 from feast.utils import _utc_now
 from tests.universal.feature_repos.repo_configuration import (
+    Environment,
     construct_universal_feature_views,
     table_name_from_data_source,
 )
@@ -728,6 +729,109 @@ def test_historical_features_field_mapping(
         actual_df,
         sort_by=["driver_id"],
     )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores
+@pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
+def test_historical_features_with_names_ending_in_y(
+    environment: Environment, full_feature_names: bool
+) -> None:
+    store = environment.feature_store
+
+    now = datetime.now().replace(microsecond=0, second=0, minute=0)
+    tomorrow = now + timedelta(days=1)
+    day_after_tomorrow = now + timedelta(days=2)
+
+    # Feature, timestamp and created column names ending in "_y", which the
+    # point-in-time join also uses for its own suffixes.
+    positions_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "pos_x": 1.5,
+                "pos_y": 7.5,
+                "y": 1,
+                "ts_y": now,
+                "created_y": now,
+            },
+            {
+                "driver_id": 1001,
+                "pos_x": 2.5,
+                "pos_y": 8.5,
+                "y": 2,
+                "ts_y": tomorrow,
+                "created_y": tomorrow,
+            },
+            {
+                "driver_id": 1002,
+                "pos_x": 3.5,
+                "pos_y": 9.5,
+                "y": 3,
+                "ts_y": now,
+                "created_y": now,
+            },
+        ]
+    )
+    entity_df = pd.DataFrame(
+        data=[
+            {
+                "driver_id": 1001,
+                "event_timestamp": now + timedelta(hours=12),
+                "request_id": 1,
+            },
+            {
+                "driver_id": 1001,
+                "event_timestamp": day_after_tomorrow,
+                "request_id": 2,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": day_after_tomorrow,
+                "request_id": 3,
+            },
+        ]
+    )
+
+    positions_source = environment.data_source_creator.create_data_source(
+        df=positions_df,
+        destination_name=f"test_driver_positions_{int(time.time_ns())}_{random.randint(1000, 9999)}",
+        timestamp_field="ts_y",
+        created_timestamp_column="created_y",
+    )
+    driver = Entity(name="driver", join_keys=["driver_id"])
+    positions_fv = FeatureView(
+        name="driver_positions",
+        entities=[driver],
+        schema=[
+            Field(name="pos_x", dtype=Float32),
+            Field(name="pos_y", dtype=Float32),
+            Field(name="y", dtype=Int32),
+        ],
+        source=positions_source,
+    )
+    store.apply([driver, positions_fv])
+
+    actual_df = store.get_historical_features(
+        entity_df=entity_df,
+        features=[
+            "driver_positions:pos_x",
+            "driver_positions:pos_y",
+            "driver_positions:y",
+        ],
+        full_feature_names=full_feature_names,
+    ).to_df()
+
+    prefix = "driver_positions__" if full_feature_names else ""
+    expected_df = pd.DataFrame(
+        data=[
+            {"request_id": 1, "pos_x": 1.5, "pos_y": 7.5, "y": 1},
+            {"request_id": 2, "pos_x": 2.5, "pos_y": 8.5, "y": 2},
+            {"request_id": 3, "pos_x": 3.5, "pos_y": 9.5, "y": 3},
+        ]
+    ).rename(columns={name: f"{prefix}{name}" for name in ["pos_x", "pos_y", "y"]})
+
+    validate_dataframes(expected_df, actual_df, sort_by=["request_id"])
 
 
 @pytest.mark.integration

@@ -740,8 +740,9 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
-	// The standalone MCP server (`feast mcp`) has its own flag surface (no -p/--grpc/TLS
-	// args), so it does not go through the shared serve-command builder below.
+	// The standalone MCP server (`feast mcp`) has its own flag surface (no -p/--grpc args,
+	// --tls-cert/--tls-key instead of --cert/--key), so it does not go through the shared
+	// serve-command builder below.
 	if feastType == McpServerFeastType {
 		return feast.getMcpServerCommand()
 	}
@@ -838,17 +839,23 @@ func withBindHost(feastType FeastServiceType, args []string, serverConfigs *feas
 }
 
 // getMcpServerCommand builds the `feast mcp` command for the standalone MCP server container.
-// The operator owns the bind host/port (so they match the generated Service); everything else
-// (transport, upstream feature/registry URLs, auth, observability) is read from the mounted
-// feast_mcp.yaml config file when provided. Without one, the transport defaults to http,
-// because the process default (stdio) cannot serve the Service.
+// The operator owns the bind host/port and server TLS (so they match the generated Service and
+// probes); everything else (transport, upstream feature/registry URLs, auth, observability) is
+// read from the mounted feast_mcp.yaml config file when provided. Without one, the transport
+// defaults to http, because the process default (stdio) cannot serve the Service.
 func (feast *FeastServices) getMcpServerCommand() []string {
 	cmd := []string{feastCommand}
 	if logLevel := feast.getLogLevelForType(McpServerFeastType); logLevel != nil {
 		cmd = append(cmd, "--log-level", strings.ToUpper(*logLevel))
 	}
-	targetPort := FeastServiceConstants[McpServerFeastType].TargetHttpPort
+	tls := feast.getTlsConfigs(McpServerFeastType)
+	targetPort := getTargetPort(McpServerFeastType, tls)
 	cmd = append(cmd, "mcp", "--host", hostAllIPv4, "--port", strconv.Itoa(int(targetPort)))
+	if tls.IsTLS() {
+		feastTlsPath := GetTlsPath(McpServerFeastType)
+		cmd = append(cmd, "--tls-cert", feastTlsPath+tls.SecretKeyNames.TlsCrt,
+			"--tls-key", feastTlsPath+tls.SecretKeyNames.TlsKey)
+	}
 	if configPath := feast.getMcpServerConfigPath(); configPath != "" {
 		cmd = append(cmd, "--config", configPath)
 	} else if !feast.hasMcpServerTransportEnv() {
@@ -1490,10 +1497,8 @@ func (feast *FeastServices) setServiceHostnames() error {
 	}
 	if feast.isMcpServer() {
 		objMeta := feast.initFeastSvc(McpServerFeastType)
-		// The MCP server does not support operator-managed TLS yet, so its Service always
-		// listens on the plain HTTP port.
 		feast.Handler.FeatureStore.Status.ServiceHostnames.McpServer = objMeta.Name + "." + objMeta.Namespace + domain +
-			getPortStr(nil)
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.McpServer.TLS)
 	}
 	return nil
 }

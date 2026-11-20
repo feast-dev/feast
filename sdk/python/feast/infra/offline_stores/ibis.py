@@ -517,12 +517,20 @@ def point_in_time_join(
                 >= entity_table[event_timestamp_col]
             )
 
+        # Select the columns used below from each side of the join, rather than
+        # dropping the "_y" copies the join makes of clashing entity columns by
+        # name: features, timestamps and created columns can end in "_y" too
+        # (e.g. "pos_y").
+        kept_columns = [timestamp_field]
+        if created_timestamp_field:
+            kept_columns.append(created_timestamp_field)
+        kept_columns.extend(feature_refs)
         feature_table = feature_table.inner_join(
             entity_table, predicates, lname="", rname="{name}_y"
+        ).select(
+            entity_table["entity_row_id"],
+            *[feature_table[c] for c in dict.fromkeys(kept_columns)],
         )
-
-        cols_to_drop_y = [c for c in feature_table.columns if c.endswith("_y")]
-        feature_table = feature_table.drop(*cols_to_drop_y)
 
         feature_table = deduplicate(
             table=feature_table,
