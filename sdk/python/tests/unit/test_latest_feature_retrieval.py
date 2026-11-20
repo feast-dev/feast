@@ -8,7 +8,7 @@ def test_feature_store_exposes_latest_features_api():
     )
 
 
-def test_get_latest_features_returns_latest_value_per_entity(tmp_path):
+def test_get_latest_features_returns_latest_value_per_entity(tmp_path, monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     import pandas as pd
@@ -79,6 +79,42 @@ def test_get_latest_features_returns_latest_value_per_entity(tmp_path):
 
     assert result["driver_id"].tolist() == [1, 2]
     assert result["value"].tolist() == [30.0, 40.0]
+
+    # Check default dates passed to the offline store without querying data.
+    provider = store._get_provider()
+    captured = []
+
+    def capture_retrieval(**kwargs):
+        captured.append(kwargs)
+        return None
+
+    monkeypatch.setattr(
+        provider.offline_store,
+        "pull_latest_from_table_or_query",
+        capture_retrieval,
+    )
+    monkeypatch.setattr(store, "_get_provider", lambda: provider)
+
+    before = datetime.now(timezone.utc)
+    store.get_latest_features(features=["driver_stats:value"])
+    after = datetime.now(timezone.utc)
+
+    defaults = captured[-1]
+    assert before <= defaults["end_date"] <= after
+    assert defaults["end_date"].tzinfo is not None
+    assert defaults["start_date"] == defaults["end_date"] - timedelta(weeks=52)
+
+    explicit_start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    explicit_end = datetime(2025, 1, 4, tzinfo=timezone.utc)
+
+    store.get_latest_features(
+        features=["driver_stats:value"],
+        start_date=explicit_start,
+        end_date=explicit_end,
+    )
+
+    assert captured[-1]["start_date"] == explicit_start
+    assert captured[-1]["end_date"] == explicit_end
 
 
 def test_get_latest_features_respects_end_date(tmp_path):

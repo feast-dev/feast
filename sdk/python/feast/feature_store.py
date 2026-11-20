@@ -2252,6 +2252,15 @@ class FeatureStore:
         if unknown_features:
             raise ValueError(f"Unknown features requested: {sorted(unknown_features)}")
 
+        # Use a bounded UTC window when dates are omitted.
+        if end_date is None:
+            end_date = datetime.now(tz=_timezone.utc)
+        if start_date is None:
+            start_date = end_date - timedelta(weeks=52)
+
+        if start_date > end_date:
+            raise ValueError("start_date must not be after end_date.")
+
         source = feature_view.batch_source
         provider = self._get_provider()
 
