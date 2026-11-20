@@ -19,6 +19,9 @@ The server exposes Prometheus metrics at the `/metrics` endpoint on a dedicated 
 Key metrics include:
 - `http_request_duration_seconds`: Histogram of response latency.
 - `http_requests_total`: Counter of HTTP requests by status, method, and path.
+- `feast_bigtable_online_read_duration_seconds`, `feast_bigtable_online_read_chunks_total` and
+  `feast_bigtable_online_read_rows_found_total`: Bigtable online store reads, when that store is used
+  (see `docs/reference/online-stores/bigtable.md`).
 - Standard Go and Process metrics.
 
 A `/health` endpoint is available on the main application port (default `:8080`) for readiness probes.
@@ -35,10 +38,11 @@ The default exporter URL is "http://localhost:4318". The default schema of sendi
 ## List of files have OTEL observability code  
 1. internal/feast/transformation/transformation.go
 2. internal/feast/onlinestore/redisonlinestore.go
-3. internal/feast/server/grpc_server.go
-4. internal/feast/server/http_server.go
-5. internal/feast/server/server_commons.go
-6. internal/feast/featurestore.go
+3. internal/feast/onlinestore/bigtableonlinestore.go
+4. internal/feast/server/grpc_server.go
+5. internal/feast/server/http_server.go
+6. internal/feast/server/server_commons.go
+7. internal/feast/featurestore.go
 
 ## Example monitoring infra setup
 1. docker compose file to setup Prometheus, Jaeger, and OTEL-collector.  
