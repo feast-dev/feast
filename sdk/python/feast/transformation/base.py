@@ -100,6 +100,26 @@ class Transformation(ABC):
             mode=mode_str,
         )
 
+    @classmethod
+    def from_proto(
+        cls, user_defined_function_proto: UserDefinedFunctionProto
+    ) -> "Transformation":
+        """Rebuild a transformation from its proto, keeping its mode.
+
+        Modes without their own ``from_proto`` (SQL, Flink, Spark) use this.
+        """
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
+        return Transformation(
+            mode=user_defined_function_proto.mode, udf=udf, udf_string=udf_string
+        )
+
     def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> "Transformation":
         return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
 
