@@ -464,7 +464,7 @@ class OpenLineageStore:
 
         if namespace:
             query = query.where(tbl.c.job_namespace == namespace)
-        elif namespaces:
+        elif namespaces is not None:
             query = query.where(tbl.c.job_namespace.in_(namespaces))
         if job_name:
             query = query.where(tbl.c.job_name == job_name)
@@ -481,7 +481,7 @@ class OpenLineageStore:
     ) -> List[Dict[str, Any]]:
         tbl = OL_TABLES["jobs"]
         query = select(tbl).order_by(tbl.c.updated_at.desc())
-        if namespaces:
+        if namespaces is not None:
             query = query.where(tbl.c.job_namespace.in_(namespaces))
         if limit > 0:
             query = query.limit(limit).offset(offset)
@@ -493,7 +493,7 @@ class OpenLineageStore:
     def count_jobs(self, namespaces: Optional[List[str]] = None) -> int:
         tbl = OL_TABLES["jobs"]
         query = select(func.count()).select_from(tbl)
-        if namespaces:
+        if namespaces is not None:
             query = query.where(tbl.c.job_namespace.in_(namespaces))
         with self._engine.connect() as conn:
             return conn.execute(query).scalar() or 0
@@ -506,7 +506,7 @@ class OpenLineageStore:
     ) -> List[Dict[str, Any]]:
         tbl = OL_TABLES["datasets"]
         query = select(tbl).order_by(tbl.c.updated_at.desc())
-        if namespaces:
+        if namespaces is not None:
             query = query.where(tbl.c.dataset_namespace.in_(namespaces))
         if limit > 0:
             query = query.limit(limit).offset(offset)
@@ -518,7 +518,7 @@ class OpenLineageStore:
     def count_datasets(self, namespaces: Optional[List[str]] = None) -> int:
         tbl = OL_TABLES["datasets"]
         query = select(func.count()).select_from(tbl)
-        if namespaces:
+        if namespaces is not None:
             query = query.where(tbl.c.dataset_namespace.in_(namespaces))
         with self._engine.connect() as conn:
             return conn.execute(query).scalar() or 0
@@ -630,7 +630,7 @@ class OpenLineageStore:
                     f"{r['target_type']}:{r['target_namespace']}:{r['target_name']}"
                 )
 
-                if allowed_namespaces:
+                if allowed_namespaces is not None:
                     if (
                         r["source_namespace"] not in allowed_namespaces
                         or r["target_namespace"] not in allowed_namespaces
@@ -1644,7 +1644,7 @@ class OpenLineageStore:
     ) -> List[Dict[str, Any]]:
         tbl = OL_TABLES["lineage_edges"]
         query = select(tbl)
-        if namespaces:
+        if namespaces is not None:
             query = query.where(
                 tbl.c.source_namespace.in_(namespaces)
                 | tbl.c.target_namespace.in_(namespaces)

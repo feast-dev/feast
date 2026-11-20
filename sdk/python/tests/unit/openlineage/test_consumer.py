@@ -437,3 +437,29 @@ class TestNamespaceRBAC:
         namespaces = {j["job_namespace"] for j in jobs}
         assert "allowed-ns" in namespaces
         assert "blocked-ns" not in namespaces
+
+    @pytest.mark.parametrize("allowed", ["none_allowed", "check_fails"])
+    def test_no_allowed_namespaces_hides_everything(self, app_with_rbac, allowed):
+        _, store = app_with_rbac
+        store.upsert_job("ns-a", "j1", {"facets": {}})
+
+        def failing_check():
+            raise RuntimeError("permission check failed")
+
+        app = FastAPI()
+        app.include_router(
+            get_consumer_router(
+                OpenLineageConfig(
+                    enabled=True, consumer=OpenLineageConsumerConfig(enabled=True)
+                ),
+                store,
+                OpenLineageProcessor(store=store),
+                get_allowed_namespaces=(
+                    (lambda: []) if allowed == "none_allowed" else failing_check
+                ),
+            ),
+            prefix="/api/v1",
+        )
+        resp = TestClient(app).get("/api/v1/lineage/openlineage/jobs")
+        assert resp.status_code == 200
+        assert resp.json()["jobs"] == []

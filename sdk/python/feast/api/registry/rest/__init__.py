@@ -184,7 +184,7 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
 
                     all_projects = fs.registry.list_projects(allow_cache=True)
                     if not all_projects:
-                        return None
+                        return []
 
                     allowed_projects = permitted_resources(
                         all_projects, AuthzedAction.DESCRIBE
@@ -205,9 +205,13 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
                         if mapped_project in allowed_project_names:
                             namespaces.add(ext_ns)
 
-                    return list(namespaces) if namespaces else None
-                except Exception:
-                    return None
+                    # An empty list means "no namespaces allowed", not "no filter".
+                    return list(namespaces)
+                except Exception as e:
+                    logger.warning(
+                        f"Denying lineage access, permission check failed: {e}"
+                    )
+                    return []
 
             return _get_allowed
 

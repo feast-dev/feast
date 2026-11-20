@@ -634,10 +634,13 @@ class FeatureView(BaseFeatureView):
             for view_spec in feature_view_proto.spec.source_views
         ]
 
+        from feast.batch_feature_view import BatchFeatureView
+
         has_transformation = feature_view_proto.spec.HasField("feature_transformation")
 
-        if has_transformation and cls == FeatureView:
-            from feast.batch_feature_view import BatchFeatureView
+        # BatchFeatureView.from_proto must restore the transformation too, or
+        # `feast apply` compares a new UDF against a stored copy that has none.
+        if has_transformation and cls in (FeatureView, BatchFeatureView):
             from feast.transformation.factory import get_transformation_class_from_type
             from feast.transformation.python_transformation import PythonTransformation
             from feast.transformation.substrait_transformation import (
