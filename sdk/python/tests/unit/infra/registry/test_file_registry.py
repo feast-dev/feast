@@ -36,7 +36,8 @@ def _make_sources():
     return file_source, push_source
 
 
-def test_apply_batch_feature_view_stores_changed_udf(file_registry):
+@pytest.mark.parametrize("mode", ["pandas", "sql", "flink"])
+def test_apply_batch_feature_view_stores_changed_udf(file_registry, mode):
     """Re-applying a BatchFeatureView with a new UDF must store the new UDF."""
     entity = Entity(name="driver", join_keys=["driver_id"])
     file_registry.apply_entity(entity, "test_project")
@@ -46,7 +47,7 @@ def test_apply_batch_feature_view_stores_changed_udf(file_registry):
         return BatchFeatureView(
             name="driver_bfv",
             entities=[entity],
-            mode="pandas",
+            mode=mode,
             source=file_source,
             schema=[Field(name="out", dtype=Float32)],
             ttl=timedelta(days=1),
@@ -63,14 +64,15 @@ def test_apply_batch_feature_view_stores_changed_udf(file_registry):
     view_a = make_view(udf_a, "udf_a source")
     file_registry.apply_feature_view(view_a, "test_project")
 
-    # The stored copy compares equal to the same definition, so re-applying it
-    # stays a metadata-only update.
+    # Re-applying the same definition works and stays a metadata-only update.
+    file_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
     stored_a = BatchFeatureView.from_proto(view_a.to_proto())
     assert not view_a._schema_or_udf_changed(stored_a)
 
     file_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
 
     stored = file_registry.get_feature_view("driver_bfv", "test_project")
+    assert type(stored.feature_transformation) is type(view_a.feature_transformation)
     assert stored.feature_transformation.udf_string == "udf_b source"
 
 

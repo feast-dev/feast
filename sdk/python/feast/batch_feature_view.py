@@ -205,7 +205,9 @@ class BatchFeatureView(FeatureView):
             return True
 
         # A changed UDF must be stored, not treated as a metadata-only update.
-        return self.feature_transformation != other.feature_transformation
+        return _transformation_changed(
+            self.feature_transformation, other.feature_transformation
+        )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
@@ -224,6 +226,22 @@ class BatchFeatureView(FeatureView):
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for BatchFeatureView"
             )
+
+
+def _transformation_changed(
+    new: Optional[Transformation], old: Optional[Transformation]
+) -> bool:
+    if new is None or old is None:
+        return new is not old
+    if type(new) is not type(old):
+        return True
+    if type(new).__eq__ is not object.__eq__:
+        return new != old
+    # SQL and Flink transformations define no equality, so compare the source
+    # text, or the bytecode when there is no source text.
+    if new.udf_string and old.udf_string:
+        return new.udf_string != old.udf_string
+    return new.udf.__code__.co_code != old.udf.__code__.co_code
 
 
 def batch_feature_view(
