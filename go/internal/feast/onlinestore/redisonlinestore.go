@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	"go.opentelemetry.io/otel"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
@@ -23,8 +22,6 @@ import (
 	"github.com/rs/zerolog/log"
 	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
-
-var tracer = otel.Tracer("github.com/feast-dev/feast/go/onlinestore")
 
 type redisType int
 

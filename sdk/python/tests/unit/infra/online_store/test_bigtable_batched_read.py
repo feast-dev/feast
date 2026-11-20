@@ -2,7 +2,7 @@
 
 import re
 from datetime import timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from unittest.mock import patch
 
 import pytest
@@ -102,12 +102,15 @@ class _FakeBigtable:
         self.calls: List[Tuple[str, List[bytes]]] = []
         # (row key, column) of every feature cell returned, event_ts aside.
         self.cells: List[Tuple[bytes, bytes]] = []
+        # The app profile of every table opened.
+        self.app_profiles: List[Optional[str]] = []
 
     def instance(self, instance_id):
         return self
 
-    def table(self, table_name):
+    def table(self, table_name, app_profile_id=None):
         fake = self
+        fake.app_profiles.append(app_profile_id)
 
         class _Table:
             def read_rows(self, row_set, filter_=None):
@@ -224,6 +227,18 @@ def test_views_on_same_entities_share_one_read_rows_call(setup):
         "fv1__f1": [11, None],
         "fv2__f2": [12, None],
     }
+
+
+def test_batched_read_uses_the_read_app_profile():
+    store, fake = BigtableOnlineStore(), _FakeBigtable()
+    config = _config(app_profile="serve", write_app_profile="batch")
+    views = [_feature_view(f"fv{i}", [f"f{i}"]) for i in range(2)]
+    grouped_refs = [(fv, [f"f{i}"]) for i, fv in enumerate(views)]
+
+    _, calls = _read(store, config, fake, grouped_refs, _drivers(1))
+
+    assert len(calls) == 1
+    assert fake.app_profiles == ["serve"]
 
 
 def test_views_on_different_entities_read_once_per_table(setup):

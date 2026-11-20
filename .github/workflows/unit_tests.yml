@@ -133,6 +133,8 @@ jobs:
           echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
       - name: Install feast locally
         run: make install-feast-locally
+      - name: Install the gcp extra for the Bigtable end-to-end test
+        run: uv pip install -e ".[gcp]"
       - name: Run Go tests with coverage
         run: |
           # The Go packages share a registry fixture and must run sequentially.

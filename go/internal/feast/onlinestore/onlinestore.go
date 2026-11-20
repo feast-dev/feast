@@ -10,7 +10,11 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"go.opentelemetry.io/otel"
 )
+
+// tracer is the OpenTelemetry tracer shared by the online stores in this package.
+var tracer = otel.Tracer("github.com/feast-dev/feast/go/onlinestore")
 
 type FeatureData struct {
 	Reference serving.FeatureReferenceV2
@@ -43,6 +47,17 @@ type OnlineStore interface {
 	Destruct()
 }
 
+// EntityAwareOnlineStore is implemented by stores that need each feature view's
+// entity names to locate data, such as Bigtable, which names tables by entity set.
+type EntityAwareOnlineStore interface {
+	// OnlineReadWithEntities is OnlineRead plus entityNamesByView, which maps each requested feature
+	// view's base name to that view's entity names ("__dummy" for an entityless view). Otherwise its
+	// arguments, result and errors have the same semantics as OnlineRead.
+	OnlineReadWithEntities(ctx context.Context, entityKeys []*types.EntityKey,
+		featureViewNames []string, featureNames []string,
+		entityNamesByView map[string][]string) ([][]FeatureData, error)
+}
+
 func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool) {
 	if onlineStoreType, ok := onlineStoreConfig["type"]; !ok {
 		// If online store type isn't specified, default to sqlite
@@ -53,6 +68,8 @@ func getOnlineStoreType(onlineStoreConfig map[string]interface{}) (string, bool)
 	}
 }
 
+// NewOnlineStore returns the online store named by the online_store type in config: sqlite, redis,
+// dynamodb, postgres or bigtable.
 func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	onlineStoreType, ok := getOnlineStoreType(config.OnlineStore)
 	if !ok {
@@ -69,8 +86,14 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	} else if onlineStoreType == "postgres" {
 		onlineStore, err := NewPostgresOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
+	} else if onlineStoreType == "bigtable" {
+		onlineStore, err := NewBigtableOnlineStore(config.Project, config, config.OnlineStore)
+		if err != nil {
+			return nil, err // not a typed nil inside the interface
+		}
+		return onlineStore, nil
 	} else {
-		return nil, fmt.Errorf("%s online store type is currently not supported; only redis, sqlite, dynamodb, and postgres are supported", onlineStoreType)
+		return nil, fmt.Errorf("%s online store type is currently not supported; only redis, sqlite, dynamodb, postgres, and bigtable are supported", onlineStoreType)
 	}
 }
 
