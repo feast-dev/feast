@@ -1042,8 +1042,15 @@ def test_historical_features_filter_by_created_timestamp(environment):
 @pytest.mark.universal_offline_stores
 @pytest.mark.parametrize("full_feature_names", [True, False], ids=lambda v: str(v))
 def test_historical_features_with_request_column_named_like_timestamp_field(
-    environment, full_feature_names
+    request, environment, full_feature_names
 ):
+    if environment.data_source_creator.__class__.__name__ == "RayDataSourceCreator":
+        request.applymarker(
+            pytest.mark.xfail(
+                reason="Ray uses the request column as the cutoff: https://github.com/feast-dev/feast/issues/7190",
+                strict=True,
+            )
+        )
     store = environment.feature_store
 
     now = datetime.now().replace(microsecond=0, second=0, minute=0)
