@@ -463,3 +463,91 @@ class TestNamespaceRBAC:
         resp = TestClient(app).get("/api/v1/lineage/openlineage/jobs")
         assert resp.status_code == 200
         assert resp.json()["jobs"] == []
+
+    @pytest.mark.parametrize("allowed", ["mixed", "none_allowed", "check_fails"])
+    def test_graph_hides_links_into_blocked_namespaces(self, app_with_rbac, allowed):
+        _, store = app_with_rbac
+        processor = OpenLineageProcessor(store=store)
+
+        def output(ns, name, linked_ns, linked_name):
+            return {
+                "namespace": ns,
+                "name": name,
+                "facets": {
+                    "symlinks": {
+                        "identifiers": [
+                            {
+                                "namespace": linked_ns,
+                                "name": linked_name,
+                                "type": "TABLE",
+                            }
+                        ]
+                    }
+                },
+            }
+
+        # Symlinks within the allowed namespace, from it into a blocked one,
+        # and within the blocked one.
+        for job_ns, job, run, out in [
+            (
+                "allowed-ns",
+                "j1",
+                "r1",
+                output("allowed-ns", "ds", "allowed-ns", "ds_copy"),
+            ),
+            (
+                "allowed-ns",
+                "j2",
+                "r2",
+                output("allowed-ns", "ds2", "blocked-ns", "secret"),
+            ),
+            (
+                "blocked-ns",
+                "j3",
+                "r3",
+                output("blocked-ns", "hr", "blocked-ns", "hr_copy"),
+            ),
+        ]:
+            processor.process_event(
+                _make_run_event(job_ns=job_ns, job_name=job, run_id=run, outputs=[out])
+            )
+
+        def failing_check():
+            raise RuntimeError("permission check failed")
+
+        get_allowed = {
+            "mixed": lambda: ["allowed-ns"],
+            "none_allowed": lambda: [],
+            "check_fails": failing_check,
+        }[allowed]
+        app = FastAPI()
+        app.include_router(
+            get_consumer_router(
+                OpenLineageConfig(
+                    enabled=True, consumer=OpenLineageConsumerConfig(enabled=True)
+                ),
+                store,
+                processor,
+                get_allowed_namespaces=get_allowed,
+            ),
+            prefix="/api/v1",
+        )
+        resp = TestClient(app).get("/api/v1/lineage/openlineage/graph")
+        assert resp.status_code == 200
+        body = resp.json()
+
+        namespaces = {n["namespace"] for n in body["nodes"]}
+        namespaces |= {
+            e[k]
+            for e in body["edges"]
+            for k in ("source_namespace", "target_namespace")
+        }
+        namespaces |= {
+            s[k]
+            for s in body["symlinks"]
+            for k in ("dataset_namespace", "linked_namespace")
+        }
+        assert "blocked-ns" not in namespaces
+
+        symlinks = [(s["dataset_name"], s["linked_name"]) for s in body["symlinks"]]
+        assert symlinks == ([("ds", "ds_copy")] if allowed == "mixed" else [])

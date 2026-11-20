@@ -297,6 +297,7 @@ def get_consumer_router(
         or matching dataSource URIs).
         """
         ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        allowed_namespaces = ns_filter
         if namespace:
             if ns_filter is not None and namespace not in ns_filter:
                 return {"nodes": [], "edges": [], "symlinks": []}
@@ -360,6 +361,21 @@ def get_consumer_router(
 
         edges = store.get_all_lineage_edges(namespaces=ns_filter)
         symlinks = store.get_all_symlinks()
+        if allowed_namespaces is not None:
+            # A link is only shown when both of its ends are in namespaces the
+            # caller may see, so it cannot reveal another team's datasets.
+            allowed = set(allowed_namespaces)
+            edges = [
+                e
+                for e in edges
+                if e["source_namespace"] in allowed and e["target_namespace"] in allowed
+            ]
+            symlinks = [
+                sl
+                for sl in symlinks
+                if sl["dataset_namespace"] in allowed
+                and sl["linked_namespace"] in allowed
+            ]
         for sl in symlinks:
             edges.append(
                 {
