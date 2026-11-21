@@ -5,6 +5,7 @@
 The MsSQL offline store provides support for reading [MsSQL Sources](../data-sources/mssql.md). Specifically, it is developed to read from [Synapse SQL](https://docs.microsoft.com/en-us/azure/synapse-analytics/sql/overview-features) on Microsoft Azure
 
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe.
+* Historical features can also be retrieved without an entity dataframe by passing `start_date` and/or `end_date` to `get_historical_features`. Every entity key with an event between `start_date` and `end_date` is joined as of `end_date`, so each entity gets its latest feature values within the feature view TTL. See [entity-less retrieval](../../getting-started/concepts/feature-retrieval.md) for details.
 
 ## Getting started
 In order to use this offline store, you'll need to run `pip install 'feast[azure]'`. You can get started by then following this [tutorial](https://github.com/feast-dev/feast/blob/master/docs/tutorials/azure/README.md).

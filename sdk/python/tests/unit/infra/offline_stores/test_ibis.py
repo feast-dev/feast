@@ -10,12 +10,13 @@ import pytest
 
 from feast import Entity, FeatureView, Field, FileSource
 from feast.infra.offline_stores.ibis import (
+    build_entity_df_for_date_range_ibis,
     get_historical_features_ibis,
     point_in_time_join,
     pull_all_from_table_or_query_ibis,
     pull_latest_from_table_or_query_ibis,
 )
-from feast.types import Int64
+from feast.types import Float32, Int64
 from feast.value_type import ValueType
 
 
@@ -367,6 +368,239 @@ def test_pull_filters_parquet_timestamps_of_any_precision(tmp_path, dtype, pull)
     ).to_arrow()
 
     assert sorted(table["driver_id"].to_pylist()) == [2, 3]
+
+
+def _date_range_feature_view(name, entities, schema, field_mapping=None):
+    return FeatureView(
+        name=name,
+        entities=entities,
+        schema=schema,
+        source=FileSource(
+            name=name,
+            path=f"{name}.parquet",
+            timestamp_field="event_timestamp",
+            field_mapping=field_mapping,
+        ),
+    )
+
+
+def _build_entity_df_for_date_range(feature_views, tables, start_date, end_date):
+    return build_entity_df_for_date_range_ibis(
+        config=MagicMock(repo_path=None),
+        feature_views=feature_views,
+        start_date=start_date,
+        end_date=end_date,
+        data_source_reader=lambda source, repo_path: ibis.memtable(tables[source.name]),
+    )
+
+
+def test_build_entity_df_for_date_range_unions_keys_in_the_time_range():
+    """Every join key with an event in the range gets one row at end_date, with NULL
+    for the keys its feature view does not have."""
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    customer = Entity(
+        name="customer", join_keys=["customer_id"], value_type=ValueType.INT64
+    )
+    driver_fv = _date_range_feature_view(
+        "driver_stats",
+        [driver],
+        [Field(name="driver_id", dtype=Int64), Field(name="rating", dtype=Float32)],
+    )
+    customer_fv = _date_range_feature_view(
+        "customer_stats",
+        [customer],
+        [Field(name="customer_id", dtype=Int64)],
+        field_mapping={"cust": "customer_id"},
+    )
+    tables = {
+        "driver_stats": pd.DataFrame(
+            {
+                "driver_id": [1, 1, 2, 3],
+                "event_timestamp": pd.to_datetime(
+                    ["2024-01-02", "2024-01-03", "2024-01-04", "2023-12-01"], utc=True
+                ),
+                "rating": [1.0, 2.0, 3.0, 4.0],
+            }
+        ),
+        "customer_stats": pd.DataFrame(
+            {
+                "cust": [10, 20],
+                "event_timestamp": pd.to_datetime(
+                    ["2024-01-02", "2024-02-01"], utc=True
+                ),
+            }
+        ),
+    }
+    end_date = datetime(2024, 1, 10, tzinfo=timezone.utc)
+
+    entity_df = _build_entity_df_for_date_range(
+        [driver_fv, customer_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=end_date,
+    )
+
+    assert list(entity_df.columns) == ["driver_id", "customer_id", "event_timestamp"]
+    rows = {
+        (
+            None if pd.isna(row.driver_id) else int(row.driver_id),
+            None if pd.isna(row.customer_id) else int(row.customer_id),
+        )
+        for row in entity_df.itertuples()
+    }
+    assert rows == {(1, None), (2, None), (None, 10)}
+    assert len(entity_df) == 3
+    assert str(entity_df["event_timestamp"].dtype) == "datetime64[ns, UTC]"
+    assert (entity_df["event_timestamp"] == pd.Timestamp(end_date)).all()
+
+
+def test_build_entity_df_for_date_range_uses_projected_join_keys():
+    """Join keys renamed by the projection take the new name; the others keep theirs."""
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    customer = Entity(
+        name="customer", join_keys=["customer_id"], value_type=ValueType.INT64
+    )
+    trips_fv = _date_range_feature_view(
+        "trips",
+        [driver, customer],
+        [Field(name="driver_id", dtype=Int64), Field(name="customer_id", dtype=Int64)],
+    ).with_join_key_map({"driver_id": "origin_id"})
+    tables = {
+        "trips": pd.DataFrame(
+            {
+                "driver_id": [1, 1, 2],
+                "customer_id": [10, 10, 20],
+                "event_timestamp": pd.to_datetime(
+                    ["2024-01-02", "2024-01-03", "2024-01-03"], utc=True
+                ),
+            }
+        )
+    }
+
+    entity_df = _build_entity_df_for_date_range(
+        [trips_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+    )
+
+    assert list(entity_df.columns) == ["origin_id", "customer_id", "event_timestamp"]
+    assert sorted(zip(entity_df["origin_id"], entity_df["customer_id"])) == [
+        (1, 10),
+        (2, 20),
+    ]
+
+
+def test_build_entity_df_for_date_range_unions_join_keys_of_different_types():
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    driver_fv = _date_range_feature_view(
+        "driver_stats", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    trips_fv = _date_range_feature_view(
+        "driver_trips", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    timestamps = pd.to_datetime(["2024-01-02", "2024-01-03"], utc=True)
+    tables = {
+        "driver_stats": pd.DataFrame(
+            {
+                "driver_id": pd.Series([1, 2], dtype="int64"),
+                "event_timestamp": timestamps,
+            }
+        ),
+        "driver_trips": pd.DataFrame(
+            {
+                "driver_id": pd.Series([2, 3], dtype="int32"),
+                "event_timestamp": timestamps,
+            }
+        ),
+    }
+
+    entity_df = _build_entity_df_for_date_range(
+        [driver_fv, trips_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+    )
+
+    assert sorted(entity_df["driver_id"]) == [1, 2, 3]
+
+
+def test_build_entity_df_for_date_range_widens_join_key_types_regardless_of_order():
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    driver_fv = _date_range_feature_view(
+        "driver_stats", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    trips_fv = _date_range_feature_view(
+        "driver_trips", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    timestamps = pd.to_datetime(["2024-01-02", "2024-01-03"], utc=True)
+    tables = {
+        "driver_stats": pd.DataFrame(
+            {
+                "driver_id": pd.Series([1, 2], dtype="int32"),
+                "event_timestamp": timestamps,
+            }
+        ),
+        "driver_trips": pd.DataFrame(
+            {
+                "driver_id": pd.Series([2, 3_000_000_000], dtype="int64"),
+                "event_timestamp": timestamps,
+            }
+        ),
+    }
+
+    entity_df = _build_entity_df_for_date_range(
+        [driver_fv, trips_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+    )
+
+    assert sorted(entity_df["driver_id"]) == [1, 2, 3_000_000_000]
+
+
+def test_build_entity_df_for_date_range_without_entities_is_one_row_at_end_date():
+    """Feature views without entities join on the timestamp alone and add no rows."""
+    global_fv = _date_range_feature_view(
+        "global_stats", [], [Field(name="total", dtype=Int64)]
+    )
+
+    entity_df = _build_entity_df_for_date_range(
+        [global_fv],
+        tables={},
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10),
+    )
+
+    assert entity_df.to_dict("list") == {
+        "event_timestamp": [pd.Timestamp("2024-01-10", tz="UTC")]
+    }
+
+
+def test_build_entity_df_for_date_range_without_events_in_range_is_empty():
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    driver_fv = _date_range_feature_view(
+        "driver_stats", [driver], [Field(name="driver_id", dtype=Int64)]
+    )
+    tables = {
+        "driver_stats": pd.DataFrame(
+            {
+                "driver_id": [1],
+                "event_timestamp": pd.to_datetime(["2023-01-01"], utc=True),
+            }
+        )
+    }
+
+    entity_df = _build_entity_df_for_date_range(
+        [driver_fv],
+        tables,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2024, 1, 10, tzinfo=timezone.utc),
+    )
+
+    assert entity_df.empty
+    assert list(entity_df.columns) == ["driver_id", "event_timestamp"]
+    assert str(entity_df["event_timestamp"].dtype) == "datetime64[ns, UTC]"
 
 
 def test_get_historical_features_keeps_join_keys_left_out_of_join_key_map():
