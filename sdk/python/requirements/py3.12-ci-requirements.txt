@@ -3872,9 +3872,9 @@ mistune==3.4.0 \
     # via
     #   great-expectations
     #   nbconvert
-mlflow==2.22.5 ; python_full_version >= '3.15' and sys_platform == 'win32' \
-    --hash=sha256:5b95b5960e6726d0f9f7115b8593def2b339447d95d8a180caf84a3da121b407 \
-    --hash=sha256:687c0fee93d25aee1b9537d0a83951daaa1f83bdf60658495e27992304cdcd51
+mlflow==3.17.2 ; python_full_version >= '3.15' and sys_platform == 'win32' \
+    --hash=sha256:3fcdb58c683362763bf1cb124eea800b4e3253e16cb5e3adf5b5e562af1fdf2b \
+    --hash=sha256:4e44c03791beb518d8b0a40b0982d958c2634d902f46d67d7907c82107f21fac
     # via feast (pyproject.toml)
 mlflow==3.17.1 ; python_full_version < '3.14' and sys_platform == 'win32' \
     --hash=sha256:726bf7feac25dbdb5b3098bf20b86574393bb75468eef721902ec025e724752f \
@@ -3884,9 +3884,9 @@ mlflow==3.17.2 ; python_full_version == '3.14.*' and sys_platform == 'win32' \
     --hash=sha256:3fcdb58c683362763bf1cb124eea800b4e3253e16cb5e3adf5b5e562af1fdf2b \
     --hash=sha256:4e44c03791beb518d8b0a40b0982d958c2634d902f46d67d7907c82107f21fac
     # via feast (pyproject.toml)
-mlflow==3.18.0 ; sys_platform != 'win32' \
-    --hash=sha256:04e912d5b154b417c5930ba47ef3dc2f74738fb3ba93e3d70499955ec8884540 \
-    --hash=sha256:be7d84ba0d0b12392f5b53260cdb3e6d7b7ef4b80c29da90a89b5a1f6db7102f
+mlflow==3.17.2 ; sys_platform != 'win32' \
+    --hash=sha256:3fcdb58c683362763bf1cb124eea800b4e3253e16cb5e3adf5b5e562af1fdf2b \
+    --hash=sha256:4e44c03791beb518d8b0a40b0982d958c2634d902f46d67d7907c82107f21fac
     # via feast (pyproject.toml)
 mlflow-skinny==2.22.5 ; python_full_version >= '3.15' and sys_platform == 'win32' \
     --hash=sha256:7aec51d79ae559c17bedec19005ed1293d9b56785b787a34c6e1fd6f755de0c4 \
