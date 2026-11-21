@@ -300,23 +300,28 @@ class DaskOfflineStore(OfflineStore):
                     full_feature_names,
                 )
 
-                # Keep the source created timestamp separate from request data.
-                # Otherwise the merge suffixes the source column, so the cutoff
-                # and deduplication read the entity column instead.
+                # Keep the source timestamps separate from request data.
+                # Otherwise the merge suffixes the source columns, so the TTL
+                # filter, the cutoff and deduplication read the entity columns
+                # instead.
+                if timestamp_field in entity_df_with_features.columns:
+                    source_timestamp_field = _unused_column_name(
+                        timestamp_field, entity_df_with_features, df_to_join, features
+                    )
+                    df_to_join = df_to_join.rename(
+                        columns={timestamp_field: source_timestamp_field}
+                    )
+                    timestamp_field = source_timestamp_field
                 if (
                     created_timestamp_column
                     and created_timestamp_column in entity_df_with_features.columns
                 ):
-                    source_created_timestamp_column = f"__{created_timestamp_column}"
-                    existing_columns = (
-                        set(entity_df_with_features.columns)
-                        | set(df_to_join.columns)
-                        | set(features)
+                    source_created_timestamp_column = _unused_column_name(
+                        created_timestamp_column,
+                        entity_df_with_features,
+                        df_to_join,
+                        features,
                     )
-                    while source_created_timestamp_column in existing_columns:
-                        source_created_timestamp_column = (
-                            f"_{source_created_timestamp_column}"
-                        )
                     df_to_join = df_to_join.rename(
                         columns={
                             created_timestamp_column: source_created_timestamp_column
@@ -1139,6 +1144,22 @@ def _field_mapping(
         timestamp_field = f"__{timestamp_field}"
 
     return df_to_join.persist(), timestamp_field
+
+
+def _unused_column_name(
+    column: str,
+    entity_df_with_features: dd.DataFrame,
+    df_to_join: dd.DataFrame,
+    features: List[str],
+) -> str:
+    """Return a temporary name for a source column that collides with request data."""
+    existing_columns = (
+        set(entity_df_with_features.columns) | set(df_to_join.columns) | set(features)
+    )
+    name = f"__{column}"
+    while name in existing_columns:
+        name = f"_{name}"
+    return name
 
 
 def _merge(
