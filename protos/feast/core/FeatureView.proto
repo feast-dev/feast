@@ -56,7 +56,38 @@ message FeatureView {
     FeatureViewMeta meta = 2;
 }
 
-// Next available id: 20
+// Configuration for how feature values are retained in an online store.
+// This message is currently a declarative contract; online store implementations
+// opt into sequence behavior separately.
+message OnlineConfig {
+    enum Mode {
+        // Preserve the current behavior: one latest value per entity.
+        LATEST = 0;
+
+        // Retain an ordered sequence of values per entity.
+        SEQUENCE = 1;
+    }
+
+    Mode mode = 1;
+
+    // Maximum number of events retained per entity. 0 means unset.
+    int32 max_length = 2;
+
+    // Maximum event age in whole seconds. 0 means unset.
+    int64 max_age_seconds = 3;
+
+    enum WriteMode {
+        // Preserve the current upsert behavior.
+        OVERWRITE = 0;
+
+        // Append a new event without overwriting earlier events.
+        APPEND = 1;
+    }
+
+    WriteMode write_mode = 4;
+}
+
+// Next available id: 22
 // TODO(adchia): refactor common fields from this and ODFV into separate metadata proto
 message FeatureViewSpec {
     // Name of the feature view. Must be unique. Not updated.
@@ -125,6 +156,9 @@ message FeatureViewSpec {
     // When true, the feature view will not serve online features or be materialized.
     // Defaults to false (enabled) for backward compatibility.
     bool disabled = 20;
+
+    // Online retention and write semantics for this feature view.
+    OnlineConfig online_config = 21;
 }
 
 message FeatureViewMeta {
