@@ -393,6 +393,13 @@ def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
     try:
         if t_str.startswith("timestamp"):
             return _arrow_to_ch_timestamp_type(t_str)
+        if t_str.startswith("date"):
+            # Date only holds 1970-01-01 to 2149-06-06 and clamps other values; Date32
+            # also holds dates outside that range.
+            return "Date32"
+        decimal = re.fullmatch(r"decimal\d+\((\d+), (\d+)\)", t_str)
+        if decimal is not None:
+            return f"Decimal({decimal.group(1)}, {decimal.group(2)})"
         return {
             "bool": "Boolean",
             "int8": "Int8",
@@ -402,10 +409,11 @@ def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
             "uint8": "UInt8",
             "uint16": "UInt16",
             "uint32": "UInt32",
-            "uint64": "Uint64",
+            "uint64": "UInt64",
             "float": "Float32",
             "double": "Float64",
             "string": "String",
+            "large_string": "String",
         }[t_str]
     except KeyError:
         raise ValueError(f"Unsupported type: {t_str}")
