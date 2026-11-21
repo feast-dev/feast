@@ -1527,17 +1527,17 @@ databricks-sdk==0.169.0 \
     # via
     #   mlflow-skinny
     #   mlflow-tracing
-datasets==4.0.0 ; (python_full_version < '3.12' and sys_platform == 'win32') or (python_full_version >= '3.15' and sys_platform == 'win32') \
-    --hash=sha256:7ef95e62025fd122882dbce6cb904c8cd3fbc829de6669a5eb939c77d50e203d \
-    --hash=sha256:9657e7140a9050db13443ba21cb5de185af8af944479b00e7ff1e00a61c8dbf1
+datasets==5.0.1 ; (python_full_version < '3.12' and sys_platform == 'win32') or (python_full_version >= '3.15' and sys_platform == 'win32') \
+    --hash=sha256:9fbf73688f8c18f7529b4fe592abd04015f81d1e58001e4bac73ffb2b39d7cc4 \
+    --hash=sha256:ce22bb851efd7494f08aad33b940803784434f6e77763d00679a0dc45fcf686a
     # via feast (pyproject.toml)
 datasets==5.0.1 ; (python_full_version == '3.14.*' and sys_platform == 'darwin') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32') \
     --hash=sha256:9fbf73688f8c18f7529b4fe592abd04015f81d1e58001e4bac73ffb2b39d7cc4 \
     --hash=sha256:ce22bb851efd7494f08aad33b940803784434f6e77763d00679a0dc45fcf686a
     # via feast (pyproject.toml)
-datasets==5.2.0 ; (python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version != '3.14.*' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'win32') \
-    --hash=sha256:4be9e2882caaf5db13eadc39e93f3da2a995187b99acebac1595bf6c58dfa927 \
-    --hash=sha256:f4290d4704dfbc99631a578b56912d66b22def53d3f61d246f6ccc129675490e
+datasets==5.0.1 ; (python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version != '3.14.*' and sys_platform == 'darwin') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'win32') \
+    --hash=sha256:9fbf73688f8c18f7529b4fe592abd04015f81d1e58001e4bac73ffb2b39d7cc4 \
+    --hash=sha256:ce22bb851efd7494f08aad33b940803784434f6e77763d00679a0dc45fcf686a
     # via feast (pyproject.toml)
 db-dtypes==1.9.0 \
     --hash=sha256:4d28e731d95ec96c87f9ffdac3f2cca79e7cc604517b3f2825d6f08579b2c918 \
