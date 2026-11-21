@@ -1136,6 +1136,15 @@ def _is_array_like(value: Any) -> bool:
     )
 
 
+def _is_key_value_pairs(value: Any) -> bool:
+    """Return True if *value* is a sequence of (key, value) pairs, the form an
+    Arrow map column takes after ``to_numpy()``, ``to_pylist()`` or a pandas
+    round trip."""
+    return isinstance(value, (list, np.ndarray)) and all(
+        isinstance(pair, (list, tuple, np.ndarray)) and len(pair) == 2 for pair in value
+    )
+
+
 def _convert_scalar_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -1288,6 +1297,9 @@ def _python_value_to_proto_value(
             else:
                 if isinstance(value, str):
                     value = json.loads(value)
+                if _is_key_value_pairs(value):
+                    # An Arrow map column arrives as key/value pairs, not a dict.
+                    value = {key: item for key, item in value}
                 if not isinstance(value, dict):
                     raise TypeError(
                         f"Expected dict for MAP type, got {type(value).__name__}: {value!r}"
