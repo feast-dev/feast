@@ -3589,31 +3589,11 @@ class FeatureStore:
             if feature_view.mode == "python" and isinstance(
                 feature_view.feature_transformation, PythonTransformation
             ):
-                input_dict = (
-                    df.to_dict(orient="records")[0]
-                    if feature_view.singleton
-                    else df.to_dict(orient="list")
-                )
-
                 if feature_view.singleton:
-                    transformed_rows = []
+                    return self._transform_singleton_feature_view_df(feature_view, df)
 
-                    for i, row in df.iterrows():
-                        output = feature_view.feature_transformation.udf(row.to_dict())
-                        if i == 0:
-                            transformed_rows = output
-                        else:
-                            for k in output:
-                                if isinstance(output[k], list):
-                                    transformed_rows[k].extend(output[k])
-                                else:
-                                    transformed_rows[k].append(output[k])
-
-                    transformed_data = pd.DataFrame(transformed_rows)
-                else:
-                    transformed_data = feature_view.feature_transformation.udf(
-                        input_dict
-                    )
+                input_dict = df.to_dict(orient="list")
+                transformed_data = feature_view.feature_transformation.udf(input_dict)
 
                 if feature_view.write_to_online_store:
                     entities = [
@@ -3627,9 +3607,7 @@ class FeatureStore:
                         if not isinstance(transformed_data, pd.DataFrame)
                         else transformed_data
                     )
-                    input_df = pd.DataFrame(
-                        [input_dict] if feature_view.singleton else input_dict
-                    )
+                    input_df = pd.DataFrame(input_dict)
                     if input_df.shape[0] == transformed_df.shape[0]:
                         for k in input_dict:
                             if k not in transformed_data:
@@ -3668,6 +3646,38 @@ class FeatureStore:
                     feature_view.mode,
                     _time.monotonic() - _t0,
                 )
+
+    def _transform_singleton_feature_view_df(
+        self, feature_view: OnDemandFeatureView, df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Apply a singleton Python transformation to every row of the input dataframe.
+
+        The UDF is called once per row and returns either scalars (one output row) or
+        lists (one output row per list entry). For scalar outputs every input column
+        the UDF did not return is carried over, as in the non-singleton path. When an
+        output fans out into several rows, only the join keys and schema fields are
+        carried over, so raw inputs such as document bytes are not copied into every
+        output row.
+        """
+        entities = [self.get_entity(entity) for entity in (feature_view.entities or [])]
+        needed_columns = {entity.join_key for entity in entities if entity} | {
+            field.name for field in feature_view.schema
+        }
+        carried_columns = [column for column in df.columns if column in needed_columns]
+        udf = cast(PythonTransformation, feature_view.feature_transformation).udf
+
+        output_rows: List[Dict[str, Any]] = []
+        for row in df.to_dict(orient="records"):
+            output = udf(row)
+            fans_out = any(isinstance(v, list) for v in output.values())
+            kept_columns = carried_columns if fans_out else row.keys()
+            carried = {k: row[k] for k in kept_columns if k not in output}
+            output_rows.extend(
+                {**output_row, **carried}
+                for output_row in _expand_singleton_output(output)
+            )
+        return pd.DataFrame(output_rows)
 
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """
@@ -5247,6 +5257,23 @@ def _validate_data_sources(
                             UserWarning,
                             stacklevel=2,
                         )
+
+
+def _expand_singleton_output(output: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Turn one singleton UDF output into rows: lists fan out, scalars repeat."""
+    list_lengths = {len(v) for v in output.values() if isinstance(v, list)}
+    if not list_lengths:
+        return [output]
+    if len(list_lengths) > 1:
+        raise ValueError(
+            "A singleton on demand feature view returned lists of different "
+            f"lengths: {sorted(list_lengths)}"
+        )
+    num_rows = list_lengths.pop()
+    return [
+        {k: v[i] if isinstance(v, list) else v for k, v in output.items()}
+        for i in range(num_rows)
+    ]
 
 
 def _entity_keys_from_dataframe(feature_view: Any, df: pd.DataFrame) -> List[EntityKey]:
