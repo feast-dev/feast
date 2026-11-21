@@ -72,6 +72,7 @@ An example of built output from FeatureBuilder:
 - Distributed DAG execution through Apache Flink's PyFlink Table API
 - Supports materialization and historical retrieval with Feast offline stores
 - Integrates with `FlinkMaterializationJob` and `FlinkDAGRetrievalJob`
+- Can also run on Kubernetes as a `FlinkDeployment` via the Apache Flink Operator (`flink_application`) — see the Kubernetes section in [Apache Flink](flink.md)
 
 ### ⚡ RayComputeEngine (contrib)
 

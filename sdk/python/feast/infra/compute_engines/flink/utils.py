@@ -135,14 +135,18 @@ def cleanup_flink_temporary_views(table_env: Any) -> None:
 
 def _build_pandas_flink_schema(df: pd.DataFrame) -> Any:
     try:
-        from pyflink.table import Schema
+        from pyflink.table import DataTypes
     except ImportError:
         return None
 
-    builder = Schema.new_builder()
-    for column in df.columns:
-        builder.column(str(column), _pandas_dtype_to_flink_type(df[column]))
-    return builder.build()
+    # TableEnvironment.from_pandas() expects a RowType (or a list of column
+    # names / DataTypes), not a Schema builder object — passing a Schema raises
+    # "Unsupported schema type" on PyFlink 2.x.
+    fields = [
+        DataTypes.FIELD(str(column), _pandas_dtype_to_flink_type(df[column]))
+        for column in df.columns
+    ]
+    return DataTypes.ROW(fields)
 
 
 def _pandas_dtype_to_flink_type(series: pd.Series) -> Any:
@@ -163,9 +167,10 @@ def _pandas_dtype_to_flink_type(series: pd.Series) -> Any:
     if pd.api.types.is_float_dtype(dtype):
         return DataTypes.FLOAT() if str(dtype) == "float32" else DataTypes.DOUBLE()
     if pd.api.types.is_datetime64_any_dtype(dtype):
+        precision = _datetime_precision(dtype)
         if getattr(dtype, "tz", None) is not None:
-            return DataTypes.TIMESTAMP_LTZ(3)
-        return DataTypes.TIMESTAMP(3)
+            return DataTypes.TIMESTAMP_LTZ(precision)
+        return DataTypes.TIMESTAMP(precision)
     if pd.api.types.is_timedelta64_dtype(dtype):
         return DataTypes.BIGINT()
 
@@ -177,6 +182,23 @@ def _pandas_dtype_to_flink_type(series: pd.Series) -> Any:
     if isinstance(sample, Decimal):
         return DataTypes.DECIMAL(38, 18)
     return DataTypes.STRING()
+
+
+def _datetime_precision(dtype: Any) -> int:
+    """Map a pandas datetime unit to a Flink TIMESTAMP precision.
+
+    PyFlink's from_pandas() refuses to down-cast timestamps (e.g. us -> ms), so
+    the Flink type precision must match the pandas resolution exactly.
+    """
+    unit = getattr(dtype, "unit", None)  # pandas DatetimeTZDtype
+    if unit is None:
+        try:
+            import numpy as np
+
+            unit = np.datetime_data(dtype)[0]
+        except Exception:
+            unit = "us"
+    return {"s": 0, "ms": 3, "us": 6, "ns": 9}.get(unit, 6)
 
 
 def _first_non_null_value(series: pd.Series) -> Any:
@@ -192,7 +214,13 @@ def _row_to_dict(row: Any, columns: list[str]) -> dict[str, Any]:
 
     as_dict = getattr(row, "as_dict", None)
     if callable(as_dict):
-        row_dict = as_dict()
+        try:
+            row_dict = as_dict()
+        except Exception:
+            # PyFlink positional Rows (from execute().collect()) have no field
+            # names and raise "Cannot convert a Row class into dict"; fall back
+            # to positional mapping against the known column order below.
+            row_dict = None
         if row_dict:
             return {column: row_dict.get(column) for column in columns}
 

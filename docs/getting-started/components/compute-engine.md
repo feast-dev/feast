@@ -25,7 +25,7 @@ engines.
 | TrinoComputeEngine      | Runs on Trino, designed for scalable feature generation using Trino SQL.                         | ✅         | [docs](../../reference/compute-engine/trino.md) |
 | SnowflakeComputeEngine  | Runs on Snowflake, designed for scalable feature generation using Snowflake SQL.                | ✅         |      |
 | LambdaComputeEngine     | Runs on AWS Lambda, designed for serverless feature generation.                                 | ✅         |      |
-| FlinkComputeEngine      | Runs on Apache Flink, designed for distributed feature generation through PyFlink Table API.    | ✅         |      |
+| FlinkComputeEngine      | Runs on Apache Flink via the PyFlink Table API; also runnable on Kubernetes as a `FlinkDeployment` (`flink_application`). | ✅ | [docs](../../reference/compute-engine/flink.md) |
 | RayComputeEngine        | Runs on Ray, designed for distributed feature generation and machine learning workloads.        | ✅         |      |
 ```
 
