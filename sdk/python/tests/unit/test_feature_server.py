@@ -15,15 +15,19 @@ import json
 import sys
 import time
 from collections import Counter
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from feast import Entity, FeatureView, Field, FileSource, PushSource
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.feature_server import get_app
+from feast.feature_store import FeatureStore
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
     FeatureList,
@@ -32,9 +36,53 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponseMetadata,
 )
 from feast.protos.feast.types.Value_pb2 import Value
+from feast.repo_config import RepoConfig
+from feast.types import Float32, Int64, String, ValueType
 from feast.utils import _utc_now
 from tests.foo_provider import FooProvider
-from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+
+
+def _build_push_feature_store(tmp_path) -> FeatureStore:
+    """In-process store with a pushable online FeatureView.
+
+    Avoids CliRunner.local_repo()'s ``feast apply`` subprocess, which is a known
+    source of macOS CI flakes (cold-start import timeouts under pytest-xdist).
+    """
+    # Pass repo_path explicitly: FeatureStore(config=...) otherwise falls back to
+    # cwd, and get_app()'s lifespan looks for static_artifacts.py under repo_path.
+    store = FeatureStore(
+        repo_path=str(tmp_path),
+        config=RepoConfig(
+            project="test_feature_server",
+            registry=str(tmp_path / "registry.db"),
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+            entity_key_serialization_version=3,
+        ),
+    )
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    push_source = PushSource(
+        name="driver_locations_push",
+        batch_source=FileSource(
+            path=str(tmp_path / "driver_locations.parquet"),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        ),
+    )
+    pushed_driver_locations = FeatureView(
+        name="pushed_driver_locations",
+        entities=[driver],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_lat", dtype=Float32),
+            Field(name="driver_long", dtype=String),
+            Field(name="driver_id", dtype=Int64),
+        ],
+        online=True,
+        source=push_source,
+    )
+    store.apply([driver, pushed_driver_locations])
+    return store
 
 
 @pytest.fixture
@@ -54,12 +102,12 @@ def mock_fs_factory():
 
 
 @pytest.fixture
-def test_client():
-    runner = CliRunner()
-    with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
-    ) as store:
+def test_client(tmp_path):
+    store = _build_push_feature_store(tmp_path)
+    try:
         yield TestClient(get_app(store))
+    finally:
+        store.teardown()
 
 
 def get_online_features_body():
@@ -801,14 +849,14 @@ def test_get_online_features_returns_feature_view_version_metadata(test_client):
 
 
 @pytest.fixture
-def store_and_client():
-    runner = CliRunner()
-    with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
-    ) as store:
+def store_and_client(tmp_path):
+    store = _build_push_feature_store(tmp_path)
+    try:
         # raise_server_exceptions=False so the app's own exception handler
         # answers the request, exactly as a real client would observe it.
         yield store, TestClient(get_app(store), raise_server_exceptions=False)
+    finally:
+        store.teardown()
 
 
 @pytest.mark.parametrize("non_finite", [float("inf"), float("-inf")])
