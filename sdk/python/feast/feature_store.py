@@ -110,6 +110,7 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
+from feast.types import FeastType, Int32, Int64
 from feast.utils import (
     _distance_to_score,
     _get_feature_view_vector_field_metadata,
@@ -3654,11 +3655,12 @@ class FeatureStore:
         Apply a singleton Python transformation to every row of the input dataframe.
 
         The UDF is called once per row and returns either scalars (one output row) or
-        lists (one output row per list entry). For scalar outputs every input column
-        the UDF did not return is carried over, as in the non-singleton path. When an
-        output fans out into several rows, only the join keys and schema fields are
-        carried over, so raw inputs such as document bytes are not copied into every
-        output row.
+        lists (one output row per list entry). When an output stays a single row, every
+        input column the UDF did not return is carried over, as in the non-singleton
+        path. When an output fans out into several rows, only the join keys and schema
+        fields are carried over, so raw inputs such as document bytes are not copied
+        into every output row. Integer features are built with a nullable integer
+        dtype, so a null in the batch does not turn them into lossy floats.
         """
         entities = [self.get_entity(entity) for entity in (feature_view.entities or [])]
         needed_columns = {entity.join_key for entity in entities if entity} | {
@@ -3669,15 +3671,29 @@ class FeatureStore:
 
         output_rows: List[Dict[str, Any]] = []
         for row in df.to_dict(orient="records"):
-            output = udf(row)
-            fans_out = any(isinstance(v, list) for v in output.values())
+            # Pass a copy so a UDF that pops or edits inputs cannot change the
+            # values carried over from the original row.
+            expanded_rows = _expand_singleton_output(udf(row.copy()))
+            fans_out = len(expanded_rows) > 1
             kept_columns = carried_columns if fans_out else row.keys()
-            carried = {k: row[k] for k in kept_columns if k not in output}
-            output_rows.extend(
-                {**output_row, **carried}
-                for output_row in _expand_singleton_output(output)
+            carried = (
+                {k: row[k] for k in kept_columns if k not in expanded_rows[0]}
+                if expanded_rows
+                else {}
             )
-        return pd.DataFrame(output_rows)
+            output_rows.extend(
+                {**output_row, **carried} for output_row in expanded_rows
+            )
+
+        transformed_df = pd.DataFrame(output_rows)
+        for schema_field in feature_view.schema:
+            pandas_dtype = _NULLABLE_INTEGER_DTYPES.get(schema_field.dtype)
+            if pandas_dtype and schema_field.name in transformed_df.columns:
+                transformed_df[schema_field.name] = pd.array(
+                    [output_row.get(schema_field.name) for output_row in output_rows],
+                    dtype=pandas_dtype,
+                )
+        return transformed_df
 
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """
@@ -5257,6 +5273,11 @@ def _validate_data_sources(
                             UserWarning,
                             stacklevel=2,
                         )
+
+
+# Pandas nullable dtypes for integer features, so that a null in a batch does not
+# make pandas infer float64 and round large values.
+_NULLABLE_INTEGER_DTYPES: Dict[FeastType, str] = {Int32: "Int32", Int64: "Int64"}
 
 
 def _expand_singleton_output(output: Dict[str, Any]) -> List[Dict[str, Any]]:
