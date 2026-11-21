@@ -134,7 +134,14 @@ def import_command(
         map_dbt_type_to_feast_type,
     )
     from feast.dbt.parser import DbtManifestParser, DbtModel
-    from feast.types import Array, Int32, Int64, String
+    from feast.types import (
+        Array,
+        Int32,
+        Int64,
+        String,
+        UnixTimestamp,
+        ZonedTimestamp,
+    )
 
     try:
         _validate_file_path_template(file_path_template, data_source_type)
@@ -227,6 +234,20 @@ def import_command(
                 f"field '{timestamp_field}'. Skipping.{Style.RESET_ALL}"
             )
             continue
+
+        # The parser reports STRING for columns with no declared data_type.
+        timestamp_column = next(c for c in model.columns if c.name == timestamp_field)
+        if map_dbt_type_to_feast_type(timestamp_column.data_type) not in (
+            UnixTimestamp,
+            ZonedTimestamp,
+        ):
+            click.echo(
+                f"{Fore.YELLOW}Warning: Model '{model.name}' timestamp field "
+                f"'{timestamp_field}' has type '{timestamp_column.data_type}', "
+                f"which does not map to a timestamp type. Importing anyway. "
+                f"Declare it as a timestamp type in schema.yml if this is wrong."
+                f"{Style.RESET_ALL}"
+            )
 
         # Validate ALL entity columns exist
         missing_entities = [e for e in entity_cols if e not in column_names]
