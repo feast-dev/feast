@@ -78,6 +78,7 @@ from feast.feature_view import (
     FeatureView,
     FeatureViewState,
 )
+from feast.field import Field
 from feast.filter_models import ComparisonFilter, CompoundFilter, convert_dict_to_filter
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
@@ -112,6 +113,7 @@ from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import (
     _distance_to_score,
+    _get_feature_view_fixed_length_fields,
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
@@ -3671,28 +3673,35 @@ class FeatureStore:
 
     def _validate_vector_features(self, feature_view, df: pd.DataFrame) -> None:
         """
-        Validates vector features in the DataFrame against the feature view specifications.
+        Validates vector and fixed-length list features in the DataFrame against the
+        feature view specifications.
 
         Resolves the vector field from the feature view schema rather than assuming it is
-        the first feature, and checks lengths in a single pass over the column.
+        the first feature, and checks lengths in a single pass over the column. Non-vector
+        ``Array`` fields are checked only when they declare a ``vector_length``.
 
         Args:
             feature_view: The feature view containing vector feature specifications
             df: The DataFrame to validate
 
         Raises:
-            ValueError: If vector dimension constraints are violated
+            ValueError: If vector or fixed-length list constraints are violated
         """
         vector_field = _get_feature_view_vector_field_metadata(feature_view)
-        if vector_field is None or not vector_field.vector_index:
-            return
+        if vector_field is not None:
+            self._validate_list_field_length(feature_view, df, vector_field, "Vector")
+        for list_field in _get_feature_view_fixed_length_fields(feature_view):
+            self._validate_list_field_length(feature_view, df, list_field, "List")
 
-        name = vector_field.name
+    def _validate_list_field_length(
+        self, feature_view, df: pd.DataFrame, field: Field, kind: str
+    ) -> None:
+        name = field.name
         if name not in df.columns:
             return
 
         column = df[name]
-        declared = vector_field.vector_length or None
+        declared = field.vector_length or None
 
         # Null vectors carry no length to compare. Skipping them keeps this
         # consistent with the Arrow path, which also tolerates null rows, and
@@ -3734,7 +3743,7 @@ class FeatureStore:
 
         if bool(not_a_sequence.to_numpy()[position]):
             raise ValueError(
-                f"Row {label}: Vector feature '{name}' is not a sequence. "
+                f"Row {label}: {kind} feature '{name}' is not a sequence. "
                 f"Got: {type(column.iloc[position])}"
             )
 
@@ -3744,7 +3753,7 @@ class FeatureStore:
             else f"expected {expected}, inferred from the first row"
         )
         raise ValueError(
-            f"Row {label}: Vector length {int(lengths.iloc[position])} does not match "
+            f"Row {label}: {kind} length {int(lengths.iloc[position])} does not match "
             f"{source} for feature '{name}' in feature view '{feature_view.name}'."
         )
 

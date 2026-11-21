@@ -49,7 +49,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
-from feast.types import ComplexFeastType, PrimitiveFeastType
+from feast.types import Array, ComplexFeastType, PrimitiveFeastType
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -2068,11 +2068,22 @@ def _get_feature_view_vector_field_metadata(
     return vector_fields[0]
 
 
+def _get_feature_view_fixed_length_fields(feature_view) -> List[Field]:
+    """Non-vector list fields that declare a fixed length via ``vector_length``."""
+    return [
+        field
+        for field in feature_view.schema
+        if not field.vector_index
+        and field.vector_length > 0
+        and isinstance(field.dtype, Array)
+    ]
+
+
 def _validate_vector_field_lengths(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view,
 ) -> None:
-    """Check an Arrow table's vector column for a consistent width.
+    """Check an Arrow table's list columns for a consistent width.
 
     Called on the materialization path, where every compute engine funnels through
     ``_convert_arrow_to_proto``. The check is O(1) for fixed-size lists and a single
@@ -2081,31 +2092,43 @@ def _validate_vector_field_lengths(
     When the field declares a ``vector_length``, that is the contract and a mismatch
     is an error, never a silent truncation or a silently different response shape.
 
-    When it does not, the width of the first non-null row is used as the contract for
-    the rest of the table. An approximate nearest neighbour index requires a fixed
-    width, so a ragged vector column is a defect either way, and inferring is strictly
-    better than skipping. ``vector_length`` is unset by default, including in the
-    bundled RAG templates, so skipping would leave the common case unchecked.
+    For the vector-index field with no declared length, the width of the first
+    non-null row is used as the contract for the rest of the table. An approximate
+    nearest neighbour index requires a fixed width, so a ragged vector column is a
+    defect either way, and inferring is strictly better than skipping.
+    ``vector_length`` is unset by default, including in the bundled RAG templates, so
+    skipping would leave the common case unchecked.
+
+    Non-vector ``Array`` fields are only checked when they declare a ``vector_length``.
 
     Args:
         table: The Arrow table or record batch about to be converted.
-        feature_view: The feature view whose schema declares the vector field.
+        feature_view: The feature view whose schema declares the fields.
 
     Raises:
-        ValueError: If the vector column's width is inconsistent, or disagrees with
-            a declared ``vector_length``.
+        ValueError: If a column's width is inconsistent, or disagrees with a declared
+            ``vector_length``.
     """
     vector_field = _get_feature_view_vector_field_metadata(feature_view)
-    if vector_field is None or not vector_field.vector_index:
-        return
+    if vector_field is not None:
+        _validate_list_field_length(table, feature_view, vector_field, "Vector")
+    for field in _get_feature_view_fixed_length_fields(feature_view):
+        _validate_list_field_length(table, feature_view, field, "List")
 
-    name = vector_field.name
+
+def _validate_list_field_length(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view,
+    field: Field,
+    label: str,
+) -> None:
+    name = field.name
     if name not in table.schema.names:
         return
 
     column = table.column(name)
     column_type = column.type
-    declared = vector_field.vector_length or None
+    declared = field.vector_length or None
 
     def _fail(actual, expected: int, row: Optional[int] = None) -> None:
         where = f"Row {row}: " if row is not None else ""
@@ -2115,7 +2138,7 @@ def _validate_vector_field_lengths(
             else f"expected {expected}, inferred from the first row"
         )
         raise ValueError(
-            f"{where}Vector length {actual} does not match {source} "
+            f"{where}{label} length {actual} does not match {source} "
             f"for feature '{name}' in feature view '{feature_view.name}'."
         )
 
@@ -2147,10 +2170,10 @@ def _validate_vector_field_lengths(
             _fail(lengths[row].as_py(), expected, row=row)
         return
 
-    # Any other type cannot hold a vector.
+    # Any other type cannot hold a list.
     declared_note = f" declares vector_length={declared} but" if declared else ""
     raise ValueError(
-        f"Vector feature '{name}' in feature view '{feature_view.name}'{declared_note} "
+        f"{label} feature '{name}' in feature view '{feature_view.name}'{declared_note} "
         f"has non-list Arrow type {column_type}."
     )
 
