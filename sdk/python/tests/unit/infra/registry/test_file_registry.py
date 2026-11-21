@@ -4,6 +4,7 @@ from datetime import timedelta
 import pytest
 
 from feast import Field
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import PushSource
 from feast.entity import Entity
 from feast.errors import ConflictingFeatureViewNames
@@ -33,6 +34,46 @@ def _make_sources():
     )
     push_source = PushSource(name="driver_push", batch_source=file_source)
     return file_source, push_source
+
+
+@pytest.mark.parametrize("mode", ["pandas", "sql", "flink"])
+def test_apply_batch_feature_view_stores_changed_udf(file_registry, mode):
+    """Re-applying a BatchFeatureView with a new UDF must store the new UDF."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, udf_string):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode=mode,
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+        )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df
+
+    view_a = make_view(udf_a, "udf_a source")
+    file_registry.apply_feature_view(view_a, "test_project")
+
+    # Re-applying the same definition works and stays a metadata-only update.
+    file_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
+    stored_a = BatchFeatureView.from_proto(view_a.to_proto())
+    assert not view_a._schema_or_udf_changed(stored_a)
+
+    file_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
+
+    stored = file_registry.get_feature_view("driver_bfv", "test_project")
+    assert type(stored.feature_transformation) is type(view_a.feature_transformation)
+    assert stored.feature_transformation.udf_string == "udf_b source"
 
 
 def test_same_project_name_conflict_batch_vs_stream(file_registry):
