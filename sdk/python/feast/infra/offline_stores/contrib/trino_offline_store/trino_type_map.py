@@ -156,6 +156,11 @@ def trino_to_pa_value_type(trino_type_as_str: str) -> pa.DataType:
             return pa.decimal128(min(precision, 38), scale)
         return pa.decimal128(38, 0)
 
+    if trino_type_as_str.startswith("timestamp") and trino_type_as_str.endswith(
+        "with time zone"
+    ):
+        return pa.timestamp("us", tz="UTC")
+
     if trino_type_as_str.startswith("timestamp"):
         return pa.timestamp("us")
 
