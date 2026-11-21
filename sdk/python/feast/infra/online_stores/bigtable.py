@@ -35,7 +35,9 @@ MAX_BATCHED_RESULT_ROWS = 2048
 # Bigtable rejects a row filter larger than 20 KB
 # (https://cloud.google.com/bigtable/quotas#limits-filters). One batched read names
 # the features of every view of a table in a single filter, so a request whose filter
-# would pass this size reads one feature view at a time instead.
+# would pass this size reads one feature view at a time instead. So does a request
+# where that shared filter would return a column that was not requested: a column one
+# view stores under the same name as a feature requested from another view.
 MAX_BATCHED_FILTER_BYTES = 16_000
 
 
@@ -132,7 +134,11 @@ class BigtableOnlineStore(OnlineStore):
 
         reads = []
         keys_by_table: Dict[str, Dict[bytes, None]] = {}
-        features_by_table: Dict[str, Optional[List[str]]] = {}
+        # Per Bigtable table and feature view: the columns the view stores and the
+        # ones requested from it, where None stands for every column. One feature
+        # view requested under two aliases reads the same rows, so its row keys are
+        # deduplicated and its requested features merged.
+        views_by_table: Dict[str, Dict[str, Tuple[Set[str], Optional[Set[str]]]]] = {}
         for table, requested_features in grouped_refs:
             table_entity_values, idxs, output_len = utils._get_unique_entities(
                 table, join_key_values, entity_name_to_join_key_map
@@ -146,19 +152,30 @@ class BigtableOnlineStore(OnlineStore):
             reads.append((table, requested_features, row_keys, idxs, output_len))
 
             bt_table_name = self._get_table_name(config=config, feature_view=table)
-            # One feature view requested under two aliases reads the same rows, so
-            # the keys are deduplicated and the requested features merged.
-            if bt_table_name not in keys_by_table:
-                keys_by_table[bt_table_name] = {}
-                features_by_table[bt_table_name] = requested_features or None
-            else:
-                features = features_by_table[bt_table_name]
-                features_by_table[bt_table_name] = (
-                    list(dict.fromkeys(features + requested_features))
-                    if features and requested_features
-                    else None
+            keys_by_table.setdefault(bt_table_name, {}).update(dict.fromkeys(row_keys))
+            views = views_by_table.setdefault(bt_table_name, {})
+            stored, requested = views.get(
+                table.name, ({feature.name for feature in table.features}, set())
+            )
+            views[table.name] = (
+                stored,
+                requested | set(requested_features)
+                if requested is not None and requested_features
+                else None,
+            )
+
+        features_by_table: Dict[str, Optional[List[str]]] = {}
+        for bt_table_name, views in views_by_table.items():
+            features_by_table[bt_table_name] = self._batched_read_features(
+                list(views.values())
+            )
+            if any(
+                self._reads_unrequested_columns(
+                    stored, requested, features_by_table[bt_table_name]
                 )
-            keys_by_table[bt_table_name].update(dict.fromkeys(row_keys))
+                for stored, requested in views.values()
+            ):
+                return read_one_view_at_a_time()
 
         if any(
             features
@@ -214,6 +231,39 @@ class BigtableOnlineStore(OnlineStore):
             entity_rows * len(grouped_refs)
             <= config.online_store.max_batched_result_rows
         )
+
+    @staticmethod
+    def _batched_read_features(
+        views: List[Tuple[Set[str], Optional[Set[str]]]],
+    ) -> Optional[List[str]]:
+        """The features that one read of a table's feature views filters on.
+
+        ``views`` holds, per feature view, the columns it stores and the ones requested
+        from it. The result is the union of the requested ones, or None (no column
+        filter) when a view is read without a feature list.
+        """
+        union: Set[str] = set()
+        for _, requested in views:
+            if requested is None:
+                return None
+            union |= requested
+        return sorted(union)
+
+    @staticmethod
+    def _reads_unrequested_columns(
+        stored: Set[str], requested: Optional[Set[str]], features: Optional[List[str]]
+    ) -> bool:
+        """Whether filtering a view's rows on ``features`` returns a column that was
+        not requested from that view.
+
+        The filter of a batched read is shared by every view of the table, so it also
+        matches a column that one view stores under the same name as a feature
+        requested from another view.
+        """
+        if requested is None:
+            return False
+        matched = stored if features is None else stored.intersection(features)
+        return bool(matched - requested)
 
     @staticmethod
     def _column_filter_regex(requested_features: List[str]) -> bytes:

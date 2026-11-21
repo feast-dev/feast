@@ -85,6 +85,8 @@ class _FakeBigtable:
     def __init__(self):
         self.tables: Dict[str, Dict[bytes, Dict[bytes, bytes]]] = {}
         self.calls: List[Tuple[str, List[bytes]]] = []
+        # (row key, column) of every feature cell returned, event_ts aside.
+        self.cells: List[Tuple[bytes, bytes]] = []
 
     def instance(self, instance_id):
         return self
@@ -99,14 +101,15 @@ class _FakeBigtable:
                 stored = fake.tables.get(table_name, {})
                 for row_key in row_set.row_keys:
                     if row_key in stored:
-                        yield _Row(
-                            row_key,
-                            {
-                                name: value
-                                for name, value in stored[row_key].items()
-                                if pattern is None or pattern.match(name)
-                            },
+                        columns = {
+                            name: value
+                            for name, value in stored[row_key].items()
+                            if pattern is None or pattern.match(name)
+                        }
+                        fake.cells.extend(
+                            (row_key, name) for name in columns if name != b"event_ts"
                         )
+                        yield _Row(row_key, columns)
 
         return _Table()
 
@@ -140,6 +143,7 @@ def _drivers(*ids) -> dict:
 def _read(store, config, fake, grouped_refs, join_key_values, generic=False):
     """Run one read and return the response and the read_rows calls it made."""
     fake.calls.clear()
+    fake.cells.clear()
     response = GetOnlineFeaturesResponse()
     read = OnlineStore._read_features_per_fv if generic else store._read_features_per_fv
     with patch.object(BigtableOnlineStore, "_get_client", return_value=fake):
@@ -327,6 +331,37 @@ def test_filter_over_the_size_limit_reads_one_view_at_a_time(
     assert len(calls) == expected_calls
     assert response == generic
     assert _values(response)[f"fv_b__{names[14]}"] == [0, None]
+
+
+@pytest.mark.parametrize(
+    "requested_a, requested_b, expected_calls",
+    [
+        # Both views store "score" and "extra". The shared filter names every
+        # requested feature, so it would also return fv_a's "extra" and fv_b's "score".
+        (["score"], ["extra"], 2),
+        # fv_b is read without a column filter, which would return fv_a's "extra" too.
+        (["score"], [], 2),
+        (["score"], ["score"], 1),
+        (["score", "extra"], ["extra", "score"], 1),
+    ],
+)
+def test_unrequested_columns_are_not_read(
+    setup, requested_a, requested_b, expected_calls
+):
+    store, config, fake = setup
+    fv_a = _feature_view("fv_a", ["score", "extra"])
+    fv_b = _feature_view("fv_b", ["score", "extra"])
+    _write(store, config, fake, fv_a, "driver_id", {1: {"score": 1, "extra": 9}})
+    _write(store, config, fake, fv_b, "driver_id", {1: {"score": 2, "extra": 8}})
+    grouped_refs = [(fv_a, requested_a), (fv_b, requested_b)]
+
+    response, calls = _read(store, config, fake, grouped_refs, _drivers(1, 2))
+    cells = sorted(fake.cells)
+    generic, _ = _read(store, config, fake, grouped_refs, _drivers(1, 2), generic=True)
+
+    assert len(calls) == expected_calls
+    assert cells == sorted(fake.cells)
+    assert response == generic
 
 
 def test_max_batched_result_rows_default_and_validation():
