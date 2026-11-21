@@ -191,7 +191,7 @@ test = [
 ci = [
     "feast[test, aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, glide, go, grpcio, hazelcast, hbase, ibis, iceberg, image, k8s, lance, mcp, mcp-server, milvus, mlflow, mongodb, mssql, mysql, openlineage, opentelemetry, oracle, pinecone, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]",
     "build",
-    "virtualenv==21.14.1",
+    "virtualenv>=21.15.11",
     "dbt-artifacts-parser",
     "ruff>=0.8.0",
     "mypy-protobuf>=3.1",
