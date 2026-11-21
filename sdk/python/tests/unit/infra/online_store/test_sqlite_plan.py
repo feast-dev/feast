@@ -1,16 +1,21 @@
 from datetime import timedelta
 
+import pandas as pd
+
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource
+from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStore, SqliteOnlineStoreConfig
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
-from feast.types import String
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.types import Int64, String
 
 
 def _repo_config() -> RepoConfig:
@@ -86,3 +91,60 @@ class TestSqliteOnlineStorePlanWithStreamFeatureViews:
             "test_project_batch_view",
             "test_project_driver_dropoffs_stream",
         ]
+
+
+def _on_demand_feature_view(
+    name: str, source: FeatureView, write_to_online_store: bool
+) -> OnDemandFeatureView:
+    def transform(inputs: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame({"derived": inputs["value"]})
+
+    return OnDemandFeatureView(
+        name=name,
+        entities=[Entity(name="driver", join_keys=["driver_id"])],
+        sources=[source],
+        schema=[Field(name="derived", dtype=Int64)],
+        feature_transformation=PandasTransformation(
+            udf=transform, udf_string="transform"
+        ),
+        write_to_online_store=write_to_online_store,
+    )
+
+
+class TestSqliteOnlineStorePlanWithOnDemandFeatureViews:
+    """feast apply on the local provider goes through plan(), so on demand
+    feature views with write_to_online_store=True must get a table here too,
+    otherwise materialize / write_to_online_store fails with 'no such table'."""
+
+    def test_plan_includes_on_demand_feature_views_with_writes(self):
+        config = _repo_config()
+        source = _feature_view("source_view")
+        registry_proto = RegistryProto()
+        registry_proto.feature_views.append(source.to_proto())
+        registry_proto.on_demand_feature_views.append(
+            _on_demand_feature_view(
+                "odfv_on_write", source, write_to_online_store=True
+            ).to_proto()
+        )
+
+        infra_objects = SqliteOnlineStore().plan(config, registry_proto)
+
+        assert sorted(o.name for o in infra_objects) == [
+            "test_project_odfv_on_write",
+            "test_project_source_view",
+        ]
+
+    def test_plan_skips_on_demand_feature_views_without_writes(self):
+        config = _repo_config()
+        source = _feature_view("source_view")
+        registry_proto = RegistryProto()
+        registry_proto.feature_views.append(source.to_proto())
+        registry_proto.on_demand_feature_views.append(
+            _on_demand_feature_view(
+                "odfv_on_read", source, write_to_online_store=False
+            ).to_proto()
+        )
+
+        infra_objects = SqliteOnlineStore().plan(config, registry_proto)
+
+        assert [o.name for o in infra_objects] == ["test_project_source_view"]
