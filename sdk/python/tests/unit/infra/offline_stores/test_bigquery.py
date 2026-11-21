@@ -155,6 +155,69 @@ def test_pull_all_from_table_or_query_partition_pruning(mock_get_bigquery_client
 
 
 @patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_pull_all_empty_feature_columns_selects_all(mock_get_bigquery_client):
+    """BatchFeatureView pandas/python UDF mode passes an empty feature list to
+    signal "read all source columns" (FeatureBuilder.get_column_info)."""
+    mock_get_bigquery_client.return_value = Mock()
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(type="bigquery", dataset="feast"),
+    )
+    test_data_source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = BigQueryOfflineStore.pull_all_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["driver_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    actual_query = retrieval_job.to_sql()
+    normalized = " ".join(actual_query.split())
+    assert "SELECT * FROM" in normalized
+    assert "`driver_id`" not in normalized.split("FROM")[0]
+
+
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
+def test_pull_latest_empty_feature_columns_selects_all(mock_get_bigquery_client):
+    """BatchFeatureView pandas/python UDF mode passes an empty feature list to
+    signal "read all source columns" (FeatureBuilder.get_column_info)."""
+    mock_get_bigquery_client.return_value = Mock()
+    test_repo_config = RepoConfig(
+        registry="gs://ml-test/repo/registry.db",
+        project="test",
+        provider="gcp",
+        online_store=SqliteOnlineStoreConfig(type="sqlite"),
+        offline_store=BigQueryOfflineStoreConfig(type="bigquery", dataset="feast"),
+    )
+    test_data_source = BigQuerySource(
+        table="project:dataset.table",
+        timestamp_field="event_timestamp",
+    )
+    retrieval_job = BigQueryOfflineStore.pull_latest_from_table_or_query(
+        config=test_repo_config,
+        data_source=test_data_source,
+        join_key_columns=["driver_id"],
+        feature_name_columns=[],
+        timestamp_field="event_timestamp",
+        created_timestamp_column=None,
+        start_date=datetime(2021, 1, 1, tzinfo=timezone.utc),
+        end_date=datetime(2021, 1, 2, tzinfo=timezone.utc),
+    )
+    actual_query = retrieval_job.to_sql()
+    normalized = " ".join(actual_query.split())
+    assert "SELECT * EXCEPT(_feast_row)" in normalized
+    assert "SELECT *, ROW_NUMBER()" in normalized
+
+
+@patch("feast.infra.offline_stores.bigquery._get_bigquery_client")
 def test_pull_latest_date_type_timestamp_field(mock_get_bigquery_client):
     mock_get_bigquery_client.return_value = Mock()
     test_repo_config = RepoConfig(
