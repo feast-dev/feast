@@ -486,9 +486,14 @@ def point_in_time_join(
     ) in feature_tables:
         if ttl:
             if not event_expire_timestamp_fn:
+                # Prefer epoch-second arithmetic over `timestamp + interval`.
+                # ibis still emits sqlglot Interval(unit=<str>), which
+                # sqlglot>=30.22 (mypyc) rejects during DuckDB SQL generation.
+                ttl_seconds = int(ttl.total_seconds())
                 feature_table = feature_table.mutate(
-                    event_expire_timestamp=feature_table[timestamp_field]
-                    + ibis.literal(ttl)
+                    event_expire_timestamp=(
+                        feature_table[timestamp_field].epoch_seconds() + ttl_seconds
+                    ).as_timestamp("s")
                 )
             else:
                 alias = "".join(random.choices(string.ascii_uppercase, k=10))

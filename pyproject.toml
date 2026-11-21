@@ -65,7 +65,13 @@ clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
 docling = ["docling>=2.135.0"]
-duckdb = ["ibis-framework[duckdb]>=10.0.0"]
+duckdb = [
+    "ibis-framework[duckdb]>=10.0.0",
+    # DuckDB 2.0 removed fetch_record_batch(); ibis 12.0 still uses it in
+    # to_pyarrow_batches (needed by Delta writes). Pin until ibis#12196 lands.
+    # https://github.com/ibis-project/ibis/issues/12196
+    "duckdb>=0.10.3,<2",
+]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 flink = ["apache-flink>=2.2.1,<3", "pyarrow<21.0.0"]
