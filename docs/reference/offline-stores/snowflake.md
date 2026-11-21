@@ -5,6 +5,7 @@
 The [Snowflake](https://trial.snowflake.com) offline store provides support for reading [SnowflakeSources](../data-sources/snowflake.md).
 * All joins happen within Snowflake.
 * Entity dataframes can be provided as a SQL query or can be provided as a Pandas dataframe. A Pandas dataframes will be uploaded to Snowflake as a temporary table in order to complete join operations.
+* Historical features can also be retrieved without an entity dataframe by passing `start_date` and/or `end_date` to `get_historical_features`. Every entity key with an event between `start_date` and `end_date` is joined as of `end_date`, so each entity gets its latest feature values within the feature view TTL. The entity keys are collected into a temporary table, the same way as for a SQL query entity dataframe. See [entity-less retrieval](../../getting-started/concepts/feature-retrieval.md) for details.
 
 ## Getting started
 In order to use this offline store, you'll need to run `pip install 'feast[snowflake]'`.
