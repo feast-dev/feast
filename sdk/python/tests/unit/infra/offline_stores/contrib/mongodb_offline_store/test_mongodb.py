@@ -117,7 +117,7 @@ def _make_entity_id(
 @pytest.fixture(scope="module")
 def mongodb_container() -> Generator[MongoDbContainer, None, None]:
     container = MongoDbContainer(
-        "mongo:latest",
+        "mirror.gcr.io/library/mongo:7.0",
         username="test",
         password="test",  # pragma: allowlist secret
     ).with_exposed_ports(27017)

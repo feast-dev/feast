@@ -36,7 +36,7 @@ _requires_docker = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def mongodb_container():
     container = MongoDbContainer(
-        "mongo:latest",
+        "mirror.gcr.io/library/mongo:7.0",
         username="test",
         password="test",  # pragma: allowlist secret
     ).with_exposed_ports(27017)
