@@ -59,7 +59,8 @@ repos:
             .*\.lock|
             .*requirements.*\.txt|
             .*\.svg|
-            .*\.html
+            .*\.html|
+            go/internal/feast/onlinestore/testdata/bigtable_fixtures\.json
           )$
 
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

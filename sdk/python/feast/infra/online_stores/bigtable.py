@@ -2,12 +2,23 @@ import hashlib
 import logging
 from concurrent import futures
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, Tuple
+from typing import (
+    Annotated,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from pydantic import PositiveInt, StrictStr
+from pydantic import Field, PositiveInt, StrictBool, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, utils
 from feast.feature_view import DUMMY_ENTITY_NAME
@@ -27,6 +38,11 @@ MUTATIONS_PER_OP = 50_000
 # library limits the connection pool size to 10, which bounds the useful concurrency.
 # Overridable via ``BigtableOnlineStoreConfig.write_concurrency``.
 BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
+# The Go feature server reads its numeric settings as whole numbers up to MaxInt32 and
+# rejects quoted numbers and booleans, so the Python config accepts the same values.
+GO_MAX_INT = 2**31 - 1
+GoPositiveInt = Annotated[StrictInt, Field(gt=0, le=GO_MAX_INT)]
+GoNonNegativeInt = Annotated[StrictInt, Field(ge=0, le=GO_MAX_INT)]
 
 
 class BigtableOnlineStoreConfig(FeastConfigBaseModel):
@@ -54,6 +70,74 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
     per worker during ``online_write_batch``. Lower values reduce the write load placed
     on the Bigtable instance at the cost of longer materialization. Defaults to 10."""
 
+    app_profile: Optional[StrictStr] = None
+    """(optional) Bigtable app profile for online reads, by the Go feature server and the
+    Python SDK. Python writes use ``write_app_profile`` instead. The profile must already
+    exist on the instance. When unset, the instance's default app profile is used."""
+
+    write_app_profile: Optional[StrictStr] = None
+    """(optional) Bigtable app profile for the Python SDK's writes (materialization and
+    push). When unset, the instance's default app profile is used; it does not fall back
+    to ``app_profile``, so setting ``app_profile`` alone never moves writes onto the
+    serving profile. Point it at a low-priority app profile so writes do not compete with
+    serving reads."""
+
+    initial_tablets: Optional[Annotated[int, Field(ge=2, le=256)]] = None
+    """(optional) When set, ``feast apply`` creates each new table pre-split into this many
+    tablets, at evenly spaced row key prefixes. Row keys start with a uniform hex hash, so
+    the tablets fill evenly, and a small table can be served by several nodes from the
+    start instead of one. As a rule of thumb, use a few tablets per node at the node count
+    you expect to run. Between 2 and 256. When unset, a new table starts as one tablet.
+    Existing tables are not changed."""
+
+    keys_per_request: Optional[Annotated[StrictInt, Field(gt=0, le=100)]] = None
+    """(optional) Used by the Go feature server. Number of row keys per Bigtable ReadRows
+    request; a read is split into chunks of this size. Higher values make fewer calls and
+    use less CPU, at the cost of latency. Between 1 and 100. Set it to 1, with
+    ``adaptive_chunking`` off, for reads to use Bigtable's in-memory tier, which serves
+    only single-row reads. Defaults to 5 in the Go feature server."""
+
+    max_concurrent_chunks: Optional[GoPositiveInt] = None
+    """(optional) Used by the Go feature server. Maximum number of chunks one online read
+    sends to Bigtable at the same time. Limits a single read call, not the whole server
+    (see ``max_inflight_reads``). Lower values reduce the load on a small instance at the
+    cost of latency for large reads. Defaults to 50 in the Go feature server."""
+
+    max_inflight_reads: Optional[GoPositiveInt] = None
+    """(optional) Used by the Go feature server. Maximum number of ReadRows calls in flight
+    across all online reads of the server. A read reserves all the slots it needs, up to
+    ``max_concurrent_chunks``, before it sends anything, and is rejected when they are not
+    free within ``max_inflight_wait_ms`` (RESOURCE_EXHAUSTED over gRPC, 500 over HTTP), so a
+    lower cap protects the instance under load at the cost of rejected reads. Keep it
+    several times ``max_concurrent_chunks``. When unset, there is no limit."""
+
+    max_inflight_wait_ms: Optional[GoNonNegativeInt] = None
+    """(optional) Used by the Go feature server. How long, in milliseconds, a read waits for
+    free ``max_inflight_reads`` slots before it is rejected. 0 rejects it at once; a short
+    wait, such as 10 to 20, absorbs bursts at the cost of that much latency for the reads
+    that wait. Applies only when ``max_inflight_reads`` is set. Defaults to 0 in the Go
+    feature server."""
+
+    read_timeout_ms: Optional[GoPositiveInt] = None
+    """(optional) Used by the Go feature server. Time budget in milliseconds for one online
+    read, including retries. The caller's deadline still applies, so the shorter one wins.
+    Lower values fail slow reads sooner. Defaults to 60000 (60 s) in the Go feature
+    server, a ceiling that stops the client retrying without end rather than a latency
+    target."""
+
+    adaptive_chunking: Optional[StrictBool] = None
+    """(optional) Used by the Go feature server. When true, ``keys_per_request`` is the
+    smallest chunk size: a read that would need more than ``max_concurrent_chunks`` chunks
+    gets larger chunks, up to 100 keys, so it fits in that many calls where it can. Large
+    reads make fewer calls, but each larger chunk is slower. Defaults to false in the Go
+    feature server."""
+
+    disable_metrics: Optional[StrictBool] = None
+    """(optional) Used by the Go feature server. When true, the Bigtable client exports no
+    client-side metrics to Cloud Monitoring, so the serving identity needs no
+    ``monitoring.timeSeries.create`` permission and the server uses less CPU, at the cost
+    of those metrics. Defaults to false in the Go feature server."""
+
 
 class BigtableOnlineStore(OnlineStore):
     _client: Optional[bigtable.Client] = None
@@ -74,7 +158,9 @@ class BigtableOnlineStore(OnlineStore):
 
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
-        bt_table = bt_instance.table(bt_table_name)
+        bt_table = bt_instance.table(
+            bt_table_name, app_profile_id=config.online_store.app_profile
+        )
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
@@ -140,7 +226,10 @@ class BigtableOnlineStore(OnlineStore):
 
         client = self._get_client(online_config=config.online_store)
         bt_instance = client.instance(instance_id=config.online_store.instance)
-        bt_table = bt_instance.table(bt_table_name)
+        bt_table = bt_instance.table(
+            bt_table_name,
+            app_profile_id=config.online_store.write_app_profile,
+        )
 
         # `columns_per_row` is used to calculate the number of rows we are allowed to
         # mutate in one request.
@@ -240,6 +329,8 @@ class BigtableOnlineStore(OnlineStore):
         We use a dedicated table for each entity combination. For example, if a
         FeatureView uses the entities `shop` and `customer`, the resulting table would
         be called `customer-shop` (entities are sorted lexicographically first).
+
+        New tables are pre-split when ``initial_tablets`` is set.
         """
         online_config = config.online_store
         assert isinstance(online_config, BigtableOnlineStoreConfig)
@@ -248,6 +339,7 @@ class BigtableOnlineStore(OnlineStore):
         max_versions_gc_rule = bigtable.column_family.MaxVersionsGCRule(
             online_config.max_versions
         )
+        split_keys = self._initial_split_keys(online_config.initial_tablets)
         # The word "table" in the arguments refers to feature_views (this is for legacy
         # reasons). To reduce confusion with bigtable tables, we use alternate variable
         # names
@@ -270,7 +362,10 @@ class BigtableOnlineStore(OnlineStore):
             bt_table = bt_instance.table(bt_table_name)
             if not bt_table.exists():
                 logger.info(f"Creating table `{bt_table_name}` in Bigtable")
-                bt_table.create()
+                if split_keys:
+                    bt_table.create(initial_split_keys=split_keys)
+                else:
+                    bt_table.create()
             else:
                 logger.info(f"Table {bt_table_name} already exists in Bigtable")
 
@@ -283,6 +378,17 @@ class BigtableOnlineStore(OnlineStore):
             bt_table = bt_instance.table(bt_table_name)
             logger.info(f"Deleting table {bt_table_name} in Bigtable")
             bt_table.delete()
+
+    @staticmethod
+    def _initial_split_keys(tablets: Optional[int]) -> List[bytes]:
+        """Returns the split keys that cut a table into ``tablets`` tablets.
+
+        Row keys start with the lowercase hex of a uniform hash, so two-hex-digit split
+        points at even steps over 00..ff give tablets of about the same size.
+        """
+        if not tablets:
+            return []
+        return [f"{i * 256 // tablets:02x}".encode() for i in range(1, tablets)]
 
     @staticmethod
     def _get_table_name(config: RepoConfig, feature_view: FeatureView) -> str:

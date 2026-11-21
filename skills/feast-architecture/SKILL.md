@@ -252,6 +252,14 @@ Key packages:
 The Go server reads the registry directly (proto file or remote) and calls the online store.
 It does not support `feast apply` or materialization — those remain Python-only.
 
+Online stores (`go/internal/feast/onlinestore/`):
+- Every store implements `onlinestore.OnlineStore`; `NewOnlineStore` picks one by `online_store.type`:
+  `sqlite` (default), `redis`, `dynamodb`, `postgres` or `bigtable`.
+- A store that needs entity names to locate data (Bigtable names its tables by entity set) also
+  implements `onlinestore.EntityAwareOnlineStore`. `FeatureStore.readFromOnlineStore` then calls
+  `OnlineReadWithEntities` with each view's entity names, taken from the same view snapshot the
+  request used to group its feature refs.
+
 ---
 
 ## Feast Operator (Kubernetes)
