@@ -9,6 +9,7 @@ import pytest
 
 pytest.importorskip("google.cloud.bigtable")
 
+from google.cloud.bigtable import row_filters  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from feast import Entity, FeatureView  # noqa: E402
@@ -79,6 +80,20 @@ class _Row:
         }
 
 
+def _passes(filter_, row_key: bytes, column: bytes) -> bool:
+    """Whether a cell passes ``filter_``, for the filter types the store builds."""
+    if filter_ is None:
+        return True
+    if isinstance(filter_, row_filters.RowFilterUnion):
+        return any(_passes(f, row_key, column) for f in filter_.filters)
+    if isinstance(filter_, row_filters.RowFilterChain):
+        return all(_passes(f, row_key, column) for f in filter_.filters)
+    if isinstance(filter_, row_filters.RowKeyRegexFilter):
+        return re.fullmatch(filter_.regex, row_key) is not None
+    assert isinstance(filter_, row_filters.ColumnQualifierRegexFilter)
+    return re.fullmatch(filter_.regex, column) is not None
+
+
 class _FakeBigtable:
     """Serves read_rows from in-memory tables and records every call."""
 
@@ -97,15 +112,16 @@ class _FakeBigtable:
         class _Table:
             def read_rows(self, row_set, filter_=None):
                 fake.calls.append((table_name, list(row_set.row_keys)))
-                pattern = re.compile(filter_.regex) if filter_ is not None else None
                 stored = fake.tables.get(table_name, {})
                 for row_key in row_set.row_keys:
                     if row_key in stored:
                         columns = {
                             name: value
                             for name, value in stored[row_key].items()
-                            if pattern is None or pattern.match(name)
+                            if _passes(filter_, row_key, name)
                         }
+                        if not columns:
+                            continue
                         fake.cells.extend(
                             (row_key, name) for name in columns if name != b"event_ts"
                         )
@@ -305,13 +321,16 @@ def test_filter_over_the_size_limit_reads_one_view_at_a_time(
     setup, extra_bytes, expected_calls
 ):
     store, config, fake = setup
-    # The filter of the batched read names the features of both views: 12 bytes of
-    # regex syntax, then 570 bytes and a separator for each of the 28 names.
-    names = [f"{i:02d}".ljust(570, "x") for i in range(28)]
-    names[-1] += "x" * extra_bytes
+    # The filter of the batched read carries the features of both views. The last
+    # name is padded so that the filter is exactly at the limit, or one byte over.
+    names = [f"{i:02d}".ljust(560, "x") for i in range(28)]
+    requested = {"fv_a": set(names[:14]), "fv_b": set(names[14:])}
+    padding = MAX_BATCHED_FILTER_BYTES - store._batched_filter_size(requested)
+    assert padding > 0
+    names[-1] += "x" * (padding + extra_bytes)
+    requested["fv_b"] = set(names[14:])
     assert (
-        len(BigtableOnlineStore._column_filter_regex(names))
-        == MAX_BATCHED_FILTER_BYTES + extra_bytes
+        store._batched_filter_size(requested) == MAX_BATCHED_FILTER_BYTES + extra_bytes
     )
     views = [_feature_view("fv_a", names[:14]), _feature_view("fv_b", names[14:])]
     grouped_refs = [(views[0], names[:14]), (views[1], names[14:])]
@@ -333,21 +352,34 @@ def test_filter_over_the_size_limit_reads_one_view_at_a_time(
     assert _values(response)[f"fv_b__{names[14]}"] == [0, None]
 
 
+def test_filter_size_bounds_the_serialized_filter(setup):
+    store, _, _ = setup
+    requested = {
+        "fv_a": {"score", "extra"},
+        "fv_b": None,
+        "fv_c": {f"feature_{i}" for i in range(300)},
+    }
+
+    filter_ = store._batched_filter(requested)
+    # to_pb was renamed _to_pb in newer releases of the client.
+    filter_pb = getattr(filter_, "_to_pb", None) or filter_.to_pb
+    serialized = type(filter_pb()).serialize(filter_pb())
+
+    assert len(serialized) <= store._batched_filter_size(requested)
+
+
 @pytest.mark.parametrize(
-    "requested_a, requested_b, expected_calls",
+    "requested_a, requested_b",
     [
-        # Both views store "score" and "extra". The shared filter names every
-        # requested feature, so it would also return fv_a's "extra" and fv_b's "score".
-        (["score"], ["extra"], 2),
-        # fv_b is read without a column filter, which would return fv_a's "extra" too.
-        (["score"], [], 2),
-        (["score"], ["score"], 1),
-        (["score", "extra"], ["extra", "score"], 1),
+        # Both views store "score" and "extra", and each is asked for one of them.
+        (["score"], ["extra"]),
+        # fv_b is read without a feature list, fv_a is not.
+        (["score"], []),
+        (["score"], ["score"]),
+        (["score", "extra"], ["extra", "score"]),
     ],
 )
-def test_unrequested_columns_are_not_read(
-    setup, requested_a, requested_b, expected_calls
-):
+def test_unrequested_columns_are_not_read(setup, requested_a, requested_b):
     store, config, fake = setup
     fv_a = _feature_view("fv_a", ["score", "extra"])
     fv_b = _feature_view("fv_b", ["score", "extra"])
@@ -359,8 +391,72 @@ def test_unrequested_columns_are_not_read(
     cells = sorted(fake.cells)
     generic, _ = _read(store, config, fake, grouped_refs, _drivers(1, 2), generic=True)
 
-    assert len(calls) == expected_calls
+    assert len(calls) == 1
     assert cells == sorted(fake.cells)
+    assert response == generic
+
+
+def test_column_removed_from_the_schema_is_not_read(setup):
+    store, config, fake = setup
+    # fv_a used to have a "payload" feature. Removing a feature from a view leaves
+    # its cells in Bigtable, so the rows of fv_a still hold a "payload" column that
+    # the view's schema no longer lists.
+    fv_a = _feature_view("fv_a", ["score"])
+    fv_b = _feature_view("fv_b", ["payload"])
+    _write(store, config, fake, fv_a, "driver_id", {1: {"score": 1, "payload": 9}})
+    _write(store, config, fake, fv_b, "driver_id", {1: {"payload": 2}})
+    grouped_refs = [(fv_a, ["score"]), (fv_b, ["payload"])]
+    fv_a_row_key = store._compute_row_key(
+        entity_key=EntityKeyProto(
+            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
+        ),
+        feature_view_name="fv_a",
+        config=config,
+    )
+
+    response, calls = _read(store, config, fake, grouped_refs, _drivers(1, 2))
+    cells = sorted(fake.cells)
+    generic, _ = _read(store, config, fake, grouped_refs, _drivers(1, 2), generic=True)
+
+    assert len(calls) == 1
+    assert (fv_a_row_key, b"payload") not in cells
+    assert cells == sorted(fake.cells)
+    assert response == generic
+    assert _values(response) == {"fv_a__score": [1, None], "fv_b__payload": [2, None]}
+
+
+def test_filter_tells_apart_views_with_similar_names(setup):
+    store, config, fake = setup
+    # One name ends with another, and "." in a name is not a regex wildcard.
+    names = ["fv", "x#fv", "a.b", "aXb"]
+    views = [_feature_view(name, ["score", "extra"]) for name in names]
+    for i, fv in enumerate(views):
+        _write(store, config, fake, fv, "driver_id", {1: {"score": i, "extra": 9}})
+    grouped_refs = [
+        (fv, [feature]) for fv, feature in zip(views, ["score", "extra"] * 2)
+    ]
+
+    response, calls = _read(store, config, fake, grouped_refs, _drivers(1, 2))
+    cells = sorted(fake.cells)
+    generic, _ = _read(store, config, fake, grouped_refs, _drivers(1, 2), generic=True)
+
+    assert len(calls) == 1
+    assert len(cells) == 4
+    assert cells == sorted(fake.cells)
+    assert response == generic
+
+
+def test_non_ascii_view_name_reads_one_view_at_a_time(setup):
+    store, config, fake = setup
+    views = [_feature_view("fv_a", ["a"]), _feature_view("fv_\u00e9", ["b"])]
+    _write(store, config, fake, views[0], "driver_id", {1: {"a": 1}})
+    _write(store, config, fake, views[1], "driver_id", {1: {"b": 2}})
+    grouped_refs = [(views[0], ["a"]), (views[1], ["b"])]
+
+    response, calls = _read(store, config, fake, grouped_refs, _drivers(1))
+    generic, _ = _read(store, config, fake, grouped_refs, _drivers(1), generic=True)
+
+    assert len(calls) == 2
     assert response == generic
 
 
