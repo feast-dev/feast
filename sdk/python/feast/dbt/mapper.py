@@ -139,8 +139,8 @@ def map_dbt_type_to_feast_type(dbt_type: str) -> FeastType:
     # Extract base type by removing parentheses and parameters
     base_type = normalized.split("(")[0].strip()
 
-    # Handle Snowflake NUMBER with precision
-    if base_type == "NUMBER" and "(" in normalized:
+    # Handle NUMBER(p,s) and its synonyms NUMERIC(p,s) / DECIMAL(p,s)
+    if base_type in ("NUMBER", "NUMERIC", "DECIMAL") and "(" in normalized:
         try:
             # Parse precision and scale: NUMBER(precision, scale)
             params = normalized.split("(")[1].rstrip(")").split(",")

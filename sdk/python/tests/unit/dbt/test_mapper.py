@@ -90,7 +90,18 @@ class TestTypeMapping:
         """Test parameterized types are handled correctly."""
         assert map_dbt_type_to_feast_type("VARCHAR(255)") == String
         assert map_dbt_type_to_feast_type("CHAR(10)") == String
-        assert map_dbt_type_to_feast_type("DECIMAL(10,2)") == Int64
+        assert map_dbt_type_to_feast_type("DECIMAL(10,0)") == Int64
+
+    def test_decimal_and_numeric_precision(self):
+        """DECIMAL/NUMERIC(p,s) map like NUMBER(p,s), so scale is not dropped."""
+        assert map_dbt_type_to_feast_type("DECIMAL(10,2)") == Float64
+        assert map_dbt_type_to_feast_type("NUMERIC(12, 4)") == Float64
+        assert map_dbt_type_to_feast_type("decimal(5,0)") == Int32
+        assert map_dbt_type_to_feast_type("NUMERIC(18,0)") == Int64
+        assert map_dbt_type_to_feast_type("DECIMAL(38,0)") == Float64
+        # Without parameters they keep the default integer mapping.
+        assert map_dbt_type_to_feast_type("DECIMAL") == Int64
+        assert map_dbt_type_to_feast_type("NUMERIC") == Int64
 
     def test_snowflake_number_precision(self):
         """Test Snowflake NUMBER type with precision."""
