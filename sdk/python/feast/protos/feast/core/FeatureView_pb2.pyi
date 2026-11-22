@@ -147,9 +147,9 @@ class OnlineConfig(google.protobuf.message.Message):
     WRITE_MODE_FIELD_NUMBER: builtins.int
     mode: global___OnlineConfig.Mode.ValueType
     max_length: builtins.int
-    """Maximum number of events retained per entity. 0 means unset."""
+    """Maximum number of events retained per entity. 0 means no length limit."""
     max_age_seconds: builtins.int
-    """Maximum event age in whole seconds. 0 means unset."""
+    """Maximum event age in whole seconds. 0 means no age limit."""
     write_mode: global___OnlineConfig.WriteMode.ValueType
     def __init__(
         self,

@@ -27,6 +27,10 @@ class OnlineConfig:
     Sequence mode is a declarative contract in this foundation release. Online
     stores must add explicit sequence support before these settings affect data
     storage or retrieval.
+
+    In sequence mode, ``max_length`` and ``max_age`` are optional retention
+    limits. Leaving either unset (``None``) means no limit of that kind, so a
+    sequence with neither set is unlimited.
     """
 
     mode: str = "latest"
@@ -72,10 +76,6 @@ class OnlineConfig:
             if self.write_mode != "append":
                 raise ValueError(
                     "OnlineConfig mode='sequence' requires write_mode='append'."
-                )
-            if self.max_length is None:
-                raise ValueError(
-                    "OnlineConfig mode='sequence' requires max_length to be set."
                 )
         else:
             if self.write_mode != "overwrite":

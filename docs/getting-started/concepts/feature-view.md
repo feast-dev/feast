@@ -62,7 +62,7 @@ Feature views are used during
 
 ## Online retention configuration
 
-`OnlineConfig` declares whether a feature view uses the current latest-value model or a bounded sequence of historical values per entity. Sequence mode requires append writes and a positive maximum length. An optional maximum age adds a second retention limit.
+`OnlineConfig` declares whether a feature view uses the current latest-value model or a sequence of historical values per entity. Sequence mode requires append writes. A maximum length and a maximum age are optional retention limits; leave both unset to keep an unlimited sequence.
 
 ```python
 from datetime import timedelta

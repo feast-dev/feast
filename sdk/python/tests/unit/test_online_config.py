@@ -30,6 +30,15 @@ def test_online_config_proto_round_trip() -> None:
     assert OnlineConfig.from_proto(proto) == config
 
 
+def test_online_config_sequence_without_limits_is_unlimited() -> None:
+    config = OnlineConfig(mode="sequence", write_mode="append")
+
+    proto = config.to_proto()
+    assert proto.max_length == 0
+    assert proto.max_age_seconds == 0
+    assert OnlineConfig.from_proto(proto) == config
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
@@ -43,10 +52,6 @@ def test_online_config_proto_round_trip() -> None:
         (
             {"mode": "sequence", "max_length": 10},
             "mode='sequence' requires write_mode='append'",
-        ),
-        (
-            {"mode": "sequence", "write_mode": "append"},
-            "mode='sequence' requires max_length to be set",
         ),
     ],
 )
