@@ -93,12 +93,14 @@ class TestTypeMapping:
         assert map_dbt_type_to_feast_type("DECIMAL(10,0)") == Int64
 
     def test_decimal_and_numeric_precision(self):
-        """DECIMAL/NUMERIC(p,s) map like NUMBER(p,s), so scale is not dropped."""
+        """DECIMAL/NUMERIC(p,s) with a scale map to Float64, so it is not dropped."""
         assert map_dbt_type_to_feast_type("DECIMAL(10,2)") == Float64
         assert map_dbt_type_to_feast_type("NUMERIC(12, 4)") == Float64
-        assert map_dbt_type_to_feast_type("decimal(5,0)") == Int32
+        # Whole-number DECIMAL/NUMERIC keep the default Int64 mapping.
+        assert map_dbt_type_to_feast_type("decimal(5,0)") == Int64
+        assert map_dbt_type_to_feast_type("NUMERIC(9,0)") == Int64
         assert map_dbt_type_to_feast_type("NUMERIC(18,0)") == Int64
-        assert map_dbt_type_to_feast_type("DECIMAL(38,0)") == Float64
+        assert map_dbt_type_to_feast_type("DECIMAL(38,0)") == Int64
         # Without parameters they keep the default integer mapping.
         assert map_dbt_type_to_feast_type("DECIMAL") == Int64
         assert map_dbt_type_to_feast_type("NUMERIC") == Int64

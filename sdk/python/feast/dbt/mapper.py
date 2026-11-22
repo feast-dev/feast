@@ -150,6 +150,9 @@ def map_dbt_type_to_feast_type(dbt_type: str) -> FeastType:
             if scale > 0:
                 # Has decimal places, use Float64
                 return Float64
+            elif base_type != "NUMBER":
+                # Keep the default Int64 for whole-number NUMERIC/DECIMAL
+                return Int64
             elif precision <= 9:
                 return Int32
             elif precision <= 18:
