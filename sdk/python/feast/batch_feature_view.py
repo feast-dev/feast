@@ -235,13 +235,37 @@ def _transformation_changed(
         return new is not old
     if type(new) is not type(old):
         return True
-    if type(new).__eq__ is not object.__eq__:
-        return new != old
-    # SQL and Flink transformations define no equality, so compare the source
-    # text, or the bytecode when there is no source text.
+    # Some types compare extra state, e.g. a Substrait plan.
+    if type(new).__eq__ is not object.__eq__ and new != old:
+        return True
     if new.udf_string and old.udf_string:
         return new.udf_string != old.udf_string
-    return new.udf.__code__.co_code != old.udf.__code__.co_code
+    return _udf_changed(new.udf, old.udf)
+
+
+def _udf_changed(new_udf: Callable, old_udf: Callable) -> bool:
+    """Compare two UDFs that have no source text.
+
+    Bytecode alone misses constants: ``lambda _: "SELECT 1"`` and
+    ``lambda _: "SELECT 2"`` share it. The code object also holds the
+    constants, so compare it whole, plus the default arguments and the values
+    captured in the closure.
+    """
+
+    def state(udf: Callable) -> tuple:
+        closure = tuple(cell.cell_contents for cell in udf.__closure__ or ())  # type: ignore[attr-defined]
+        return (
+            udf.__code__,  # type: ignore[attr-defined]
+            udf.__defaults__,  # type: ignore[attr-defined]
+            udf.__kwdefaults__,  # type: ignore[attr-defined]
+            closure,
+        )
+
+    try:
+        return bool(state(new_udf) != state(old_udf))
+    except Exception:
+        # Values that cannot be compared count as a change, so the new UDF is stored.
+        return True
 
 
 def batch_feature_view(

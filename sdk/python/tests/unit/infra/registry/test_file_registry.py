@@ -76,6 +76,57 @@ def test_apply_batch_feature_view_stores_changed_udf(file_registry, mode):
     assert stored.feature_transformation.udf_string == "udf_b source"
 
 
+@pytest.mark.parametrize("change", ["constant", "default", "closure"])
+def test_reapply_batch_feature_view_detects_udf_change_without_source(
+    file_registry, change
+):
+    """With an empty udf_string, a UDF change that bytecode alone misses is stored."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def with_default(query):
+        def udf(_, query=query):
+            return query
+
+        return udf
+
+    def with_closure(query):
+        return lambda _: query
+
+    old_udf, new_udf = {
+        "constant": (lambda _: "SELECT 1", lambda _: "SELECT 2"),
+        "default": (with_default("SELECT 1"), with_default("SELECT 2")),
+        "closure": (with_closure("SELECT 1"), with_closure("SELECT 2")),
+    }[change]
+
+    def make_view(udf):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="sql",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string="",
+        )
+
+    old_view = make_view(old_udf)
+    file_registry.apply_feature_view(old_view, "test_project")
+
+    # Re-applying the same UDF works and stays a metadata-only update.
+    file_registry.apply_feature_view(make_view(old_udf), "test_project")
+    assert not old_view._schema_or_udf_changed(
+        BatchFeatureView.from_proto(old_view.to_proto())
+    )
+
+    file_registry.apply_feature_view(make_view(new_udf), "test_project")
+
+    stored = file_registry.get_feature_view("driver_bfv", "test_project")
+    assert stored.feature_transformation.udf(None) == "SELECT 2"
+
+
 def test_same_project_name_conflict_batch_vs_stream(file_registry):
     """A FeatureView and StreamFeatureView with the same name in the same project must raise ConflictingFeatureViewNames."""
     entity = Entity(name="driver", value_type=ValueType.STRING, join_keys=["driver_id"])
