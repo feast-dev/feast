@@ -188,8 +188,11 @@ def deduplicate_keep_latest(
     if df.empty or timestamp_col not in df.columns:
         return df
 
+    # Keep whole rows: groupby().first() would fill a null in the latest row with
+    # the value of an older one.
     return (
         df.sort_values(by=timestamp_col, ascending=False)
-        .groupby(entity_keys, as_index=False)
-        .first()
+        .drop_duplicates(subset=entity_keys, keep="first")
+        .sort_values(by=entity_keys)
+        .reset_index(drop=True)
     )
