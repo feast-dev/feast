@@ -1,8 +1,11 @@
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
@@ -342,3 +345,48 @@ class TestPointInTimeJoinTemplate:
             'FROM "global_stats__subquery" AS subquery CROSS JOIN '
             '"global_stats__entity_dataframe" AS entity_dataframe WHERE TRUE'
         ) in query
+
+
+@pytest.mark.parametrize(
+    "arrow_type, nullable, expected",
+    [
+        ("uint8", False, "UInt8"),
+        ("uint64", False, "UInt64"),
+        ("uint64", True, "Nullable(UInt64)"),
+        ("date32[day]", True, "Nullable(Date32)"),
+        ("date64[ms]", False, "Date32"),
+        ("decimal128(10, 2)", False, "Decimal(10, 2)"),
+        ("decimal32(7, 2)", False, "Decimal(7, 2)"),
+        ("decimal256(50, 5)", True, "Nullable(Decimal(50, 5))"),
+        ("large_string", False, "String"),
+        ("list<item: uint64>", True, "Array(Nullable(UInt64))"),
+        ("list<item: decimal128(10, 2)>", False, "Array(Decimal(10, 2))"),
+    ],
+)
+def test_arrow_to_ch_type_uses_valid_clickhouse_type_names(
+    arrow_type, nullable, expected
+):
+    from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+        arrow_to_ch_type,
+    )
+
+    assert arrow_to_ch_type(arrow_type, nullable) == expected
+
+
+def test_entity_dataframe_schema_with_unsigned_date_and_decimal_columns():
+    from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+        _df_to_create_table_schema,
+    )
+
+    df = pd.DataFrame(
+        {
+            "id": np.array([1, 2], dtype="uint64"),
+            "day": [datetime(2024, 1, 1).date(), datetime(2024, 1, 2).date()],
+            "price": [Decimal("1.50"), Decimal("2.25")],
+            "driver_id": pd.array(["a", "b"], dtype="string[pyarrow]"),
+        }
+    )
+
+    assert _df_to_create_table_schema(df) == (
+        '"id" Nullable(UInt64), "day" Nullable(Date32), "price" Nullable(Decimal(3, 2)), "driver_id" Nullable(String)'
+    )
