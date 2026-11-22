@@ -1285,15 +1285,25 @@ class Registry(BaseRegistry):
                 existing_saved_dataset_proto.spec.name == saved_dataset_proto.spec.name
                 and existing_saved_dataset_proto.spec.project == project
             ):
+                existing_meta = existing_saved_dataset_proto.meta
                 saved_dataset.created_timestamp = (
-                    existing_saved_dataset_proto.meta.created_timestamp.ToDatetime()
+                    existing_meta.created_timestamp.ToDatetime()
                 )
-                saved_dataset.min_event_timestamp = (
-                    existing_saved_dataset_proto.meta.min_event_timestamp.ToDatetime()
-                )
-                saved_dataset.max_event_timestamp = (
-                    existing_saved_dataset_proto.meta.max_event_timestamp.ToDatetime()
-                )
+                # Reading the dataset filters on this range, so only keep the
+                # stored one if the new dataset does not have its own. It does
+                # when its data was overwritten.
+                if saved_dataset.min_event_timestamp is None and existing_meta.HasField(
+                    "min_event_timestamp"
+                ):
+                    saved_dataset.min_event_timestamp = (
+                        existing_meta.min_event_timestamp.ToDatetime()
+                    )
+                if saved_dataset.max_event_timestamp is None and existing_meta.HasField(
+                    "max_event_timestamp"
+                ):
+                    saved_dataset.max_event_timestamp = (
+                        existing_meta.max_event_timestamp.ToDatetime()
+                    )
                 saved_dataset_proto = saved_dataset.to_proto()
                 saved_dataset_proto.spec.project = project
                 del self.cached_registry_proto.saved_datasets[idx]

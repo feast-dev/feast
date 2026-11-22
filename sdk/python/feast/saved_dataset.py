@@ -293,6 +293,8 @@ class SavedDataset:
         meta = SavedDatasetMeta()
         if self.created_timestamp:
             meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
         if self.min_event_timestamp:
             meta.min_event_timestamp.FromDatetime(self.min_event_timestamp)
         if self.max_event_timestamp:
