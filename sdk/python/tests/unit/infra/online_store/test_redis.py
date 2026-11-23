@@ -1,4 +1,5 @@
 import asyncio
+import struct
 import sys
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -1103,10 +1104,13 @@ def _append_client_and_pipe():
     return client, pipe
 
 
-def test_online_append_keeps_each_value_for_an_entity(
+def test_online_append_keeps_each_event_for_an_entity(
     redis_online_store: RedisOnlineStore, feature_view
 ):
-    """Each different value is kept. A repeated value moves to its newer time."""
+    """Each event is kept, even when its values repeat an earlier event.
+
+    An event with the same time and values as another is stored once.
+    """
     feature_view.online_config = OnlineConfig(
         mode="sequence", max_length=10, write_mode="append"
     )
@@ -1116,6 +1120,7 @@ def test_online_append_keeps_each_value_for_an_entity(
             (start, 1),
             (start + timedelta(seconds=1), 2),
             (start + timedelta(seconds=2), 3),
+            (start + timedelta(seconds=3), 1),
             (start + timedelta(seconds=3), 1),
         ]
     )
@@ -1129,11 +1134,13 @@ def test_online_append_keeps_each_value_for_an_entity(
     key, events = pipe.zadd.call_args.args
     assert key.startswith(b"seq:feature_view_1:")
     start_micros = int(start.timestamp()) * 1_000_000
-    values_by_offset = {
-        score - start_micros: MapProto.FromString(member).val["feature_10"].int32_val
-        for member, score in events.items()
-    }
-    assert values_by_offset == {1_000_000: 2, 2_000_000: 3, 3_000_000: 1}
+    values_by_offset = {}
+    for member, score in events.items():
+        (member_micros,) = struct.unpack(">q", member[:8])
+        assert member_micros == score
+        values = MapProto.FromString(member[8:])
+        values_by_offset[score - start_micros] = values.val["feature_10"].int32_val
+    assert values_by_offset == {0: 1, 1_000_000: 2, 2_000_000: 3, 3_000_000: 1}
     pipe.zremrangebyrank.assert_called_once_with(key, 0, -11)
     pipe.zremrangebyscore.assert_not_called()
     pipe.expire.assert_not_called()
@@ -1171,6 +1178,38 @@ def test_online_append_applies_max_length_and_max_age(
         pipe.expire.assert_called_once_with(name=key, time=key_ttl_seconds)
     else:
         pipe.expire.assert_not_called()
+
+
+def test_online_append_keeps_a_newer_event_when_a_late_event_repeats_its_values(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """A late, older event with the same values doesn't move the newer event's
+    time, so the max_age trim can't drop it. Same batch or a later write."""
+    feature_view.online_config = OnlineConfig(
+        mode="sequence", max_age=timedelta(hours=1), write_mode="append"
+    )
+    now = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
+    newer = now - timedelta(minutes=5)
+    older = now - timedelta(hours=2)
+    cutoff_micros = int((now - timedelta(hours=1)).timestamp()) * 1_000_000
+
+    def scores_left_after(writes):
+        """Replay the ZADDs and the max_age trim the way Redis applies them."""
+        client, pipe = _append_client_and_pipe()
+        with patch.object(redis_online_store, "_get_client", return_value=client):
+            with patch("feast.utils._utc_now", return_value=now):
+                for batch in writes:
+                    redis_online_store.online_append(
+                        _dedup_config(), feature_view, _single_entity_batch(batch)
+                    )
+        members: dict = {}
+        for call in pipe.zadd.call_args_list:
+            members.update(call.args[1])
+        return sorted(s for s in members.values() if s >= cutoff_micros)
+
+    newer_micros = int(newer.timestamp()) * 1_000_000
+    assert scores_left_after([[(newer, 7), (older, 7)]]) == [newer_micros]
+    assert scores_left_after([[(newer, 7)], [(older, 7)]]) == [newer_micros]
 
 
 def test_online_append_async_uses_async_client(

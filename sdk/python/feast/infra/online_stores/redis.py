@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import struct
 from datetime import datetime, timezone
 from enum import Enum
 from typing import (
@@ -765,8 +766,10 @@ class RedisOnlineStore(OnlineStore):
 
         - Key: ``seq:<feature view>:`` + the entity's hash key. delete_table and
           teardown don't delete these keys yet.
-        - Member: the row's feature values as a serialized ``feast.types.Map``.
-          Repeating the same values moves that member to the new row's time.
+        - Member: the event time as an 8-byte big-endian signed integer of
+          microseconds, followed by the row's feature values as a serialized
+          ``feast.types.Map``. Writing the same event time and values again
+          adds nothing, so re-materializing a time range doesn't add duplicates.
         - Score: the event time from _epoch_micros.
         - Limits: after each ZADD, drop events older than max_age, then keep the
           newest max_length. Not atomic: readers should read at most max_length.
@@ -844,10 +847,11 @@ class RedisOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
-            member = MapProto(val=values).SerializeToString(deterministic=True)
-            events_by_key.setdefault(redis_key_bin, {})[member] = _epoch_micros(
-                timestamp
-            )
+            event_micros = _epoch_micros(timestamp)
+            member = struct.pack(">q", event_micros) + MapProto(
+                val=values
+            ).SerializeToString(deterministic=True)
+            events_by_key.setdefault(redis_key_bin, {})[member] = event_micros
         return events_by_key
 
     def _append_limits(self, table: FeatureView) -> Tuple[Optional[int], Optional[int]]:
