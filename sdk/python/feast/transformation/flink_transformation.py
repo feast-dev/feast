@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, cast
 
-from feast.transformation.base import Transformation
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
+from feast.transformation.base import Transformation, udf_transformation_from_proto
 from feast.transformation.mode import TransformationMode
 
 
@@ -76,3 +79,9 @@ class FlinkTransformation(Transformation):
 
     def infer_features(self, *args, **kwargs) -> Any:
         pass
+
+    @classmethod
+    def from_proto(
+        cls, user_defined_function_proto: UserDefinedFunctionProto
+    ) -> Transformation:
+        return udf_transformation_from_proto(user_defined_function_proto)

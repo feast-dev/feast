@@ -2482,3 +2482,37 @@ def test_validate_projects_does_not_swallow_base_exceptions():
     with patch.object(search, "list_all_projects", side_effect=KeyboardInterrupt):
         with pytest.raises(KeyboardInterrupt):
             search._validate_projects(["p"], MagicMock(), allow_cache=True)
+
+
+def test_openlineage_hides_lineage_from_user_without_projects(tmp_path):
+    """A user allowed no Feast project must see no lineage, not all of it."""
+    from fastapi import FastAPI
+
+    from feast.api.registry import rest as rest_module
+    from feast.openlineage.config import OpenLineageConfig, OpenLineageConsumerConfig
+    from feast.openlineage.store import OpenLineageStore
+    from feast.permissions import security_manager as sm_module
+
+    connection_string = f"sqlite:///{tmp_path}/lineage.db"
+    ol_store = OpenLineageStore(connection_string=connection_string)
+    ol_store.initialize()
+    ol_store.upsert_job("other-team", "secret_job", {"facets": {}})
+
+    feast_store = MagicMock()
+    feast_store.config.openlineage = OpenLineageConfig(
+        enabled=True,
+        consumer=OpenLineageConsumerConfig(
+            enabled=True, connection_string=connection_string
+        ),
+    )
+    app = FastAPI()
+    rest_module._register_openlineage_consumer(app, feast_store)
+
+    with (
+        patch.object(sm_module, "get_security_manager", return_value=MagicMock()),
+        patch.object(sm_module, "permitted_resources", return_value=[]),
+    ):
+        resp = TestClient(app).get("/lineage/openlineage/jobs")
+
+    assert resp.status_code == 200
+    assert resp.json()["jobs"] == []

@@ -122,6 +122,20 @@ FeastObjectProto = TypeVar(
 
 FIELDS_TO_IGNORE = {"project"}
 
+# Message fields where "unset" and "set with all default values" mean different
+# things. Protobuf compares both as equal by value, so check presence too.
+PRESENCE_AWARE_FIELDS = {"online_config"}
+
+
+def _presence_changed(
+    current_spec: FeastObjectSpecProto, new_spec: FeastObjectSpecProto, field: str
+) -> bool:
+    if field not in PRESENCE_AWARE_FIELDS:
+        return False
+    return cast(Any, current_spec).HasField(field) != cast(Any, new_spec).HasField(
+        field
+    )
+
 
 def diff_registry_objects(
     current: FeastObject, new: FeastObject, object_type: FeastObjectType
@@ -147,7 +161,9 @@ def diff_registry_objects(
         for _field in current_spec.DESCRIPTOR.fields:
             if _field.name in FIELDS_TO_IGNORE:
                 continue
-            elif getattr(current_spec, _field.name) != getattr(new_spec, _field.name):
+            elif getattr(current_spec, _field.name) != getattr(
+                new_spec, _field.name
+            ) or _presence_changed(current_spec, new_spec, _field.name):
                 if _field.name == "feature_transformation":
                     current_spec = cast(OnDemandFeatureViewSpec, current_spec)
                     new_spec = cast(OnDemandFeatureViewSpec, new_spec)
