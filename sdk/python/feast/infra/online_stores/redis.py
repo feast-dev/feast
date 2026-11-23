@@ -346,16 +346,24 @@ class RedisOnlineStore(OnlineStore):
 
     def delete_table(self, config: RepoConfig, table: FeatureView):
         """
-        Delete all rows in Redis for a specific feature view.
-
-        Uses a two-phase pipelined approach to avoid an O(K) synchronous hkeys
-        call inside the scan loop (N+1 pattern).
+        Delete all rows in Redis for a specific feature view: its fields in the
+        entity hashes, and the sequence keys online_append wrote for it.
 
         Args:
             config: Feast config
             table: Feature view to delete
         """
         client = self._get_client(config.online_store)
+        self._delete_hash_fields(client, config, table)
+        self._delete_sequence_keys(client, config, table)
+
+    def _delete_hash_fields(self, client: Any, config: RepoConfig, table: FeatureView):
+        """
+        Delete the feature view's fields from the entity hashes.
+
+        Uses a two-phase pipelined approach to avoid an O(K) synchronous hkeys
+        call inside the scan loop (N+1 pattern).
+        """
         prefix = _redis_key_prefix(table.join_keys)
 
         fv_name = _versioned_fv_name(table, config)
@@ -392,6 +400,30 @@ class RedisOnlineStore(OnlineStore):
             pipe.execute()
 
         logger.debug(f"Deleted {deleted_count} rows for feature view {fv_name}")
+
+    def _delete_sequence_keys(
+        self, client: Any, config: RepoConfig, table: FeatureView
+    ) -> None:
+        """Delete the feature view's sequence keys written by online_append,
+        in this project only."""
+        scan_pattern = b"".join(
+            [
+                f"seq:{_versioned_fv_name(table, config)}:".encode("utf8"),
+                _redis_key_prefix(table.join_keys),
+                b"*",
+                config.project.encode("utf8"),
+            ]
+        )
+        keys = list(client.scan_iter(scan_pattern))
+        if not keys:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for key in keys:
+                pipe.delete(key)
+            pipe.execute()
+
+        logger.debug(f"Deleted {len(keys)} sequence keys for feature view {table.name}")
 
     def update(
         self,
@@ -434,6 +466,11 @@ class RedisOnlineStore(OnlineStore):
 
         for join_keys in join_keys_to_delete:
             self.delete_entity_values(config, list(join_keys))
+
+        if tables:
+            client = self._get_client(config.online_store)
+            for table in tables:
+                self._delete_sequence_keys(client, config, table)
 
         # Release the native GLIDE client, if one was ever opened, so teardown does
         # not leave its Rust-side resources and file descriptors behind.
@@ -765,7 +802,7 @@ class RedisOnlineStore(OnlineStore):
         overwriting the entity's hash.
 
         - Key: ``seq:<feature view>:`` + the entity's hash key. delete_table and
-          teardown don't delete these keys yet.
+          teardown delete these keys too.
         - Member: the event time as an 8-byte big-endian signed integer of
           microseconds, followed by the row's feature values as a serialized
           ``feast.types.Map``. Writing the same event time and values again
