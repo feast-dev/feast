@@ -1,4 +1,4 @@
-FROM golang:1.26-trixie AS builder
+FROM golang:1.26.10-trixie AS builder
 ENV GOTOOLCHAIN=auto
 
 # Update the package list and install the ca-certificates package

@@ -79,22 +79,19 @@ def resource_match_config(
         return False
 
     if required_tags:
-        if hasattr(resource, "required_tags"):
-            if isinstance(resource.required_tags, dict):
-                for tag in required_tags.keys():
-                    required_value = required_tags.get(tag)
-                    actual_value = resource.required_tags.get(tag)
-                    if required_value != actual_value:
-                        logger.info(
-                            f"Unmatched value {actual_value} for required tag {tag}: expected {required_value}"
-                        )
-                        return False
-            else:
-                logger.warning(
-                    f"Resource {resource} has no `required_tags` attribute of unexpected type {type(resource.required_tags)}"
+        resource_tags = getattr(resource, "tags", None)
+        if not isinstance(resource_tags, dict):
+            logger.info(
+                f"Resource {resource} has no tags to match required tags {required_tags}"
+            )
+            return False
+        for tag, required_value in required_tags.items():
+            actual_value = resource_tags.get(tag)
+            if required_value != actual_value:
+                logger.info(
+                    f"Unmatched value {actual_value} for required tag {tag}: expected {required_value}"
                 )
-        else:
-            logger.warning(f"Resource {resource} has no `required_tags` attribute")
+                return False
 
     return True
 

@@ -288,3 +288,54 @@ def test_tiled_aggregation_does_not_depend_on_timestamp_resolution(dtype):
     assert len(expected) == 8
     assert result["event_timestamp"].tolist() == expected["event_timestamp"].tolist()
     assert result[feature_name].tolist() == expected[feature_name].tolist()
+
+
+def test_tiled_aggregation_keeps_the_latest_tile_of_each_entity():
+    """A null in the latest tile is not replaced by the value of an older tile."""
+    from feast.aggregation.tiling.orchestrator import apply_sawtooth_window_tiling
+    from feast.aggregation.tiling.tile_subtraction import (
+        convert_cumulative_to_windowed,
+        deduplicate_keep_latest,
+    )
+
+    start = pd.Timestamp("2024-01-01")
+    # Driver 1 has no events in the window that ends with the latest tile.
+    df = pd.DataFrame(
+        {
+            "driver_id": [1, 1, 2, 2],
+            "event_timestamp": [start + timedelta(minutes=m) for m in [1, 2, 61, 62]],
+            "trips": [100.0, 50.0, 7.0, 9.0],
+        }
+    )
+    window = timedelta(minutes=10)
+    aggregations = [
+        Aggregation(
+            column="trips", function=function, time_window=window, name=function
+        )
+        for function in ["count", "max", "min", "std"]
+    ]
+
+    tiles = apply_sawtooth_window_tiling(
+        df=df,
+        aggregations=aggregations,
+        group_by_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        hop_size=timedelta(minutes=5),
+    )
+    windowed = convert_cumulative_to_windowed(
+        tiles_df=tiles,
+        entity_keys=["driver_id"],
+        timestamp_col="event_timestamp",
+        window_size=window,
+        aggregations=aggregations,
+    )
+    result = deduplicate_keep_latest(windowed, ["driver_id"], "event_timestamp")
+
+    assert result["driver_id"].tolist() == [1, 2]
+    assert (result["event_timestamp"] == start + timedelta(minutes=65)).all()
+    assert result["count"].tolist() == [0, 2]
+    nan = float("nan")
+    assert result["max"].tolist() == pytest.approx([nan, 9.0], nan_ok=True)
+    assert result["min"].tolist() == pytest.approx([nan, 7.0], nan_ok=True)
+    assert result["std"].tolist() == pytest.approx([nan, 2**0.5], nan_ok=True)

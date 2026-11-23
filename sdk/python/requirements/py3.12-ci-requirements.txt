@@ -8513,9 +8513,9 @@ valkey-glide-sync==2.6.0 \
     --hash=sha256:c7ebc8c8ac0753f5b1837bf0372c0bb36a506dbcf70350774c6fba0c555f272c \
     --hash=sha256:d410325abb90c68f976286eee0e80bde247ff8680449e11a98a80ae72bb8fb57
     # via feast (pyproject.toml)
-virtualenv==21.14.1 \
-    --hash=sha256:6fd04089fc0dc33549e7abdff70fc3b63d4e15799f2dbf3281f80d13b9fce522 \
-    --hash=sha256:719b189804e66678017d9f63bbfc590c44f6b96ab4829513806394f9b375929c
+virtualenv==21.15.11 \
+    --hash=sha256:0390c40275487b5e677a1e559e30204ff061db4c5fec39c81d0dff1b24d2b774 \
+    --hash=sha256:6ad11e129f546835ae81d47a27f48ed32dcc4e2a0776014a159bab8895cdb9ac
     # via
     #   feast (pyproject.toml)
     #   pre-commit

@@ -77,7 +77,7 @@ def enforce_policy(
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
                     if not grant:
-                        if filter_only and p.name_patterns:
+                        if filter_only and (p.name_patterns or p.required_tags):
                             continue
                         logger.error(f"Permission denied: {','.join(explanations)}")
                         raise FeastPermissionError(",".join(explanations))
@@ -103,13 +103,18 @@ def enforce_policy(
                     message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
                     logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
                     raise FeastPermissionError(message)
-                elif not any(p.name_patterns for p in resource_type_permissions):
-                    # Permissions exist for this resource type but no name_patterns - should raise error
+                elif not any(
+                    p.name_patterns or p.required_tags
+                    for p in resource_type_permissions
+                ):
+                    # Permissions exist for this resource type but none is scoped by
+                    # name_patterns or required_tags - should raise error
                     message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
                     logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
                     raise FeastPermissionError(message)
                 else:
-                    # Permissions exist for this resource type with name_patterns - filter out this resource
+                    # Permissions for this resource type are scoped by name_patterns or
+                    # required_tags, so this resource is out of scope - filter it out
                     logger.debug(
                         f"Filtering out {type(resource).__name__}:{resource.name} - no matching permissions"
                     )

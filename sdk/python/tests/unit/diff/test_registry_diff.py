@@ -2,6 +2,7 @@ import pandas as pd
 
 from feast import Field, PushSource
 from feast.batch_feature_view import batch_feature_view
+from feast.diff.property_diff import TransitionType
 from feast.diff.registry_diff import (
     diff_registry_objects,
     tag_objects_for_keep_delete_update_add,
@@ -10,6 +11,7 @@ from feast.entity import Entity
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.online_config import OnlineConfig
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
@@ -99,6 +101,21 @@ def test_diff_registry_objects_feature_views(simple_dataset_1):
         assert feast_object_diffs.feast_object_property_diffs[0].val_declared == {
             "when": "after"
         }
+
+
+def test_diff_registry_objects_online_config_presence():
+    without_config = FeatureView(name="fv")
+    with_default_config = FeatureView(name="fv", online_config=OnlineConfig())
+
+    for current, new in [
+        (without_config, with_default_config),
+        (with_default_config, without_config),
+    ]:
+        feast_object_diffs = diff_registry_objects(current, new, "feature view")
+        assert feast_object_diffs.transition_type == TransitionType.UPDATE
+        assert [
+            p.property_name for p in feast_object_diffs.feast_object_property_diffs
+        ] == ["online_config"]
 
 
 def test_diff_odfv(simple_dataset_1):
