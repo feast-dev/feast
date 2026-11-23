@@ -266,9 +266,17 @@ def priority_select(
             remaining = remaining.consume_tokens(cost)
             kept.append((position, section))
         elif section.is_required:
-            raise RequiredSectionError(
-                section.label, cost, remaining.remaining, remaining.max_tokens
-            )
+            # Counted apart, the pieces can also cost more than the prompt they
+            # make: each rounds up on its own. Measure the prompt with this
+            # section in, against what the caller had left, before refusing it.
+            trial = [*kept, (position, section)]
+            cost = budget.count_tokens(_render(trial, order, separator))
+            if not budget.fits_tokens(cost):
+                raise RequiredSectionError(
+                    section.label, cost, budget.remaining, budget.max_tokens
+                )
+            remaining = budget.consume_tokens(cost)
+            kept.append((position, section))
         else:
             dropped.append((position, section))
 

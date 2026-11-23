@@ -290,6 +290,18 @@ class TestRequiredSections:
         assert error.max_tokens == 4
         assert error.section == f"'{text(5)}'"
 
+    def test_keeps_critical_sections_whose_joined_prompt_fits(self):
+        # Apart, "a", "\n\n" and "b" round up to 1 + 1 + 1 tokens under the
+        # estimate; joined, "a\n\nb" is four characters: one token.
+        sections = [("critical", "a"), ("critical", "b")]
+        selection = priority_select(sections, budget(1))
+        assert selection.contents == ("a", "b")
+        assert selection.budget.consumed == 1
+        # Only what is left of an already-used budget counts.
+        selection = priority_select(sections, budget(3, consumed=2))
+        assert selection.contents == ("a", "b")
+        assert selection.budget.remaining == 0
+
     def test_is_a_token_budget_error(self):
         # Callers already guarding prompt assembly keep catching one type.
         assert issubclass(RequiredSectionError, TokenBudgetExceededError)
