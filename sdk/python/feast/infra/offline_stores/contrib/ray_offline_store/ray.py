@@ -775,16 +775,10 @@ class RayDataProcessor:
                             ).reset_index(drop=True)
 
                 try:
+                    # Only the feature rows are deduplicated. Every entity row is
+                    # a separate request, so rows that share an entity key and a
+                    # timestamp are all kept (merge_asof matches each of them).
                     if feature_join_keys:
-                        batch_dedup_cols = [
-                            k for k in entity_join_keys if k in batch_sorted.columns
-                        ]
-                        if timestamp_field in batch_sorted.columns:
-                            batch_dedup_cols.append(timestamp_field)
-                        if batch_dedup_cols:
-                            batch_sorted = batch_sorted.drop_duplicates(
-                                subset=batch_dedup_cols, keep="last"
-                            )
                         feature_dedup_cols = [
                             k for k in feature_join_keys if k in features_sorted.columns
                         ]
