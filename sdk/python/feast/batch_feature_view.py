@@ -8,6 +8,7 @@ import dill
 
 from feast import flags_helper
 from feast.aggregation import Aggregation
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -195,6 +196,19 @@ class BatchFeatureView(FeatureView):
         fv._raw_feature_transformation_proto = self._raw_feature_transformation_proto
         return fv
 
+    def _schema_or_udf_changed(self, other: BaseFeatureView) -> bool:
+        """Check for BatchFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, BatchFeatureView):
+            return True
+
+        # A changed UDF must be stored, not treated as a metadata-only update.
+        return _transformation_changed(
+            self.feature_transformation, other.feature_transformation
+        )
+
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
             return None
@@ -212,6 +226,46 @@ class BatchFeatureView(FeatureView):
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for BatchFeatureView"
             )
+
+
+def _transformation_changed(
+    new: Optional[Transformation], old: Optional[Transformation]
+) -> bool:
+    if new is None or old is None:
+        return new is not old
+    if type(new) is not type(old):
+        return True
+    # Some types compare extra state, e.g. a Substrait plan.
+    if type(new).__eq__ is not object.__eq__ and new != old:
+        return True
+    if new.udf_string and old.udf_string:
+        return new.udf_string != old.udf_string
+    return _udf_changed(new.udf, old.udf)
+
+
+def _udf_changed(new_udf: Callable, old_udf: Callable) -> bool:
+    """Compare two UDFs that have no source text.
+
+    Bytecode alone misses constants: ``lambda _: "SELECT 1"`` and
+    ``lambda _: "SELECT 2"`` share it. The code object also holds the
+    constants, so compare it whole, plus the default arguments and the values
+    captured in the closure.
+    """
+
+    def state(udf: Callable) -> tuple:
+        closure = tuple(cell.cell_contents for cell in udf.__closure__ or ())  # type: ignore[attr-defined]
+        return (
+            udf.__code__,  # type: ignore[attr-defined]
+            udf.__defaults__,  # type: ignore[attr-defined]
+            udf.__kwdefaults__,  # type: ignore[attr-defined]
+            closure,
+        )
+
+    try:
+        return bool(state(new_udf) != state(old_udf))
+    except Exception:
+        # Values that cannot be compared count as a change, so the new UDF is stored.
+        return True
 
 
 def batch_feature_view(
