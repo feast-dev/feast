@@ -157,7 +157,7 @@ class Selection:
         prompt = selection.render()
 
     Attributes:
-        budget: The budget after charging every kept section.
+        budget: The budget after charging the rendered prompt.
         kept: Sections that made it in, ordered as requested.
         dropped: Sections left out, in declaration order.
         separator: What :meth:`render` joins kept sections with.
@@ -214,10 +214,12 @@ def priority_select(
     Sections whose content is blank are ignored: they would only double a
     separator. ``critical`` sections are never dropped.
 
-    The budget is charged for ``separator`` between each pair of kept sections,
-    so :meth:`Selection.render` fits within the allowance. Tokenizers may merge
-    text across a section boundary, which makes the charge an upper bound on
-    what the joined string really costs.
+    Each section is charged on its own, plus ``separator`` between each pair
+    kept. Joined, the sections can still cost more than that, because a
+    tokenizer may split text differently across a boundary. So the rendered
+    prompt is then measured as a whole, the least important section kept is
+    dropped while it overflows, and the budget is charged for exactly what
+    :meth:`Selection.render` returns.
 
     Args:
         sections: Sections, or ``(priority, content[, name])`` tuples.
@@ -270,13 +272,36 @@ def priority_select(
         else:
             dropped.append((position, section))
 
+    # Counted one at a time, the sections can cost less than the prompt they
+    # make: cl100k_base counts "Hello!\r\n", "\n\n" and "World" as four tokens
+    # apart but five joined. Measure the prompt as it renders, and give up the
+    # least important section kept until it fits.
+    cost = budget.count_tokens(_render(kept, order, separator))
+    while not budget.fits_tokens(cost):
+        position, section = kept.pop()
+        if section.is_required:
+            raise RequiredSectionError(
+                section.label, cost, budget.remaining, budget.max_tokens
+            )
+        dropped.append((position, section))
+        cost = budget.count_tokens(_render(kept, order, separator))
+
     if order is SectionOrder.DECLARED:
         kept.sort(key=lambda pair: pair[0])
     dropped.sort(key=lambda pair: pair[0])
 
     return Selection(
-        budget=remaining,
+        budget=budget.consume_tokens(cost),
         kept=tuple(section for _, section in kept),
         dropped=tuple(section for _, section in dropped),
         separator=separator,
     )
+
+
+def _render(
+    kept: list[tuple[int, Section]], order: SectionOrder, separator: str
+) -> str:
+    """Join kept sections as :meth:`Selection.render` will."""
+    if order is SectionOrder.DECLARED:
+        kept = sorted(kept, key=lambda pair: pair[0])
+    return separator.join(section.content for _, section in kept)

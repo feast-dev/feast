@@ -10,10 +10,25 @@ from feast.context import (
     priority_select,
 )
 from feast.context.errors import RequiredSectionError, TokenBudgetExceededError
-from feast.context.tokenizer import ApproximateTokenizer
+from feast.context.tokenizer import ApproximateTokenizer, Tokenizer
 
 # Four characters per token: "abcd" is one token under the estimate.
 ESTIMATING = ApproximateTokenizer()
+
+
+class JoinSensitiveTokenizer(Tokenizer):
+    """A token per character, plus one wherever "!" meets a line break.
+
+    Like cl100k_base with "Hello!\\r\\n" and "\\n\\n", it charges a joined
+    prompt more than its pieces.
+    """
+
+    @property
+    def name(self) -> str:
+        return "join-sensitive"
+
+    def count_tokens(self, text: str) -> int:
+        return len(text) + text.count("!\n")
 
 
 def budget(max_tokens: int = 100, consumed: int = 0) -> TokenBudget:
@@ -209,12 +224,27 @@ class TestBudgetAccounting:
         assert selection.contents == (text(3),)
         assert selection.budget.remaining == 1
 
-    def test_charges_one_separator_between_kept_sections(self):
-        # "\n\n" is one token under the estimate: three sections cost two.
+    def test_charges_the_prompt_as_rendered(self):
+        # Joined by "\n\n", three 3-token sections are 40 characters: ten
+        # tokens under the estimate, one fewer than the pieces counted apart.
         selection = priority_select(
             [("high", text(3)), ("high", text(3)), ("high", text(3))], budget(100)
         )
-        assert selection.budget.consumed == 3 * 3 + 2
+        assert selection.budget.consumed == 10
+
+    def test_drops_a_section_when_joining_costs_more_than_the_pieces(self):
+        # Apart, "a!", "\n" and "b" cost 2 + 1 + 1 = 4 tokens; "a!\nb" costs 5.
+        tight = TokenBudget(max_tokens=4, tokenizer=JoinSensitiveTokenizer())
+        selection = priority_select(
+            [("high", "a!"), ("low", "b")], tight, separator="\n"
+        )
+        assert selection.contents == ("a!",)
+        assert selection.dropped == (Section("b", Priority.LOW),)
+        assert selection.budget.consumed == 2
+        with pytest.raises(RequiredSectionError, match="'b' is critical"):
+            priority_select(
+                [("critical", "a!"), ("critical", "b")], tight, separator="\n"
+            )
 
     def test_charges_nothing_for_an_empty_separator(self):
         selection = priority_select(
