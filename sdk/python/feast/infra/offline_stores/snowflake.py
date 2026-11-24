@@ -1411,6 +1411,11 @@ WITH "entity_dataframe" AS (
             "{{ feature }}" as {% if full_feature_names %}"{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
+    WHERE
+        "{{ featureview.timestamp_field }}" <= TIMESTAMP '{{ featureview.max_event_timestamp }}'
+    {% if featureview.ttl %}
+        AND "{{ featureview.timestamp_field }}" >= TIMESTAMP '{{ featureview.min_event_timestamp }}'
+    {% endif %}
 ),
 
 /*
