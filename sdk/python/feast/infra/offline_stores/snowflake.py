@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 import warnings
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import reduce
 from pathlib import Path
@@ -372,7 +372,10 @@ class SnowflakeOfflineStore(OfflineStore):
                 feature_views,
                 registry,
                 project,
-                entity_df_event_timestamp_range,
+                (
+                    entity_df_event_timestamp_range[0],
+                    entity_df_event_timestamp_range[1] + timedelta(milliseconds=1),
+                ),
             )
 
             query_context = _fix_entity_selections_identifiers(query_context)
