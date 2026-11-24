@@ -1,9 +1,9 @@
 import functools
 import os
 import re
-import shutil
 import warnings
 from datetime import timezone
+from tempfile import TemporaryDirectory
 from typing import Literal, Optional, Sequence, Set, Tuple, Union
 
 import click
@@ -181,11 +181,10 @@ class SnowflakeComputeEngine(ComputeEngine):
             query = f"CREATE STAGE IF NOT EXISTS {stage_path}"
             execute_snowflake_statement(conn, query)
 
-            copy_path, zip_path = package_snowpark_zip(project)
-            query = f"PUT file://{zip_path} @{udf_path}"
-            execute_snowflake_statement(conn, query)
-
-            shutil.rmtree(copy_path)
+            with TemporaryDirectory() as copy_path:
+                zip_path = package_snowpark_zip(copy_path)
+                query = f"PUT file://{zip_path} @{udf_path}"
+                execute_snowflake_statement(conn, query)
 
             # Execute snowflake python udf creation functions
             with open(_UDF_CREATION_SQL, "r") as file:

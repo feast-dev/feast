@@ -172,12 +172,8 @@ def snowpark_udf_fingerprint(*extra: str) -> str:
     return digest.hexdigest()[:8]
 
 
-def package_snowpark_zip(project_name) -> Tuple[str, str]:
+def package_snowpark_zip(copy_path: str) -> str:
     path = os.path.dirname(feast.__file__)
-    copy_path = path + f"/snowflake_feast_{project_name}"
-
-    if os.path.exists(copy_path):
-        shutil.rmtree(copy_path)
 
     package_path = copy_path + "/feast"
     for feast_file in SNOWPARK_ZIP_FILES:
@@ -190,7 +186,7 @@ def package_snowpark_zip(project_name) -> Tuple[str, str]:
 
     zip_path = shutil.make_archive(package_path, "zip", copy_path)
 
-    return copy_path, zip_path
+    return zip_path
 
 
 def _run_snowflake_field_mapping(snowflake_job_sql: str, field_mapping: dict) -> str:

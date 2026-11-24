@@ -10,8 +10,6 @@ version deployed -- the stale, already-deployed UDFs were left untouched.
 """
 
 import re
-import shutil
-import tempfile
 from typing import Tuple
 from unittest.mock import MagicMock, patch
 
@@ -66,15 +64,13 @@ def _run_update(
     mock_conn_cm.__enter__ = MagicMock(return_value=MagicMock())
     mock_conn_cm.__exit__ = MagicMock(return_value=False)
 
-    def _fake_package_snowpark_zip(project_name):
-        copy_path = tempfile.mkdtemp()
-        return copy_path, f"{copy_path}/feast.zip"
+    def _fake_package_snowpark_zip(copy_path):
+        return f"{copy_path}/feast.zip"
 
     with (
         patch(f"{MODULE}.GetSnowflakeConnection", return_value=mock_conn_cm),
         patch(f"{MODULE}.execute_snowflake_statement", mock_execute),
         patch(f"{MODULE}.package_snowpark_zip", side_effect=_fake_package_snowpark_zip),
-        patch(f"{MODULE}.shutil.rmtree", side_effect=shutil.rmtree),
     ):
         engine.update(
             project="myproject",
