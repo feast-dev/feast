@@ -507,11 +507,10 @@ class ScyllaDBOnlineStore(OnlineStore):
         )
 
         vec_feature_set = {fn for fn, _, _ in vec_features}
+        session = self._get_session(config)
         fqtable = self._fq_table_name(self._keyspace, project, table)
         insert_op = "insert_ttl" if ttl_seconds is not None else "insert"
         insert_stmt = self._get_statement(config, insert_op, fqtable)
-
-        session = self._get_session(config)
 
         # --- non-vector rows (all features except vector features) ---
         def _main_rows() -> Iterable[Tuple]:
@@ -607,12 +606,12 @@ class ScyllaDBOnlineStore(OnlineStore):
             for ek in entity_keys
         ]
 
+        session = self._get_session(config)
         fqtable = self._fq_table_name(self._keyspace, project, table)
         select_stmt = self._get_statement(
             config, "select", fqtable, columns="feature_name, value, event_ts"
         )
 
-        session = self._get_session(config)
         retrieval = execute_concurrent_with_args(
             session,
             select_stmt,
@@ -745,13 +744,13 @@ class ScyllaDBOnlineStore(OnlineStore):
             )
         sim_expr = sim_expr_template
 
+        session = self._get_session(config)
         fqtable = self._fq_table_name(self._keyspace, project, table)
         ann_cql = ANN_SELECT_CQL.format(
             sim_func_call=sim_expr,
             fqtable=fqtable,
         )
 
-        session = self._get_session(config)
         if ann_cql not in self._prepared_statements:
             self._prepared_statements[ann_cql] = session.prepare(ann_cql)
         ann_stmt = self._prepared_statements[ann_cql]
