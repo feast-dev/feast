@@ -345,6 +345,22 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
         )
 
+    def test_python_view_with_full_feature_names(self):
+        response = self.store.get_online_features(
+            entity_rows=[{"driver_id": 1001}],
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "python_view:conv_rate_plus_acc_python",
+            ],
+            full_feature_names=True,
+        ).to_dict()
+
+        assert response["python_view__conv_rate_plus_acc_python"] == [
+            response["driver_hourly_stats__conv_rate"][0]
+            + response["driver_hourly_stats__acc_rate"][0]
+        ]
+
     def test_python_docs_demo(self):
         entity_rows = [
             {

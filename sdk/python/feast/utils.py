@@ -1012,7 +1012,7 @@ def _augment_response_with_on_demand_transforms(
                     if k not in undeclared_columns
                 }
                 transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                    odfv_input_dict
+                    odfv_input_dict, full_feature_names
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:

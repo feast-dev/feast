@@ -1092,6 +1092,7 @@ class OnDemandFeatureView(BaseFeatureView):
     def transform_dict(
         self,
         feature_dict: dict[str, Any],  # type: ignore
+        full_feature_names: bool = False,
     ) -> dict[str, Any]:
         """
         Transform a dictionary of features using the configured transformation.
@@ -1099,6 +1100,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
         Args:
             feature_dict: Dictionary containing input features
+            full_feature_names: Name each output feature "<view>__<feature>",
+                as :meth:`transform_arrow` does, instead of by its bare name.
 
         Returns:
             Dictionary with transformed features
@@ -1121,6 +1124,16 @@ class OnDemandFeatureView(BaseFeatureView):
         for feature_name in columns_to_cleanup:
             if feature_name in output_dict:
                 del output_dict[feature_name]
+
+        # The UDF names its outputs as it likes; rename them to match what the
+        # caller asked for, like _postprocess_arrow_table does.
+        for feature in self.features:
+            short_name = feature.name
+            long_name = self._get_projected_feature_name(short_name)
+            if full_feature_names and short_name in output_dict:
+                output_dict[long_name] = output_dict.pop(short_name)
+            elif not full_feature_names and long_name in output_dict:
+                output_dict[short_name] = output_dict.pop(long_name)
 
         return output_dict
 
