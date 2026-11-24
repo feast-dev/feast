@@ -47,6 +47,14 @@ def test_null_unix_timestamp():
     assert converted is None
 
 
+def test_proto_values_pass_through_without_a_known_type():
+    # Request data from a gRPC request arrives as proto Values, with no type
+    # declared for it among the entities.
+    protos = [ProtoValue(string_val="s1"), ProtoValue(string_val="s2")]
+
+    assert python_values_to_proto_values(protos, ValueType.UNKNOWN) == protos
+
+
 def test_null_unix_timestamp_list():
     """Test that UnixTimestamp lists with a null get converted from proto
     correctly."""
