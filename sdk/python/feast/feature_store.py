@@ -1998,6 +1998,13 @@ class FeatureStore:
 
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
 
+        # The infra objects tracked in the registry no longer exist. Clear them
+        # while the project is still registered (so the registry does not
+        # re-create it), otherwise the next apply diffs against stale infra and
+        # skips re-creating the tables. SQL registries drop this record in
+        # delete_project; the file registry keeps it in the registry proto.
+        self.registry.update_infra(Infra(), self.project, commit=True)
+
         for project in self.list_projects():
             self.registry.delete_project(project.name)
 

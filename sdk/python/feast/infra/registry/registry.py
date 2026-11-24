@@ -1727,22 +1727,8 @@ class Registry(BaseRegistry):
                 list_permissions = self.list_permissions(name)
                 for permission in list_permissions:
                     self.delete_permission(permission.name, name)
-                self._delete_project_infra(name)
                 del self.cached_registry_proto.projects[idx]
                 if commit:
                     self.commit()
                 return
         raise ProjectNotFoundException(name)
-
-    def _delete_project_infra(self, project: str):
-        assert self.cached_registry_proto
-        project_prefix = f"{project}_"
-        infra_objects = self.cached_registry_proto.infra.infra_objects
-        kept = []
-        for infra_object in infra_objects:
-            kind = infra_object.WhichOneof("infra_object")
-            name = getattr(getattr(infra_object, kind), "name", "") if kind else ""
-            if not name.startswith(project_prefix):
-                kept.append(infra_object)
-        del infra_objects[:]
-        infra_objects.extend(kept)

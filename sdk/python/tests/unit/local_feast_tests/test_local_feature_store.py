@@ -1009,19 +1009,46 @@ def feature_store_with_local_registry():
     )
 
 
-def test_apply_after_teardown_recreates_online_store_tables(tmp_path):
-    online_store_path = tmp_path / "online_store.db"
-    config = RepoConfig(
+def _sqlite_tables(path) -> set:
+    conn = sqlite3.connect(path)
+    try:
+        return {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master").fetchall()
+        }
+    finally:
+        conn.close()
+
+
+def _sqlite_store_config(tmp_path, project: str) -> RepoConfig:
+    return RepoConfig(
         registry=str(tmp_path / "registry.db"),
-        project="teardown_apply",
+        project=project,
         provider="local",
-        online_store=SqliteOnlineStoreConfig(path=str(online_store_path)),
+        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online_store.db")),
         entity_key_serialization_version=3,
     )
-    store = FeatureStore(config=config)
-    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
-    feature_view = FeatureView(
-        name="driver_stats",
+
+
+def _plan_and_apply(store: FeatureStore, entity: Entity, feature_views) -> None:
+    """Applies like `feast apply` does: plan against the registry, then apply the diffs."""
+    repo_contents = RepoContents(
+        projects=[Project(name=store.project)],
+        data_sources=[fv.batch_source for fv in feature_views],
+        feature_views=list(feature_views),
+        on_demand_feature_views=[],
+        stream_feature_views=[],
+        label_views=[],
+        entities=[entity],
+        feature_services=[],
+        permissions=[],
+    )
+    registry_diff, infra_diff, new_infra = store.plan(repo_contents)
+    store._apply_diffs(registry_diff, infra_diff, new_infra)
+
+
+def _driver_stats_view(tmp_path, entity: Entity, name: str) -> FeatureView:
+    return FeatureView(
+        name=name,
         entities=[entity],
         schema=[Field(name="conv_rate", dtype=Float32)],
         source=FileSource(
@@ -1030,40 +1057,48 @@ def test_apply_after_teardown_recreates_online_store_tables(tmp_path):
         ),
     )
 
-    def online_store_tables() -> set:
-        conn = sqlite3.connect(online_store_path)
-        try:
-            return {
-                row[0]
-                for row in conn.execute("SELECT name FROM sqlite_master").fetchall()
-            }
-        finally:
-            conn.close()
 
-    def plan_and_apply(store: FeatureStore) -> None:
-        repo_contents = RepoContents(
-            projects=[Project(name=config.project)],
-            data_sources=[feature_view.batch_source],
-            feature_views=[feature_view],
-            on_demand_feature_views=[],
-            stream_feature_views=[],
-            label_views=[],
-            entities=[entity],
-            feature_services=[],
-            permissions=[],
-        )
-        registry_diff, infra_diff, new_infra = store.plan(repo_contents)
-        store._apply_diffs(registry_diff, infra_diff, new_infra)
+def test_apply_after_teardown_recreates_online_store_tables(tmp_path):
+    config = _sqlite_store_config(tmp_path, "teardown_apply")
+    online_store_path = tmp_path / "online_store.db"
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    feature_view = _driver_stats_view(tmp_path, entity, "driver_stats")
 
-    plan_and_apply(store)
-    assert "teardown_apply_driver_stats" in online_store_tables()
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [feature_view])
+    assert "teardown_apply_driver_stats" in _sqlite_tables(online_store_path)
 
     store.teardown()
     assert not online_store_path.exists()
 
     store = FeatureStore(config=config)
-    plan_and_apply(store)
-    assert "teardown_apply_driver_stats" in online_store_tables()
+    _plan_and_apply(store, entity, [feature_view])
+    assert "teardown_apply_driver_stats" in _sqlite_tables(online_store_path)
+
+    store.teardown()
+
+
+def test_registry_only_project_delete_keeps_tracked_infra(tmp_path):
+    """`feast projects delete` only deletes registry metadata, not online store
+    tables, so the tracked infra must survive it: a later apply of a renamed view
+    still has to drop the obsolete table."""
+    config = _sqlite_store_config(tmp_path, "projects_delete")
+    online_store_path = tmp_path / "online_store.db"
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [_driver_stats_view(tmp_path, entity, "old_stats")])
+    assert "projects_delete_old_stats" in _sqlite_tables(online_store_path)
+
+    # Same as `feast projects delete`: registry metadata only, no teardown_infra.
+    store.registry.delete_project("projects_delete")
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [_driver_stats_view(tmp_path, entity, "new_stats")])
+
+    tables = _sqlite_tables(online_store_path)
+    assert "projects_delete_new_stats" in tables
+    assert "projects_delete_old_stats" not in tables
 
     store.teardown()
 
