@@ -500,6 +500,41 @@ def test_batch_feature_view_copy_keeps_online_config() -> None:
     assert copy.copy(bfv).online_config == online_config
 
 
+def test_batch_feature_view_eq_compares_transformation() -> None:
+    def udf_a(df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+    def udf_b(df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+    def make_view(udf, udf_string):
+        return BatchFeatureView(
+            name="test_batch_feature_view",
+            entities=[Entity(name="test_entity", join_keys=["entity_id"])],
+            schema=[Field(name="input_feature", dtype=Int64)],
+            source=FileSource(
+                name="test-source",
+                path="test_data.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+            mode="pandas",
+        )
+
+    bfv = make_view(udf_a, "udf_a source")
+    other = make_view(udf_b, "udf_b source")
+    assert bfv != other
+    assert bfv == BatchFeatureView.from_proto(bfv.to_proto())
+    assert len({bfv, make_view(udf_a, "udf_a source")}) == 1
+
+    # Views loaded with skip_udf=True only carry the transformation proto.
+    skipped = BatchFeatureView.from_proto(bfv.to_proto(), skip_udf=True)
+    assert skipped == BatchFeatureView.from_proto(bfv.to_proto(), skip_udf=True)
+    assert skipped != BatchFeatureView.from_proto(other.to_proto(), skip_udf=True)
+
+
 def test_transformation_mode_serialization():
     """
     Test that transformation mode is properly serialized to proto and deserialized back.

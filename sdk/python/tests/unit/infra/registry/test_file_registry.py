@@ -7,7 +7,7 @@ from feast import Field
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import PushSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames
+from feast.errors import ConflictingFeatureViewNames, FeatureViewPinConflict
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.registry import Registry
@@ -125,6 +125,50 @@ def test_reapply_batch_feature_view_detects_udf_change_without_source(
 
     stored = file_registry.get_feature_view("driver_bfv", "test_project")
     assert stored.feature_transformation.udf(None) == "SELECT 2"
+
+
+def test_pin_batch_feature_view_rejects_changed_udf(file_registry):
+    """Pinning a version while also changing the UDF raises instead of dropping it."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, udf_string, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+            version=version,
+        )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df
+
+    def udf_c(df):
+        return df
+
+    file_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
+    file_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
+
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(udf_c, "udf_c source", version="v0"), "test_project"
+        )
+
+    # Pinning with the active definition unchanged still restores v0.
+    file_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    stored = file_registry.get_feature_view("driver_bfv", "test_project")
+    assert stored.feature_transformation.udf_string == "udf_a source"
 
 
 def test_same_project_name_conflict_batch_vs_stream(file_registry):

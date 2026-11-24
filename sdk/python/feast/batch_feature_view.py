@@ -201,6 +201,25 @@ class BatchFeatureView(FeatureView):
         fv._raw_feature_transformation_proto = self._raw_feature_transformation_proto
         return fv
 
+    def __eq__(self, other):
+        if not super().__eq__(other):
+            return False
+
+        # FeatureView.__eq__ does not compare the transformation, so without
+        # this a view with a changed UDF equals the stored one.
+        raw = self._raw_feature_transformation_proto
+        other_raw = getattr(other, "_raw_feature_transformation_proto", None)
+        if raw is not None or other_raw is not None:
+            # Loaded with skip_udf=True: only the proto is available.
+            return raw == other_raw
+        return not _transformation_changed(
+            self.feature_transformation,
+            getattr(other, "feature_transformation", None),
+        )
+
+    def __hash__(self) -> int:
+        return super().__hash__()
+
     def _schema_or_udf_changed(self, other: BaseFeatureView) -> bool:
         """Check for BatchFeatureView schema/UDF changes."""
         if super()._schema_or_udf_changed(other):
