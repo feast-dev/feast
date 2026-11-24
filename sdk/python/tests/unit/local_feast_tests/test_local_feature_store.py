@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest.mock import AsyncMock, Mock, patch
@@ -23,7 +24,9 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.project import Project
 from feast.repo_config import RegistryConfig, RepoConfig
+from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import stream_feature_view
 from feast.transformation.pandas_transformation import PandasTransformation
@@ -1004,6 +1007,65 @@ def feature_store_with_local_registry():
             entity_key_serialization_version=3,
         )
     )
+
+
+def test_apply_after_teardown_recreates_online_store_tables(tmp_path):
+    online_store_path = tmp_path / "online_store.db"
+    config = RepoConfig(
+        registry=str(tmp_path / "registry.db"),
+        project="teardown_apply",
+        provider="local",
+        online_store=SqliteOnlineStoreConfig(path=str(online_store_path)),
+        entity_key_serialization_version=3,
+    )
+    store = FeatureStore(config=config)
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[entity],
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        source=FileSource(
+            path=str(tmp_path / "driver_stats.parquet"),
+            timestamp_field="event_timestamp",
+        ),
+    )
+
+    def online_store_tables() -> set:
+        conn = sqlite3.connect(online_store_path)
+        try:
+            return {
+                row[0]
+                for row in conn.execute("SELECT name FROM sqlite_master").fetchall()
+            }
+        finally:
+            conn.close()
+
+    def plan_and_apply(store: FeatureStore) -> None:
+        repo_contents = RepoContents(
+            projects=[Project(name=config.project)],
+            data_sources=[feature_view.batch_source],
+            feature_views=[feature_view],
+            on_demand_feature_views=[],
+            stream_feature_views=[],
+            label_views=[],
+            entities=[entity],
+            feature_services=[],
+            permissions=[],
+        )
+        registry_diff, infra_diff, new_infra = store.plan(repo_contents)
+        store._apply_diffs(registry_diff, infra_diff, new_infra)
+
+    plan_and_apply(store)
+    assert "teardown_apply_driver_stats" in online_store_tables()
+
+    store.teardown()
+    assert not online_store_path.exists()
+
+    store = FeatureStore(config=config)
+    plan_and_apply(store)
+    assert "teardown_apply_driver_stats" in online_store_tables()
+
+    store.teardown()
 
 
 @pytest.mark.parametrize(

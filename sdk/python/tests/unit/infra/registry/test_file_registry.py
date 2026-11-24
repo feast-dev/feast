@@ -9,8 +9,11 @@ from feast.data_source import PushSource
 from feast.entity import Entity
 from feast.errors import ConflictingFeatureViewNames
 from feast.feature_view import FeatureView
+from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.registry import Registry
+from feast.project import Project
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Float32
@@ -185,3 +188,23 @@ def test_cross_project_name_does_not_conflict_batch_vs_stream(file_registry):
     )
     # Must not raise — same name, different project, different type.
     file_registry.apply_feature_view(stream_view, "project_b")
+
+
+def test_delete_project_removes_only_its_infra_objects(file_registry, tmp_path):
+    online_store_path = str(tmp_path / "online.db")
+    infra = Infra(
+        infra_objects=[
+            SqliteTable(path=online_store_path, name="project_a_driver_stats"),
+            SqliteTable(path=online_store_path, name="project_b_driver_stats"),
+        ]
+    )
+    file_registry.apply_project(Project(name="project_a"))
+    file_registry.apply_project(Project(name="project_b"))
+    file_registry.update_infra(infra, "project_a")
+
+    file_registry.delete_project("project_a")
+
+    remaining = file_registry.get_infra("project_b").infra_objects
+    assert [infra_object.name for infra_object in remaining] == [
+        "project_b_driver_stats"
+    ]
