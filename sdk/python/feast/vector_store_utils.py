@@ -42,7 +42,7 @@ class VectorStoreRegistry:
         project = self._store.project
         id_to_fv: Dict[str, FeatureView] = {}
         objects: List[Dict[str, Any]] = []
-        for fv in self._store.list_feature_views():
+        for fv in self._store.list_feature_views(allow_cache=True):
             if _has_vector_index(fv):
                 vs_id = feature_view_to_vs_id(project, fv.name)
                 id_to_fv[vs_id] = fv

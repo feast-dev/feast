@@ -859,6 +859,21 @@ def store_and_client(tmp_path):
         store.teardown()
 
 
+def test_registry_refresh_reads_the_registry_store_once(store_and_client):
+    """A registry refresh must fetch the registry from its store only once."""
+    store, client = store_and_client
+    registry_store = store.registry._registry_store
+    with (
+        patch.object(
+            registry_store,
+            "get_registry_proto",
+            wraps=registry_store.get_registry_proto,
+        ) as get_registry_proto,
+        client,
+    ):
+        assert get_registry_proto.call_count == 1
+
+
 @pytest.mark.parametrize("non_finite", [float("inf"), float("-inf")])
 def test_get_online_features_serves_non_finite_float(store_and_client, non_finite):
     """A stored +/-inf float value must not turn the whole REST response into a 500.
