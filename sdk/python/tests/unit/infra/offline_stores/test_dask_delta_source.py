@@ -797,14 +797,14 @@ def test_delta_monitoring_max_invalid_timestamp_column_raises(tmp_path: Path) ->
         (
             {
                 "AWS_ACCESS_KEY_ID": "test-key",
-                "AWS_SECRET_ACCESS_KEY": "test-secret",
+                "AWS_SECRET_ACCESS_KEY": "test-secret",  # pragma: allowlist secret
                 "AWS_SESSION_TOKEN": "test-token",
                 "AWS_DEFAULT_REGION": "us-west-2",
             },
             "http://s3.example.invalid",
             {
                 "AWS_ACCESS_KEY_ID": "test-key",
-                "AWS_SECRET_ACCESS_KEY": "test-secret",
+                "AWS_SECRET_ACCESS_KEY": "test-secret",  # pragma: allowlist secret
                 "AWS_SESSION_TOKEN": "test-token",
                 "AWS_DEFAULT_REGION": "us-west-2",
                 "AWS_ENDPOINT_URL": "http://s3.example.invalid",
