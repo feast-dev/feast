@@ -171,6 +171,11 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, view, input_node):
-        node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
+        node = LocalOutputNode(
+            "output",
+            self.dag_root.view,
+            inputs=[input_node],
+            write_to_stores=isinstance(self.task, MaterializationTask),
+        )
         self.nodes.append(node)
         return node

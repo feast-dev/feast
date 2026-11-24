@@ -395,9 +395,13 @@ class LocalOutputNode(LocalNode):
         name: str,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
         inputs=None,
+        write_to_stores: bool = True,
     ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
+        # False for historical retrieval, which only reads: its rows are as of
+        # the entity timestamps and must not replace what the stores serve.
+        self.write_to_stores = write_to_stores
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
@@ -407,7 +411,7 @@ class LocalOutputNode(LocalNode):
         output = ArrowTableValue(data=input_table)
         context.node_outputs[self.name] = output
 
-        if input_table.num_rows == 0:
+        if input_table.num_rows == 0 or not self.write_to_stores:
             return output
 
         if self.feature_view.online:

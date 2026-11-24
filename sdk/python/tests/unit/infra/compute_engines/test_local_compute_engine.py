@@ -14,6 +14,7 @@ from feast import (
     ValueType,
 )
 from feast.feature_view import DUMMY_ENTITY
+from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.compute_engines.local.compute import (
@@ -114,9 +115,7 @@ class TestLocalComputeEngineHistoricalRetrieval:
             offline=False,
         )
 
-    def _get_historical_features(
-        self, tmp_path, feature_view, entity_df=None, entity=None, backend="pandas"
-    ):
+    def _engine(self, tmp_path, backend="pandas"):
         if backend == "polars":
             pytest.importorskip("polars")
         repo_config = RepoConfig(
@@ -127,12 +126,17 @@ class TestLocalComputeEngineHistoricalRetrieval:
             offline_store=DaskOfflineStoreConfig(),
             entity_key_serialization_version=3,
         )
-        engine = LocalComputeEngine(
+        return LocalComputeEngine(
             repo_config=repo_config,
             offline_store=DaskOfflineStore(),
             online_store=MagicMock(),
             backend=backend,
         )
+
+    def _get_historical_features(
+        self, tmp_path, feature_view, entity_df=None, entity=None, backend="pandas"
+    ):
+        engine = self.engine = self._engine(tmp_path, backend)
 
         # Driver 1 is requested twice: before and after its second feature
         # row. Driver 2 is not requested at all.
@@ -290,3 +294,35 @@ class TestLocalComputeEngineHistoricalRetrieval:
         )
 
         assert sorted(round(v, 6) for v in df["conv_rate"].to_list()) == [0.1, 0.9]
+
+    def test_get_historical_features_does_not_write_to_the_stores(self, tmp_path):
+        """The view is online and offline, and the retrieval reads an older value."""
+        view = self._source_view(tmp_path)
+        view.online = True
+        view.offline = True
+        entity_df = pd.DataFrame(
+            {"driver_id": [1], "event_timestamp": [self.t0 + timedelta(hours=1)]}
+        )
+
+        df = self._get_historical_features(tmp_path, view, entity_df)
+
+        assert [round(v, 6) for v in df["conv_rate"].to_list()] == [0.1]
+        self.engine.online_store.online_write_batch.assert_not_called()
+
+    def test_materialization_still_writes_to_the_online_store(self, tmp_path):
+        view = self._source_view(tmp_path)
+        view.online = True
+        engine = self._engine(tmp_path)
+        registry = MagicMock()
+        registry.get_entity.return_value = self.driver
+        task = MaterializationTask(
+            project="test_local_engine",
+            feature_view=view,
+            start_time=self.t0 - timedelta(hours=1),
+            end_time=self.t0 + timedelta(hours=3),
+        )
+
+        job = engine._materialize_one(registry, task)
+
+        assert job.error() is None
+        engine.online_store.online_write_batch.assert_called_once()
