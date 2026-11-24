@@ -1,8 +1,10 @@
+import functools
 import os
 import re
 import shutil
+import warnings
 from datetime import timezone
-from typing import Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Set, Tuple, Union
 
 import click
 import pandas as pd
@@ -34,6 +36,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
     get_snowflake_online_store_path,
     package_snowpark_zip,
+    snowpark_udf_fingerprint,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -124,6 +127,19 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
         return v
 
 
+_SNOWPARK_DIR = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/snowpark"
+_UDF_CREATION_SQL = f"{_SNOWPARK_DIR}/snowflake_python_udfs_creation.sql"
+_UDF_DELETION_SQL = f"{_SNOWPARK_DIR}/snowflake_python_udfs_deletion.sql"
+
+
+def _udf_data(python_udf_runtime_version: str) -> Tuple[str, Set[str]]:
+    with open(_UDF_CREATION_SQL, "r") as file:
+        sql = file.read()
+    fingerprint = snowpark_udf_fingerprint(sql, python_udf_runtime_version)
+    templates = set(re.findall(r"[\w$]*PROJECT_NAME[\w$]*", sql))
+    return fingerprint, templates
+
+
 class SnowflakeComputeEngine(ComputeEngine):
     def get_historical_features(
         self, registry: BaseRegistry, task: HistoricalRetrievalTask
@@ -145,17 +161,18 @@ class SnowflakeComputeEngine(ComputeEngine):
         entities_to_keep: Sequence[Entity],
     ):
         stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
+        udf_namespace = self._udf_namespace(project)
+        udf_path = f"{stage_path}/{udf_namespace}"
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
-            # Always (re)deploy the materialization functions, using
-            # `CREATE OR REPLACE FUNCTION` below, instead of skipping deployment
-            # when functions already exist. Previously, an early return here
-            # (triggered by a `SHOW USER FUNCTIONS` check) combined with
-            # `CREATE FUNCTION IF NOT EXISTS` in the SQL template meant that
-            # once UDFs were deployed for a project, they were never
-            # redeployed -- so a config change to `python_udf_runtime_version`
-            # (e.g. after Snowflake decommissions a runtime) would silently
-            # keep using the stale, already-deployed runtime version. See
-            # https://github.com/feast-dev/feast/pull/6608#discussion_r3602461959.
+            if self._udf_names(udf_namespace) == self._query_udf_names(
+                conn, udf_namespace
+            ):
+                click.echo(
+                    f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already exist."
+                )
+                click.echo()
+                return None
+
             click.echo(
                 f"Deploying materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL}"
             )
@@ -165,20 +182,19 @@ class SnowflakeComputeEngine(ComputeEngine):
             execute_snowflake_statement(conn, query)
 
             copy_path, zip_path = package_snowpark_zip(project)
-            query = f"PUT file://{zip_path} @{stage_path}"
+            query = f"PUT file://{zip_path} @{udf_path}"
             execute_snowflake_statement(conn, query)
 
             shutil.rmtree(copy_path)
 
             # Execute snowflake python udf creation functions
-            sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/snowpark/snowflake_python_udfs_creation.sql"
-            with open(sql_function_file, "r") as file:
+            with open(_UDF_CREATION_SQL, "r") as file:
                 sqlFile = file.read()
 
                 sqlCommands = sqlFile.split(";")
                 for command in sqlCommands:
-                    command = command.replace("STAGE_HOLDER", f"{stage_path}")
-                    command = command.replace("PROJECT_NAME", f"{project}")
+                    command = command.replace("STAGE_HOLDER", f"{udf_path}")
+                    command = command.replace("PROJECT_NAME", f"{udf_namespace}")
                     query = command.replace(
                         "RUNTIME_VERSION_HOLDER",
                         self.repo_config.batch_engine.python_udf_runtime_version,
@@ -193,22 +209,57 @@ class SnowflakeComputeEngine(ComputeEngine):
         fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         entities: Sequence[Entity],
     ):
+        try:
+            self._teardown_udfs(project, fvs, entities)
+        except Exception as e:
+            warnings.warn(
+                f"Could not drop the Snowflake materialization UDFs for {project}, "
+                f"continuing the teardown: {e}",
+                RuntimeWarning,
+            )
+
+    def _teardown_udfs(
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
+    ):
         stage_path = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"."feast_{project}"'
+        udf_namespace = self._udf_namespace(project)
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"DROP STAGE IF EXISTS {stage_path}"
             execute_snowflake_statement(conn, query)
 
             # Execute snowflake python udf deletion functions
-            sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/snowpark/snowflake_python_udfs_deletion.sql"
-            with open(sql_function_file, "r") as file:
+            with open(_UDF_DELETION_SQL, "r") as file:
                 sqlFile = file.read()
 
                 sqlCommands = sqlFile.split(";")
                 for command in sqlCommands:
-                    query = command.replace("PROJECT_NAME", f"{project}")
+                    query = command.replace("PROJECT_NAME", f"{udf_namespace}")
                     execute_snowflake_statement(conn, query)
 
         return None
+
+    def _udf_namespace(self, project: str) -> str:
+        return f"{project}_{self._udf_fingerprint}"
+
+    def _udf_names(self, udf_namespace: str) -> Set[str]:
+        return {
+            name.replace("PROJECT_NAME", udf_namespace).upper()
+            for name in self._udf_templates
+        }
+
+    def _query_udf_names(self, conn, udf_namespace: str) -> Set[str]:
+        schema = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
+        query = f"SHOW USER FUNCTIONS LIKE 'FEAST_{udf_namespace.upper()}_%' IN SCHEMA {schema}"
+        cursor = execute_snowflake_statement(conn, query)
+        name_index = [column.name for column in cursor.description].index("name")
+        return {row[name_index].upper() for row in cursor.fetchall()}
+
+    @functools.lru_cache(maxsize=None)
+    def _ensure_udfs(self, project: str) -> None:
+        self.update(project, [], [], [], [])
 
     def __init__(
         self,
@@ -227,6 +278,9 @@ class SnowflakeComputeEngine(ComputeEngine):
             offline_store=offline_store,
             online_store=online_store,
             **kwargs,
+        )
+        self._udf_fingerprint, self._udf_templates = _udf_data(
+            repo_config.batch_engine.python_udf_runtime_version
         )
 
     def _materialize_one(
@@ -262,6 +316,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         job_id = f"{feature_view.name}-{start_date}-{end_date}"
 
         try:
+            self._ensure_udfs(project)
             offline_job = self.offline_store.pull_latest_from_table_or_query(
                 config=self.repo_config,
                 data_source=feature_view.batch_source,  # type: ignore[arg-type]
@@ -374,6 +429,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         project: str,
     ) -> str:
         assert feature_view.batch_source is not None
+        udf_namespace = self._udf_namespace(project)
         if feature_view.batch_source.created_timestamp_column:
             fv_created_str = f',"{feature_view.batch_source.created_timestamp_column}"'
         else:
@@ -397,7 +453,7 @@ class SnowflakeComputeEngine(ComputeEngine):
             feature_value_type_name = feature.dtype.to_value_type().name
 
             feature_sql = _convert_value_name_to_snowflake_udf(
-                feature_value_type_name, project
+                feature_value_type_name, udf_namespace
             )
 
             if feature_value_type_name == "UNIX_TIMESTAMP":
@@ -414,9 +470,9 @@ class SnowflakeComputeEngine(ComputeEngine):
         features_str = ",\n".join(feature_sql_list)
 
         if repo_config.online_store.type == "snowflake.online":
-            serial_func = f"feast_{project}_serialize_entity_keys"
+            serial_func = f"feast_{udf_namespace}_serialize_entity_keys"
         else:
-            serial_func = f"feast_{project}_entity_key_proto_to_string"
+            serial_func = f"feast_{udf_namespace}_entity_key_proto_to_string"
 
         fv_to_proto_sql = f"""
             SELECT
