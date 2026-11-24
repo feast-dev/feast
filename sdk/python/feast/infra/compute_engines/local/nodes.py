@@ -14,6 +14,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
+    ENTITY_ROW_ID,
     ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
     infer_entity_timestamp_column,
@@ -84,8 +85,12 @@ class LocalJoinNode(LocalNode):
         joined_df = self.backend.from_arrow(input_values[0].data)
         # Upstream views that were already joined with entity_df carry one
         # row per entity row; keep those rows apart and do not join again.
-        already_joined = ENTITY_TS_ALIAS in self.backend.columns(joined_df)
-        input_join_keys = [*join_keys, ENTITY_TS_ALIAS] if already_joined else join_keys
+        columns = self.backend.columns(joined_df)
+        already_joined = ENTITY_TS_ALIAS in columns
+        input_join_keys = [
+            *join_keys,
+            *(key for key in (ENTITY_TS_ALIAS, ENTITY_ROW_ID) if key in columns),
+        ]
         for val in input_values[1:]:
             next_df = self.backend.from_arrow(val.data)
             joined_df = self.backend.join(
@@ -97,7 +102,15 @@ class LocalJoinNode(LocalNode):
 
         # If entity_df is provided, join it in last
         if context.entity_df is not None and not already_joined:
-            entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
+            # Number the entity rows. Two of them can share their join keys
+            # and timestamp, and each is still a request of its own.
+            entity_df = self.backend.from_arrow(
+                pa.Table.from_pandas(
+                    context.entity_df.assign(
+                        **{ENTITY_ROW_ID: range(len(context.entity_df))}
+                    )
+                )
+            )
 
             entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
             entity_ts_col = infer_entity_timestamp_column(entity_schema)
@@ -107,11 +120,14 @@ class LocalJoinNode(LocalNode):
                     entity_df, {entity_ts_col: ENTITY_TS_ALIAS}
                 )
 
+            # A view without entities has no join keys: every feature row is
+            # a candidate for every entity row, and the filter node picks the
+            # ones inside the point-in-time and TTL bounds.
             joined_df = self.backend.join(
                 entity_df,
                 joined_df,
-                on=join_keys,
-                how="left",
+                on=join_keys or None,
+                how="left" if join_keys else "cross",
             )
 
         result = self.backend.to_arrow(joined_df)
@@ -182,10 +198,12 @@ class LocalAggregationNode(LocalNode):
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
-        group_keys = list(self.group_keys)
         # Aggregate per entity row after the entity_df join.
-        if ENTITY_TS_ALIAS in self.backend.columns(df):
-            group_keys.append(ENTITY_TS_ALIAS)
+        columns = self.backend.columns(df)
+        group_keys = [
+            *self.group_keys,
+            *(key for key in (ENTITY_TS_ALIAS, ENTITY_ROW_ID) if key in columns),
+        ]
         grouped_df = self.backend.groupby_agg(df, group_keys, self.agg_ops)
         result = self.backend.to_arrow(grouped_df)
         output = ArrowTableValue(result)
@@ -210,11 +228,14 @@ class LocalDedupNode(LocalNode):
         # names so we look up the columns that the source-read node has
         # already renamed (see issue #5942).
         dedup_keys = list(self.column_info.join_keys_columns)
+        # Keep one row per entity row, not per entity key, after the
+        # entity_df join.
+        columns = self.backend.columns(df)
+        if ENTITY_ROW_ID in columns:
+            dedup_keys = [ENTITY_ROW_ID]
+        elif dedup_keys and ENTITY_TS_ALIAS in columns:
+            dedup_keys.append(ENTITY_TS_ALIAS)
         if dedup_keys:
-            # Keep one row per entity row, not per entity key, after the
-            # entity_df join.
-            if ENTITY_TS_ALIAS in self.backend.columns(df):
-                dedup_keys.append(ENTITY_TS_ALIAS)
             sort_keys = [self.column_info.timestamp_column]
             if (
                 self.column_info.created_timestamp_column
@@ -380,6 +401,9 @@ class LocalOutputNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
+        # The row id only tells the entity rows apart while the plan runs.
+        if ENTITY_ROW_ID in input_table.column_names:
+            input_table = input_table.drop_columns([ENTITY_ROW_ID])
         output = ArrowTableValue(data=input_table)
         context.node_outputs[self.name] = output
 
