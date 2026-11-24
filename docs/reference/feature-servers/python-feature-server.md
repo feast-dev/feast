@@ -368,8 +368,8 @@ thread from starting). All categories default to `true` except
 |--------|------|--------|----------|-------------|
 | `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
 | `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
-| `feast_feature_server_request_total` | Counter | `endpoint`, `status`, `status_class` | `request` | Total requests per endpoint and response status (see below) |
-| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status`, `status_class`, `feature_service` | `request` | Total requests per endpoint and response status (see below) |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count`, `feature_service` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
 | `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
 | `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
 | `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
@@ -404,6 +404,36 @@ feature_server:
 This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
 affects the Prometheus label; the `feature_count` field in audit logs (see
 below) always reports the exact count.
+
+### Feature service label
+
+Set `feature_service_label: true` to label
+`feast_feature_server_request_total` and
+`feast_feature_server_request_latency_seconds` with the feature service a
+`/get-online-features` request was made through:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    feature_service_label: true
+```
+
+It is off by default. Each feature service adds its own set of latency
+histogram series, so turn it on only when the number of feature services is
+bounded. When it is off, and for requests that list features directly, the
+label is empty.
+
+For example, p99 latency per feature service:
+
+```promql
+histogram_quantile(0.99,
+  sum by (feature_service, le) (
+    rate(feast_feature_server_request_latency_seconds_bucket{endpoint="/get-online-features"}[5m])
+  )
+)
+```
 
 ### Request status labels
 

@@ -77,6 +77,15 @@ class MetricsConfig(FeastConfigBaseModel):
 
         return bins
 
+    feature_service_label: StrictBool = False
+    """Label ``feast_feature_server_request_total`` and
+    ``feast_feature_server_request_latency_seconds`` with the name of the
+    feature service a ``/get-online-features`` request was made through.
+
+    Off by default: every feature service adds its own set of histogram
+    series, so enable it only when the number of feature services is
+    bounded.  When off, the label is always ``""``."""
+
     online_features: StrictBool = True
     """Emit online feature retrieval metrics
     (feast_online_features_request_total,

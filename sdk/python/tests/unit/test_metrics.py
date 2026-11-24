@@ -89,20 +89,20 @@ def _enable_metrics():
 class TestTrackRequestLatency:
     def test_success_increments_counter_and_records_latency(self):
         before_count = request_count.labels(
-            endpoint="/test", status="success", status_class="2xx"
+            feature_service="", endpoint="/test", status="success", status_class="2xx"
         )._value.get()
 
         with track_request_latency("/test"):
             pass
 
         after_count = request_count.labels(
-            endpoint="/test", status="success", status_class="2xx"
+            feature_service="", endpoint="/test", status="success", status_class="2xx"
         )._value.get()
         assert after_count == before_count + 1
 
     def test_error_increments_error_counter(self):
         before_count = request_count.labels(
-            endpoint="/test-err", status="error", status_class="5xx"
+            feature_service="", endpoint="/test-err", status="error", status_class="5xx"
         )._value.get()
 
         with pytest.raises(ValueError):
@@ -110,13 +110,16 @@ class TestTrackRequestLatency:
                 raise ValueError("boom")
 
         after_count = request_count.labels(
-            endpoint="/test-err", status="error", status_class="5xx"
+            feature_service="", endpoint="/test-err", status="error", status_class="5xx"
         )._value.get()
         assert after_count == before_count + 1
 
     def test_latency_is_recorded(self):
         before_sum = request_latency.labels(
-            endpoint="/test-latency", feature_count="", feature_view_count=""
+            feature_service="",
+            endpoint="/test-latency",
+            feature_count="",
+            feature_view_count="",
         )._sum.get()
 
         with track_request_latency("/test-latency"):
@@ -125,7 +128,10 @@ class TestTrackRequestLatency:
             time.sleep(0.01)
 
         after_sum = request_latency.labels(
-            endpoint="/test-latency", feature_count="", feature_view_count=""
+            feature_service="",
+            endpoint="/test-latency",
+            feature_count="",
+            feature_view_count="",
         )._sum.get()
         assert after_sum > before_sum
 
@@ -136,14 +142,14 @@ class TestTrackRequestLatency:
             feature_count="5",
             feature_view_count="2",
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         with track_request_latency(
             "/get-online-features", feature_count="5", feature_view_count="2"
         ):
             pass
 
-        after_sum = request_latency.labels(**label_set)._sum.get()
+        after_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
         assert after_sum > before_sum
 
     def test_default_labels_are_empty_string(self):
@@ -151,12 +157,12 @@ class TestTrackRequestLatency:
         label_set = dict(
             endpoint="/materialize", feature_count="", feature_view_count=""
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         with track_request_latency("/materialize"):
             pass
 
-        after_sum = request_latency.labels(**label_set)._sum.get()
+        after_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
         assert after_sum > before_sum
 
     def test_labels_updated_via_yielded_context(self):
@@ -164,19 +170,22 @@ class TestTrackRequestLatency:
         label_set = dict(
             endpoint="/ctx-update", feature_count="3", feature_view_count="1"
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         with track_request_latency("/ctx-update") as ctx:
             ctx.feature_count = "3"
             ctx.feature_view_count = "1"
 
-        after_sum = request_latency.labels(**label_set)._sum.get()
+        after_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
         assert after_sum > before_sum
 
     def test_error_before_labels_set_still_records(self):
         """Errors before labels are updated still record with default labels."""
         before_count = request_count.labels(
-            endpoint="/early-fail", status="error", status_class="5xx"
+            feature_service="",
+            endpoint="/early-fail",
+            status="error",
+            status_class="5xx",
         )._value.get()
 
         with pytest.raises(RuntimeError):
@@ -184,12 +193,18 @@ class TestTrackRequestLatency:
                 raise RuntimeError("auth failed")
 
         after_count = request_count.labels(
-            endpoint="/early-fail", status="error", status_class="5xx"
+            feature_service="",
+            endpoint="/early-fail",
+            status="error",
+            status_class="5xx",
         )._value.get()
         assert after_count == before_count + 1
 
         recorded_sum = request_latency.labels(
-            endpoint="/early-fail", feature_count="", feature_view_count=""
+            feature_service="",
+            endpoint="/early-fail",
+            feature_count="",
+            feature_view_count="",
         )._sum.get()
         assert recorded_sum > 0
 
@@ -214,7 +229,10 @@ class TestTrackRequestLatency:
         """The status class matches the response the REST exception handling sends."""
         endpoint = f"/status-class-{expected_status_class}-{type(exc).__name__}"
         before_count = request_count.labels(
-            endpoint=endpoint, status="error", status_class=expected_status_class
+            feature_service="",
+            endpoint=endpoint,
+            status="error",
+            status_class=expected_status_class,
         )._value.get()
 
         with pytest.raises(type(exc)):
@@ -222,7 +240,10 @@ class TestTrackRequestLatency:
                 raise exc
 
         after_count = request_count.labels(
-            endpoint=endpoint, status="error", status_class=expected_status_class
+            feature_service="",
+            endpoint=endpoint,
+            status="error",
+            status_class=expected_status_class,
         )._value.get()
         assert after_count == before_count + 1
 
@@ -241,6 +262,7 @@ class TestTrackRequestLatency:
         """Handlers that return a response without raising set its status code on the context."""
         endpoint = f"/returned-{status_code}"
         before_count = request_count.labels(
+            feature_service="",
             endpoint=endpoint,
             status=expected_status,
             status_class=expected_status_class,
@@ -250,6 +272,7 @@ class TestTrackRequestLatency:
             ctx.status_code = status_code
 
         after_count = request_count.labels(
+            feature_service="",
             endpoint=endpoint,
             status=expected_status,
             status_class=expected_status_class,
@@ -271,12 +294,15 @@ class TestMetricsOptIn:
         label_set = dict(
             endpoint="/disabled-test", feature_count="", feature_view_count=""
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         with track_request_latency("/disabled-test"):
             pass
 
-        assert request_latency.labels(**label_set)._sum.get() == before_sum
+        assert (
+            request_latency.labels(feature_service="", **label_set)._sum.get()
+            == before_sum
+        )
 
     def test_track_online_features_entities_noop_when_disabled(self):
         self._all_off()
@@ -329,10 +355,13 @@ class TestGranularCategoryControl:
         label_set = dict(
             endpoint="/granular-req", feature_count="", feature_view_count=""
         )
-        before_req = request_latency.labels(**label_set)._sum.get()
+        before_req = request_latency.labels(feature_service="", **label_set)._sum.get()
         with track_request_latency("/granular-req"):
             pass
-        assert request_latency.labels(**label_set)._sum.get() == before_req
+        assert (
+            request_latency.labels(feature_service="", **label_set)._sum.get()
+            == before_req
+        )
 
         # push should still record
         before_push = push_request_count.labels(
@@ -389,7 +418,7 @@ class TestGranularCategoryControl:
         )
 
         label_set = dict(endpoint="/res-only", feature_count="", feature_view_count="")
-        before_req = request_latency.labels(**label_set)._sum.get()
+        before_req = request_latency.labels(feature_service="", **label_set)._sum.get()
         before_of = online_features_request_count._value.get()
         before_push = push_request_count.labels(
             push_source="x", mode="offline"
@@ -404,7 +433,10 @@ class TestGranularCategoryControl:
         track_push("x", "offline")
         track_materialization("fv_res", success=True, duration_seconds=1.0)
 
-        assert request_latency.labels(**label_set)._sum.get() == before_req
+        assert (
+            request_latency.labels(feature_service="", **label_set)._sum.get()
+            == before_req
+        )
         assert online_features_request_count._value.get() == before_of
         assert (
             push_request_count.labels(push_source="x", mode="offline")._value.get()
@@ -1254,7 +1286,10 @@ class TestFeatureServerMetricsIntegration:
         client = TestClient(get_app(fs))
 
         before_req = request_count.labels(
-            endpoint="/get-online-features", status="success", status_class="2xx"
+            feature_service="",
+            endpoint="/get-online-features",
+            status="success",
+            status_class="2xx",
         )._value.get()
         before_entity = online_features_request_count._value.get()
 
@@ -1268,7 +1303,10 @@ class TestFeatureServerMetricsIntegration:
 
         assert (
             request_count.labels(
-                endpoint="/get-online-features", status="success", status_class="2xx"
+                feature_service="",
+                endpoint="/get-online-features",
+                status="success",
+                status_class="2xx",
             )._value.get()
             == before_req + 1
         )
@@ -1313,7 +1351,7 @@ class TestFeatureServerMetricsIntegration:
             feature_count=expected_feat_count,
             feature_view_count=expected_fv_count,
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         client.post(
             "/get-online-features",
@@ -1323,7 +1361,7 @@ class TestFeatureServerMetricsIntegration:
             },
         )
 
-        after_sum = request_latency.labels(**label_set)._sum.get()
+        after_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
         assert after_sum > before_sum
 
     def test_latency_labels_use_custom_feature_count_bins(self, mock_fs_factory):
@@ -1342,7 +1380,7 @@ class TestFeatureServerMetricsIntegration:
             feature_count="3-4",
             feature_view_count="1",
         )
-        before_sum = request_latency.labels(**label_set)._sum.get()
+        before_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
 
         client.post(
             "/get-online-features",
@@ -1352,8 +1390,49 @@ class TestFeatureServerMetricsIntegration:
             },
         )
 
-        after_sum = request_latency.labels(**label_set)._sum.get()
+        after_sum = request_latency.labels(feature_service="", **label_set)._sum.get()
         assert after_sum > before_sum
+
+    @pytest.mark.parametrize(
+        "enabled,expected_label",
+        [(True, "driver_service"), (False, "")],
+        ids=["enabled", "disabled"],
+    )
+    def test_feature_service_label(self, mock_fs_factory, enabled, expected_label):
+        """The feature service name is a label only when the flag is on."""
+        from fastapi.testclient import TestClient
+
+        from feast.feature_server import get_app
+        from feast.infra.feature_servers.base_config import MetricsConfig
+
+        fs = mock_fs_factory(online_read=False)
+        fs.config.feature_server.metrics = MetricsConfig(feature_service_label=enabled)
+        client = TestClient(get_app(fs))
+
+        labels = dict(
+            endpoint="/get-online-features",
+            status="success",
+            status_class="2xx",
+            feature_service=expected_label,
+        )
+        before = request_count.labels(**labels)._value.get()
+
+        response = client.post(
+            "/get-online-features",
+            json={"feature_service": "driver_service", "entities": {"id": [1]}},
+        )
+
+        assert response.status_code == 200
+        assert request_count.labels(**labels)._value.get() == before + 1
+        assert (
+            request_latency.labels(
+                endpoint="/get-online-features",
+                feature_count="0",
+                feature_view_count="0",
+                feature_service=expected_label,
+            )._sum.get()
+            > 0
+        )
 
     @pytest.mark.parametrize(
         "exc,expected_http_status,expected_status_class",
@@ -1379,7 +1458,7 @@ class TestFeatureServerMetricsIntegration:
             status="error",
             status_class=expected_status_class,
         )
-        before = request_count.labels(**labels)._value.get()
+        before = request_count.labels(feature_service="", **labels)._value.get()
 
         response = client.post(
             "/get-online-features",
@@ -1387,7 +1466,10 @@ class TestFeatureServerMetricsIntegration:
         )
 
         assert response.status_code == expected_http_status
-        assert request_count.labels(**labels)._value.get() == before + 1
+        assert (
+            request_count.labels(feature_service="", **labels)._value.get()
+            == before + 1
+        )
 
     def test_materialize_conflict_records_4xx(self, mock_fs_factory):
         from fastapi.testclient import TestClient
@@ -1405,7 +1487,7 @@ class TestFeatureServerMetricsIntegration:
         client = TestClient(get_app(fs))
 
         labels = dict(endpoint="/materialize", status="error", status_class="4xx")
-        before = request_count.labels(**labels)._value.get()
+        before = request_count.labels(feature_service="", **labels)._value.get()
 
         response = client.post(
             "/materialize?async=true",
@@ -1417,7 +1499,10 @@ class TestFeatureServerMetricsIntegration:
         )
 
         assert response.status_code == 409
-        assert request_count.labels(**labels)._value.get() == before + 1
+        assert (
+            request_count.labels(feature_service="", **labels)._value.get()
+            == before + 1
+        )
         fs.materialize.assert_not_called()
 
     def test_push_records_metrics(self, mock_fs_factory):
