@@ -164,7 +164,7 @@ class SnowflakeComputeEngine(ComputeEngine):
         udf_namespace = self._udf_namespace(project)
         udf_path = f"{stage_path}/{udf_namespace}"
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
-            if self._udf_names(udf_namespace) == self._query_udf_names(
+            if self._udf_names(udf_namespace) <= self._query_udf_names(
                 conn, udf_namespace
             ):
                 click.echo(

@@ -146,6 +146,16 @@ def test_update_skips_when_the_current_set_is_deployed():
     assert queries[0].startswith("SHOW USER FUNCTIONS LIKE 'FEAST_MYPROJECT_")
 
 
+def test_update_skips_when_other_names_also_match():
+    engine = _make_engine()
+    names = _deployed_names(engine)
+    mock_execute = MagicMock()
+
+    _run_update(engine, mock_execute, deployed=(*names, "FEAST_MYPROJECT1X"))
+
+    assert len(_executed(mock_execute)) == 1
+
+
 def test_update_redeploys_a_partial_set():
     engine = _make_engine()
     mock_execute = MagicMock()
