@@ -539,6 +539,7 @@ def get_app(
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
     shutting_down = False
     active_timer: Optional[threading.Timer] = None
+    refresh_timer_lock = threading.Lock()
     # --- Offline write batching config and batcher ---
     fs_cfg = getattr(store.config, "feature_server", None)
     batching_cfg = None
@@ -593,23 +594,36 @@ def get_app(
 
     def stop_refresh():
         nonlocal shutting_down
-        shutting_down = True
-        if active_timer:
-            active_timer.cancel()
+        with refresh_timer_lock:
+            shutting_down = True
+            if active_timer:
+                active_timer.cancel()
 
     vs_registry = VectorStoreRegistry(store)
 
-    def async_refresh():
-        if shutting_down:
-            return
-
+    def refresh_registry_caches() -> None:
         store.refresh_registry()
         vs_registry.refresh()
 
-        if registry_ttl_sec:
-            nonlocal active_timer
-            active_timer = threading.Timer(registry_ttl_sec, async_refresh)
-            active_timer.start()
+    def schedule_refresh() -> None:
+        nonlocal active_timer
+        with refresh_timer_lock:
+            if registry_ttl_sec and not shutting_down:
+                active_timer = threading.Timer(registry_ttl_sec, periodic_refresh)
+                active_timer.start()
+
+    def periodic_refresh() -> None:
+        if shutting_down:
+            return
+
+        try:
+            refresh_registry_caches()
+        except Exception:
+            # Non-fatal error - the cached registry keeps serving
+            logger.exception(
+                "Registry refresh failed; retrying in %s seconds", registry_ttl_sec
+            )
+        schedule_refresh()
 
     # --- Audit logging setup ---
     audit_logging_cfg = getattr(fs_cfg, "audit_logging", None)
@@ -633,7 +647,9 @@ def get_app(
             app.state.audit_logger = audit_logger_instance
 
         await store.initialize()
-        async_refresh()
+        # Unlike periodic refreshes, a failure here fails startup
+        refresh_registry_caches()
+        schedule_refresh()
         try:
             yield
         finally:
