@@ -1132,7 +1132,7 @@ def test_online_append_keeps_each_event_for_an_entity(
     pipe.hset.assert_not_called()
     pipe.zadd.assert_called_once()
     key, events = pipe.zadd.call_args.args
-    assert key.startswith(b"seq:feature_view_1:")
+    assert key.startswith(b"seq:test:feature_view_1:")
     start_micros = int(start.timestamp()) * 1_000_000
     values_by_offset = {}
     for member, score in events.items():
@@ -1240,7 +1240,7 @@ def test_online_append_async_uses_async_client(
         )
 
     key, events = async_pipe.zadd.call_args.args
-    assert key.startswith(b"seq:feature_view_1:")
+    assert key.startswith(b"seq:test:feature_view_1:")
     assert len(events) == 2
     async_pipe.zremrangebyrank.assert_called_once_with(key, 0, -11)
     async_pipe.execute.assert_awaited_once()

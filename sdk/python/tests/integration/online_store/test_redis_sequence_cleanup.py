@@ -1,5 +1,5 @@
 """Integration test: delete_table and teardown remove the sequence keys that
-online_append writes to Redis.
+online_append writes to Redis, and only in their own project.
 
 Run with: pytest --integration sdk/python/tests/integration/online_store/test_redis_sequence_cleanup.py
 """
@@ -73,33 +73,36 @@ def test_delete_table_and_teardown_remove_sequence_keys(redis_port):
     import redis
 
     store = RedisOnlineStore()
-    project_a, project_b = (
-        _config("project_a", redis_port),
-        _config("project_b", redis_port),
+    # other_demo ends with demo, so a scan for demo's keys must not match it.
+    demo, other_demo = (
+        _config("demo", redis_port),
+        _config("other_demo", redis_port),
     )
     clicks, views = _sequence_view("clicks"), _sequence_view("views")
-    _append_events(store, project_a, clicks)
-    _append_events(store, project_a, views)
-    _append_events(store, project_b, clicks)
+    _append_events(store, demo, clicks)
+    _append_events(store, demo, views)
+    _append_events(store, other_demo, clicks)
 
     client = redis.Redis(port=redis_port)
 
     def sequence_keys():
-        return sorted(
-            key.split(b":")[1].decode() + "@" + key[-9:].decode()
-            for key in client.scan_iter(b"seq:*")
-        )
+        # Key: seq:<project>:<feature view>:<entity hash key>
+        labels = []
+        for key in client.scan_iter(b"seq:*"):
+            _, project, view, _ = key.split(b":", 3)
+            labels.append(f"{view.decode()}@{project.decode()}")
+        return sorted(labels)
 
     assert sequence_keys() == [
-        "clicks@project_a",
-        "clicks@project_b",
-        "views@project_a",
+        "clicks@demo",
+        "clicks@other_demo",
+        "views@demo",
     ]
 
     # Deleting a view removes only its keys in its project.
-    store.delete_table(project_a, clicks)
-    assert sequence_keys() == ["clicks@project_b", "views@project_a"]
+    store.delete_table(demo, clicks)
+    assert sequence_keys() == ["clicks@other_demo", "views@demo"]
 
     # Teardown removes the keys of the views it is given, in its project.
-    store.teardown(project_a, [views], [])
-    assert sequence_keys() == ["clicks@project_b"]
+    store.teardown(demo, [views], [])
+    assert sequence_keys() == ["clicks@other_demo"]

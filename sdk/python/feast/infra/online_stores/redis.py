@@ -66,6 +66,15 @@ def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
     )
 
 
+def _sequence_key_prefix(table: FeatureView, config: RepoConfig) -> bytes:
+    """Return ``seq:<project>:<feature view>:``, the start of every sequence key.
+
+    Project names can't contain ``:``, so a scan for this prefix matches one
+    project only, even when another project's name ends with this one's.
+    """
+    return f"seq:{config.project}:{_versioned_fv_name(table, config)}:".encode("utf8")
+
+
 def _epoch_micros(dt: datetime) -> int:
     """Return microseconds since 1970-01-01 UTC. Naive datetimes are treated as UTC.
 
@@ -406,14 +415,7 @@ class RedisOnlineStore(OnlineStore):
     ) -> None:
         """Delete the feature view's sequence keys written by online_append,
         in this project only."""
-        scan_pattern = b"".join(
-            [
-                f"seq:{_versioned_fv_name(table, config)}:".encode("utf8"),
-                _redis_key_prefix(table.join_keys),
-                b"*",
-                config.project.encode("utf8"),
-            ]
-        )
+        scan_pattern = _sequence_key_prefix(table, config) + b"*"
         keys = list(client.scan_iter(scan_pattern))
         if not keys:
             return
@@ -801,8 +803,8 @@ class RedisOnlineStore(OnlineStore):
         Appends rows to a sorted set per entity and feature view, instead of
         overwriting the entity's hash.
 
-        - Key: ``seq:<feature view>:`` + the entity's hash key. delete_table and
-          teardown delete these keys too.
+        - Key: ``seq:<project>:<feature view>:`` + the entity's hash key.
+          delete_table and teardown delete these keys too.
         - Member: the event time as an 8-byte big-endian signed integer of
           microseconds, followed by the row's feature values as a serialized
           ``feast.types.Map``. Writing the same event time and values again
@@ -875,7 +877,7 @@ class RedisOnlineStore(OnlineStore):
         ],
     ) -> Dict[bytes, Dict[Union[str, bytes], int]]:
         """Group rows by key, so each key gets one ZADD and one trim per batch."""
-        key_prefix = f"seq:{_versioned_fv_name(table, config)}:".encode("utf8")
+        key_prefix = _sequence_key_prefix(table, config)
         # str | bytes keys match zadd's mapping type in the redis stubs.
         events_by_key: Dict[bytes, Dict[Union[str, bytes], int]] = {}
         for entity_key, values, timestamp, _ in data:
