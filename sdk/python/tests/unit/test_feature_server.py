@@ -28,6 +28,7 @@ from feast.errors import PushSourceNotFoundException
 from feast.feature_server import get_app
 from feast.feature_store import FeatureStore
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.infra.registry.registry import Registry
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
     FeatureList,
@@ -859,10 +860,14 @@ def store_and_client(tmp_path):
         store.teardown()
 
 
-def test_registry_refresh_reads_the_registry_store_once(store_and_client):
+def test_registry_refresh_reads_the_registry_store_once(
+    store_and_client: tuple[FeatureStore, TestClient],
+) -> None:
     """A registry refresh must fetch the registry from its store only once."""
     store, client = store_and_client
-    registry_store = store.registry._registry_store
+    registry = store.registry
+    assert isinstance(registry, Registry)
+    registry_store = registry._registry_store
     with (
         patch.object(
             registry_store,
