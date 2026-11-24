@@ -17,7 +17,9 @@ import threading
 import time
 from collections import Counter
 from datetime import timedelta
+from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -903,7 +905,7 @@ def test_get_online_features_serves_non_finite_float(store_and_client, non_finit
 
 
 @pytest.fixture
-def push_store(tmp_path):
+def push_store(tmp_path: Path) -> Generator[FeatureStore, None, None]:
     store = _build_push_feature_store(tmp_path)
     try:
         yield store
@@ -912,19 +914,19 @@ def push_store(tmp_path):
 
 
 @pytest.fixture
-def mock_timer():
+def mock_timer() -> Generator[MagicMock, None, None]:
     """Captures registry refresh timers so a test can fire them by hand."""
     with patch("feast.feature_server.threading.Timer") as mock_timer:
         yield mock_timer
 
 
-def _fire_scheduled_refresh(mock_timer):
+def _fire_scheduled_refresh(mock_timer: MagicMock) -> None:
     mock_timer.call_args.args[1]()
 
 
 def test_periodic_registry_refresh_keeps_running_after_a_failure(
-    push_store, mock_timer, caplog
-):
+    push_store: FeatureStore, mock_timer: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
     """A failed periodic refresh must not stop later refreshes."""
     with (
         patch.object(
@@ -949,8 +951,8 @@ def test_periodic_registry_refresh_keeps_running_after_a_failure(
 
 
 def test_registry_refresh_failure_at_startup_still_fails_startup(
-    push_store, mock_timer
-):
+    push_store: FeatureStore, mock_timer: MagicMock
+) -> None:
     """A failed first refresh must fail app startup."""
     with (
         patch.object(
@@ -967,13 +969,13 @@ def test_registry_refresh_failure_at_startup_still_fails_startup(
 
 
 def test_registry_refresh_timer_scheduled_during_shutdown_is_cancelled(
-    push_store, mock_timer
-):
+    push_store: FeatureStore, mock_timer: MagicMock
+) -> None:
     """Shutdown must cancel a refresh timer that is scheduled while it runs."""
     scheduling = threading.Event()
-    timers = []
+    timers: list[MagicMock] = []
 
-    def make_timer(*args, **kwargs):
+    def make_timer(*args: Any, **kwargs: Any) -> MagicMock:
         timer = MagicMock()
         timers.append(timer)
         if len(timers) == 2:
