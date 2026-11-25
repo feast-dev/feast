@@ -122,6 +122,7 @@ entity_key_serialization_version: 3
 # This is an example feature definition file
 
 from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
@@ -194,7 +195,8 @@ input_request = RequestSource(
 
 
 # Define an on demand feature view which can generate new features based on
-# existing feature views and RequestSource features
+# existing feature views and RequestSource features. The transformation runs at
+# read time, every time the features are requested. Pandas mode is the default.
 @on_demand_feature_view(
     sources=[driver_stats_fv, input_request],
     schema=[
@@ -207,6 +209,36 @@ def transformed_conv_rate(inputs: pd.DataFrame) -> pd.DataFrame:
     df["conv_rate_plus_val1"] = inputs["conv_rate"] + inputs["val_to_add"]
     df["conv_rate_plus_val2"] = inputs["conv_rate"] + inputs["val_to_add_2"]
     return df
+
+
+# The same transformation written in native Python mode (mode="python"). The UDF
+# receives a dict mapping each input feature name to a list of values (one per
+# row) and returns a dict with the same shape.
+#
+# Only the features the UDF needs are selected from the source feature view.
+# This is required here: driver_stats_fv also has Map / Struct / Json fields, and
+# Python mode feature inference cannot generate sample values for those types.
+@on_demand_feature_view(
+    sources=[driver_stats_fv[["conv_rate"]], input_request],
+    schema=[
+        Field(name="conv_rate_plus_val1_python", dtype=Float64),
+        Field(name="conv_rate_plus_val2_python", dtype=Float64),
+    ],
+    mode="python",
+)
+def transformed_conv_rate_python(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "conv_rate_plus_val1_python": [
+            conv_rate + val_to_add
+            for conv_rate, val_to_add in zip(inputs["conv_rate"], inputs["val_to_add"])
+        ],
+        "conv_rate_plus_val2_python": [
+            conv_rate + val_to_add_2
+            for conv_rate, val_to_add_2 in zip(
+                inputs["conv_rate"], inputs["val_to_add_2"]
+            )
+        ],
+    }
 
 
 # This groups features into a model version
@@ -265,6 +297,32 @@ driver_activity_v3 = FeatureService(
     name="driver_activity_v3",
     features=[driver_stats_fresh_fv, transformed_conv_rate_fresh],
 )
+
+
+# Setting write_to_online_store=True runs the transformation at write time instead:
+# the derived features are computed once when data is materialized or written to
+# the online store, and are then served like any other pre-computed feature.
+# Because the results are persisted, the view must declare its entities and can
+# only depend on other feature views (not on request-time data).
+@on_demand_feature_view(
+    entities=[driver],
+    sources=[driver_stats_fv[["conv_rate", "acc_rate", "avg_daily_trips"]]],
+    schema=[
+        Field(name="conv_rate_x_acc_rate", dtype=Float64),
+        Field(name="expected_daily_conversions", dtype=Float64),
+    ],
+    mode="pandas",
+    write_to_online_store=True,
+)
+def transformed_conv_rate_on_write(inputs: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df["conv_rate_x_acc_rate"] = (inputs["conv_rate"] * inputs["acc_rate"]).astype(
+        "float64"
+    )
+    df["expected_daily_conversions"] = (
+        inputs["avg_daily_trips"] * inputs["conv_rate"]
+    ).astype("float64")
+    return df
 ```
 {% endtab %}
 {% endtabs %}
@@ -330,13 +388,16 @@ Created entity driver
 Created feature view driver_hourly_stats
 Created feature view driver_hourly_stats_fresh
 Created on demand feature view transformed_conv_rate
+Created on demand feature view transformed_conv_rate_python
 Created on demand feature view transformed_conv_rate_fresh
+Created on demand feature view transformed_conv_rate_on_write
 Created feature service driver_activity_v3
 Created feature service driver_activity_v1
 Created feature service driver_activity_v2
 
 Created sqlite table my_project_driver_hourly_stats_fresh
 Created sqlite table my_project_driver_hourly_stats
+Created sqlite table my_project_transformed_conv_rate_on_write
 ```
 {% endtab %}
 {% endtabs %}
@@ -503,6 +564,8 @@ print(training_df.head())
 
 We now serialize the latest values of features from the materialization window to prepare for serving. `materialize-incremental` starts from each feature view's most recent materialization end date. On the first run, it starts from the current time minus the feature view's `ttl`. In this example, the initial lookback is one day (`ttl` was set on the `FeatureView` instances in `feature_definitions.py`).
 
+On demand feature views with `write_to_online_store=True` (here `transformed_conv_rate_on_write`) are materialized too: their source features are read from the offline store, the transformation is applied once, and the results are written to the online store.
+
 {% tabs %}
 {% tab title="Bash (with timestamp)" %}
 ```bash
@@ -522,13 +585,13 @@ feast materialize --disable-event-timestamp
 {% tabs %}
 {% tab title="Output" %}
 ```bash
-Materializing 2 feature views to 2024-04-19 10:59:58-04:00 into the sqlite online store.
+Materializing 3 feature views to 2024-04-19 10:59:58-04:00 into the sqlite online store.
 
 driver_hourly_stats from 2024-04-18 15:00:46-04:00 to 2024-04-19 10:59:58-04:00:
 100%|████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 370.32it/s]
 driver_hourly_stats_fresh from 2024-04-18 15:00:46-04:00 to 2024-04-19 10:59:58-04:00:
 100%|███████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 1046.64it/s]
-Materializing 2 feature views to 2024-04-19 10:59:58-04:00 into the sqlite online store.
+transformed_conv_rate_on_write:
 ```
 {% endtab %}
 {% endtabs %}
@@ -628,7 +691,76 @@ pprint(feature_vector)
 {% endtab %}
 {% endtabs %}
 
-## Step 9: Browse your features with the Web UI (experimental)
+### Step 9: Transforming features on read vs. on write
+
+The template defines on demand feature views in both flavors. `transformed_conv_rate` (Pandas mode) and
+`transformed_conv_rate_python` (native Python mode) run their transformation at read time, so they can combine
+stored features with request-time data such as `val_to_add` and `val_to_add_2`. Both produce the same values:
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+feature_vector = store.get_online_features(
+    features=[
+        "transformed_conv_rate:conv_rate_plus_val1",
+        "transformed_conv_rate_python:conv_rate_plus_val1_python",
+    ],
+    entity_rows=[
+        {"driver_id": 1004, "val_to_add": 1000, "val_to_add_2": 2000},
+        {"driver_id": 1005, "val_to_add": 1001, "val_to_add_2": 2002},
+    ],
+).to_dict()
+pprint(feature_vector)
+```
+{% endtab %}
+{% endtabs %}
+
+{% tabs %}
+{% tab title="Output" %}
+```bash
+{
+ 'conv_rate_plus_val1': [1000.0459796078503, 1001.811998963356],
+ 'conv_rate_plus_val1_python': [1000.0459796078503, 1001.811998963356],
+ 'driver_id': [1004, 1005]
+}
+```
+{% endtab %}
+{% endtabs %}
+
+`transformed_conv_rate_on_write` instead has `write_to_online_store=True`: its transformation already ran during
+`materialize-incremental` (and runs again whenever new rows are written with `store.write_to_online_store(...)`), so
+reading it is a plain lookup with no transformation at request time:
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+feature_vector = store.get_online_features(
+    features=[
+        "transformed_conv_rate_on_write:conv_rate_x_acc_rate",
+        "transformed_conv_rate_on_write:expected_daily_conversions",
+    ],
+    entity_rows=[{"driver_id": 1004}, {"driver_id": 1005}],
+).to_dict()
+pprint(feature_vector)
+```
+{% endtab %}
+{% endtabs %}
+
+{% tabs %}
+{% tab title="Output" %}
+```bash
+{
+ 'conv_rate_x_acc_rate': [0.005327459424734116, 0.4349033236503601],
+ 'driver_id': [1004, 1005],
+ 'expected_daily_conversions': [32.231705103069544, 391.3835003376007]
+}
+```
+{% endtab %}
+{% endtabs %}
+
+See [On demand feature views](../reference/beta-on-demand-feature-view.md) for more details on the transformation modes and on write-time transformations.
+
+## Step 10: Browse your features with the Web UI (experimental)
 
 View all registered features, data sources, entities, and feature services with the Web UI.
 
@@ -660,7 +792,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
 
 ![](../reference/ui.png)
 
-## Step 10: Re-examine `test_workflow.py`
+## Step 11: Re-examine `test_workflow.py`
 Take a look at `test_workflow.py` again. It showcases many sample flows on how to interact with Feast. You'll see these 
 show up in the upcoming concepts + architecture + tutorial pages as well. 
 
