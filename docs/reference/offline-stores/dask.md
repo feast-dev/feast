@@ -9,6 +9,15 @@ data files removed by an overwrite or compaction are not included. Use an absolu
 local Delta path when Feast needs to infer the source schema, because `FileSource`
 schema discovery does not resolve that path relative to the repository.
 
+Saved datasets are written as Parquet. `DaskRetrievalJob.persist` rejects
+`SavedDatasetFileStorage(file_format=DeltaFormat())` instead of writing Parquet
+files under a Delta declaration, because such a directory has no Delta transaction
+log and cannot be read back as a Delta table. Saved datasets that an earlier Feast
+version wrote as plain Parquet under a DeltaFormat declaration are also not valid
+Delta tables: re-create them with `ParquetFormat` storage, or register the
+directory as a ParquetFormat `FileSource` to keep reading the existing Parquet
+files.
+
 When an entity dataframe is supplied to `get_historical_features`, entity rows and
 their additional columns (such as training labels) are retained even if all matching
 feature records are outside the feature view's TTL window or after the entity

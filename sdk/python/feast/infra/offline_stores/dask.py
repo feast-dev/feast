@@ -129,6 +129,20 @@ class DaskRetrievalJob(RetrievalJob):
     ):
         assert isinstance(storage, SavedDatasetFileStorage)
 
+        if isinstance(storage.file_options.file_format, DeltaFormat):
+            raise NotImplementedError(
+                f"The Dask offline store cannot persist a saved dataset to "
+                f"'{storage.file_options.uri}' with file format DeltaFormat; "
+                "only Parquet saved datasets are supported. Writing Parquet "
+                "files under a DeltaFormat declaration would create a "
+                "directory without a Delta transaction log, which the Dask "
+                "reader rejects on retrieval. Persist with ParquetFormat "
+                "storage instead. To serve a saved dataset from a Delta "
+                "table, write the retrieval result with a Delta writer and "
+                "register a FileSource with file_format=DeltaFormat pointing "
+                "at it."
+            )
+
         # Check if the specified location already exists.
         if not allow_overwrite and os.path.exists(storage.file_options.uri):
             raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
@@ -1197,7 +1211,26 @@ def _read_datasource(
     if _is_delta_source(data_source):
         # Delta supplies the snapshot schema and partition expressions and
         # rejects reader features it cannot honor. Read data only in Dask tasks.
-        dataset = _read_delta_table(data_source, path).to_pyarrow_dataset()
+        from deltalake.exceptions import TableNotFoundError
+
+        try:
+            delta_table = _read_delta_table(data_source, path)
+        except TableNotFoundError as exc:
+            # Covers both genuinely missing tables and the legacy
+            # saved-dataset directories written as plain Parquet while
+            # declaring DeltaFormat, which older Feast versions accepted.
+            raise TableNotFoundError(
+                f"Delta source '{path}' has no Delta transaction log "
+                "(_delta_log), so it cannot be read as a Delta table: "
+                "directories that only contain Parquet files are not Delta "
+                "tables. If this is a saved dataset written by an earlier "
+                "Feast version that ignored the DeltaFormat declaration and "
+                "wrote plain Parquet, re-create the saved dataset with "
+                "ParquetFormat storage, or register the directory as a "
+                "ParquetFormat FileSource to read the existing Parquet files "
+                "directly."
+            ) from exc
+        dataset = delta_table.to_pyarrow_dataset()
         fragments = list(dataset.get_fragments())
         meta = dataset.schema.empty_table().to_pandas(types_mapper=_delta_pandas_dtype)
         if not fragments:

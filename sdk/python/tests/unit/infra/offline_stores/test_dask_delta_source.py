@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import dask.dataframe as dd
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -26,8 +27,12 @@ from feast.data_format import DeltaFormat, FileFormat, ParquetFormat
 from feast.entity import Entity
 from feast.feature_view import FeatureView, Field
 from feast.infra.offline_stores import dask as dask_mod
-from feast.infra.offline_stores.dask import DaskOfflineStore, DaskOfflineStoreConfig
-from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.dask import (
+    DaskOfflineStore,
+    DaskOfflineStoreConfig,
+    DaskRetrievalJob,
+)
+from feast.infra.offline_stores.file_source import FileSource, SavedDatasetFileStorage
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Int32, Int64, UnixTimestamp, ValueType
@@ -892,3 +897,77 @@ def test_offline_write_batch_delta_raises_not_implemented(tmp_path: Path) -> Non
         )
     assert DeltaTable(delta_path).version() == old_version
     assert set(_physical_part_files(delta_path)) == old_files
+
+
+# ------------------------------------------------------------------ #
+# Saved datasets: persist guard and create/retrieve roundtrip
+# ------------------------------------------------------------------ #
+
+
+def _retrieval_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "driver_id": pd.array([1001, 1002], dtype="int64"),
+            "conv_rate": pd.array([0.5, 0.6], dtype="float32"),
+            "event_timestamp": pd.to_datetime(
+                [datetime(2026, 1, 4, tzinfo=timezone.utc)] * 2
+            ),
+        }
+    )
+
+
+def _retrieval_job(repo_path: Path) -> DaskRetrievalJob:
+    return DaskRetrievalJob(
+        evaluation_function=lambda: dd.from_pandas(_retrieval_df(), npartitions=1),
+        full_feature_names=False,
+        repo_path=str(repo_path),
+    )
+
+
+def test_persist_rejects_delta_saved_dataset_storage(tmp_path: Path) -> None:
+    job = _retrieval_job(tmp_path)
+    storage = SavedDatasetFileStorage(
+        path=str(tmp_path / "saved_dataset"), file_format=DeltaFormat()
+    )
+
+    with pytest.raises(NotImplementedError, match="DeltaFormat"):
+        job.persist(storage)
+
+    # The mismatch is rejected before anything is written.
+    assert not os.path.exists(str(tmp_path / "saved_dataset"))
+
+
+def test_saved_dataset_parquet_roundtrip(tmp_path: Path) -> None:
+    job = _retrieval_job(tmp_path)
+    storage = SavedDatasetFileStorage(path=str(tmp_path / "saved_dataset"))
+
+    job.persist(storage)
+
+    # Retrieval reads the persisted dataset back through the reader the
+    # offline store uses for historical retrieval.
+    persisted_source = storage.to_data_source()
+    assert isinstance(persisted_source, FileSource)
+    retrieved = dask_mod._read_datasource(persisted_source, tmp_path)
+    retrieved = retrieved.compute().sort_values("driver_id").reset_index(drop=True)
+    original = _retrieval_df().sort_values("driver_id").reset_index(drop=True)
+    assert retrieved["driver_id"].tolist() == original["driver_id"].tolist()
+    assert retrieved["conv_rate"].tolist() == original["conv_rate"].tolist()
+    assert len(retrieved) == len(original)
+
+
+def test_delta_labelled_parquet_directory_read_error_gives_recovery_guidance(
+    tmp_path: Path,
+) -> None:
+    from deltalake.exceptions import TableNotFoundError
+
+    # A saved-dataset directory as written by DaskRetrievalJob.persist before
+    # this change: plain Parquet files saved under a DeltaFormat declaration.
+    parquet_dir = str(tmp_path / "legacy_saved_dataset")
+    os.makedirs(parquet_dir)
+    pq.write_table(
+        pa.table({"driver_id": pa.array([1001], type=pa.int64())}),
+        os.path.join(parquet_dir, "part-0.parquet"),
+    )
+
+    with pytest.raises(TableNotFoundError, match="earlier Feast version"):
+        dask_mod._read_datasource(_delta_file_source(parquet_dir), tmp_path)
