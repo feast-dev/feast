@@ -11,9 +11,17 @@ import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 import pytest
 
-from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast import (
+    Entity,
+    FeatureStore,
+    FeatureView,
+    Field,
+    FileSource,
+    RepoConfig,
+)
 from feast.infra.online_stores.helpers import compute_table_id
 from feast.infra.online_stores.sqlite import (
     SqliteOnlineStore,
@@ -28,7 +36,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Int64
-from feast.utils import _populate_response_from_feature_data
+from feast.utils import _populate_response_from_feature_data, to_naive_utc
 from feast.value_type import ValueType
 
 TRIPS_VALUE = 7
@@ -66,6 +74,20 @@ def _stored_epochs(config: RepoConfig, view: FeatureView):
         return conn.execute(
             f"SELECT event_ts, created_ts FROM "
             f"{compute_table_id(config.project, view, config.registry.enable_online_feature_view_versioning)}"
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def _raw_row_for_event_epoch(config: RepoConfig, view: FeatureView, event_epoch: int):
+    """Fetch the raw on-disk row whose event_ts integer equals event_epoch."""
+    conn = sqlite3.connect(config.online_store.path)
+    try:
+        return conn.execute(
+            f"SELECT event_ts, created_ts FROM "
+            f"{compute_table_id(config.project, view, config.registry.enable_online_feature_view_versioning)} "
+            f"WHERE event_ts = ?",
+            (event_epoch,),
         ).fetchone()
     finally:
         conn.close()
@@ -152,6 +174,120 @@ def test_sqlite_online_store_utc_epochs_across_timezones(
         0
     ]
     assert features["trips"].int64_val == TRIPS_VALUE
+    assert read_ts == event_ts
+    assert _ttl_status(read_ts, view) == FieldStatus.PRESENT
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="time.tzset() is Unix-only")
+def test_legacy_local_time_rows_recovered_by_materialize(tmp_path, clean_tz_env):
+    """Rows written by the old local-time adapter stay shifted until a full
+    materialize rewrites them, and incremental materialization must not touch
+    rows that fall before its already-completed interval."""
+    _set_process_tz("Asia/Shanghai")
+
+    config = RepoConfig(
+        project="tz_probe",
+        registry=str(tmp_path / "registry.db"),
+        provider="local",
+        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+        offline_store={"type": "dask"},
+        entity_key_serialization_version=3,
+    )
+    driver = Entity(
+        name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+    )
+    view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        ttl=timedelta(hours=1),
+        schema=[Field(name="trips", dtype=Int64)],
+        source=FileSource(
+            path=str(tmp_path / "events.parquet"), timestamp_field="event_timestamp"
+        ),
+    )
+    # Whole seconds: the store persists timestamps as integer epochs. The two
+    # driver 2 rows give the bookkeeping and incremental windows real data.
+    event_ts = (datetime.now(tz=timezone.utc) - timedelta(minutes=5)).replace(
+        microsecond=0
+    )
+    first_bookkeeping_ts = event_ts + timedelta(hours=2, minutes=30)
+    second_bookkeeping_ts = event_ts + timedelta(hours=4, minutes=30)
+    events = pd.DataFrame(
+        {
+            "driver_id": [1, 2, 2],
+            "trips": [10, 20, 21],
+            "event_timestamp": [event_ts, first_bookkeeping_ts, second_bookkeeping_ts],
+        }
+    )
+    events.to_parquet(tmp_path / "events.parquet", index=False)
+
+    store = FeatureStore(config=config)
+    store.apply([driver, view])
+
+    # Seed driver 1 with the store writer, then stamp the epoch the way the old
+    # adapter did: int(to_naive_utc(event_ts).timestamp()) resolved the naive
+    # UTC wall clock in the process local timezone, which is Asia/Shanghai here.
+    created_ts = event_ts + timedelta(seconds=30)
+    legacy_event_epoch = int(to_naive_utc(event_ts).timestamp())
+    legacy_created_epoch = int(to_naive_utc(created_ts).timestamp())
+    SqliteOnlineStore().online_write_batch(
+        config,
+        view,
+        [(_entity_key(1), {"trips": ValueProto(int64_val=10)}, event_ts, created_ts)],
+        None,
+    )
+    conn = sqlite3.connect(config.online_store.path)
+    try:
+        conn.execute(
+            f"UPDATE "
+            f"{compute_table_id(config.project, view, config.registry.enable_online_feature_view_versioning)} "
+            f"SET event_ts = ?, created_ts = ? WHERE event_ts = ?",
+            (legacy_event_epoch, legacy_created_epoch, int(event_ts.timestamp())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Reading the legacy row with the UTC adapters shifts it back by the old
+    # writer's offset and fails the TTL check, exactly like after an upgrade.
+    shift = timedelta(seconds=legacy_event_epoch - int(event_ts.timestamp()))
+    read_ts, features = SqliteOnlineStore().online_read(config, view, [_entity_key(1)])[
+        0
+    ]
+    assert features["trips"].int64_val == 10
+    assert read_ts == event_ts + shift
+    assert _ttl_status(read_ts, view) == FieldStatus.OUTSIDE_MAX_AGE
+
+    # Materializing a window that starts after the legacy row advances the
+    # recorded interval without rewriting rows stored before that interval.
+    store.materialize(
+        start_date=event_ts + timedelta(hours=2),
+        end_date=event_ts + timedelta(hours=3),
+    )
+    store.materialize_incremental(end_date=event_ts + timedelta(hours=5))
+    assert _raw_row_for_event_epoch(config, view, legacy_event_epoch) == (
+        legacy_event_epoch,
+        legacy_created_epoch,
+    )
+    read_ts, _ = SqliteOnlineStore().online_read(config, view, [_entity_key(1)])[0]
+    assert read_ts == event_ts + shift
+    assert _ttl_status(read_ts, view) == FieldStatus.OUTSIDE_MAX_AGE
+
+    # A full backfill over the legacy row's event time rewrites it as UTC.
+    store.materialize(
+        start_date=event_ts - timedelta(hours=1),
+        end_date=event_ts + timedelta(hours=5),
+    )
+    true_event_epoch = int(event_ts.timestamp())
+    assert _raw_row_for_event_epoch(config, view, legacy_event_epoch) is None
+    assert _raw_row_for_event_epoch(config, view, true_event_epoch) == (
+        true_event_epoch,
+        None,
+    )
+    read_ts, features = SqliteOnlineStore().online_read(config, view, [_entity_key(1)])[
+        0
+    ]
+    assert features["trips"].int64_val == 10
     assert read_ts == event_ts
     assert _ttl_status(read_ts, view) == FieldStatus.PRESENT
 
