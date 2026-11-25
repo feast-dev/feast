@@ -27,6 +27,7 @@ from feast.filter_models import (
     FilterType,
 )
 from feast.infra.key_encoding_utils import deserialize_entity_key, serialize_entity_key
+from feast.infra.online_stores.helpers import compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.supported_async_methods import SupportedAsyncMethods
@@ -42,6 +43,14 @@ from feast.type_map import (
 logger = getLogger(__name__)
 
 DRIVER_METADATA = DriverInfo(name="Feast", version=feast.version.get_version())
+
+
+def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
+    """Return the feature view name with a version suffix when versioning is enabled."""
+    return compute_versioned_name(
+        table, config.registry.enable_online_feature_view_versioning
+    )
+
 
 _MONGO_COMPARISON_OPS: Dict[str, str] = {
     "eq": "$eq",
@@ -186,6 +195,7 @@ class MongoDBOnlineStore(OnlineStore):
         ``collection.bulk_write(ops, ordered=False)`` (sync) or
         ``await collection.bulk_write(ops, ordered=False)`` (async).
         """
+        fv_name = _versioned_fv_name(table, config)
         ops = []
         for entity_key, proto_values, event_timestamp, created_timestamp in data:
             entity_id = serialize_entity_key(
@@ -193,13 +203,13 @@ class MongoDBOnlineStore(OnlineStore):
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
             feature_updates = {
-                f"features.{table.name}.{field}": feast_value_type_to_python_type(val)
+                f"features.{fv_name}.{field}": feast_value_type_to_python_type(val)
                 for field, val in proto_values.items()
             }
             update = {
                 "$set": {
                     **feature_updates,
-                    f"event_timestamps.{table.name}": event_timestamp,
+                    f"event_timestamps.{fv_name}": event_timestamp,
                     "created_timestamp": created_timestamp,
                 },
             }
@@ -261,6 +271,7 @@ class MongoDBOnlineStore(OnlineStore):
             List of tuples (event_timestamp, feature_dict) for each entity key
         """
         clxn = self._get_collection(config)
+        fv_name = _versioned_fv_name(table, config)
 
         ids = [
             serialize_entity_key(
@@ -273,19 +284,19 @@ class MongoDBOnlineStore(OnlineStore):
         query_filter = {"_id": {"$in": ids}}
         projection = {
             "_id": 1,
-            f"event_timestamps.{table.name}": 1,
+            f"event_timestamps.{fv_name}": 1,
         }
         if requested_features:
             projection.update(
-                {f"features.{table.name}.{x}": 1 for x in requested_features}
+                {f"features.{fv_name}.{x}": 1 for x in requested_features}
             )
         else:
-            projection[f"features.{table.name}"] = 1
+            projection[f"features.{fv_name}"] = 1
 
         cursor = clxn.find(query_filter, projection=projection)
         docs = {doc["_id"]: doc for doc in cursor}
 
-        return self._convert_raw_docs_to_proto(ids, docs, table)
+        return self._convert_raw_docs_to_proto(ids, docs, table, fv_name)
 
     def retrieve_online_documents_v2(
         self,
@@ -327,6 +338,7 @@ class MongoDBOnlineStore(OnlineStore):
             )
 
         clxn = self._get_collection(config)
+        fv_name = _versioned_fv_name(table, config)
 
         # Identify the vector field on this feature view
         vector_fields = [f for f in table.features if f.vector_index]
@@ -335,8 +347,8 @@ class MongoDBOnlineStore(OnlineStore):
                 f"Feature view '{table.name}' has no fields with vector_index=True."
             )
         vector_field = vector_fields[0]
-        path = f"features.{table.name}.{vector_field.name}"
-        idx_name = self._vector_search_index_name(table.name, vector_field.name)
+        path = f"features.{fv_name}.{vector_field.name}"
+        idx_name = self._vector_search_index_name(fv_name, vector_field.name)
 
         # BSON cannot encode numpy float types — ensure native Python floats.
         query_vector = [float(v) for v in embedding]
@@ -350,7 +362,7 @@ class MongoDBOnlineStore(OnlineStore):
             "limit": top_k,
         }
 
-        mql_filter = MongoDBFilterTranslator(table.name).translate(filters)
+        mql_filter = MongoDBFilterTranslator(fv_name).translate(filters)
         if mql_filter:
             vector_search_stage["filter"] = mql_filter
 
@@ -384,10 +396,10 @@ class MongoDBOnlineStore(OnlineStore):
             )
 
             # Event timestamp
-            event_ts = doc.get("event_timestamps", {}).get(table.name)
+            event_ts = doc.get("event_timestamps", {}).get(fv_name)
 
             # Build feature dict from raw doc values
-            fv_features = doc.get("features", {}).get(table.name, {})
+            fv_features = doc.get("features", {}).get(fv_name, {})
 
             # Convert raw values → ValueProto for each requested feature
             feature_dict: Dict[str, ValueProto] = {}
@@ -450,22 +462,24 @@ class MongoDBOnlineStore(OnlineStore):
             raise RuntimeError(f"{config.online_store.type = }. It must be mongodb.")
 
         online_config = config.online_store
+        versioning = config.registry.enable_online_feature_view_versioning
         clxn = self._get_collection(repo_config=config)
 
         # --- Remove deleted feature views (data + vector search indexes) ---
         if tables_to_delete:
             unset_fields = {}
             for fv in tables_to_delete:
-                unset_fields[f"features.{fv.name}"] = ""
-                unset_fields[f"event_timestamps.{fv.name}"] = ""
+                deleted_name = compute_versioned_name(fv, versioning)
+                unset_fields[f"features.{deleted_name}"] = ""
+                unset_fields[f"event_timestamps.{deleted_name}"] = ""
             clxn.update_many({}, {"$unset": unset_fields})
 
             if online_config.vector_enabled:
-                self._drop_vector_indexes_for_tables(clxn, tables_to_delete)
+                self._drop_vector_indexes_for_tables(clxn, tables_to_delete, versioning)
 
         # --- Create vector search indexes for kept feature views ---
         if online_config.vector_enabled:
-            self._ensure_vector_indexes(clxn, tables_to_keep, online_config)
+            self._ensure_vector_indexes(clxn, tables_to_keep, online_config, versioning)
 
         # Note: entities_to_delete contains Entity definitions (metadata), not entity instances.
         # Like other online stores, we don't need to do anything with entities_to_delete here.
@@ -554,12 +568,14 @@ class MongoDBOnlineStore(OnlineStore):
         self,
         collection: Collection,
         tables: Sequence[FeatureView],
+        enable_versioning: bool = False,
     ) -> None:
         """Drop all Atlas vector search indexes belonging to the given feature views."""
         existing = {idx["name"] for idx in collection.list_search_indexes()}
         for fv in tables:
+            versioned_name = compute_versioned_name(fv, enable_versioning)
             for field in fv.features:
-                idx_name = self._vector_search_index_name(fv.name, field.name)
+                idx_name = self._vector_search_index_name(versioned_name, field.name)
                 if idx_name in existing:
                     logger.info("Dropping vector search index: %s", idx_name)
                     collection.drop_search_index(idx_name)
@@ -569,6 +585,7 @@ class MongoDBOnlineStore(OnlineStore):
         collection: Collection,
         tables: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
         online_config: MongoDBOnlineStoreConfig,
+        enable_versioning: bool = False,
     ) -> None:
         """Create Atlas vector search indexes for vector-indexed fields if they don't exist.
 
@@ -586,14 +603,15 @@ class MongoDBOnlineStore(OnlineStore):
         existing = {idx["name"] for idx in collection.list_search_indexes()}
 
         for fv in tables:
+            versioned_name = compute_versioned_name(fv, enable_versioning)
             vector_fields = [f for f in fv.features if f.vector_index]
             for field in vector_fields:
-                idx_name = self._vector_search_index_name(fv.name, field.name)
+                idx_name = self._vector_search_index_name(versioned_name, field.name)
                 if idx_name in existing:
                     logger.debug("Vector search index '%s' already exists", idx_name)
                     continue
 
-                path = f"features.{fv.name}.{field.name}"
+                path = f"features.{versioned_name}.{field.name}"
                 num_dimensions = field.vector_length
                 if not num_dimensions:
                     raise ValueError(
@@ -691,7 +709,10 @@ class MongoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def _convert_raw_docs_to_proto(
-        ids: list[bytes], docs: dict[bytes, Any], table: FeatureView
+        ids: list[bytes],
+        docs: dict[bytes, Any],
+        table: FeatureView,
+        fv_name: Optional[str] = None,
     ) -> List[Tuple[Optional[datetime], Optional[dict[str, ValueProto]]]]:
         """Optimized converting values in documents retrieved from MongoDB (BSON) into ValueProto types.
 
@@ -707,9 +728,14 @@ class MongoDBOnlineStore(OnlineStore):
             ids: sorted list of the serialized entity ids requested.
             docs: results of collection find.
             table: The FeatureView of the read, providing the types.
+            fv_name: The document namespace the feature view was written
+                under, which carries a ``_v{N}`` suffix when feature view
+                versioning is enabled. Defaults to ``table.name``.
         Returns:
             List of tuples (event_timestamp, feature_dict) for each entity key
         """
+        fv_name = fv_name or table.name
+
         feature_type_map = {
             feature.name: feature.dtype.to_value_type() for feature in table.features
         }
@@ -722,7 +748,7 @@ class MongoDBOnlineStore(OnlineStore):
 
         for entity_id in ids:
             doc = docs.get(entity_id)
-            feature_dict = doc.get("features", {}).get(table.name, {}) if doc else {}
+            feature_dict = doc.get("features", {}).get(fv_name, {}) if doc else {}
 
             # For each expected feature, append its value or None
             for feature_name in feature_type_map:
@@ -750,12 +776,12 @@ class MongoDBOnlineStore(OnlineStore):
 
             # Entity document exists (written by some other feature view), but
             # this specific feature view was never written → treat as not found.
-            fv_features = doc.get("features", {}).get(table.name)
+            fv_features = doc.get("features", {}).get(fv_name)
             if fv_features is None:
                 results.append((None, None))
                 continue
 
-            ts = doc.get("event_timestamps", {}).get(table.name)
+            ts = doc.get("event_timestamps", {}).get(fv_name)
 
             row_features = {
                 feature_name: proto_feature_columns[feature_name][i]
@@ -785,6 +811,7 @@ class MongoDBOnlineStore(OnlineStore):
             List of tuples (event_timestamp, feature_dict) for each entity key
         """
         clxn = await self._get_collection_async(config)
+        fv_name = _versioned_fv_name(table, config)
 
         # Serialize entity keys
         ids = [
@@ -798,20 +825,20 @@ class MongoDBOnlineStore(OnlineStore):
         query_filter = {"_id": {"$in": ids}}
         projection = {
             "_id": 1,
-            f"event_timestamps.{table.name}": 1,
+            f"event_timestamps.{fv_name}": 1,
         }
         if requested_features:
             projection.update(
-                {f"features.{table.name}.{x}": 1 for x in requested_features}
+                {f"features.{fv_name}.{x}": 1 for x in requested_features}
             )
         else:
-            projection[f"features.{table.name}"] = 1
+            projection[f"features.{fv_name}"] = 1
 
         cursor = clxn.find(query_filter, projection=projection)
         docs = {doc["_id"]: doc async for doc in cursor}
 
         # Convert to proto format
-        return self._convert_raw_docs_to_proto(ids, docs, table)
+        return self._convert_raw_docs_to_proto(ids, docs, table, fv_name)
 
     async def online_write_batch_async(
         self,
