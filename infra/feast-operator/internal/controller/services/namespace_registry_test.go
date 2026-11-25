@@ -45,33 +45,33 @@ var _ = Describe("getNamespaceRegistryNamespace", func() {
 				},
 			},
 		}
-		os.Unsetenv("FEAST_OPERATOR_NAMESPACE")
-		os.Unsetenv("POD_NAMESPACE")
+		Expect(os.Unsetenv("FEAST_OPERATOR_NAMESPACE")).To(Succeed())
+		Expect(os.Unsetenv("POD_NAMESPACE")).To(Succeed())
 	})
 
 	AfterEach(func() {
 		isOpenShift = previousIsOpenShift
-		os.Unsetenv("FEAST_OPERATOR_NAMESPACE")
-		os.Unsetenv("POD_NAMESPACE")
+		Expect(os.Unsetenv("FEAST_OPERATOR_NAMESPACE")).To(Succeed())
+		Expect(os.Unsetenv("POD_NAMESPACE")).To(Succeed())
 	})
 
 	It("should return FEAST_OPERATOR_NAMESPACE when set", func() {
-		os.Setenv("FEAST_OPERATOR_NAMESPACE", "custom-ns")
+		Expect(os.Setenv("FEAST_OPERATOR_NAMESPACE", "custom-ns")).To(Succeed())
 		namespace, err := feast.getNamespaceRegistryNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespace).To(Equal("custom-ns"))
 	})
 
 	It("should prefer FEAST_OPERATOR_NAMESPACE over POD_NAMESPACE", func() {
-		os.Setenv("FEAST_OPERATOR_NAMESPACE", "feast-ns")
-		os.Setenv("POD_NAMESPACE", "pod-ns")
+		Expect(os.Setenv("FEAST_OPERATOR_NAMESPACE", "feast-ns")).To(Succeed())
+		Expect(os.Setenv("POD_NAMESPACE", "pod-ns")).To(Succeed())
 		namespace, err := feast.getNamespaceRegistryNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespace).To(Equal("feast-ns"))
 	})
 
 	It("should return POD_NAMESPACE when FEAST_OPERATOR_NAMESPACE is not set and SA file is missing", func() {
-		os.Setenv("POD_NAMESPACE", "my-pod-ns")
+		Expect(os.Setenv("POD_NAMESPACE", "my-pod-ns")).To(Succeed())
 		namespace, err := feast.getNamespaceRegistryNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespace).To(Equal("my-pod-ns"))
@@ -84,15 +84,15 @@ var _ = Describe("getNamespaceRegistryNamespace", func() {
 	})
 
 	It("should ignore empty FEAST_OPERATOR_NAMESPACE", func() {
-		os.Setenv("FEAST_OPERATOR_NAMESPACE", "")
-		os.Setenv("POD_NAMESPACE", "pod-ns")
+		Expect(os.Setenv("FEAST_OPERATOR_NAMESPACE", "")).To(Succeed())
+		Expect(os.Setenv("POD_NAMESPACE", "pod-ns")).To(Succeed())
 		namespace, err := feast.getNamespaceRegistryNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespace).To(Equal("pod-ns"))
 	})
 
 	It("should ignore empty POD_NAMESPACE and fall back to default", func() {
-		os.Setenv("POD_NAMESPACE", "")
+		Expect(os.Setenv("POD_NAMESPACE", "")).To(Succeed())
 		namespace, err := feast.getNamespaceRegistryNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(namespace).To(Equal(DefaultKubernetesNamespace))
