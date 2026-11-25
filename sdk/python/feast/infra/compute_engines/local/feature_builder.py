@@ -12,6 +12,7 @@ from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,
+    LocalEntityRowsNode,
     LocalFilterNode,
     LocalJoinNode,
     LocalOutputNode,
@@ -171,6 +172,14 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, view, input_node):
+        if self._should_join_entity_df():
+            # The filter node dropped the entity rows that no feature row
+            # matched; return them with null features.
+            input_node = LocalEntityRowsNode(
+                "entity_rows", self.backend, inputs=[input_node]
+            )
+            self.nodes.append(input_node)
+
         node = LocalOutputNode(
             "output",
             self.dag_root.view,

@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Set, Union
 
+import pandas as pd
 import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
@@ -22,6 +23,25 @@ from feast.infra.compute_engines.utils import (
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
+
+
+def _entity_rows(entity_df: pd.DataFrame, backend: DataFrameBackend):
+    """entity_df as a backend DataFrame, numbered and with its timestamp aliased.
+
+    Two entity rows can share their join keys and timestamp, and each is still
+    a request of its own, so every row gets an ``ENTITY_ROW_ID``.
+    """
+    entity_df = backend.from_arrow(
+        pa.Table.from_pandas(
+            entity_df.assign(**{ENTITY_ROW_ID: range(len(entity_df))}),
+            preserve_index=False,
+        )
+    )
+    entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+    entity_ts_col = infer_entity_timestamp_column(entity_schema)
+    if entity_ts_col != ENTITY_TS_ALIAS:
+        entity_df = backend.rename_columns(entity_df, {entity_ts_col: ENTITY_TS_ALIAS})
+    return entity_df
 
 
 class LocalSourceReadNode(LocalNode):
@@ -102,23 +122,7 @@ class LocalJoinNode(LocalNode):
 
         # If entity_df is provided, join it in last
         if context.entity_df is not None and not already_joined:
-            # Number the entity rows. Two of them can share their join keys
-            # and timestamp, and each is still a request of its own.
-            entity_df = self.backend.from_arrow(
-                pa.Table.from_pandas(
-                    context.entity_df.assign(
-                        **{ENTITY_ROW_ID: range(len(context.entity_df))}
-                    )
-                )
-            )
-
-            entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-            entity_ts_col = infer_entity_timestamp_column(entity_schema)
-
-            if entity_ts_col != ENTITY_TS_ALIAS:
-                entity_df = self.backend.rename_columns(
-                    entity_df, {entity_ts_col: ENTITY_TS_ALIAS}
-                )
+            entity_df = _entity_rows(context.entity_df, self.backend)
 
             # A view without entities has no join keys: every feature row is
             # a candidate for every entity row, and the filter node picks the
@@ -387,6 +391,46 @@ class LocalValidationNode(LocalNode):
                 )
 
         logger.debug("[Validation: %s] Schema validation passed.", self.name)
+
+
+class LocalEntityRowsNode(LocalNode):
+    """Returns one row per entity row, with nulls where no feature row was selected.
+
+    The filter node drops an entity row when its key has no feature row, or
+    only rows after its timestamp or older than the TTL. Historical retrieval
+    still has to answer that request, so the selected rows are left-joined
+    back onto the entity rows by ``ENTITY_ROW_ID``.
+    """
+
+    def __init__(self, name: str, backend: DataFrameBackend, inputs=None):
+        super().__init__(name, inputs=inputs)
+        self.backend = backend
+
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
+        input_table = self.get_single_table(context).data
+        if context.entity_df is None or ENTITY_ROW_ID not in input_table.column_names:
+            return ArrowTableValue(input_table)
+
+        entity_df = _entity_rows(context.entity_df, self.backend)
+        # The entity columns come from entity_df, so that they are filled in
+        # for the rows that were dropped too.
+        entity_columns = set(self.backend.columns(entity_df))
+        selected = input_table.select(
+            [
+                column
+                for column in input_table.column_names
+                if column == ENTITY_ROW_ID or column not in entity_columns
+            ]
+        )
+        joined_df = self.backend.join(
+            entity_df,
+            self.backend.from_arrow(selected),
+            on=[ENTITY_ROW_ID],
+            how="left",
+        )
+        output = ArrowTableValue(self.backend.to_arrow(joined_df))
+        context.node_outputs[self.name] = output
+        return output
 
 
 class LocalOutputNode(LocalNode):

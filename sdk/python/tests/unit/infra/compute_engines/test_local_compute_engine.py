@@ -295,6 +295,117 @@ class TestLocalComputeEngineHistoricalRetrieval:
 
         assert sorted(round(v, 6) for v in df["conv_rate"].to_list()) == [0.1, 0.9]
 
+    def _hit_and_miss(self, miss):
+        """Driver 1 at t0+1h has a feature row; the second entity row has none."""
+        driver_id, timestamp = {
+            # Driver 3 has no feature rows at all.
+            "unmatched": (3, self.t0 + timedelta(hours=1)),
+            # Driver 2's only feature row is at t0.
+            "future_only": (2, self.t0 - timedelta(hours=1)),
+            # ... and is older than the one-day TTL two days later.
+            "expired_only": (2, self.t0 + timedelta(days=2)),
+        }[miss]
+        return pd.DataFrame(
+            {
+                "driver_id": [1, driver_id],
+                "event_timestamp": [self.t0 + timedelta(hours=1), timestamp],
+                "label": ["hit", "miss"],
+            }
+        )
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("miss", ["unmatched", "future_only", "expired_only"])
+    def test_get_historical_features_keeps_entity_rows_without_features(
+        self, tmp_path, backend, miss
+    ):
+        entity_df = self._hit_and_miss(miss)
+
+        df = self._get_historical_features(
+            tmp_path, self._source_view(tmp_path), entity_df, backend=backend
+        )
+
+        assert df["label"].to_list() == ["hit", "miss"]
+        assert df["driver_id"].to_list() == entity_df["driver_id"].to_list()
+        assert round(df["conv_rate"][0], 6) == 0.1
+        assert pd.isna(df["conv_rate"][1])
+        assert ENTITY_ROW_ID not in df.columns
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_get_historical_features_keeps_entity_rows_when_none_has_features(
+        self, tmp_path, backend
+    ):
+        entity_df = pd.DataFrame(
+            {
+                "driver_id": [3, 2],
+                "event_timestamp": [self.t0, self.t0 - timedelta(hours=1)],
+                "label": ["a", "b"],
+            }
+        )
+
+        df = self._get_historical_features(
+            tmp_path, self._source_view(tmp_path), entity_df, backend=backend
+        )
+
+        assert df["label"].to_list() == ["a", "b"]
+        assert df["driver_id"].to_list() == [3, 2]
+        assert df["conv_rate"].isna().all()
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("miss", ["unmatched", "future_only", "expired_only"])
+    def test_get_historical_features_for_derived_view_keeps_entity_rows(
+        self, tmp_path, backend, miss
+    ):
+        derived = BatchFeatureView(
+            name="derived_driver_stats",
+            entities=[self.driver],
+            mode="pandas",
+            schema=self.schema,
+            source=self._source_view(tmp_path),
+            sink_source=FileSource(
+                path=str(tmp_path / "derived.parquet"),
+                timestamp_field="event_timestamp",
+            ),
+            ttl=timedelta(days=1),
+            online=False,
+            offline=False,
+        )
+
+        df = self._get_historical_features(
+            tmp_path, derived, self._hit_and_miss(miss), backend=backend
+        )
+
+        assert df["label"].to_list() == ["hit", "miss"]
+        assert round(df["conv_rate"][0], 6) == 0.1
+        assert pd.isna(df["conv_rate"][1])
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("miss", ["unmatched", "future_only", "expired_only"])
+    def test_get_historical_features_aggregation_keeps_entity_rows(
+        self, tmp_path, backend, miss
+    ):
+        driver_id = Entity(
+            name="driver_id", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
+        aggregated = BatchFeatureView(
+            name="driver_stats_sum",
+            entities=[driver_id],
+            mode="pandas",
+            schema=self.schema,
+            source=self._source_view(tmp_path).batch_source,
+            aggregations=[Aggregation(column="conv_rate", function="sum")],
+            ttl=timedelta(days=1),
+            online=False,
+            offline=False,
+        )
+
+        df = self._get_historical_features(
+            tmp_path, aggregated, self._hit_and_miss(miss), backend=backend
+        )
+
+        assert df["label"].to_list() == ["hit", "miss"]
+        assert round(df["sum_conv_rate"][0], 6) == 0.1
+        assert pd.isna(df["sum_conv_rate"][1])
+
     def test_get_historical_features_does_not_write_to_the_stores(self, tmp_path):
         """The view is online and offline, and the retrieval reads an older value."""
         view = self._source_view(tmp_path)
