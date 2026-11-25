@@ -1019,12 +1019,14 @@ def _sqlite_tables(path) -> set:
         conn.close()
 
 
-def _sqlite_store_config(tmp_path, project: str) -> RepoConfig:
+def _sqlite_store_config(
+    tmp_path, project: str, online_store: str = "online_store.db"
+) -> RepoConfig:
     return RepoConfig(
         registry=str(tmp_path / "registry.db"),
         project=project,
         provider="local",
-        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online_store.db")),
+        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / online_store)),
         entity_key_serialization_version=3,
     )
 
@@ -1101,6 +1103,46 @@ def test_registry_only_project_delete_keeps_tracked_infra(tmp_path):
     assert "projects_delete_old_stats" not in tables
 
     store.teardown()
+
+
+def test_teardown_keeps_infra_of_other_projects_in_shared_registry(tmp_path):
+    """Two projects share a file registry but not an online store. Tearing one
+    down must not forget the other's tables, or a later apply of the other
+    project can no longer drop the tables it removes."""
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    gone_config = _sqlite_store_config(tmp_path, "gone", "gone_online.db")
+    kept_config = _sqlite_store_config(tmp_path, "kept", "kept_online.db")
+    gone_online_store_path = tmp_path / "gone_online.db"
+    kept_online_store_path = tmp_path / "kept_online.db"
+
+    gone_store = FeatureStore(config=gone_config)
+    _plan_and_apply(gone_store, entity, [_driver_stats_view(tmp_path, entity, "stats")])
+    kept_store = FeatureStore(config=kept_config)
+    _plan_and_apply(
+        kept_store, entity, [_driver_stats_view(tmp_path, entity, "old_stats")]
+    )
+    assert "kept_old_stats" in _sqlite_tables(kept_online_store_path)
+
+    gone_store = FeatureStore(config=gone_config)
+    gone_store.teardown()
+    assert not gone_online_store_path.exists()
+
+    kept_store = FeatureStore(config=kept_config)
+    tracked = {
+        infra_object.name
+        for infra_object in kept_store.registry.get_infra("kept").infra_objects
+    }
+    assert tracked == {"kept_old_stats"}
+
+    _plan_and_apply(
+        kept_store, entity, [_driver_stats_view(tmp_path, entity, "new_stats")]
+    )
+    tables = _sqlite_tables(kept_online_store_path)
+    assert "kept_new_stats" in tables
+    assert "kept_old_stats" not in tables
+    assert not gone_online_store_path.exists()
+
+    kept_store.teardown()
 
 
 @pytest.mark.parametrize(
