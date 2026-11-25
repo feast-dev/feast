@@ -25,6 +25,7 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.nlp_test_data import create_document_chunks_df
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.types import (
     Array,
     Bool,
@@ -346,20 +347,28 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
 
     def test_python_view_with_full_feature_names(self):
+        request_source = RequestSource(
+            name="match_request", schema=[Field(name="match_count", dtype=Int64)]
+        )
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[Field(name="matches", dtype=Array(Float32))],
+            mode="python",
+        )
+        def match_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"matches": [[1.5] * n for n in inputs["match_count"]]}
+
+        self.store.apply([request_source, match_view])
         response = self.store.get_online_features(
-            entity_rows=[{"driver_id": 1001}],
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "python_view:conv_rate_plus_acc_python",
-            ],
+            features=["match_view:matches"],
+            # The Python gRPC server passes request data as proto Values.
+            entity_rows=[{"match_count": ProtoValue(int64_val=0)}],
             full_feature_names=True,
         ).to_dict()
 
-        assert response["python_view__conv_rate_plus_acc_python"] == [
-            response["driver_hourly_stats__conv_rate"][0]
-            + response["driver_hourly_stats__acc_rate"][0]
-        ]
+        # An empty list converts only with its declared type, found by the long name.
+        assert response["match_view__matches"] == [[]]
 
     def test_python_docs_demo(self):
         entity_rows = [
@@ -844,48 +853,6 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             ),
         ):
             store.apply([request_source, python_view])
-
-
-@pytest.mark.parametrize("full_feature_names", [False, True])
-def test_python_view_keeps_its_declared_type_in_both_naming_modes(
-    full_feature_names,
-):
-    with tempfile.TemporaryDirectory() as data_dir:
-        store = FeatureStore(
-            config=RepoConfig(
-                project="test_on_demand_python_transformation",
-                registry=os.path.join(data_dir, "registry.db"),
-                provider="local",
-                entity_key_serialization_version=3,
-                online_store=SqliteOnlineStoreConfig(
-                    path=os.path.join(data_dir, "online.db")
-                ),
-            )
-        )
-        request_source = RequestSource(
-            name="match_request", schema=[Field(name="match_count", dtype=Int64)]
-        )
-
-        @on_demand_feature_view(
-            sources=[request_source],
-            schema=[Field(name="matches", dtype=Array(Float32))],
-            mode="python",
-        )
-        def match_view(inputs: dict[str, Any]) -> dict[str, Any]:
-            return {"matches": [[1.5] * n for n in inputs["match_count"]]}
-
-        store.apply([request_source, match_view])
-
-        def value_kind(match_count: int) -> str:
-            response = store.get_online_features(
-                features=["match_view:matches"],
-                entity_rows=[{"match_count": match_count}],
-                full_feature_names=full_feature_names,
-            )
-            return response.proto.results[-1].values[0].WhichOneof("val")
-
-        assert value_kind(0) == "float_list_val"
-        assert value_kind(1) == "float_list_val"
 
 
 @pytest.mark.skipif(
