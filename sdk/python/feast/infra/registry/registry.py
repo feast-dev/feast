@@ -1521,7 +1521,6 @@ class Registry(BaseRegistry):
                     current_mtime = self._file_path.stat().st_mtime
                     if self._file_mtime is None or current_mtime > self._file_mtime:
                         file_modified = True
-                        self._file_mtime = current_mtime
                 except (OSError, FileNotFoundError):
                     file_modified = True
 

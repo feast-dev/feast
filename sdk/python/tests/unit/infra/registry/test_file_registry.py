@@ -1,6 +1,8 @@
 import os
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -40,6 +42,19 @@ def _make_sources():
     )
     push_source = PushSource(name="driver_push", batch_source=file_source)
     return file_source, push_source
+
+
+def _write_project_to_registry_file(registry: Registry, project_name: str) -> None:
+    """Writes a project to the registry's local file and advances the file mtime."""
+    registry_path = registry._file_path
+    last_read_mtime = registry._file_mtime
+    assert registry_path is not None
+    assert last_read_mtime is not None
+
+    writer = Registry("test_project", RegistryConfig(path=str(registry_path)), None)
+    writer.apply_project(Project(name=project_name), commit=True)
+    future_mtime = last_read_mtime + 10
+    os.utime(registry_path, (future_mtime, future_mtime))
 
 
 @pytest.mark.parametrize("mode", ["pandas", "sql", "flink"])
@@ -233,17 +248,50 @@ def test_expired_cache_read_fetches_from_store(file_registry: Registry) -> None:
 
 def test_cached_read_picks_up_modified_local_file(file_registry: Registry) -> None:
     """In sync mode a change to the local registry file is read before the TTL ends."""
-    registry_path = file_registry._file_path
-    last_read_mtime = file_registry._file_mtime
-    assert registry_path is not None
-    assert last_read_mtime is not None
     assert file_registry.list_projects(allow_cache=True) == []
-
-    writer = Registry("test_project", RegistryConfig(path=str(registry_path)), None)
-    writer.apply_project(Project(name="written_project"), commit=True)
-    future_mtime = last_read_mtime + 10
-    os.utime(registry_path, (future_mtime, future_mtime))
+    _write_project_to_registry_file(file_registry, "written_project")
 
     projects = file_registry.list_projects(allow_cache=True)
 
     assert [p.name for p in projects] == ["written_project"]
+
+
+def test_cached_read_waits_for_reload_of_modified_local_file(
+    file_registry: Registry,
+) -> None:
+    """A cached read during a reload of a changed file must wait for the new snapshot.
+
+    If the reload records the new file mtime before it replaces the cached proto,
+    a cached read in between sees an unchanged file and returns the old snapshot.
+    """
+    _write_project_to_registry_file(file_registry, "written_project")
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+    real_get_registry_proto = file_registry._registry_store.get_registry_proto
+
+    def paused_get_registry_proto() -> RegistryProto:
+        reload_started.set()
+        release_reload.wait(timeout=10)
+        return real_get_registry_proto()
+
+    with (
+        patch.object(
+            file_registry._registry_store,
+            "get_registry_proto",
+            side_effect=paused_get_registry_proto,
+        ),
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        reloading_read = executor.submit(file_registry.list_projects, allow_cache=True)
+        try:
+            assert reload_started.wait(timeout=5)
+            concurrent_read = executor.submit(
+                file_registry.list_projects, allow_cache=True
+            )
+            with pytest.raises(FutureTimeoutError):
+                concurrent_read.result(timeout=0.5)
+        finally:
+            release_reload.set()
+
+    assert [p.name for p in reloading_read.result()] == ["written_project"]
+    assert [p.name for p in concurrent_read.result()] == ["written_project"]
