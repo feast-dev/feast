@@ -257,6 +257,30 @@ func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
 	return DefaultKubernetesNamespace, nil
 }
 
+// discoveryConfigMapNamespaces keeps an existing legacy Kubernetes ConfigMap
+// current for clients that still read it after the operator moves namespaces.
+func (feast *FeastServices) discoveryConfigMapNamespaces(targetNamespace, configMapName string) ([]string, error) {
+	namespaces := make([]string, 0, 2)
+	namespaces = append(namespaces, targetNamespace)
+	if isOpenShift || targetNamespace == DefaultKubernetesNamespace {
+		return namespaces, nil
+	}
+
+	legacyConfigMap := &corev1.ConfigMap{}
+	err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+		Name:      configMapName,
+		Namespace: DefaultKubernetesNamespace,
+	}, legacyConfigMap)
+	if apierrors.IsNotFound(err) {
+		return namespaces, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check legacy discovery ConfigMap %s: %w", configMapName, err)
+	}
+
+	return append(namespaces, DefaultKubernetesNamespace), nil
+}
+
 // AddToNamespaceRegistry adds a feature store instance to the namespace registry
 func (feast *FeastServices) AddToNamespaceRegistry() error {
 	// Skip for protected projects — they should not appear in the namespace registry.
@@ -271,79 +295,86 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 		return nil
 	}
 
-	// Get the existing ConfigMap
-	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
-		Name:      NamespaceRegistryConfigMapName,
-		Namespace: targetNamespace,
-	}, cm)
+	targetNamespaces, err := feast.discoveryConfigMapNamespaces(targetNamespace, NamespaceRegistryConfigMapName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.V(1).Info("Namespace registry ConfigMap not found, nothing to add to")
-			return nil
-		}
-		return fmt.Errorf("failed to get namespace registry ConfigMap: %w", err)
+		return err
 	}
 
-	// Parse existing data
-	var existingData NamespaceRegistryData
-	if cm.Data != nil && cm.Data[NamespaceRegistryDataKey] != "" {
-		err = json.Unmarshal([]byte(cm.Data[NamespaceRegistryDataKey]), &existingData)
+	for _, namespace := range targetNamespaces {
+		// Get the existing ConfigMap
+		cm := &corev1.ConfigMap{}
+		err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+			Name:      NamespaceRegistryConfigMapName,
+			Namespace: namespace,
+		}, cm)
 		if err != nil {
-			logger.V(1).Info("Failed to unmarshal namespace registry data, nothing to add to")
-			return nil
-		}
-	}
-
-	// Add current feature store instance to the registry
-	featureStoreNamespace := feast.Handler.FeatureStore.Namespace
-	clientConfigName := feast.Handler.FeatureStore.Status.ClientConfigMap
-
-	if clientConfigName != "" {
-		// Initialize namespace map if it doesn't exist
-		if existingData.Namespaces == nil {
-			existingData.Namespaces = make(map[string][]string)
-		}
-		if existingData.Namespaces[featureStoreNamespace] == nil {
-			existingData.Namespaces[featureStoreNamespace] = []string{}
+			if apierrors.IsNotFound(err) {
+				logger.V(1).Info("Namespace registry ConfigMap not found, nothing to add to", "targetNamespace", namespace)
+				continue
+			}
+			return fmt.Errorf("failed to get namespace registry ConfigMap: %w", err)
 		}
 
-		// Check if client config is already in the list
-		found := false
-		for _, config := range existingData.Namespaces[featureStoreNamespace] {
-			if config == clientConfigName {
-				found = true
-				break
+		// Parse existing data
+		var existingData NamespaceRegistryData
+		if cm.Data != nil && cm.Data[NamespaceRegistryDataKey] != "" {
+			err = json.Unmarshal([]byte(cm.Data[NamespaceRegistryDataKey]), &existingData)
+			if err != nil {
+				logger.V(1).Info("Failed to unmarshal namespace registry data, nothing to add to", "targetNamespace", namespace)
+				continue
 			}
 		}
 
-		// Add if not already present
-		if !found {
-			existingData.Namespaces[featureStoreNamespace] = append(existingData.Namespaces[featureStoreNamespace], clientConfigName)
+		// Add current feature store instance to the registry
+		featureStoreNamespace := feast.Handler.FeatureStore.Namespace
+		clientConfigName := feast.Handler.FeatureStore.Status.ClientConfigMap
+
+		if clientConfigName != "" {
+			// Initialize namespace map if it doesn't exist
+			if existingData.Namespaces == nil {
+				existingData.Namespaces = make(map[string][]string)
+			}
+			if existingData.Namespaces[featureStoreNamespace] == nil {
+				existingData.Namespaces[featureStoreNamespace] = []string{}
+			}
+
+			// Check if client config is already in the list
+			found := false
+			for _, config := range existingData.Namespaces[featureStoreNamespace] {
+				if config == clientConfigName {
+					found = true
+					break
+				}
+			}
+
+			// Add if not already present
+			if !found {
+				existingData.Namespaces[featureStoreNamespace] = append(existingData.Namespaces[featureStoreNamespace], clientConfigName)
+			}
 		}
-	}
 
-	// Marshal the updated data back to JSON
-	dataBytes, err := json.Marshal(existingData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal updated namespace registry data: %w", err)
-	}
+		// Marshal the updated data back to JSON
+		dataBytes, err := json.Marshal(existingData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated namespace registry data: %w", err)
+		}
 
-	// Update the ConfigMap
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
+		// Update the ConfigMap
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
 
-	// Update the ConfigMap
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
-		return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
-	}
+		// Update the ConfigMap
+		if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+			return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
+		}
 
-	logger.Info("Successfully added feature store to namespace registry",
-		"namespace", featureStoreNamespace,
-		"clientConfig", clientConfigName,
-		"targetNamespace", targetNamespace)
+		logger.Info("Successfully added feature store to namespace registry",
+			"namespace", featureStoreNamespace,
+			"clientConfig", clientConfigName,
+			"targetNamespace", namespace)
+	}
 
 	return nil
 }
@@ -359,105 +390,107 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 		return nil
 	}
 
-	// Get the existing ConfigMap
-	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
-		Name:      NamespaceRegistryConfigMapName,
-		Namespace: targetNamespace,
-	}, cm)
+	targetNamespaces, err := feast.discoveryConfigMapNamespaces(targetNamespace, NamespaceRegistryConfigMapName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// ConfigMap doesn't exist, nothing to clean up
-			logger.V(1).Info("Namespace registry ConfigMap not found, nothing to clean up")
-			return nil
+		return err
+	}
+
+	for _, namespace := range targetNamespaces {
+		// Get the existing ConfigMap
+		cm := &corev1.ConfigMap{}
+		err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
+			Name:      NamespaceRegistryConfigMapName,
+			Namespace: namespace,
+		}, cm)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// ConfigMap doesn't exist, nothing to clean up
+				logger.V(1).Info("Namespace registry ConfigMap not found, nothing to clean up", "targetNamespace", namespace)
+				continue
+			}
+			return fmt.Errorf("failed to get namespace registry ConfigMap: %w", err)
 		}
-		return fmt.Errorf("failed to get namespace registry ConfigMap: %w", err)
-	}
 
-	// Get existing data
-	existingData := &NamespaceRegistryData{
-		Namespaces: make(map[string][]string),
-	}
-
-	if cm.Data != nil && cm.Data[NamespaceRegistryDataKey] != "" {
-		if err := json.Unmarshal([]byte(cm.Data[NamespaceRegistryDataKey]), existingData); err != nil {
-			// If unmarshaling fails, there's nothing to clean up
-			logger.V(1).Info("Failed to unmarshal namespace registry data, nothing to clean up")
-			return nil
+		// Get existing data
+		existingData := &NamespaceRegistryData{
+			Namespaces: make(map[string][]string),
 		}
-	}
 
-	// Remove current feature store instance from the registry
-	featureStoreNamespace := feast.Handler.FeatureStore.Namespace
-	clientConfigName := feast.Handler.FeatureStore.Status.ClientConfigMap
-	featureStoreName := feast.Handler.FeatureStore.Name
-
-	// Generate expected client config name using the same logic as creation
-	expectedClientConfigName := "feast-" + featureStoreName + "-client"
-
-	logger.Info("Removing feature store from registry",
-		"featureStoreName", featureStoreName,
-		"featureStoreNamespace", featureStoreNamespace,
-		"clientConfigName", clientConfigName,
-		"expectedClientConfigName", expectedClientConfigName)
-
-	if existingData.Namespaces[featureStoreNamespace] != nil {
-		var updatedConfigs []string
-		removed := false
-
-		for _, config := range existingData.Namespaces[featureStoreNamespace] {
-			// Remove if it matches the client config name or the expected pattern
-			if config == clientConfigName || config == expectedClientConfigName {
-				logger.Info("Removing config from registry", "config", config)
-				removed = true
-			} else {
-				updatedConfigs = append(updatedConfigs, config)
+		if cm.Data != nil && cm.Data[NamespaceRegistryDataKey] != "" {
+			if err := json.Unmarshal([]byte(cm.Data[NamespaceRegistryDataKey]), existingData); err != nil {
+				// If unmarshaling fails, there's nothing to clean up
+				logger.V(1).Info("Failed to unmarshal namespace registry data, nothing to clean up", "targetNamespace", namespace)
+				continue
 			}
 		}
 
-		existingData.Namespaces[featureStoreNamespace] = updatedConfigs
+		// Remove current feature store instance from the registry
+		featureStoreNamespace := feast.Handler.FeatureStore.Namespace
+		clientConfigName := feast.Handler.FeatureStore.Status.ClientConfigMap
+		featureStoreName := feast.Handler.FeatureStore.Name
 
-		// If no configs left for this namespace, remove the namespace entry
-		if len(existingData.Namespaces[featureStoreNamespace]) == 0 {
-			delete(existingData.Namespaces, featureStoreNamespace)
-			logger.Info("Removed empty namespace entry from registry", "namespace", featureStoreNamespace)
+		// Generate expected client config name using the same logic as creation
+		expectedClientConfigName := "feast-" + featureStoreName + "-client"
+
+		logger.Info("Removing feature store from registry",
+			"featureStoreName", featureStoreName,
+			"featureStoreNamespace", featureStoreNamespace,
+			"clientConfigName", clientConfigName,
+			"expectedClientConfigName", expectedClientConfigName)
+
+		if existingData.Namespaces[featureStoreNamespace] != nil {
+			var updatedConfigs []string
+			removed := false
+
+			for _, config := range existingData.Namespaces[featureStoreNamespace] {
+				// Remove if it matches the client config name or the expected pattern
+				if config == clientConfigName || config == expectedClientConfigName {
+					logger.Info("Removing config from registry", "config", config)
+					removed = true
+				} else {
+					updatedConfigs = append(updatedConfigs, config)
+				}
+			}
+
+			existingData.Namespaces[featureStoreNamespace] = updatedConfigs
+
+			// If no configs left for this namespace, remove the namespace entry
+			if len(existingData.Namespaces[featureStoreNamespace]) == 0 {
+				delete(existingData.Namespaces, featureStoreNamespace)
+				logger.Info("Removed empty namespace entry from registry", "namespace", featureStoreNamespace)
+			}
+
+			if !removed {
+				logger.V(1).Info("No matching config found to remove from registry",
+					"existingConfigs", existingData.Namespaces[featureStoreNamespace])
+			}
+		} else {
+			logger.V(1).Info("Namespace not found in registry", "namespace", featureStoreNamespace)
 		}
 
-		if !removed {
-			logger.V(1).Info("No matching config found to remove from registry",
-				"existingConfigs", existingData.Namespaces[featureStoreNamespace])
+		// Marshal the updated data back to JSON
+		dataBytes, err := json.Marshal(existingData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated namespace registry data: %w", err)
 		}
-	} else {
-		logger.V(1).Info("Namespace not found in registry", "namespace", featureStoreNamespace)
+
+		// Update the ConfigMap
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
+
+		// Update the ConfigMap
+		if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+			return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
+		}
+
+		logger.Info("Updated namespace registry ConfigMap",
+			"namespace", featureStoreNamespace,
+			"clientConfig", clientConfigName,
+			"remainingConfigs", existingData.Namespaces[featureStoreNamespace],
+			"targetNamespace", namespace)
 	}
-
-	// Marshal the updated data back to JSON
-	dataBytes, err := json.Marshal(existingData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal updated namespace registry data: %w", err)
-	}
-
-	// Update the ConfigMap
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	cm.Data[NamespaceRegistryDataKey] = string(dataBytes)
-
-	// Update the ConfigMap
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
-		return fmt.Errorf("failed to update namespace registry ConfigMap: %w", err)
-	}
-
-	logger.Info("Updated namespace registry ConfigMap",
-		"namespace", featureStoreNamespace,
-		"clientConfig", clientConfigName,
-		"remainingConfigs", existingData.Namespaces[featureStoreNamespace],
-		"targetNamespace", targetNamespace)
-
-	logger.Info("Successfully removed feature store from namespace registry",
-		"namespace", featureStoreNamespace,
-		"clientConfig", clientConfigName,
-		"targetNamespace", targetNamespace)
 
 	return nil
 }
