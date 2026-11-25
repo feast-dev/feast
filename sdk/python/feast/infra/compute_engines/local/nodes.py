@@ -428,7 +428,10 @@ class LocalEntityRowsNode(LocalNode):
             on=[ENTITY_ROW_ID],
             how="left",
         )
-        output = ArrowTableValue(self.backend.to_arrow(joined_df))
+        # A backend's left join need not keep the left order; return the rows
+        # in entity_df order.
+        result = self.backend.to_arrow(joined_df).sort_by(ENTITY_ROW_ID)
+        output = ArrowTableValue(result)
         context.node_outputs[self.name] = output
         return output
 
