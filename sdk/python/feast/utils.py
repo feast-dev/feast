@@ -1054,7 +1054,14 @@ def _augment_response_with_on_demand_transforms(
             selected_subset = [f for f in transformed_columns if f in _feature_refs]
 
             proto_values = []
-            schema_dict = {k.name: k.dtype for k in odfv.schema}
+            schema_dict = {
+                (
+                    odfv._get_projected_feature_name(k.name)
+                    if full_feature_names
+                    else k.name
+                ): k.dtype
+                for k in odfv.schema
+            }
             for selected_feature in selected_subset:
                 feature_vector = transformed_features[selected_feature]
                 selected_feature_type = schema_dict.get(selected_feature, None)

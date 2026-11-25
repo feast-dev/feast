@@ -846,6 +846,48 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             store.apply([request_source, python_view])
 
 
+@pytest.mark.parametrize("full_feature_names", [False, True])
+def test_python_view_keeps_its_declared_type_in_both_naming_modes(
+    full_feature_names,
+):
+    with tempfile.TemporaryDirectory() as data_dir:
+        store = FeatureStore(
+            config=RepoConfig(
+                project="test_on_demand_python_transformation",
+                registry=os.path.join(data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(data_dir, "online.db")
+                ),
+            )
+        )
+        request_source = RequestSource(
+            name="match_request", schema=[Field(name="match_count", dtype=Int64)]
+        )
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[Field(name="matches", dtype=Array(Float32))],
+            mode="python",
+        )
+        def match_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"matches": [[1.5] * n for n in inputs["match_count"]]}
+
+        store.apply([request_source, match_view])
+
+        def value_kind(match_count: int) -> str:
+            response = store.get_online_features(
+                features=["match_view:matches"],
+                entity_rows=[{"match_count": match_count}],
+                full_feature_names=full_feature_names,
+            )
+            return response.proto.results[-1].values[0].WhichOneof("val")
+
+        assert value_kind(0) == "float_list_val"
+        assert value_kind(1) == "float_list_val"
+
+
 @pytest.mark.skipif(
     not (
         sys.version_info[0:2] in [(3, 10), (3, 11)]
