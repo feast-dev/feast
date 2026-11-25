@@ -171,6 +171,100 @@ def test_pin_batch_feature_view_rejects_changed_udf(file_registry):
     assert stored.feature_transformation.udf_string == "udf_a source"
 
 
+_UDF_FACTORIES = """
+import numpy as np
+
+
+def make_query_udf(query):
+    def udf(df):
+        return " ".join(word for word in query.split())
+
+    return udf
+
+
+def make_array_udf(values):
+    weights = np.array(values)
+
+    def udf(df):
+        return df * weights
+
+    return udf
+"""
+
+
+_SOURCE_EDITS = {
+    "none": lambda source: source,
+    # A line added above the factories moves every UDF down.
+    "moved": lambda source: "\n" + source,
+    # A blank line inside the UDF body changes only its line table.
+    "reformatted": lambda source: source.replace("(df):\n", "(df):\n\n"),
+}
+
+
+def _load_udf(factory, arg, edit="none"):
+    """Build a UDF from a module that is not importable, so dill stores it by value."""
+    namespace = {"__name__": "feature_definitions_not_importable"}
+    source = _SOURCE_EDITS[edit](_UDF_FACTORIES)
+    exec(compile(source, "feature_definitions.py", "exec"), namespace)
+    return namespace[factory](arg)
+
+
+@pytest.mark.parametrize(
+    "factory, arg, edit, changed",
+    [
+        ("make_query_udf", "SELECT 1", "moved", False),
+        ("make_query_udf", "SELECT 1", "reformatted", False),
+        ("make_query_udf", "SELECT 2", "moved", True),
+        ("make_array_udf", [1, 2], "none", False),
+        ("make_array_udf", [1, 3], "none", True),
+    ],
+    ids=["moved", "reformatted", "moved_and_edited", "same_array", "edited_array"],
+)
+def test_pin_batch_feature_view_compares_udf_without_source(
+    file_registry, factory, arg, edit, changed
+):
+    """Without a udf_string, moving the UDF or capturing an array is not an edit."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string="",
+            version=version,
+        )
+
+    base_arg = {"make_query_udf": "SELECT 1", "make_array_udf": [1, 2]}[factory]
+    file_registry.apply_feature_view(
+        make_view(_load_udf("make_query_udf", "SELECT 0")), "test_project"
+    )
+    file_registry.apply_feature_view(
+        make_view(_load_udf(factory, base_arg)), "test_project"
+    )
+
+    # The version check and the pin check agree on what counts as an edit.
+    active = file_registry.get_feature_view("driver_bfv", "test_project")
+    candidate = make_view(_load_udf(factory, arg, edit))
+    assert candidate._schema_or_udf_changed(active) is changed
+
+    pinned = make_view(_load_udf(factory, arg, edit), version="v0")
+    if changed:
+        with pytest.raises(FeatureViewPinConflict):
+            file_registry.apply_feature_view(pinned, "test_project")
+    else:
+        file_registry.apply_feature_view(pinned, "test_project")
+        stored = file_registry.get_feature_view("driver_bfv", "test_project")
+        assert stored.current_version_number == 0
+        assert stored.feature_transformation.udf(None) == "SELECT 0"
+
+
 def test_same_project_name_conflict_batch_vs_stream(file_registry):
     """A FeatureView and StreamFeatureView with the same name in the same project must raise ConflictingFeatureViewNames."""
     entity = Entity(name="driver", value_type=ValueType.STRING, join_keys=["driver_id"])

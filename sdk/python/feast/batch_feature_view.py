@@ -2,9 +2,11 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
+from types import CodeType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import dill
+import numpy as np
 
 from feast import flags_helper
 from feast.aggregation import Aggregation
@@ -273,23 +275,55 @@ def _udf_changed(new_udf: Callable, old_udf: Callable) -> bool:
     Bytecode alone misses constants: ``lambda _: "SELECT 1"`` and
     ``lambda _: "SELECT 2"`` share it. The code object also holds the
     constants, so compare it whole, plus the default arguments and the values
-    captured in the closure.
+    captured in the closure. Source positions are left out, so a UDF that only
+    moved within its file is not a change.
     """
 
     def state(udf: Callable) -> tuple:
         closure = tuple(cell.cell_contents for cell in udf.__closure__ or ())  # type: ignore[attr-defined]
         return (
-            udf.__code__,  # type: ignore[attr-defined]
+            _without_positions(udf.__code__),  # type: ignore[attr-defined]
             udf.__defaults__,  # type: ignore[attr-defined]
             udf.__kwdefaults__,  # type: ignore[attr-defined]
             closure,
         )
 
     try:
-        return bool(state(new_udf) != state(old_udf))
+        return not _same_value(state(new_udf), state(old_udf))
     except Exception:
         # Values that cannot be compared count as a change, so the new UDF is stored.
         return True
+
+
+def _without_positions(code: CodeType) -> CodeType:
+    """Clear the source positions of a code object and the code nested in it."""
+    consts = tuple(
+        _without_positions(const) if isinstance(const, CodeType) else const
+        for const in code.co_consts
+    )
+    return code.replace(co_firstlineno=1, co_linetable=b"", co_consts=consts)
+
+
+def _same_value(a: Any, b: Any) -> bool:
+    """Compare like ``==``, but compare NumPy arrays by shape, dtype and contents.
+
+    ``==`` on two arrays gives an array, which has no single truth value, and a
+    UDF loaded back from the registry holds its own copy of each captured array.
+    """
+    if a is b:
+        return True
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return (
+            type(a) is type(b)
+            and a.shape == b.shape
+            and a.dtype == b.dtype
+            and bool(np.array_equal(a, b, equal_nan=a.dtype.kind in "fc"))
+        )
+    if isinstance(a, (tuple, list)) and type(a) is type(b):
+        return len(a) == len(b) and all(map(_same_value, a, b))
+    if isinstance(a, dict) and type(a) is type(b):
+        return a.keys() == b.keys() and all(_same_value(a[k], b[k]) for k in a)
+    return bool(a == b)
 
 
 def batch_feature_view(
