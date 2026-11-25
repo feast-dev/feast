@@ -4,11 +4,13 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pyarrow
 import pytest
+from google.api_core.exceptions import PreconditionFailed
 
 from feast.infra.offline_stores.bigquery import (
     BigQueryOfflineStore,
     BigQueryOfflineStoreConfig,
     BigQueryRetrievalJob,
+    _set_table_expiration,
 )
 from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -248,6 +250,57 @@ def test_pull_latest_date_type_with_partition_column(mock_get_bigquery_client):
     assert "DATE('2021-01-02')" in actual_query
     assert "_PARTITIONDATE >= '2021-01-01'" in actual_query
     assert "_PARTITIONDATE <= '2021-01-02'" in actual_query
+
+
+class TestSetTableExpiration:
+    def test_succeeds_on_first_attempt(self):
+        client = Mock()
+        table = Mock()
+        client.get_table.return_value = table
+        client.update_table.return_value = table
+
+        result = _set_table_expiration(client, "project.dataset.table")
+
+        assert result is table
+        client.get_table.assert_called_once_with(table="project.dataset.table")
+        client.update_table.assert_called_once_with(table, ["expires"])
+
+    def test_retries_on_stale_etag_then_succeeds(self):
+        """
+        Simulates the race where `update_table`'s conditional PATCH is rejected
+        because the table's etag changed after `get_table` fetched it (e.g. BigQuery
+        still finalizing the table's metadata right after the upload job completed).
+        A refetched table should be retried against until it succeeds.
+        """
+        client = Mock()
+        stale_table = Mock(name="stale_table")
+        fresh_table = Mock(name="fresh_table")
+        client.get_table.side_effect = [stale_table, fresh_table]
+        client.update_table.side_effect = [
+            PreconditionFailed("did not meet condition IF_MATCH"),
+            fresh_table,
+        ]
+
+        result = _set_table_expiration(client, "project.dataset.table")
+
+        assert result is fresh_table
+        assert client.get_table.call_count == 2
+        assert client.update_table.call_count == 2
+        # The retry must act on the refetched table, not the stale one that
+        # triggered the PreconditionFailed.
+        client.update_table.assert_called_with(fresh_table, ["expires"])
+
+    def test_gives_up_after_max_attempts(self):
+        client = Mock()
+        client.get_table.return_value = Mock()
+        client.update_table.side_effect = PreconditionFailed(
+            "did not meet condition IF_MATCH"
+        )
+
+        with pytest.raises(PreconditionFailed):
+            _set_table_expiration(client, "project.dataset.table")
+
+        assert client.update_table.call_count == 5
 
 
 def test_bigquery_source_date_type_proto_roundtrip():

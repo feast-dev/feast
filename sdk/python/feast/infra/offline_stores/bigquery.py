@@ -25,7 +25,13 @@ import pandas as pd
 import pyarrow
 import pyarrow.parquet
 from pydantic import StrictStr, field_validator
-from tenacity import Retrying, retry_if_exception_type, stop_after_delay, wait_fixed
+from tenacity import (
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_fixed,
+)
 
 from feast import flags_helper
 from feast.credentials import get_connection_config_override
@@ -72,7 +78,7 @@ from .offline_utils import get_timestamp_filter_sql
 
 try:
     from google.api_core import client_info as http_client_info
-    from google.api_core.exceptions import NotFound
+    from google.api_core.exceptions import NotFound, PreconditionFailed
     from google.auth.exceptions import DefaultCredentialsError
     from google.cloud import bigquery
     from google.cloud.bigquery import Client, SchemaField, Table
@@ -1531,11 +1537,37 @@ def _upload_entity_df(
     block_until_done(client, job)
 
     # Ensure that the table expires after some time
-    table = client.get_table(table=table_name)
-    table.expires = _utc_now() + timedelta(minutes=30)
-    client.update_table(table, ["expires"])
+    table = _set_table_expiration(client, table_name)
 
     return table
+
+
+def _set_table_expiration(client: Client, table_name: str) -> Table:
+    """
+    Sets a table to expire 30 minutes from now, retrying on a stale etag.
+
+    `update_table` sends a conditional PATCH keyed on the table's etag, as returned by
+    the preceding `get_table` call. Shortly after the job that creates `table_name`
+    completes, BigQuery can still be asynchronously finalizing the table's metadata
+    (e.g. row counts, last modified time), which changes its etag. If that happens
+    between `get_table` and `update_table`, the PATCH is rejected with a
+    `PreconditionFailed` (412, "did not meet condition IF_MATCH") even though the table
+    itself was created successfully. Refetching the table for a fresh etag before
+    retrying resolves this.
+    """
+
+    def _try_set_expiration(client: Client, table_name: str) -> Table:
+        table = client.get_table(table=table_name)
+        table.expires = _utc_now() + timedelta(minutes=30)
+        return client.update_table(table, ["expires"])
+
+    retryer = Retrying(
+        wait=wait_fixed(1),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception_type(PreconditionFailed),
+        reraise=True,
+    )
+    return retryer(_try_set_expiration, client, table_name)
 
 
 def _get_entity_schema(
