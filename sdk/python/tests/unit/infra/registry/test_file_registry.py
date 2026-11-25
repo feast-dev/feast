@@ -1,5 +1,8 @@
+import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -11,9 +14,12 @@ from feast.errors import ConflictingFeatureViewNames
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.registry import Registry
+from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Float32
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 
@@ -185,3 +191,59 @@ def test_cross_project_name_does_not_conflict_batch_vs_stream(file_registry):
     )
     # Must not raise — same name, different project, different type.
     file_registry.apply_feature_view(stream_view, "project_b")
+
+
+def test_cached_read_does_not_wait_for_in_progress_refresh(
+    file_registry: Registry,
+) -> None:
+    """A read the cache can serve must not block on a refresh stuck downloading.
+
+    The feature server's /health and online reads use allow_cache=True. If they
+    wait for the refresh lock, a hanging registry store download makes them
+    hang too, even though the in-memory cache is still valid.
+    """
+    # Hold the lock to simulate a refresh stuck downloading in another thread
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        file_registry._refresh_lock.acquire()
+        try:
+            future = executor.submit(file_registry.list_projects, allow_cache=True)
+            projects = future.result(timeout=2)
+        finally:
+            file_registry._refresh_lock.release()
+
+    assert projects == []
+
+
+def test_expired_cache_read_fetches_from_store(file_registry: Registry) -> None:
+    """Once the TTL has passed, a cached read still downloads a fresh registry."""
+    fresh_proto = RegistryProto()
+    fresh_proto.projects.append(Project(name="fresh_project").to_proto())
+    file_registry.cached_registry_proto_ttl = timedelta(seconds=1)
+    file_registry.cached_registry_proto_created = _utc_now() - timedelta(seconds=5)
+
+    with patch.object(
+        file_registry._registry_store,
+        "get_registry_proto",
+        return_value=fresh_proto,
+    ):
+        projects = file_registry.list_projects(allow_cache=True)
+
+    assert [p.name for p in projects] == ["fresh_project"]
+
+
+def test_cached_read_picks_up_modified_local_file(file_registry: Registry) -> None:
+    """In sync mode a change to the local registry file is read before the TTL ends."""
+    registry_path = file_registry._file_path
+    last_read_mtime = file_registry._file_mtime
+    assert registry_path is not None
+    assert last_read_mtime is not None
+    assert file_registry.list_projects(allow_cache=True) == []
+
+    writer = Registry("test_project", RegistryConfig(path=str(registry_path)), None)
+    writer.apply_project(Project(name="written_project"), commit=True)
+    future_mtime = last_read_mtime + 10
+    os.utime(registry_path, (future_mtime, future_mtime))
+
+    projects = file_registry.list_projects(allow_cache=True)
+
+    assert [p.name for p in projects] == ["written_project"]
