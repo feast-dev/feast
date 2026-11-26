@@ -411,21 +411,14 @@ class BigtableOnlineStore(OnlineStore):
         # mutate_rows does not raise when rows fail. It returns one status per row,
         # and None for a row that never got a response (google-cloud-bigtable < 2.45).
         statuses = bt_table.mutate_rows(rows)
-        failed = [
-            (row, status)
-            for row, status in zip(rows, statuses)
-            if status is None or status.code != 0
-        ]
+        failed = [status for status in statuses if status is None or status.code != 0]
         if failed:
-            row, status = failed[0]
-            reason = (
-                "no status returned"
-                if status is None
-                else f"code={status.code} message={status.message!r}"
-            )
+            # Only counts and the status code: the status message can carry the backend
+            # address, and the feature server returns exception text to the caller.
+            first = "no status" if failed[0] is None else f"code={failed[0].code}"
             raise RuntimeError(
                 f"Failed to write {len(failed)} of {len(rows)} rows to Bigtable table "
-                f"{bt_table.table_id}; first failure (row key {row.row_key!r}): {reason}"
+                f"{bt_table.table_id}; first failed status: {first}"
             )
 
         if progress:

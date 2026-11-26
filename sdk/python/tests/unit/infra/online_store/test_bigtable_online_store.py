@@ -153,14 +153,21 @@ def test_write_rows_to_bt_reports_progress_when_all_rows_succeed():
 def test_write_rows_to_bt_raises_on_failed_row_status():
     # mutate_rows reports per-row failures in its return value instead of raising.
     progress = MagicMock()
-    with pytest.raises(RuntimeError, match=r"1 of 3 rows .* tbl.*code=14"):
+    with pytest.raises(RuntimeError) as exc_info:
         _write_rows(_mock_bt_table([OK, UNAVAILABLE, OK]), 3, progress)
+    message = str(exc_info.value)
+    assert "1 of 3 rows" in message
+    assert "tbl" in message
+    assert "code=14" in message
+    # The row key and the status message stay out of the error, which a server may return to its caller.
+    assert "key" not in message
+    assert "connection refused" not in message
     progress.assert_not_called()
 
 
 def test_write_rows_to_bt_raises_when_row_has_no_status():
     # google-cloud-bigtable < 2.45 leaves None for rows still failing at the retry deadline.
-    with pytest.raises(RuntimeError, match=r"2 of 2 rows .*no status returned"):
+    with pytest.raises(RuntimeError, match=r"2 of 2 rows .*no status"):
         _write_rows(_mock_bt_table([None, None]), 2)
 
 
