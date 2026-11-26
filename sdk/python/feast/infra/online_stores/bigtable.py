@@ -408,7 +408,25 @@ class BigtableOnlineStore(OnlineStore):
                 utils.make_tzaware(timestamp).isoformat().encode(),
             )
             rows.append(bt_row)
-        bt_table.mutate_rows(rows)
+        # mutate_rows does not raise when rows fail. It returns one status per row,
+        # and None for a row that never got a response (google-cloud-bigtable < 2.45).
+        statuses = bt_table.mutate_rows(rows)
+        failed = [
+            (row, status)
+            for row, status in zip(rows, statuses)
+            if status is None or status.code != 0
+        ]
+        if failed:
+            row, status = failed[0]
+            reason = (
+                "no status returned"
+                if status is None
+                else f"code={status.code} message={status.message!r}"
+            )
+            raise RuntimeError(
+                f"Failed to write {len(failed)} of {len(rows)} rows to Bigtable table "
+                f"{bt_table.table_id}; first failure (row key {row.row_key!r}): {reason}"
+            )
 
         if progress:
             progress(len(rows))

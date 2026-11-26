@@ -1,13 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytest.importorskip("google.cloud.bigtable")
 
 from concurrent import futures  # noqa: E402
+
+from google.rpc import status_pb2  # noqa: E402
 
 import feast.infra.online_stores.bigtable as bigtable_module  # noqa: E402
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig  # noqa: E402
@@ -117,3 +119,62 @@ def test_write_concurrency_sets_thread_pool_size():
         store.online_write_batch(config, feature_view, _rows(4), None)
 
     mock_pool.assert_called_once_with(max_workers=3)
+
+
+OK = status_pb2.Status(code=0)
+UNAVAILABLE = status_pb2.Status(code=14, message="connection refused")
+
+
+def _mock_bt_table(statuses):
+    bt_table = MagicMock()
+    bt_table.table_id = "tbl"
+    bt_table.direct_row.side_effect = lambda row_key: MagicMock(row_key=row_key)
+    bt_table.mutate_rows.return_value = statuses
+    return bt_table
+
+
+def _write_rows(bt_table, n, progress=None):
+    with patch.object(BigtableOnlineStore, "_compute_row_key", return_value=b"key"):
+        BigtableOnlineStore()._write_rows_to_bt(
+            rows_to_write=_rows(n),
+            bt_table=bt_table,
+            feature_view_name="fv",
+            config=_make_repo_config(),
+            progress=progress,
+        )
+
+
+def test_write_rows_to_bt_reports_progress_when_all_rows_succeed():
+    progress = MagicMock()
+    _write_rows(_mock_bt_table([OK, OK, OK]), 3, progress)
+    progress.assert_called_once_with(3)
+
+
+def test_write_rows_to_bt_raises_on_failed_row_status():
+    # mutate_rows reports per-row failures in its return value instead of raising.
+    progress = MagicMock()
+    with pytest.raises(RuntimeError, match=r"1 of 3 rows .* tbl.*code=14"):
+        _write_rows(_mock_bt_table([OK, UNAVAILABLE, OK]), 3, progress)
+    progress.assert_not_called()
+
+
+def test_write_rows_to_bt_raises_when_row_has_no_status():
+    # google-cloud-bigtable < 2.45 leaves None for rows still failing at the retry deadline.
+    with pytest.raises(RuntimeError, match=r"2 of 2 rows .*no status returned"):
+        _write_rows(_mock_bt_table([None, None]), 2)
+
+
+def test_online_write_batch_raises_on_failed_row_status():
+    bt_table = _mock_bt_table([UNAVAILABLE, UNAVAILABLE])
+    client = MagicMock()
+    client.instance.return_value.table.return_value = bt_table
+
+    with (
+        patch.object(BigtableOnlineStore, "_get_client", return_value=client),
+        patch.object(BigtableOnlineStore, "_get_table_name", return_value="tbl"),
+        patch.object(BigtableOnlineStore, "_compute_row_key", return_value=b"key"),
+        pytest.raises(RuntimeError, match="2 of 2 rows"),
+    ):
+        BigtableOnlineStore().online_write_batch(
+            _make_repo_config(), MockFeatureView(name="fv"), _rows(2), None
+        )
