@@ -1,4 +1,5 @@
 import configparser
+import hashlib
 import os
 import random
 import shutil
@@ -140,24 +141,42 @@ def get_snowflake_online_store_path(
     return online_path
 
 
-def package_snowpark_zip(project_name) -> Tuple[str, str]:
+# Feast source files packaged into the Snowpark UDF zip (paths relative to the
+# `feast` package). The UDFs import their serialization code from this zip.
+SNOWPARK_ZIP_FILES = (
+    "/infra/utils/snowflake/snowpark/snowflake_udfs.py",
+    "/infra/key_encoding_utils.py",
+    "/type_map.py",
+    "/value_type.py",
+    "/protos/feast/types/Value_pb2.py",
+    "/protos/feast/types/EntityKey_pb2.py",
+)
+
+
+def snowpark_udf_fingerprint(*extra: str) -> str:
+    """Content hash of the Snowpark UDF payload, plus any `extra` inputs.
+
+    Hashes the source files in `SNOWPARK_ZIP_FILES` rather than the zip itself:
+    `shutil.make_archive` embeds file modification times, so identical code
+    zips to different bytes on every install.
+    """
     path = os.path.dirname(feast.__file__)
-    copy_path = path + f"/snowflake_feast_{project_name}"
+    digest = hashlib.sha256()
+    for feast_file in SNOWPARK_ZIP_FILES:
+        digest.update(feast_file.encode("utf8") + b"\0")
+        with open(path + feast_file, "rb") as file:
+            digest.update(file.read())
+        digest.update(b"\0")
+    for value in extra:
+        digest.update(value.encode("utf8") + b"\0")
+    return digest.hexdigest()[:8]
 
-    if os.path.exists(copy_path):
-        shutil.rmtree(copy_path)
 
-    copy_files = [
-        "/infra/utils/snowflake/snowpark/snowflake_udfs.py",
-        "/infra/key_encoding_utils.py",
-        "/type_map.py",
-        "/value_type.py",
-        "/protos/feast/types/Value_pb2.py",
-        "/protos/feast/types/EntityKey_pb2.py",
-    ]
+def package_snowpark_zip(copy_path: str) -> str:
+    path = os.path.dirname(feast.__file__)
 
     package_path = copy_path + "/feast"
-    for feast_file in copy_files:
+    for feast_file in SNOWPARK_ZIP_FILES:
         idx = feast_file.rfind("/")
         if idx > -1:
             Path(package_path + feast_file[:idx]).mkdir(parents=True, exist_ok=True)
@@ -167,7 +186,7 @@ def package_snowpark_zip(project_name) -> Tuple[str, str]:
 
     zip_path = shutil.make_archive(package_path, "zip", copy_path)
 
-    return copy_path, zip_path
+    return zip_path
 
 
 def _run_snowflake_field_mapping(snowflake_job_sql: str, field_mapping: dict) -> str:

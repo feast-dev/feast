@@ -2,6 +2,20 @@ DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_binary_to_bytes_proto(BINAR
 
 DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_varchar_to_string_proto(VARCHAR);
 
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_bytes_to_list_bytes_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_varchar_to_list_string_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_number_to_list_int32_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_number_to_list_int64_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_float_to_list_double_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_boolean_to_list_bool_proto(ARRAY);
+
+DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_array_timestamp_to_list_unix_timestamp_proto(ARRAY);
+
 DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_number_to_int32_proto(NUMBER);
 
 DROP FUNCTION IF EXISTS feast_PROJECT_NAME_snowflake_number_to_int64_proto(NUMBER);
