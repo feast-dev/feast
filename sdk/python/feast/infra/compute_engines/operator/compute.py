@@ -218,6 +218,13 @@ class OperatorComputeEngine(ComputeEngine):
 
         job_id = uuid.uuid4().hex[:8]
 
+        # Build the custom resource first. This is pure local construction with
+        # no cluster side effects, so if it raises there is nothing to clean up.
+        # Doing it before the ConfigMap avoids orphaning the ConfigMap when
+        # _build_cr() raises a non-ApiException (the ConfigMap has no operator
+        # TTL, so it would otherwise leak).
+        cr = self._build_cr(job_id, **kwargs)
+
         try:
             self._create_with_retry(
                 lambda: self._create_configmap(job_id, tasks),
@@ -235,7 +242,6 @@ class OperatorComputeEngine(ComputeEngine):
             return [job for _ in tasks]
 
         try:
-            cr = self._build_cr(job_id, **kwargs)
             self._create_with_retry(
                 lambda: self._submit_cr(cr),
                 self._cr_kind,

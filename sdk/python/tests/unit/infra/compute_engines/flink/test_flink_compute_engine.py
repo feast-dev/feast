@@ -476,6 +476,14 @@ def test_pandas_to_flink_table_builds_typed_schema(
         def STRING() -> str:
             return "STRING"
 
+        @staticmethod
+        def FIELD(name: str, dtype: str) -> tuple[str, str]:
+            return (name, dtype)
+
+        @staticmethod
+        def ROW(fields: List[tuple[str, str]]) -> List[tuple[str, str]]:
+            return list(fields)
+
     pyflink_module = types.ModuleType("pyflink")
     table_module = types.ModuleType("pyflink.table")
     setattr(table_module, "Schema", FakeSchema)
@@ -500,7 +508,7 @@ def test_pandas_to_flink_table_builds_typed_schema(
     assert table_env.schemas[-1] == [
         ("driver_id", "BIGINT"),
         ("conv_rate", "DOUBLE"),
-        ("event_timestamp", "TIMESTAMP(3)"),
+        ("event_timestamp", "TIMESTAMP(9)"),
         ("active", "BOOLEAN"),
     ]
     assert table_env.schemas[-1] != list(df.columns)

@@ -52,6 +52,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
     "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
     "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
+    "flink_application": "feast.infra.compute_engines.flink_application.compute.FlinkApplicationComputeEngine",
     "trino.engine": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
     "trino": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
 }

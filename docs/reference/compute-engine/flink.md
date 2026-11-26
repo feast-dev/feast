@@ -115,6 +115,83 @@ The Flink engine implements Feast's compute DAG with Flink-specific nodes:
   configured TableEnvironment/catalog and must select an `event_timestamp`
   column.
 
+## Running on Kubernetes with the Flink Operator (`flink_application`)
+
+The `flink.engine` above runs PyFlink inside the Feast process. To run the same
+materialization **on Kubernetes**, the `flink_application` engine submits a
+[`FlinkDeployment`](https://github.com/apache/flink-kubernetes-operator) custom
+resource to the Apache Flink Kubernetes Operator for each materialize call,
+rather than running PyFlink locally. Confluent Platform for Apache Flink ships a
+distribution of the same operator, so this works against both.
+
+How it works:
+
+1. Feast writes a ConfigMap with the task list and a copy of `feature_store.yaml`
+   (with `batch_engine` rewritten to `flink.engine`).
+2. Feast creates a `FlinkDeployment` that runs `/opt/feast/main.py` as a PyFlink
+   application (via the operator's `PythonDriver`) in `BATCH` mode.
+3. The pod runs the in-process `flink.engine` on the operator-provisioned
+   JobManager/TaskManager, reads the offline store, and writes the online store
+   and registry.
+4. Feast polls the `FlinkDeployment` to completion.
+
+This mode supports `materialize` / `materialize-incremental` only (one
+`FlinkDeployment` per call, multiple feature views batched);
+`get_historical_features` is not yet supported.
+
+### Requirements
+
+- Apache Flink Kubernetes Operator installed and watching the target namespace.
+- A container image with the Feast SDK, PyFlink, and clients for your stores (see
+  the reference [Dockerfile](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/flink_application/Dockerfile)).
+  The base Flink image, the `apache-flink` wheel from the `flink` extra (pinned
+  `>=2.2.1,<3`), and `flink_version` / `python_jar_uri` must all reference the
+  same Flink release (default **2.2**). `pemja` ships only linux/amd64 wheels —
+  build for amd64.
+- A service account for the Flink pods (`service_account`, default `flink`) with
+  the standard Flink-operator RBAC, including `deployments/finalizers` (the
+  JobManager sets owner references when creating TaskManager pods).
+- **Network-accessible** online, offline, and registry stores. File-based
+  backends (`sqlite`/`faiss` online, `dask`/`file`/`duckdb` offline, `file`
+  registry) are rejected because Flink pods have an ephemeral filesystem.
+
+### Example
+
+```yaml
+batch_engine:
+  type: flink_application
+  image: my-registry.example.com/feast-flink:latest
+  namespace: feast
+  service_account: flink
+  flink_version: v2_2
+  python_jar_uri: local:///opt/flink/opt/flink-python-2.2.1.jar
+  parallelism: 1
+  jobmanager_memory: "2048m"
+  taskmanager_memory: "2048m"
+```
+
+### Configuration Options
+
+In addition to the shared operator fields (`image_pull_secrets`, `env`,
+`env_from`, `queue_name`, `job_timeout_seconds`, `poll_interval_seconds`,
+`ttl_seconds_after_finished`, `max_retries`, `concurrency`, `labels`, `volumes`,
+`volume_mounts`, `node_selector`, `tolerations`, `staging_location`):
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `type` | string | `flink_application` | Must be `flink_application`. |
+| `image` | string | **required** | Container image for the JobManager/TaskManager. |
+| `namespace` | string | `default` | Namespace for the `FlinkDeployment` and ConfigMap. |
+| `service_account` | string | `flink` | Service account for the Flink pods. |
+| `flink_version` | string | `v2_2` | `FlinkDeployment` `flinkVersion` enum; must match the image. |
+| `python_jar_uri` | string | `local:///opt/flink/opt/flink-python-2.2.1.jar` | PythonDriver jar; version must match `flink_version`. |
+| `parallelism` | integer | `1` | Default Flink job parallelism. |
+| `task_slots` | integer | `1` | `taskmanager.numberOfTaskSlots`. |
+| `jobmanager_cpu` / `jobmanager_memory` | float / string | `1.0` / `2048m` | JobManager resources. |
+| `taskmanager_cpu` / `taskmanager_memory` | float / string | `1.0` / `2048m` | TaskManager resources. |
+| `upgrade_mode` | string | `stateless` | `FlinkDeployment` job `upgradeMode`. |
+| `flink_configuration` | map | `{}` | Extra entries merged into `flinkConfiguration`. |
+
 ## Current Limitations
 
 - Windowed aggregations are not yet implemented in the Flink compute engine. Use
