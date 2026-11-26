@@ -4,6 +4,7 @@ import tempfile
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 from feast import (
@@ -655,3 +656,60 @@ def test_feature_service_serves_aliased_odfv_features(mode):
         assert response["scaled_alias__conv_rate_x10"] == [
             pytest.approx(response["fv1__conv_rate"][0] * 10)
         ]
+
+
+def test_pandas_odfv_sees_none_for_feature_missing_for_every_entity():
+    """A pandas UDF must see None, not NaN, when no requested entity has the feature."""
+    with tempfile.TemporaryDirectory() as data_dir:
+        store = FeatureStore(
+            config=RepoConfig(
+                project="test_odfv_all_missing_input",
+                registry=os.path.join(data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(data_dir, "online.db")
+                ),
+            )
+        )
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=15)
+        driver_df = create_driver_hourly_stats_df([1001], start_date, end_date)
+        path = os.path.join(data_dir, "driver_stats.parquet")
+        driver_df.to_parquet(path=path, allow_truncated_timestamps=True)
+        driver = Entity(name="driver", join_keys=["driver_id"])
+        source = FileSource(
+            name="driver_hourly_stats_source",
+            path=path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+        driver_stats = FeatureView(
+            name="driver_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[Field(name="avg_daily_trips", dtype=Int64)],
+            online=True,
+            source=source,
+        )
+
+        @on_demand_feature_view(
+            sources=[driver_stats],
+            schema=[Field(name="is_new_driver", dtype=Bool)],
+            mode="pandas",
+        )
+        def new_driver_view(inputs: pd.DataFrame) -> pd.DataFrame:
+            out = pd.DataFrame()
+            out["is_new_driver"] = inputs["avg_daily_trips"].map(lambda v: v is None)
+            return out
+
+        store.apply([driver, source, driver_stats, new_driver_view])
+        store.write_to_online_store(feature_view_name="driver_stats", df=driver_df)
+
+        response = store.get_online_features(
+            entity_rows=[{"driver_id": 9999}],
+            features=["driver_stats:avg_daily_trips", "new_driver_view:is_new_driver"],
+        )
+
+        assert response.to_dict()["is_new_driver"] == [True]
+        assert response.to_arrow().schema.field("avg_daily_trips").type == pa.int64()

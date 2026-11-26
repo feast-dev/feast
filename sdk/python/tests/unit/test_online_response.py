@@ -74,7 +74,10 @@ _PRESENT_VALUES = [
     (ValueType.DOUBLE, Value(double_val=0.5)),
     (ValueType.STRING, Value(string_val="a")),
     (ValueType.BYTES, Value(bytes_val=b"a")),
+    (ValueType.PDF_BYTES, Value(bytes_val=b"%PDF")),
+    (ValueType.IMAGE_BYTES, Value(bytes_val=b"\x89PNG")),
     (ValueType.BOOL, Value(bool_val=True)),
+    (ValueType.UNIX_TIMESTAMP, Value(unix_timestamp_val=1700000000)),
     (ValueType.UUID, Value(uuid_val=_UUID)),
     (ValueType.TIME_UUID, Value(time_uuid_val=_UUID)),
     (ValueType.INT32_LIST, Value(int32_list_val=Int32List(val=[1]))),
@@ -124,14 +127,6 @@ def test_to_arrow_all_missing_feature_with_full_feature_name():
     )
 
     assert response.to_arrow().schema.field("driver_fv__trips").type == pa.int64()
-
-
-def test_to_arrow_all_missing_timestamp_feature_stays_null():
-    # Not mapped: pandas on demand transformations would turn a typed NaT
-    # column into a timestamp value instead of a missing one.
-    response = _response("ts", [Value(), Value()], {"ts": ValueType.UNIX_TIMESTAMP})
-
-    assert response.to_arrow().schema.field("ts").type == pa.null()
 
 
 def test_to_arrow_all_missing_feature_without_known_type_stays_null():
