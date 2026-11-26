@@ -13,6 +13,10 @@ from ibis.expr import datatypes as dt
 from ibis.expr.types import Table
 
 from feast.data_source import DataSource
+from feast.errors import (
+    FeatureNameCollisionError,
+    RequestDataOverriddenByFeatureError,
+)
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores import offline_utils
@@ -312,10 +316,75 @@ def get_historical_features_ibis(
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
 
+    # Which feature view owns each output column, in the order the join
+    # processes the feature views. point_in_time_join keeps the first
+    # contribution of a name, so this mirrors its winner.
+    def _output_column(feature_view: FeatureView, feature: str) -> str:
+        if not full_feature_names:
+            return feature
+        base_name_prefix = feature_view.projection.name_alias or feature_view.name
+        return f"{base_name_prefix}__{feature}"
+
+    column_owner: Dict[str, FeatureView] = {}
+    for feature_view in feature_views:
+        name_to_use = feature_view.projection.name_to_use()
+        for ref in feature_refs:
+            if not ref.startswith(f"{name_to_use}:"):
+                continue
+            column_owner.setdefault(
+                _output_column(feature_view, ref.split(":")[1]), feature_view
+            )
+
+    # The joined table is what on-demand transforms read, so a fetched feature
+    # that shares a name with a required request-data input would quietly feed
+    # the transform the fetched value instead of the caller-supplied one
+    # (request data lives in the entity dataframe, which the feature sides
+    # overwrite). Reject the ambiguity rather than return a plausible-but-wrong
+    # result.
+    request_data_names = {
+        name for odfv in odfvs for name in odfv.get_request_data_schema()
+    }
+    conflicting = request_data_names & set(column_owner)
+    if conflicting:
+        raise RequestDataOverriddenByFeatureError(
+            conflicting_names=sorted(conflicting),
+            on_demand_feature_views=[
+                odfv.name
+                for odfv in odfvs
+                if request_data_names
+                & set(odfv.get_request_data_schema())
+                & conflicting
+            ],
+        )
+
+    # A requested on-demand view reads its source features from the joined
+    # table. If another feature view contributed a column with the same name,
+    # the transform would silently compute from that other view's value, so
+    # reject the implicit collision instead (explicit same-name refs are
+    # already rejected by _validate_feature_refs).
+    for odfv in odfvs:
+        for projection in odfv.source_feature_view_projections.values():
+            for feature in projection.features:
+                column = (
+                    f"{(projection.name_alias or projection.name)}__{feature.name}"
+                    if full_feature_names
+                    else feature.name
+                )
+                owner = column_owner.get(column)
+                if owner is not None and owner.projection.name_to_use() != (
+                    projection.name_to_use()
+                ):
+                    raise FeatureNameCollisionError(
+                        [
+                            f"{projection.name_to_use()}:{feature.name}",
+                            f"{owner.projection.name_to_use()}:{feature.name}",
+                        ],
+                        full_feature_names,
+                    )
+
     substrait_odfvs = [fv for fv in odfvs if fv.mode == "substrait"]
     for odfv in substrait_odfvs:
         res = odfv.transform_ibis(res, full_feature_names)
-
     return IbisRetrievalJob(
         res,
         [fv for fv in odfvs if fv.mode != "substrait"],
@@ -548,18 +617,64 @@ def point_in_time_join(
         select_cols.extend(feature_refs)
         feature_table = feature_table.select(select_cols)
 
-        # Track the feature columns we're adding
-        all_feature_cols.extend(feature_refs)
-
+        # Select each side's columns explicitly instead of relying on the join's
+        # name resolution: a feature name that clashes with an entity column is
+        # renamed to "{name}_yyyy" on the feature side, and the final select
+        # below would then fail to find it. A feature ref that clashes with an
+        # entity column wins (consistent with the inner join above, where the
+        # entity's clashing copy is not selected), so the entity column it
+        # shadows is not carried forward and the result cannot contain
+        # duplicate column names. Columns accumulated by earlier feature tables
+        # are re-selected from acc_table; refs new to this table come from
+        # feature_table.
+        shadowed = set(feature_refs) - set(all_feature_cols)
+        # Exclude every name the accumulated table already carries (features
+        # contributed by earlier joins AND the feature columns the current
+        # table shadows), so the projection can never select one column twice
+        # under different names: on a later join an entity column shadowed by
+        # an earlier feature ref would otherwise be selected both as an entity
+        # column and as the carried feature (duplicate name).
+        entity_cols_out = [
+            c
+            for c in entity_columns
+            if c != "entity_row_id" and c not in all_feature_cols and c not in shadowed
+        ]
+        current_new_cols = [
+            c for c in dict.fromkeys(feature_refs) if c not in all_feature_cols
+        ]
+        # refs earlier feature tables contributed are kept as-is: when several
+        # views contribute the same bare feature name (full_feature_names=False,
+        # e.g. an on-demand view's source dependency and the view that owns it)
+        # the first contribution wins and later ones are dropped, so the
+        # requested name stays present in the result instead of disappearing
+        # from both projections.
+        carried_cols = list(all_feature_cols)
         acc_table = acc_table.left_join(
             feature_table,
             predicates=[feature_table.entity_row_id == acc_table.entity_row_id],
             lname="",
             rname="{name}_yyyy",
+        ).select(
+            *[acc_table[c] for c in entity_cols_out],
+            acc_table["entity_row_id"],
+            *[acc_table[c] for c in carried_cols],
+            *[feature_table[c] for c in current_new_cols],
         )
 
-    # Select only the columns we want: entity columns (minus entity_row_id) + all feature columns
-    final_cols = [c for c in entity_columns if c != "entity_row_id"] + all_feature_cols
+        all_feature_cols.extend(current_new_cols)
+
+    # Select only the columns we want: entity columns (minus entity_row_id,
+    # minus any column a feature ref contributes) + all feature columns. The
+    # feature refs are already deduplicated per table; deduplicate them across
+    # tables too, so two feature views contributing the same bare feature name
+    # (full_feature_names=False) keep the first contribution instead of
+    # producing a duplicate column.
+    entity_cols_out = [
+        c
+        for c in entity_columns
+        if c != "entity_row_id" and c not in set(all_feature_cols)
+    ]
+    final_cols = entity_cols_out + list(dict.fromkeys(all_feature_cols))
     acc_table = acc_table.select(final_cols)
 
     return acc_table

@@ -187,6 +187,28 @@ class RequestDataNotFoundInEntityRowsException(FeastObjectNotFoundException):
         )
 
 
+class RequestDataOverriddenByFeatureError(FeastError):
+    """A fetched feature shares a name with an on-demand request-data input.
+
+    Raised before retrieval: the joined table is what the on-demand transform
+    reads, so serving the fetched value under the request input's name would
+    silently compute features from the wrong column.
+    """
+
+    def __init__(
+        self, conflicting_names: List[str], on_demand_feature_views: List[str]
+    ):
+        names = ", ".join(sorted(conflicting_names))
+        views = ", ".join(sorted(on_demand_feature_views))
+        super().__init__(
+            f"The following request data inputs are also fetched as features: {names}. "
+            f"On-demand feature views {views} read them as request data, so the fetched "
+            "feature value would overwrite the value supplied in the entity dataframe. "
+            "Rename the request data field, use the full feature name by setting "
+            "'full_feature_names=True', or rename the colliding feature."
+        )
+
+
 class DataSourceObjectNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:
