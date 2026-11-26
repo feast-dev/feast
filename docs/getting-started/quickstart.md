@@ -580,19 +580,11 @@ pprint(feature_vector)
 
 ### Step 8: Using a feature service to fetch online features instead.
 
-You can also use feature services to manage multiple features, and decouple feature view definitions and the 
-features needed by end applications. The feature store can also be used to fetch either online or historical 
-features using the same API below. More information can be found 
-[here](https://docs.feast.dev/getting-started/concepts/feature-retrieval).
-
-The `driver_activity_v1` feature service pulls all features from the `driver_hourly_stats` feature view:
-
-```python
-from feast import FeatureService
-driver_stats_fs = FeatureService(
-    name="driver_activity_v1", features=[driver_stats_fv]
-)
-```
+A feature service groups the features an application needs. In the local template,
+`driver_activity_v1` selects `conv_rate` from `driver_hourly_stats` and both features
+from `transformed_conv_rate`. Pass `val_to_add` and `val_to_add_2` for each driver
+so Feast can compute the two on-demand features at request time.
+See [feature retrieval](https://docs.feast.dev/getting-started/concepts/feature-retrieval) for more details.
 
 {% tabs %}
 {% tab title="Python" %}
@@ -605,9 +597,8 @@ feature_service = feature_store.get_feature_service("driver_activity_v1")
 feature_vector = feature_store.get_online_features(
     features=feature_service,
     entity_rows=[
-        # {join_key: entity_value}
-        {"driver_id": 1004},
-        {"driver_id": 1005},
+        {"driver_id": 1004, "val_to_add": 1, "val_to_add_2": 10},
+        {"driver_id": 1005, "val_to_add": 2, "val_to_add_2": 20},
     ],
 ).to_dict()
 pprint(feature_vector)
@@ -616,14 +607,12 @@ pprint(feature_vector)
 {% endtabs %}
 
 {% tabs %}
-{% tab title="Output" %}
-```bash
-{
- 'acc_rate': [0.5732735991477966, 0.7828438878059387],
- 'avg_daily_trips': [33, 984],
- 'conv_rate': [0.15498852729797363, 0.6263588070869446],
- 'driver_id': [1004, 1005]
-}
+{% tab title="Output (example)" %}
+```text
+{'conv_rate': [0.29568812251091003, 0.2832344174385071],
+ 'conv_rate_plus_val1': [1.29568812251091, 2.283234417438507],
+ 'conv_rate_plus_val2': [10.29568812251091, 20.283234417438507],
+ 'driver_id': [1004, 1005]}
 ```
 {% endtab %}
 {% endtabs %}
