@@ -189,12 +189,12 @@ memory_usage_gauge = Gauge(
 request_count = Counter(
     "feast_feature_server_request_total",
     "Total number of requests to the Feast feature server",
-    ["endpoint", "status", "status_class"],
+    ["endpoint", "status", "status_class", "feature_service"],
 )
 request_latency = Histogram(
     "feast_feature_server_request_latency_seconds",
     "Latency of requests to the Feast feature server in seconds",
-    ["endpoint", "feature_count", "feature_view_count"],
+    ["endpoint", "feature_count", "feature_view_count", "feature_service"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
 )
 
@@ -318,18 +318,29 @@ class RequestMetricsContext:
     to ``200`` and is derived from the exception when the block raises,
     so handlers only need to set it when they *return* a non-2xx
     response (e.g. a 404 or 409 ``JSONResponse``).
+
+    ``feature_service`` is the name of the feature service the request
+    was made through, or ``""`` when there is none or the label is
+    disabled via ``MetricsConfig.feature_service_label``.
     """
 
-    __slots__ = ("feature_count", "feature_view_count", "status_code")
+    __slots__ = (
+        "feature_count",
+        "feature_view_count",
+        "feature_service",
+        "status_code",
+    )
 
     def __init__(
         self,
         feature_count: str = "",
         feature_view_count: str = "",
+        feature_service: str = "",
         status_code: int = 200,
     ):
         self.feature_count = feature_count
         self.feature_view_count = feature_view_count
+        self.feature_service = feature_service
         self.status_code = status_code
 
 
@@ -358,12 +369,15 @@ def _status_class(status_code: int) -> str:
 
 @contextmanager
 def track_request_latency(
-    endpoint: str, feature_count: str = "", feature_view_count: str = ""
+    endpoint: str,
+    feature_count: str = "",
+    feature_view_count: str = "",
+    feature_service: str = "",
 ):
     """Context manager that records endpoint latency and increments request count.
 
     Yields a :class:`RequestMetricsContext` whose ``feature_count``,
-    ``feature_view_count`` and ``status_code`` attributes can be updated
+    ``feature_view_count``, ``feature_service`` and ``status_code`` attributes can be updated
     inside the block.  The final values are used when recording the
     histogram and counter in ``finally``, so labels are accurate even
     when they depend on work done inside the block.
@@ -375,7 +389,7 @@ def track_request_latency(
 
     Gated by the ``request`` category flag.
     """
-    ctx = RequestMetricsContext(feature_count, feature_view_count)
+    ctx = RequestMetricsContext(feature_count, feature_view_count, feature_service)
     if not _config.request:
         yield ctx
         return
@@ -392,11 +406,13 @@ def track_request_latency(
             endpoint=endpoint,
             feature_count=ctx.feature_count,
             feature_view_count=ctx.feature_view_count,
+            feature_service=ctx.feature_service,
         ).observe(elapsed)
         request_count.labels(
             endpoint=endpoint,
             status="success" if ctx.status_code < 400 else "error",
             status_class=_status_class(ctx.status_code),
+            feature_service=ctx.feature_service,
         ).inc()
 
 

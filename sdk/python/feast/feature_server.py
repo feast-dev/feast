@@ -665,6 +665,7 @@ def get_app(
         if metrics_cfg is not None
         else default_feature_count_bins
     )
+    feature_service_label = getattr(metrics_cfg, "feature_service_label", False)
 
     @app.post(
         "/get-online-features",
@@ -683,6 +684,8 @@ def get_app(
                 feature_count_bins,
             )
             metrics_ctx.feature_view_count = fv_count
+            if feature_service_label:
+                metrics_ctx.feature_service = request.feature_service or ""
 
             entity_count = len(next(iter(request.entities.values()), []))
             feast_metrics.track_online_features_entities(entity_count)
