@@ -235,7 +235,7 @@ def get_sorting_params(
 
 
 def validate_or_set_default_sorting_params(
-    sort_by_options: List[str] = [],
+    sort_by_options: Optional[List[str]] = None,
     default_sort_by_option: str = "",
     default_sort_order: str = "asc",
 ) -> Callable:
