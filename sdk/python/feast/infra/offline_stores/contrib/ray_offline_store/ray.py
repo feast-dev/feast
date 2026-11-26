@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import dill
 import fsspec
@@ -775,16 +775,10 @@ class RayDataProcessor:
                             ).reset_index(drop=True)
 
                 try:
+                    # Only the feature rows are deduplicated. Every entity row is
+                    # a separate request, so rows that share an entity key and a
+                    # timestamp are all kept (merge_asof matches each of them).
                     if feature_join_keys:
-                        batch_dedup_cols = [
-                            k for k in entity_join_keys if k in batch_sorted.columns
-                        ]
-                        if timestamp_field in batch_sorted.columns:
-                            batch_dedup_cols.append(timestamp_field)
-                        if batch_dedup_cols:
-                            batch_sorted = batch_sorted.drop_duplicates(
-                                subset=batch_dedup_cols, keep="last"
-                            )
                         feature_dedup_cols = [
                             k for k in feature_join_keys if k in features_sorted.columns
                         ]
@@ -1242,6 +1236,14 @@ class RayRetrievalJob(RetrievalJob):
         except Exception:
             df = self.to_df()
             return pa.Table.from_pandas(df).schema
+
+
+def _unused_column_name(column: str, existing_columns: Set[str]) -> str:
+    """Return a temporary name for a source column that collides with request data."""
+    name = f"__{column}"
+    while name in existing_columns:
+        name = f"_{name}"
+    return name
 
 
 def _make_filter_range(timestamp_field: str, start_date: datetime, end_date: datetime):
@@ -2355,6 +2357,8 @@ class RayOfflineStore(OfflineStore):
                 for k, v in mapping.items():
                     global_field_mappings[v] = k
 
+        # Request columns after any rename below, to keep internal names unused.
+        entity_columns = set(entity_df_sample.columns)
         if global_field_mappings:
             cols_to_rename = {
                 v: k
@@ -2363,7 +2367,12 @@ class RayOfflineStore(OfflineStore):
             }
             if cols_to_rename:
                 entity_ds = apply_field_mapping(entity_ds, cols_to_rename)
+                entity_columns = {
+                    cols_to_rename.get(col, col) for col in entity_df_sample.columns
+                }
 
+        # Columns that earlier feature views add to the result.
+        added_columns: Set[str] = set()
         result_ds = entity_ds
         for fv in regular_feature_views:
             fv_feature_refs = [
@@ -2498,15 +2507,39 @@ class RayOfflineStore(OfflineStore):
                 # Also map requested_feats back to logical names after forward mapping
                 requested_feats = [field_mapping.get(f, f) for f in requested_feats]
 
+            # The joins below use one timestamp column name for both sides. If
+            # the request has its own column named like the source timestamp
+            # field, join on an internal name instead, so the request's values
+            # are not used as the point-in-time cutoff.
+            join_timestamp_field = timestamp_field
             if (
                 timestamp_field != "event_timestamp"
-                and timestamp_field not in entity_df_sample.columns
+                and timestamp_field in entity_df_sample.columns
+                and "event_timestamp" in entity_df_sample.columns
+            ):
+                join_timestamp_field = _unused_column_name(
+                    timestamp_field,
+                    set(entity_df_sample.columns)
+                    | entity_columns
+                    | added_columns
+                    | set(join_keys)
+                    | set(original_join_keys)
+                    | set(requested_feats)
+                    | ({created_col} if created_col else set()),
+                )
+                feature_ds = apply_field_mapping(
+                    feature_ds, {timestamp_field: join_timestamp_field}
+                )
+
+            if (
+                join_timestamp_field != "event_timestamp"
+                and join_timestamp_field not in entity_df_sample.columns
                 and "event_timestamp" in entity_df_sample.columns
             ):
 
                 def add_timestamp_field(
                     batch: pd.DataFrame,
-                    timestamp_field: str = timestamp_field,
+                    timestamp_field: str = join_timestamp_field,
                 ) -> pd.DataFrame:
                     batch = batch.copy()
                     batch[timestamp_field] = batch["event_timestamp"]
@@ -2515,7 +2548,7 @@ class RayOfflineStore(OfflineStore):
                 result_ds = result_ds.map_batches(
                     add_timestamp_field, batch_format="pandas"
                 )
-                result_ds = normalize_timestamp_columns(result_ds, timestamp_field)
+                result_ds = normalize_timestamp_columns(result_ds, join_timestamp_field)
 
             if store._resource_manager is None:
                 raise ValueError("Resource manager not initialized")
@@ -2531,7 +2564,7 @@ class RayOfflineStore(OfflineStore):
                     )
                 feature_df = feature_ds.to_pandas()
                 feature_df = ensure_timestamp_compatibility(
-                    feature_df, [timestamp_field]
+                    feature_df, [join_timestamp_field]
                 )
 
                 if store._data_processor is None:
@@ -2540,7 +2573,7 @@ class RayOfflineStore(OfflineStore):
                     result_ds,
                     feature_df,
                     join_keys,
-                    timestamp_field,
+                    join_timestamp_field,
                     requested_feats,
                     full_feature_names,
                     fv.projection.name_to_use(),
@@ -2553,7 +2586,7 @@ class RayOfflineStore(OfflineStore):
                         f"Using distributed join for {fv.name} (size: {feature_size // 1024**2}MB)"
                     )
                 feature_ds = ensure_timestamp_compatibility(
-                    feature_ds, [timestamp_field]
+                    feature_ds, [join_timestamp_field]
                 )
 
                 if store._data_processor is None:
@@ -2562,7 +2595,7 @@ class RayOfflineStore(OfflineStore):
                     result_ds,
                     feature_ds,
                     join_keys,
-                    timestamp_field,
+                    join_timestamp_field,
                     requested_feats,
                     window_size=config.offline_store.window_size_for_joins,
                     full_feature_names=full_feature_names,
@@ -2571,6 +2604,24 @@ class RayOfflineStore(OfflineStore):
                     if fv.projection.join_key_map
                     else None,
                 )
+
+            if join_timestamp_field != timestamp_field:
+
+                def drop_join_timestamp_field(
+                    batch: pd.DataFrame,
+                    join_timestamp_field: str = join_timestamp_field,
+                ) -> pd.DataFrame:
+                    return batch.drop(columns=[join_timestamp_field], errors="ignore")
+
+                result_ds = result_ds.map_batches(
+                    drop_join_timestamp_field, batch_format="pandas"
+                )
+
+            added_columns.add(timestamp_field)
+            added_columns.update(
+                f"{fv.projection.name_to_use()}__{feat}" if full_feature_names else feat
+                for feat in requested_feats
+            )
 
         def finalize_result(batch: pd.DataFrame) -> pd.DataFrame:
             batch = batch.copy()
