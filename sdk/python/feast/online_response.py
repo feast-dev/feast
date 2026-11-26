@@ -31,6 +31,32 @@ else:
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
+# The Arrow type to_arrow() infers for a feature's values when some are present,
+# used when every value is missing so the column type does not depend on the batch.
+# UNIX_TIMESTAMP is left out: on demand transformations read to_arrow() through
+# pandas, and a NaT column converts back to a timestamp value instead of a missing one.
+_ALL_MISSING_ARROW_TYPES: Dict[Optional[ValueType], pa.DataType] = {
+    ValueType.INT32: pa.int64(),
+    ValueType.INT64: pa.int64(),
+    ValueType.FLOAT: pa.float64(),
+    ValueType.DOUBLE: pa.float64(),
+    ValueType.STRING: pa.string(),
+    ValueType.BYTES: pa.binary(),
+    ValueType.BOOL: pa.bool_(),
+    ValueType.UUID: pa.string(),
+    ValueType.TIME_UUID: pa.string(),
+    ValueType.INT32_LIST: pa.list_(pa.int64()),
+    ValueType.INT64_LIST: pa.list_(pa.int64()),
+    ValueType.FLOAT_LIST: pa.list_(pa.float64()),
+    ValueType.DOUBLE_LIST: pa.list_(pa.float64()),
+    ValueType.STRING_LIST: pa.list_(pa.string()),
+    ValueType.BYTES_LIST: pa.list_(pa.binary()),
+    ValueType.BOOL_LIST: pa.list_(pa.bool_()),
+    ValueType.UNIX_TIMESTAMP_LIST: pa.list_(pa.timestamp("us", tz="UTC")),
+    ValueType.UUID_LIST: pa.list_(pa.string()),
+    ValueType.TIME_UUID_LIST: pa.list_(pa.string()),
+}
+
 
 class OnlineResponse:
     """
@@ -104,6 +130,10 @@ class OnlineResponse:
         """
         result = self.to_dict(include_event_timestamps)
         result = _convert_uuids_for_arrow(result)
+        for name, values in result.items():
+            arrow_type = _ALL_MISSING_ARROW_TYPES.get(self._feature_types.get(name))
+            if arrow_type is not None and all(v is None for v in values):
+                result[name] = pa.nulls(len(values), type=arrow_type)
         return pa.Table.from_pydict(result)
 
     def to_tensor(
