@@ -80,7 +80,7 @@ We verify the building the wheels and Docker images in **your fork** of Feast, n
    > This is important. If you don't have a tag, then the wheels you build will be **dev wheels**, which we can't 
    > push. The release process will automatically produce a tag for you via Semantic Release.
 3. Access the `Actions` tab on your GitHub UI on your fork and click the `build_wheels` action. This workflow will 
-   build the python sdk wheels for Python 3.8-3.10 on MacOS 10.15 and Linux and verify that these wheels are correct. It will also build the Docker images.
+   build the python sdk wheels for Python 3.11-3.13 on macOS and Linux and verify that these wheels are correct. It will also build the Docker images.
    The publish workflow uses this action to publish the python wheels for a new release to PyPI.
 4. Look for the header `This workflow has a workflow_dispatch event trigger` and click `Run Workflow` on the right.
 5. Run the workflow off of the tag you just created(`v0.22.0` in this case, **not** the master branch) and verify that 

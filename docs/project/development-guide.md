@@ -91,7 +91,7 @@ See [Creating a pull request from a fork](https://docs.github.com/en/github/coll
 
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
-1. Ensure that you have Python (3.10 and above) with [uv](https://docs.astral.sh/uv/) installed.
+1. Ensure that you have Python (3.11, 3.12 or 3.13) with [uv](https://docs.astral.sh/uv/) installed.
 2. Install `pre-commit` and hooks:
 ```sh
 make install-precommit
@@ -131,7 +131,7 @@ Note that this means if you are midway through working through a PR and rebase, 
 - (Optional): [Pixi](https://pixi.sh/latest/) for recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versions.
 
 ### Quick start
-- create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version)
+- create a new virtual env: `uv venv --python 3.11` (Replace the python version with your desired version; 3.11, 3.12 and 3.13 are supported)
 - activate the venv: `source .venv/bin/activate`
 - Install dependencies `make install-python-dependencies-dev`
 

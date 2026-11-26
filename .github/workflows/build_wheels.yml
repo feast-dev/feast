@@ -135,7 +135,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest,  macos-15 ]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
         from-source: [ True, False ]
     env:
       # this script is for testing servers

@@ -458,7 +458,7 @@ If you are using `pyenv` to manage your Python versions, you can install the SQL
 PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
     LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
     CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
-    pyenv install 3.11
+    pyenv install 3.11  # any supported version (3.11, 3.12 or 3.13) works
 ```
 
 And you can the Feast install package via:

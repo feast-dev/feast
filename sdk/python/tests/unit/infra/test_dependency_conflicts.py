@@ -2,11 +2,17 @@ import logging
 import subprocess
 import sys
 
+import pytest
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
 class TestDependencyConflicts:
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 13),
+        reason="kserve 0.15.2 requires Python < 3.13",
+    )
     def test_install_kserve_with_feast(self):
         """Resolve KServe against the environment Feast is installed in.
 
