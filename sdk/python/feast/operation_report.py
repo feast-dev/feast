@@ -63,3 +63,7 @@ class StructuredOperationUnsupported(Exception):
 
 class RepositoryConfigurationMissing(click.ClickException):
     """Missing feature_store.yaml, with a stable type for machine consumers."""
+
+
+class RepositoryProjectMismatch(Exception):
+    """The repository Project and feature_store.yaml name different projects."""

@@ -958,6 +958,12 @@ def load_repo_config(repo_path: Path, fs_yaml_file: Path) -> RepoConfig:
 
     with open(config_path) as f:
         raw_config = yaml.safe_load(os.path.expandvars(f.read()))
+        if not isinstance(raw_config, dict) or any(
+            not isinstance(key, str) for key in raw_config
+        ):
+            raise FeastConfigError(
+                "Expected a YAML mapping with string keys.", config_path
+            )
         try:
             c = RepoConfig(**raw_config)
             c.repo_path = repo_path

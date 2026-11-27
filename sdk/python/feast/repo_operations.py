@@ -33,6 +33,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.operation_report import (
     OperationReport,
     RepositoryConfigurationMissing,
+    RepositoryProjectMismatch,
     StructuredOperationUnsupported,
 )
 from feast.permissions.permission import Permission
@@ -257,7 +258,7 @@ def plan(
     if report is not None:
         _check_structured_operation(repo_config)
     repo = _get_repo_contents(
-        repo_path, repo_config.project, repo_config, quiet=report is not None
+        repo_path, repo_config.project, repo_config, structured=report is not None
     )
     for project in repo.projects:
         repo_config.project = project.name
@@ -286,14 +287,14 @@ def _get_repo_contents(
     repo_path,
     project_name: Optional[str] = None,
     repo_config: Optional[RepoConfig] = None,
-    quiet: bool = False,
+    structured: bool = False,
 ):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
 
     if len(repo.projects) < 1:
         if project_name:
-            if not quiet:
+            if not structured:
                 print(
                     f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
                 )
@@ -310,6 +311,8 @@ def _get_repo_contents(
             sys.exit(1)
     elif len(repo.projects) == 1:
         if repo.projects[0].name != project_name:
+            if structured:
+                raise RepositoryProjectMismatch()
             print(
                 "Project object name should match with the project name defined in feature_store.yaml"
             )
@@ -541,7 +544,7 @@ def apply_total(
     if report is not None:
         _check_structured_operation(repo_config)
     repo = _get_repo_contents(
-        repo_path, repo_config.project, repo_config, quiet=report is not None
+        repo_path, repo_config.project, repo_config, structured=report is not None
     )
     for project in repo.projects:
         repo_config.project = project.name

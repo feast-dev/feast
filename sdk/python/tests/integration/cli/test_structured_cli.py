@@ -15,7 +15,10 @@ import pandas as pd
 import pytest
 import yaml
 
+from feast import FeatureStore, Field
 from feast.cli import cli as cli_module
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.types import Float32
 
 
 def run_cli(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -111,6 +114,67 @@ def test_local_structured_plan_apply_and_reads(tmp_path: Path) -> None:
     features = payload(run_cli(tmp_path, "--output", "json", "features", "list"))
     assert features["data"]["items"][0]["feature_name"] == "conv_rate"
     assert features["data"]["items"][0]["feature_view"] == "driver_stats"
+
+
+@pytest.mark.integration
+def test_structured_feature_views_can_describe_listed_on_demand_view(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "feature_store.yaml").write_text(
+        "project: agent_test\nregistry: data/registry.db\n"
+        "entity_key_serialization_version: 3\n"
+    )
+    store = FeatureStore(repo_path=str(tmp_path))
+
+    def double(row: dict[str, float]) -> dict[str, float]:
+        return {"doubled": row["value"] * 2}
+
+    view = OnDemandFeatureView(
+        name="derived",
+        input_schema=[Field(name="value", dtype=Float32)],
+        schema=[Field(name="doubled", dtype=Float32)],
+        mode="python",
+        udf=double,
+        udf_string='def double(row):\n    return {"doubled": row["value"] * 2}',
+    )
+    store.registry.apply_feature_view(view, store.project)
+
+    listed = payload(run_cli(tmp_path, "--output", "json", "feature-views", "list"))
+    (item,) = listed["data"]["items"]
+    assert item["type"] == "OnDemandFeatureView"
+    described = payload(
+        run_cli(tmp_path, "--output", "yaml", "feature-views", "describe", item["name"])
+    )
+    assert item == described["data"]
+    missing = run_cli(
+        tmp_path, "--output", "json", "feature-views", "describe", "missing"
+    )
+    assert missing.returncode == 1
+    assert json.loads(missing.stdout)["error"]["code"] == "NOT_FOUND"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("command", ["plan", "apply"])
+def test_project_mismatch_returns_safe_configuration_error(
+    tmp_path: Path, command: str
+) -> None:
+    (tmp_path / "feature_store.yaml").write_text(
+        "project: agent_test\nprovider: local\nregistry: data/registry.db\n"
+        "online_store:\n  type: sqlite\n  path: data/online.db\n"
+        "entity_key_serialization_version: 3\n"
+    )
+    (tmp_path / "definitions.py").write_text(
+        "from feast import Project\nproject = Project(name='private_project')\n"
+    )
+
+    result = run_cli(tmp_path, "--output", "json", command)
+
+    assert result.returncode == 1, (result.stdout, result.stderr)
+    error = json.loads(result.stdout)["error"]
+    assert error["code"] == "CONFIGURATION_ERROR"
+    assert "names match" in error["hint"]
+    assert "feature_store.yaml" in error["hint"]
+    assert "private_project" not in result.stdout
 
 
 @pytest.mark.integration

@@ -21,7 +21,6 @@ from typing import (
     Set,
     Tuple,
     Union,
-    cast,
 )
 
 import pandas as pd
@@ -1979,22 +1978,25 @@ def has_all_tags(
 
 
 def tags_list_to_dict(
-    tags_list: Optional[list[str]] = None,
+    tags_list: Optional[Sequence[str]] = None, *, strict: bool = False
 ) -> Optional[dict[str, str]]:
     if not tags_list:
         return None
     tags_dict: dict[str, str] = {}
     for tags_str in tags_list:
-        tags_dict.update(tags_str_to_dict(tags_str))
+        tags_dict.update(tags_str_to_dict(tags_str, strict=strict))
     return tags_dict
 
 
-def tags_str_to_dict(tags: str = "") -> dict[str, str]:
+def tags_str_to_dict(tags: str = "", *, strict: bool = False) -> dict[str, str]:
     tags_list = tags.strip().strip("()").replace('"', "").replace("'", "").split(",")
+    pairs = [tag.partition(":") for tag in tags_list]
+    if strict and any(not separator or not key.strip() for key, separator, _ in pairs):
+        raise ValueError("Tags must use key:value syntax with a non-empty key.")
     return {
         key.strip(): value.strip()
         for key, value in dict(
-            cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
+            (key, value) for key, separator, value in pairs if separator
         ).items()
     }
 

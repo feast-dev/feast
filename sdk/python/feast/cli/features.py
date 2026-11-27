@@ -172,20 +172,21 @@ def get_online_features(ctx: click.Context, entities: List[str], features: List[
 @click.pass_context
 def get_historical_features(
     ctx: click.Context,
-    dataframe: str,
+    dataframe: str | None,
     features: List[str],
-    start_date: str,
-    end_date: str,
-):
+    start_date: str | None,
+    end_date: str | None,
+) -> None:
     """
     Fetch historical feature values for a given entity ID
     """
-    if not dataframe and not start_date and not end_date:
+    has_date_range = start_date is not None or end_date is not None
+    if dataframe is None and not has_date_range:
         raise click.UsageError(
             "Either --dataframe or --start-date and/or --end-date must be provided."
         )
 
-    if dataframe and (start_date or end_date):
+    if dataframe is not None and has_date_range:
         raise click.UsageError(
             "Cannot specify both --dataframe and --start-date/--end-date."
         )
@@ -193,27 +194,41 @@ def get_historical_features(
         raise click.UsageError("At least one --features value is required.")
 
     entity_df = None
-    if dataframe:
+    if dataframe is not None:
         try:
             entity_list = json.loads(dataframe)
             if not isinstance(entity_list, list):
                 raise ValueError("Entities must be a list of dictionaries.")
 
             entity_df = pd.DataFrame(entity_list)
-            entity_df["event_timestamp"] = pd.to_datetime(entity_df["event_timestamp"])
+            timestamps = pd.to_datetime(entity_df["event_timestamp"])
+            if timestamps.isna().any():
+                raise ValueError("Each entity row needs an event_timestamp.")
+            entity_df["event_timestamp"] = timestamps
 
         except (ValueError, TypeError, KeyError) as e:
             raise click.UsageError("Invalid entities JSON or event_timestamp.") from e
 
     try:
         parsed_start = (
-            datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S") if start_date else None
+            datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+            if start_date is not None
+            else None
         )
         parsed_end = (
-            datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S") if end_date else None
+            datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+            if end_date is not None
+            else None
         )
     except ValueError as e:
         raise click.UsageError("Dates must use YYYY-MM-DD HH:MM:SS format.") from e
+    if (
+        parsed_start is not None
+        and parsed_end is not None
+        and parsed_start > parsed_end
+    ):
+        raise click.UsageError("--start-date must be on or before --end-date.")
+
     store = create_feature_store(ctx)
     feature_vector = store.get_historical_features(
         entity_df=entity_df,

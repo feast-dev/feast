@@ -14,7 +14,10 @@ import click
 import yaml
 
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
-from feast.operation_report import RepositoryConfigurationMissing
+from feast.operation_report import (
+    RepositoryConfigurationMissing,
+    RepositoryProjectMismatch,
+)
 from feast.repo_config import FeastConfigError
 
 
@@ -149,13 +152,23 @@ def error_response(
             "The requested object was not found.",
             "List objects in the configured project and verify the name.",
         )
-    elif isinstance(
-        error, (RepositoryConfigurationMissing, FeastConfigError, yaml.YAMLError)
-    ):
+    elif isinstance(error, RepositoryConfigurationMissing):
         code, message, hint = (
             "CONFIGURATION_ERROR",
-            "The feature repository configuration is missing or invalid.",
+            "The feature repository configuration is missing.",
             "Use --chdir or --feature-store-yaml to select a valid initialized repository.",
+        )
+    elif isinstance(error, (FeastConfigError, yaml.YAMLError)):
+        code, message, hint = (
+            "CONFIGURATION_ERROR",
+            "The feature repository configuration is invalid.",
+            "Ensure feature_store.yaml contains a YAML mapping with valid Feast settings.",
+        )
+    elif isinstance(error, RepositoryProjectMismatch):
+        code, message, hint = (
+            "CONFIGURATION_ERROR",
+            "The repository Project name differs from the configured project.",
+            "Update the repository Project or feature_store.yaml so the names match.",
         )
     elif isinstance(error, (click.Abort, KeyboardInterrupt)):
         code, message, hint = (

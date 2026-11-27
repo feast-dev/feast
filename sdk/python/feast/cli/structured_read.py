@@ -10,8 +10,12 @@ from typing import Any
 import click
 
 from feast import utils
-from feast.errors import FeastObjectNotFoundException
+from feast.cli.output import StructuredError
+from feast.errors import FeastObjectNotFoundException, FeatureViewNotFoundException
+from feast.feature_view import DUMMY_ENTITY_NAME, FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_operations import create_feature_store
+from feast.stream_feature_view import StreamFeatureView
 
 
 def describe_object(obj: Any) -> dict[str, Any]:
@@ -52,8 +56,17 @@ def describe_object(obj: Any) -> dict[str, Any]:
 
 
 def read_command(path: str, ctx: click.Context, **params: Any) -> Any:
-    store = create_feature_store(ctx)
     resource, action = path.split()
+    try:
+        tags = utils.tags_list_to_dict(params.get("tags"), strict=True)
+    except ValueError as error:
+        raise StructuredError(
+            "INVALID_ARGUMENT",
+            "Invalid tag filter.",
+            "Use --tags key:value for each filter, with a non-empty key.",
+            exit_code=2,
+        ) from error
+    store = create_feature_store(ctx)
     if resource == "features":
         views = [
             *store.list_batch_feature_views(),
@@ -84,8 +97,20 @@ def read_command(path: str, ctx: click.Context, **params: Any) -> Any:
         "data-sources": "data_source",
     }[resource]
     if action == "describe":
-        return describe_object(getattr(store, f"get_{singular}")(params["name"]))
-    tags = utils.tags_list_to_dict(params.get("tags", ()))
+        name = params["name"]
+        if resource == "feature-views":
+            view = store.registry.get_any_feature_view(name, store.project)
+            if isinstance(view, StreamFeatureView) or not isinstance(
+                view, (FeatureView, OnDemandFeatureView)
+            ):
+                raise FeatureViewNotFoundException(name, store.project)
+            description = describe_object(view)
+            if isinstance(view, FeatureView) and view.entities[:1] == [
+                DUMMY_ENTITY_NAME
+            ]:
+                description["entities"] = []
+            return description
+        return describe_object(getattr(store, f"get_{singular}")(name))
     if resource == "feature-views":
         objects = [
             *store.list_batch_feature_views(tags=tags),

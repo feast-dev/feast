@@ -53,6 +53,10 @@ def test_discovery_without_store(tmp_path: Path) -> None:
     paths = [entry["command"] for entry in entries]
     assert "feast entities describe" in paths
     assert "feast dbt import" in paths
+    mcp = next(entry for entry in entries if entry["command"] == "feast mcp")
+    assert mcp["capabilities"]["effect"] == "server"
+    assert mcp["capabilities"]["structured_output"] is False
+    assert mcp["capabilities"]["requires_repository"] is False
     if "feast mlflow sync-dataset" in paths:
         sync = next(
             entry
@@ -104,6 +108,27 @@ def test_unsupported_commands_do_not_execute(args: list[str]) -> None:
     assert json.loads(result.output)["error"]["code"] == "UNSUPPORTED_OUTPUT"
     load.assert_not_called()
     init.assert_not_called()
+
+
+def test_structured_mcp_is_rejected_before_invoking_delegate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callback = Mock()
+    delegate = click.Command("mcp", callback=callback)
+    monkeypatch.setattr(cli.commands["mcp"], "_delegate", delegate)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--output", "json", "mcp"])
+
+    assert result.exit_code == 2, result.output
+    payload = json.loads(result.output)
+    assert payload["command"] == "feast mcp"
+    assert payload["error"]["code"] == "UNSUPPORTED_OUTPUT"
+    callback.assert_not_called()
+
+    legacy = runner.invoke(cli, ["mcp"])
+    assert legacy.exit_code == 0, legacy.output
+    callback.assert_called_once_with()
 
 
 def test_missing_configuration(tmp_path: Path) -> None:
@@ -198,6 +223,30 @@ def test_structured_features_and_precedence() -> None:
         ["get-historical-features"],
         ["get-historical-features", "--dataframe", "invalid", "-f", "v:f"],
         ["get-historical-features", "--start-date", "invalid", "-f", "v:f"],
+        [
+            "get-historical-features",
+            "--dataframe",
+            '[{"driver_id": 1, "event_timestamp": null}]',
+            "-f",
+            "v:f",
+        ],
+        [
+            "get-historical-features",
+            "--dataframe",
+            '[{"driver_id": 1, "event_timestamp": "2026-01-01"},'
+            '{"driver_id": 2, "event_timestamp": ""}]',
+            "-f",
+            "v:f",
+        ],
+        [
+            "get-historical-features",
+            "--start-date",
+            "2026-01-02 00:00:00",
+            "--end-date",
+            "2026-01-01 00:00:00",
+            "-f",
+            "v:f",
+        ],
     ],
 )
 def test_invalid_input_fails_before_store_creation(args: list[str]) -> None:
@@ -341,6 +390,7 @@ def test_pilot_commands_with_real_objects(
         getattr(store, f"list_{plural}").return_value = [value]
     store.list_batch_feature_views.return_value = [view]
     store.list_on_demand_feature_views.return_value = []
+    store.registry.get_any_feature_view.return_value = view
     args = ["--output", output, resource, action]
     if action == "describe":
         args.append(obj.name)
@@ -428,21 +478,56 @@ def test_tags_and_ordering() -> None:
     store.list_entities.return_value = [first, second]
     with patch("feast.cli.structured_read.create_feature_store", return_value=store):
         result = CliRunner().invoke(
-            cli, ["--output", "json", "entities", "list", "--tags", "team:ml"]
+            cli,
+            [
+                "--output",
+                "json",
+                "entities",
+                "list",
+                "--tags",
+                "team:ml, env:prod",
+                "--tags",
+                "source:team:driver",
+            ],
         )
     assert result.exit_code == 0, result.output
-    store.list_entities.assert_called_once_with(tags={"team": "ml"})
+    store.list_entities.assert_called_once_with(
+        tags={"team": "ml", "env": "prod", "source": "team:driver"}
+    )
     assert [item["name"] for item in json.loads(result.output)["data"]["items"]] == [
         "alpha",
         "driver",
     ]
 
 
-def test_invalid_yaml_is_safe(tmp_path: Path) -> None:
-    (tmp_path / "feature_store.yaml").write_text("project: [password=secret")
+@pytest.mark.parametrize("tag_filter", ["env=secret", "env:prod,secret", ":secret", ""])
+def test_invalid_structured_tag_filters_fail_before_registry_reads(
+    tag_filter: str,
+) -> None:
+    with patch("feast.cli.structured_read.create_feature_store") as create:
+        result = CliRunner().invoke(
+            cli, ["--output", "json", "entities", "list", "--tags", tag_filter]
+        )
+
+    assert result.exit_code == 2, result.output
+    error = json.loads(result.output)["error"]
+    assert error["code"] == "INVALID_ARGUMENT"
+    assert "--tags key:value" in error["hint"]
+    assert "secret" not in result.output
+    create.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "config", ["", "- password=secret", "project: [password=secret"]
+)
+def test_invalid_yaml_is_safe(tmp_path: Path, config: str) -> None:
+    (tmp_path / "feature_store.yaml").write_text(config)
     result = CliRunner().invoke(
         cli, ["--output", "json", "-c", str(tmp_path), "entities", "list"]
     )
+
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error"]["code"] == "CONFIGURATION_ERROR"
+    error = json.loads(result.output)["error"]
+    assert error["code"] == "CONFIGURATION_ERROR"
+    assert "YAML mapping" in error["hint"]
     assert "secret" not in result.output

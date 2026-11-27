@@ -67,6 +67,7 @@ outside the explicit P1 allowlist receives structured execution implicitly.
 | `dbt list`, `dbt import` | Human output; import `--output` names a file | Manifest inspection; import can register or generate files; existing dry-run | P2 |
 | `mlflow list-sources`, `preview-dataset`, `validate-source`, `sync-dataset` (when installed) | Human output; provider-specific error reporting | Metadata inspection, external dataset reads, validation, or sync writes | P2 |
 | `serve`, `serve_registry`, `serve_offline`, `serve_transformations`, `serve_lineage`, `listen`, `ui` | Long-running server/log output | Server lifecycle, not a finite result | P2 lifecycle design |
+| `mcp` | MCP protocol and server logs | Starts a server using configured Feast endpoints | P0 discovery only |
 
 P0 reproductions include swapped feature/view names in the existing JSON list and
 exit 0 for malformed online entity arguments and missing historical inputs. P0

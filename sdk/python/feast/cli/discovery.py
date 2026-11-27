@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import wraps
 from importlib.metadata import version
-from typing import Any
+from typing import Any, Callable
 
 import click
 
@@ -46,6 +46,7 @@ SERVER_COMMANDS = {
     "serve_lineage",
     "listen",
     "ui",
+    "mcp",
 }
 OTHER_READ_COMMANDS = {
     "configuration",
@@ -93,7 +94,8 @@ def capabilities(path: str) -> dict[str, Any]:
         "output_formats": ["json", "yaml"] if path in SUPPORTED_COMMANDS else [],
         "effect": effect,
         "may_delete_resources": path in DESTRUCTIVE_COMMANDS | {"apply", "dbt import"},
-        "requires_repository": path not in {"commands", "version", "init", "dbt list"},
+        "requires_repository": path
+        not in {"commands", "version", "init", "dbt list", "mcp"},
         "confirmation": "--yes"
         if path == "projects delete"
         else ("template-dependent" if path == "init" else "none"),
@@ -142,7 +144,7 @@ def command_inventory(root: click.Group) -> dict[str, Any]:
                 {
                     "command": f"feast {path}",
                     "group": is_group,
-                    "help": command.help or "",
+                    "help": command.help or command.short_help or "",
                     "parameters": [parameter_info(param) for param in command.params],
                     "capabilities": None if is_group else capabilities(path),
                 }
@@ -158,7 +160,7 @@ def command_inventory(root: click.Group) -> dict[str, Any]:
 
 
 def install_dispatch(root: click.Group) -> None:
-    """Wrap leaf callbacks once; parsing and legacy callbacks remain Click-owned."""
+    """Guard leaf invocations, including commands that delegate their callback."""
 
     def visit(group: click.Group, prefix: str = "") -> None:
         for name, command in group.commands.items():
@@ -166,8 +168,8 @@ def install_dispatch(root: click.Group) -> None:
             path = f"{prefix} {name}".strip()
             if isinstance(command, click.Group):
                 visit(command, path)
-            elif command.callback is not None:
-                command.callback = wrap(command.callback, path)
+            else:
+                setattr(command, "invoke", wrap_invoke(command.invoke, path))
 
     def wrap_help(get_help: Any) -> Any:
         def help_text(ctx: click.Context) -> str:
@@ -179,12 +181,14 @@ def install_dispatch(root: click.Group) -> None:
 
         return help_text
 
-    def wrap(callback: Any, path: str) -> Any:
-        @wraps(callback)
-        def dispatch(*args: Any, **kwargs: Any) -> Any:
+    def wrap_invoke(
+        invoke: Callable[[click.Context], Any], path: str
+    ) -> Callable[[click.Context], Any]:
+        @wraps(invoke)
+        def dispatch(ctx: click.Context) -> Any:
             state = invocation.get()
             if state is None:
-                return callback(*args, **kwargs)
+                return invoke(ctx)
             state.command = f"feast {path}"
             if path not in SUPPORTED_COMMANDS:
                 raise StructuredError(
@@ -196,13 +200,13 @@ def install_dispatch(root: click.Group) -> None:
             if path in READ_COMMANDS:
                 from feast.cli.structured_read import read_command
 
-                state.data = read_command(path, click.get_current_context(), **kwargs)
+                state.data = read_command(path, ctx, **ctx.params)
             elif path == "commands":
                 state.data = command_inventory(root)
             elif path == "version":
                 state.data = {"version": version("feast")}
             else:
-                callback(*args, **kwargs)
+                invoke(ctx)
             return state.data
 
         return dispatch
