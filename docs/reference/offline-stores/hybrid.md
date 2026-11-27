@@ -36,35 +36,41 @@ offline_store:
 
 ### Example FeatureView 
 ```python
-from feast import FeatureView, Entity, ValueType
+from feast import Entity, FeatureView, Field, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.types import Float32
 
 
 entity = Entity(name="user_id", value_type=ValueType.INT64, join_keys=["user_id"])
 feature_view1 = FeatureView(
     name="user_features",
-    entities=["user_id"],
+    entities=[entity],
     ttl=None,
-    features=[
-        # Define your features here
+    schema=[
+        Field(name="total_spend", dtype=Float32),
     ],
     source=SparkSource(
+        name="user_features_source",
         path="s3://my-bucket/user_features_data",
+        file_format="parquet",
+        timestamp_field="event_timestamp",
     ),
 )
 
 feature_view2 = FeatureView(
     name="user_activity",
-    entities=["user_id"],
+    entities=[entity],
     ttl=None,
-    features=[
-        # Define your features here
+    schema=[
+        Field(name="login_count", dtype=Float32),
     ],
     source=SnowflakeSource(
-        path="s3://my-bucket/user_activity_data",
+        name="user_activity_source",
+        table="user_activity_data",
+        timestamp_field="event_timestamp",
     ),
 )
 
