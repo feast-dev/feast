@@ -99,7 +99,7 @@ def ui_app_without_registry(mock_feature_store):
 
 
 def test_ui_server_health_endpoint(ui_app_with_registry):
-    """Health endpoint returns 200 when registry is available."""
+    """Liveness /health returns 200 when the store is loaded."""
     client = TestClient(ui_app_with_registry)
     response = client.get("/health")
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
@@ -117,20 +117,22 @@ def test_ui_server_exposes_version_under_rest_api(ui_app_with_registry):
 
 
 def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):
-    """Health endpoint returns 503 when registry is unavailable."""
+    """Liveness stays 200; /health/ready returns 503 when registry is down."""
     client = TestClient(ui_app_without_registry)
     response = client.get("/health")
-    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    ready = client.get("/health/ready")
+    assertpy.assert_that(ready.status_code).is_equal_to(EXPECTED_ERROR_STATUS)
 
 
 @pytest.mark.parametrize(
     "registry_available,expected_status",
     [(True, EXPECTED_SUCCESS_STATUS), (False, EXPECTED_ERROR_STATUS)],
 )
-def test_health_endpoint_status(
+def test_health_ready_endpoint_status(
     registry_available, expected_status, mock_feature_store
 ):
-    """Health endpoint returns correct status based on registry availability."""
+    """/health/ready reflects registry availability via list_projects."""
     mock_registry = MagicMock()
     if registry_available:
         mock_registry.list_projects.return_value = []
@@ -144,7 +146,9 @@ def test_health_endpoint_status(
         with _setup_importlib_mocks(temp_dir):
             app = get_app(mock_feature_store, TEST_PROJECT_NAME)
             client = TestClient(app)
-            response = client.get("/health")
+            live = client.get("/health")
+            assertpy.assert_that(live.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+            response = client.get("/health/ready")
             assertpy.assert_that(response.status_code).is_equal_to(expected_status)
 
 

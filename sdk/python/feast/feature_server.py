@@ -527,7 +527,8 @@ def get_app(
     - `/v1/vector_stores/{vector_store_id}/search`: OpenAI-compatible vector search
     - `/push`: Push features to the feature store
     - `/write-to-online-store`: Write to the online store
-    - `/health`: Health check
+    - `/health`: Liveness check (process up; no registry I/O)
+    - `/health/ready`: Readiness check (registry reachable via list_projects)
     - `/materialize`: Materialize features
     - `/materialize-incremental`: Materialize features incrementally
     - `/chat`: Chat UI
@@ -603,8 +604,22 @@ def get_app(
         if shutting_down:
             return
 
-        store.refresh_registry()
-        vs_registry.refresh()
+        # Soft-fail: a remote registry blip must not prevent the online
+        # server from binding (and answering kubelet probes).
+        try:
+            store.refresh_registry()
+        except Exception:
+            logger.warning(
+                "Failed to refresh feature registry during server startup/TTL cycle",
+                exc_info=True,
+            )
+        try:
+            vs_registry.refresh()
+        except Exception:
+            logger.warning(
+                "Failed to refresh vector store registry during server startup/TTL cycle",
+                exc_info=True,
+            )
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -1002,6 +1017,15 @@ def get_app(
 
     @app.get("/health")
     async def health():
+        # Keep kubelet probes cheap: do not call the registry here.
+        # Remote-registry FeatureStores otherwise fail readiness while
+        # list_projects() is slow or blocked (e.g. registry handler errors).
+        if store is not None:
+            return Response(status_code=status.HTTP_200_OK)
+        return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @app.get("/health/ready")
+    async def health_ready():
         try:
             store.registry.list_projects(allow_cache=True)
             return Response(status_code=status.HTTP_200_OK)

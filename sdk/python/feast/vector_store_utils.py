@@ -1,8 +1,11 @@
 import hashlib
+import logging
 from typing import Any, Dict, List, Optional
 
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_view import FeatureView
+
+logger = logging.getLogger(__name__)
 
 
 def feature_view_to_vs_id(project: str, feature_view_name: str) -> str:
@@ -30,6 +33,8 @@ class VectorStoreRegistry:
     """Cached mapping from vs_{hash} IDs to FeatureViews.
 
     Built once at server startup, refreshed on registry TTL cycle.
+    Registry I/O failures are logged and ignored so the feature server can
+    still start (e.g. remote registry briefly unavailable).
     """
 
     def __init__(self, store: Any):
@@ -39,16 +44,23 @@ class VectorStoreRegistry:
         self.refresh()
 
     def refresh(self) -> None:
-        project = self._store.project
-        id_to_fv: Dict[str, FeatureView] = {}
-        objects: List[Dict[str, Any]] = []
-        for fv in self._store.list_feature_views():
-            if _has_vector_index(fv):
-                vs_id = feature_view_to_vs_id(project, fv.name)
-                id_to_fv[vs_id] = fv
-                objects.append(build_vector_store_object(project, fv))
-        self._id_to_fv = id_to_fv
-        self._vector_store_objects = objects
+        try:
+            project = self._store.project
+            id_to_fv: Dict[str, FeatureView] = {}
+            objects: List[Dict[str, Any]] = []
+            for fv in self._store.list_feature_views():
+                if _has_vector_index(fv):
+                    vs_id = feature_view_to_vs_id(project, fv.name)
+                    id_to_fv[vs_id] = fv
+                    objects.append(build_vector_store_object(project, fv))
+            self._id_to_fv = id_to_fv
+            self._vector_store_objects = objects
+        except Exception:
+            logger.warning(
+                "Failed to refresh vector store registry cache; "
+                "keeping previous cache (empty if first load)",
+                exc_info=True,
+            )
 
     def resolve(self, vs_id: str) -> FeatureView:
         fv = self._id_to_fv.get(vs_id)

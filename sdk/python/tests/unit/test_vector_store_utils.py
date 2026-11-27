@@ -121,3 +121,19 @@ class TestVectorStoreRegistry:
         store.list_feature_views.return_value = [fv1, fv2]
         registry.refresh()
         assert len(registry.list_vector_stores()) == 2
+
+    def test_init_soft_fails_when_registry_unavailable(self):
+        store = self._mock_store([])
+        store.list_feature_views.side_effect = RuntimeError("registry unavailable")
+        registry = VectorStoreRegistry(store)
+        assert registry.list_vector_stores() == []
+
+    def test_refresh_keeps_previous_cache_on_failure(self):
+        fv = _make_fv("embeddings")
+        store = self._mock_store([fv])
+        registry = VectorStoreRegistry(store)
+        assert len(registry.list_vector_stores()) == 1
+
+        store.list_feature_views.side_effect = RuntimeError("registry unavailable")
+        registry.refresh()
+        assert len(registry.list_vector_stores()) == 1
