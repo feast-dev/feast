@@ -179,6 +179,10 @@ message FeatureViewMeta {
 
     // Lifecycle state of this feature view.
     FeatureViewState state = 6;
+
+    // Definition accepted by the last version pin, kept when it differs from
+    // the restored version so that applying the same pin again is not an edit.
+    FeatureViewSpec accepted_pin_declaration = 7;
 }
 
 message MaterializationInterval {

@@ -309,6 +309,7 @@ class FeatureViewMeta(google.protobuf.message.Message):
     CURRENT_VERSION_NUMBER_FIELD_NUMBER: builtins.int
     VERSION_ID_FIELD_NUMBER: builtins.int
     STATE_FIELD_NUMBER: builtins.int
+    ACCEPTED_PIN_DECLARATION_FIELD_NUMBER: builtins.int
     @property
     def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp:
         """Time where this Feature View is created"""
@@ -324,6 +325,11 @@ class FeatureViewMeta(google.protobuf.message.Message):
     """Auto-generated UUID identifying this specific version."""
     state: global___FeatureViewState.ValueType
     """Lifecycle state of this feature view."""
+    @property
+    def accepted_pin_declaration(self) -> global___FeatureViewSpec:
+        """Definition accepted by the last version pin, kept when it differs from
+        the restored version so that applying the same pin again is not an edit.
+        """
     def __init__(
         self,
         *,
@@ -333,9 +339,10 @@ class FeatureViewMeta(google.protobuf.message.Message):
         current_version_number: builtins.int = ...,
         version_id: builtins.str = ...,
         state: global___FeatureViewState.ValueType = ...,
+        accepted_pin_declaration: global___FeatureViewSpec | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "state", b"state", "version_id", b"version_id"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["accepted_pin_declaration", b"accepted_pin_declaration", "created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["accepted_pin_declaration", b"accepted_pin_declaration", "created_timestamp", b"created_timestamp", "current_version_number", b"current_version_number", "last_updated_timestamp", b"last_updated_timestamp", "materialization_intervals", b"materialization_intervals", "state", b"state", "version_id", b"version_id"]) -> None: ...
 
 global___FeatureViewMeta = FeatureViewMeta
 

@@ -52,7 +52,11 @@ from feast.errors import (
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
-from feast.feature_view import FeatureView
+from feast.feature_view import (
+    FeatureView,
+    _keep_pin_declaration,
+    _repeats_accepted_pin,
+)
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
 from feast.labeling.label_view import LabelView
@@ -893,7 +897,13 @@ class SqlRegistry(CachingRegistry):
                         user_fv_copy.materialization_intervals = (
                             active_fv.materialization_intervals
                         )
-                    if user_fv_copy != active_fv:
+                    if isinstance(active_fv, FeatureView):
+                        user_fv_copy._accepted_pin_declaration = (
+                            active_fv._accepted_pin_declaration
+                        )
+                    if user_fv_copy != active_fv and not _repeats_accepted_pin(
+                        feature_view, active_fv
+                    ):
                         raise FeatureViewPinConflict(
                             feature_view.name, version_tag(pin_version)
                         )
@@ -906,6 +916,7 @@ class SqlRegistry(CachingRegistry):
                 restored_fv = python_class.from_proto(snap_proto)
                 restored_fv.version = feature_view.version
                 restored_fv.current_version_number = pin_version
+                _keep_pin_declaration(feature_view, restored_fv)
                 return self._apply_object(
                     fv_table,
                     project,

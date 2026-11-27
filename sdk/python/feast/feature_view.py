@@ -164,6 +164,8 @@ class FeatureView(BaseFeatureView):
     enabled: bool
     state: FeatureViewState
     _raw_feature_transformation_proto: Optional[Message] = None
+    # Set by the registries on a version pin; see _keep_pin_declaration.
+    _accepted_pin_declaration: Optional[FeatureViewSpecProto] = None
 
     def __init__(
         self,
@@ -420,6 +422,7 @@ class FeatureView(BaseFeatureView):
             or sorted(self.entity_columns) != sorted(other.entity_columns)
             or self.source_views != other.source_views
             or self.materialization_intervals != other.materialization_intervals
+            or self._accepted_pin_declaration != other._accepted_pin_declaration
             or self.enable_validation != other.enable_validation
             or normalize_version_string(self.version)
             != normalize_version_string(other.version)
@@ -593,6 +596,8 @@ class FeatureView(BaseFeatureView):
             meta.current_version_number = self.current_version_number
         if self.state != FeatureViewState.STATE_UNSPECIFIED:
             meta.state = self.state.to_proto()
+        if self._accepted_pin_declaration is not None:
+            meta.accepted_pin_declaration.CopyFrom(self._accepted_pin_declaration)
         return meta
 
     def get_ttl_duration(self):
@@ -816,6 +821,12 @@ class FeatureView(BaseFeatureView):
                 )
             )
 
+        if feature_view_proto.meta.HasField("accepted_pin_declaration"):
+            feature_view._accepted_pin_declaration = FeatureViewSpecProto()
+            feature_view._accepted_pin_declaration.CopyFrom(
+                feature_view_proto.meta.accepted_pin_declaration
+            )
+
         seen[feature_view_name] = feature_view
         return feature_view
 
@@ -830,3 +841,52 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+
+def _same_pin_definition(declared: BaseFeatureView, target: FeatureView) -> bool:
+    """Compare a pin declaration with a registered view, ignoring registry state.
+
+    The timestamps, version number, materialization intervals and kept pin
+    declaration are set by the registry, so they are taken from ``target``.
+    """
+    candidate = declared.__copy__()
+    candidate.created_timestamp = target.created_timestamp
+    candidate.last_updated_timestamp = target.last_updated_timestamp
+    candidate.current_version_number = target.current_version_number
+    if isinstance(candidate, FeatureView):
+        candidate.materialization_intervals = target.materialization_intervals
+        candidate._accepted_pin_declaration = target._accepted_pin_declaration
+    return candidate == target
+
+
+def _repeats_accepted_pin(declared: BaseFeatureView, active: BaseFeatureView) -> bool:
+    """Whether ``declared`` repeats the pin that restored ``active``.
+
+    A pin replaces the active view with the restored version, so the next apply
+    of the same declaration no longer matches the active view.
+    """
+    accepted = getattr(active, "_accepted_pin_declaration", None)
+    if accepted is None or not isinstance(active, FeatureView):
+        return False
+    accepted_view = type(active).from_proto(FeatureViewProto(spec=accepted))
+    return _same_pin_definition(declared, accepted_view)
+
+
+def _keep_pin_declaration(declared: BaseFeatureView, restored: BaseFeatureView) -> None:
+    """Keep an accepted pin declaration with the ``restored`` view it activates."""
+    from feast.stream_feature_view import StreamFeatureView
+
+    # Stream feature views have their own spec message.
+    if (
+        not isinstance(declared, FeatureView)
+        or not isinstance(restored, FeatureView)
+        or isinstance(declared, StreamFeatureView)
+        or isinstance(restored, StreamFeatureView)
+    ):
+        return
+    if _same_pin_definition(declared, restored):
+        # A declaration equal to the restored version needs nothing kept. A view
+        # loaded from the registry, as for a state update, keeps its own.
+        restored._accepted_pin_declaration = declared._accepted_pin_declaration
+    else:
+        restored._accepted_pin_declaration = declared.to_proto().spec
