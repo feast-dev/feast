@@ -861,6 +861,13 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
 
     @app.get("/health")
     def health():
+        # Liveness only — avoid registry I/O on kubelet probes.
+        if store is not None:
+            return Response(status_code=status.HTTP_200_OK)
+        return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @app.get("/health/ready")
+    def health_ready():
         try:
             store.registry.list_projects(allow_cache=True)
             return Response(status_code=status.HTTP_200_OK)
